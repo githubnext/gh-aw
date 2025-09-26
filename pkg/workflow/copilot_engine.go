@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,6 +13,22 @@ const logsFolder = tempFolder + "logs/"
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
 	BaseEngine
+}
+
+// CopilotMCPConfig represents the top-level MCP configuration for Copilot CLI
+type CopilotMCPConfig struct {
+	MCPServers map[string]CopilotMCPServer `json:"mcpServers"`
+}
+
+// CopilotMCPServer represents a single MCP server configuration for Copilot CLI
+type CopilotMCPServer struct {
+	Type    string                 `json:"type"`
+	Command string                 `json:"command,omitempty"`
+	Args    []string               `json:"args,omitempty"`
+	Env     map[string]interface{} `json:"env,omitempty"`
+	URL     string                 `json:"url,omitempty"`
+	Headers map[string]string      `json:"headers,omitempty"`
+	Tools   []string               `json:"tools,omitempty"`
 }
 
 func NewCopilotEngine() *CopilotEngine {
@@ -198,135 +215,134 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/.copilot/mcp-config.json << 'EOF'\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
+	// Build the MCP configuration structure
+	config := CopilotMCPConfig{
+		MCPServers: make(map[string]CopilotMCPServer),
+	}
 
-	// Add safe-outputs MCP server if safe-outputs are configured
-	totalServers := len(mcpTools)
-	serverCount := 0
-
-	// Generate configuration for each MCP tool using shared logic
+	// Generate configuration for each MCP tool
 	for _, toolName := range mcpTools {
-		serverCount++
-		isLast := serverCount == totalServers
+		var server CopilotMCPServer
+		var serverName string
+		var err error
 
 		switch toolName {
 		case "github":
-			githubTool := tools["github"]
-			e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
+			// GitHub MCP is built-in to Copilot CLI, so skip adding it to configuration
+			continue
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
+			server = e.buildPlaywrightCopilotMCPServer(playwrightTool, workflowData.NetworkPermissions)
+			serverName = toolName
 		case "cache-memory":
-			e.renderCacheMemoryCopilotMCPConfig(yaml, isLast, workflowData)
+			// Cache-memory is handled as a simple file share, not an MCP server
+			// Skip adding it to the MCP configuration since no server is needed
+			continue
 		case "safe-outputs":
-			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
+			server = e.buildSafeOutputsCopilotMCPServer()
+			serverName = "safe_outputs"
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
 				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderCopilotMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
+					server, err = e.buildCopilotMCPServer(toolName, toolConfig)
+					if err != nil {
 						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
+						continue
 					}
+					serverName = toolName
 				}
 			}
 		}
+
+		config.MCPServers[serverName] = server
 	}
 
-	yaml.WriteString("            }\n")
-	yaml.WriteString("          }\n")
-	yaml.WriteString("          EOF\n")
-}
-
-// renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
-func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
-	yaml.WriteString("              \"GitHub\": {\n")
-	yaml.WriteString("                \"type\": \"http\",\n")
-	yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp\",\n")
-	yaml.WriteString("                \"headers\": {},\n")
-	yaml.WriteString("                \"tools\": [\n")
-	yaml.WriteString("                  \"*\"\n")
-	yaml.WriteString("                ]\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
-}
-
-// renderCopilotMCPConfig generates custom MCP server configuration for a single tool in Copilot CLI mcpconfig
-func (e *CopilotEngine) renderCopilotMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	yaml.WriteString(fmt.Sprintf("              \"%s\": {\n", toolName))
-
-	// Use the shared MCP config renderer with JSON format
-	renderer := MCPConfigRenderer{
-		IndentLevel: "                ",
-		Format:      "json",
-	}
-
-	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
+	// Marshal to JSON
+	configJSON, err := json.MarshalIndent(config, "          ", "  ")
 	if err != nil {
-		return err
+		// Fallback to empty config if marshaling fails
+		configJSON = []byte("{\n            \"mcpServers\": {}\n          }")
 	}
 
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
-
-	return nil
+	yaml.WriteString("          cat > /tmp/.copilot/mcp-config.json << 'EOF'\n")
+	yaml.WriteString("          ")
+	yaml.WriteString(string(configJSON))
+	yaml.WriteString("\n          EOF\n")
 }
 
-// renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
+// buildCopilotMCPServer builds custom MCP server configuration for a single tool in Copilot CLI
+func (e *CopilotEngine) buildCopilotMCPServer(toolName string, toolConfig map[string]any) (CopilotMCPServer, error) {
+	// Get MCP configuration using the shared logic
+	mcpConfig, err := getMCPConfig(toolConfig, toolName)
+	if err != nil {
+		return CopilotMCPServer{}, fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
+	}
+
+	// Copilot CLI expects "local" instead of "stdio"
+	serverType := mcpConfig.Type
+	if serverType == "stdio" {
+		serverType = "local"
+	}
+
+	server := CopilotMCPServer{
+		Type: serverType,
+	}
+
+	// Set fields based on type
+	switch mcpConfig.Type {
+	case "stdio", "local":
+		server.Command = mcpConfig.Command
+		if len(mcpConfig.Args) > 0 {
+			server.Args = mcpConfig.Args
+		}
+		if len(mcpConfig.Env) > 0 {
+			server.Env = make(map[string]interface{})
+			for k, v := range mcpConfig.Env {
+				server.Env[k] = v
+			}
+		}
+	case "http":
+		server.URL = mcpConfig.URL
+		if len(mcpConfig.Headers) > 0 {
+			server.Headers = mcpConfig.Headers
+		}
+	}
+
+	return server, nil
+}
+
+// buildPlaywrightCopilotMCPServer builds the Playwright MCP server configuration for Copilot CLI
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
-func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
+func (e *CopilotEngine) buildPlaywrightCopilotMCPServer(playwrightTool any, networkPermissions *NetworkPermissions) CopilotMCPServer {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
 
-	yaml.WriteString("              \"playwright\": {\n")
-	yaml.WriteString("                \"type\": \"local\",\n")
-	yaml.WriteString("                \"command\": \"npx\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
+	// Use the version from docker args (which handles docker_image_version configuration)
+	playwrightPackage := "@playwright/mcp@" + args.ImageVersion
+
+	server := CopilotMCPServer{
+		Type:    "local",
+		Command: "npx",
+		Args:    []string{playwrightPackage},
+	}
+
 	if len(args.AllowedDomains) > 0 {
-		yaml.WriteString("                  \"--allowed-origins\",\n")
-		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"\n")
+		server.Args = append(server.Args, "--allowed-origins", strings.Join(args.AllowedDomains, ";"))
 	}
-	yaml.WriteString("                ]\n")
 
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	return server
 }
 
-// renderCacheMemoryCopilotMCPConfig handles cache-memory configuration without MCP server mounting
-// Cache-memory is now a simple file share, not an MCP server
-func (e *CopilotEngine) renderCacheMemoryCopilotMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
-	// Cache-memory no longer uses MCP server mounting
-	// The cache folder is available as a simple file share at /tmp/cache-memory/
-	// The folder is created by the cache step and is accessible to all tools
-	// No MCP configuration is needed for simple file access
-}
-
-// renderSafeOutputsCopilotMCPConfig generates the Safe Outputs MCP server configuration for Copilot CLI
-func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	yaml.WriteString("              \"safe_outputs\": {\n")
-	yaml.WriteString("                \"type\": \"local\",\n")
-	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
+// buildSafeOutputsCopilotMCPServer builds the Safe Outputs MCP server configuration for Copilot CLI
+func (e *CopilotEngine) buildSafeOutputsCopilotMCPServer() CopilotMCPServer {
+	return CopilotMCPServer{
+		Type:    "local",
+		Command: "node",
+		Args:    []string{"/tmp/safe-outputs/mcp-server.cjs"},
+		Env: map[string]interface{}{
+			"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+			"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}",
+		},
 	}
 }
 

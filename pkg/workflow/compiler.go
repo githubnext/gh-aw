@@ -975,66 +975,6 @@ func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConf
 func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
-	// Define the default read-only GitHub MCP tools
-	defaultGitHubTools := []string{
-		// actions
-		"download_workflow_run_artifact",
-		"get_job_logs",
-		"get_workflow_run",
-		"get_workflow_run_logs",
-		"get_workflow_run_usage",
-		"list_workflow_jobs",
-		"list_workflow_run_artifacts",
-		"list_workflow_runs",
-		"list_workflows",
-		// code security
-		"get_code_scanning_alert",
-		"list_code_scanning_alerts",
-		// context
-		"get_me",
-		// dependabot
-		"get_dependabot_alert",
-		"list_dependabot_alerts",
-		// discussions
-		"get_discussion",
-		"get_discussion_comments",
-		"list_discussion_categories",
-		"list_discussions",
-		// issues
-		"get_issue",
-		"get_issue_comments",
-		"list_issues",
-		"search_issues",
-		// notifications
-		"get_notification_details",
-		"list_notifications",
-		// organizations
-		"search_orgs",
-		// prs
-		"get_pull_request",
-		"get_pull_request_comments",
-		"get_pull_request_diff",
-		"get_pull_request_files",
-		"get_pull_request_reviews",
-		"get_pull_request_status",
-		"list_pull_requests",
-		"search_pull_requests",
-		// repos
-		"get_commit",
-		"get_file_contents",
-		"get_tag",
-		"list_branches",
-		"list_commits",
-		"list_tags",
-		"search_code",
-		"search_repositories",
-		// secret protection
-		"get_secret_scanning_alert",
-		"list_secret_scanning_alerts",
-		// users
-		"search_users",
-	}
-
 	if tools == nil {
 		tools = make(map[string]any)
 	}
@@ -1068,11 +1008,11 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	}
 
-	// Add default tools that aren't already present
+	// Add default GitHub tools that aren't already present
 	newAllowed := make([]any, len(existingAllowed))
 	copy(newAllowed, existingAllowed)
 
-	for _, defaultTool := range defaultGitHubTools {
+	for _, defaultTool := range constants.DefaultGitHubTools {
 		if !existingToolsSet[defaultTool] {
 			newAllowed = append(newAllowed, defaultTool)
 		}

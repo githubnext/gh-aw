@@ -164,7 +164,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "write"},
 		},
 		{
-			name: "safe outputs without write (uses MCP)",
+			name:  "safe outputs without write (uses MCP)",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
@@ -198,7 +198,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "safe_outputs", "--allow-tool", "shell(git status)", "--allow-tool", "shell(npm test)", "--allow-tool", "write"},
 		},
 		{
-			name: "safe outputs with safe_outputs config",
+			name:  "safe outputs with safe_outputs config",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
@@ -206,7 +206,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "safe_outputs"},
 		},
 		{
-			name: "safe outputs with safe jobs",
+			name:  "safe outputs with safe jobs",
 			tools: map[string]any{},
 			safeJobs: map[string]*SafeJobConfig{
 				"my-job": &SafeJobConfig{Name: "test job"},
@@ -214,7 +214,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			expected: []string{"--allow-tool", "safe_outputs"},
 		},
 		{
-			name: "safe outputs with both safe_outputs and safe jobs",
+			name:  "safe outputs with both safe_outputs and safe jobs",
 			tools: map[string]any{},
 			safeOutputs: &SafeOutputsConfig{
 				CreateIssues: &CreateIssuesConfig{},
@@ -229,7 +229,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := engine.computeCopilotToolArguments(tt.tools, tt.safeOutputs, tt.safeJobs)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d arguments, got %d: %v", len(tt.expected), len(result), result)
 				return
@@ -282,7 +282,7 @@ func TestCopilotEngineGenerateToolArgumentsComment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := engine.generateCopilotToolArgumentsComment(tt.tools, tt.safeOutputs, tt.safeJobs, tt.indent)
-			
+
 			if result != tt.expected {
 				t.Errorf("Expected comment:\n%s\nGot:\n%s", tt.expected, result)
 			}
