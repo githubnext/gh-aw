@@ -1022,6 +1022,13 @@ jobs:
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
           tail -10 /tmp/ci-failure-doctor.log || echo "No log content available"
+      - name: Upload MCP logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-logs
+          path: /tmp/mcp-logs/
+          if-no-files-found: ignore
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1784,13 +1791,6 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Upload MCP logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcp-logs
-          path: /tmp/mcp-logs/
-          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8

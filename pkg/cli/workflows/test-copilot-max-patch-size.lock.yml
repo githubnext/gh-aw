@@ -766,6 +766,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /tmp/.copilot/
           XDG_STATE_HOME: /tmp/.copilot/
+      - name: Upload engine output files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent_outputs
+          path: |
+            /tmp/.copilot/logs/
+          if-no-files-found: ignore
+      - name: Upload MCP logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-logs
+          path: /tmp/mcp-logs/
+          if-no-files-found: ignore
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1528,23 +1543,6 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/.copilot/logs/
-          if-no-files-found: ignore
-      - name: Clean up engine output files
-        run: |
-          rm -fr /tmp/.copilot/logs/
-      - name: Upload MCP logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mcp-logs
-          path: /tmp/mcp-logs/
-          if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8

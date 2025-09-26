@@ -1613,33 +1613,31 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
-	// Add output collection step only if safe-outputs feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
-	if data.SafeOutputs != nil {
-		c.generateOutputCollectionStep(yaml, data)
-	}
-
 	// Add engine-declared output files collection (if any)
 	if len(engine.GetDeclaredOutputFiles()) > 0 {
 		c.generateEngineOutputCollection(yaml, engine)
 	}
+	// upload MCP logs (if any MCP tools were used)
+	c.generateUploadMCPLogs(yaml, data.Tools)
+	// upload assets if upload-asset is configured
+	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
+		c.generateUploadAssets(yaml)
+	}
+
+	// Add output collection step only if safe-outputs feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
+	if data.SafeOutputs != nil {
+		c.generateOutputCollectionStep(yaml, data)
+	}
+	c.generateUploadAccessLogs(yaml, data.Tools)
 
 	// Extract and upload squid access logs (if any proxy tools were used)
 	c.generateExtractAccessLogs(yaml, data.Tools)
-	c.generateUploadAccessLogs(yaml, data.Tools)
-
-	// upload MCP logs (if any MCP tools were used)
-	c.generateUploadMCPLogs(yaml, data.Tools)
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine, logFileFull)
 
 	// upload agent logs
 	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
-
-	// upload assets if upload-asset is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
-		c.generateUploadAssets(yaml)
-	}
 
 	// Add error validation for AI execution logs
 	c.generateErrorValidation(yaml, engine, logFileFull, data)

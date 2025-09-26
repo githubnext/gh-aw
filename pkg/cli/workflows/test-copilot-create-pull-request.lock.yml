@@ -129,15 +129,13 @@ jobs:
           XDG_CONFIG_HOME: /tmp/.copilot/
           XDG_STATE_HOME: /tmp/.copilot/
       - name: Upload engine output files
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: agent_outputs
           path: |
             /tmp/.copilot/logs/
           if-no-files-found: ignore
-      - name: Clean up engine output files
-        run: |
-          rm -fr /tmp/.copilot/logs/
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
