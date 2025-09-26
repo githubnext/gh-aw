@@ -4,6 +4,32 @@ import (
 	"strings"
 )
 
+// generateCleanupStep generates the cleanup step YAML for workspace files, excluding /tmp/ files
+// Returns the YAML string and whether a cleanup step was generated
+func generateCleanupStep(outputFiles []string) (string, bool) {
+	// Filter to get only workspace files (exclude /tmp/ files)
+	var workspaceFiles []string
+	for _, file := range outputFiles {
+		if !strings.HasPrefix(file, "/tmp/") {
+			workspaceFiles = append(workspaceFiles, file)
+		}
+	}
+
+	// Only generate cleanup step if there are workspace files to delete
+	if len(workspaceFiles) == 0 {
+		return "", false
+	}
+
+	var yaml strings.Builder
+	yaml.WriteString("      - name: Clean up engine output files\n")
+	yaml.WriteString("        run: |\n")
+	for _, file := range workspaceFiles {
+		yaml.WriteString("          rm -fr " + file + "\n")
+	}
+
+	return yaml.String(), true
+}
+
 // generateEngineOutputCollection generates a step that collects engine-declared output files as artifacts
 func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine CodingAgentEngine) {
 	outputFiles := engine.GetDeclaredOutputFiles()
@@ -28,20 +54,8 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 
 	// Add cleanup step to remove output files after upload
 	// Only clean files under the workspace, ignore files in /tmp/
-	// Only emit the cleanup step if there are actually workspace files to clean
-	var workspaceFiles []string
-	for _, file := range outputFiles {
-		if !strings.HasPrefix(file, "/tmp/") {
-			workspaceFiles = append(workspaceFiles, file)
-		}
-	}
-
-	// Only emit cleanup step if there are workspace files to delete
-	if len(workspaceFiles) > 0 {
-		yaml.WriteString("      - name: Clean up engine output files\n")
-		yaml.WriteString("        run: |\n")
-		for _, file := range workspaceFiles {
-			yaml.WriteString("          rm -fr " + file + "\n")
-		}
+	cleanupYaml, hasCleanup := generateCleanupStep(outputFiles)
+	if hasCleanup {
+		yaml.WriteString(cleanupYaml)
 	}
 }

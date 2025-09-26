@@ -324,22 +324,10 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 	}
 	yaml.WriteString("          if-no-files-found: ignore\n")
 
-	// Add cleanup step with the same logic as the actual implementation
-	// Only emit cleanup step if there are workspace files to delete
-	var workspaceFiles []string
-	for _, file := range mockOutputFiles {
-		if !strings.HasPrefix(file, "/tmp/") {
-			workspaceFiles = append(workspaceFiles, file)
-		}
-	}
-
-	// Only emit cleanup step if there are workspace files to delete
-	if len(workspaceFiles) > 0 {
-		yaml.WriteString("      - name: Clean up engine output files\n")
-		yaml.WriteString("        run: |\n")
-		for _, file := range workspaceFiles {
-			yaml.WriteString("          rm -fr " + file + "\n")
-		}
+	// Add cleanup step using the same function as the actual implementation
+	cleanupYaml, hasCleanup := generateCleanupStep(mockOutputFiles)
+	if hasCleanup {
+		yaml.WriteString(cleanupYaml)
 	}
 
 	result := yaml.String()
@@ -373,4 +361,63 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 	}
 
 	t.Log("Successfully verified that mixed path cleanup properly filters /tmp/ files")
+}
+
+func TestGenerateCleanupStep(t *testing.T) {
+	// Test the generateCleanupStep function directly to demonstrate its testability
+	
+	// Test case 1: Only /tmp/ files - should not generate cleanup step
+	tmpOnlyFiles := []string{"/tmp/logs/debug.log", "/tmp/.cache/data.json"}
+	cleanupYaml, hasCleanup := generateCleanupStep(tmpOnlyFiles)
+	
+	if hasCleanup {
+		t.Error("Expected no cleanup step for /tmp/ only files")
+	}
+	if cleanupYaml != "" {
+		t.Error("Expected empty cleanup YAML for /tmp/ only files")
+	}
+	
+	// Test case 2: Only workspace files - should generate cleanup step
+	workspaceOnlyFiles := []string{"output.txt", "build/artifacts.zip"}
+	cleanupYaml, hasCleanup = generateCleanupStep(workspaceOnlyFiles)
+	
+	if !hasCleanup {
+		t.Error("Expected cleanup step for workspace files")
+	}
+	if !strings.Contains(cleanupYaml, "rm -fr output.txt") {
+		t.Error("Expected cleanup YAML to contain 'rm -fr output.txt'")
+	}
+	if !strings.Contains(cleanupYaml, "rm -fr build/artifacts.zip") {
+		t.Error("Expected cleanup YAML to contain 'rm -fr build/artifacts.zip'")
+	}
+	
+	// Test case 3: Mixed files - should generate cleanup step only for workspace files
+	mixedFiles := []string{"/tmp/debug.log", "workspace/output.txt", "/tmp/.cache/data.json"}
+	cleanupYaml, hasCleanup = generateCleanupStep(mixedFiles)
+	
+	if !hasCleanup {
+		t.Error("Expected cleanup step for mixed files containing workspace files")
+	}
+	if strings.Contains(cleanupYaml, "rm -fr /tmp/debug.log") {
+		t.Error("Cleanup YAML should NOT contain /tmp/ files")
+	}
+	if strings.Contains(cleanupYaml, "rm -fr /tmp/.cache/data.json") {
+		t.Error("Cleanup YAML should NOT contain /tmp/ files")
+	}
+	if !strings.Contains(cleanupYaml, "rm -fr workspace/output.txt") {
+		t.Error("Expected cleanup YAML to contain workspace files")
+	}
+	
+	// Test case 4: Empty input - should not generate cleanup step
+	emptyFiles := []string{}
+	cleanupYaml, hasCleanup = generateCleanupStep(emptyFiles)
+	
+	if hasCleanup {
+		t.Error("Expected no cleanup step for empty files list")
+	}
+	if cleanupYaml != "" {
+		t.Error("Expected empty cleanup YAML for empty files list")
+	}
+	
+	t.Log("Successfully verified generateCleanupStep function behavior in all scenarios")
 }
