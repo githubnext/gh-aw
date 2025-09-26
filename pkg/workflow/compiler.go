@@ -975,9 +975,6 @@ func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConf
 func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
 	// Always apply default GitHub tools (create github section if it doesn't exist)
 
-	// Use the default read-only GitHub MCP tools from constants
-	defaultGitHubTools := constants.DefaultGitHubTools
-
 	if tools == nil {
 		tools = make(map[string]any)
 	}
@@ -1011,11 +1008,11 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	}
 
-	// Add default tools that aren't already present
+	// Add default GitHub tools that aren't already present
 	newAllowed := make([]any, len(existingAllowed))
 	copy(newAllowed, existingAllowed)
 
-	for _, defaultTool := range defaultGitHubTools {
+	for _, defaultTool := range constants.DefaultGitHubTools {
 		if !existingToolsSet[defaultTool] {
 			newAllowed = append(newAllowed, defaultTool)
 		}
