@@ -266,7 +266,12 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          cat > ~/.copilot/mcp-config.json << 'EOF'\n")
 	yaml.WriteString("          ")
 	yaml.WriteString(string(configJSON))
-	yaml.WriteString("\n          EOF\n")
+	yaml.WriteString("\n")
+	yaml.WriteString("          EOF\n")
+	yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
+	yaml.WriteString("          cat ~/.copilot/mcp-config.json\n")
+	yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
+
 }
 
 // buildCopilotMCPServer builds custom MCP server configuration for a single tool in Copilot CLI
