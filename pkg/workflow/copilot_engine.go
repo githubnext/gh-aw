@@ -453,6 +453,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	// Handle bash/shell tools
 	if bashConfig, hasBash := tools["bash"]; hasBash {
+		hasWildcard := false
 		if bashCommands, ok := bashConfig.([]any); ok {
 			// Check for :* wildcard first - if present, allow all shell commands
 			for _, cmd := range bashCommands {
@@ -460,14 +461,17 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 					if cmdStr == ":*" || cmdStr == "*" {
 						// Allow all shell commands
 						args = append(args, "--allow-tool", "shell")
-						goto nextTool
+						hasWildcard = true
+						break
 					}
 				}
 			}
-			// Add specific shell commands
-			for _, cmd := range bashCommands {
-				if cmdStr, ok := cmd.(string); ok {
-					args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
+			// Add specific shell commands only if no wildcard found
+			if !hasWildcard {
+				for _, cmd := range bashCommands {
+					if cmdStr, ok := cmd.(string); ok {
+						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
+					}
 				}
 			}
 		} else {
@@ -475,8 +479,6 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			args = append(args, "--allow-tool", "shell")
 		}
 	}
-
-	nextTool:
 
 	// Handle edit tools (file writing permissions)
 	if _, hasEdit := tools["edit"]; hasEdit {
@@ -489,11 +491,20 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", "write")
 	}
 
+	// Built-in tool names that should be skipped when processing MCP servers
+	builtInTools := map[string]bool{
+		"bash":       true,
+		"edit":       true,
+		"web-fetch":  true,
+		"web-search": true,
+		"playwright": true,
+		"github":     true,
+	}
+
 	// Handle MCP server tools
 	for toolName, toolConfig := range tools {
 		// Skip built-in tools we've already handled
-		if toolName == "bash" || toolName == "edit" || toolName == "web-fetch" || 
-		   toolName == "web-search" || toolName == "playwright" || toolName == "github" {
+		if builtInTools[toolName] {
 			continue
 		}
 
