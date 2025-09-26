@@ -1607,8 +1607,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
 
-	logFile := generateSafeFileName(data.Name)
-	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
+	logFile := "agent-output"
+	logFileFull := "/tmp/agent-output.log"
 
 	// Generate aw_info.json with agentic run metadata
 	c.generateCreateAwInfo(yaml, data, engine)
@@ -1660,11 +1660,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {
-	yaml.WriteString("      - name: Upload agent logs\n")
+	yaml.WriteString("      - name: Upload Agent Output\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s.log\n", logFile)
+	yaml.WriteString("          name: agent-output.log\n")
 	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
