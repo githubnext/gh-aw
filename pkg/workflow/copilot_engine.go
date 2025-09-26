@@ -54,11 +54,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	var steps []GitHubActionStep
 
-	// Check if network permissions are configured (only for Copilot engine)
-	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		// TODO
-	}
-
 	installationSteps := []GitHubActionStep{
 		{
 			"      - name: Setup Node.js",
@@ -110,7 +105,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Add tool permission arguments based on configuration
-	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeJobs)
+	toolArgs := e.computeCopilotToolArguments(workflowData.Tools, workflowData.SafeOutputs)
 	copilotArgs = append(copilotArgs, toolArgs...)
 
 	// if cache-memory tool is used, --add-dir
@@ -154,7 +149,7 @@ copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add tool arguments comment before the run section
-	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, workflowData.SafeJobs, "        ")
+	toolArgsComment := e.generateCopilotToolArgumentsComment(workflowData.Tools, workflowData.SafeOutputs, "        ")
 	if toolArgsComment != "" {
 		// Split the comment into lines and add each line
 		commentLines := strings.Split(strings.TrimSuffix(toolArgsComment, "\n"), "\n")
@@ -448,7 +443,7 @@ func (e *CopilotEngine) GetLogParserScriptId() string {
 }
 
 // computeCopilotToolArguments generates Copilot CLI tool permission arguments from workflow tools configuration
-func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig, safeJobs map[string]*SafeJobConfig) []string {
+func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig) []string {
 	if tools == nil {
 		tools = make(map[string]any)
 	}
@@ -491,8 +486,8 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	}
 
 	// Handle safe_outputs MCP server - allow all tools if safe outputs are enabled
-	// This includes both safeOutputs config and safeJobs
-	if safeOutputs != nil || len(safeJobs) > 0 {
+	// This includes both safeOutputs config and safeOutputs.Jobs
+	if HasSafeOutputsEnabled(safeOutputs) {
 		args = append(args, "--allow-tool", "safe_outputs")
 	}
 
@@ -553,8 +548,8 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 }
 
 // generateCopilotToolArgumentsComment generates a multi-line comment showing each tool argument
-func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, safeJobs map[string]*SafeJobConfig, indent string) string {
-	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs, safeJobs)
+func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any, safeOutputs *SafeOutputsConfig, indent string) string {
+	toolArgs := e.computeCopilotToolArguments(tools, safeOutputs)
 	if len(toolArgs) == 0 {
 		return ""
 	}

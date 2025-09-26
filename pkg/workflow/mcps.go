@@ -48,9 +48,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	}
 
 	// Check if safe-outputs is enabled and add to MCP tools
-	hasSafeOutputs := workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
-	hasSafeJobs := workflowData.SafeJobs != nil && HasSafeJobsEnabled(workflowData.SafeJobs)
-	if hasSafeOutputs || hasSafeJobs {
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		mcpTools = append(mcpTools, "safe-outputs")
 	}
 
@@ -113,8 +111,8 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		return
 	}
 
-	// Write safe-outputs MCP server if enabled (either safe-outputs or safe-jobs)
-	if hasSafeOutputs || hasSafeJobs {
+	// Write safe-outputs MCP server if enabled
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
@@ -130,7 +128,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
-	if hasSafeOutputs || hasSafeJobs {
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
 		if safeOutputConfig != "" {
 			// Add environment variables for JSONL validation

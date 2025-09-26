@@ -5,10 +5,10 @@ sidebar:
   order: 6
 ---
 
-The `safe-jobs:` element of your workflow's frontmatter enables you to define custom post-processing jobs that execute after the main agentic workflow completes. Safe-jobs provide a powerful way to create sophisticated automation workflows while maintaining security through controlled job execution.
+The `safe-outputs.jobs:` element of your workflow's frontmatter enables you to define custom post-processing jobs that execute after the main agentic workflow completes. Safe-jobs provide a powerful way to create sophisticated automation workflows while maintaining security through controlled job execution.
 
 **How It Works:**
-1. Safe-jobs are defined as a top-level frontmatter property, completely independent from safe-outputs
+1. Safe-jobs are defined under the `safe-outputs.jobs` section of the frontmatter
 2. Each safe-job **must have an "inputs" section with at least one input** - these inputs become the arguments of the MCP tool
 3. Each safe-job has access to all standard GitHub Actions job properties (runs-on, if, needs, env, permissions, steps)
 4. Safe-jobs automatically download the agent output artifact and can process it using jq
@@ -25,22 +25,23 @@ The `safe-jobs:` element of your workflow's frontmatter enables you to define cu
 ---
 on: issues
 engine: claude
-safe-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    inputs:
-      environment:
-        description: "Target deployment environment"
-        required: true
-        type: choice
-        options: ["staging", "production"]
-    steps:
-      - name: Deploy application
-        run: |
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            ENV=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .environment // "staging"')
-            echo "Deploying to $ENV based on agent analysis"
-          fi
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      inputs:
+        environment:
+          description: "Target deployment environment"
+          required: true
+          type: choice
+          options: ["staging", "production"]
+      steps:
+        - name: Deploy application
+          run: |
+            if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+              ENV=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .environment // "staging"')
+              echo "Deploying to $ENV based on agent analysis"
+            fi
 ---
 
 # Deployment Workflow
@@ -66,22 +67,23 @@ Analyze the issue and potentially trigger deployment using the safe-job.
 Safe-jobs support all standard GitHub Actions job properties:
 
 ```yaml
-safe-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    if: github.event.issue.number
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      deployments: write
-    env:
-      DEPLOY_ENV: production
-    inputs:
-      confirm:
-        description: "Confirm deployment"
-        required: true
-        type: boolean
-        default: "false"
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      if: github.event.issue.number
+      timeout-minutes: 30
+      permissions:
+        contents: write
+        deployments: write
+      env:
+        DEPLOY_ENV: production
+      inputs:
+        confirm:
+          description: "Confirm deployment"
+          required: true
+          type: boolean
+          default: "false"
     steps:
       - name: Deploy
         run: echo "Deploying..."
@@ -92,20 +94,21 @@ safe-jobs:
 **Every safe-job must define inputs** using workflow_dispatch syntax for parameterization. The inputs become the MCP tool arguments:
 
 ```yaml
-safe-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    inputs:
-      environment:
-        description: "Target deployment environment"
-        required: true
-        type: choice
-        options: ["staging", "production"]
-      force:
-        description: "Force deployment even if tests fail"
-        required: false
-        type: boolean
-        default: "false"
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      inputs:
+        environment:
+          description: "Target deployment environment"
+          required: true
+          type: choice
+          options: ["staging", "production"]
+        force:
+          description: "Force deployment even if tests fail"
+          required: false
+          type: boolean
+          default: "false"
     steps:
       - name: Deploy application
         run: |
@@ -120,13 +123,19 @@ safe-jobs:
 Safe-jobs can return custom response messages via the MCP server:
 
 ```yaml
-safe-jobs:
-  notify:
-    runs-on: ubuntu-latest
-    output: "Notification sent successfully!"
-    steps:
-      - name: Send notification
-        run: echo "Sending notification..."
+safe-outputs:
+  jobs:
+    notify:
+      runs-on: ubuntu-latest
+      output: "Notification sent successfully!"
+      inputs:
+        message:
+          description: "Notification message"
+          required: true
+          type: string
+      steps:
+        - name: Send notification
+          run: echo "Sending notification..."
 ```
 
 ### Agent Output Processing
@@ -134,19 +143,25 @@ safe-jobs:
 Safe-jobs automatically receive access to the agent output artifact:
 
 ```yaml
-safe-jobs:
-  analyze:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Process agent output
-        run: |
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            # Extract specific data from agent output
-            RESULT=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
-            echo "Agent analysis result: $RESULT"
-          else
-            echo "No agent output available"
-          fi
+safe-outputs:
+  jobs:
+    analyze:
+      runs-on: ubuntu-latest
+      inputs:
+        data_type:
+          description: "Type of data to analyze"
+          required: true
+          type: string
+      steps:
+        - name: Process agent output
+          run: |
+            if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+              # Extract specific data from agent output
+              RESULT=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
+              echo "Agent analysis result: $RESULT"
+            else
+              echo "No agent output available"
+            fi
 ```
 
 ## Include Support
@@ -156,12 +171,18 @@ Safe-jobs can be imported from included workflows with automatic conflict detect
 **Main workflow:**
 ```aw wrap
 ---
-safe-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy
-        run: echo "Deploying..."
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      inputs:
+        target:
+          description: "Deployment target"
+          required: true
+          type: string
+      steps:
+        - name: Deploy
+          run: echo "Deploying..."
 ---
 
 @include shared/common-jobs.md
@@ -170,12 +191,18 @@ safe-jobs:
 **Included file (shared/common-jobs.md):**
 ```aw wrap
 ---
-safe-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Test
-        run: echo "Testing..."
+safe-outputs:
+  jobs:
+    test:
+      runs-on: ubuntu-latest
+      inputs:
+        suite:
+          description: "Test suite to run"
+          required: true
+          type: string
+      steps:
+        - name: Test
+          run: echo "Testing..."
 ---
 ```
 
@@ -191,17 +218,18 @@ failed to merge safe-jobs: safe-job name conflict: 'deploy' is defined in both m
 Safe-jobs are automatically registered as tools in the safe-outputs MCP server, allowing the agentic workflow to call them:
 
 ```yaml
-safe-jobs:
-  database-backup:
-    runs-on: ubuntu-latest
-    inputs:
-      database:
-        description: "Database to backup"
-        required: true
-        type: string
-    steps:
-      - name: Backup database
-        run: echo "Backing up database..."
+safe-outputs:
+  jobs:
+    database-backup:
+      runs-on: ubuntu-latest
+      inputs:
+        database:
+          description: "Database to backup"
+          required: true
+          type: string
+      steps:
+        - name: Backup database
+          run: echo "Backing up database..."
 ```
 
 The agent can then call this safe-job:
@@ -261,70 +289,90 @@ deploy:
 
 ### Conditional Deployment
 ```yaml
-safe-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    if: contains(github.event.issue.labels.*.name, 'deploy')
-    permissions:
-      contents: write
-    steps:
-      - name: Deploy if requested
-        run: |
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            SHOULD_DEPLOY=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .approved // false')
-            if [ "$SHOULD_DEPLOY" = "true" ]; then
-              echo "Deploying application..."
-            else
-              echo "Deployment not approved by agent"
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      if: contains(github.event.issue.labels.*.name, 'deploy')
+      permissions:
+        contents: write
+      inputs:
+        approved:
+          description: "Whether deployment is approved"
+          required: true
+          type: boolean
+      steps:
+        - name: Deploy if requested
+          run: |
+            if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+              SHOULD_DEPLOY=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .approved // false')
+              if [ "$SHOULD_DEPLOY" = "true" ]; then
+                echo "Deploying application..."
+              else
+                echo "Deployment not approved by agent"
+              fi
             fi
-          fi
 ```
 
 ### Multi-step Processing
 ```yaml
-safe-jobs:
-  process-results:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Extract data
-        run: |
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.[] | select(.type == "result")' > /tmp/results.json
-          fi
-      - name: Process data
-        run: |
-          if [ -f "/tmp/results.json" ]; then
-            echo "Processing $(wc -l < /tmp/results.json) results"
-          fi
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: processed-results
-          path: /tmp/results.json
+safe-outputs:
+  jobs:
+    process-results:
+      runs-on: ubuntu-latest
+      inputs:
+        format:
+          description: "Output format"
+          required: true
+          type: choice
+          options: ["json", "csv", "xml"]
+      steps:
+        - name: Extract data
+          run: |
+            if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+              cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.[] | select(.type == "result")' > /tmp/results.json
+            fi
+        - name: Process data
+          run: |
+            if [ -f "/tmp/results.json" ]; then
+              echo "Processing $(wc -l < /tmp/results.json) results"
+            fi
+        - name: Upload results
+          uses: actions/upload-artifact@v4
+          with:
+            name: processed-results
+            path: /tmp/results.json
 ```
 
 ### Error Handling
 ```yaml
-safe-jobs:
-  robust-task:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Safe processing
-        run: |
-          set -euo pipefail
-          
-          if [ ! -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            echo "Warning: No agent output found, using defaults"
-            echo '{"status": "default"}' > /tmp/config.json
-          else
-            cp "$GITHUB_AW_AGENT_OUTPUT" /tmp/config.json
-          fi
-          
-          # Process with error handling
-          if ! jq -e '.status' /tmp/config.json > /dev/null; then
-            echo "Error: Invalid agent output format"
-            exit 1
-          fi
+safe-outputs:
+  jobs:
+    robust-task:
+      runs-on: ubuntu-latest
+      inputs:
+        retry_count:
+          description: "Number of retries"
+          required: false
+          type: string
+          default: "3"
+      steps:
+        - name: Safe processing
+          run: |
+            set -euo pipefail
+            
+            if [ ! -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+              echo "Warning: No agent output found, using defaults"
+              echo '{"status": "default"}' > /tmp/config.json
+            else
+              cp "$GITHUB_AW_AGENT_OUTPUT" /tmp/config.json
+            fi
+            
+            # Process with error handling
+            if ! jq -e '.status' /tmp/config.json > /dev/null; then
+              echo "Error: Invalid agent output format"
+              exit 1
+            fi
           
           STATUS=$(jq -r '.status' /tmp/config.json)
           echo "Processing with status: $STATUS"

@@ -184,13 +184,13 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 	return result
 }
 
-// buildSafeJobs creates custom safe-output jobs defined at top level
+// buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
 func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
-	if len(data.SafeJobs) == 0 {
+	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
 		return nil
 	}
 
-	for jobName, jobConfig := range data.SafeJobs {
+	for jobName, jobConfig := range data.SafeOutputs.Jobs {
 		job := &Job{
 			Name: jobName,
 		}
@@ -291,7 +291,22 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
 }
 
 // extractSafeJobsFromFrontmatter extracts safe-jobs section from frontmatter map
+// First checks the new location under safe-outputs.jobs, then falls back to old location safe-jobs (for backwards compatibility during transition)
 func extractSafeJobsFromFrontmatter(frontmatter map[string]any) map[string]*SafeJobConfig {
+	// Check new location: safe-outputs.jobs
+	if safeOutputs, exists := frontmatter["safe-outputs"]; exists {
+		if safeOutputsMap, ok := safeOutputs.(map[string]any); ok {
+			if jobs, exists := safeOutputsMap["jobs"]; exists {
+				if jobsMap, ok := jobs.(map[string]any); ok {
+					c := &Compiler{} // Create a temporary compiler instance for parsing
+					frontmatterCopy := map[string]any{"safe-jobs": jobsMap}
+					return c.parseSafeJobsConfig(frontmatterCopy)
+				}
+			}
+		}
+	}
+
+	// Fallback to old location: safe-jobs (for backwards compatibility)
 	safeJobs, exists := frontmatter["safe-jobs"]
 	if !exists {
 		return make(map[string]*SafeJobConfig)

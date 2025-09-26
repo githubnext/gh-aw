@@ -168,30 +168,30 @@ func TestBuildSafeJobs(t *testing.T) {
 
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
-		SafeJobs: map[string]*SafeJobConfig{
-			"deploy": {
-				RunsOn: "ubuntu-latest",
-				If:     "github.event.issue.number",
-				Env: map[string]string{
-					"DEPLOY_ENV": "production",
-				},
-				Inputs: map[string]*SafeJobInput{
-					"environment": {
-						Description: "Target deployment environment",
-						Required:    true,
-						Type:        "choice",
-						Options:     []string{"staging", "production"},
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"deploy": {
+					RunsOn: "ubuntu-latest",
+					If:     "github.event.issue.number",
+					Env: map[string]string{
+						"DEPLOY_ENV": "production",
 					},
-				},
-				Steps: []any{
-					map[string]any{
-						"name": "Deploy",
-						"run":  "echo 'Deploying'",
+					Inputs: map[string]*SafeJobInput{
+						"environment": {
+							Description: "Target deployment environment",
+							Required:    true,
+							Type:        "choice",
+							Options:     []string{"staging", "production"},
+						},
+					},
+					Steps: []any{
+						map[string]any{
+							"name": "Deploy",
+							"run":  "echo 'Deploying'",
+						},
 					},
 				},
 			},
-		},
-		SafeOutputs: &SafeOutputsConfig{
 			Env: map[string]string{
 				"GLOBAL_VAR": "global_value",
 			},
@@ -268,8 +268,10 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 		t.Errorf("Expected no error with no safe-jobs, got %v", err)
 	}
 
-	// Test with empty SafeJobs
-	workflowData.SafeJobs = map[string]*SafeJobConfig{}
+	// Test with empty SafeOutputs.Jobs
+	workflowData.SafeOutputs = &SafeOutputsConfig{
+		Jobs: map[string]*SafeJobConfig{},
+	}
 
 	err = c.buildSafeJobs(workflowData)
 	if err != nil {
@@ -286,24 +288,26 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 	c := NewCompiler(false, "", "test")
 
 	workflowData := &WorkflowData{
-		SafeJobs: map[string]*SafeJobConfig{
-			"deploy": {
-				Inputs: map[string]*SafeJobInput{
-					"environment": {
-						Description: "Target deployment environment",
-						Required:    true,
-						Type:        "choice",
-						Options:     []string{"staging", "production"},
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"deploy": {
+					Inputs: map[string]*SafeJobInput{
+						"environment": {
+							Description: "Target deployment environment",
+							Required:    true,
+							Type:        "choice",
+							Options:     []string{"staging", "production"},
+						},
 					},
 				},
-			},
-			"notify": {
-				Inputs: map[string]*SafeJobInput{
-					"message": {
-						Description: "Notification message",
-						Required:    false,
-						Type:        "string",
-						Default:     "Deployment completed",
+				"notify": {
+					Inputs: map[string]*SafeJobInput{
+						"message": {
+							Description: "Notification message",
+							Required:    false,
+							Type:        "string",
+							Default:     "Deployment completed",
+						},
 					},
 				},
 			},
