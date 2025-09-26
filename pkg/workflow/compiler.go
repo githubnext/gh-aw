@@ -1509,7 +1509,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		// Set GITHUB_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := c.generateSafeOutputsConfig(data)
 		if safeOutputConfig != "" {
-			// Properly quote the JSON string for YAML
+			// The JSON string needs to be properly quoted for YAML
 			env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 		}
 		

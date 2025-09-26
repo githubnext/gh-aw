@@ -66,7 +66,7 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 			compiler := NewCompiler(false, "", "test")
 			data := &WorkflowData{
 				AI:          "claude",
-				RunsOn:      "ubuntu-latest", 
+				RunsOn:      "ubuntu-latest",
 				Permissions: "contents: read",
 			}
 			
@@ -194,7 +194,7 @@ This workflow tests that job-level environment variables are properly set for sa
 		"      GITHUB_AW_SAFE_OUTPUTS: ${{ steps.setup_agent_output.outputs.output_file }}",
 		"      GITHUB_AW_SAFE_OUTPUTS_CONFIG:",
 		"      API_ENDPOINT: https://api.example.com",
-		"      DEBUG_MODE: true",  
+		"      DEBUG_MODE: true",
 		"      GITHUB_TOKEN: ${{ secrets.CUSTOM_PAT }}",
 	}
 
