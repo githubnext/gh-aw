@@ -630,10 +630,10 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Ensure SafeOutputs exists and populate the Jobs field
-	if workflowData.SafeOutputs == nil {
+	if workflowData.SafeOutputs == nil && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs = &SafeOutputsConfig{}
 	}
-	if len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
+	if workflowData.SafeOutputs != nil && len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
 		workflowData.SafeOutputs.Jobs = includedSafeJobs
 	}
 
