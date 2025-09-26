@@ -99,8 +99,10 @@ INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
-		"GITHUB_TOKEN":        "${{ secrets.COPILOT_CLI_TOKEN  }}",
-		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
+		"XDG_CONFIG_HOME":           "/home/runner",
+		"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE",
+		"GITHUB_TOKEN":              "${{ secrets.COPILOT_CLI_TOKEN  }}",
+		"GITHUB_STEP_SUMMARY":       "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
@@ -249,11 +251,15 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
 	yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
 	yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
-	yaml.WriteString("          echo \"HOME: $HOME\"\n")
-	yaml.WriteString("          echo \"-------~/-----------\"\n")
-	yaml.WriteString("          find ~\n")
 	yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
 	yaml.WriteString("          find /home/runner/.copilot\n")
+	//GITHUB_COPILOT_CLI_MODE
+	yaml.WriteString("          echo \"HOME: $HOME\"\n")
+	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
+	// Actually just dump the whole environment
+	yaml.WriteString("          echo \"-------env-----------\"\n")
+	yaml.WriteString("          set\n")
+
 }
 
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
