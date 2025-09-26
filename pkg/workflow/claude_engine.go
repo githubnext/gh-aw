@@ -34,7 +34,7 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 	var steps []GitHubActionStep
 
 	// Check if network permissions are configured (only for Claude engine)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		// Generate network hook generator and settings generator
 		hookGenerator := &NetworkHookGenerator{}
 		settingsGenerator := &ClaudeSettingsGenerator{}
@@ -112,7 +112,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	claudeArgs = append(claudeArgs, "--output-format", "json")
 
 	// Add network settings if configured
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
 	}
 
@@ -223,7 +223,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	steps = append(steps, generateLogCaptureStep("Claude", logFile))
 
 	// Add cleanup step for network proxy hook files (if proxy was enabled)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		cleanupStep := GitHubActionStep{
 			"      - name: Clean up network proxy hook files",
 			"        if: always()",
