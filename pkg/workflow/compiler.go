@@ -140,16 +140,16 @@ type WorkflowData struct {
 	AI                 string        // "claude" or "codex" (for backwards compatibility)
 	EngineConfig       *EngineConfig // Extended engine configuration
 	StopTime           string
-	Command            string                    // for /command trigger support
-	CommandOtherEvents map[string]any            // for merging command with other events
-	AIReaction         string                    // AI reaction type like "eyes", "heart", etc.
-	Jobs               map[string]any            // custom job configurations with dependencies
-	Cache              string                    // cache configuration
-	NeedsTextOutput    bool                      // whether the workflow uses ${{ needs.task.outputs.text }}
-	NetworkPermissions *NetworkPermissions       // parsed network permissions
-	SafeOutputs        *SafeOutputsConfig        // output configuration for automatic output routes
-	Roles              []string                  // permission levels required to trigger workflow
-	CacheMemoryConfig  *CacheMemoryConfig        // parsed cache-memory configuration
+	Command            string              // for /command trigger support
+	CommandOtherEvents map[string]any      // for merging command with other events
+	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
+	Jobs               map[string]any      // custom job configurations with dependencies
+	Cache              string              // cache configuration
+	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions *NetworkPermissions // parsed network permissions
+	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
+	Roles              []string            // permission levels required to trigger workflow
+	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 }
 
 // SafeOutputsConfig holds configuration for automatic output routes

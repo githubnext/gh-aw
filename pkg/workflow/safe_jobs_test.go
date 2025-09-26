@@ -170,27 +170,27 @@ func TestBuildSafeJobs(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			Jobs: map[string]*SafeJobConfig{
-			"deploy": {
-				RunsOn: "ubuntu-latest",
-				If:     "github.event.issue.number",
-				Env: map[string]string{
-					"DEPLOY_ENV": "production",
-				},
-				Inputs: map[string]*SafeJobInput{
-					"environment": {
-						Description: "Target deployment environment",
-						Required:    true,
-						Type:        "choice",
-						Options:     []string{"staging", "production"},
+				"deploy": {
+					RunsOn: "ubuntu-latest",
+					If:     "github.event.issue.number",
+					Env: map[string]string{
+						"DEPLOY_ENV": "production",
+					},
+					Inputs: map[string]*SafeJobInput{
+						"environment": {
+							Description: "Target deployment environment",
+							Required:    true,
+							Type:        "choice",
+							Options:     []string{"staging", "production"},
+						},
+					},
+					Steps: []any{
+						map[string]any{
+							"name": "Deploy",
+							"run":  "echo 'Deploying'",
+						},
 					},
 				},
-				Steps: []any{
-					map[string]any{
-						"name": "Deploy",
-						"run":  "echo 'Deploying'",
-					},
-				},
-			},
 			},
 			Env: map[string]string{
 				"GLOBAL_VAR": "global_value",
