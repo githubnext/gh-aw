@@ -1093,10 +1093,16 @@ func displayLogsOverview(runs []WorkflowRun) {
 		// Format relative path
 		relPath, _ := filepath.Rel(".", run.LogsPath)
 
+		// Format status with outcome for completed runs
+		statusStr := run.Status
+		if run.Status == "completed" && run.Conclusion != "" {
+			statusStr = fmt.Sprintf("%s (%s)", run.Status, run.Conclusion)
+		}
+
 		row := []string{
 			fmt.Sprintf("%d", run.DatabaseID),
 			workflowName,
-			run.Status,
+			statusStr,
 			durationStr,
 			tokensStr,
 			costStr,
