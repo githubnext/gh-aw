@@ -44,6 +44,11 @@ func GetVersion() string {
 	return version
 }
 
+// GetInstructionsTemplate returns the embedded instructions template
+func GetInstructionsTemplate() string {
+	return copilotInstructionsTemplate
+}
+
 // GitHubWorkflow represents a GitHub Actions workflow from the API
 // GitHubWorkflowsResponse represents the GitHub API response for workflows
 // Note: The API returns an array directly, not wrapped in a workflows field

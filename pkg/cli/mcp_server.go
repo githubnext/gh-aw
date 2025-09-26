@@ -434,6 +434,26 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 		})
 	}
 
+	// Add documentation tool
+	if isToolAllowed("documentation") {
+		type documentationArgs struct {
+			Verbose bool `json:"verbose,omitempty"`
+		}
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "documentation",
+			Description: "Get GitHub Agentic Workflows documentation and instructions",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, args documentationArgs) (*mcp.CallToolResult, any, error) {
+			if verbose || args.Verbose {
+				fmt.Fprintf(os.Stderr, "📚 Retrieving documentation...\n")
+			}
+
+			// Return the embedded instructions template content
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: GetInstructionsTemplate()}},
+			}, nil, nil
+		})
+	}
+
 	return server
 }
 
@@ -447,15 +467,16 @@ func NewMCPServerSubcommand() *cobra.Command {
 This command starts an MCP server that can be used by AI assistants and other MCP clients
 to interact with GitHub Agentic Workflows functionality. The server exposes the following tools:
 
-  compile      - Compile markdown workflow files to YAML
-  logs         - Download and analyze agentic workflow logs  
-  mcp_inspect  - Inspect MCP servers and list available tools
-  mcp_list     - List MCP servers defined in agentic workflows
-  mcp_add      - Add MCP tools to agentic workflows
-  run          - Run agentic workflows on GitHub Actions
-  enable       - Enable workflows
-  disable      - Disable workflows
-  status       - Show status of natural language action files and workflows
+  compile        - Compile markdown workflow files to YAML
+  logs           - Download and analyze agentic workflow logs  
+  mcp_inspect    - Inspect MCP servers and list available tools
+  mcp_list       - List MCP servers defined in agentic workflows
+  mcp_add        - Add MCP tools to agentic workflows
+  run            - Run agentic workflows on GitHub Actions
+  enable         - Enable workflows
+  disable        - Disable workflows  
+  status         - Show status of natural language action files and workflows
+  documentation  - Get GitHub Agentic Workflows documentation and instructions
 
 The server uses stdio transport by default, making it suitable for use with various MCP clients.
 
@@ -487,7 +508,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed logging")
-	cmd.Flags().StringSlice("allowed-tools", []string{}, "Comma-separated list of tools to enable (compile,logs,mcp_inspect,mcp_list,mcp_add,run,enable,disable,status). If not specified, all tools are enabled.")
+	cmd.Flags().StringSlice("allowed-tools", []string{}, "Comma-separated list of tools to enable (compile,logs,mcp_inspect,mcp_list,mcp_add,run,enable,disable,status,documentation). If not specified, all tools are enabled.")
 
 	return cmd
 }
