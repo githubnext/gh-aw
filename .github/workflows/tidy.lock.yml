@@ -3,51 +3,126 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Test Copilot with Missing Tool Safe Output and Cache Memory"
+name: "Code Tidying Agent"
 on:
-  workflow_dispatch:
-    inputs:
-      missing_tool:
-        default: example-missing-tool
-        description: Tool to report as missing
-        required: true
+  push:
+    branches:
+    - main
+    paths:
+    - "**/*.go"
+    - "**/*.js"
+    - "**/*.cjs"
+    - "**/*.ts"
+  workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: true
+  group: tidy-${{ github.ref }}
 
-run-name: "Test Copilot with Missing Tool Safe Output and Cache Memory"
+run-name: "Code Tidying Agent"
 
 jobs:
-  agent:
+  check-membership:
     runs-on: ubuntu-latest
-    permissions: read-all
+    outputs:
+      error_message: ${{ steps.check-membership.outputs.error_message }}
+      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
+      result: ${{ steps.check-membership.outputs.result }}
+      user_permission: ${{ steps.check-membership.outputs.user_permission }}
+    steps:
+      - name: Check team membership for workflow
+        id: check-membership
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              // skip check for safe events
+              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.debug(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
+
+  activation:
+    needs: check-membership
+    if: needs.check-membership.outputs.is_team_member == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Activation success"
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
+      - name: Configure Git credentials
         run: |
-          mkdir -p /tmp/cache-memory
-          echo "Cache memory directory created at /tmp/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
-        uses: actions/cache@v4
-        with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/cache-memory
-          restore-keys: |
-            memory-${{ github.workflow }}-
-            memory-
-      - name: Upload cache-memory data as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cache-memory
-          path: /tmp/cache-memory
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -640,7 +715,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"max\":5}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/.copilot/mcp-config.json << 'EOF'
@@ -667,70 +742,65 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Copilot with Missing Tool Safe Output and Cache Memory
+          # Code Tidying Agent
           
-          You are a test agent that demonstrates the missing-tool safe output functionality with Copilot engine, enhanced with persistent memory.
+          You are a code maintenance agent responsible for keeping the codebase clean, formatted, and properly linted. Your task is to format, lint, fix issues, recompile workflows, run tests, and create a pull request if changes are needed.
           
-          ## Task
+          ## Your Mission
           
-          Your job is to:
+          Perform the following steps in order:
           
-          1. **Check your memory** for any previous missing tool reports
-          2. **Report a missing tool** using the safe output functionality
-          3. **Store the report in memory** for future reference
-          4. **Use GitHub tools** to get basic repository information
+          ### 1. Format Code
+          Run `make fmt` to format all Go code according to the project standards.
           
-          ## Instructions
+          ### 2. Lint Code  
+          Run `make lint` to check for linting issues across the entire codebase (Go and JavaScript).
           
-          1. First, check your memory to see if you've reported any missing tools before
-          2. Report that the tool specified in the input (${{ github.event.inputs.missing_tool }}) is missing
-          3. Use the safe output functionality to properly report the missing tool with:
-            - Tool name: ${{ github.event.inputs.missing_tool }}
-            - Reason: "This tool is not available in the current workflow environment"
-            - Alternatives: "Consider using alternative tools or requesting tool addition"
-            - Context: "Testing missing-tool safe output with Copilot engine"
-          4. Store this report in your memory for future reference
-          5. Get basic information about this repository using the GitHub tool
-          6. Provide a summary of your actions
+          ### 3. Fix Linting Issues
+          If any linting issues are found, analyze and fix them:
+          - Review the linting output carefully
+          - Make the necessary code changes to address each issue
+          - Focus on common issues like unused variables, imports, formatting problems
+          - Be conservative - only fix clear, obvious issues
           
-          ## Expected Behavior
+          ### 4. Format and Lint Again
+          After fixing issues:
+          - Run `make fmt` again to ensure formatting is correct
+          - Run `make lint` again to verify all issues are resolved
           
-          - **Memory persistence**: Should remember previous missing tool reports across runs
-          - **Safe output**: Should generate proper missing-tool JSON output
-          - **Tool integration**: Should work with GitHub tools despite the "missing" tool
-          - **Staged mode**: Should prevent actual GitHub interactions when staged: true
+          ### 5. Recompile Workflows
+          Run `make recompile` to recompile all agentic workflow files and ensure they are up to date.
           
-          This workflow tests that:
-          - Copilot can properly report missing tools using safe outputs
-          - Cache-memory preserves missing tool reports across runs
-          - Integration works with existing tools like GitHub
-          - Safe output system handles missing tool scenarios correctly
+          ### 6. Run Tests
+          Run `make test` to ensure your changes don't break anything. If tests fail:
+          - Analyze the test failures
+          - Only fix test failures that are clearly related to your formatting/linting changes
+          - Do not attempt to fix unrelated test failures
           
-          EOF
-      - name: Append cache memory instructions to prompt
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-        run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          ### 7. Create Pull Request
+          If any changes were made during the above steps:
+          - Use the `create_pull_request` tool to create a pull request
+          - Provide a clear title describing what was tidied (e.g., "Fix linting issues and update formatting")
+          - In the PR description, summarize what changes were made and why
+          - Include details about any specific issues that were fixed
           
-          ---
+          ## Important Guidelines
           
-          ## Cache Folder Available
+          - **Safety First**: Only make changes that are clearly needed for formatting, linting, or compilation
+          - **Test Validation**: Always run tests after making changes  
+          - **Minimal Changes**: Don't make unnecessary modifications to working code
+          - **Clear Communication**: Explain what you changed and why in the pull request
+          - **Skip if Clean**: If no changes are needed, simply report that everything is already tidy
           
-          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.
+          ## Environment Setup
           
-          - **Read/Write Access**: You can freely read from and write to any files in this folder
-          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
-          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
-          - **File Share**: Use this as a simple file share - organize files as you see fit
+          The repository has all necessary tools installed:
+          - Go toolchain with gofmt, golangci-lint
+          - Node.js with prettier for JavaScript formatting
+          - All dependencies are already installed
           
-          Examples of what you can store:
-          - `/tmp/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/cache-memory/history.log` - activity history and logs
-          - `/tmp/cache-memory/state/` - organized state files in subdirectories
+          Start by checking the current state and then proceed with the tidying process.
           
-          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           EOF
       - name: Append safe outputs instructions to prompt
         env:
@@ -740,13 +810,18 @@ jobs:
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Creating a Pull RequestReporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Reporting Missing Tools or Functionality**
+          **Creating a Pull Request**
           
-          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          To create a pull request:
+          1. Make any file changes directly in the working directory
+          2. If you haven't done so already, create a local branch using an appropriate unique name
+          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          4. Do not push your changes. That will be done by the tool.
+          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
           
           EOF
       - name: Print prompt to step summary
@@ -769,7 +844,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              workflow_name: "Test Copilot with Missing Tool Safe Output and Cache Memory",
+              workflow_name: "Code Tidying Agent",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -781,7 +856,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               created_at: new Date().toISOString()
             };
             
@@ -809,14 +884,22 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool safe_outputs
-        timeout-minutes: 5
+        # --allow-tool shell(git add:*)
+        # --allow-tool shell(git branch:*)
+        # --allow-tool shell(git checkout:*)
+        # --allow-tool shell(git commit:*)
+        # --allow-tool shell(git merge:*)
+        # --allow-tool shell(git rm:*)
+        # --allow-tool shell(git switch:*)
+        # --allow-tool write
+        timeout-minutes: 10
         run: |
           set -o pipefail
           
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --add-dir /tmp/cache-memory/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
+          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool shell(git add:*) --allow-tool shell(git branch:*) --allow-tool shell(git checkout:*) --allow-tool shell(git commit:*) --allow-tool shell(git merge:*) --allow-tool shell(git rm:*) --allow-tool shell(git switch:*) --allow-tool write --prompt "$INSTRUCTION" 2>&1 | tee /tmp/code-tidying-agent.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -827,11 +910,11 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
+          touch /tmp/code-tidying-agent.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Copilot execution log ==="
-          tail -10 /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log || echo "No log content available"
-      - name: Print Safe Outputs
+          tail -10 /tmp/code-tidying-agent.log || echo "No log content available"
+      - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
@@ -849,7 +932,7 @@ jobs:
           fi
           echo '``````' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-      - name: Upload Safe Outputs
+      - name: Upload agentic output file
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -861,7 +944,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"max\":5}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
         with:
           script: |
             async function main() {
@@ -1611,7 +1694,7 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/code-tidying-agent.log
         with:
           script: |
             function main() {
@@ -1719,14 +1802,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-copilot-with-missing-tool-safe-output-and-cache-memory.log
-          path: /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
+          name: code-tidying-agent.log
+          path: /tmp/code-tidying-agent.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/code-tidying-agent.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"}]"
         with:
           script: |
@@ -1829,110 +1912,427 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      - name: Generate git patch
+        if: always()
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          
+          # Extract branch name from JSONL output
+          BRANCH_NAME=""
+          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+            echo "Checking for branch name in JSONL output..."
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then
+                # Extract branch from create-pull-request line using simple grep and sed
+                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create-pull-request"'; then
+                  echo "Found create-pull-request line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    break
+                  fi
+                # Extract branch from push-to-pull-request-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pull-request-branch"'; then
+                  echo "Found push-to-pull-request-branch line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from push-to-pull-request-branch: $BRANCH_NAME"
+                    break
+                  fi
+                fi
+              fi
+            done < "$GITHUB_AW_SAFE_OUTPUTS"
+          fi
+          
+          # If no branch or branch doesn't exist, no patch
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "No branch found, no patch generation"
+          fi
+          
+          # If we have a branch name, check if that branch exists and get its diff
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "Looking for branch: $BRANCH_NAME"
+            # Check if the branch exists
+            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
+              
+              # Check if origin/$BRANCH_NAME exists to use as base
+              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+                echo "Using origin/$BRANCH_NAME as base for patch generation"
+                BASE_REF="origin/$BRANCH_NAME"
+              else
+                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
+                # Get the default branch name
+                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+                echo "Default branch: $DEFAULT_BRANCH"
+                # Fetch the default branch to ensure it's available locally
+                git fetch origin $DEFAULT_BRANCH
+                # Find merge base between default branch and current branch
+                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+                echo "Using merge-base as base: $BASE_REF"
+              fi
+              
+              # Generate patch from the determined base to the branch
+              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
+            else
+              echo "Branch $BRANCH_NAME does not exist, no patch"
+            fi
+          fi
+          
+          # Show patch info if it exists
+          if [ -f /tmp/aw.patch ]; then
+            ls -la /tmp/aw.patch
+            # Show the first 50 lines of the patch for review
+            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            echo '...' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw.patch
+          path: /tmp/aw.patch
+          if-no-files-found: ignore
 
-  missing_tool:
+  create_pull_request:
     needs: agent
-    if: ${{ always() }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-    timeout-minutes: 5
+      contents: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
     outputs:
-      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
-      total_count: ${{ steps.missing_tool.outputs.total_count }}
+      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
+      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
+      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
+      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
+      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
     steps:
-      - name: Record Missing Tool
-        id: missing_tool
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: aw.patch
+          path: /tmp/
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Create Pull Request
+        id: create_pull_request
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_MISSING_TOOL_MAX: 5
+          GITHUB_AW_WORKFLOW_ID: "agent"
+          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GITHUB_AW_PR_TITLE_PREFIX: "[tidy] "
+          GITHUB_AW_PR_LABELS: "automation,maintenance"
+          GITHUB_AW_PR_DRAFT: "false"
+          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
+          GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
           script: |
+            const fs = require("fs");
+            const crypto = require("crypto");
             async function main() {
-              const fs = require("fs");
-              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
-              core.info("Processing missing-tool reports...");
-              core.info(`Agent output length: ${agentOutput.length}`);
-              if (maxReports) {
-                core.info(`Maximum reports allowed: ${maxReports}`);
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
               }
-              const missingTools = [];
-              if (!agentOutput.trim()) {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
+              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
+              }
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+              }
+              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
+              if (!fs.existsSync("/tmp/aw.patch")) {
+                const message = "No patch file found - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
+                  return;
+                }
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+              if (patchContent.includes("Failed to generate patch")) {
+                const message = "Patch file contains error message - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (patch error)");
+                  return;
+                }
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
+                    return;
+                  }
+                  throw new Error(message);
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty && !isStaged) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              core.debug(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              } else {
+                core.info("Patch file is empty - processing noop operation");
               }
               let validatedOutput;
               try {
-                validatedOutput = JSON.parse(agentOutput);
+                validatedOutput = JSON.parse(outputContent);
               } catch (error) {
                 core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
+                core.warning("No valid items found in agent output");
                 return;
               }
-              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
-              for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
-                  if (!entry.tool) {
-                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  if (!entry.reason) {
-                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
-                    continue;
-                  }
-                  const missingTool = {
-                    tool: entry.tool,
-                    reason: entry.reason,
-                    alternatives: entry.alternatives || null,
-                    timestamp: new Date().toISOString(),
-                  };
-                  missingTools.push(missingTool);
-                  core.info(`Recorded missing tool: ${missingTool.tool}`);
-                  if (maxReports && missingTools.length >= maxReports) {
-                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
-                    break;
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create-pull-request");
+              if (!pullRequestItem) {
+                core.warning("No create-pull-request item found in agent output");
+                return;
+              }
+              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+                summaryContent += `**Base:** ${baseBranch}\n\n`;
+                if (pullRequestItem.body) {
+                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+                }
+                if (fs.existsSync("/tmp/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+                  if (patchStats.trim()) {
+                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                  } else {
+                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
                   }
                 }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Pull request creation preview written to step summary");
+                return;
               }
-              core.info(`Total missing tools reported: ${missingTools.length}`);
-              core.setOutput("tools_reported", JSON.stringify(missingTools));
-              core.setOutput("total_count", missingTools.length.toString());
-              if (missingTools.length > 0) {
-                core.info("Missing tools summary:");
-                core.summary
-                  .addHeading("Missing Tools Report", 2)
-                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
-                missingTools.forEach((tool, index) => {
-                  core.info(`${index + 1}. Tool: ${tool.tool}`);
-                  core.info(`   Reason: ${tool.reason}`);
-                  if (tool.alternatives) {
-                    core.info(`   Alternatives: ${tool.alternatives}`);
-                  }
-                  core.info(`   Reported at: ${tool.timestamp}`);
-                  core.info("");
-                  core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
-                  if (tool.alternatives) {
-                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
-                  }
-                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
-                });
-                core.summary.write();
+              let title = pullRequestItem.title.trim();
+              let bodyLines = pullRequestItem.body.split("\n");
+              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+              if (!title) {
+                title = "Agent Output";
+              }
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
+              const runId = context.runId;
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `https://github.com/actions/runs/${runId}`;
+              bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
+              const body = bodyLines.join("\n").trim();
+              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+              const labels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map( label => label.trim())
+                    .filter( label => label)
+                : [];
+              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
+              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+              core.info(`Creating pull request with title: ${title}`);
+              core.debug(`Labels: ${JSON.stringify(labels)}`);
+              core.debug(`Draft: ${draft}`);
+              core.debug(`Body length: ${body.length}`);
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              if (!branchName) {
+                core.debug("No branch name provided in JSONL, generating unique branch name");
+                branchName = `${workflowId}-${randomHex}`;
               } else {
-                core.info("No missing tools reported in this workflow execution.");
-                core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
+                branchName = `${branchName}-${randomHex}`;
+                core.debug(`Using branch name from JSONL with added salt: ${branchName}`);
+              }
+              core.info(`Generated branch name: ${branchName}`);
+              core.debug(`Base branch: ${baseBranch}`);
+              core.debug(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+              await exec.exec("git fetch origin");
+              await exec.exec(`git checkout ${baseBranch}`);
+              core.debug(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+              await exec.exec(`git checkout -b ${branchName}`);
+              core.info(`Created new branch from base: ${branchName}`);
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                await exec.exec("git am /tmp/aw.patch");
+                core.info("Patch applied successfully");
+                await exec.exec(`git push origin ${branchName}`);
+                core.info("Changes pushed to branch");
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                const message = "No changes to apply - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              try {
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  head: branchName,
+                  base: baseBranch,
+                  draft: draft,
+                });
+                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                if (labels.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pullRequest.number,
+                    labels: labels,
+                  });
+                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                }
+                core.setOutput("pull_request_number", pullRequest.number);
+                core.setOutput("pull_request_url", pullRequest.html_url);
+                core.setOutput("branch_name", branchName);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+            - **Branch**: \`${branchName}\`
+            - **Base Branch**: \`${baseBranch}\`
+            `
+                  )
+                  .write();
+              } catch (prError) {
+                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+                core.info("Falling back to creating an issue instead");
+                const branchUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/tree/${branchName}`
+                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const fallbackBody = `${body}
+            ---
+            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+            You can manually create a pull request from the branch if needed.`;
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Fallback Issue Created
+            - **Issue**: [#${issue.number}](${issue.html_url})
+            - **Branch**: [\`${branchName}\`](${branchUrl})
+            - **Base Branch**: \`${baseBranch}\`
+            - **Note**: Pull request creation failed, created issue as fallback
+            `
+                    )
+                    .write();
+                } catch (issueError) {
+                  core.setFailed(
+                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                  );
+                  return;
+                }
               }
             }
-            main().catch(error => {
-              core.error(`Error processing missing-tool reports: ${error}`);
-              core.setFailed(`Error processing missing-tool reports: ${error}`);
-            });
+            await main();
 
