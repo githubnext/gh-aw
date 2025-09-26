@@ -414,7 +414,7 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 
 	// Get the full command from the execution step
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	
+
 	// Find the line that contains the copilot command
 	lines := strings.Split(stepContent, "\n")
 	var copilotCommand string
@@ -433,7 +433,7 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	if strings.Contains(copilotCommand, `'"$INSTRUCTION"'`) {
 		t.Errorf("$INSTRUCTION should not be wrapped in single quotes: %s", copilotCommand)
 	}
-	
+
 	// The $INSTRUCTION should remain double-quoted for variable expansion
 	if !strings.Contains(copilotCommand, `"$INSTRUCTION"`) {
 		t.Errorf("$INSTRUCTION should remain double-quoted: %s", copilotCommand)
