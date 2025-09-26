@@ -768,7 +768,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git switch:*)' --allow-tool write --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-patch-size-limit-exceeded.log
+          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git switch:*)' --allow-tool write --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -779,10 +779,10 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/test-copilot-patch-size-limit-exceeded.log
+          touch /tmp/agent-stdio.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Copilot execution log ==="
-          tail -10 /tmp/test-copilot-patch-size-limit-exceeded.log || echo "No log content available"
+          tail -10 /tmp/agent-stdio.log || echo "No log content available"
       - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1563,7 +1563,7 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-copilot-patch-size-limit-exceeded.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
         with:
           script: |
             function main() {
@@ -1667,18 +1667,18 @@ jobs:
               }
             }
             main();
-      - name: Upload agent logs
+      - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-copilot-patch-size-limit-exceeded.log
-          path: /tmp/test-copilot-patch-size-limit-exceeded.log
+          name: agent-stdio.log
+          path: /tmp/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-copilot-patch-size-limit-exceeded.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"}]"
         with:
           script: |
