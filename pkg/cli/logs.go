@@ -88,6 +88,52 @@ type MissingToolSummary struct {
 // ErrNoArtifacts indicates that a workflow run has no artifacts
 var ErrNoArtifacts = errors.New("no artifacts found for this run")
 
+// fetchJobStatuses gets job information for a workflow run and counts failed jobs
+func fetchJobStatuses(runID int64, verbose bool) (int, error) {
+	args := []string{"api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion}"}
+	
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Fetching job statuses for run %d", runID)))
+	}
+
+	cmd := exec.Command("gh", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if verbose {
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job statuses for run %d: %v", runID, err)))
+		}
+		// Don't fail the entire operation if we can't get job info
+		return 0, nil
+	}
+
+	// Parse each line as a separate JSON object
+	failedJobs := 0
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		
+		var job JobInfo
+		if err := json.Unmarshal([]byte(line), &job); err != nil {
+			if verbose {
+				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Failed to parse job info: %s", line)))
+			}
+			continue
+		}
+		
+		// Count jobs with failure conclusions as errors
+		if job.Conclusion == "failure" || job.Conclusion == "cancelled" || job.Conclusion == "timed_out" {
+			failedJobs++
+			if verbose {
+				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Found failed job '%s' with conclusion '%s'", job.Name, job.Conclusion)))
+			}
+		}
+	}
+	
+	return failedJobs, nil
+}
+
 // DownloadResult represents the result of downloading artifacts for a single run
 type DownloadResult struct {
 	Run            WorkflowRun
@@ -98,6 +144,13 @@ type DownloadResult struct {
 	Error          error
 	Skipped        bool
 	LogsPath       string
+}
+
+// JobInfo represents basic information about a workflow job
+type JobInfo struct {
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
 }
 
 // AwInfo represents the structure of aw_info.json files
@@ -414,6 +467,14 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			run.ErrorCount = result.Metrics.ErrorCount
 			run.WarningCount = result.Metrics.WarningCount
 			run.LogsPath = result.LogsPath
+
+			// Add failed jobs to error count
+			if failedJobCount, err := fetchJobStatuses(run.DatabaseID, verbose); err == nil {
+				run.ErrorCount += failedJobCount
+				if verbose && failedJobCount > 0 {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))
+				}
+			}
 
 			// Store access analysis for later display (we'll access it via the result)
 			// No need to modify the WorkflowRun struct for this
