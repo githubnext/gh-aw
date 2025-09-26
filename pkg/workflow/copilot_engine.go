@@ -7,8 +7,7 @@ import (
 	"strings"
 )
 
-const tempFolder = "/tmp/.copilot"
-const logsFolder = tempFolder + "/logs/"
+const logsFolder = "/tmp/.copilot/logs/"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
@@ -65,11 +64,6 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 			"      - name: Install GitHub Copilot CLI",
 			fmt.Sprintf("        run: %s", installCmd),
 		},
-		{
-			"      - name: Setup Copilot CLI MCP Configuration",
-			"        run: |",
-			"          mkdir -p /tmp/.copilot",
-		},
 	}
 
 	steps = append(steps, installationSteps...)
@@ -122,8 +116,6 @@ INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
-		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment
-		"XDG_STATE_HOME":      tempFolder, // copilot cache environment
 		"GITHUB_TOKEN":        "${{ secrets.COPILOT_CLI_TOKEN  }}",
 		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
@@ -270,7 +262,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		configJSON = []byte("{\n            \"mcpServers\": {}\n          }")
 	}
 
-	yaml.WriteString("          cat > /tmp/.copilot/mcp-config.json << 'EOF'\n")
+	yaml.WriteString("          mkdir -p ~/.copilot\n")
+	yaml.WriteString("          cat > ~/.copilot/mcp-config.json << 'EOF'\n")
 	yaml.WriteString("          ")
 	yaml.WriteString(string(configJSON))
 	yaml.WriteString("\n          EOF\n")
@@ -292,6 +285,13 @@ func (e *CopilotEngine) buildCopilotMCPServer(toolName string, toolConfig map[st
 
 	server := CopilotMCPServer{
 		Type: serverType,
+	}
+
+	// Set tools field - use allowed tools if specified, otherwise default to all
+	if len(mcpConfig.Allowed) > 0 {
+		server.Tools = mcpConfig.Allowed
+	} else {
+		server.Tools = []string{"*"}
 	}
 
 	// Set fields based on type
@@ -329,6 +329,7 @@ func (e *CopilotEngine) buildPlaywrightCopilotMCPServer(playwrightTool any, netw
 		Type:    "local",
 		Command: "npx",
 		Args:    []string{playwrightPackage},
+		Tools:   []string{"*"}, // Allow all Playwright tools
 	}
 
 	if len(args.AllowedDomains) > 0 {
@@ -344,6 +345,7 @@ func (e *CopilotEngine) buildSafeOutputsCopilotMCPServer() CopilotMCPServer {
 		Type:    "local",
 		Command: "node",
 		Args:    []string{"/tmp/safe-outputs/mcp-server.cjs"},
+		Tools:   []string{"*"}, // Allow all safe-outputs tools
 		Env: map[string]interface{}{
 			"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
 			"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}",
