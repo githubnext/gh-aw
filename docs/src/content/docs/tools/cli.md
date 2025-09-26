@@ -334,39 +334,13 @@ gh aw mcp add weekly-research server-name --registry https://custom.registry.com
 - **Transport Selection**: Supports stdio, HTTP, and Docker transports
 - **Custom Registries**: Can connect to private or custom MCP registries
 
-#### MCP Server Development
 
-```bash
-# Launch MCP server exposing gh-aw CLI tools
-gh aw mcp serve
-
-# Serve with detailed logging
-gh aw mcp serve -v
-
-# Serve with only specific tools enabled
-gh aw mcp serve --allowed-tools compile,logs,run
-```
-
-### MCP Server Development
-
-The `mcp serve` command launches an MCP server that exposes gh-aw CLI functionality as MCP tools, making them available to AI assistants and other MCP clients:
-
-**Available MCP Tools:**
-- `compile` - Compile markdown workflow files to YAML
-- `logs` - Download and analyze agentic workflow logs  
-- `mcp_inspect` - Inspect MCP servers and tools
-- `mcp_list` - List MCP server configurations
-- `mcp_add` - Add MCP tools to workflows
-- `run` - Execute workflows on GitHub Actions
-- `enable` - Enable workflow execution
-- `disable` - Disable workflow execution  
-- `status` - Show workflow status
 
 **Key Features:**
 - **`mcp list`**: Quick overview of MCP servers across workflows with structured table output
 - **`mcp inspect`**: Deep inspection with server connection testing and tool capability analysis
 - **`mcp add`**: Registry-based MCP server addition with automatic workflow compilation
-- **`mcp serve`**: Expose gh-aw functionality as MCP tools for AI assistants
+
 - Server discovery and connection testing
 - Tool and capability inspection
 - Detailed tool information with `--tool` flag
