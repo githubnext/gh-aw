@@ -3,23 +3,116 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Test Copilot Patch Size Limit Exceeded"
+name: "Code Tidying Agent"
 on:
+  push:
+    branches:
+    - main
+    paths:
+    - "**/*.go"
+    - "**/*.js"
+    - "**/*.cjs"
+    - "**/*.ts"
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  cancel-in-progress: true
+  group: tidy-${{ github.ref }}
 
-run-name: "Test Copilot Patch Size Limit Exceeded"
+run-name: "Code Tidying Agent"
 
 jobs:
+  check-membership:
+    runs-on: ubuntu-latest
+    outputs:
+      error_message: ${{ steps.check-membership.outputs.error_message }}
+      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
+      result: ${{ steps.check-membership.outputs.result }}
+      user_permission: ${{ steps.check-membership.outputs.user_permission }}
+    steps:
+      - name: Check team membership for workflow
+        id: check-membership
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              // skip check for safe events
+              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.debug(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
+
+  activation:
+    needs: check-membership
+    if: needs.check-membership.outputs.is_team_member == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Activation success"
+
   agent:
+    needs: activation
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      actions: read
+      contents: read
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -622,7 +715,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pull-request-branch\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/.copilot/mcp-config.json << 'EOF'
@@ -649,21 +742,64 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Copilot Patch Size Limit Exceeded
+          # Code Tidying Agent
           
-          This is a test workflow to verify that the max-patch-size validation correctly fails when patches exceed the configured limit.
+          You are a code maintenance agent responsible for keeping the codebase clean, formatted, and properly linted. Your task is to format, lint, fix issues, recompile workflows, run tests, and create a pull request if changes are needed.
           
-          **WARNING**: This workflow has a very small patch size limit (1 KB) and is designed to test the failure case.
+          ## Your Mission
           
-          Please:
-          1. Create multiple new files with significant content (each file should be several KB)
-          2. Make extensive changes to existing files 
-          3. Try to push these changes to a PR branch
-          4. The workflow should fail with an error message like: "Patch size (X KB) exceeds maximum allowed size (1 KB)"
+          Perform the following steps in order:
           
-          This demonstrates how the `max-patch-size: 1` configuration under `safe-outputs` protects against large patches that could cause workflow failures or performance issues. The small limit ensures this test will fail unless only tiny changes are made.
+          ### 1. Format Code
+          Run `make fmt` to format all Go code according to the project standards.
           
-          You can compare this with the `test-copilot-max-patch-size.md` workflow which has a more reasonable 512 KB limit.
+          ### 2. Lint Code  
+          Run `make lint` to check for linting issues across the entire codebase (Go and JavaScript).
+          
+          ### 3. Fix Linting Issues
+          If any linting issues are found, analyze and fix them:
+          - Review the linting output carefully
+          - Make the necessary code changes to address each issue
+          - Focus on common issues like unused variables, imports, formatting problems
+          - Be conservative - only fix clear, obvious issues
+          
+          ### 4. Format and Lint Again
+          After fixing issues:
+          - Run `make fmt` again to ensure formatting is correct
+          - Run `make lint` again to verify all issues are resolved
+          
+          ### 5. Recompile Workflows
+          Run `make recompile` to recompile all agentic workflow files and ensure they are up to date.
+          
+          ### 6. Run Tests
+          Run `make test` to ensure your changes don't break anything. If tests fail:
+          - Analyze the test failures
+          - Only fix test failures that are clearly related to your formatting/linting changes
+          - Do not attempt to fix unrelated test failures
+          
+          ### 7. Create Pull Request
+          If any changes were made during the above steps:
+          - Use the `create_pull_request` tool to create a pull request
+          - Provide a clear title describing what was tidied (e.g., "Fix linting issues and update formatting")
+          - In the PR description, summarize what changes were made and why
+          - Include details about any specific issues that were fixed
+          
+          ## Important Guidelines
+          
+          - **Safety First**: Only make changes that are clearly needed for formatting, linting, or compilation
+          - **Test Validation**: Always run tests after making changes  
+          - **Minimal Changes**: Don't make unnecessary modifications to working code
+          - **Clear Communication**: Explain what you changed and why in the pull request
+          - **Skip if Clean**: If no changes are needed, simply report that everything is already tidy
+          
+          ## Environment Setup
+          
+          The repository has all necessary tools installed:
+          - Go toolchain with gofmt, golangci-lint
+          - Node.js with prettier for JavaScript formatting
+          - All dependencies are already installed
+          
+          Start by checking the current state and then proceed with the tidying process.
           
           EOF
       - name: Append safe outputs instructions to prompt
@@ -674,16 +810,18 @@ jobs:
           
           ---
           
-          ## Pushing Changes to Branch, Reporting Missing Tools or Functionality
+          ## Creating a Pull RequestReporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Pushing Changes to Pull Request Branch**
+          **Creating a Pull Request**
           
-          To push changes to the branch of a pull request:
+          To create a pull request:
           1. Make any file changes directly in the working directory
-          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP
+          2. If you haven't done so already, create a local branch using an appropriate unique name
+          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          4. Do not push your changes. That will be done by the tool.
+          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
           
           EOF
       - name: Print prompt to step summary
@@ -706,7 +844,7 @@ jobs:
               engine_name: "GitHub Copilot CLI",
               model: "",
               version: "",
-              workflow_name: "Test Copilot Patch Size Limit Exceeded",
+              workflow_name: "Code Tidying Agent",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -754,14 +892,14 @@ jobs:
         # --allow-tool shell(git rm:*)
         # --allow-tool shell(git switch:*)
         # --allow-tool write
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           set -o pipefail
           
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool shell(git add:*) --allow-tool shell(git branch:*) --allow-tool shell(git checkout:*) --allow-tool shell(git commit:*) --allow-tool shell(git merge:*) --allow-tool shell(git rm:*) --allow-tool shell(git switch:*) --allow-tool write --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-patch-size-limit-exceeded.log
+          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool shell(git add:*) --allow-tool shell(git branch:*) --allow-tool shell(git checkout:*) --allow-tool shell(git commit:*) --allow-tool shell(git merge:*) --allow-tool shell(git rm:*) --allow-tool shell(git switch:*) --allow-tool write --prompt "$INSTRUCTION" 2>&1 | tee /tmp/code-tidying-agent.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -772,10 +910,10 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/test-copilot-patch-size-limit-exceeded.log
+          touch /tmp/code-tidying-agent.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Copilot execution log ==="
-          tail -10 /tmp/test-copilot-patch-size-limit-exceeded.log || echo "No log content available"
+          tail -10 /tmp/code-tidying-agent.log || echo "No log content available"
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -806,7 +944,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"push-to-pull-request-branch\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
         with:
           script: |
             async function main() {
@@ -1559,7 +1697,7 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-copilot-patch-size-limit-exceeded.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/code-tidying-agent.log
         with:
           script: |
             function main() {
@@ -1667,14 +1805,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-copilot-patch-size-limit-exceeded.log
-          path: /tmp/test-copilot-patch-size-limit-exceeded.log
+          name: code-tidying-agent.log
+          path: /tmp/code-tidying-agent.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/test-copilot-patch-size-limit-exceeded.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/code-tidying-agent.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"}]"
         with:
           script: |
@@ -1872,19 +2010,21 @@ jobs:
           path: /tmp/aw.patch
           if-no-files-found: ignore
 
-  push_to_pull_request_branch:
+  create_pull_request:
     needs: agent
-    if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: read
-      issues: read
+      issues: write
+      pull-requests: write
     timeout-minutes: 10
     outputs:
-      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
-      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
-      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
+      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
+      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
+      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
+      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
+      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
     steps:
       - name: Download patch artifact
         continue-on-error: true
@@ -1901,51 +2041,79 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Push to Branch
-        id: push_to_pull_request_branch
+      - name: Create Pull Request
+        id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GH_TOKEN: ${{ github.token }}
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1
+          GITHUB_AW_WORKFLOW_ID: "agent"
+          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GITHUB_AW_PR_TITLE_PREFIX: "[tidy] "
+          GITHUB_AW_PR_LABELS: "automation,maintenance"
+          GITHUB_AW_PR_DRAFT: "false"
+          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
+          GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
           script: |
             const fs = require("fs");
+            const crypto = require("crypto");
             async function main() {
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
+              }
+              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
+              }
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
-                return;
               }
-              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
-              const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
+              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
               if (!fs.existsSync("/tmp/aw.patch")) {
-                const message = "No patch file found - cannot push without changes";
+                const message = "No patch file found - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
+                  return;
+                }
                 switch (ifNoChanges) {
                   case "error":
-                    core.setFailed(message);
-                    return;
+                    throw new Error(message);
                   case "ignore":
                     return;
                   case "warn":
                   default:
-                    core.info(message);
+                    core.warning(message);
                     return;
                 }
               }
               const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
               if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot push without changes";
+                const message = "Patch file contains error message - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (patch error)");
+                  return;
+                }
                 switch (ifNoChanges) {
                   case "error":
-                    core.setFailed(message);
-                    return;
+                    throw new Error(message);
                   case "ignore":
                     return;
                   case "warn":
                   default:
-                    core.info(message);
+                    core.warning(message);
                     return;
                 }
               }
@@ -1957,30 +2125,38 @@ jobs:
                 core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
                 if (patchSizeKb > maxSizeKb) {
                   const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  core.setFailed(message);
-                  return;
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
+                    return;
+                  }
+                  throw new Error(message);
                 }
                 core.info("Patch size validation passed");
               }
-              if (isEmpty) {
+              if (isEmpty && !isStaged) {
                 const message = "Patch file is empty - no changes to apply (noop operation)";
                 switch (ifNoChanges) {
                   case "error":
-                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
-                    return;
+                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
                   case "ignore":
-                    break;
+                    return;
                   case "warn":
                   default:
-                    core.info(message);
-                    break;
+                    core.warning(message);
+                    return;
                 }
               }
-              core.info(`Agent output content length: ${outputContent.length}`);
+              core.debug(`Agent output content length: ${outputContent.length}`);
               if (!isEmpty) {
                 core.info("Patch content validation passed");
+              } else {
+                core.info("Patch file is empty - processing noop operation");
               }
-              core.info(`Target configuration: ${target}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
@@ -1989,21 +2165,23 @@ jobs:
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
+                core.warning("No valid items found in agent output");
                 return;
               }
-              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
-              if (!pushItem) {
-                core.info("No push-to-pull-request-branch item found in agent output");
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create-pull-request");
+              if (!pullRequestItem) {
+                core.warning("No create-pull-request item found in agent output");
                 return;
               }
-              core.info("Found push-to-pull-request-branch item");
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
-                summaryContent += `**Target:** ${target}\n\n`;
-                if (pushItem.commit_message) {
-                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
+              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+                summaryContent += `**Base:** ${baseBranch}\n\n`;
+                if (pullRequestItem.body) {
+                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
                 }
                 if (fs.existsSync("/tmp/aw.patch")) {
                   const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
@@ -2015,119 +2193,149 @@ jobs:
                   }
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Push to PR branch preview written to step summary");
+                core.info("📝 Pull request creation preview written to step summary");
                 return;
               }
-              if (target !== "*" && target !== "triggering") {
-                const pullNumber = parseInt(target, 10);
-                if (isNaN(pullNumber)) {
-                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
-                  return;
-                }
+              let title = pullRequestItem.title.trim();
+              let bodyLines = pullRequestItem.body.split("\n");
+              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+              if (!title) {
+                title = "Agent Output";
               }
-              let pullNumber;
-              if (target === "triggering") {
-                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
-                if (!pullNumber) {
-                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
-                  return;
-                }
-              } else if (target === "*") {
-                if (pushItem.pull_number) {
-                  pullNumber = parseInt(pushItem.pull_number, 10);
-                }
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
+              const runId = context.runId;
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `https://github.com/actions/runs/${runId}`;
+              bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
+              const body = bodyLines.join("\n").trim();
+              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+              const labels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map( label => label.trim())
+                    .filter( label => label)
+                : [];
+              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
+              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+              core.info(`Creating pull request with title: ${title}`);
+              core.debug(`Labels: ${JSON.stringify(labels)}`);
+              core.debug(`Draft: ${draft}`);
+              core.debug(`Body length: ${body.length}`);
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              if (!branchName) {
+                core.debug("No branch name provided in JSONL, generating unique branch name");
+                branchName = `${workflowId}-${randomHex}`;
               } else {
-                pullNumber = parseInt(target, 10);
+                branchName = `${branchName}-${randomHex}`;
+                core.debug(`Using branch name from JSONL with added salt: ${branchName}`);
               }
-              let branchName;
-              try {
-                let prInfo = "";
-                const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
-                  listeners: { stdout: data => (prInfo += data.toString()) },
-                });
-                if (!prInfoRes) {
-                  branchName = prInfo.trim();
-                } else {
-                  throw new Error("No head branch found for PR");
-                }
-              } catch (error) {
-                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
-                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
-                return;
-              }
-              core.info(`Target branch: ${branchName}`);
-              const hasChanges = !isEmpty;
-              core.info(`Switching to branch: ${branchName}`);
-              try {
-                await exec.exec("git fetch origin");
-                try {
-                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
-                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                  core.info(`Checked out existing branch from origin: ${branchName}`);
-                } catch (originError) {
-                  core.setFailed(
-                    `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
-                  );
-                  return;
-                }
-              } catch (error) {
-                core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
+              core.info(`Generated branch name: ${branchName}`);
+              core.debug(`Base branch: ${baseBranch}`);
+              core.debug(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+              await exec.exec("git fetch origin");
+              await exec.exec(`git checkout ${baseBranch}`);
+              core.debug(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+              await exec.exec(`git checkout -b ${branchName}`);
+              core.info(`Created new branch from base: ${branchName}`);
               if (!isEmpty) {
                 core.info("Applying patch...");
-                try {
-                  await exec.exec("git am /tmp/aw.patch");
-                  core.info("Patch applied successfully");
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info(`Changes committed and pushed to branch: ${branchName}`);
-                } catch (error) {
-                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
+                await exec.exec("git am /tmp/aw.patch");
+                core.info("Patch applied successfully");
+                await exec.exec(`git push origin ${branchName}`);
+                core.info("Changes pushed to branch");
               } else {
                 core.info("Skipping patch application (empty patch)");
                 const message = "No changes to apply - noop operation completed successfully";
                 switch (ifNoChanges) {
                   case "error":
-                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
-                    return;
+                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
                   case "ignore":
-                    break;
+                    return;
                   case "warn":
                   default:
-                    core.info(message);
-                    break;
+                    core.warning(message);
+                    return;
                 }
               }
-              let commitSha = "";
-              const commitShaRes = await exec.exec("git", ["rev-parse", "HEAD"], {
-                listeners: { stdout: data => (commitSha += data.toString()) },
-              });
-              if (commitShaRes) throw new Error("Failed to get commit SHA");
-              commitSha = commitSha.trim();
-              const pushUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/tree/${branchName}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-              core.setOutput("branch_name", branchName);
-              core.setOutput("commit_sha", commitSha);
-              core.setOutput("push_url", pushUrl);
-              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
-              const summaryContent = hasChanges
-                ? `
-            ## ${summaryTitle}
+              try {
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  head: branchName,
+                  base: baseBranch,
+                  draft: draft,
+                });
+                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                if (labels.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pullRequest.number,
+                    labels: labels,
+                  });
+                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                }
+                core.setOutput("pull_request_number", pullRequest.number);
+                core.setOutput("pull_request_url", pullRequest.html_url);
+                core.setOutput("branch_name", branchName);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
             - **Branch**: \`${branchName}\`
-            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
-            - **URL**: [${pushUrl}](${pushUrl})
+            - **Base Branch**: \`${baseBranch}\`
             `
-                : `
-            ## ${summaryTitle}
-            - **Branch**: \`${branchName}\`
-            - **Status**: No changes to apply (noop operation)
-            - **URL**: [${pushUrl}](${pushUrl})
-            `;
-              await core.summary.addRaw(summaryContent).write();
+                  )
+                  .write();
+              } catch (prError) {
+                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+                core.info("Falling back to creating an issue instead");
+                const branchUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/tree/${branchName}`
+                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                const fallbackBody = `${body}
+            ---
+            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+            You can manually create a pull request from the branch if needed.`;
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Fallback Issue Created
+            - **Issue**: [#${issue.number}](${issue.html_url})
+            - **Branch**: [\`${branchName}\`](${branchUrl})
+            - **Base Branch**: \`${baseBranch}\`
+            - **Note**: Pull request creation failed, created issue as fallback
+            `
+                    )
+                    .write();
+                } catch (issueError) {
+                  core.setFailed(
+                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                  );
+                  return;
+                }
+              }
             }
             await main();
 
