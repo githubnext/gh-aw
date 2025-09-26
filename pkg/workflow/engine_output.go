@@ -27,9 +27,12 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 	yaml.WriteString("          if-no-files-found: ignore\n")
 
 	// Add cleanup step to remove output files after upload
+	// Only clean files under the workspace, ignore files in /tmp/
 	yaml.WriteString("      - name: Clean up engine output files\n")
 	yaml.WriteString("        run: |\n")
 	for _, file := range outputFiles {
-		yaml.WriteString("          rm -fr " + file + "\n")
+		if !strings.HasPrefix(file, "/tmp/") {
+			yaml.WriteString("          rm -fr " + file + "\n")
+		}
 	}
 }

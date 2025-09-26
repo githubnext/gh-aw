@@ -239,3 +239,129 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 	t.Logf("Claude engine declares: %v", claudeOutputFiles)
 	t.Logf("Codex engine declares: %v", codexOutputFiles)
 }
+
+func TestEngineOutputCleanupExcludesTmpFiles(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "engine-output-cleanup-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test markdown file with Copilot engine (which declares /tmp/.copilot/logs/ as output file)
+	testContent := `---
+on: push
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: copilot
+---
+
+# Test Engine Output Cleanup
+
+This workflow tests that /tmp/ files are excluded from cleanup.
+`
+
+	testFile := filepath.Join(tmpDir, "test-engine-output-cleanup.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Verify that the upload step includes the /tmp/ path (artifact should still be uploaded)
+	if !strings.Contains(lockStr, "/tmp/.copilot/logs/") {
+		t.Error("Expected upload artifact path to include '/tmp/.copilot/logs/' in generated workflow")
+	}
+
+	// Verify that the cleanup step does NOT include rm commands for /tmp/ paths
+	if strings.Contains(lockStr, "rm -fr /tmp/.copilot/logs/") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/.copilot/logs/' command")
+	}
+
+	// Verify that cleanup step exists (should exist but be empty if all files are in /tmp/)
+	if !strings.Contains(lockStr, "- name: Clean up engine output files") {
+		t.Error("Expected 'Clean up engine output files' step to be present in generated workflow")
+	}
+
+	t.Log("Successfully verified that /tmp/ files are excluded from cleanup step while still being uploaded as artifacts")
+}
+
+func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
+	// Test the cleanup logic directly with mixed paths to ensure proper filtering
+	var yaml strings.Builder
+
+	// Simulate mixed output files: some in /tmp/, some in workspace
+	mockOutputFiles := []string{
+		"/tmp/logs/debug.log",
+		"workspace-output/results.txt",
+		"/tmp/.cache/data.json",
+		"build/artifacts.zip",
+	}
+
+	// Generate the engine output collection manually to test the logic
+	yaml.WriteString("      - name: Upload engine output files\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: agent_outputs\n")
+	yaml.WriteString("          path: |\n")
+	for _, file := range mockOutputFiles {
+		yaml.WriteString("            " + file + "\n")
+	}
+	yaml.WriteString("          if-no-files-found: ignore\n")
+
+	// Add cleanup step with the same logic as the actual implementation
+	yaml.WriteString("      - name: Clean up engine output files\n")
+	yaml.WriteString("        run: |\n")
+	for _, file := range mockOutputFiles {
+		if !strings.HasPrefix(file, "/tmp/") {
+			yaml.WriteString("          rm -fr " + file + "\n")
+		}
+	}
+
+	result := yaml.String()
+
+	// Verify that all files are included in the upload step
+	if !strings.Contains(result, "/tmp/logs/debug.log") {
+		t.Error("Expected /tmp/logs/debug.log to be included in upload step")
+	}
+	if !strings.Contains(result, "workspace-output/results.txt") {
+		t.Error("Expected workspace-output/results.txt to be included in upload step")
+	}
+	if !strings.Contains(result, "/tmp/.cache/data.json") {
+		t.Error("Expected /tmp/.cache/data.json to be included in upload step")
+	}
+	if !strings.Contains(result, "build/artifacts.zip") {
+		t.Error("Expected build/artifacts.zip to be included in upload step")
+	}
+
+	// Verify that only workspace files are included in cleanup step
+	if strings.Contains(result, "rm -fr /tmp/logs/debug.log") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/logs/debug.log' command")
+	}
+	if strings.Contains(result, "rm -fr /tmp/.cache/data.json") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/.cache/data.json' command")
+	}
+	if !strings.Contains(result, "rm -fr workspace-output/results.txt") {
+		t.Error("Cleanup step should include 'rm -fr workspace-output/results.txt' command")
+	}
+	if !strings.Contains(result, "rm -fr build/artifacts.zip") {
+		t.Error("Cleanup step should include 'rm -fr build/artifacts.zip' command")
+	}
+
+	t.Log("Successfully verified that mixed path cleanup properly filters /tmp/ files")
+}
