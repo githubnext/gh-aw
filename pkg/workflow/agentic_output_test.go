@@ -301,12 +301,13 @@ This workflow tests that /tmp/ files are excluded from cleanup.
 	t.Log("Successfully verified that /tmp/ files are excluded from cleanup step while still being uploaded as artifacts")
 }
 
-func TestGenerateNetworkHookCleanup(t *testing.T) {
-	compiler := NewCompiler(false, "", "test")
+func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
+	engine := NewClaudeEngine()
 
 	t.Run("Network hook cleanup with Claude engine and network permissions", func(t *testing.T) {
 		// Test data with Claude engine and network permissions
 		data := &WorkflowData{
+			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				ID:    "claude",
 				Model: "claude-3-5-sonnet-20241022",
@@ -315,10 +316,16 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Allowed: []string{"example.com", "*.trusted.com"},
 			},
 		}
-		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data)
 
-		result := yaml.String()
+		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		
+		// Convert all steps to string for analysis
+		var allStepsStr strings.Builder
+		for _, step := range steps {
+			allStepsStr.WriteString(strings.Join(step, "\n"))
+			allStepsStr.WriteString("\n")
+		}
+		result := allStepsStr.String()
 
 		// Verify cleanup step is generated
 		if !strings.Contains(result, "- name: Clean up network proxy hook files") {
@@ -348,6 +355,7 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 		// Test data with Claude engine and defaults network permissions
 		// (This simulates what happens when no network section is specified - defaults to "defaults" mode)
 		data := &WorkflowData{
+			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				ID:    "claude",
 				Model: "claude-3-5-sonnet-20241022",
@@ -356,10 +364,16 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Mode: "defaults", // Default network mode
 			},
 		}
-		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data)
 
-		result := yaml.String()
+		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		
+		// Convert all steps to string for analysis
+		var allStepsStr strings.Builder
+		for _, step := range steps {
+			allStepsStr.WriteString(strings.Join(step, "\n"))
+			allStepsStr.WriteString("\n")
+		}
+		result := allStepsStr.String()
 
 		// Verify cleanup step is generated for defaults mode
 		if !strings.Contains(result, "- name: Clean up network proxy hook files") {
@@ -367,50 +381,37 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 		}
 	})
 
-	t.Run("No cleanup with non-Claude engine and network permissions", func(t *testing.T) {
-		// Test data with non-Claude engine but with network permissions
+	t.Run("No cleanup with Claude engine but no network permissions", func(t *testing.T) {
+		// Test data with Claude engine but no network permissions
 		data := &WorkflowData{
+			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
-				ID:    "codex", // Non-Claude engine
-				Model: "gpt-4",
+				ID:    "claude",
+				Model: "claude-3-5-sonnet-20241022",
 			},
-			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"example.com"},
-			},
+			NetworkPermissions: nil, // No network permissions
 		}
-		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data)
 
-		result := yaml.String()
+		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		
+		// Convert all steps to string for analysis
+		var allStepsStr strings.Builder
+		for _, step := range steps {
+			allStepsStr.WriteString(strings.Join(step, "\n"))
+			allStepsStr.WriteString("\n")
+		}
+		result := allStepsStr.String()
 
 		// Verify no cleanup step is generated
 		if strings.Contains(result, "- name: Clean up network proxy hook files") {
-			t.Error("Expected no cleanup step to be generated with non-Claude engine")
+			t.Error("Expected no cleanup step to be generated without network permissions")
 		}
 	})
 
-	t.Run("No cleanup with nil engine config", func(t *testing.T) {
-		// Test data with nil engine config
-		data := &WorkflowData{
-			EngineConfig: nil, // No engine config
-			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"example.com"},
-			},
-		}
-		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data)
-
-		result := yaml.String()
-
-		// Verify no cleanup step is generated
-		if strings.Contains(result, "- name: Clean up network proxy hook files") {
-			t.Error("Expected no cleanup step to be generated with nil engine config")
-		}
-	})
-
-	t.Run("No cleanup with empty network permissions (deny-all)", func(t *testing.T) {
+	t.Run("Cleanup with empty network permissions (deny-all)", func(t *testing.T) {
 		// Test data with Claude engine and empty network permissions (deny-all)
 		data := &WorkflowData{
+			Name: "test-workflow",
 			EngineConfig: &EngineConfig{
 				ID:    "claude",
 				Model: "claude-3-5-sonnet-20241022",
@@ -419,10 +420,16 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Allowed: []string{}, // Empty allowed list (deny-all, but still uses hooks)
 			},
 		}
-		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data)
 
-		result := yaml.String()
+		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		
+		// Convert all steps to string for analysis
+		var allStepsStr strings.Builder
+		for _, step := range steps {
+			allStepsStr.WriteString(strings.Join(step, "\n"))
+			allStepsStr.WriteString("\n")
+		}
+		result := allStepsStr.String()
 
 		// Verify cleanup step is generated even for deny-all policy
 		// because hooks are still created for deny-all enforcement

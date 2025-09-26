@@ -222,6 +222,19 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add the log capture step using shared helper function
 	steps = append(steps, generateLogCaptureStep("Claude", logFile))
 
+	// Add cleanup step for network proxy hook files (if proxy was enabled)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		cleanupStep := GitHubActionStep{
+			"      - name: Clean up network proxy hook files",
+			"        if: always()",
+			"        run: |",
+			"          rm -rf .claude/hooks/network_permissions.py || true",
+			"          rm -rf .claude/hooks || true",
+			"          rm -rf .claude || true",
+		}
+		steps = append(steps, cleanupStep)
+	}
+
 	return steps
 }
 
