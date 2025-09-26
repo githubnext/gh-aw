@@ -320,7 +320,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 			totalTokenUsage += tokenUsage
 		}
 
-		// Count errors and warnings using engine patterns (moved to end for efficiency)
+		// Basic processing - error/warning counting moved to end of function
 	}
 
 	// Add final sequence if any

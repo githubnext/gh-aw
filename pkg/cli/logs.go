@@ -1016,22 +1016,12 @@ func displayLogsOverview(runs []WorkflowRun) {
 		}
 
 		// Format errors
-		errorsStr := "N/A"
-		if run.ErrorCount > 0 {
-			errorsStr = fmt.Sprintf("%d", run.ErrorCount)
-			totalErrors += run.ErrorCount
-		} else if run.ErrorCount == 0 {
-			errorsStr = "0"
-		}
+		errorsStr := fmt.Sprintf("%d", run.ErrorCount)
+		totalErrors += run.ErrorCount
 
 		// Format warnings
-		warningsStr := "N/A"
-		if run.WarningCount > 0 {
-			warningsStr = fmt.Sprintf("%d", run.WarningCount)
-			totalWarnings += run.WarningCount
-		} else if run.WarningCount == 0 {
-			warningsStr = "0"
-		}
+		warningsStr := fmt.Sprintf("%d", run.WarningCount)
+		totalWarnings += run.WarningCount
 
 		// Truncate workflow name if too long
 		workflowName := run.WorkflowName

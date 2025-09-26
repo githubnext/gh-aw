@@ -393,7 +393,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 			}
 		}
 
-		// Count errors and warnings using engine patterns (moved to end for efficiency)
+		// Basic processing - error/warning counting moved to end of function
 	}
 
 	// Add final sequence if any
