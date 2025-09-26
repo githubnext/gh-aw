@@ -980,7 +980,7 @@ jobs:
           # Show last few lines for debugging
           echo "=== Last 10 lines of Copilot execution log ==="
           tail -10 /tmp/dev.log || echo "No log content available"
-      - name: Print Agent output
+      - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
@@ -998,7 +998,7 @@ jobs:
           fi
           echo '``````' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-      - name: Upload agentic output file
+      - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
