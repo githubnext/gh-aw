@@ -55,20 +55,8 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	var steps []GitHubActionStep
 
 	// Check if network permissions are configured (only for Copilot engine)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID == "copilot" && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		// Generate network hook generator and settings generator
-		hookGenerator := &NetworkHookGenerator{}
-		settingsGenerator := &ClaudeSettingsGenerator{} // Using Claude settings generator as it's generic
-
-		allowedDomains := GetAllowedDomains(workflowData.NetworkPermissions)
-
-		// Add settings generation step
-		settingsStep := settingsGenerator.GenerateSettingsWorkflowStep()
-		steps = append(steps, settingsStep)
-
-		// Add hook generation step
-		hookStep := hookGenerator.GenerateNetworkHookWorkflowStep(allowedDomains)
-		steps = append(steps, hookStep)
+	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		// TODO
 	}
 
 	installationSteps := []GitHubActionStep{
