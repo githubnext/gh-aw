@@ -1623,6 +1623,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		c.generateGitPatchStep(yaml)
 	}
 
+	// Add cleanup step for network proxy hook files (if proxy was enabled)
+	c.generateNetworkHookCleanup(yaml, data, engine)
+
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
 }
@@ -1924,6 +1927,21 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 	generateSafeOutputsPromptSection(yaml, safeOutputs)
 	yaml.WriteString("          EOF\n")
+}
+
+// generateNetworkHookCleanup generates a cleanup step that removes network proxy hook files
+// Only generates the step if proxy is enabled (same conditions as hook generation)
+// Always runs and ignores errors
+func (c *Compiler) generateNetworkHookCleanup(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
+	// Only generate cleanup step if network permissions are configured for Claude engine
+	if data.EngineConfig != nil && data.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(data.NetworkPermissions) {
+		yaml.WriteString("      - name: Clean up network proxy hook files\n")
+		yaml.WriteString("        if: always()\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          rm -rf .claude/hooks/network_permissions.py || true\n")
+		yaml.WriteString("          rm -rf .claude/hooks || true\n")
+		yaml.WriteString("          rm -rf .claude || true\n")
+	}
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
