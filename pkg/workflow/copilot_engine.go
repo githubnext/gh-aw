@@ -122,8 +122,8 @@ INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
-		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment
-		"XDG_STATE_HOME":      tempFolder, // copilot cache environment
+		"XDG_CONFIG_HOME":     "/tmp/", // copilot help environment
+		"XDG_STATE_HOME":      "/tmp/", // copilot cache environment
 		"GITHUB_TOKEN":        "${{ secrets.COPILOT_CLI_TOKEN  }}",
 		"GITHUB_STEP_SUMMARY": "${{ env.GITHUB_STEP_SUMMARY }}",
 	}
