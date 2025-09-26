@@ -319,8 +319,8 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 		t.Errorf("Expected artifact name to be 'config':\n%s", uploadStepContent)
 	}
 
-	if !strings.Contains(uploadStepContent, "path: $XDG_CONFIG_HOME") {
-		t.Errorf("Expected artifact path to be '$XDG_CONFIG_HOME':\n%s", uploadStepContent)
+	if !strings.Contains(uploadStepContent, "path: /tmp/.copilot/") {
+		t.Errorf("Expected artifact path to be '/tmp/.copilot/':\n%s", uploadStepContent)
 	}
 
 	// Check the execution step contains tool arguments (second step)
@@ -383,8 +383,8 @@ func TestCopilotEngineUploadConfigStep(t *testing.T) {
 		t.Errorf("Expected artifact name 'config' in:\n%s", uploadStepContent)
 	}
 
-	if !strings.Contains(uploadStepContent, "path: $XDG_CONFIG_HOME") {
-		t.Errorf("Expected artifact path '$XDG_CONFIG_HOME' in:\n%s", uploadStepContent)
+	if !strings.Contains(uploadStepContent, "path: /tmp/.copilot/") {
+		t.Errorf("Expected artifact path '/tmp/.copilot/' in:\n%s", uploadStepContent)
 	}
 
 	if !strings.Contains(uploadStepContent, "if-no-files-found: ignore") {

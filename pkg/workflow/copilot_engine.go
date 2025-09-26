@@ -210,7 +210,7 @@ func (e *CopilotEngine) generateUploadConfigStep() GitHubActionStep {
 	stepLines = append(stepLines, "        uses: actions/upload-artifact@v4")
 	stepLines = append(stepLines, "        with:")
 	stepLines = append(stepLines, "          name: config")
-	stepLines = append(stepLines, "          path: $XDG_CONFIG_HOME")
+	stepLines = append(stepLines, "          path: /tmp/.copilot/")
 	stepLines = append(stepLines, "          if-no-files-found: ignore")
 
 	return GitHubActionStep(stepLines)
