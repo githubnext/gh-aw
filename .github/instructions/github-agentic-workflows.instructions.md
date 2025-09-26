@@ -264,7 +264,7 @@ The memory MCP server is automatically configured when `cache-memory` is enabled
 
 Use the `safe-outputs.create-issue` configuration to automatically create GitHub issues from coding agent output:
 
-```yaml
+```aw
 ---
 on: push
 permissions:
@@ -610,7 +610,7 @@ permissions:
 
 Use the `safe-outputs.create-issue` configuration to automatically create GitHub issues from coding agent output:
 
-```yaml
+```aw
 ---
 on: push
 permissions:
@@ -639,7 +639,7 @@ Create an issue with your final analysis.
 
 Use the `safe-outputs.pull-request` configuration to automatically create pull requests from coding agent output:
 
-```yaml
+```aw
 ---
 on: push
 permissions:
@@ -668,7 +668,7 @@ Create a pull request with your changes.
 
 Use the `safe-outputs.add-comment` configuration to automatically create an issue or pull request comment from coding agent output:
 
-```yaml
+```aw
 ---
 on:
   issues:
@@ -962,6 +962,18 @@ gh aw compile
 
 # Compile a specific workflow
 gh aw compile <workflow-id>
+
+# Compile without emitting .lock.yml (for validation only)
+gh aw compile <workflow-id> --no-emit
+```
+
+### View Logs
+
+```bash
+# Download logs for all agentic workflows
+gh aw logs
+# Download logs for a specific workflow
+gh aw logs <workflow-id>
 ```
 
 ### Documentation
