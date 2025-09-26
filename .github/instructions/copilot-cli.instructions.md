@@ -141,7 +141,7 @@ engine:
 ### Authentication
 - Use `COPILOT_CLI_TOKEN` secret for GitHub token (NOT the default GITHUB_TOKEN)
 - GitHub Actions default token is incompatible with Copilot CLI
-- Must use Personal Access Token (PAT) with repo and copilot scopes
+- Must use Personal Access Token (PAT)
 - Ensure token has appropriate permissions for repository access
 - Token is passed via environment variables to CLI
 
@@ -212,7 +212,6 @@ copilot --add-dir /tmp/ \
 ### Authentication Issues
 - **GitHub Actions Token Incompatibility**: The default `GITHUB_TOKEN` does NOT work with Copilot CLI
 - Verify you're using a Personal Access Token in `COPILOT_CLI_TOKEN` secret
-- Check token validity and ensure it has `repo` and `copilot` scopes
 - Verify the token is associated with a Copilot-enabled GitHub account
 - For GitHub Enterprise, contact admin for Copilot CLI token access
 

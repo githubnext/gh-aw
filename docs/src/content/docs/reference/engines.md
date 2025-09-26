@@ -47,17 +47,7 @@ engine:
   id: copilot
   version: latest
   model: gpt-5                          # Optional: uses claude-sonnet-4 by default
-  env:
-    GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-    DEBUG_MODE: "true"
 ```
-
-**Features:**
-- Conversational AI engine powered by GitHub Copilot
-- Uses GitHub Copilot CLI (`@github/copilot`) for natural language processing
-- Supports MCP servers for tool integration
-- Works with file directories and project contexts
-- Integrates with GitHub API and repositories
 
 **Copilot-specific fields:**
 - **`model`** (optional): AI model to use (`gpt-5` or defaults to `claude-sonnet-4`)
@@ -71,25 +61,6 @@ engine:
 - `COPILOT_CLI_TOKEN` secret is required for authentication.
 
 > **Important**: The standard GitHub Actions `GITHUB_TOKEN` is **not compatible** with GitHub Copilot CLI. You must use a Personal Access Token (PAT) with appropriate permissions.
-
-**To obtain a compatible token:**
-
-1. **For GitHub.com users**: Generate a Personal Access Token at [github.com/settings/tokens](https://github.com/settings/tokens)
-   - Select **Classic** token or **Fine-grained** token
-   - Required scopes: `repo`, `read:org` (for repository access)
-   - Optional scopes: `copilot` (if available for enhanced Copilot features)
-
-2. **For GitHub Enterprise users**: Contact your GitHub Enterprise administrator for Copilot CLI access tokens
-
-3. **Add the token to your repository**:
-   - Go to your repository → Settings → Secrets and variables → Actions
-   - Create a new secret named `COPILOT_CLI_TOKEN`
-   - Paste your Personal Access Token as the value
-
-**Token Requirements:**
-- Must have repository access permissions (`repo` scope)
-- Must be associated with a GitHub account that has Copilot access
-- Cannot be the default GitHub Actions `GITHUB_TOKEN`
 
 ### OpenAI Codex (Experimental)
 
@@ -253,91 +224,6 @@ mode = "strict"
 3. **Use descriptive sections**: Name your configuration sections clearly
 4. **Document purpose**: Include comments in your TOML to explain custom settings
 5. **Test thoroughly**: Validate that your custom configuration works as expected
-
-## Copilot CLI Configuration
-
-The Copilot engine provides comprehensive configuration options for the GitHub Copilot CLI integration, including model selection, directory context, and MCP server management.
-
-### Available Models
-
-GitHub Copilot CLI supports the following models:
-
-- **Default**: `claude-sonnet-4` - Claude Sonnet 4 model (used when no model is specified)
-- **Alternative**: `gpt-5` - GPT-5 model (set via `COPILOT_MODEL` environment variable or `--model` argument)
-
-> **Important**: 
-> - The default model used by GitHub Copilot CLI is Claude Sonnet 4. GitHub reserves the right to change this model.
-> - Each workflow execution counts as one premium request against your monthly quota. For information about premium requests, see [Requests in GitHub Copilot](https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests).
-> - Model availability may vary based on your GitHub Copilot subscription and regional settings. 
-> - Refer to the [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli#model-usage) for the most current model availability.
-
-### Advanced Configuration Example
-
-```yaml
-engine:
-  id: copilot
-  version: latest
-  model: gpt-5                          # Optional: defaults to claude-sonnet-4
-  env:
-    GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-    COPILOT_MODEL: gpt-5                # Alternative way to set model
-    XDG_CONFIG_HOME: /tmp/.copilot
-    XDG_STATE_HOME: /tmp/.copilot
-    DEBUG_MODE: "true"
-```
-
-### CLI Arguments and Options
-
-The Copilot engine automatically configures the GitHub Copilot CLI with optimal settings:
-
-- `--add-dir /tmp/` - Adds project directory context
-- `--log-level debug` - Enables detailed logging
-- `--log-dir /tmp/.copilot/logs/` - Configures log output directory
-- `--model <model>` - Specifies the AI model (e.g., `gpt-5`; defaults to `claude-sonnet-4`)
-
-### MCP Server Integration
-
-Copilot works seamlessly with MCP servers for tool integration. The engine automatically:
-- Generates MCP configuration at `/tmp/.copilot/mcp-config.json`
-- Uses "local" type for stdio-based MCP servers (Copilot CLI convention)
-- Supports HTTP-based MCP servers for distributed tool access
-- Provides built-in GitHub tools without additional MCP configuration
-
-### Installation and Setup
-
-The Copilot engine handles installation automatically:
-1. Sets up Node.js 22 environment
-2. Installs `@github/copilot` CLI globally via npm
-3. Configures authentication using `COPILOT_CLI_TOKEN`
-4. Sets up MCP server configurations
-5. Creates necessary directory structures
-
-## Engine Selection Guidelines
-
-**Choose Claude when:**
-- You need strong reasoning and analysis capabilities
-- Working with complex code review or documentation tasks
-- Performing multi-step reasoning workflows
-- You want the most stable and well-tested engine
-
-**Choose Copilot when:**
-- You want conversational AI with GitHub integration
-- Working with repository analysis and development workflows  
-- Need access to Claude Sonnet 4 (default) or GPT-5 models
-- Prefer GitHub's native AI tooling and ecosystem
-- You're comfortable with experimental features
-
-**Choose Codex when:**
-- You need code-specific AI capabilities
-- Working with specialized MCP server configurations
-- Requiring custom TOML configuration for advanced scenarios
-- You're comfortable with experimental features
-
-**Choose Custom when:**
-- You need deterministic, traditional GitHub Actions behavior
-- Building hybrid workflows with some AI and some traditional steps
-- You have specific requirements that AI engines can't meet
-- Testing or prototyping workflow components
 
 ## Migration Between Engines
 
