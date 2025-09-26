@@ -7,20 +7,20 @@ import (
 
 func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 	tests := []struct {
-		name             string
-		toolConfig       map[string]any
-		renderer         MCPConfigRenderer
-		expectedContent  []string
+		name              string
+		toolConfig        map[string]any
+		renderer          MCPConfigRenderer
+		expectedContent   []string
 		unexpectedContent []string
 	}{
 		{
 			name: "Copilot engine with stdio MCP server",
 			toolConfig: map[string]any{
-				"type":      "stdio",
-				"command":   "docker",
-				"args":      []string{"run", "--rm", "-i", "mcp/time"},
-				"env":       map[string]any{"TZ": "UTC"},
-				"allowed":   []string{"get_current_time"},
+				"type":    "stdio",
+				"command": "docker",
+				"args":    []string{"run", "--rm", "-i", "mcp/time"},
+				"env":     map[string]any{"TZ": "UTC"},
+				"allowed": []string{"get_current_time"},
 			},
 			renderer: MCPConfigRenderer{
 				IndentLevel:           "  ",
@@ -79,7 +79,7 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				`"env": {`,
 			},
 			unexpectedContent: []string{
-				`"type":`, // should NOT include type field
+				`"type":`,  // should NOT include type field
 				`"tools":`, // should NOT include tools field
 			},
 		},
@@ -102,7 +102,7 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				`"headers": {`,
 			},
 			unexpectedContent: []string{
-				`"type":`, // should NOT include type field
+				`"type":`,  // should NOT include type field
 				`"tools":`, // should NOT include tools field
 			},
 		},
@@ -111,7 +111,7 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var output strings.Builder
-			
+
 			err := renderSharedMCPConfig(&output, "test-tool", tt.toolConfig, tt.renderer)
 			if err != nil {
 				t.Fatalf("renderSharedMCPConfig failed: %v", err)
@@ -138,9 +138,9 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 
 func TestRenderSharedMCPConfig_ToolsFieldGeneration(t *testing.T) {
 	tests := []struct {
-		name           string
-		toolConfig     map[string]any
-		expectedTools  string
+		name          string
+		toolConfig    map[string]any
+		expectedTools string
 	}{
 		{
 			name: "Specific allowed tools",
@@ -201,38 +201,38 @@ func TestRenderSharedMCPConfig_ToolsFieldGeneration(t *testing.T) {
 
 func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 	tests := []struct {
-		name         string
-		inputType    string
-		copilotFields bool
-		expectedType string
+		name           string
+		inputType      string
+		copilotFields  bool
+		expectedType   string
 		shouldHaveType bool
 	}{
 		{
-			name:         "stdio to local conversion for copilot",
-			inputType:    "stdio",
-			copilotFields: true,
-			expectedType: `"type": "local"`,
+			name:           "stdio to local conversion for copilot",
+			inputType:      "stdio",
+			copilotFields:  true,
+			expectedType:   `"type": "local"`,
 			shouldHaveType: true,
 		},
 		{
-			name:         "http stays http for copilot",
-			inputType:    "http",
-			copilotFields: true,
-			expectedType: `"type": "http"`,
+			name:           "http stays http for copilot",
+			inputType:      "http",
+			copilotFields:  true,
+			expectedType:   `"type": "http"`,
 			shouldHaveType: true,
 		},
 		{
-			name:         "stdio not included for claude",
-			inputType:    "stdio",
-			copilotFields: false,
-			expectedType: `"type":`,
+			name:           "stdio not included for claude",
+			inputType:      "stdio",
+			copilotFields:  false,
+			expectedType:   `"type":`,
 			shouldHaveType: false,
 		},
 		{
-			name:         "http not included for claude",
-			inputType:    "http",
-			copilotFields: false,
-			expectedType: `"type":`,
+			name:           "http not included for claude",
+			inputType:      "http",
+			copilotFields:  false,
+			expectedType:   `"type":`,
 			shouldHaveType: false,
 		},
 	}
@@ -262,7 +262,7 @@ func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 			}
 
 			result := output.String()
-			
+
 			if tt.shouldHaveType {
 				if !strings.Contains(result, tt.expectedType) {
 					t.Errorf("Expected type field not found: %q\nActual output:\n%s", tt.expectedType, result)

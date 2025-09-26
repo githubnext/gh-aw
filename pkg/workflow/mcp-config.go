@@ -75,7 +75,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				existingProperties = append(existingProperties, prop)
 			}
 		case "tools":
-			// Include tools field only for engines that require copilot fields  
+			// Include tools field only for engines that require copilot fields
 			if renderer.RequiresCopilotFields {
 				existingProperties = append(existingProperties, prop)
 			}
