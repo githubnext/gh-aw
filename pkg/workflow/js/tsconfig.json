@@ -50,7 +50,7 @@
     "parse_codex_log.cjs",
     "push_to_pull_request_branch.cjs",
     "safe_outputs_mcp_client.cjs",
-    "safe_outputs_mcp_server.cjs",
+    "safe_outputs_mcp_server.ts",
     "sanitize_output.cjs",
     "setup_agent_output.cjs",
     "update_issue.cjs",

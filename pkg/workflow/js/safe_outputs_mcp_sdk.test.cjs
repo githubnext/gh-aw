@@ -9,7 +9,7 @@ const { StdioClientTransport } = require("./node_modules/@modelcontextprotocol/s
 // Mock environment for isolated testing
 const originalEnv = process.env;
 
-describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
+describe("safe_outputs_mcp_server.js using MCP TypeScript SDK", () => {
   let client;
   let transport;
   let tempOutputFile;
@@ -74,7 +74,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       expect(client).toBeDefined();
 
       // Demonstrate transport configuration
-      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.js");
       const transportConfig = {
         command: "node",
         args: [serverPath],
@@ -135,7 +135,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       // This test validates that our server works correctly
       // Even if the SDK connection has issues, this proves the server is functional
 
-      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+      const serverPath = path.join(__dirname, "safe_outputs_mcp_server.js");
       expect(fs.existsSync(serverPath)).toBe(true);
       console.log("✅ MCP server file exists");
 

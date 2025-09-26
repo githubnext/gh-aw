@@ -72,7 +72,7 @@ var validateErrorsScript string
 //go:embed js/missing_tool.cjs
 var missingToolScript string
 
-//go:embed js/safe_outputs_mcp_server.cjs
+//go:embed js/safe_outputs_mcp_server.js
 var safeOutputsMCPServerScript string
 
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code

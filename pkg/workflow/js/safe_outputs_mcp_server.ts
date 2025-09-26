@@ -20,6 +20,12 @@ function writeMessage(obj) {
 }
 
 class ReadBuffer {
+  private _buffer: Buffer | undefined;
+
+  constructor() {
+    this._buffer = undefined;
+  }
+
   append(chunk) {
     this._buffer = this._buffer ? Buffer.concat([this._buffer, chunk]) : chunk;
   }
@@ -76,7 +82,7 @@ function replyResult(id, result) {
   const res = { jsonrpc: "2.0", id, result };
   writeMessage(res);
 }
-function replyError(id, code, message, data) {
+function replyError(id: string, code: string, message: string, data?: unknown) {
   // Don't send error responses for notifications (id is null/undefined)
   if (id === undefined || id === null) {
     debug(`Error for notification: ${message}`);
@@ -85,7 +91,7 @@ function replyError(id, code, message, data) {
 
   const error = { code, message };
   if (data !== undefined) {
-    error.data = data;
+    (error as any).data = data;
   }
   const res = {
     jsonrpc: "2.0",
