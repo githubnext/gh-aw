@@ -140,6 +140,14 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Ensure log file exists
+        if: always()
+        run: |
+          # Ensure log file exists
+          touch /tmp/test-codex-add-issue-labels.log
+          # Show last few lines for debugging
+          echo "=== Last 10 lines of Codex execution log ==="
+          tail -10 /tmp/test-codex-add-issue-labels.log || echo "No log content available"
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
