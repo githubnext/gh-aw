@@ -1,4 +1,5 @@
 ---
+name: Tidy
 on:
   workflow_dispatch:
   push:
@@ -17,8 +18,10 @@ concurrency:
   group: tidy-${{ github.ref }}
   cancel-in-progress: true
 
-engine: copilot
+engine: claude
 timeout_minutes: 10
+
+network: {}
 
 safe-outputs:
   create-pull-request:
