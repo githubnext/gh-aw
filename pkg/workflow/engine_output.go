@@ -28,10 +28,19 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 
 	// Add cleanup step to remove output files after upload
 	// Only clean files under the workspace, ignore files in /tmp/
-	yaml.WriteString("      - name: Clean up engine output files\n")
-	yaml.WriteString("        run: |\n")
+	// Only emit the cleanup step if there are actually workspace files to clean
+	var workspaceFiles []string
 	for _, file := range outputFiles {
 		if !strings.HasPrefix(file, "/tmp/") {
+			workspaceFiles = append(workspaceFiles, file)
+		}
+	}
+
+	// Only emit cleanup step if there are workspace files to delete
+	if len(workspaceFiles) > 0 {
+		yaml.WriteString("      - name: Clean up engine output files\n")
+		yaml.WriteString("        run: |\n")
+		for _, file := range workspaceFiles {
 			yaml.WriteString("          rm -fr " + file + "\n")
 		}
 	}

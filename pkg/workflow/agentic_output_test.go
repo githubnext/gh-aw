@@ -293,9 +293,9 @@ This workflow tests that /tmp/ files are excluded from cleanup.
 		t.Error("Cleanup step should NOT include 'rm -fr /tmp/.copilot/logs/' command")
 	}
 
-	// Verify that cleanup step exists (should exist but be empty if all files are in /tmp/)
-	if !strings.Contains(lockStr, "- name: Clean up engine output files") {
-		t.Error("Expected 'Clean up engine output files' step to be present in generated workflow")
+	// Verify that cleanup step does NOT exist when all files are in /tmp/
+	if strings.Contains(lockStr, "- name: Clean up engine output files") {
+		t.Error("Cleanup step should NOT be present when all output files are in /tmp/")
 	}
 
 	t.Log("Successfully verified that /tmp/ files are excluded from cleanup step while still being uploaded as artifacts")
@@ -325,10 +325,19 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 	yaml.WriteString("          if-no-files-found: ignore\n")
 
 	// Add cleanup step with the same logic as the actual implementation
-	yaml.WriteString("      - name: Clean up engine output files\n")
-	yaml.WriteString("        run: |\n")
+	// Only emit cleanup step if there are workspace files to delete
+	var workspaceFiles []string
 	for _, file := range mockOutputFiles {
 		if !strings.HasPrefix(file, "/tmp/") {
+			workspaceFiles = append(workspaceFiles, file)
+		}
+	}
+
+	// Only emit cleanup step if there are workspace files to delete
+	if len(workspaceFiles) > 0 {
+		yaml.WriteString("      - name: Clean up engine output files\n")
+		yaml.WriteString("        run: |\n")
+		for _, file := range workspaceFiles {
 			yaml.WriteString("          rm -fr " + file + "\n")
 		}
 	}
