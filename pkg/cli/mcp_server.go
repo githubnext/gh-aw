@@ -434,15 +434,15 @@ func createMCPServer(verbose bool, allowedTools []string) *mcp.Server {
 		})
 	}
 
-	// Add documentation tool
-	if isToolAllowed("documentation") {
-		type documentationArgs struct {
+	// Add docs tool
+	if isToolAllowed("docs") {
+		type docsArgs struct {
 			Verbose bool `json:"verbose,omitempty"`
 		}
 		mcp.AddTool(server, &mcp.Tool{
-			Name:        "documentation",
+			Name:        "docs",
 			Description: "Get GitHub Agentic Workflows documentation and instructions",
-		}, func(ctx context.Context, req *mcp.CallToolRequest, args documentationArgs) (*mcp.CallToolResult, any, error) {
+		}, func(ctx context.Context, req *mcp.CallToolRequest, args docsArgs) (*mcp.CallToolResult, any, error) {
 			if verbose || args.Verbose {
 				fmt.Fprintf(os.Stderr, "📚 Retrieving documentation...\n")
 			}
@@ -476,7 +476,7 @@ to interact with GitHub Agentic Workflows functionality. The server exposes the 
   enable         - Enable workflows
   disable        - Disable workflows
   status         - Show status of natural language action files and workflows
-  documentation  - Get GitHub Agentic Workflows documentation and instructions
+  docs           - Get GitHub Agentic Workflows documentation and instructions
 
 The server uses stdio transport by default, making it suitable for use with various MCP clients.
 
@@ -508,7 +508,7 @@ Examples:
 	}
 
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed logging")
-	cmd.Flags().StringSlice("allowed-tools", []string{}, "Comma-separated list of tools to enable (compile,logs,mcp_inspect,mcp_list,mcp_add,run,enable,disable,status,documentation). If not specified, all tools are enabled.")
+	cmd.Flags().StringSlice("allowed-tools", []string{}, "Comma-separated list of tools to enable (compile,logs,mcp_inspect,mcp_list,mcp_add,run,enable,disable,status,docs). If not specified, all tools are enabled.")
 
 	return cmd
 }

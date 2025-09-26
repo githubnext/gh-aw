@@ -48,15 +48,15 @@ func TestMCPServerCommand(t *testing.T) {
 		// but we can verify it was created successfully with the filter
 	})
 
-	t.Run("createMCPServer includes documentation tool", func(t *testing.T) {
-		// Test that documentation tool is included when no filter is applied
+	t.Run("createMCPServer includes docs tool", func(t *testing.T) {
+		// Test that docs tool is included when no filter is applied
 		server := createMCPServer(false, []string{})
 		if server == nil {
 			t.Fatal("createMCPServer returned nil")
 		}
 
-		// Test that documentation tool is included when specifically allowed
-		server = createMCPServer(false, []string{"documentation"})
+		// Test that docs tool is included when specifically allowed
+		server = createMCPServer(false, []string{"docs"})
 		if server == nil {
 			t.Fatal("createMCPServer returned nil")
 		}

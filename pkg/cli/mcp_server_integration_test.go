@@ -135,7 +135,7 @@ This is a test workflow for status checking.
 		}
 
 		// Check that we have the expected tools
-		expectedTools := []string{"compile", "logs", "mcp_inspect", "mcp_list", "mcp_add", "run", "enable", "disable", "status", "documentation"}
+		expectedTools := []string{"compile", "logs", "mcp_inspect", "mcp_list", "mcp_add", "run", "enable", "disable", "status", "docs"}
 		if len(toolsResult.Tools) != len(expectedTools) {
 			t.Errorf("Expected %d tools, got %d", len(expectedTools), len(toolsResult.Tools))
 		}
