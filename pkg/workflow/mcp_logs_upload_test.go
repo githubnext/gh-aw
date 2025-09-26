@@ -112,7 +112,7 @@ Please navigate to example.com and take a screenshot.
 		}
 	}
 
-	uploadAgentLogsIndex := strings.Index(lockContentStr, "Upload agent logs")
+	uploadAgentLogsIndex := strings.Index(lockContentStr, "Upload Agent Stdio")
 
 	if agenticIndex != -1 && uploadMCPLogsIndex != -1 && uploadAgentLogsIndex != -1 {
 		if uploadMCPLogsIndex <= agenticIndex {
@@ -120,7 +120,7 @@ Please navigate to example.com and take a screenshot.
 		}
 
 		if uploadMCPLogsIndex >= uploadAgentLogsIndex {
-			t.Error("MCP logs upload step should appear before agent logs upload step")
+			t.Error("MCP logs upload step should appear before Agent Stdio upload step")
 		}
 	}
 }

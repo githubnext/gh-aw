@@ -48,8 +48,8 @@ This is a test workflow.`
 	result := string(lockContent)
 
 	expected := []string{
-		"touch /tmp/test-workflow.log",
-		"tail -10 /tmp/test-workflow.log",
+		"touch /tmp/agent-stdio.log",
+		"tail -10 /tmp/agent-stdio.log",
 	}
 
 	for _, expected := range expected {

@@ -43,38 +43,6 @@ type Compiler struct {
 	fileTracker    FileTracker     // Optional file tracker for tracking created files
 }
 
-// generateSafeFileName converts a workflow name to a safe filename for logs
-func generateSafeFileName(name string) string {
-	// Replace spaces and special characters with hyphens
-	result := strings.ReplaceAll(name, " ", "-")
-	result = strings.ReplaceAll(result, "/", "-")
-	result = strings.ReplaceAll(result, "\\", "-")
-	result = strings.ReplaceAll(result, ":", "-")
-	result = strings.ReplaceAll(result, "*", "-")
-	result = strings.ReplaceAll(result, "?", "-")
-	result = strings.ReplaceAll(result, "\"", "-")
-	result = strings.ReplaceAll(result, "<", "-")
-	result = strings.ReplaceAll(result, ">", "-")
-	result = strings.ReplaceAll(result, "|", "-")
-	result = strings.ReplaceAll(result, "@", "-")
-	result = strings.ToLower(result)
-
-	// Remove multiple consecutive hyphens
-	for strings.Contains(result, "--") {
-		result = strings.ReplaceAll(result, "--", "-")
-	}
-
-	// Trim leading/trailing hyphens
-	result = strings.Trim(result, "-")
-
-	// Ensure it's not empty
-	if result == "" {
-		result = "workflow"
-	}
-
-	return result
-}
-
 // NewCompiler creates a new workflow compiler with optional configuration
 func NewCompiler(verbose bool, engineOverride string, version string) *Compiler {
 	c := &Compiler{
@@ -1607,8 +1575,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
 
-	logFile := generateSafeFileName(data.Name)
-	logFileFull := fmt.Sprintf("/tmp/%s.log", logFile)
+	logFile := "agent-stdio"
+	logFileFull := "/tmp/agent-stdio.log"
 
 	// Generate aw_info.json with agentic run metadata
 	c.generateCreateAwInfo(yaml, data, engine)
@@ -1660,11 +1628,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 }
 
 func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {
-	yaml.WriteString("      - name: Upload agent logs\n")
+	yaml.WriteString("      - name: Upload Agent Stdio\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
-	fmt.Fprintf(yaml, "          name: %s.log\n", logFile)
+	yaml.WriteString("          name: agent-stdio.log\n")
 	fmt.Fprintf(yaml, "          path: %s\n", logFileFull)
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
