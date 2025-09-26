@@ -166,7 +166,7 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
-	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`           // Safe-jobs configuration (moved from top-level)
+	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`         // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
@@ -2303,21 +2303,21 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 
 	// Add safe-jobs configuration from both old location (data.SafeJobs) and new location (data.SafeOutputs.Jobs)
 	safeJobsToProcess := make(map[string]*SafeJobConfig)
-	
+
 	// Add from old location (backwards compatibility)
 	if len(data.SafeJobs) > 0 {
 		for jobName, jobConfig := range data.SafeJobs {
 			safeJobsToProcess[jobName] = jobConfig
 		}
 	}
-	
+
 	// Add from new location (preferred)
 	if data.SafeOutputs != nil && len(data.SafeOutputs.Jobs) > 0 {
 		for jobName, jobConfig := range data.SafeOutputs.Jobs {
 			safeJobsToProcess[jobName] = jobConfig
 		}
 	}
-	
+
 	// Process all safe-jobs
 	if len(safeJobsToProcess) > 0 {
 		for jobName, jobConfig := range safeJobsToProcess {
