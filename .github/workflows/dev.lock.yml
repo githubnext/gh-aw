@@ -972,6 +972,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /tmp/.copilot/
           XDG_STATE_HOME: /tmp/.copilot/
+      - name: Ensure log file exists
+        if: always()
+        run: |
+          # Ensure log file exists
+          touch /tmp/dev.log
+          # Show last few lines for debugging
+          echo "=== Last 10 lines of Copilot execution log ==="
+          tail -10 /tmp/dev.log || echo "No log content available"
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}

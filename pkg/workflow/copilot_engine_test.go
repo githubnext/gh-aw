@@ -61,8 +61,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step for Copilot CLI execution, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps for Copilot CLI execution (execution + log capture), got %d", len(steps))
 	}
 
 	// Check the execution step
@@ -98,8 +98,8 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step for Copilot CLI execution with output, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps for Copilot CLI execution with output (execution + log capture), got %d", len(steps))
 	}
 
 	// Check the execution step
@@ -301,8 +301,8 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 1 {
-		t.Fatalf("Expected 1 step for Copilot CLI execution with tools, got %d", len(steps))
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps for Copilot CLI execution with tools (execution + log capture), got %d", len(steps))
 	}
 
 	// Check the execution step contains tool arguments

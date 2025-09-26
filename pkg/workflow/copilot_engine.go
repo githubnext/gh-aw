@@ -189,6 +189,9 @@ copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
+	// Add the log capture step using shared helper function
+	steps = append(steps, generateLogCaptureStep("Copilot", logFile))
+
 	return steps
 }
 
