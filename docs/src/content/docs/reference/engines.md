@@ -46,7 +46,7 @@ engine: copilot
 engine:
   id: copilot
   version: latest
-  model: gpt-5
+  model: gpt-4o
   env:
     GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
     DEBUG_MODE: "true"
@@ -60,7 +60,7 @@ engine:
 - Integrates with GitHub API and repositories
 
 **Copilot-specific fields:**
-- **`model`** (optional): Specific GPT model to use (e.g., `gpt-5`)
+- **`model`** (optional): Specific AI model to use (e.g., `gpt-4o`, `gpt-4`, `o1-preview`, `o1-mini`)
 - **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
 
 #### Secrets
@@ -257,9 +257,14 @@ The Copilot engine provides comprehensive configuration options for the GitHub C
 
 ### Available Models
 
-The Copilot engine supports the following models:
+The Copilot engine supports the following models as supported by GitHub Copilot CLI:
 
-- `gpt-5` - Latest GPT-5 model with enhanced reasoning capabilities
+- `gpt-4o` - GPT-4 Omni model with multimodal capabilities
+- `gpt-4` - GPT-4 model for general-purpose tasks
+- `o1-preview` - OpenAI's reasoning model (preview)
+- `o1-mini` - Smaller, faster version of the reasoning model
+
+> **Note**: Model availability may vary based on your GitHub Copilot subscription and regional settings. Refer to the [GitHub Copilot CLI documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli#model-usage) for the most current model availability.
 
 ### Advanced Configuration Example
 
@@ -267,7 +272,7 @@ The Copilot engine supports the following models:
 engine:
   id: copilot
   version: latest
-  model: gpt-5
+  model: gpt-4o
   env:
     GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
     XDG_CONFIG_HOME: /tmp/.copilot
@@ -312,7 +317,7 @@ The Copilot engine handles installation automatically:
 **Choose Copilot when:**
 - You want conversational AI with GitHub integration
 - Working with repository analysis and development workflows  
-- Need access to latest GPT models (gpt-5)
+- Need access to latest OpenAI models (GPT-4o, o1-preview)
 - Prefer GitHub's native AI tooling and ecosystem
 - You're comfortable with experimental features
 
@@ -344,7 +349,7 @@ engine: copilot # New
 # With configuration preservation
 engine:
   id: copilot   # Changed from claude/codex
-  model: gpt-5  # Add copilot-specific options
+  model: gpt-4o # Add copilot-specific options
   version: latest
 ```
 
