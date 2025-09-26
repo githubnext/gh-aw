@@ -70,7 +70,7 @@ describe("setup_agent_output.cjs", () => {
         fs.unlinkSync("/tmp/safe-outputs/raw.jsonl");
       }
       if (fs.existsSync("/tmp/safe-outputs")) {
-        fs.rmdirSync("/tmp/safe-outputs");
+        fs.rmSync("/tmp/safe-outputs", { recursive: true, force: true });
       }
     } catch (e) {
       // Ignore cleanup errors
