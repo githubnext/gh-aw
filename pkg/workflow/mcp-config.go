@@ -51,9 +51,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		} else {
 			// JSON format - include copilot fields if required
 			if renderer.RequiresCopilotFields {
-				propertyOrder = []string{"type", "url", "headers", "tools", "registry"}
+				propertyOrder = []string{"type", "url", "headers", "tools"}
 			} else {
-				propertyOrder = []string{"url", "headers", "registry"}
+				propertyOrder = []string{"url", "headers"}
 			}
 		}
 	default:

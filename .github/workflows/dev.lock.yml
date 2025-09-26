@@ -853,8 +853,8 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         run: |
           mkdir -p /tmp/mcp-config
-          mkdir -p ~/.copilot
-          cat > ~/.copilot/mcp-config.json << 'EOF'
+          mkdir -p /home/runner/.copilot
+          cat > /home/runner/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
               "safe_outputs": {
@@ -871,7 +871,7 @@ jobs:
           }
           EOF
           echo "-------START MCP CONFIG-----------"
-          cat ~/.copilot/mcp-config.json
+          cat /home/runner/.copilot/mcp-config.json
           echo "-------END MCP CONFIG-----------"
       - name: Create prompt
         env:

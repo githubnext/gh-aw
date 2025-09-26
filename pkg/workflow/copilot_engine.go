@@ -195,8 +195,8 @@ func (e *CopilotEngine) generateUploadConfigStep() GitHubActionStep {
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          mkdir -p ~/.copilot\n")
-	yaml.WriteString("          cat > ~/.copilot/mcp-config.json << 'EOF'\n")
+	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
+	yaml.WriteString("          cat > /home/runner/.copilot/mcp-config.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -247,8 +247,13 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          }\n")
 	yaml.WriteString("          EOF\n")
 	yaml.WriteString("          echo \"-------START MCP CONFIG-----------\"\n")
-	yaml.WriteString("          cat ~/.copilot/mcp-config.json\n")
+	yaml.WriteString("          cat /home/runner/.copilot/mcp-config.json\n")
 	yaml.WriteString("          echo \"-------END MCP CONFIG-----------\"\n")
+	yaml.WriteString("          echo \"HOME: $HOME\"\n")
+	yaml.WriteString("          echo \"-------~/-----------\"\n")
+	yaml.WriteString("          find ~\n")
+	yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
+	yaml.WriteString("          find /home/runner/.copilot\n")
 }
 
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
