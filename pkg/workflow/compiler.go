@@ -1624,7 +1624,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add cleanup step for network proxy hook files (if proxy was enabled)
-	c.generateNetworkHookCleanup(yaml, data, engine)
+	c.generateNetworkHookCleanup(yaml, data)
 
 	// Add post-steps (if any) after AI execution
 	c.generatePostSteps(yaml, data)
@@ -1932,7 +1932,7 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 // generateNetworkHookCleanup generates a cleanup step that removes network proxy hook files
 // Only generates the step if proxy is enabled (same conditions as hook generation)
 // Always runs and ignores errors
-func (c *Compiler) generateNetworkHookCleanup(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
+func (c *Compiler) generateNetworkHookCleanup(yaml *strings.Builder, data *WorkflowData) {
 	// Only generate cleanup step if network permissions are configured for Claude engine
 	if data.EngineConfig != nil && data.EngineConfig.ID == "claude" && ShouldEnforceNetworkPermissions(data.NetworkPermissions) {
 		yaml.WriteString("      - name: Clean up network proxy hook files\n")

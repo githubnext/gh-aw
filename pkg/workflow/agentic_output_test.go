@@ -315,11 +315,8 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Allowed: []string{"example.com", "*.trusted.com"},
 			},
 		}
-
-		engine := NewClaudeEngine()
-
 		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data, engine)
+		compiler.generateNetworkHookCleanup(&yaml, data)
 
 		result := yaml.String()
 
@@ -359,11 +356,8 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Mode: "defaults", // Default network mode
 			},
 		}
-
-		engine := NewClaudeEngine()
-
 		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data, engine)
+		compiler.generateNetworkHookCleanup(&yaml, data)
 
 		result := yaml.String()
 
@@ -384,11 +378,8 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Allowed: []string{"example.com"},
 			},
 		}
-
-		engine := NewCodexEngine()
-
 		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data, engine)
+		compiler.generateNetworkHookCleanup(&yaml, data)
 
 		result := yaml.String()
 
@@ -406,11 +397,8 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Allowed: []string{"example.com"},
 			},
 		}
-
-		engine := NewClaudeEngine()
-
 		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data, engine)
+		compiler.generateNetworkHookCleanup(&yaml, data)
 
 		result := yaml.String()
 
@@ -431,11 +419,8 @@ func TestGenerateNetworkHookCleanup(t *testing.T) {
 				Allowed: []string{}, // Empty allowed list (deny-all, but still uses hooks)
 			},
 		}
-
-		engine := NewClaudeEngine()
-
 		var yaml strings.Builder
-		compiler.generateNetworkHookCleanup(&yaml, data, engine)
+		compiler.generateNetworkHookCleanup(&yaml, data)
 
 		result := yaml.String()
 
