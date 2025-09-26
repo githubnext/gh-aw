@@ -1,6 +1,6 @@
 ---
 title: AI Engines
-description: Complete guide to AI engines available in GitHub Agentic Workflows, including Claude, Codex, and custom engines with their specific configuration options.
+description: Complete guide to AI engines available in GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
 sidebar:
   order: 1
 ---
@@ -35,15 +35,32 @@ engine:
 
 ### GitHub Copilot (Experimental)
 
-[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) 
+[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) with MCP server support. Designed for conversational AI workflows with access to GitHub repositories and development tools.
 
 ```yaml
 engine: copilot
 ```
 
+**Extended configuration:**
+```yaml
+engine:
+  id: copilot
+  version: latest
+  model: gpt-5                          # Optional: uses claude-sonnet-4 by default
+```
+
+**Copilot-specific fields:**
+- **`model`** (optional): AI model to use (`gpt-5` or defaults to `claude-sonnet-4`)
+- **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
+
+**Environment Variables:**
+- **`COPILOT_MODEL`**: Alternative way to set the model (e.g., `gpt-5`)
+
 #### Secrets
 
-- `COPILOT_CLI_TOKEN ` secret is required for authentication.
+- `COPILOT_CLI_TOKEN` secret is required for authentication.
+
+> **Important**: The standard GitHub Actions `GITHUB_TOKEN` is **not compatible** with GitHub Copilot CLI. You must use a Personal Access Token (PAT) with appropriate permissions.
 
 ### OpenAI Codex (Experimental)
 
@@ -134,7 +151,7 @@ engine:
 
 ### Error Patterns
 
-Both Claude and Codex engines support custom error pattern recognition for enhanced log validation:
+Claude, Copilot, and Codex engines support custom error pattern recognition for enhanced log validation:
 
 ```yaml
 engine:
@@ -208,45 +225,27 @@ mode = "strict"
 4. **Document purpose**: Include comments in your TOML to explain custom settings
 5. **Test thoroughly**: Validate that your custom configuration works as expected
 
-## Engine Selection Guidelines
-
-**Choose Claude when:**
-- You need strong reasoning and analysis capabilities
-- Working with complex code review or documentation tasks
-- Performing multi-step reasoning workflows
-- You want the most stable and well-tested engine
-
-**Choose Codex when:**
-- You need code-specific AI capabilities
-- Working with specialized MCP server configurations
-- Requiring custom TOML configuration for advanced scenarios
-- You're comfortable with experimental features
-
-**Choose Custom when:**
-- You need deterministic, traditional GitHub Actions behavior
-- Building hybrid workflows with some AI and some traditional steps
-- You have specific requirements that AI engines can't meet
-- Testing or prototyping workflow components
-
 ## Migration Between Engines
 
 Switching between engines is straightforward - just change the `engine` field in your frontmatter:
 
 ```yaml
-# From Claude to Codex
+# From Claude to Copilot
 engine: claude  # Old
-engine: codex   # New
+engine: copilot # New
+
+# From Codex to Copilot
+engine: codex   # Old  
+engine: copilot # New
 
 # With configuration preservation
 engine:
-  id: codex     # Changed from claude
-  model: gpt-4  # Add codex-specific options
-  config: |     # Codex-only feature
-    [custom]
-    setting = "value"
+  id: copilot   # Changed from claude/codex
+  model: gpt-5  # Add copilot-specific options (optional; defaults to claude-sonnet-4)
+  version: latest
 ```
 
-Note that engine-specific features (like `config` for Codex or `max-turns` for Claude) may not be available when switching engines.
+Note that engine-specific features (like `config` for Codex, `max-turns` for Claude, or `model` for Copilot) may not be available when switching engines.
 
 ## Related Documentation
 

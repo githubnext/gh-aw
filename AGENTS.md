@@ -150,7 +150,7 @@ gh aw mcp inspect --inspector     # Web-based inspector
 **Default MCP Registry**: Uses GitHub's MCP registry at `https://api.mcp.github.com/v0` by default.
 
 ### AI Engine Support
-```yaml
+```aw
 ---
 engine: claude  # Options: claude, codex, custom
 tools:

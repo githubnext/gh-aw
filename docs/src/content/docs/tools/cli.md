@@ -71,7 +71,7 @@ gh aw add samples/weekly-research.md --force
 gh aw add samples/weekly-research.md --number 3
 
 # Override AI engine for the added workflow
-gh aw add samples/weekly-research.md --engine codex
+gh aw add samples/weekly-research.md --engine copilot
 
 # Add workflow from local repository (shortcut for install + add)
 gh aw add samples/weekly-research.md -r githubnext/agentics
@@ -110,7 +110,7 @@ gh aw compile --validate
 gh aw compile --no-emit
 
 # Override the AI engine for specific compilation
-gh aw compile --engine codex
+gh aw compile --engine copilot
 
 # Generate GitHub Copilot instructions file alongside workflows
 gh aw compile --instructions

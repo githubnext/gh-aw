@@ -20,7 +20,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `cache`: Cache configuration for workflow dependencies
 
 **Properties specific to GitHub Agentic Workflows:**
-- `engine`: AI engine configuration (claude/codex) with optional max-turns setting
+- `engine`: AI engine configuration (claude/copilot/codex) with optional max-turns setting
 - `roles`: Permission restrictions based on repository access levels
 - `safe-outputs`: [Safe Output Processing](/gh-aw/reference/safe-outputs/)
 - `network`: Network access control for AI engines
@@ -154,6 +154,7 @@ The `engine:` section specifies which AI engine to use to interpret the markdown
 
 ```yaml
 engine: claude  # Default: Claude Code
+engine: copilot # Experimental: GitHub Copilot CLI with MCP support
 engine: codex   # Experimental: OpenAI Codex CLI with MCP support
 engine: custom  # Custom: Execute user-defined GitHub Actions steps
 ```
@@ -179,7 +180,7 @@ engine:
 ```
 
 **Fields:**
-- **`id`** (required): Engine identifier (`claude`, `codex`)
+- **`id`** (required): Engine identifier (`claude`, `copilot`, `codex`)
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
@@ -405,7 +406,7 @@ cache:
 
 ## Related Documentation
 
-- [AI Engines](/gh-aw/reference/engines/) - Complete guide to Claude, Codex, and custom engines
+- [AI Engines](/gh-aw/reference/engines/) - Complete guide to Claude, Copilot, Codex, and custom engines
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Network Permissions](/gh-aw/reference/network/) - Network access control configuration
