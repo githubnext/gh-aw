@@ -116,7 +116,9 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 			"      - name: Write safe outputs config to file",
 			"        run: |",
 			"          mkdir -p /tmp/safe-outputs",
-			"          echo '${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}' > /tmp/safe-outputs/config.json",
+			"          echo '$GITHUB_AW_SAFE_OUTPUTS_CONFIG' > /tmp/safe-outputs/config.json",
+			"        env:",
+			"          GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}",
 		}
 		steps = append(steps, writeConfigStep)
 	}
