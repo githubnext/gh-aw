@@ -106,6 +106,13 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
+      - name: Upload config
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: config
+          path: /tmp/.copilot/
+          if-no-files-found: ignore
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         timeout-minutes: 5

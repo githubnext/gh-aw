@@ -141,6 +141,10 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		}
 	}
 
+	// Add upload config step before running copilot CLI
+	uploadConfigStep := e.generateUploadConfigStep()
+	steps = append(steps, uploadConfigStep)
+
 	// Generate the step for Copilot CLI execution
 	stepName := "Execute GitHub Copilot CLI"
 	var stepLines []string
@@ -198,6 +202,21 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
 	return ConvertStepToYAML(stepMap)
+}
+
+// generateUploadConfigStep generates a step to upload the XDG_CONFIG_HOME folder content
+func (e *CopilotEngine) generateUploadConfigStep() GitHubActionStep {
+	var stepLines []string
+
+	stepLines = append(stepLines, "      - name: Upload config")
+	stepLines = append(stepLines, "        if: always()")
+	stepLines = append(stepLines, "        uses: actions/upload-artifact@v4")
+	stepLines = append(stepLines, "        with:")
+	stepLines = append(stepLines, "          name: config")
+	stepLines = append(stepLines, "          path: /tmp/.copilot/")
+	stepLines = append(stepLines, "          if-no-files-found: ignore")
+
+	return GitHubActionStep(stepLines)
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {

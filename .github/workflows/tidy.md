@@ -1,4 +1,5 @@
 ---
+name: Tidy
 on:
   workflow_dispatch:
   push:
@@ -17,8 +18,10 @@ concurrency:
   group: tidy-${{ github.ref }}
   cancel-in-progress: true
 
-engine: copilot
+engine: claude
 timeout_minutes: 10
+
+network: {}
 
 safe-outputs:
   create-pull-request:
@@ -26,6 +29,20 @@ safe-outputs:
     labels: [automation, maintenance]
     draft: false
 
+steps:
+  - name: Set up Node.js
+    uses: actions/setup-node@v5
+    with:
+      node-version: "24"
+      cache: npm
+      cache-dependency-path: pkg/workflow/js/package-lock.json
+  - name: Set up Go
+    uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Dev dependencies
+    run: make deps-dev
 ---
 
 # Code Tidying Agent
