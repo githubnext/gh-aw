@@ -16,6 +16,7 @@ type Job struct {
 	If             string
 	Permissions    string
 	TimeoutMinutes int
+	Env            map[string]string // Job-level environment variables
 	Steps          []string
 	Needs          []string // Job dependencies (needs clause)
 	Outputs        map[string]string
@@ -206,6 +207,21 @@ func (jm *JobManager) renderJob(job *Job) string {
 	// Add timeout_minutes if specified
 	if job.TimeoutMinutes > 0 {
 		yaml.WriteString(fmt.Sprintf("    timeout-minutes: %d\n", job.TimeoutMinutes))
+	}
+
+	// Add environment variables section
+	if len(job.Env) > 0 {
+		yaml.WriteString("    env:\n")
+		// Sort environment variable keys for consistent output
+		envKeys := make([]string, 0, len(job.Env))
+		for key := range job.Env {
+			envKeys = append(envKeys, key)
+		}
+		sort.Strings(envKeys)
+
+		for _, key := range envKeys {
+			yaml.WriteString(fmt.Sprintf("      %s: %s\n", key, job.Env[key]))
+		}
 	}
 
 	// Add outputs section

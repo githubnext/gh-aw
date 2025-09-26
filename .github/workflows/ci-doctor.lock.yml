@@ -32,6 +32,9 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
+    env:
+      GITHUB_AW_SAFE_OUTPUTS: ${{ steps.setup_agent_output.outputs.output_file }}
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{},\"create-issue\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
