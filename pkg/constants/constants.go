@@ -155,7 +155,7 @@ var DefaultClaudeTools = []string{
 // These correspond to the --allow-tool arguments that Copilot CLI supports
 var DefaultCopilotTools = []string{
 	"read",        // File reading capabilities
-	"write",       // File writing capabilities  
+	"write",       // File writing capabilities
 	"shell",       // Shell command execution
 	"web-fetch",   // Web content fetching
 	"web-search",  // Web searching
