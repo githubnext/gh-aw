@@ -530,7 +530,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			if hasMcp, _ := hasMCPConfig(toolConfigMap); hasMcp {
 				// Allow the entire MCP server
 				args = append(args, "--allow-tool", toolName)
-				
+
 				// If it has specific allowed tools, add them individually
 				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
 					if allowedList, ok := allowed.([]any); ok {
@@ -552,7 +552,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 			values = append(values, args[i])
 		}
 		sort.Strings(values)
-		
+
 		// Rebuild args with sorted values
 		newArgs := make([]string, 0, len(args))
 		for _, value := range values {
@@ -573,7 +573,7 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 
 	var comment strings.Builder
 	comment.WriteString(indent + "# Copilot CLI tool arguments (sorted):\n")
-	
+
 	// Group flag-value pairs for better readability
 	for i := 0; i < len(toolArgs); i += 2 {
 		if i+1 < len(toolArgs) {
