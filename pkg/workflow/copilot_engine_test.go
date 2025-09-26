@@ -126,7 +126,7 @@ func TestCopilotEngineExecutionStepsWithVersion(t *testing.T) {
 	}
 
 	// Check the execution step
-	stepContent := strings.Join([]string(steps[0]), "\n")
+	stepContent := strings.Join(steps[0], "\n")
 
 	// Test that the command uses npx with the specified version
 	if !strings.Contains(stepContent, "npx @github/copilot@1.0.0 --add-dir /tmp/ --log-level debug --log-dir") {
