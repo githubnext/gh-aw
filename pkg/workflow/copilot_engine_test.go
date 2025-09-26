@@ -351,7 +351,7 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 
 	// Get the full command from the execution step
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	
+
 	// Find the line that contains the copilot command
 	lines := strings.Split(stepContent, "\n")
 	var copilotCommand string
@@ -369,12 +369,12 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	// Verify that arguments with special characters are properly quoted
 	// This test should fail initially, showing the need for escaping
 	t.Logf("Generated command: %s", copilotCommand)
-	
+
 	// The command should contain properly escaped arguments with single quotes
 	if !strings.Contains(copilotCommand, "'shell(git add:*)'") {
 		t.Errorf("Expected 'shell(git add:*)' to be single-quoted in command: %s", copilotCommand)
 	}
-	
+
 	if !strings.Contains(copilotCommand, "'shell(git commit:*)'") {
 		t.Errorf("Expected 'shell(git commit:*)' to be single-quoted in command: %s", copilotCommand)
 	}

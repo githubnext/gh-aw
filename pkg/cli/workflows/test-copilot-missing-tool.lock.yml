@@ -816,7 +816,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --add-dir /tmp/cache-memory/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
+          copilot --add-dir /tmp/ --log-level debug --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --add-dir /tmp/cache-memory/ --prompt '"$INSTRUCTION"' 2>&1 | tee /tmp/test-copilot-with-missing-tool-safe-output-and-cache-memory.log
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
