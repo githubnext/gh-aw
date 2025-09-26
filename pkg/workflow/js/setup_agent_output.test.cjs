@@ -65,7 +65,7 @@ describe("setup_agent_output.cjs", () => {
 
   afterEach(() => {
     // Clean up any test files
-    const files = fs.readdirSync("/tmp").filter(file => file.startsWith("aw_output_"));
+    const files = fs.readdirSync("/tmp").filter(file => file.startsWith("safe_outputs_"));
     files.forEach(file => {
       try {
         fs.unlinkSync(path.join("/tmp", file));
@@ -86,7 +86,7 @@ describe("setup_agent_output.cjs", () => {
       // Check that exportVariable was called with the correct pattern
       expect(mockCore.exportVariable).toHaveBeenCalledWith(
         "GITHUB_AW_SAFE_OUTPUTS",
-        expect.stringMatching(/^\/tmp\/aw_output_[0-9a-f]{16}\.txt$/)
+        expect.stringMatching(/^\/tmp\/safe_outputs\/outputs[0-9a-f]{16}\.txt$/)
       );
 
       // Check that setOutput was called with the same file path

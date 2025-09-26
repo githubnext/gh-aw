@@ -1,13 +1,10 @@
+import { readFileSync } from "fs";
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const encoder = new TextEncoder();
-const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
-if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
-const safeOutputsConfigRaw = JSON.parse(configEnv);
-const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
-const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
-if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
+const safeOutputsConfig = readConfig();
+const outputFile = readOutputFile();
 const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
 const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
 function writeMessage(obj) {
@@ -44,6 +41,21 @@ class ReadBuffer {
       throw new Error(`Parse error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+}
+function readOutputFile() {
+  return process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
+}
+function readConfig() {
+  let safeOutputsConfigRaw;
+  try {
+    const configFile = readFileSync("/tmp/safe-outputs/config.json", "utf8");
+    safeOutputsConfigRaw = JSON.parse(configFile);
+  } catch (e) {
+    const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+    if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
+    safeOutputsConfigRaw = JSON.parse(configEnv);
+  }
+  return Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
 }
 const readBuffer = new ReadBuffer();
 function onData(chunk) {
