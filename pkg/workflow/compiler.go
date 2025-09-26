@@ -1926,7 +1926,6 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 	yaml.WriteString("          EOF\n")
 }
 
-
 // generatePostSteps generates the post-steps section that runs after AI execution
 func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) {
 	if data.PostSteps != "" {

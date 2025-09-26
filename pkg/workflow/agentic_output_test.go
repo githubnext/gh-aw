@@ -318,7 +318,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
-		
+
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder
 		for _, step := range steps {
@@ -366,7 +366,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
-		
+
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder
 		for _, step := range steps {
@@ -393,7 +393,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
-		
+
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder
 		for _, step := range steps {
@@ -422,7 +422,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		}
 
 		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
-		
+
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder
 		for _, step := range steps {

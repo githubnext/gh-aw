@@ -1115,6 +1115,12 @@ jobs:
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
           tail -10 /tmp/agent-stdio.log || echo "No log content available"
+      - name: Clean up network proxy hook files
+        if: always()
+        run: |
+          rm -rf .claude/hooks/network_permissions.py || true
+          rm -rf .claude/hooks || true
+          rm -rf .claude || true
       - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
