@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -389,5 +390,96 @@ func TestCopilotEngineUploadConfigStep(t *testing.T) {
 
 	if !strings.Contains(uploadStepContent, "if-no-files-found: ignore") {
 		t.Errorf("Expected 'if-no-files-found: ignore' in:\n%s", uploadStepContent)
+	}
+}
+
+func TestCopilotEngineErrorPatterns(t *testing.T) {
+	engine := NewCopilotEngine()
+	patterns := engine.GetErrorPatterns()
+
+	// Test that error patterns can match content from the sample log
+	tests := []struct {
+		expectedPattern string
+		expectedMatch   bool
+		sampleText      string
+	}{
+		{
+			expectedPattern: "Copilot CLI timestamped ERROR messages",
+			expectedMatch:   true,
+			sampleText:      "2024-09-16T18:10:36.123Z [ERROR] Failed to save final output: Permission denied",
+		},
+		{
+			expectedPattern: "NPM error messages during Copilot CLI installation or execution",
+			expectedMatch:   true,
+			sampleText:      "npm ERR! Could not install package @github/copilot",
+		},
+		{
+			expectedPattern: "Copilot CLI command-level error messages",
+			expectedMatch:   true,
+			sampleText:      "copilot: error: Invalid authentication token provided",
+		},
+		{
+			expectedPattern: "Fatal error messages from Copilot CLI",
+			expectedMatch:   true,
+			sampleText:      "Fatal error: Unable to complete workflow execution",
+		},
+		{
+			expectedPattern: "Generic warning messages from Copilot CLI",
+			expectedMatch:   true,
+			sampleText:      "Warning: Some tools may not be available in restricted mode",
+		},
+		{
+			expectedPattern: "Copilot CLI shell command execution errors",
+			expectedMatch:   true,
+			sampleText:      "2024-09-16T18:10:33.500Z [ERROR] Shell command failed: command not found",
+		},
+		{
+			expectedPattern: "Copilot CLI MCP server connection errors",
+			expectedMatch:   true,
+			sampleText:      "2024-09-16T18:10:31.200Z [ERROR] Failed to connect to broken_server MCP server",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expectedPattern, func(t *testing.T) {
+			found := false
+			for _, pattern := range patterns {
+				if pattern.Description == tt.expectedPattern {
+					found = true
+					// Test if the pattern matches the sample text
+					re, err := regexp.Compile(pattern.Pattern)
+					if err != nil {
+						t.Fatalf("Invalid regex pattern '%s': %v", pattern.Pattern, err)
+					}
+					
+					matches := re.FindStringSubmatch(tt.sampleText)
+					if tt.expectedMatch && len(matches) == 0 {
+						t.Errorf("Pattern '%s' should match text '%s' but didn't", pattern.Pattern, tt.sampleText)
+					} else if !tt.expectedMatch && len(matches) > 0 {
+						t.Errorf("Pattern '%s' should not match text '%s' but did", pattern.Pattern, tt.sampleText)
+					}
+					
+					// Test that message extraction works correctly
+					if tt.expectedMatch && len(matches) > 0 {
+						messageGroup := pattern.MessageGroup
+						if messageGroup > 0 && messageGroup < len(matches) {
+							message := strings.TrimSpace(matches[messageGroup])
+							if message == "" {
+								t.Errorf("Pattern '%s' extracted empty message from '%s'", pattern.Pattern, tt.sampleText)
+							}
+						}
+					}
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected error pattern with description '%s' not found", tt.expectedPattern)
+			}
+		})
+	}
+
+	// Verify we have a reasonable number of patterns
+	if len(patterns) < 8 {
+		t.Errorf("Expected at least 8 error patterns, got %d", len(patterns))
 	}
 }

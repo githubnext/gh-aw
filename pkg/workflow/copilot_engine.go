@@ -360,16 +360,24 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls
 	var currentSequence []string                  // Track tool sequence
 	turns := 0
+	executionStarted := false
 
 	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		
 		// Skip empty lines
-		if strings.TrimSpace(line) == "" {
+		if trimmedLine == "" {
 			continue
 		}
 
-		// Count turns based on interaction patterns (adjust based on actual Copilot CLI output)
-		if strings.Contains(line, "User:") || strings.Contains(line, "Human:") || strings.Contains(line, "Query:") {
-			turns++
+		// Detect execution start and count turns
+		if strings.Contains(line, "Processing user prompt") || strings.Contains(line, "Starting GitHub Copilot CLI") {
+			if executionStarted {
+				turns++
+			} else {
+				executionStarted = true
+				turns = 1
+			}
 			// Start of a new turn, save previous sequence if any
 			if len(currentSequence) > 0 {
 				metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
@@ -377,9 +385,30 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 			}
 		}
 
-		// Extract tool calls and add to sequence (adjust based on actual Copilot CLI output format)
+		// Count additional turns based on suggestion/response patterns
+		if strings.Contains(line, "Suggestion:") || strings.Contains(line, "Response:") {
+			turns++
+			if len(currentSequence) > 0 {
+				metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+				currentSequence = []string{}
+			}
+		}
+
+		// Extract tool calls and add to sequence
 		if toolName := e.parseCopilotToolCallsWithSequence(line, toolCallMap); toolName != "" {
 			currentSequence = append(currentSequence, toolName)
+		}
+
+		// Extract execution time
+		if strings.Contains(line, "Total execution time:") {
+			// Parse execution time for potential cost estimation
+			if timeMatch := regexp.MustCompile(`Total execution time:\s*([\d.]+)\s*seconds`).FindStringSubmatch(line); len(timeMatch) > 1 {
+				if executionSeconds, err := strconv.ParseFloat(timeMatch[1], 64); err == nil {
+					// Simple cost estimation based on execution time (placeholder)
+					// This would need to be refined based on actual Copilot CLI pricing
+					metrics.EstimatedCost += executionSeconds * 0.001 // $0.001 per second as placeholder
+				}
+			}
 		}
 
 		// Try to extract token usage from JSON format if available
@@ -393,12 +422,20 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 			}
 		}
 
-		// Count errors and warnings
-		lowerLine := strings.ToLower(line)
-		if strings.Contains(lowerLine, "error") {
+		// Count errors with more specific patterns
+		if strings.Contains(line, "[ERROR]") || 
+		   strings.Contains(line, "copilot: error:") ||
+		   strings.Contains(line, "Fatal error:") ||
+		   strings.Contains(line, "npm ERR!") ||
+		   strings.Contains(line, "Shell command failed:") {
 			metrics.ErrorCount++
 		}
-		if strings.Contains(lowerLine, "warning") {
+
+		// Count warnings with more specific patterns
+		if strings.Contains(line, "[WARNING]") || 
+		   strings.Contains(line, "[WARN]") ||
+		   strings.Contains(line, "Warning:") ||
+		   strings.Contains(line, "MCP server connection timeout") {
 			metrics.WarningCount++
 		}
 	}
@@ -406,6 +443,11 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	// Add final sequence if any
 	if len(currentSequence) > 0 {
 		metrics.ToolSequences = append(metrics.ToolSequences, currentSequence)
+	}
+
+	// Ensure we have at least 1 turn if we detected execution
+	if executionStarted && turns == 0 {
+		turns = 1
 	}
 
 	metrics.TokenUsage = maxTokenUsage
@@ -645,6 +687,18 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			LevelGroup:   1, // "error" is in the first capture group
 			MessageGroup: 2, // error message is in the second capture group
 			Description:  "Copilot CLI command-level error messages",
+		},
+		{
+			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[ERROR\]\s+Shell command failed:\s*(.+)`,
+			LevelGroup:   0, // No level group, will be inferred as "error" 
+			MessageGroup: 2, // error message is in the second capture group
+			Description:  "Copilot CLI shell command execution errors",
+		},
+		{
+			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[ERROR\]\s+Failed to connect to\s+(.+)\s+MCP server`,
+			LevelGroup:   0, // No level group, will be inferred as "error"
+			MessageGroup: 2, // server name is in the second capture group
+			Description:  "Copilot CLI MCP server connection errors",
 		},
 	}
 }
