@@ -138,3 +138,25 @@ var DefaultGitHubTools = []string{
 	"list_starred_repositories",
 	"list_sub_issues",
 }
+
+// DefaultClaudeTools defines the default tools available to Claude engine
+var DefaultClaudeTools = []string{
+	"Task",
+	"Glob",
+	"Grep",
+	"ExitPlanMode",
+	"TodoWrite",
+	"LS",
+	"Read",
+	"NotebookRead",
+}
+
+// DefaultCopilotTools defines the default tools available to Copilot CLI engine
+// These correspond to the --allow-tool arguments that Copilot CLI supports
+var DefaultCopilotTools = []string{
+	"read",        // File reading capabilities
+	"write",       // File writing capabilities  
+	"shell",       // Shell command execution
+	"web-fetch",   // Web content fetching
+	"web-search",  // Web searching
+}

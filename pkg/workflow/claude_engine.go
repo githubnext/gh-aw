@@ -347,16 +347,8 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	// Convert neutral tools to Claude-specific tools
 	tools = e.expandNeutralToolsToClaudeTools(tools)
 
-	defaultClaudeTools := []string{
-		"Task",
-		"Glob",
-		"Grep",
-		"ExitPlanMode",
-		"TodoWrite",
-		"LS",
-		"Read",
-		"NotebookRead",
-	}
+	// Use default Claude tools from constants
+	defaultClaudeTools := constants.DefaultClaudeTools
 
 	// Ensure claude section exists with the new format
 	var claudeSection map[string]any
