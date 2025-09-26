@@ -166,6 +166,7 @@ type SafeOutputsConfig struct {
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
+	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`           // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
@@ -619,7 +620,7 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Use the already extracted output configuration
 	workflowData.SafeOutputs = safeOutputs
 
-	// Extract safe-jobs from top level and process includes
+	// Extract safe-jobs from the new location (safe-outputs.jobs) or old location (safe-jobs) for backwards compatibility
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional safe-jobs (reuse the same includedTools JSON)
@@ -629,7 +630,13 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
 
+	// Set SafeJobs from the merged result (this will be used until we fully transition to using safeOutputs.Jobs)
 	workflowData.SafeJobs = includedSafeJobs
+
+	// Also populate the Jobs field in SafeOutputs if not already populated
+	if workflowData.SafeOutputs != nil && len(workflowData.SafeOutputs.Jobs) == 0 && len(includedSafeJobs) > 0 {
+		workflowData.SafeOutputs.Jobs = includedSafeJobs
+	}
 
 	// Parse the "on" section for command triggers, reactions, and other events
 	err = c.parseOnSection(result.Frontmatter, workflowData, markdownPath)
@@ -2224,7 +2231,9 @@ func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
 
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	// Pass the safe-outputs configuration for validation
-	if data.SafeOutputs == nil && len(data.SafeJobs) == 0 {
+	hasOldSafeJobs := len(data.SafeJobs) > 0
+	hasNewSafeJobs := data.SafeOutputs != nil && len(data.SafeOutputs.Jobs) > 0
+	if data.SafeOutputs == nil && !hasOldSafeJobs && !hasNewSafeJobs {
 		return ""
 	}
 	// Create a simplified config object for validation
@@ -2292,9 +2301,26 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 	}
 
-	// Add safe-jobs configuration
+	// Add safe-jobs configuration from both old location (data.SafeJobs) and new location (data.SafeOutputs.Jobs)
+	safeJobsToProcess := make(map[string]*SafeJobConfig)
+	
+	// Add from old location (backwards compatibility)
 	if len(data.SafeJobs) > 0 {
 		for jobName, jobConfig := range data.SafeJobs {
+			safeJobsToProcess[jobName] = jobConfig
+		}
+	}
+	
+	// Add from new location (preferred)
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Jobs) > 0 {
+		for jobName, jobConfig := range data.SafeOutputs.Jobs {
+			safeJobsToProcess[jobName] = jobConfig
+		}
+	}
+	
+	// Process all safe-jobs
+	if len(safeJobsToProcess) > 0 {
+		for jobName, jobConfig := range safeJobsToProcess {
 			safeJobConfig := map[string]any{}
 
 			// Add inputs information

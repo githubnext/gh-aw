@@ -17,7 +17,8 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
-		safeOutputs.MissingTool != nil
+		safeOutputs.MissingTool != nil ||
+		len(safeOutputs.Jobs) > 0
 }
 
 // generateSafeOutputsPromptSection generates the safe-outputs instruction section for prompts
@@ -374,6 +375,15 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Set default value if not specified or invalid
 			if config.MaximumPatchSize == 0 {
 				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
+			}
+
+			// Handle jobs (safe-jobs moved under safe-outputs)
+			if jobs, exists := outputMap["jobs"]; exists {
+				if jobsMap, ok := jobs.(map[string]any); ok {
+					c := &Compiler{} // Create a temporary compiler instance for parsing
+					jobsFrontmatter := map[string]any{"safe-jobs": jobsMap}
+					config.Jobs = c.parseSafeJobsConfig(jobsFrontmatter)
+				}
 			}
 		}
 	}
