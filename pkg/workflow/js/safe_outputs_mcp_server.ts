@@ -4,9 +4,32 @@ const path = require("path");
 const crypto = require("crypto");
 
 const encoder = new TextEncoder();
-const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
-if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
-const safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
+
+// Try to read configuration from file first, fallback to environment variable
+let safeOutputsConfigRaw: any;
+let configSource: string;
+const configFilePath = path.join(__dirname, "safe-outputs.config.json");
+
+try {
+  if (fs.existsSync(configFilePath)) {
+    const configFileContent = fs.readFileSync(configFilePath, "utf8");
+    safeOutputsConfigRaw = JSON.parse(configFileContent);
+    configSource = `file: ${configFilePath}`;
+  } else {
+    // Fallback to environment variable
+    const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+    if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
+    safeOutputsConfigRaw = JSON.parse(configEnv); // uses dashes for keys
+    configSource = "environment variable";
+  }
+} catch (error) {
+  // If file reading fails, try environment variable as fallback
+  const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+  if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set and config file failed to load");
+  safeOutputsConfigRaw = JSON.parse(configEnv);
+  configSource = "environment variable (fallback)";
+}
+
 const safeOutputsConfig = Object.fromEntries(
   Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v])
 ) as SafeOutputConfigs;
@@ -483,6 +506,7 @@ const ALL_TOOLS: McpTool[] = [
 
 debug(`v${SERVER_INFO.version} ready on stdio`);
 debug(`  output file: ${outputFile}`);
+debug(`  config source: ${configSource}`);
 debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
 
 // Create a comprehensive tools map including both predefined tools and dynamic safe-jobs

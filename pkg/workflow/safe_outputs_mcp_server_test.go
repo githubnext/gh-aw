@@ -507,3 +507,109 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	t.Logf("Got expected error for invalid path: %v", err)
 	// Just verify that an error occurred - the exact message might be wrapped
 }
+
+func TestSafeOutputsMCPServer_ConfigFile(t *testing.T) {
+	tempFile := createTempOutputFile(t)
+	defer os.Remove(tempFile)
+
+	// Create a config file in the same directory as the server script
+	configFilePath := filepath.Join("js", "safe-outputs.config.json")
+	config := map[string]any{
+		"create-issue": map[string]any{
+			"enabled": true,
+			"max":     3,
+		},
+		"missing-tool": map[string]any{
+			"enabled": true,
+		},
+	}
+
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
+
+	// Write config file
+	if err := os.WriteFile(configFilePath, configJSON, 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+	defer os.Remove(configFilePath)
+
+	// Set up environment without GITHUB_AW_SAFE_OUTPUTS_CONFIG
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS=%s", tempFile))
+	
+	// Add required environment variables for upload_asset tool
+	env = append(env, "GITHUB_AW_ASSETS_BRANCH=test-assets")
+	env = append(env, "GITHUB_AW_ASSETS_MAX_SIZE_KB=10240")
+	env = append(env, "GITHUB_AW_ASSETS_ALLOWED_EXTS=.png,.jpg,.jpeg")
+	env = append(env, "GITHUB_SERVER_URL=https://github.com")
+	env = append(env, "GITHUB_REPOSITORY=test/repo")
+
+	// Note: NOT setting GITHUB_AW_SAFE_OUTPUTS_CONFIG to test file-based config
+
+	// Create command for the MCP server
+	cmd := exec.Command("node", "js/safe_outputs_mcp_server.js")
+	cmd.Dir = filepath.Dir("") // Use current working directory context
+	cmd.Env = env
+
+	// Create MCP client with command transport
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	transport := &mcp.CommandTransport{Command: cmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	testClient := &MCPTestClient{
+		client:  client,
+		session: session,
+		cmd:     cmd,
+	}
+
+	// Test that the server loaded the config from file
+	result, err := testClient.ListTools(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to get tools list: %v", err)
+	}
+
+	// Verify enabled tools from file config are present
+	toolNames := make([]string, len(result.Tools))
+	for i, tool := range result.Tools {
+		toolNames[i] = tool.Name
+	}
+
+	expectedTools := []string{"create_issue", "missing_tool"}
+	for _, expected := range expectedTools {
+		found := false
+		for _, actual := range toolNames {
+			if actual == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected tool '%s' not found in tools list: %v", expected, toolNames)
+		}
+	}
+
+	// Test calling a tool to ensure it works with file-based config
+	_, err = testClient.CallTool(context.Background(), "create-issue", map[string]any{
+		"title": "Test Issue from File Config",
+		"body":  "This issue was created using file-based configuration",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call create-issue with file config: %v", err)
+	}
+
+	t.Log("MCP server successfully loaded configuration from file")
+}

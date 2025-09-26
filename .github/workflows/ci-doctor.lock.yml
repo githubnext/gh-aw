@@ -71,9 +71,26 @@ jobs:
             const path = require("path");
             const crypto = require("crypto");
             const encoder = new TextEncoder();
-            const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
-            if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
-            const safeOutputsConfigRaw = JSON.parse(configEnv);
+            let safeOutputsConfigRaw;
+            let configSource;
+            const configFilePath = path.join(__dirname, 'safe-outputs.config.json');
+            try {
+              if (fs.existsSync(configFilePath)) {
+                const configFileContent = fs.readFileSync(configFilePath, 'utf8');
+                safeOutputsConfigRaw = JSON.parse(configFileContent);
+                configSource = `file: ${configFilePath}`;
+              } else {
+                const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+                if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set");
+                safeOutputsConfigRaw = JSON.parse(configEnv);
+                configSource = "environment variable";
+              }
+            } catch (error) {
+              const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+              if (!configEnv) throw new Error("GITHUB_AW_SAFE_OUTPUTS_CONFIG not set and config file failed to load");
+              safeOutputsConfigRaw = JSON.parse(configEnv);
+              configSource = "environment variable (fallback)";
+            }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
             if (!outputFile) throw new Error("GITHUB_AW_SAFE_OUTPUTS not set, no output file");
@@ -480,6 +497,7 @@ jobs:
             ];
             debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);
+            debug(`  config source: ${configSource}`);
             debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
             const TOOLS = {};
             ALL_TOOLS.forEach(tool => {
