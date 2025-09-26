@@ -119,7 +119,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 
 # Run copilot CLI with log capture
-copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
+copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment

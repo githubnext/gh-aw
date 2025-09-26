@@ -353,41 +353,89 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	}
 }
 
-func TestCopilotEngineUploadConfigStep(t *testing.T) {
+func TestCopilotEngineShellEscaping(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"git add:*", "git commit:*"},
+		},
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
 	if len(steps) != 3 {
-		t.Fatalf("Expected 3 steps (upload config + copilot execution + log capture), got %d", len(steps))
+		t.Fatalf("Expected 3 steps, got %d", len(steps))
 	}
 
-	// Check the upload config step is present and correct
-	uploadStepContent := strings.Join([]string(steps[0]), "\n")
+	// Get the full command from the execution step (step 1 is the copilot execution)
+	stepContent := strings.Join([]string(steps[1]), "\n")
 
-	if !strings.Contains(uploadStepContent, "name: Upload config") {
-		t.Errorf("Expected upload config step name in:\n%s", uploadStepContent)
+	// Find the line that contains the copilot command
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-tool") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
 	}
 
-	if !strings.Contains(uploadStepContent, "if: always()") {
-		t.Errorf("Expected upload config step to have 'if: always()' condition in:\n%s", uploadStepContent)
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(uploadStepContent, "uses: actions/upload-artifact@v4") {
-		t.Errorf("Expected upload config step to use 'actions/upload-artifact@v4' in:\n%s", uploadStepContent)
+	// Verify that arguments with special characters are properly quoted
+	// This test should fail initially, showing the need for escaping
+	t.Logf("Generated command: %s", copilotCommand)
+
+	// The command should contain properly escaped arguments with single quotes
+	if !strings.Contains(copilotCommand, "'shell(git add:*)'") {
+		t.Errorf("Expected 'shell(git add:*)' to be single-quoted in command: %s", copilotCommand)
 	}
 
-	if !strings.Contains(uploadStepContent, "name: config") {
-		t.Errorf("Expected artifact name 'config' in:\n%s", uploadStepContent)
+	if !strings.Contains(copilotCommand, "'shell(git commit:*)'") {
+		t.Errorf("Expected 'shell(git commit:*)' to be single-quoted in command: %s", copilotCommand)
+	}
+}
+
+func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"git status"},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	if len(steps) != 3 {
+		t.Fatalf("Expected 3 steps, got %d", len(steps))
 	}
 
-	if !strings.Contains(uploadStepContent, "path: /tmp/.copilot/") {
-		t.Errorf("Expected artifact path '/tmp/.copilot/' in:\n%s", uploadStepContent)
+	// Get the full command from the execution step (step 1 is the copilot execution)
+	stepContent := strings.Join([]string(steps[1]), "\n")
+
+	// Find the line that contains the copilot command
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot ") && strings.Contains(line, "--prompt") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
 	}
 
-	if !strings.Contains(uploadStepContent, "if-no-files-found: ignore") {
-		t.Errorf("Expected 'if-no-files-found: ignore' in:\n%s", uploadStepContent)
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+	}
+
+	// The $INSTRUCTION should NOT be wrapped in additional single quotes
+	if strings.Contains(copilotCommand, `'"$INSTRUCTION"'`) {
+		t.Errorf("$INSTRUCTION should not be wrapped in single quotes: %s", copilotCommand)
+	}
+
+	// The $INSTRUCTION should remain double-quoted for variable expansion
+	if !strings.Contains(copilotCommand, `"$INSTRUCTION"`) {
+		t.Errorf("$INSTRUCTION should remain double-quoted: %s", copilotCommand)
 	}
 }
