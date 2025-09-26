@@ -119,7 +119,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 
 # Run copilot CLI with log capture
-copilot %s 2>&1 | tee %s`, strings.Join(copilotArgs, " "), logFile)
+copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":     tempFolder, // copilot help environment
@@ -628,4 +628,26 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Copilot CLI command-level error messages",
 		},
 	}
+}
+
+// shellJoinArgs joins command arguments with proper shell escaping
+// Arguments containing special characters are wrapped in single quotes
+func shellJoinArgs(args []string) string {
+	var escapedArgs []string
+	for _, arg := range args {
+		escapedArgs = append(escapedArgs, shellEscapeArg(arg))
+	}
+	return strings.Join(escapedArgs, " ")
+}
+
+// shellEscapeArg escapes a single argument for safe use in shell commands
+// Arguments containing special characters are wrapped in single quotes
+func shellEscapeArg(arg string) string {
+	// Check if the argument contains special shell characters that need escaping
+	if strings.ContainsAny(arg, "()[]{}*?$`\"'\\|&;<> \t\n") {
+		// Handle single quotes in the argument by escaping them
+		escaped := strings.ReplaceAll(arg, "'", "'\"'\"'")
+		return "'" + escaped + "'"
+	}
+	return arg
 }

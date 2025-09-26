@@ -334,3 +334,139 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
 	}
 }
+
+func TestCopilotEngineShellEscaping(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"bash": []any{"git add:*", "git commit:*"},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	}
+
+	// Get the full command from the execution step
+	stepContent := strings.Join([]string(steps[0]), "\n")
+	
+	// Find the line that contains the copilot command
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-tool") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+	}
+
+	// Verify that arguments with special characters are properly quoted
+	// This test should fail initially, showing the need for escaping
+	t.Logf("Generated command: %s", copilotCommand)
+	
+	// The command should contain properly escaped arguments with single quotes
+	if !strings.Contains(copilotCommand, "'shell(git add:*)'") {
+		t.Errorf("Expected 'shell(git add:*)' to be single-quoted in command: %s", copilotCommand)
+	}
+	
+	if !strings.Contains(copilotCommand, "'shell(git commit:*)'") {
+		t.Errorf("Expected 'shell(git commit:*)' to be single-quoted in command: %s", copilotCommand)
+	}
+}
+
+func TestShellEscapeArg(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple argument without special characters",
+			input:    "hello",
+			expected: "hello",
+		},
+		{
+			name:     "argument with parentheses",
+			input:    "shell(git add:*)",
+			expected: "'shell(git add:*)'",
+		},
+		{
+			name:     "argument with brackets",
+			input:    "pattern[abc]",
+			expected: "'pattern[abc]'",
+		},
+		{
+			name:     "argument with spaces",
+			input:    "hello world",
+			expected: "'hello world'",
+		},
+		{
+			name:     "argument with single quote",
+			input:    "don't",
+			expected: "'don'\"'\"'t'",
+		},
+		{
+			name:     "argument with asterisk",
+			input:    "*.txt",
+			expected: "'*.txt'",
+		},
+		{
+			name:     "argument with dollar sign",
+			input:    "$HOME",
+			expected: "'$HOME'",
+		},
+		{
+			name:     "simple flag",
+			input:    "--allow-tool",
+			expected: "--allow-tool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shellEscapeArg(tt.input)
+			if result != tt.expected {
+				t.Errorf("shellEscapeArg(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestShellJoinArgs(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "simple arguments",
+			input:    []string{"git", "status"},
+			expected: "git status",
+		},
+		{
+			name:     "arguments with special characters",
+			input:    []string{"--allow-tool", "shell(git add:*)", "--allow-tool", "shell(git commit:*)"},
+			expected: "--allow-tool 'shell(git add:*)' --allow-tool 'shell(git commit:*)'",
+		},
+		{
+			name:     "mixed arguments",
+			input:    []string{"copilot", "--add-dir", "/tmp/", "--allow-tool", "shell(*.txt)"},
+			expected: "copilot --add-dir /tmp/ --allow-tool 'shell(*.txt)'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shellJoinArgs(tt.input)
+			if result != tt.expected {
+				t.Errorf("shellJoinArgs(%q) = %q, expected %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
