@@ -2,13 +2,16 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 )
 
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
-	Target      string `yaml:"target,omitempty"`        // Target for push-to-pull-request-branch: like add-comment but for pull requests
-	IfNoChanges string `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
-	GitHubToken string `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
+	Target      string   `yaml:"target,omitempty"`        // Target for push-to-pull-request-branch: like add-comment but for pull requests
+	TitlePrefix string   `yaml:"title-prefix,omitempty"`  // Required title prefix for pull request validation
+	Labels      []string `yaml:"labels,omitempty"`        // Required labels for pull request validation
+	IfNoChanges string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
 }
 
 // buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
@@ -53,6 +56,15 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 	// Pass the if-no-changes configuration
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
+	// Pass the title prefix configuration
+	if data.SafeOutputs.PushToPullRequestBranch.TitlePrefix != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix))
+	}
+	// Pass the labels configuration
+	if len(data.SafeOutputs.PushToPullRequestBranch.Labels) > 0 {
+		labelsStr := strings.Join(data.SafeOutputs.PushToPullRequestBranch.Labels, ",")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
+	}
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
@@ -161,6 +173,26 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 						}
 						pushToBranchConfig.IfNoChanges = "warn"
 					}
+				}
+			}
+
+			// Parse title-prefix
+			if titlePrefix, exists := configMap["title-prefix"]; exists {
+				if titlePrefixStr, ok := titlePrefix.(string); ok {
+					pushToBranchConfig.TitlePrefix = titlePrefixStr
+				}
+			}
+
+			// Parse labels
+			if labels, exists := configMap["labels"]; exists {
+				if labelsArray, ok := labels.([]any); ok {
+					var labelStrings []string
+					for _, label := range labelsArray {
+						if labelStr, ok := label.(string); ok {
+							labelStrings = append(labelStrings, labelStr)
+						}
+					}
+					pushToBranchConfig.Labels = labelStrings
 				}
 			}
 

@@ -1599,6 +1599,17 @@
                   "type": "string",
                   "description": "Target for push operations: 'triggering' (default), '*' (any pull request), or explicit pull request number"
                 },
+                "title-prefix": {
+                  "type": "string",
+                  "description": "Required prefix for pull request title. Only pull requests with this prefix will be accepted."
+                },
+                "labels": {
+                  "type": "array",
+                  "description": "Required labels for pull request validation. Only pull requests with all these labels will be accepted.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
                 "if-no-changes": {
                   "type": "string",
                   "enum": ["warn", "error", "ignore"],

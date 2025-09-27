@@ -457,11 +457,23 @@ safe-outputs:
                                          # "triggering" (default) - only push in triggering PR context
                                          # "*" - allow pushes to any pull request (requires pull_request_number in agent output)
                                          # explicit number - push for specific pull request number
+    title-prefix: "[bot] "               # Optional: required title prefix for pull request validation
+                                         # Only pull requests with this prefix will be accepted
+    labels: [automated, enhancement]     # Optional: required labels for pull request validation
+                                         # Only pull requests with all these labels will be accepted
     if-no-changes: "warn"                # Optional: behavior when no changes to push
                                          # "warn" (default) - log warning but succeed
                                          # "error" - fail the action
                                          # "ignore" - silent success
 ```
+
+**Pull Request Validation:**
+
+When `title-prefix` or `labels` are specified, the workflow will validate that the target pull request meets these requirements before pushing changes:
+
+- **Title Prefix Validation**: Checks that the PR title starts with the specified prefix
+- **Labels Validation**: Ensures the PR contains all required labels (additional labels are allowed)
+- **Validation Failure**: If validation fails, the workflow stops with a clear error message showing current vs expected values
 
 The agentic part of your workflow should describe the changes to be pushed and optionally provide a commit message.
 
@@ -521,6 +533,8 @@ safe-outputs:
 - Changes are applied via git patches generated from the workflow's modifications
 - Only the specified branch can be modified
 - Target configuration controls which pull requests can trigger pushes for security
+- **Pull Request Validation**: Optional `title-prefix` and `labels` validation ensures only approved PRs receive changes
+- **Fail-Fast Validation**: Validation occurs before any changes are applied, preventing partial modifications
 - Push operations are limited to one per workflow execution
 - Configurable error handling for empty changesets via `if-no-changes` option
 
