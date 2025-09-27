@@ -92,7 +92,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
         clearTimeout(timeout);
 
         // Check that default paths are mentioned in debug output
-        expect(stderr).toContain("GITHUB_AW_SAFE_OUTPUTS not set, using default: /tmp/safe-outputs/output.jsonl");
+        expect(stderr).toContain("GITHUB_AW_SAFE_OUTPUTS not set, using default: /tmp/safe-outputs/outputs.jsonl");
         expect(stderr).toContain(
           "GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: /tmp/safe-outputs/config.json"
         );
