@@ -1503,6 +1503,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.SafeOutputs != nil {
 		env = make(map[string]string)
 
+		// Set GITHUB_AW_SAFE_OUTPUTS to fixed path
+		env["GITHUB_AW_SAFE_OUTPUTS"] = "/tmp/safe-outputs/outputs.jsonl"
+
 		// Set GITHUB_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := c.generateSafeOutputsConfig(data)
 		if safeOutputConfig != "" {
@@ -1580,10 +1583,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
-	// Generate output file setup step only if safe-outputs feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
-	if data.SafeOutputs != nil {
-		c.generateOutputFileSetup(yaml)
-	}
+	// GITHUB_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
@@ -2141,18 +2141,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("              .addRaw(JSON.stringify(awInfo, null, 2))\n")
 	yaml.WriteString("              .addRaw('\\n```\\n')\n")
 	yaml.WriteString("              .write();\n")
-}
-
-// generateOutputFileSetup generates a step that sets up the GITHUB_AW_SAFE_OUTPUTS environment variable
-func (c *Compiler) generateOutputFileSetup(yaml *strings.Builder) {
-	yaml.WriteString("      - name: Setup agent output\n")
-	yaml.WriteString("        id: setup_agent_output\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-
-	// Use the embedded setup agent output script
-	WriteJavaScriptToYAML(yaml, setupAgentOutputScript)
 }
 
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {

@@ -244,7 +244,6 @@ func TestEmbeddedScriptsNotEmpty(t *testing.T) {
 		{"collectJSONLOutputScript", collectJSONLOutputScript},
 		{"addLabelsScript", addLabelsScript},
 		{"updateIssueScript", updateIssueScript},
-		{"setupAgentOutputScript", setupAgentOutputScript},
 		{"addReactionAndEditCommentScript", addReactionAndEditCommentScript},
 		{"missingToolScript", missingToolScript},
 	}
