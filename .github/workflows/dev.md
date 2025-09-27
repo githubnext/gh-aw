@@ -10,5 +10,6 @@ safe-outputs:
     edit-wiki:
       path: ["dev/", "docs/"]
       max: 3
+      min: 1
 ---
 Write a poem and add it to the wiki.
