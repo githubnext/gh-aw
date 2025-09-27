@@ -52,7 +52,7 @@ func TestEnsureChatModeDesigner(t *testing.T) {
 			}
 
 			instructionsDir := filepath.Join(tempDir, ".github", "instructions")
-			chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.md")
+			chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.chatmode.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
@@ -120,7 +120,7 @@ func TestEnsureChatModeDesigner_WithWriteInstructionsFalse(t *testing.T) {
 
 	// Check that file was NOT created
 	instructionsDir := filepath.Join(tempDir, ".github", "instructions")
-	chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.md")
+	chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.chatmode.md")
 	if _, err := os.Stat(chatModeDesignerPath); !os.IsNotExist(err) {
 		t.Fatalf("Expected chat mode designer template file to NOT exist when writeInstructions=false")
 	}

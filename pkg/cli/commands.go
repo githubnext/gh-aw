@@ -34,7 +34,7 @@ var (
 //go:embed templates/instructions.md
 var copilotInstructionsTemplate string
 
-//go:embed templates/chat-mode-designer.md
+//go:embed templates/chat-mode-designer.chatmode.md
 var chatModeDesignerTemplate string
 
 // SetVersionInfo sets the version information for the CLI
@@ -1565,7 +1565,7 @@ func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 	return nil
 }
 
-// ensureChatModeDesigner ensures that .github/instructions/github-agentic-workflows-designer.md contains the chat mode designer template
+// ensureChatModeDesigner ensures that .github/instructions/github-agentic-workflows-designer.chatmode.md contains the chat mode designer template
 func ensureChatModeDesigner(verbose bool, writeInstructions bool) error {
 	if !writeInstructions {
 		return nil // Skip writing template if flag is not set
@@ -1577,7 +1577,7 @@ func ensureChatModeDesigner(verbose bool, writeInstructions bool) error {
 	}
 
 	instructionsDir := filepath.Join(gitRoot, ".github", "instructions")
-	chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.md")
+	chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.chatmode.md")
 
 	// Ensure the .github/instructions directory exists
 	if err := os.MkdirAll(instructionsDir, 0755); err != nil {
