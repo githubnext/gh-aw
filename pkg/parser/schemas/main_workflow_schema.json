@@ -1736,10 +1736,7 @@
                   "description": "Whether threat detection is enabled",
                   "default": true
                 },
-                "engine": {
-                  "type": "string",
-                  "description": "Engine ID to use for detection (defaults to agent engine)"
-                },
+
                 "prompt": {
                   "type": "string",
                   "description": "Path or URL to custom prompt file (defaults to bundled template)"

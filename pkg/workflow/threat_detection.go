@@ -7,7 +7,6 @@ import (
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
 	Enabled bool     `yaml:"enabled,omitempty"`        // Whether threat detection is enabled
-	Engine  string   `yaml:"engine,omitempty"`         // Engine ID to use for detection (defaults to agent engine)
 	Prompt  string   `yaml:"prompt,omitempty"`         // Path/URL to custom prompt file (defaults to bundled template)
 	Steps   []any    `yaml:"steps,omitempty"`          // Array of extra job steps
 }
@@ -35,12 +34,7 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 				}
 			}
 
-			// Parse engine field
-			if engine, exists := configMap["engine"]; exists {
-				if engineStr, ok := engine.(string); ok {
-					threatConfig.Engine = engineStr
-				}
-			}
+
 
 			// Parse prompt field
 			if prompt, exists := configMap["prompt"]; exists {

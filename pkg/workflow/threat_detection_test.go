@@ -50,18 +50,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			expectedConfig: &ThreatDetectionConfig{Enabled: false},
 		},
 		{
-			name: "object with custom engine",
-			outputMap: map[string]any{
-				"threat-detection": map[string]any{
-					"engine": "claude-3.5",
-				},
-			},
-			expectedConfig: &ThreatDetectionConfig{
-				Enabled: true,
-				Engine:  "claude-3.5",
-			},
-		},
-		{
 			name: "object with custom prompt",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
@@ -100,7 +88,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
 					"enabled": true,
-					"engine":  "custom-engine",
 					"prompt":  "https://example.com/prompt.md",
 					"steps": []any{
 						map[string]any{
@@ -112,7 +99,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 			expectedConfig: &ThreatDetectionConfig{
 				Enabled: true,
-				Engine:  "custom-engine",
 				Prompt:  "https://example.com/prompt.md",
 				Steps: []any{
 					map[string]any{
@@ -141,9 +127,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			if result.Enabled != tt.expectedConfig.Enabled {
 				t.Errorf("Expected Enabled %v, got %v", tt.expectedConfig.Enabled, result.Enabled)
 			}
-			if result.Engine != tt.expectedConfig.Engine {
-				t.Errorf("Expected Engine %q, got %q", tt.expectedConfig.Engine, result.Engine)
-			}
+
 			if result.Prompt != tt.expectedConfig.Prompt {
 				t.Errorf("Expected Prompt %q, got %q", tt.expectedConfig.Prompt, result.Prompt)
 			}
