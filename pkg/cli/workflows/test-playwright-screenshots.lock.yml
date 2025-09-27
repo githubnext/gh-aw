@@ -106,6 +106,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
+    env:
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:

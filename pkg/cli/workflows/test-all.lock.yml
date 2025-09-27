@@ -320,6 +320,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    env:
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"target\":\"*\"},\"add-labels\":{},\"create-issue\":{},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:

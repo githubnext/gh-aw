@@ -20,6 +20,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:

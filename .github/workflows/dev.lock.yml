@@ -106,6 +106,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
+    env:
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
