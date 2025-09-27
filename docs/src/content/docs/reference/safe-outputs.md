@@ -502,71 +502,30 @@ Analyze the pull request and make necessary code improvements.
 2. Push changes to the feature branch with a descriptive commit message
 ```
 
-**Example with pull request validation:**
-
-```aw wrap
----
-on:
-  pull_request:
-    types: [opened, synchronize]
-permissions:
-  contents: read
-  actions: read
-engine: claude
-safe-outputs:
-  push-to-pull-request-branch:
-    target: "triggering"
-    title-prefix: "[bot] "
-    labels: [automated, enhancement]
-    if-no-changes: "warn"
----
-
-# Automated Code Enhancement Agent
-
-This workflow only operates on pull requests with "[bot] " title prefix and both "automated" and "enhancement" labels.
-
-Analyze the pull request and make code improvements:
-
-1. Make any file changes directly in the working directory
-2. Push changes to the feature branch with a descriptive commit message
-```
-
-**Examples with different configurations:**
+**Examples with different error level configurations:**
 
 ```yaml
-# Basic configuration with no validation
+# Always succeed, warn when no changes (default behavior)
 safe-outputs:
   push-to-pull-request-branch:
-    target: "triggering"
+    branch: feature-branch
     if-no-changes: "warn"
 ```
 
 ```yaml
-# Only allow PRs with specific title prefix
+# Fail when no changes are made (strict mode)
 safe-outputs:
   push-to-pull-request-branch:
-    target: "triggering"
-    title-prefix: "[automated] "
+    branch: feature-branch
     if-no-changes: "error"
 ```
 
 ```yaml
-# Only allow PRs with required labels
+# Silent success, no output when no changes
 safe-outputs:
   push-to-pull-request-branch:
-    target: "triggering"
-    labels: [bot, enhancement]
+    branch: feature-branch
     if-no-changes: "ignore"
-```
-
-```yaml
-# Both title prefix and labels validation
-safe-outputs:
-  push-to-pull-request-branch:
-    target: "triggering"
-    title-prefix: "[bot] "
-    labels: [automated, safe]
-    if-no-changes: "warn"
 ```
 
 **Safety Features:**
