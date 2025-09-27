@@ -1341,6 +1341,12 @@
                   "minimum": 1,
                   "maximum": 100
                 },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of issues to create (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1374,6 +1380,12 @@
                   "minimum": 1,
                   "maximum": 100
                 },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of discussions to create (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1397,6 +1409,12 @@
                   "type": "integer",
                   "description": "Maximum number of comments to create (default: 1)",
                   "minimum": 1,
+                  "maximum": 100
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of comments to create (default: 0 - no requirement)",
+                  "minimum": 0,
                   "maximum": 100
                 },
                 "target": {
@@ -1467,6 +1485,12 @@
                   "minimum": 1,
                   "maximum": 100
                 },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of review comments to create (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
+                },
                 "side": {
                   "type": "string",
                   "description": "Side of the diff for comments: 'LEFT' or 'RIGHT' (default: 'RIGHT')",
@@ -1498,6 +1522,12 @@
                   "type": "integer",
                   "description": "Maximum number of security findings to include (default: unlimited)",
                   "minimum": 1
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of security findings to include (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
                 },
                 "driver": {
                   "type": "string",
@@ -1539,6 +1569,11 @@
                   "description": "Optional maximum number of labels to add (default: 3)",
                   "minimum": 1
                 },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of labels to add (default: 0 - no requirement)",
+                  "minimum": 0
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1574,6 +1609,12 @@
                   "type": "integer",
                   "description": "Maximum number of issues to update (default: 1)",
                   "minimum": 1,
+                  "maximum": 100
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of issues to update (default: 0 - no requirement)",
+                  "minimum": 0,
                   "maximum": 100
                 },
                 "github-token": {
@@ -1642,6 +1683,12 @@
                   "type": "integer",
                   "description": "Maximum number of missing tool reports (default: unlimited)",
                   "minimum": 1
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of missing tool reports (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
                 },
                 "github-token": {
                   "type": "string",

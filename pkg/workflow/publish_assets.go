@@ -7,10 +7,10 @@ import (
 
 // UploadAssetsConfig holds configuration for publishing assets to an orphaned git branch
 type UploadAssetsConfig struct {
-	BranchName  string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
-	MaxSizeKB   int      `yaml:"max-size,omitempty"`     // Maximum file size in KB (default: 10240 = 10MB)
-	AllowedExts []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
-	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	BranchName           string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
+	MaxSizeKB            int      `yaml:"max-size,omitempty"`     // Maximum file size in KB (default: 10240 = 10MB)
+	AllowedExts          []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
 }
 
 // parseUploadAssetConfig handles upload-asset configuration
@@ -57,12 +57,8 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 				}
 			}
 
-			// Parse github-token
-			if githubToken, exists := configMap["github-token"]; exists {
-				if githubTokenStr, ok := githubToken.(string); ok {
-					config.GitHubToken = githubTokenStr
-				}
-			}
+			// Parse common base fields
+			c.parseBaseSafeOutputConfig(configMap, &config.BaseSafeOutputConfig)
 		} else if configData == nil {
 			// Handle null case: create config with defaults
 			return config

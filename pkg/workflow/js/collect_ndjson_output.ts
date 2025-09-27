@@ -201,6 +201,23 @@ async function main() {
   }
 
   /**
+   * Gets the minimum required count for a given output type
+   * @param {string} itemType - The output item type
+   * @param {SafeOutputConfigs} config - The safe-outputs configuration
+   * @returns {number} The minimum required count
+   */
+  function getMinRequiredForType(itemType: string, config: SafeOutputConfigs): number {
+    // Check if min is explicitly specified in config
+    const itemConfig = config?.[itemType];
+    if (itemConfig && typeof itemConfig === "object" && "min" in itemConfig && itemConfig.min) {
+      return itemConfig.min;
+    }
+
+    // Default minimum is 0 for all types (no requirement)
+    return 0;
+  }
+
+  /**
    * Attempts to repair common JSON syntax issues in LLM-generated content
    * @param {string} jsonStr - The potentially malformed JSON string
    * @returns {string} The repaired JSON string
@@ -586,8 +603,8 @@ async function main() {
   const outputContent = fs.readFileSync(outputFile, "utf8");
   if (outputContent.trim() === "") {
     core.info("Output file is empty");
-    core.setOutput("output", "");
-    return;
+    // Still need to check min requirements even with empty content
+    // Don't return early, continue to validation
   }
 
   core.info(`Raw output content length: ${outputContent.length}`);
@@ -1013,6 +1030,17 @@ async function main() {
 
     // For now, we'll continue with valid items but log the errors
     // In the future, we might want to fail the workflow for invalid items
+  }
+
+  // Validate minimum requirements for each expected output type
+  for (const itemType of Object.keys(expectedOutputTypes)) {
+    const minRequired = getMinRequiredForType(itemType, expectedOutputTypes);
+    if (minRequired > 0) {
+      const actualCount = parsedItems.filter(item => item.type === itemType).length;
+      if (actualCount < minRequired) {
+        errors.push(`Too few items of type '${itemType}'. Minimum required: ${minRequired}, found: ${actualCount}.`);
+      }
+    }
   }
 
   core.info(`Successfully parsed ${parsedItems.length} valid output items`);
