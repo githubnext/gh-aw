@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
 /**
  * Sanitizes markdown content for wiki pages
@@ -216,7 +217,6 @@ async function main() {
       const wikiDir = `/tmp/wiki-${Date.now()}-${i}`;
 
       // Clone the wiki repository (it might not exist yet)
-      const { execSync } = require("child_process");
 
       try {
         core.info(`Cloning wiki repository: ${wikiUrl}`);
