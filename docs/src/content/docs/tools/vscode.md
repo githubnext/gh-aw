@@ -8,7 +8,7 @@ The `gh aw` cli provides a few tools to improve your developer experience in VS 
 ## Copilot instructions <a id="copilot-instructions"></a>
 
 If you add the `--instructions` flag to the compile command, it will also
-write a [custom Copilot intructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
+write a [custom Copilot instructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
 
 ```sh
 gh aw compile --instructions
@@ -19,6 +19,24 @@ files under the `.github/workflows` folder.
 
 Once configured, you will notice that Copilot Chat will be much more efficient at
 generating Agentic Workflows.
+
+## /create-agentic-workflow command <a id="create-agentic-workflow"></a>
+
+The `--instructions` flag also creates a [prompt template](https://code.visualstudio.com/docs/copilot/copilot-customization#_prompt-templates) at `.github/prompts/create-agentic-workflow.prompt.md` that enables the `/create-agentic-workflow` command in GitHub Copilot Chat.
+
+```sh
+gh aw compile --instructions
+```
+
+Once the prompt file is created, you can use `/create-agentic-workflow` in Copilot Chat to interactively design and create agentic workflows with guided assistance for:
+
+- Choosing appropriate triggers (`on:` events)
+- Configuring permissions and security settings
+- Selecting tools and MCP servers
+- Setting up safe outputs and network permissions
+- Following best practices for workflow design
+
+The command provides a conversational interface that helps you build secure, well-structured agentic workflows without needing to memorize the full syntax.
 
 ## Background Compilation
 
