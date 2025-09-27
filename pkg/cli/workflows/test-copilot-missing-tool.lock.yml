@@ -816,13 +816,6 @@ jobs:
           echo '$GITHUB_AW_SAFE_OUTPUTS_CONFIG' > /tmp/safe-outputs/config.json
         env:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
-      - name: Upload config
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: config
-          path: /tmp/.copilot/
-          if-no-files-found: ignore
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
