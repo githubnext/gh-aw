@@ -2315,7 +2315,7 @@ jobs:
                   .filter(label => label) 
                   .map(label => sanitizeLabelContent(label)) 
                   .filter(label => label) 
-                  .map(label => label.length > 64 ? label.substring(0, 64) : label) 
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label)) 
                   .filter((label, index, arr) => arr.indexOf(label) === index); 
                 let title = createIssueItem.title ? createIssueItem.title.trim() : "";
                 let bodyLines = createIssueItem.body.split("\n");
