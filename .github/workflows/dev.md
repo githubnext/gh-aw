@@ -1,7 +1,6 @@
 ---
 on: 
   workflow_dispatch:
-  reaction: "eyes"
   push:
     branches:
       - copilot/*
@@ -11,31 +10,5 @@ safe-outputs:
     edit-wiki:
       path: ["dev/", "docs/"]
       max: 3
-    jobs:
-      print:
-        #name: "print the message"
-        runs-on: ubuntu-latest
-        inputs:
-          message:
-            description: "Message to print"
-            required: true
-            type: string
-        steps:
-          - name: See artifacts
-            run: cd /tmp/safe-jobs && ls -lR
-          - name: print message
-            run: |
-              if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-                MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
-                echo "print: $MESSAGE"
-                echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
-                echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
-              else
-                echo "No agent output found, using default: Hello from safe-job!"
-              fi
 ---
-Summarize the changes in this repository and create documentation using both the `print` tool and the `edit-wiki` tool.
-
-Use the `print` tool to provide a summary message, and use the `edit-wiki` tool to create or update wiki pages documenting the development workflow and changes. You can create wiki pages in the "dev/" or "docs/" folders as configured in the allowed paths.
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+Write a poem and add it to the wiki.
