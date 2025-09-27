@@ -45,9 +45,6 @@ var uploadAssetsScript string
 //go:embed js/setup_agent_output.cjs
 var setupAgentOutputScript string
 
-//go:embed js/add_reaction.cjs
-var addReactionScript string
-
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScript string
 
