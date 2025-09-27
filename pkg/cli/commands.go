@@ -34,6 +34,9 @@ var (
 //go:embed templates/instructions.md
 var copilotInstructionsTemplate string
 
+//go:embed templates/chat-mode-designer.md
+var chatModeDesignerTemplate string
+
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
 	version = v
@@ -788,6 +791,13 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
+		}
+	}
+
+	// Ensure chat mode designer template is present
+	if err := ensureChatModeDesigner(verbose, writeInstructions); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update chat mode designer template: %v", err)))
 		}
 	}
 
@@ -1549,6 +1559,56 @@ func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 			fmt.Printf("Created copilot instructions: %s\n", copilotInstructionsPath)
 		} else {
 			fmt.Printf("Updated copilot instructions: %s\n", copilotInstructionsPath)
+		}
+	}
+
+	return nil
+}
+
+// ensureChatModeDesigner ensures that .github/instructions/github-agentic-workflows-designer.md contains the chat mode designer template
+func ensureChatModeDesigner(verbose bool, writeInstructions bool) error {
+	if !writeInstructions {
+		return nil // Skip writing template if flag is not set
+	}
+
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	instructionsDir := filepath.Join(gitRoot, ".github", "instructions")
+	chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.md")
+
+	// Ensure the .github/instructions directory exists
+	if err := os.MkdirAll(instructionsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .github/instructions directory: %w", err)
+	}
+
+	// Check if the template file already exists and matches the template
+	existingContent := ""
+	if content, err := os.ReadFile(chatModeDesignerPath); err == nil {
+		existingContent = string(content)
+	}
+
+	// Check if content matches our expected template
+	expectedContent := strings.TrimSpace(chatModeDesignerTemplate)
+	if strings.TrimSpace(existingContent) == expectedContent {
+		if verbose {
+			fmt.Printf("Chat mode designer template is up-to-date: %s\n", chatModeDesignerPath)
+		}
+		return nil
+	}
+
+	// Write the chat mode designer template file
+	if err := os.WriteFile(chatModeDesignerPath, []byte(chatModeDesignerTemplate), 0644); err != nil {
+		return fmt.Errorf("failed to write chat mode designer template: %w", err)
+	}
+
+	if verbose {
+		if existingContent == "" {
+			fmt.Printf("Created chat mode designer template: %s\n", chatModeDesignerPath)
+		} else {
+			fmt.Printf("Updated chat mode designer template: %s\n", chatModeDesignerPath)
 		}
 	}
 
