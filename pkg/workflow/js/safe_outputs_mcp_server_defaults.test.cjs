@@ -173,9 +173,9 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 
         // Check that config was read from file
         expect(stderr).toContain("Reading config from file: /tmp/safe-outputs/config.json");
-        expect(stderr).toContain("Successfully parsed config from file:");
-        expect(stderr).toContain('"create-issue"');
-        expect(stderr).toContain('"add-comment"');
+        expect(stderr).toContain("Successfully parsed config from file with 2 configuration keys");
+        expect(stderr).toContain("Final processed config:");
+        expect(stderr).toContain("create_issue");
 
         resolve();
       }, 2000);

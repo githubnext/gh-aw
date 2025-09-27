@@ -20,9 +20,10 @@ if (!configEnv) {
       debug(`Reading config from file: ${defaultConfigPath}`);
       const configFileContent = fs.readFileSync(defaultConfigPath, "utf8");
       debug(`Config file content length: ${configFileContent.length} characters`);
-      debug(`Config file raw content: ${configFileContent}`);
+      // Don't log raw content to avoid exposing sensitive configuration data
+      debug(`Config file read successfully, attempting to parse JSON`);
       safeOutputsConfigRaw = JSON.parse(configFileContent);
-      debug(`Successfully parsed config from file: ${JSON.stringify(safeOutputsConfigRaw)}`);
+      debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
     } else {
       debug(`Config file does not exist at: ${defaultConfigPath}`);
       debug(`Using minimal default configuration`);
