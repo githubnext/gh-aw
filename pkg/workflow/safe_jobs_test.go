@@ -198,7 +198,7 @@ func TestBuildSafeJobs(t *testing.T) {
 		},
 	}
 
-	err := c.buildSafeJobs(workflowData)
+	err := c.buildSafeJobs(workflowData, "agent")
 	if err != nil {
 		t.Fatalf("Unexpected error building safe jobs: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 		Name: "test-workflow",
 	}
 
-	err := c.buildSafeJobs(workflowData)
+	err := c.buildSafeJobs(workflowData, "agent")
 	if err != nil {
 		t.Errorf("Expected no error with no safe-jobs, got %v", err)
 	}
@@ -273,7 +273,7 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 		Jobs: map[string]*SafeJobConfig{},
 	}
 
-	err = c.buildSafeJobs(workflowData)
+	err = c.buildSafeJobs(workflowData, "agent")
 	if err != nil {
 		t.Errorf("Expected no error with empty safe-jobs, got %v", err)
 	}
