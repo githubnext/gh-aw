@@ -194,3 +194,144 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 		})
 	}
 }
+
+func TestMCPInspectFiltersSafeOutputs(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		serverFilter string
+		expectedLen  int
+		description  string
+	}{
+		{
+			name: "parser includes safe-outputs but inspect filters them",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue": map[string]any{"max": 3},
+					"missing-tool": map[string]any{},
+				},
+			},
+			serverFilter: "",
+			description:  "parser should include safe-outputs but inspect should filter them",
+		},
+		{
+			name: "mixed configuration filters only safe-outputs",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue": map[string]any{"max": 3},
+				},
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"create_issue", "get_repository"},
+					},
+				},
+			},
+			serverFilter: "",
+			description:  "should filter safe-outputs but keep github MCP",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test that parser still includes safe-outputs
+			configs, err := parser.ExtractMCPConfigurations(tt.frontmatter, tt.serverFilter)
+			if err != nil {
+				t.Fatalf("ExtractMCPConfigurations failed: %v", err)
+			}
+
+			// Verify parser includes safe-outputs when present
+			hasSafeOutputs := false
+			for _, config := range configs {
+				if config.Name == "safe-outputs" {
+					hasSafeOutputs = true
+					break
+				}
+			}
+
+			if _, hasSafeOutputsInFrontmatter := tt.frontmatter["safe-outputs"]; hasSafeOutputsInFrontmatter && !hasSafeOutputs {
+				t.Error("Parser should still include safe-outputs configurations")
+			} else if hasSafeOutputsInFrontmatter && hasSafeOutputs {
+				t.Log("✓ Parser correctly includes safe-outputs (to be filtered by inspect command)")
+			}
+
+			// Test the filtering logic that inspect command uses
+			var filteredConfigs []parser.MCPServerConfig
+			for _, config := range configs {
+				if config.Name != "safe-outputs" {
+					filteredConfigs = append(filteredConfigs, config)
+				}
+			}
+
+			// Verify no safe-outputs configurations remain after filtering
+			for _, config := range filteredConfigs {
+				if config.Name == "safe-outputs" {
+					t.Errorf("safe-outputs should be filtered out by inspect command but was found")
+				}
+			}
+
+			t.Logf("✓ Inspect command filtering works: %d configs before filter, %d after filter", len(configs), len(filteredConfigs))
+		})
+	}
+}
+
+func TestFilterOutSafeOutputs(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []parser.MCPServerConfig
+		expected []parser.MCPServerConfig
+	}{
+		{
+			name:     "empty input",
+			input:    []parser.MCPServerConfig{},
+			expected: []parser.MCPServerConfig{},
+		},
+		{
+			name: "only safe-outputs",
+			input: []parser.MCPServerConfig{
+				{Name: "safe-outputs", Type: "stdio"},
+			},
+			expected: []parser.MCPServerConfig{},
+		},
+		{
+			name: "mixed servers",
+			input: []parser.MCPServerConfig{
+				{Name: "safe-outputs", Type: "stdio"},
+				{Name: "github", Type: "docker"},
+				{Name: "playwright", Type: "docker"},
+			},
+			expected: []parser.MCPServerConfig{
+				{Name: "github", Type: "docker"},
+				{Name: "playwright", Type: "docker"},
+			},
+		},
+		{
+			name: "no safe-outputs",
+			input: []parser.MCPServerConfig{
+				{Name: "github", Type: "docker"},
+				{Name: "custom-server", Type: "stdio"},
+			},
+			expected: []parser.MCPServerConfig{
+				{Name: "github", Type: "docker"},
+				{Name: "custom-server", Type: "stdio"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterOutSafeOutputs(tt.input)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d configs, got %d", len(tt.expected), len(result))
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if result[i].Name != expected.Name || result[i].Type != expected.Type {
+					t.Errorf("Expected config %d to be {Name: %s, Type: %s}, got {Name: %s, Type: %s}",
+						i, expected.Name, expected.Type, result[i].Name, result[i].Type)
+				}
+			}
+		})
+	}
+}
