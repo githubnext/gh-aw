@@ -12,7 +12,6 @@ var defaultThreatDetectionPrompt string
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
 	Enabled bool     `yaml:"enabled,omitempty"`        // Whether threat detection is enabled
-	Prompt  string   `yaml:"prompt,omitempty"`         // Custom prompt text content (defaults to bundled template)
 	Steps   []any    `yaml:"steps,omitempty"`          // Array of extra job steps
 }
 
@@ -41,12 +40,7 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 
 
 
-			// Parse prompt field
-			if prompt, exists := configMap["prompt"]; exists {
-				if promptStr, ok := prompt.(string); ok {
-					threatConfig.Prompt = promptStr
-				}
-			}
+
 
 			// Parse steps field
 			if steps, exists := configMap["steps"]; exists {
@@ -87,22 +81,12 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	steps = append(steps, "          mkdir -p /tmp/threat-detection/prompts\n")
 	steps = append(steps, "          \n")
 	
-	// Create threat detection prompt (use custom text if provided, otherwise use default)
+	// Create threat detection prompt using default template
 	steps = append(steps, "          # Create threat detection prompt\n")
 	steps = append(steps, "          cat > /tmp/threat-detection/prompts/detection.md << 'THREAT_DETECTION_EOF'\n")
 	
-	// Determine which prompt content to use
-	var promptContent string
-	if data.SafeOutputs.ThreatDetection.Prompt != "" {
-		// Use custom prompt text provided inline
-		promptContent = data.SafeOutputs.ThreatDetection.Prompt
-	} else {
-		// Use default embedded prompt
-		promptContent = defaultThreatDetectionPrompt
-	}
-	
-	// Include the prompt content
-	for _, line := range strings.Split(promptContent, "\n") {
+	// Include the default prompt content
+	for _, line := range strings.Split(defaultThreatDetectionPrompt, "\n") {
 		steps = append(steps, "          "+line+"\n")
 	}
 	steps = append(steps, "          THREAT_DETECTION_EOF\n")

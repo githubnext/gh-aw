@@ -49,18 +49,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 			expectedConfig: &ThreatDetectionConfig{Enabled: false},
 		},
-		{
-			name: "object with custom prompt",
-			outputMap: map[string]any{
-				"threat-detection": map[string]any{
-					"prompt": "/path/to/custom-prompt.md",
-				},
-			},
-			expectedConfig: &ThreatDetectionConfig{
-				Enabled: true,
-				Prompt:  "/path/to/custom-prompt.md",
-			},
-		},
+
 		{
 			name: "object with custom steps",
 			outputMap: map[string]any{
@@ -88,7 +77,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
 					"enabled": true,
-					"prompt":  "https://example.com/prompt.md",
 					"steps": []any{
 						map[string]any{
 							"name": "Extra step",
@@ -99,7 +87,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 			expectedConfig: &ThreatDetectionConfig{
 				Enabled: true,
-				Prompt:  "https://example.com/prompt.md",
 				Steps: []any{
 					map[string]any{
 						"name": "Extra step",
@@ -128,9 +115,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				t.Errorf("Expected Enabled %v, got %v", tt.expectedConfig.Enabled, result.Enabled)
 			}
 
-			if result.Prompt != tt.expectedConfig.Prompt {
-				t.Errorf("Expected Prompt %q, got %q", tt.expectedConfig.Prompt, result.Prompt)
-			}
+
 			if len(result.Steps) != len(tt.expectedConfig.Steps) {
 				t.Errorf("Expected %d steps, got %d", len(tt.expectedConfig.Steps), len(result.Steps))
 			}

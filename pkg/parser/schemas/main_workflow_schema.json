@@ -1737,10 +1737,7 @@
                   "default": true
                 },
 
-                "prompt": {
-                  "type": "string",
-                  "description": "Path or URL to custom prompt file (defaults to bundled template)"
-                },
+
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run after detection",

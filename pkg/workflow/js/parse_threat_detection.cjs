@@ -14,15 +14,25 @@ try {
   if (fs.existsSync(outputPath)) {
     const outputContent = fs.readFileSync(outputPath, 'utf8');
     
-    // Look for JSON response in the output
-    const jsonMatch = outputContent.match(/{[^}]*"prompt_injection"[^}]*}/g);
-    if (jsonMatch && jsonMatch.length > 0) {
-      const parsedVerdict = JSON.parse(jsonMatch[jsonMatch.length - 1]);
-      verdict = { ...verdict, ...parsedVerdict };
+    // Parse each line looking for THREAT_DETECTION_RESULT prefix
+    const lines = outputContent.split('\n');
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('THREAT_DETECTION_RESULT:')) {
+        try {
+          const jsonPart = trimmedLine.substring('THREAT_DETECTION_RESULT:'.length);
+          const parsedVerdict = JSON.parse(jsonPart);
+          verdict = { ...verdict, ...parsedVerdict };
+          core.info('Found threat detection result in engine output');
+          break; // Use the first valid result found
+        } catch (parseError) {
+          core.warning(`Failed to parse threat detection JSON: ${parseError.message}`);
+        }
+      }
     }
   }
 } catch (error) {
-  core.warning(`Failed to parse threat detection results: ${error.message}`);
+  core.warning(`Failed to read threat detection results: ${error.message}`);
 }
 
 // Log the verdict

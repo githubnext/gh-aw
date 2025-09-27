@@ -120,7 +120,6 @@ interface MissingToolConfig extends SafeOutputConfig {
  */
 interface ThreatDetectionConfig extends SafeOutputConfig {
   enabled?: boolean;
-  prompt?: string;
   steps?: any[];
 }
 
