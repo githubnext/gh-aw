@@ -56,11 +56,6 @@ graph TB
     B["✅ activation<br/>Runtime conditions & access control"]
     C["🤖 agent<br/>Sandboxed AI playground"]
     D["🛡️ safe-outputs<br/>Sanitized GitHub API operations<br/>(create-issue, add-comment, create-pull-request, etc.)"]
-    
-    style A fill:#ff9999
-    style B fill:#ffcc99
-    style C fill:#99ccff
-    style D fill:#99ff99
 ```
 
 Each job serves a specific security and functional purpose:
