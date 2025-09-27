@@ -168,8 +168,6 @@ func connectStdioMCPServer(ctx context.Context, config parser.MCPServerConfig, v
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Starting stdio MCP server: %s %s", config.Command, strings.Join(config.Args, " "))))
 	}
 
-
-
 	// Validate the command exists
 	if config.Command != "" {
 		if _, err := exec.LookPath(config.Command); err != nil {
@@ -670,5 +668,3 @@ func displayToolAllowanceHint(info *parser.MCPServerInfo) {
 
 	fmt.Printf("\n%s\n", console.FormatInfoMessage("📖 For more information, see: https://github.com/githubnext/gh-aw/blob/main/docs/tools.md"))
 }
-
-

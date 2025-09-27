@@ -207,8 +207,8 @@ func TestMCPExtractIgnoresSafeOutputs(t *testing.T) {
 			name: "only safe-outputs configuration",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
-					"create-issue":   map[string]any{"max": 3},
-					"missing-tool":   map[string]any{},
+					"create-issue": map[string]any{"max": 3},
+					"missing-tool": map[string]any{},
 				},
 			},
 			serverFilter: "",
