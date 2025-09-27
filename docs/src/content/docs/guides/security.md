@@ -69,25 +69,124 @@ Apply these principles consistently across all workflow components:
 
 Configure GitHub Actions with defense in depth:
 
+#### Job Separation for Security
+
+**CRITICAL SECURITY FEATURE**: Agentic workflows split work across multiple jobs to minimize attack surface and create clear security boundaries.
+
+**How Job Separation Works**:
+1. **Main AI Job**: Runs with minimal read-only permissions (`contents: read`, `actions: read`)
+2. **Safe-Output Jobs**: Separate jobs with specific write permissions, generated automatically by the compiler
+3. **Job Dependencies**: Safe-output jobs only execute after the main AI job completes successfully
+4. **Artifact-Based Communication**: AI output is passed via GitHub Actions artifacts, not environment variables or secrets
+
+**Security Benefits**:
+- **Permission Isolation**: AI processing never has write permissions to GitHub APIs
+- **Audit Trail**: Clear separation between AI reasoning and GitHub API actions
+- **Blast Radius Containment**: Compromised AI cannot directly modify repository or create issues
+- **Defense in Depth**: Multiple layers of validation before any write operations occur
+- **Code Review**: Generated safe-output jobs are visible in `.lock.yml` files for review
+
+**Example Architecture**:
+```yaml
+# Workflow splits into multiple jobs automatically:
+
+main-job:
+  permissions:
+    contents: read    # AI can read repository
+    actions: read     # AI can access artifacts
+  # AI processing happens here with minimal permissions
+
+safe-output-create-issue:  # Generated automatically
+  needs: main-job          # Only runs after AI completes
+  permissions:
+    issues: write          # Specific permission for this action only
+  # Creates issues based on AI output artifact
+
+safe-output-add-comment:   # Generated automatically  
+  needs: main-job          # Only runs after AI completes
+  permissions:
+    issues: write          # Specific permission for this action only
+  # Adds comments based on AI output artifact
+```
+
 #### Permission Configuration
 
-Set minimal permissions for the agentic processing:
+**Recommended**: Use safe-outputs for secure permission separation:
 
 ```yaml
-# Applies to the agentic processing
+# Safe-outputs pattern (recommended)
 permissions:
-  issues: write
+  contents: read      # Minimal permissions for main job
+  actions: read
+
+safe-outputs:
+  create-issue:       # Automatic issue creation in separate job
+  add-comment:        # Automatic comments in separate job
+```
+
+**Alternative**: Direct permissions (use only when safe-outputs cannot meet requirements):
+
+```yaml
+# Direct permissions pattern (not recommended)
+permissions:
+  issues: write       # Avoid when possible - use safe-outputs instead
   contents: read
 ```
 
+#### Network Access Control
+
+**IMPORTANT**: Control AI engine network access using the top-level `network:` field to prevent data exfiltration and limit attack surface.
+
+**Recommended Pattern**:
+```yaml
+engine:
+  id: claude
+
+# Use ecosystem identifiers for development needs
+network:
+  allowed:
+    - defaults        # Basic infrastructure (certificates, package mirrors)
+    - python         # Python/PyPI ecosystem access
+    - node           # Node.js/NPM ecosystem access
+    - github         # GitHub API domains
+```
+
+**Restrictive Pattern** (for sensitive environments):
+```yaml
+engine:
+  id: claude
+
+# Deny all network access
+network: {}
+```
+
+**Network Security Benefits**:
+- **Data Exfiltration Prevention**: Blocks unauthorized external connections
+- **Supply Chain Protection**: Limits access to trusted package registries only
+- **Compliance**: Meets organizational network security requirements
+- **Audit Trail**: Network access attempts are logged for monitoring
+
+For complete network configuration options, see [Network Permissions](/gh-aw/reference/network/).
+
 ### Human in the Loop
 
-GitHub Actions workflows are designed to be steps within a larger process. Some critical operations should always involve human review:
+GitHub Actions workflows are designed to be steps within a larger process. Safe-outputs enhance human oversight while maintaining security:
 
-- **Approval gates**: Use manual approval steps for high-risk operations like deployments, secret management, or external tool invocations
-- **Pull requests require humans**: GitHub Actions cannot approve or merge pull requests. This means a human will always be involved in reviewing and merging pull requests that contain agentic workflows.
-- **Plan-apply separation**: Implement a "plan" phase that generates a preview of actions before execution. This allows human reviewers to assess the impact of changes. This is usually done via an output issue or pull request.
-- **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
+**Built-in Human Review Points**:
+- **Safe-Output Visibility**: All generated issues, comments, and PRs are immediately visible to humans
+- **Pull Requests Require Humans**: GitHub Actions cannot approve or merge pull requests - human review is always required
+- **Workflow History**: All AI actions are logged in GitHub Actions for audit and review
+- **Lock File Review**: Generated `.lock.yml` files show exactly what permissions and jobs will execute
+
+**Additional Human Controls**:
+- **Approval Gates**: Use manual approval steps for high-risk operations like deployments or secret management
+- **Plan-Apply Separation**: Implement a "plan" phase that generates a preview of actions before execution via safe-outputs
+- **Review and Audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies
+
+**Safe-Outputs as Human Interface**:
+- **Immediate Visibility**: Issues and comments created by safe-outputs are immediately visible to repository users
+- **No Silent Actions**: Unlike direct API calls, safe-outputs always create visible artifacts for human review
+- **Granular Control**: Each safe-output type can be configured with limits (max issues, comment targets, etc.)
 
 ### Limit operations
 
@@ -270,103 +369,52 @@ Body: "${{ github.event.issue.body }}"
 - **Input sanitization**: Always use sanitized context text for user-controlled content
 - **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
 
-## Engine Network Permissions
 
-### Overview
-
-Engine network permissions provide fine-grained control over network access for AI engines themselves, separate from MCP tool network permissions. This feature uses Claude Code's hook system to enforce domain-based access controls.
-
-### Security Benefits
-
-1. **Defense in Depth**: Additional layer beyond MCP tool restrictions
-2. **Compliance**: Meet organizational security requirements for AI network access
-3. **Audit Trail**: Network access attempts are logged through Claude Code hooks
-4. **Principle of Least Privilege**: Only grant network access to required domains
-
-### Implementation Details
-
-- **Hook-Based Enforcement**: Uses Claude Code's PreToolUse hooks to intercept network requests
-- **Runtime Validation**: Domain checking happens at request time, not compilation time
-- **Error Handling**: Blocked requests receive clear error messages with allowed domains
-- **Performance Impact**: Minimal overhead (~10ms per network request)
-
-### Best Practices
-
-1. **Start with Minimal Access**: Begin with `defaults` and add only needed ecosystems
-2. **Use Ecosystem Identifiers**: Prefer `python`, `node`, etc. over listing individual domains
-3. **Use Wildcards Carefully**: `*.example.com` matches any subdomain including nested ones (e.g., `api.example.com`, `nested.api.example.com`) - ensure this broad access is intended
-4. **Test Thoroughly**: Verify that all required domains/ecosystems are included in allowlist
-5. **Monitor Usage**: Review workflow logs to identify any blocked legitimate requests
-6. **Document Reasoning**: Comment why specific domains/ecosystems are required for maintenance
-
-### Permission Modes
-
-1. **No network permissions**: Defaults to basic infrastructure only (backwards compatible)
-   ```yaml
-   engine:
-     id: claude
-     # No network block - defaults to basic infrastructure
-   ```
-
-2. **Basic infrastructure only**: Explicit basic infrastructure access
-   ```yaml
-   engine:
-     id: claude
-
-   network: defaults  # Or use "allowed: [defaults]"
-   ```
-
-3. **Ecosystem-based access**: Use ecosystem identifiers for common development tools
-   ```yaml
-   engine:
-     id: claude
-
-   network:
-     allowed:
-       - defaults         # Basic infrastructure
-       - python          # Python/PyPI ecosystem
-       - node            # Node.js/NPM ecosystem
-       - containers      # Container registries
-   ```
-
-4. **Granular domain control**: Specific domains only
-   ```yaml
-   engine:
-     id: claude
-
-   network:
-     allowed:
-       - "api.github.com"
-       - "*.company-internal.com"
-   ```
-
-5. **Complete denial**: No network access
-   ```yaml
-   engine:
-     id: claude
-
-   network: {}  # Deny all network access
-   ```
 
 ## Engine Security Guide
 
-Different agentic engines have distinct defaults and operational surfaces.
+Different agentic engines have distinct defaults and operational surfaces. Apply security controls consistently across all engines.
 
-#### `engine: claude`
+#### Security Checklist for All Engines
 
-- Restrict `claude.allowed` to only the needed capabilities (Edit/Write/WebFetch/Bash with a short list)
-- Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
-- Use engine network permissions with ecosystem identifiers to grant access to only required development tools
+**Permission Strategy**:
+- ✅ **Use safe-outputs** instead of direct write permissions whenever possible
+- ✅ **Minimal main job permissions**: `contents: read`, `actions: read` only
+- ✅ **Review generated jobs**: Check `.lock.yml` for all generated safe-output jobs
 
-#### Security posture differences with Codex
+**Network Controls**:
+- ✅ **Configure network permissions**: Use `network:` with ecosystem identifiers
+- ✅ **Start restrictive**: Begin with `defaults` and add only needed ecosystems
+- ✅ **Document requirements**: Comment why specific network access is needed
 
-Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors. In both cases, tool allow-lists, network restrictions, and pinned dependencies are your primary controls.
+**Tool Configuration**:
+- ✅ **Explicit tool allowlists**: Never use wildcards or broad permissions
+- ✅ **Minimal tool access**: Grant only the specific tools needed for the task
+- ✅ **Review compiled tools**: Check `.lock.yml` for actual tool permissions
+
+#### Engine-Specific Considerations
+
+**`engine: claude`**:
+- Use network permissions with ecosystem identifiers (`python`, `node`, etc.)
+- Restrict tool access to specific Claude capabilities needed
+- Monitor network usage through Claude Code hooks
+
+**`engine: codex`** and **`engine: copilot`**:
+- Tool allowlists and network restrictions are your primary controls
+- Focus on limiting CLI command access and external tool invocations
+
+**All Engines**:
+- Safe-outputs provide consistent security regardless of engine choice
+- Job separation works identically across all engine types
+- Network and tool restrictions should be applied universally
 
 ## See also
 
-- [Tools Configuration](/gh-aw/reference/tools/)
-- [MCPs](/gh-aw/guides/mcps/)
-- [Workflow Structure](/gh-aw/reference/workflow-structure/)
+- [Safe Output Processing](/gh-aw/reference/safe-outputs/) - Complete guide to safe-outputs configuration
+- [Network Permissions](/gh-aw/reference/network/) - Detailed network access control options
+- [Tools Configuration](/gh-aw/reference/tools/) - Tool allowlist configuration
+- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol security
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Understanding workflow architecture
 
 ## References
 
