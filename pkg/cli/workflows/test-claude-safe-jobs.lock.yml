@@ -3,7 +3,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Test Safe Jobs"
+name: "Test Claude Safe Jobs"
 "on":
   push:
     branches:
@@ -15,7 +15,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
-run-name: "Test Safe Jobs"
+run-name: "Test Claude Safe Jobs"
 
 jobs:
   check-membership:
@@ -1061,7 +1061,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Safe Jobs",
+              workflow_name: "Test Claude Safe Jobs",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
