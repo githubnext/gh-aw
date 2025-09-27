@@ -48,8 +48,9 @@ mcp-servers:
 ```
 
 > [!TIP]
-> You can inspect and test your MCP configuration by running <br/>
-> `gh aw mcp inspect <workflow-file>`
+> You can inspect and test your MCP configuration by running: <br/>
+> `gh aw mcp inspect <workflow-file>` for full inspection <br/>
+> `gh aw mcp list-tools <server-name>` to find workflows with the server
 
 
 ### Adding MCP Servers from the Registry
@@ -190,8 +191,9 @@ mcp-servers:
 When using an agentic engine that allows tool whitelisting (e.g. Claude), this generates tool names: `mcp__servername__tool1`, `mcp__servername__tool2`, etc.
 
 > [!TIP]
-> You can inspect the tools available for an Agentic Workflow by running <br/>
-> `gh aw mcp inspect <workflow-file>`
+> You can inspect tools available from MCP servers by running: <br/>
+> `gh aw mcp inspect <workflow-file>` for full inspection <br/>
+> `gh aw mcp list-tools <server-name> [workflow-file]` for focused tool listing
 
 ### Wildcard Access
 
@@ -273,6 +275,27 @@ gh aw mcp inspect my-workflow --verbose
 
 # Launch official MCP inspector web interface
 gh aw mcp inspect my-workflow --inspector
+```
+
+### MCP Tool Discovery
+
+Use the `mcp list-tools` command to explore available tools from specific MCP servers:
+
+```bash
+# Find workflows containing a specific MCP server
+gh aw mcp list-tools github
+
+# List tools available from an MCP server in a specific workflow
+gh aw mcp list-tools notion my-workflow
+
+# List tools with detailed descriptions and permission status
+gh aw mcp list-tools trello my-workflow --verbose
+```
+
+This command is particularly useful for:
+- **Exploring capabilities**: See what tools are available from each MCP server
+- **Workflow discovery**: Find which workflows use a specific MCP server
+- **Permission debugging**: Check which tools are allowed in your workflow configuration
 
 ### Common Issues and Solutions
 
