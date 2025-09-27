@@ -1503,9 +1503,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if data.SafeOutputs != nil {
 		env = make(map[string]string)
 
-		// Set GITHUB_AW_SAFE_OUTPUTS to reference the output from the setup step
-		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ steps.setup_agent_output.outputs.output_file }}"
-
 		// Set GITHUB_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := c.generateSafeOutputsConfig(data)
 		if safeOutputConfig != "" {
