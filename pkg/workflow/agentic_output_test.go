@@ -60,9 +60,9 @@ This workflow tests the agentic output collection functionality.
 
 	lockContent := string(content)
 
-	// Verify GITHUB_AW_SAFE_OUTPUTS functionality (should be present for all engines)
-	if !strings.Contains(lockContent, "- name: Setup agent output") {
-		t.Error("Expected 'Setup agent output' step to be in generated workflow")
+	// Verify GITHUB_AW_SAFE_OUTPUTS is set at job level with fixed path
+	if !strings.Contains(lockContent, "GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl") {
+		t.Error("Expected 'GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl' environment variable in generated workflow")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {
@@ -168,9 +168,9 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 
 	lockContent := string(content)
 
-	// Verify that Codex workflow DOES have GITHUB_AW_SAFE_OUTPUTS functionality
-	if !strings.Contains(lockContent, "- name: Setup agent output") {
-		t.Error("Codex workflow should have 'Setup agent output' step (GITHUB_AW_SAFE_OUTPUTS functionality)")
+	// Verify that Codex workflow DOES have GITHUB_AW_SAFE_OUTPUTS functionality at job level
+	if !strings.Contains(lockContent, "GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl") {
+		t.Error("Codex workflow should have 'GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl' environment variable (GITHUB_AW_SAFE_OUTPUTS functionality)")
 	}
 
 	if !strings.Contains(lockContent, "- name: Ingest agent output") {

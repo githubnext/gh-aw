@@ -257,6 +257,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     env:
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -269,21 +270,6 @@ jobs:
           node-version: '22'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot
-      - name: Setup agent output
-        id: setup_agent_output
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require("fs");
-            const crypto = require("crypto");
-            function main() {
-              const randomSuffix = crypto.randomBytes(8).toString("hex");
-              const outputFile = `/tmp/aw_output_${randomSuffix}.txt`;
-              fs.mkdirSync("/tmp", { recursive: true });
-              core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
-              core.setOutput("output_file", outputFile);
-            }
-            main();
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
