@@ -304,6 +304,23 @@ gh aw mcp inspect workflow-name --verbose
 gh aw mcp inspect workflow-name --inspector
 ```
 
+### MCP Tool Listing
+
+```bash
+# Find workflows containing a specific MCP server
+gh aw mcp list-tools github
+
+# List tools available from a specific MCP server in a workflow
+gh aw mcp list-tools github weekly-research
+
+# List tools with detailed descriptions and allowance status
+gh aw mcp list-tools safe-outputs issue-triage --verbose
+
+# List tools from different MCP server types
+gh aw mcp list-tools playwright test-workflow
+gh aw mcp list-tools custom-server my-workflow
+```
+
 ### MCP Server Management
 
 The MCP commands help you discover, add, and manage MCP servers from the GitHub MCP registry.
@@ -339,10 +356,12 @@ gh aw mcp add weekly-research server-name --registry https://custom.registry.com
 **Key Features:**
 - **`mcp list`**: Quick overview of MCP servers across workflows with structured table output
 - **`mcp inspect`**: Deep inspection with server connection testing and tool capability analysis
+- **`mcp list-tools`**: Focused tool listing for specific MCP servers with workflow discovery
 - **`mcp add`**: Registry-based MCP server addition with automatic workflow compilation
 
 - Server discovery and connection testing
 - Tool and capability inspection
+- Focused tool listing for specific MCP servers
 - Detailed tool information with `--tool` flag
 - Permission analysis
 - Multi-protocol support (stdio, Docker, HTTP)
