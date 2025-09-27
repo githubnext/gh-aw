@@ -33,7 +33,6 @@
   },
   "include": [
     "add_labels.ts",
-    "add_reaction.cjs",
     "add_reaction_and_edit_comment.cjs",
     "check_permissions.cjs",
     "check_team_member.cjs",
