@@ -359,6 +359,10 @@ jobs:
             }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
+              const outputDir = path.dirname(outputFile);
+              if (!fs.existsSync(outputDir)) {
+                fs.mkdirSync(outputDir, { recursive: true });
+              }
               entry.type = entry.type.replace(/_/g, "-");
               const jsonLine = JSON.stringify(entry) + "\n";
               try {
@@ -714,6 +718,10 @@ jobs:
                       type: normalizedKey,
                       ...args,
                     };
+                    const outputDir = path.dirname(outputFile);
+                    if (!fs.existsSync(outputDir)) {
+                      fs.mkdirSync(outputDir, { recursive: true });
+                    }
                     const entryJSON = JSON.stringify(entry);
                     fs.appendFileSync(outputFile, entryJSON + "\n");
                     const outputText =

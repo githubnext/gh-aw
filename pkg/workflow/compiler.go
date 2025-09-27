@@ -2143,8 +2143,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("              .write();\n")
 }
 
-
-
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	// Pass the safe-outputs configuration for validation
 	if data.SafeOutputs == nil {

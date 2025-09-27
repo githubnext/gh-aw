@@ -95,14 +95,19 @@ function replyError(id, code, message, data) {
   writeMessage(res);
 }
 
-function appendSafeOutput(entry) {
+function ensureOutputDirectory() {
   if (!outputFile) throw new Error("No output file configured");
-  
-  // Ensure the output directory exists
   const outputDir = path.dirname(outputFile);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
+}
+
+function appendSafeOutput(entry) {
+  if (!outputFile) throw new Error("No output file configured");
+  
+  // Ensure the output directory exists
+  ensureOutputDirectory();
   
   entry.type = entry.type.replace(/_/g, "-");
   const jsonLine = JSON.stringify(entry) + "\n";
@@ -509,10 +514,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
 
         // Write the entry to the output file
         // Ensure the output directory exists
-        const outputDir = path.dirname(outputFile);
-        if (!fs.existsSync(outputDir)) {
-          fs.mkdirSync(outputDir, { recursive: true });
-        }
+        ensureOutputDirectory();
         
         const entryJSON = JSON.stringify(entry);
         fs.appendFileSync(outputFile, entryJSON + "\n");
