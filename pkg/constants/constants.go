@@ -66,6 +66,7 @@ var AllowedExpressions = []string{
 } // needs., steps. already allowed
 
 const AgentJobName = "agent"
+const ActivationJobName = "activation"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
 

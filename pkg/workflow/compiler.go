@@ -1450,7 +1450,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	var permissions string
 
 	job := &Job{
-		Name:        "activation",
+		Name:        constants.ActivationJobName,
 		If:          activationCondition,
 		RunsOn:      "runs-on: ubuntu-latest",
 		Permissions: permissions,
@@ -1486,7 +1486,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	var depends []string
 	if activationJobCreated {
-		depends = []string{"activation"} // Depend on the activation job only if it exists
+		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
 	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)
