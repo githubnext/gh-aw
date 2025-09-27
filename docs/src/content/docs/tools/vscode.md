@@ -20,6 +20,24 @@ files under the `.github/workflows` folder.
 Once configured, you will notice that Copilot Chat will be much more efficient at
 generating Agentic Workflows.
 
+## /create-agentic-workflow command <a id="create-agentic-workflow"></a>
+
+The `--instructions` flag also creates a [prompt template](https://code.visualstudio.com/docs/copilot/copilot-customization#_prompt-templates) at `.github/prompts/create-agentic-workflow.prompt.md` that enables the `/create-agentic-workflow` command in GitHub Copilot Chat.
+
+```sh
+gh aw compile --instructions
+```
+
+Once the prompt file is created, you can use `/create-agentic-workflow` in Copilot Chat to interactively design and create agentic workflows with guided assistance for:
+
+- Choosing appropriate triggers (`on:` events)
+- Configuring permissions and security settings
+- Selecting tools and MCP servers
+- Setting up safe outputs and network permissions
+- Following best practices for workflow design
+
+The command provides a conversational interface that helps you build secure, well-structured agentic workflows without needing to memorize the full syntax.
+
 ## Background Compilation
 
 You can leverage tasks in VS Code to configure a background compilation of Agentic Workflows.
