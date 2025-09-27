@@ -7,6 +7,8 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 
 > [!NOTE]
 > **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/instructions/github-agentic-workflows.instructions.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md)
+>
+> **Prompt Template**: Use `/create-agentic-workflow` in GitHub Copilot Chat to interactively create agentic workflows. The prompt template is available at: [.github/prompts/create-agentic-workflow.prompt.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/prompts/create-agentic-workflow.prompt.md)
 
 ## 🚀 Quick Start
 

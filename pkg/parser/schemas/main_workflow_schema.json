@@ -4,37 +4,37 @@
   "properties": {
     "name": {
       "type": "string",
-      "description": "Name of the workflow"
+      "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension."
     },
     "description": {
       "type": "string",
-      "description": "Optional description of the workflow that will be rendered as comments in the generated lock file"
+      "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)"
     },
     "on": {
-      "description": "GitHub Actions workflow triggers",
+      "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple trigger event name"
+          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'schedule')"
         },
         {
           "type": "object",
-          "description": "Complex trigger configuration",
+          "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
             "command": {
-              "description": "Command trigger configuration for /mentions",
+              "description": "Special command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Null command (defaults to filename)"
+                  "description": "Null command configuration - defaults to using the workflow filename (without .md extension) as the command name"
                 },
                 {
                   "type": "object",
-                  "description": "Command configuration object",
+                  "description": "Command configuration object with custom command name",
                   "properties": {
                     "name": {
                       "type": "string",
-                      "description": "Command name (defaults to filename without .md extension)"
+                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
                     }
                   },
                   "additionalProperties": false
@@ -42,7 +42,7 @@
               ]
             },
             "push": {
-              "description": "Push event trigger",
+              "description": "Push event trigger that runs the workflow when code is pushed to the repository",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -76,14 +76,14 @@
                 },
                 "tags": {
                   "type": "array",
-                  "description": "Tags to filter on",
+                  "description": "List of git tag names or patterns to include for push events (supports wildcards)",
                   "items": {
                     "type": "string"
                   }
                 },
                 "tags-ignore": {
                   "type": "array",
-                  "description": "Tags to ignore",
+                  "description": "List of git tag names or patterns to exclude from push events (supports wildcards)",
                   "items": {
                     "type": "string"
                   }
@@ -91,12 +91,12 @@
               }
             },
             "pull_request": {
-              "description": "Pull request event trigger",
+              "description": "Pull request event trigger that runs the workflow when pull requests are created, updated, or closed",
               "type": "object",
               "properties": {
                 "types": {
                   "type": "array",
-                  "description": "Types of pull request events",
+                  "description": "List of pull request event types to trigger on (e.g., 'opened', 'edited', 'closed', 'synchronize')",
                   "items": {
                     "type": "string"
                   }
@@ -131,7 +131,7 @@
                 },
                 "draft": {
                   "type": "boolean",
-                  "description": "Filter by draft state. Set to false to ignore draft PRs"
+                  "description": "Filter by draft pull request state. Set to false to exclude draft PRs, true to include only drafts, or omit to include both"
                 },
                 "forks": {
                   "oneOf": [
@@ -153,7 +153,7 @@
               "additionalProperties": false
             },
             "issues": {
-              "description": "Issues event trigger",
+              "description": "Issues event trigger that runs the workflow when repository issues are created, updated, or managed",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -378,7 +378,7 @@
       ]
     },
     "permissions": {
-      "description": "You can modify the default permissions granted to the GITHUB_TOKEN, adding or removing access as required, so that you only allow the minimum required access.",
+      "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
       "oneOf": [
         {
           "type": "string",
@@ -388,11 +388,11 @@
             "read",
             "write"
           ],
-          "description": "Simple permissions string"
+          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
         },
         {
           "type": "object",
-          "description": "Detailed permissions object",
+          "description": "Detailed permissions object with granular control over specific GitHub API scopes",
           "additionalProperties": false,
           "properties": {
             "actions": {
@@ -401,7 +401,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)"
             },
             "attestations": {
               "type": "string",
@@ -409,7 +410,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)"
             },
             "checks": {
               "type": "string",
@@ -417,7 +419,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
             },
             "contents": {
               "type": "string",
@@ -425,7 +428,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)"
             },
             "deployments": {
               "type": "string",
@@ -433,7 +437,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)"
             },
             "discussions": {
               "type": "string",
@@ -441,7 +446,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
             },
             "id-token": {
               "type": "string",
@@ -457,14 +463,16 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)"
             },
             "models": {
               "type": "string",
               "enum": [
                 "read",
                 "none"
-              ]
+              ],
+              "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
             },
             "packages": {
               "type": "string",
@@ -520,7 +528,7 @@
     },
     "run-name": {
       "type": "string",
-      "description": "Custom run name for the workflow"
+      "description": "Custom name for workflow runs that appears in the GitHub Actions interface (supports GitHub expressions like ${{ github.event.issue.title }})"
     },
     "defaults": {
       "type": "object",
@@ -675,11 +683,11 @@
           "properties": {
             "group": {
               "type": "string",
-              "description": "Runner group"
+              "description": "Runner group name for self-hosted runners"
             },
             "labels": {
               "type": "array",
-              "description": "Runner labels",
+              "description": "List of runner labels for self-hosted runners",
               "items": {
                 "type": "string"
               }
@@ -690,26 +698,26 @@
     },
     "timeout_minutes": {
       "type": "integer",
-      "description": "Timeout in minutes for the workflow"
+      "description": "Workflow timeout in minutes. Defaults to 15 minutes for agentic workflows. Has sensible defaults and can typically be omitted."
     },
     "concurrency": {
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple concurrency group name"
+          "description": "Simple concurrency group name to prevent multiple runs. Agentic workflows automatically generate enhanced concurrency policies."
         },
         {
           "type": "object",
-          "description": "Concurrency configuration object",
+          "description": "Concurrency configuration object with group isolation and cancellation control",
           "additionalProperties": false,
           "properties": {
             "group": {
               "type": "string",
-              "description": "Concurrency group name"
+              "description": "Concurrency group name. Workflows in the same group cannot run simultaneously."
             },
             "cancel-in-progress": {
               "type": "boolean",
-              "description": "Cancel in-progress jobs in the same concurrency group"
+              "description": "Whether to cancel in-progress workflows in the same concurrency group when a new one starts"
             }
           },
           "required": [
@@ -733,25 +741,25 @@
       ]
     },
     "network": {
-      "description": "Network access control configuration",
+      "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Controls web fetch and search capabilities.",
       "oneOf": [
         {
           "type": "string",
           "enum": [
             "defaults"
           ],
-          "description": "Use default network permissions (currently full network access, will change later)"
+          "description": "Use default network permissions (basic infrastructure: certificates, JSON schema, Ubuntu, etc.)"
         },
         {
           "type": "object",
-          "description": "Custom network access configuration",
+          "description": "Custom network access configuration with ecosystem identifiers and specific domains",
           "properties": {
             "allowed": {
               "type": "array",
-              "description": "List of allowed domains for network access",
+              "description": "List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python', 'node', '*.example.com')",
               "items": {
                 "type": "string",
-                "description": "Domain name (supports wildcards with * prefix)"
+              "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
               }
             }
           },
@@ -810,7 +818,7 @@
       ]
     },
     "engine": {
-      "description": "AI engine configuration",
+      "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'claude'.",
       "oneOf": [
         {
           "type": "string",
@@ -820,11 +828,11 @@
             "copilot",
             "custom"
           ],
-          "description": "Simple engine name (claude, codex, copilot or custom)"
+          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
         },
         {
           "type": "object",
-          "description": "Extended engine configuration object",
+          "description": "Extended engine configuration object with advanced options for model selection, turn limiting, environment variables, and custom steps",
           "properties": {
             "id": {
               "type": "string",
@@ -834,19 +842,19 @@
                 "custom",
                 "copilot"
               ],
-              "description": "Agent CLI identifier (claude, codex, copilot, or custom)"
+              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
             },
             "version": {
               "type": "string",
-              "description": "Optional version of the action"
+              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable'). Has sensible defaults and can typically be omitted."
             },
             "model": {
               "type": "string",
-              "description": "Optional LLM model to use"
+              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
             },
             "max-turns": {
               "type": "integer",
-              "description": "Maximum number of chat iterations per run"
+              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted."
             },
 
             "user-agent": {
@@ -855,14 +863,14 @@
             },
             "env": {
               "type": "object",
-              "description": "Custom environment variables to pass to the agentic engine",
+              "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
               "additionalProperties": {
                 "type": "string"
               }
             },
             "steps": {
               "type": "array",
-              "description": "Custom GitHub Actions steps (for custom engine)",
+              "description": "Custom GitHub Actions steps for 'custom' engine. Define your own deterministic workflow steps instead of using AI processing.",
               "items": {
                 "type": "object",
                 "additionalProperties": true
@@ -971,29 +979,29 @@
     },
     "tools": {
       "type": "object",
-      "description": "Tools configuration for the workflow",
+      "description": "Tools and MCP (Model Context Protocol) servers available to the AI engine for GitHub API access, browser automation, file editing, and more",
       "properties": {
         "github": {
-          "description": "GitHub tools configuration",
+          "description": "GitHub API tools for repository operations (issues, pull requests, content management)",
           "oneOf": [
             {
               "type": "string",
-              "description": "Simple github tool string"
+              "description": "Simple GitHub tool configuration (enables all GitHub API functions)"
             },
             {
               "type": "object",
-              "description": "GitHub tools object configuration",
+              "description": "GitHub tools object configuration with restricted function access",
               "properties": {
                 "allowed": {
                   "type": "array",
-                  "description": "List of allowed GitHub tools",
+                  "description": "List of allowed GitHub API functions (e.g., 'create_issue', 'update_issue', 'add_comment')",
                   "items": {
                     "type": "string"
                   }
                 },
                 "version": {
                   "type": "string",
-                  "description": "Version for GitHub MCP server"
+                  "description": "Optional version specification for the GitHub MCP server"
                 }
               },
               "additionalProperties": false
@@ -1044,15 +1052,15 @@
           ]
         },
         "bash": {
-          "description": "Bash tool configuration (neutral tool)",
+          "description": "Bash shell command execution tool for running command-line programs and scripts",
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable bash tool with all commands allowed"
+              "description": "Enable bash tool with all shell commands allowed (security consideration: use restricted list in production)"
             },
             {
               "type": "array",
-              "description": "List of allowed bash commands",
+              "description": "List of allowed bash commands and patterns (e.g., ['echo', 'ls', 'git status', 'npm install'])",
               "items": {
                 "type": "string"
               }
@@ -1060,11 +1068,11 @@
           ]
         },
         "web-fetch": {
-          "description": "Web fetch tool configuration (neutral tool)",
+          "description": "Web content fetching tool for downloading web pages and API responses (subject to network permissions)",
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable web fetch tool"
+              "description": "Enable web fetch tool with default configuration"
             },
             {
               "type": "object",
@@ -1074,11 +1082,11 @@
           ]
         },
         "web-search": {
-          "description": "Web search tool configuration (neutral tool)",
+          "description": "Web search tool for performing internet searches and retrieving search results (subject to network permissions)",
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable web search tool"
+              "description": "Enable web search tool with default configuration"
             },
             {
               "type": "object",
@@ -1088,7 +1096,7 @@
           ]
         },
         "edit": {
-          "description": "Edit tool configuration (neutral tool)",
+          "description": "File editing tool for reading, creating, and modifying files in the repository",
           "oneOf": [
             {
               "type": "null",
@@ -1102,33 +1110,33 @@
           ]
         },
         "playwright": {
-          "description": "Playwright browser automation tool configuration (neutral tool)",
+          "description": "Playwright browser automation tool for web scraping, testing, and UI interactions in containerized browsers",
           "oneOf": [
             {
               "type": "null",
-              "description": "Enable Playwright tool with default settings (localhost only)"
+              "description": "Enable Playwright tool with default settings (localhost access only for security)"
             },
             {
               "type": "object",
-              "description": "Playwright tool configuration object",
+              "description": "Playwright tool configuration with custom version and domain restrictions",
               "properties": {
                 "version": {
                   "type": "string",
-                  "description": "Version for Playwright container"
+                  "description": "Optional Playwright container version (e.g., 'v1.41.0')"
                 },
                 "allowed_domains": {
-                  "description": "Domains allowed for Playwright network access (defaults to localhost only)",
+                  "description": "Domains allowed for Playwright browser network access. Defaults to localhost only for security.",
                   "oneOf": [
                     {
                       "type": "array",
-                      "description": "List of allowed domains or domain patterns",
+                      "description": "List of allowed domains or patterns (e.g., ['github.com', '*.example.com'])",
                       "items": {
                         "type": "string"
                       }
                     },
                     {
                       "type": "string",
-                      "description": "Single allowed domain"
+                      "description": "Single allowed domain (e.g., 'github.com')"
                     }
                   ]
                 }
@@ -1301,11 +1309,11 @@
     },
     "safe-outputs": {
       "type": "object",
-      "description": "Output configuration for automatic safe outputs",
+      "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
       "properties": {
         "allowed-domains": {
           "type": "array",
-          "description": "List of allowed domains for URI filtering in agentic workflow output",
+          "description": "List of allowed domains for URI filtering in AI workflow output. URLs from other domains will be replaced with '(redacted)' for security.",
           "items": {
             "type": "string"
           }
@@ -1314,15 +1322,15 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub issues from agentic workflow output",
+              "description": "Configuration for automatically creating GitHub issues from AI workflow output. The main job does not need 'issues: write' permission.",
               "properties": {
                 "title-prefix": {
                   "type": "string",
-                  "description": "Optional prefix for the issue title"
+                  "description": "Optional prefix to add to the beginning of the issue title (e.g., '[ai] ' or '[analysis] ')"
                 },
                 "labels": {
                   "type": "array",
-                  "description": "Optional list of labels to attach to the issue",
+                  "description": "Optional list of labels to automatically attach to created issues (e.g., ['automation', 'ai-generated'])",
                   "items": {
                     "type": "string"
                   }
@@ -1383,7 +1391,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for creating GitHub issue/PR comments from agentic workflow output",
+              "description": "Configuration for automatically creating GitHub issue or pull request comments from AI workflow output. The main job does not need write permissions.",
               "properties": {
                 "max": {
                   "type": "integer",
@@ -1849,20 +1857,20 @@
     },
 
     "roles": {
-      "description": "Permission levels required to trigger workflow. Use 'all' to allow any user, or specify permission levels like [admin, maintainer, write, triage]",
+      "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
       "oneOf": [
         {
           "type": "string",
           "enum": ["all"],
-          "description": "Allow any user to trigger the workflow"
+          "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
         },
         {
           "type": "array",
-          "description": "List of permission levels required to trigger the workflow",
+          "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
           "items": {
             "type": "string",
             "enum": ["admin", "maintainer", "maintain", "write", "triage"],
-            "description": "Repository permission level"
+            "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
           },
           "minItems": 1
         }

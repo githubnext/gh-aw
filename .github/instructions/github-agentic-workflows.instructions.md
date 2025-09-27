@@ -233,13 +233,15 @@ The `cache-memory:` field enables persistent memory storage for agentic workflow
 
 **Simple Enable:**
 ```yaml
-cache-memory: true
+tools:
+  cache-memory: true
 ```
 
 **Advanced Configuration:**
 ```yaml
-cache-memory:
-  key: custom-memory-${{ github.run_id }}
+tools:
+  cache-memory:
+    key: custom-memory-${{ github.run_id }}
 ```
 
 **How It Works:**

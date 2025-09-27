@@ -2766,6 +2766,20 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -2830,8 +2844,16 @@ jobs:
                 );
                 let labels = [...envLabels];
                 if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
+                  labels = [...labels, ...createIssueItem.labels];
                 }
+                labels = labels
+                  .filter(label => label != null && label !== false && label !== 0)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
                 let title = createIssueItem.title ? createIssueItem.title.trim() : "";
                 let bodyLines = createIssueItem.body.split("\n");
                 if (!title) {
@@ -3616,6 +3638,20 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
             async function main() {
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
@@ -3713,7 +3749,7 @@ jobs:
               const requestedLabels = labelsItem.labels || [];
               core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
               for (const label of requestedLabels) {
-                if (label.startsWith("-")) {
+                if (label && typeof label === "string" && label.startsWith("-")) {
                   core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
                   return;
                 }
@@ -3724,7 +3760,14 @@ jobs:
               } else {
                 validLabels = requestedLabels;
               }
-              let uniqueLabels = [...new Set(validLabels)];
+              let uniqueLabels = validLabels
+                .filter(label => label != null && label !== false && label !== 0)
+                .map(label => String(label).trim())
+                .filter(label => label)
+                .map(label => sanitizeLabelContent(label))
+                .filter(label => label)
+                .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                .filter((label, index, arr) => arr.indexOf(label) === index);
               if (uniqueLabels.length > maxCount) {
                 core.debug(`too many labels, keep ${maxCount}`);
                 uniqueLabels = uniqueLabels.slice(0, maxCount);
@@ -4132,15 +4175,32 @@ jobs:
                 pullNumber = parseInt(target, 10);
               }
               let branchName;
+              let prTitle = "";
+              let prLabels = [];
               try {
                 let prInfo = "";
-                const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
-                  listeners: { stdout: data => (prInfo += data.toString()) },
-                });
+                const prInfoRes = await exec.exec(
+                  `gh`,
+                  [
+                    `pr`,
+                    `view`,
+                    `${pullNumber}`,
+                    `--json`,
+                    `headRefName,title,labels`,
+                    `--jq`,
+                    `{headRefName, title, labels: (.labels // [] | map(.name))}`,
+                  ],
+                  {
+                    listeners: { stdout: data => (prInfo += data.toString()) },
+                  }
+                );
                 if (!prInfoRes) {
-                  branchName = prInfo.trim();
+                  const prData = JSON.parse(prInfo.trim());
+                  branchName = prData.headRefName;
+                  prTitle = prData.title || "";
+                  prLabels = prData.labels || [];
                 } else {
-                  throw new Error("No head branch found for PR");
+                  throw new Error("No PR data found");
                 }
               } catch (error) {
                 core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
@@ -4148,6 +4208,28 @@ jobs:
                 return;
               }
               core.info(`Target branch: ${branchName}`);
+              core.info(`PR title: ${prTitle}`);
+              core.info(`PR labels: ${prLabels.join(", ")}`);
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
+                core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
+                return;
+              }
+              const requiredLabelsStr = process.env.GITHUB_AW_PR_LABELS;
+              if (requiredLabelsStr) {
+                const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
+                const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
+                if (missingLabels.length > 0) {
+                  core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
+                  return;
+                }
+              }
+              if (titlePrefix) {
+                core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+              }
+              if (requiredLabelsStr) {
+                core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
+              }
               const hasChanges = !isEmpty;
               core.info(`Switching to branch: ${branchName}`);
               try {

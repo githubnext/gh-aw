@@ -34,6 +34,9 @@ var (
 //go:embed templates/instructions.md
 var copilotInstructionsTemplate string
 
+//go:embed templates/create-agentic-workflow.prompt.md
+var agenticWorkflowPromptTemplate string
+
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
 	version = v
@@ -788,6 +791,13 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
+		}
+	}
+
+	// Ensure agentic workflow prompt is present
+	if err := ensureAgenticWorkflowPrompt(verbose, writeInstructions); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflow prompt: %v", err)))
 		}
 	}
 
@@ -1549,6 +1559,56 @@ func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 			fmt.Printf("Created copilot instructions: %s\n", copilotInstructionsPath)
 		} else {
 			fmt.Printf("Updated copilot instructions: %s\n", copilotInstructionsPath)
+		}
+	}
+
+	return nil
+}
+
+// ensureAgenticWorkflowPrompt ensures that .github/prompts/create-agentic-workflow.prompt.md contains the agentic workflow creation prompt
+func ensureAgenticWorkflowPrompt(verbose bool, writeInstructions bool) error {
+	if !writeInstructions {
+		return nil // Skip writing prompt if flag is not set
+	}
+
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	promptsDir := filepath.Join(gitRoot, ".github", "prompts")
+	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
+
+	// Ensure the .github/prompts directory exists
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .github/prompts directory: %w", err)
+	}
+
+	// Check if the prompt file already exists and matches the template
+	existingContent := ""
+	if content, err := os.ReadFile(agenticWorkflowPromptPath); err == nil {
+		existingContent = string(content)
+	}
+
+	// Check if content matches our expected template
+	expectedContent := strings.TrimSpace(agenticWorkflowPromptTemplate)
+	if strings.TrimSpace(existingContent) == expectedContent {
+		if verbose {
+			fmt.Printf("Agentic workflow prompt is up-to-date: %s\n", agenticWorkflowPromptPath)
+		}
+		return nil
+	}
+
+	// Write the agentic workflow prompt file
+	if err := os.WriteFile(agenticWorkflowPromptPath, []byte(agenticWorkflowPromptTemplate), 0644); err != nil {
+		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
+	}
+
+	if verbose {
+		if existingContent == "" {
+			fmt.Printf("Created agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
+		} else {
+			fmt.Printf("Updated agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
 		}
 	}
 
