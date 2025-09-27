@@ -1,15 +1,15 @@
 ---
-title: Issue Ops
-description: Learn how to implement Issue Ops workflows using GitHub Agentic Workflows with issue created triggers and automated comment responses for streamlined issue management.
+title: IssueOps
+description: Learn how to implement IssueOps workflows using GitHub Agentic Workflows with issue created triggers and automated comment responses for streamlined issue management.
 ---
 
-Issue Ops is a practice that transforms GitHub issues into powerful automation triggers. Instead of manual triage and responses, you can create intelligent workflows that automatically analyze, categorize, and respond to issues as they're created.
+IssueOps is a practice that transforms GitHub issues into powerful automation triggers. Instead of manual triage and responses, you can create intelligent workflows that automatically analyze, categorize, and respond to issues as they're created.
 
-GitHub Agentic Workflows makes Issue Ops natural through issue creation triggers and safe comment outputs that handle automated responses securely without requiring write permissions for the main AI job.
+GitHub Agentic Workflows makes IssueOps natural through issue creation triggers and safe comment outputs that handle automated responses securely without requiring write permissions for the main AI job.
 
-## How Issue Ops Works
+## How IssueOps Works
 
-Issue Ops workflows activate automatically when new issues are created in your repository. The AI agent analyzes the issue content, applies your defined logic, and provides intelligent responses through automated comments.
+IssueOps workflows activate automatically when new issues are created in your repository. The AI agent analyzes the issue content, applies your defined logic, and provides intelligent responses through automated comments.
 
 ```aw wrap
 ---
@@ -41,7 +41,7 @@ This workflow creates an intelligent issue triage system that automatically resp
 
 ## Safe Output Architecture
 
-Issue Ops workflows use the `add-comment` safe output to ensure secure comment creation:
+IssueOps workflows use the `add-comment` safe output to ensure secure comment creation:
 
 ```yaml
 safe-outputs:
@@ -58,7 +58,7 @@ safe-outputs:
 
 ## Accessing Issue Context
 
-Issue Ops workflows have access to sanitized issue content through the `needs.activation.outputs.text` variable:
+IssueOps workflows have access to sanitized issue content through the `needs.activation.outputs.text` variable:
 
 ```yaml
 # In your workflow instructions:
@@ -73,7 +73,7 @@ The sanitized context provides:
 
 **Security Note**: While sanitization reduces risks, always treat user content as potentially untrusted and design workflows to be resilient against prompt injection attempts.
 
-## Common Issue Ops Patterns
+## Common IssueOps Patterns
 
 ### Automated Bug Report Triage
 
