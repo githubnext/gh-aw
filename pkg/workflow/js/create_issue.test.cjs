@@ -410,4 +410,117 @@ describe("create_issue.cjs", () => {
     // Both API calls should have been made
     expect(mockGithub.rest.issues.create).toHaveBeenCalledTimes(2);
   });
+
+  it("should handle duplicate labels by removing duplicates", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-issue",
+          title: "Issue with duplicate labels",
+          body: "Testing duplicate label handling",
+          labels: ["bug", "enhancement", "bug", "automation"],
+        },
+      ],
+    });
+    process.env.GITHUB_AW_ISSUE_LABELS = "bug,enhancement,automation"; // Duplicates environment labels
+
+    const mockIssue = {
+      number: 606,
+      html_url: "https://github.com/testowner/testrepo/issues/606",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+    // Should only have unique labels and not duplicates
+    expect(callArgs.labels).toEqual(["bug", "enhancement", "automation"]);
+    expect(callArgs.labels).toHaveLength(3); // No duplicates
+  });
+
+  it("should sanitize labels by removing problematic characters", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-issue",
+          title: "Issue with problematic labels",
+          body: "Testing label sanitization",
+          labels: ["bug<script>", "enhancement@user", "automation&test", "normal-label"],
+        },
+      ],
+    });
+
+    const mockIssue = {
+      number: 707,
+      html_url: "https://github.com/testowner/testrepo/issues/707",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+    // Should sanitize problematic characters
+    expect(callArgs.labels).toEqual(["bugscript", "enhancement@user", "automationtest", "normal-label"]);
+  });
+
+  it("should limit label length to 64 characters", async () => {
+    const longLabel = "a".repeat(100); // 100 character label
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-issue",
+          title: "Issue with long labels",
+          body: "Testing label length limiting",
+          labels: [longLabel, "short"],
+        },
+      ],
+    });
+
+    const mockIssue = {
+      number: 808,
+      html_url: "https://github.com/testowner/testrepo/issues/808",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+    // Should limit long label to 64 characters
+    expect(callArgs.labels[0]).toHaveLength(64);
+    expect(callArgs.labels[0]).toBe("a".repeat(64));
+    expect(callArgs.labels[1]).toBe("short");
+  });
+
+  it("should remove empty and whitespace-only labels", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-issue",
+          title: "Issue with empty labels",
+          body: "Testing empty label removal",
+          labels: ["bug", "", "   ", "enhancement", null, undefined, 0, false],
+        },
+      ],
+    });
+
+    const mockIssue = {
+      number: 909,
+      html_url: "https://github.com/testowner/testrepo/issues/909",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    const callArgs = mockGithub.rest.issues.create.mock.calls[0][0];
+    // Should only keep valid non-empty labels
+    expect(callArgs.labels).toEqual(["bug", "enhancement"]);
+  });
 });

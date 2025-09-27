@@ -763,5 +763,98 @@ describe("add_labels.js", () => {
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("labels_added", "bug");
     });
+
+    it("should handle duplicate labels by removing duplicates", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug", "enhancement", "bug", "automation", "enhancement"],
+          },
+        ],
+      });
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        issue_number: 123,
+        labels: ["bug", "enhancement", "automation"],
+      });
+    });
+
+    it("should sanitize labels by removing problematic characters", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug<script>", "enhancement@user", "automation&test", "normal-label"],
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_MAX_COUNT = "5"; // Allow more than 4 labels
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      const callArgs = mockGithub.rest.issues.addLabels.mock.calls[0][0];
+      // Should sanitize problematic characters but keep valid labels
+      expect(callArgs.labels).toContain("bugscript");
+      expect(callArgs.labels).toContain("enhancement@user");
+      expect(callArgs.labels).toContain("automationtest");
+      expect(callArgs.labels).toContain("normal-label");
+      expect(callArgs.labels).toHaveLength(4);
+    });
+
+    it("should limit label length to 64 characters", async () => {
+      const longLabel = "a".repeat(100);
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: [longLabel, "short"],
+          },
+        ],
+      });
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      const callArgs = mockGithub.rest.issues.addLabels.mock.calls[0][0];
+      expect(callArgs.labels[0]).toHaveLength(64);
+      expect(callArgs.labels[0]).toBe("a".repeat(64));
+      expect(callArgs.labels[1]).toBe("short");
+    });
+
+    it("should remove empty and whitespace-only labels", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug", "", "   ", "enhancement", null, undefined, 0, false],
+          },
+        ],
+      });
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        issue_number: 123,
+        labels: ["bug", "enhancement"],
+      });
+    });
   });
 });

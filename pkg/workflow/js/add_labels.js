@@ -1,3 +1,17 @@
+function sanitizeLabelContent(content) {
+  if (!content || typeof content !== "string") {
+    return "";
+  }
+  let sanitized = content.trim();
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+  sanitized = sanitized.replace(
+    /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+    (_m, p1, p2) => `${p1}\`@${p2}\``
+  );
+  sanitized = sanitized.replace(/[<>&'"]/g, "");
+  return sanitized.trim();
+}
 async function main() {
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
@@ -95,7 +109,7 @@ async function main() {
   const requestedLabels = labelsItem.labels || [];
   core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
   for (const label of requestedLabels) {
-    if (label.startsWith("-")) {
+    if (label && typeof label === "string" && label.startsWith("-")) {
       core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
       return;
     }
@@ -106,7 +120,14 @@ async function main() {
   } else {
     validLabels = requestedLabels;
   }
-  let uniqueLabels = [...new Set(validLabels)];
+  let uniqueLabels = validLabels
+    .filter(label => label != null && label !== false && label !== 0)
+    .map(label => String(label).trim())
+    .filter(label => label)
+    .map(label => sanitizeLabelContent(label))
+    .filter(label => label)
+    .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+    .filter((label, index, arr) => arr.indexOf(label) === index);
   if (uniqueLabels.length > maxCount) {
     core.debug(`too many labels, keep ${maxCount}`);
     uniqueLabels = uniqueLabels.slice(0, maxCount);
