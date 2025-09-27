@@ -18,16 +18,21 @@ concurrency:
   group: tidy-${{ github.ref }}
   cancel-in-progress: true
 
-engine: claude
+engine: copilot
 timeout_minutes: 10
 
 network: {}
+
+tools:
+  github:
+    allowed: [list_pull_requests, get_pull_request]
 
 safe-outputs:
   create-pull-request:
     title-prefix: "[tidy] "
     labels: [automation, maintenance]
     draft: false
+  push-to-pull-request-branch:
 
 steps:
   - name: Set up Node.js
@@ -47,11 +52,19 @@ steps:
 
 # Code Tidying Agent
 
-You are a code maintenance agent responsible for keeping the codebase clean, formatted, and properly linted. Your task is to format, lint, fix issues, recompile workflows, run tests, and create a pull request if changes are needed.
+You are a code maintenance agent responsible for keeping the codebase clean, formatted, and properly linted. Your task is to format, lint, fix issues, recompile workflows, run tests, and create or update a pull request if changes are needed.
 
 ## Your Mission
 
 Perform the following steps in order:
+
+### 0. Check for Existing Tidy Pull Request
+Before starting any work, check if there's already an open pull request for tidying:
+- Search for open pull requests that have BOTH:
+  - Title starting with "[tidy]" prefix
+  - The "automation" label attached
+- If an existing tidy PR meeting these criteria is found, note its branch name and number for reuse
+- Only PRs that match BOTH criteria should be considered for reuse
 
 ### 1. Format Code
 Run `make fmt` to format all Go code according to the project standards.
@@ -80,15 +93,18 @@ Run `make test` to ensure your changes don't break anything. If tests fail:
 - Only fix test failures that are clearly related to your formatting/linting changes
 - Do not attempt to fix unrelated test failures
 
-### 7. Create Pull Request
+### 7. Create or Update Pull Request
 If any changes were made during the above steps:
-- Use the `create_pull_request` tool to create a pull request
+- **If an existing tidy PR was found in step 0**: Use the `push_to_pull_request_branch` tool to push changes to that existing PR branch
+- **If no existing tidy PR was found**: Use the `create_pull_request` tool to create a new pull request
 - Provide a clear title describing what was tidied (e.g., "Fix linting issues and update formatting")
 - In the PR description, summarize what changes were made and why
 - Include details about any specific issues that were fixed
+- If updating an existing PR, mention that this is an update with new tidy changes
 
 ## Important Guidelines
 
+- **Reuse Existing PRs**: Always prefer updating an existing tidy PR over creating a new one
 - **Safety First**: Only make changes that are clearly needed for formatting, linting, or compilation
 - **Test Validation**: Always run tests after making changes  
 - **Minimal Changes**: Don't make unnecessary modifications to working code
@@ -102,4 +118,4 @@ The repository has all necessary tools installed:
 - Node.js with prettier for JavaScript formatting
 - All dependencies are already installed
 
-Start by checking the current state and then proceed with the tidying process.
+Start by checking for existing tidy pull requests, then proceed with the tidying process.
