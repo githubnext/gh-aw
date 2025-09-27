@@ -107,6 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     env:
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -235,19 +236,6 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
-      - name: Setup agent output
-        id: setup_agent_output
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require("fs");
-            function main() {
-              const outputFile = `/tmp/safe-outputs/outputs.jsonl`;
-              fs.mkdirSync("/tmp/safe-outputs", { recursive: true });
-              core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
-              core.setOutput("output_file", outputFile);
-            }
-            main();
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs

@@ -21,6 +21,7 @@ jobs:
       contents: write
       pull-requests: write
     env:
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -38,19 +39,6 @@ jobs:
           node-version: '22'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot
-      - name: Setup agent output
-        id: setup_agent_output
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require("fs");
-            function main() {
-              const outputFile = `/tmp/safe-outputs/outputs.jsonl`;
-              fs.mkdirSync("/tmp/safe-outputs", { recursive: true });
-              core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
-              core.setOutput("output_file", outputFile);
-            }
-            main();
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs

@@ -321,6 +321,7 @@ jobs:
       actions: read
       contents: read
     env:
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"target\":\"*\"},\"add-labels\":{},\"create-issue\":{},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -482,19 +483,6 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
-      - name: Setup agent output
-        id: setup_agent_output
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require("fs");
-            function main() {
-              const outputFile = `/tmp/safe-outputs/outputs.jsonl`;
-              fs.mkdirSync("/tmp/safe-outputs", { recursive: true });
-              core.exportVariable("GITHUB_AW_SAFE_OUTPUTS", outputFile);
-              core.setOutput("output_file", outputFile);
-            }
-            main();
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
