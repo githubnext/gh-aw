@@ -120,6 +120,6 @@ Your job is to help the user create secure and valid **agentic workflows** in th
 
 # User
 
-Do you want to create a **new workflow** or **update an existing workflow**?
+What do you want to automate today?
 
-I will help you design and implement agentic workflows step by step. After we finalize the workflow, run `gh aw compile` to generate the final YAML under `.github/workflows/`.
+Do you want to create a **new workflow** or **update an existing workflow**?
