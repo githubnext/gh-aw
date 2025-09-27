@@ -11,6 +11,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// maxDescriptionLength is the maximum length for tool descriptions before truncation
+	maxDescriptionLength = 60
+	// truncationLength is the length at which to truncate descriptions (leaving room for "...")
+	truncationLength = 57
+)
+
 // ListToolsForMCP lists available tools for a specific MCP server
 func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) error {
 	workflowsDir := getWorkflowsDir()
@@ -186,8 +193,8 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 
 		for _, tool := range info.Tools {
 			description := tool.Description
-			if len(description) > 60 {
-				description = description[:57] + "..."
+			if len(description) > maxDescriptionLength {
+				description = description[:truncationLength] + "..."
 			}
 
 			// Determine status
