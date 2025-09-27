@@ -11,7 +11,7 @@
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)"
     },
     "on": {
-      "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for @mentions (required)",
+      "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "oneOf": [
         {
           "type": "string",
@@ -22,7 +22,7 @@
           "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
             "command": {
-              "description": "Special command trigger for @mention workflows (e.g., '/my-bot' in issue comments). Creates conditions to match mentions automatically.",
+              "description": "Special command trigger for /command workflows (e.g., '/my-bot' in issue comments). Creates conditions to match slash commands automatically.",
               "oneOf": [
                 {
                   "type": "null",
@@ -34,7 +34,7 @@
                   "properties": {
                     "name": {
                       "type": "string",
-                      "description": "Custom command name for @mentions (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
+                      "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
                     }
                   },
                   "additionalProperties": false
