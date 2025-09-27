@@ -1,3 +1,33 @@
+/**
+ * Sanitizes label content for safe output
+ * @param {string} content - The label content to sanitize
+ * @returns {string} The sanitized label content
+ */
+function sanitizeLabelContent(content) {
+  if (!content || typeof content !== "string") {
+    return "";
+  }
+  
+  let sanitized = content.trim();
+  
+  // Remove control characters (except newlines and tabs, but labels shouldn't have these anyway)
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  
+  // Remove ANSI escape sequences
+  sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+  
+  // Neutralize @mentions in labels to prevent unintended notifications
+  sanitized = sanitized.replace(
+    /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+    (_m, p1, p2) => `${p1}\`@${p2}\``
+  );
+  
+  // For labels, convert any remaining problematic characters
+  sanitized = sanitized.replace(/[<>&'"]/g, "");
+  
+  return sanitized.trim();
+}
+
 async function main() {
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
   if (!outputContent) {
@@ -95,7 +125,7 @@ async function main() {
   const requestedLabels = labelsItem.labels || [];
   core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
   for (const label of requestedLabels) {
-    if (label.startsWith("-")) {
+    if (label && typeof label === "string" && label.startsWith("-")) {
       core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
       return;
     }
@@ -106,7 +136,15 @@ async function main() {
   } else {
     validLabels = requestedLabels;
   }
-  let uniqueLabels = [...new Set(validLabels)];
+  // Clean up labels: sanitize, remove empty labels, limit length, and remove duplicates
+  let uniqueLabels = validLabels
+    .filter(label => label != null && label !== false && label !== 0) // Remove null, undefined, false, 0
+    .map(label => String(label).trim()) // Ensure string and trim
+    .filter(label => label) // Remove empty strings after trimming
+    .map(label => sanitizeLabelContent(label)) // Sanitize content
+    .filter(label => label) // Remove empty labels after sanitization
+    .map(label => label.length > 64 ? label.substring(0, 64) : label) // Limit to 64 characters
+    .filter((label, index, arr) => arr.indexOf(label) === index); // Remove duplicates
   if (uniqueLabels.length > maxCount) {
     core.debug(`too many labels, keep ${maxCount}`);
     uniqueLabels = uniqueLabels.slice(0, maxCount);
