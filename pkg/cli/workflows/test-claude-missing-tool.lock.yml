@@ -23,6 +23,8 @@ jobs:
   agent:
     runs-on: ubuntu-latest
     permissions: read-all
+    env:
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{\"max\":5}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
