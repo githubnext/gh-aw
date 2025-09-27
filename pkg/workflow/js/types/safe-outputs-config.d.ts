@@ -115,6 +115,14 @@ interface MissingToolConfig extends SafeOutputConfig {
   "github-token"?: string;
 }
 
+/**
+ * Configuration for threat detection
+ */
+interface ThreatDetectionConfig extends SafeOutputConfig {
+  enabled?: boolean;
+  steps?: any[];
+}
+
 // === Safe Job Configuration Interfaces ===
 
 /**
@@ -156,7 +164,8 @@ type SpecificSafeOutputConfig =
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
-  | MissingToolConfig;
+  | MissingToolConfig
+  | ThreatDetectionConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
 
@@ -175,6 +184,7 @@ export {
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
   MissingToolConfig,
+  ThreatDetectionConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types
   SafeJobInput,

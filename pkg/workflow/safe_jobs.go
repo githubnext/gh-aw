@@ -185,7 +185,7 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 }
 
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
-func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
+func (c *Compiler) buildSafeJobs(data *WorkflowData, dependencyJobName string) error {
 	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
 		return nil
 	}
@@ -200,8 +200,8 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData) error {
 			job.DisplayName = jobConfig.Name
 		}
 
-		// Add dependency on main job
-		job.Needs = append(job.Needs, constants.AgentJobName)
+		// Add dependency on the specified job (either agent or detection)
+		job.Needs = append(job.Needs, dependencyJobName)
 
 		// Add any additional dependencies from the config
 		job.Needs = append(job.Needs, jobConfig.Needs...)
