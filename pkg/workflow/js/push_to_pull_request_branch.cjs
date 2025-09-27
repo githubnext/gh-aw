@@ -179,7 +179,15 @@ async function main() {
     let prInfo = "";
     const prInfoRes = await exec.exec(
       `gh`,
-      [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName,title,labels`, `--jq`, `{headRefName, title, labels: [.labels[].name]}`],
+      [
+        `pr`,
+        `view`,
+        `${pullNumber}`,
+        `--json`,
+        `headRefName,title,labels`,
+        `--jq`,
+        `{headRefName, title, labels: (.labels // [] | map(.name))}`,
+      ],
       {
         listeners: { stdout: data => (prInfo += data.toString()) },
       }
