@@ -457,11 +457,23 @@ safe-outputs:
                                          # "triggering" (default) - only push in triggering PR context
                                          # "*" - allow pushes to any pull request (requires pull_request_number in agent output)
                                          # explicit number - push for specific pull request number
+    title-prefix: "[bot] "               # Optional: required title prefix for pull request validation
+                                         # Only pull requests with this prefix will be accepted
+    labels: [automated, enhancement]     # Optional: required labels for pull request validation
+                                         # Only pull requests with all these labels will be accepted
     if-no-changes: "warn"                # Optional: behavior when no changes to push
                                          # "warn" (default) - log warning but succeed
                                          # "error" - fail the action
                                          # "ignore" - silent success
 ```
+
+**Pull Request Validation:**
+
+When `title-prefix` or `labels` are specified, the workflow will validate that the target pull request meets these requirements before pushing changes:
+
+- **Title Prefix Validation**: Checks that the PR title starts with the specified prefix
+- **Labels Validation**: Ensures the PR contains all required labels (additional labels are allowed)
+- **Validation Failure**: If validation fails, the workflow stops with a clear error message showing current vs expected values
 
 The agentic part of your workflow should describe the changes to be pushed and optionally provide a commit message.
 
@@ -490,30 +502,71 @@ Analyze the pull request and make necessary code improvements.
 2. Push changes to the feature branch with a descriptive commit message
 ```
 
-**Examples with different error level configurations:**
+**Example with pull request validation:**
 
-```yaml
-# Always succeed, warn when no changes (default behavior)
+```aw wrap
+---
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+  actions: read
+engine: claude
 safe-outputs:
   push-to-pull-request-branch:
-    branch: feature-branch
+    target: "triggering"
+    title-prefix: "[bot] "
+    labels: [automated, enhancement]
+    if-no-changes: "warn"
+---
+
+# Automated Code Enhancement Agent
+
+This workflow only operates on pull requests with "[bot] " title prefix and both "automated" and "enhancement" labels.
+
+Analyze the pull request and make code improvements:
+
+1. Make any file changes directly in the working directory
+2. Push changes to the feature branch with a descriptive commit message
+```
+
+**Examples with different configurations:**
+
+```yaml
+# Basic configuration with no validation
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
     if-no-changes: "warn"
 ```
 
 ```yaml
-# Fail when no changes are made (strict mode)
+# Only allow PRs with specific title prefix
 safe-outputs:
   push-to-pull-request-branch:
-    branch: feature-branch
+    target: "triggering"
+    title-prefix: "[automated] "
     if-no-changes: "error"
 ```
 
 ```yaml
-# Silent success, no output when no changes
+# Only allow PRs with required labels
 safe-outputs:
   push-to-pull-request-branch:
-    branch: feature-branch
+    target: "triggering"
+    labels: [bot, enhancement]
     if-no-changes: "ignore"
+```
+
+```yaml
+# Both title prefix and labels validation
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
+    title-prefix: "[bot] "
+    labels: [automated, safe]
+    if-no-changes: "warn"
 ```
 
 **Safety Features:**
@@ -521,6 +574,8 @@ safe-outputs:
 - Changes are applied via git patches generated from the workflow's modifications
 - Only the specified branch can be modified
 - Target configuration controls which pull requests can trigger pushes for security
+- **Pull Request Validation**: Optional `title-prefix` and `labels` validation ensures only approved PRs receive changes
+- **Fail-Fast Validation**: Validation occurs before any changes are applied, preventing partial modifications
 - Push operations are limited to one per workflow execution
 - Configurable error handling for empty changesets via `if-no-changes` option
 
