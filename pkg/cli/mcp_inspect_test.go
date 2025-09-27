@@ -194,3 +194,87 @@ func TestDisplayToolAllowanceHint(t *testing.T) {
 		})
 	}
 }
+
+func TestMCPExtractIgnoresSafeOutputs(t *testing.T) {
+	tests := []struct {
+		name         string
+		frontmatter  map[string]any
+		serverFilter string
+		expectedLen  int
+		description  string
+	}{
+		{
+			name: "only safe-outputs configuration",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue":   map[string]any{"max": 3},
+					"missing-tool":   map[string]any{},
+				},
+			},
+			serverFilter: "",
+			expectedLen:  0,
+			description:  "safe-outputs should be ignored",
+		},
+		{
+			name: "only safe-jobs configuration",
+			frontmatter: map[string]any{
+				"safe-jobs": map[string]any{
+					"custom-job": map[string]any{"enabled": true},
+				},
+			},
+			serverFilter: "",
+			expectedLen:  0,
+			description:  "safe-jobs should be ignored",
+		},
+		{
+			name: "mixed configuration with safe-outputs and github",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue": map[string]any{"max": 3},
+				},
+				"tools": map[string]any{
+					"github": map[string]any{
+						"allowed": []string{"create_issue", "get_repository"},
+					},
+				},
+			},
+			serverFilter: "",
+			expectedLen:  1,
+			description:  "only github MCP should be returned, safe-outputs should be ignored",
+		},
+		{
+			name: "safe-outputs with specific server filter",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-issue": map[string]any{"max": 3},
+				},
+			},
+			serverFilter: "safe-outputs",
+			expectedLen:  0,
+			description:  "safe-outputs should be ignored even when specifically filtered",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configs, err := parser.ExtractMCPConfigurations(tt.frontmatter, tt.serverFilter)
+			if err != nil {
+				t.Fatalf("ExtractMCPConfigurations failed: %v", err)
+			}
+
+			if len(configs) != tt.expectedLen {
+				t.Errorf("Expected %d MCP configurations, got %d: %s", tt.expectedLen, len(configs), tt.description)
+				for i, config := range configs {
+					t.Logf("Config %d: %s (%s)", i, config.Name, config.Type)
+				}
+			}
+
+			// Verify no safe-outputs configurations are returned
+			for _, config := range configs {
+				if config.Name == "safe-outputs" {
+					t.Errorf("safe-outputs configuration should not be returned but was found")
+				}
+			}
+		})
+	}
+}
