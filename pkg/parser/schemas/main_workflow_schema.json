@@ -1526,7 +1526,8 @@
                 "min": {
                   "type": "integer",
                   "description": "Minimum number of security findings to include (default: 0 - no requirement)",
-                  "minimum": 0
+                  "minimum": 0,
+                  "maximum": 100
                 },
                 "driver": {
                   "type": "string",
@@ -1686,7 +1687,8 @@
                 "min": {
                   "type": "integer",
                   "description": "Minimum number of missing tool reports (default: 0 - no requirement)",
-                  "minimum": 0
+                  "minimum": 0,
+                  "maximum": 100
                 },
                 "github-token": {
                   "type": "string",
