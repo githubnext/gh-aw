@@ -77,13 +77,13 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 
 			// Check if env section should exist
 			if !tt.shouldHaveEnv {
-				if job.Env != nil && len(job.Env) > 0 {
+				if len(job.Env) > 0 {
 					t.Errorf("Expected no environment variables, but got: %v", job.Env)
 				}
 				return
 			}
 
-			if job.Env == nil || len(job.Env) == 0 {
+			if len(job.Env) == 0 {
 				t.Fatal("Expected environment variables to be present")
 			}
 
