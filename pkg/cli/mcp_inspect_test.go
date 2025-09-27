@@ -320,7 +320,7 @@ func TestFilterOutSafeOutputs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := filterOutSafeOutputs(tt.input)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d configs, got %d", len(tt.expected), len(result))
 				return
@@ -328,7 +328,7 @@ func TestFilterOutSafeOutputs(t *testing.T) {
 
 			for i, expected := range tt.expected {
 				if result[i].Name != expected.Name || result[i].Type != expected.Type {
-					t.Errorf("Expected config %d to be {Name: %s, Type: %s}, got {Name: %s, Type: %s}", 
+					t.Errorf("Expected config %d to be {Name: %s, Type: %s}, got {Name: %s, Type: %s}",
 						i, expected.Name, expected.Type, result[i].Name, result[i].Type)
 				}
 			}
