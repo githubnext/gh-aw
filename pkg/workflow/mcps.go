@@ -116,6 +116,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
+		
+		// Write the safe-outputs configuration to config.json
+		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
+		if safeOutputConfig != "" {
+			yaml.WriteString("          cat > /tmp/safe-outputs/config.json << 'EOF'\n")
+			yaml.WriteString("          " + safeOutputConfig + "\n")
+			yaml.WriteString("          EOF\n")
+		}
+		
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
 		for _, line := range FormatJavaScriptForYAML(safeOutputsMCPServerScript) {

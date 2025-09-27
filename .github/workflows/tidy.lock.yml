@@ -250,6 +250,9 @@ jobs:
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
+          cat > /tmp/safe-outputs/config.json << 'EOF'
+          {"create-pull-request":{}}
+          EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
