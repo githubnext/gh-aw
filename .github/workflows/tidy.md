@@ -33,7 +33,7 @@ safe-outputs:
     labels: [automation, maintenance]
     draft: false
   push-to-pull-request-branch:
-
+  missing-tool:
 steps:
   - name: Set up Node.js
     uses: actions/setup-node@v5
