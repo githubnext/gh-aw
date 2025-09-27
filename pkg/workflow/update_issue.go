@@ -11,6 +11,7 @@ type UpdateIssuesConfig struct {
 	Title       *bool  `yaml:"title,omitempty"`        // Allow updating issue title - presence indicates field can be updated
 	Body        *bool  `yaml:"body,omitempty"`         // Allow updating issue body - presence indicates field can be updated
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of issues to update (default: 1)
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of issues to update
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -119,6 +120,13 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := parseIntValue(max); ok {
 					updateIssuesConfig.Max = maxInt
+				}
+			}
+
+			// Parse min
+			if min, exists := configMap["min"]; exists {
+				if minInt, ok := parseIntValue(min); ok {
+					updateIssuesConfig.Min = minInt
 				}
 			}
 

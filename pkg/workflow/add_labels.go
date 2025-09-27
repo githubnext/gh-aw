@@ -9,6 +9,7 @@ import (
 type AddLabelsConfig struct {
 	Allowed     []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	MaxCount    *int     `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
+	MinCount    *int     `yaml:"min,omitempty"`          // Optional minimum number of labels to add
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 

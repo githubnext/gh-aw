@@ -7,6 +7,7 @@ import (
 // CreateCodeScanningAlertsConfig holds configuration for creating repository security advisories (SARIF format) from agent output
 type CreateCodeScanningAlertsConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of security findings to include (default: unlimited)
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of security findings to include
 	Driver      string `yaml:"driver,omitempty"`       // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
@@ -122,6 +123,13 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 		if max, exists := configMap["max"]; exists {
 			if maxInt, ok := parseIntValue(max); ok {
 				securityReportsConfig.Max = maxInt
+			}
+		}
+
+		// Parse min
+		if min, exists := configMap["min"]; exists {
+			if minInt, ok := parseIntValue(min); ok {
+				securityReportsConfig.Min = minInt
 			}
 		}
 

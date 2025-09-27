@@ -2,6 +2,7 @@
 interface SafeOutputConfig {
   type: string;
   max?: number;
+  min?: number;
 }
 
 // === Specific Safe Output Configuration Interfaces ===
@@ -13,6 +14,7 @@ interface CreateIssueConfig extends SafeOutputConfig {
   "title-prefix"?: string;
   labels?: string[];
   max?: number;
+  min?: number;
   "github-token"?: string;
 }
 
@@ -23,6 +25,7 @@ interface CreateDiscussionConfig extends SafeOutputConfig {
   "title-prefix"?: string;
   "category-id"?: string;
   max?: number;
+  min?: number;
   "github-token"?: string;
 }
 
@@ -31,6 +34,7 @@ interface CreateDiscussionConfig extends SafeOutputConfig {
  */
 interface AddCommentConfig extends SafeOutputConfig {
   max?: number;
+  min?: number;
   target?: string;
   "github-token"?: string;
 }
@@ -43,6 +47,7 @@ interface CreatePullRequestConfig extends SafeOutputConfig {
   labels?: string[];
   draft?: boolean;
   max?: number;
+  min?: number;
   "if-no-changes"?: string;
   "github-token"?: string;
 }
@@ -52,6 +57,7 @@ interface CreatePullRequestConfig extends SafeOutputConfig {
  */
 interface CreatePullRequestReviewCommentConfig extends SafeOutputConfig {
   max?: number;
+  min?: number;
   side?: string;
   "github-token"?: string;
 }
@@ -61,6 +67,7 @@ interface CreatePullRequestReviewCommentConfig extends SafeOutputConfig {
  */
 interface CreateCodeScanningAlertConfig extends SafeOutputConfig {
   max?: number;
+  min?: number;
   driver?: string;
   "github-token"?: string;
 }
@@ -71,6 +78,7 @@ interface CreateCodeScanningAlertConfig extends SafeOutputConfig {
 interface AddLabelsConfig extends SafeOutputConfig {
   allowed?: string[];
   max?: number;
+  min?: number;
   "github-token"?: string;
 }
 
@@ -83,6 +91,7 @@ interface UpdateIssueConfig extends SafeOutputConfig {
   title?: boolean;
   body?: boolean;
   max?: number;
+  min?: number;
   "github-token"?: string;
 }
 
@@ -94,6 +103,8 @@ interface PushToPullRequestBranchConfig extends SafeOutputConfig {
   "title-prefix"?: string;
   labels?: string[];
   "if-no-changes"?: string;
+  max?: number;
+  min?: number;
   "github-token"?: string;
 }
 
@@ -104,6 +115,8 @@ interface UploadAssetConfig extends SafeOutputConfig {
   branch?: string;
   "max-size"?: number;
   "allowed-exts"?: string[];
+  max?: number;
+  min?: number;
   "github-token"?: string;
 }
 
@@ -112,6 +125,7 @@ interface UploadAssetConfig extends SafeOutputConfig {
  */
 interface MissingToolConfig extends SafeOutputConfig {
   max?: number;
+  min?: number;
   "github-token"?: string;
 }
 

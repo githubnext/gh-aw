@@ -10,6 +10,7 @@ type CreateIssuesConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`
 	Labels      []string `yaml:"labels,omitempty"`
 	Max         int      `yaml:"max,omitempty"`          // Maximum number of issues to create
+	Min         int      `yaml:"min,omitempty"`          // Minimum number of issues to create
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -43,6 +44,13 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := parseIntValue(max); ok {
 					issuesConfig.Max = maxInt
+				}
+			}
+
+			// Parse min
+			if min, exists := configMap["min"]; exists {
+				if minInt, ok := parseIntValue(min); ok {
+					issuesConfig.Min = minInt
 				}
 			}
 

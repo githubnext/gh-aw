@@ -11,6 +11,8 @@ type PushToPullRequestBranchConfig struct {
 	TitlePrefix string   `yaml:"title-prefix,omitempty"`  // Required title prefix for pull request validation
 	Labels      []string `yaml:"labels,omitempty"`        // Required labels for pull request validation
 	IfNoChanges string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
+	Max         int      `yaml:"max,omitempty"`           // Maximum number of pushes
+	Min         int      `yaml:"min,omitempty"`           // Minimum number of pushes
 	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
 }
 
@@ -193,6 +195,20 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 						}
 					}
 					pushToBranchConfig.Labels = labelStrings
+				}
+			}
+
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := parseIntValue(max); ok {
+					pushToBranchConfig.Max = maxInt
+				}
+			}
+
+			// Parse min
+			if min, exists := configMap["min"]; exists {
+				if minInt, ok := parseIntValue(min); ok {
+					pushToBranchConfig.Min = minInt
 				}
 			}
 

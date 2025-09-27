@@ -285,6 +285,30 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
+					// Parse min (optional)
+					if minCount, exists := labelsMap["min"]; exists {
+						// Handle different numeric types that YAML parsers might return
+						var minCountInt int
+						var validMinCount bool
+						switch v := minCount.(type) {
+						case int:
+							minCountInt = v
+							validMinCount = true
+						case int64:
+							minCountInt = int(v)
+							validMinCount = true
+						case uint64:
+							minCountInt = int(v)
+							validMinCount = true
+						case float64:
+							minCountInt = int(v)
+							validMinCount = true
+						}
+						if validMinCount {
+							labelConfig.MinCount = &minCountInt
+						}
+					}
+
 					// Parse github-token
 					if githubToken, exists := labelsMap["github-token"]; exists {
 						if githubTokenStr, ok := githubToken.(string); ok {

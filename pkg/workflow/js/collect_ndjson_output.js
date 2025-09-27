@@ -91,6 +91,13 @@ async function main() {
         return 1;
     }
   }
+  function getMinRequiredForType(itemType, config) {
+    const itemConfig = config?.[itemType];
+    if (itemConfig && typeof itemConfig === "object" && "min" in itemConfig && itemConfig.min) {
+      return itemConfig.min;
+    }
+    return 0;
+  }
   function repairJson(jsonStr) {
     let repaired = jsonStr.trim();
     const _ctrl = { 8: "\\b", 9: "\\t", 10: "\\n", 12: "\\f", 13: "\\r" };
@@ -686,6 +693,15 @@ async function main() {
     if (parsedItems.length === 0) {
       core.setFailed(errors.map(e => `  - ${e}`).join("\n"));
       return;
+    }
+  }
+  for (const itemType of Object.keys(expectedOutputTypes)) {
+    const minRequired = getMinRequiredForType(itemType, expectedOutputTypes);
+    if (minRequired > 0) {
+      const actualCount = parsedItems.filter(item => item.type === itemType).length;
+      if (actualCount < minRequired) {
+        errors.push(`Too few items of type '${itemType}'. Minimum required: ${minRequired}, found: ${actualCount}.`);
+      }
     }
   }
   core.info(`Successfully parsed ${parsedItems.length} valid output items`);

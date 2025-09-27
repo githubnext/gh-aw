@@ -7,6 +7,7 @@ import (
 // MissingToolConfig holds configuration for reporting missing tools or functionality
 type MissingToolConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of missing tool reports (default: unlimited)
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of missing tool reports
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -100,6 +101,30 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 				}
 				if validMax {
 					missingToolConfig.Max = maxInt
+				}
+			}
+
+			// Parse min (optional)
+			if min, exists := configMap["min"]; exists {
+				// Handle different numeric types that YAML parsers might return
+				var minInt int
+				var validMin bool
+				switch v := min.(type) {
+				case int:
+					minInt = v
+					validMin = true
+				case int64:
+					minInt = int(v)
+					validMin = true
+				case uint64:
+					minInt = int(v)
+					validMin = true
+				case float64:
+					minInt = int(v)
+					validMin = true
+				}
+				if validMin {
+					missingToolConfig.Min = minInt
 				}
 			}
 
