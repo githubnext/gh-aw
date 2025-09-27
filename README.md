@@ -42,6 +42,33 @@ The AI agent reads your repository context, understands the issue content, and t
 
 **Security Benefits:** Workflows use read-only permissions by default, with write operations only allowed through sanitized `safe-outputs`. Access can be gated to team members only, ensuring AI agents operate within controlled boundaries.
 
+## 🔧 Compiled Workflow Architecture
+
+GitHub Agentic Workflows compile into GitHub Actions with a secure multi-job architecture:
+
+```mermaid
+graph TB
+    A[check-membership] --> B[activation]
+    B --> C[agent]
+    C --> D[safe-outputs]
+    
+    A["🔐 check-membership<br/>Role & permission validation"]
+    B["✅ activation<br/>Runtime conditions & access control"]
+    C["🤖 agent<br/>Sandboxed AI playground"]
+    D["🛡️ safe-outputs<br/>Sanitized GitHub API operations<br/>(create-issue, add-comment, create-pull-request, etc.)"]
+    
+    style A fill:#ff9999
+    style B fill:#ffcc99
+    style C fill:#99ccff
+    style D fill:#99ff99
+```
+
+Each job serves a specific security and functional purpose:
+- **check-membership**: Validates user permissions and team membership
+- **activation**: Acts as a security barrier, evaluating runtime conditions
+- **agent**: Executes the AI agent in a controlled, sandboxed environment
+- **safe-outputs**: Performs write operations through sanitized, structured outputs
+
 ## 📖 Documentation
 
 For complete documentation, examples, and guides, see the [Documentation](https://githubnext.github.io/gh-aw/).
