@@ -1,5 +1,5 @@
 ---
-name: "Agentic Workflow Designer"
+name: "GitHub Agentic Workflow Designer"
 description: |
   Mode to help the user design agentic workflows in this repository using
   the installed GitHub Agentic Workflows (gh-aw) extension.
