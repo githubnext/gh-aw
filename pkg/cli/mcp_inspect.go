@@ -15,6 +15,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// filterOutSafeOutputs removes safe-outputs MCP servers from the list since they are
+// handled by the workflow compiler and not actual MCP servers that can be inspected
+func filterOutSafeOutputs(configs []parser.MCPServerConfig) []parser.MCPServerConfig {
+	var filteredConfigs []parser.MCPServerConfig
+	for _, config := range configs {
+		if config.Name != "safe-outputs" {
+			filteredConfigs = append(filteredConfigs, config)
+		}
+	}
+	return filteredConfigs
+}
+
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
 func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool) error {
 	workflowsDir := getWorkflowsDir()
@@ -89,14 +101,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	}
 
 	// Filter out safe-outputs MCP servers for inspection
-	// Safe-outputs are handled by the workflow compiler, not actual MCP servers
-	var filteredConfigs []parser.MCPServerConfig
-	for _, config := range mcpConfigs {
-		if config.Name != "safe-outputs" {
-			filteredConfigs = append(filteredConfigs, config)
-		}
-	}
-	mcpConfigs = filteredConfigs
+	mcpConfigs = filterOutSafeOutputs(mcpConfigs)
 
 	if len(mcpConfigs) == 0 {
 		if serverFilter != "" {
@@ -177,13 +182,7 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 		}
 
 		// Filter out safe-outputs MCP servers for inspection
-		// Safe-outputs are handled by the workflow compiler, not actual MCP servers
-		var filteredConfigs []parser.MCPServerConfig
-		for _, config := range mcpConfigs {
-			if config.Name != "safe-outputs" {
-				filteredConfigs = append(filteredConfigs, config)
-			}
-		}
+		filteredConfigs := filterOutSafeOutputs(mcpConfigs)
 
 		if len(filteredConfigs) > 0 {
 			workflowsWithMCP = append(workflowsWithMCP, filepath.Base(file))
