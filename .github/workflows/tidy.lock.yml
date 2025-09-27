@@ -113,9 +113,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-    env:
-      GITHUB_AW_SAFE_OUTPUTS: ${{ steps.setup_agent_output.outputs.output_file }}
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
