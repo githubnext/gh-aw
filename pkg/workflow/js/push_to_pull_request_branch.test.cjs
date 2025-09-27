@@ -104,7 +104,7 @@ describe("push_to_pull_request_branch.cjs", () => {
               const prData = JSON.stringify({
                 headRefName: "feature-branch",
                 title: "Test PR Title",
-                labels: ["bug", "enhancement"]
+                labels: ["bug", "enhancement"],
               });
               options.listeners.stdout(Buffer.from(prData + "\n"));
             }
