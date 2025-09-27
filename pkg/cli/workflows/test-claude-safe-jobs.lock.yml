@@ -3,28 +3,267 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Test Playwright Accessibility Contrast"
-on:
+name: "Test Claude Safe Jobs"
+"on":
+  push:
+    branches:
+    - copilot/*
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
-run-name: "Test Playwright Accessibility Contrast"
+run-name: "Test Claude Safe Jobs"
 
 jobs:
-  agent:
+  check-membership:
+    runs-on: ubuntu-latest
+    outputs:
+      error_message: ${{ steps.check-membership.outputs.error_message }}
+      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
+      result: ${{ steps.check-membership.outputs.result }}
+      user_permission: ${{ steps.check-membership.outputs.user_permission }}
+    steps:
+      - name: Check team membership for workflow
+        id: check-membership
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              // skip check for safe events
+              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.debug(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
+
+  activation:
+    needs: check-membership
+    if: needs.check-membership.outputs.is_team_member == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Activation success"
+
+  add_reaction:
+    needs: activation
+    if: >
+      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
+      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
+      (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      pull-requests: write
+    outputs:
+      reaction_id: ${{ steps.react.outputs.reaction-id }}
+    steps:
+      - name: Add eyes reaction to the triggering item
+        id: react
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_REACTION: eyes
+        with:
+          script: |
+            async function main() {
+              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
+              const command = process.env.GITHUB_AW_COMMAND; 
+              const runId = context.runId;
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              core.info(`Reaction type: ${reaction}`);
+              core.info(`Command name: ${command || "none"}`);
+              core.info(`Run ID: ${runId}`);
+              core.info(`Run URL: ${runUrl}`);
+              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
+              if (!validReactions.includes(reaction)) {
+                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
+                return;
+              }
+              let reactionEndpoint;
+              let commentUpdateEndpoint;
+              let shouldEditComment = false;
+              const eventName = context.eventName;
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
+              try {
+                switch (eventName) {
+                  case "issues":
+                    const issueNumber = context.payload?.issue?.number;
+                    if (!issueNumber) {
+                      core.setFailed("Issue number not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
+                    shouldEditComment = false;
+                    break;
+                  case "issue_comment":
+                    const commentId = context.payload?.comment?.id;
+                    if (!commentId) {
+                      core.setFailed("Comment ID not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
+                    shouldEditComment = command ? true : false;
+                    break;
+                  case "pull_request":
+                    const prNumber = context.payload?.pull_request?.number;
+                    if (!prNumber) {
+                      core.setFailed("Pull request number not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
+                    shouldEditComment = false;
+                    break;
+                  case "pull_request_review_comment":
+                    const reviewCommentId = context.payload?.comment?.id;
+                    if (!reviewCommentId) {
+                      core.setFailed("Review comment ID not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
+                    shouldEditComment = command ? true : false;
+                    break;
+                  default:
+                    core.setFailed(`Unsupported event type: ${eventName}`);
+                    return;
+                }
+                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
+                await addReaction(reactionEndpoint, reaction);
+                if (shouldEditComment && commentUpdateEndpoint) {
+                  core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
+                  await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
+                } else {
+                  if (!command && commentUpdateEndpoint) {
+                    core.info("Skipping comment edit - only available for command workflows");
+                  } else {
+                    core.info(`Skipping comment edit for event type: ${eventName}`);
+                  }
+                }
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
+                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
+              }
+            }
+            async function addReaction(endpoint, reaction) {
+              const response = await github.request("POST " + endpoint, {
+                content: reaction,
+                headers: {
+                  Accept: "application/vnd.github+json",
+                },
+              });
+              const reactionId = response.data?.id;
+              if (reactionId) {
+                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+                core.setOutput("reaction-id", reactionId.toString());
+              } else {
+                core.info(`Successfully added reaction: ${reaction}`);
+                core.setOutput("reaction-id", "");
+              }
+            }
+            async function editCommentWithWorkflowLink(endpoint, runUrl) {
+              try {
+                const getResponse = await github.request("GET " + endpoint, {
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+                const originalBody = getResponse.data.body || "";
+                const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
+                if (originalBody.includes("*🤖 [Workflow run](")) {
+                  core.info("Comment already contains a workflow run link, skipping edit");
+                  return;
+                }
+                const updatedBody = originalBody + workflowLinkText;
+                const updateResponse = await github.request("PATCH " + endpoint, {
+                  body: updatedBody,
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+                core.info(`Successfully updated comment with workflow link`);
+                core.info(`Comment ID: ${updateResponse.data.id}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.warning(
+                  "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
+                );
+              }
+            }
+            await main();
+
+  agent:
+    needs: activation
+    runs-on: ubuntu-latest
+    permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -137,7 +376,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"create-issue":{}}
+          {"print":{"inputs":{"message":{"description":"Message to print","required":true,"type":"string"}}}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -182,7 +421,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/output.jsonl";
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
             if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
               debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -743,7 +982,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -762,16 +1001,6 @@ jobs:
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
                 }
-              },
-              "playwright": {
-                "command": "npx",
-                "args": [
-                  "@playwright/mcp@latest",
-                  "--output-dir",
-                  "/tmp/mcp-logs/playwright",
-                  "--allowed-origins",
-                  "localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com;*.github.com"
-                ]
               },
               "safe_outputs": {
                 "command": "node",
@@ -794,28 +1023,9 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Test Playwright Accessibility Contrast
+          Summarize and use print the message using the `print` tool.
           
-          This is a test workflow that uses Playwright to take a screenshot of github.com/githubnext/gh-aw and analyzes it for accessibility color contrast issues.
-          
-          Please:
-          1. Navigate to https://github.com/githubnext/gh-aw using Playwright
-          2. Take a screenshot of the page
-          3. Analyze the screenshot for color contrast accessibility issues
-          4. Check if text elements meet WCAG 2.1 AA contrast requirements (4.5:1 for normal text, 3:1 for large text)
-          5. If any contrast issues are found, create an issue using the safe-outputs with:
-             - Title: "[Accessibility] Color contrast issues found on gh-aw repository page"
-             - Body: Detailed description of the contrast issues found, including specific elements and their contrast ratios
-             - Include the screenshot as evidence
-          
-          Focus on critical elements like:
-          - Main navigation text
-          - README content text
-          - Button text and backgrounds
-          - Link colors against backgrounds
-          - Code snippet text in the README
-          
-          If no accessibility issues are found, report that the page passes contrast accessibility checks.
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
           
           EOF
       - name: Append safe outputs instructions to prompt
@@ -826,13 +1036,9 @@ jobs:
           
           ---
           
-          ## Creating an IssueReporting Missing Tools or Functionality
+          ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Creating an Issue**
-          
-          To create an issue, use the create-issue tool from the safe-outputs MCP
           
           EOF
       - name: Print prompt to step summary
@@ -855,7 +1061,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Test Playwright Accessibility Contrast",
+              workflow_name: "Test Claude Safe Jobs",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -867,7 +1073,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: false,
+              staged: true,
               created_at: new Date().toISOString()
             };
             
@@ -954,32 +1160,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        # - mcp__playwright__browser_click
-        # - mcp__playwright__browser_close
-        # - mcp__playwright__browser_console_messages
-        # - mcp__playwright__browser_drag
-        # - mcp__playwright__browser_evaluate
-        # - mcp__playwright__browser_file_upload
-        # - mcp__playwright__browser_fill_form
-        # - mcp__playwright__browser_handle_dialog
-        # - mcp__playwright__browser_hover
-        # - mcp__playwright__browser_install
-        # - mcp__playwright__browser_navigate
-        # - mcp__playwright__browser_navigate_back
-        # - mcp__playwright__browser_network_requests
-        # - mcp__playwright__browser_press_key
-        # - mcp__playwright__browser_resize
-        # - mcp__playwright__browser_select_option
-        # - mcp__playwright__browser_snapshot
-        # - mcp__playwright__browser_tabs
-        # - mcp__playwright__browser_take_screenshot
-        # - mcp__playwright__browser_type
-        # - mcp__playwright__browser_wait_for
         timeout-minutes: 5
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -989,6 +1174,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
       - name: Ensure log file exists
         if: always()
         run: |
@@ -1033,7 +1219,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         with:
           script: |
             async function main() {
@@ -2161,162 +2347,30 @@ jobs:
           path: /tmp/agent-stdio.log
           if-no-files-found: warn
 
-  create_issue:
+  print:
     needs: agent
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    timeout-minutes: 10
-    outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
-      - name: Create Output Issue
-        id: create_issue
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[Accessibility] "
-          GITHUB_AW_ISSUE_LABELS: "accessibility,contrast"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
         with:
-          script: |
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
-                return;
-              }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
-                return;
-              }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
-                );
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels].filter(Boolean);
-                }
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
-                if (!title) {
-                  title = createIssueItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                if (parentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
-                  bodyLines.push(`Related to #${parentIssueNumber}`);
-                }
-                const runId = context.runId;
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;
-                bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  if (parentIssueNumber) {
-                    try {
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: parentIssueNumber,
-                        body: `Created related issue: #${issue.number}`,
-                      });
-                      core.info("Added comment to parent issue #" + parentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
-                    }
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                    continue;
-                  }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
-                  throw error;
-                }
-              }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
-            }
-            (async () => {
-              await main();
-            })();
+          name: agent_output.json
+          path: /tmp/safe-jobs/
+      - name: Setup Safe Job Environment Variables
+        run: |
+          echo "Setting up environment for safe job"
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
+      - name: See artifacts
+        run: cd /tmp/safe-jobs && ls -lR
+      - name: print message
+        run: |-
+          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
+            echo "print: $MESSAGE"
+            echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
+            echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
+          else
+            echo "No agent output found, using default: Hello from safe-job!"
+          fi
 

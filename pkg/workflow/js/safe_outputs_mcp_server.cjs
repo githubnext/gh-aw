@@ -50,7 +50,7 @@ const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw
 debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 
 // Handle GITHUB_AW_SAFE_OUTPUTS with default fallback
-const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/output.jsonl";
+const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
 if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
   debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
   // Ensure the directory exists

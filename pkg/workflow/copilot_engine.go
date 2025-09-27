@@ -251,7 +251,7 @@ func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, 
 	yaml.WriteString("              \"playwright\": {\n")
 	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"npx\",\n")
-	yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\"")
+	yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/mcp-logs/playwright\"")
 
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
