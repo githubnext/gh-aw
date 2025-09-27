@@ -1713,6 +1713,41 @@
           "maximum": 10240,
           "default": 1024
         },
+        "threat-detection": {
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable or disable threat detection for safe outputs (defaults to true when safe-outputs are configured)"
+            },
+            {
+              "type": "object",
+              "description": "Threat detection configuration object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Whether threat detection is enabled",
+                  "default": true
+                },
+                "engine": {
+                  "type": "string",
+                  "description": "Engine ID to use for detection (defaults to agent engine)"
+                },
+                "prompt": {
+                  "type": "string",
+                  "description": "Path or URL to custom prompt file (defaults to bundled template)"
+                },
+                "steps": {
+                  "type": "array",
+                  "description": "Array of extra job steps to run after detection",
+                  "items": {
+                    "$ref": "#/properties/githubActionsStep"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "jobs": {
           "type": "object",
           "description": "Custom safe-output jobs that can be executed based on agentic workflow output",
