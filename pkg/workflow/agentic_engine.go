@@ -183,9 +183,9 @@ func (r *EngineRegistry) IsValidEngine(id string) bool {
 	return exists
 }
 
-// GetDefaultEngine returns the default engine (Claude)
+// GetDefaultEngine returns the default engine (Copilot)
 func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
-	return r.engines["claude"]
+	return r.engines["copilot"]
 }
 
 // GetEngineByPrefix returns an engine that matches the given prefix
