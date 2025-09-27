@@ -115,6 +115,15 @@ interface MissingToolConfig extends SafeOutputConfig {
   "github-token"?: string;
 }
 
+/**
+ * Configuration for editing wiki pages
+ */
+interface EditWikiConfig extends SafeOutputConfig {
+  path?: string[];
+  max?: number;
+  "github-token"?: string;
+}
+
 // === Safe Job Configuration Interfaces ===
 
 /**
@@ -156,6 +165,7 @@ type SpecificSafeOutputConfig =
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
+  | EditWikiConfig
   | MissingToolConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
@@ -174,6 +184,7 @@ export {
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
+  EditWikiConfig,
   MissingToolConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types

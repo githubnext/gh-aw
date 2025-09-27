@@ -17,6 +17,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
+		safeOutputs.EditWiki != nil ||
 		safeOutputs.MissingTool != nil ||
 		len(safeOutputs.Jobs) > 0
 }
@@ -88,6 +89,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Uploading Assets")
+		written = true
+	}
+
+	if safeOutputs.EditWiki != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Editing Wiki Pages")
 		written = true
 	}
 
@@ -167,6 +176,17 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          2. Provide the path to the file you want to upload\n")
 		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
 		yaml.WriteString("          4. Assets are uploaded to an orphaned git branch after workflow completion\n")
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.EditWiki != nil {
+		yaml.WriteString("          **Editing Wiki Pages**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To edit GitHub wiki pages:\n")
+		yaml.WriteString("          1. Use the `edit-wiki` tool from the safe-outputs MCP\n")
+		yaml.WriteString("          2. Provide the page name and content for the wiki page\n")
+		yaml.WriteString("          3. The tool will create or update the wiki page with sanitized markdown content\n")
+		yaml.WriteString("          4. Pages are restricted to configured path patterns (defaults to workflow name folder)\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -315,6 +335,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
 			if uploadAssetsConfig != nil {
 				config.UploadAssets = uploadAssetsConfig
+			}
+
+			// Handle edit-wiki
+			editWikiConfig := c.parseEditWikiConfig(outputMap)
+			if editWikiConfig != nil {
+				config.EditWiki = editWikiConfig
 			}
 
 			// Handle missing-tool (parse configuration if present)

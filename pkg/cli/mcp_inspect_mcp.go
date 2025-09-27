@@ -804,6 +804,8 @@ func getSafeOutputToolDescription(toolName string) string {
 		return "Update a GitHub issue"
 	case "push-to-pull-request-branch":
 		return "Push changes to a pull request branch"
+	case "edit-wiki":
+		return "Edit a GitHub wiki page with sanitized markdown content"
 	case "missing-tool":
 		return "Report a missing tool or functionality needed to complete tasks"
 	default:
