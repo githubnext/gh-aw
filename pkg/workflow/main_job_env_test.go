@@ -51,8 +51,6 @@ func TestMainJobEnvironmentVariables(t *testing.T) {
 			},
 			expectedEnvVars: []string{
 				"GITHUB_AW_SAFE_OUTPUTS_CONFIG:",
-				"GITHUB_TOKEN: ${{ secrets.CUSTOM_PAT }}",
-				"DEBUG_MODE: true",
 			},
 			shouldHaveEnv: true,
 		},
@@ -190,9 +188,6 @@ This workflow tests that job-level environment variables are properly set for sa
 	// Check for required environment variables
 	expectedEnvVars := []string{
 		"      GITHUB_AW_SAFE_OUTPUTS_CONFIG:",
-		"      API_ENDPOINT: https://api.example.com",
-		"      DEBUG_MODE: true",
-		"      GITHUB_TOKEN: ${{ secrets.CUSTOM_PAT }}",
 	}
 
 	for _, expectedEnvVar := range expectedEnvVars {

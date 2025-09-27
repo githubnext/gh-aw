@@ -1509,13 +1509,6 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			// The JSON string needs to be properly quoted for YAML
 			env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 		}
-
-		// Add custom environment variables from safe-outputs.env
-		if len(data.SafeOutputs.Env) > 0 {
-			for key, value := range data.SafeOutputs.Env {
-				env[key] = value
-			}
-		}
 	}
 
 	job := &Job{
