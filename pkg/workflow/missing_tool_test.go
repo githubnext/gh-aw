@@ -143,7 +143,7 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 	data := &WorkflowData{
 		MarkdownContent: "Test workflow content",
 		SafeOutputs: &SafeOutputsConfig{
-			MissingTool: &MissingToolConfig{Max: 10},
+			MissingTool: &MissingToolConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 10}},
 		},
 	}
 

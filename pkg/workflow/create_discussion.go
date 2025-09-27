@@ -6,18 +6,21 @@ import (
 
 // CreateDiscussionsConfig holds configuration for creating GitHub discussions from agent output
 type CreateDiscussionsConfig struct {
-	TitlePrefix string `yaml:"title-prefix,omitempty"`
-	CategoryId  string `yaml:"category-id,omitempty"`  // Discussion category ID
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of discussions to create
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	TitlePrefix          string `yaml:"title-prefix,omitempty"`
+	CategoryId           string `yaml:"category-id,omitempty"` // Discussion category ID
 }
 
 // parseDiscussionsConfig handles create-discussion configuration
 func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscussionsConfig {
 	if configData, exists := outputMap["create-discussion"]; exists {
-		discussionsConfig := &CreateDiscussionsConfig{Max: 1} // Default max is 1
+		discussionsConfig := &CreateDiscussionsConfig{}
+		discussionsConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
+			// Parse common base fields
+			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig)
+
 			// Parse title-prefix
 			if titlePrefix, exists := configMap["title-prefix"]; exists {
 				if titlePrefixStr, ok := titlePrefix.(string); ok {
@@ -29,20 +32,6 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 			if categoryId, exists := configMap["category-id"]; exists {
 				if categoryIdStr, ok := categoryId.(string); ok {
 					discussionsConfig.CategoryId = categoryIdStr
-				}
-			}
-
-			// Parse max
-			if max, exists := configMap["max"]; exists {
-				if maxInt, ok := parseIntValue(max); ok {
-					discussionsConfig.Max = maxInt
-				}
-			}
-
-			// Parse github-token
-			if githubToken, exists := configMap["github-token"]; exists {
-				if githubTokenStr, ok := githubToken.(string); ok {
-					discussionsConfig.GitHubToken = githubTokenStr
 				}
 			}
 		}

@@ -6,9 +6,8 @@ import (
 
 // CreateCodeScanningAlertsConfig holds configuration for creating repository security advisories (SARIF format) from agent output
 type CreateCodeScanningAlertsConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of security findings to include (default: unlimited)
-	Driver      string `yaml:"driver,omitempty"`       // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	Driver               string `yaml:"driver,omitempty"` // Driver name for SARIF tool.driver.name field (default: "GitHub Agentic Workflows Security Scanner")
 }
 
 // buildCreateOutputCodeScanningAlertJob creates the create_code_scanning_alert job
@@ -115,27 +114,17 @@ func (c *Compiler) parseCodeScanningAlertsConfig(outputMap map[string]any) *Crea
 	}
 
 	configData := outputMap["create-code-scanning-alert"]
-	securityReportsConfig := &CreateCodeScanningAlertsConfig{Max: 0} // Default max is 0 (unlimited)
+	securityReportsConfig := &CreateCodeScanningAlertsConfig{}
+	securityReportsConfig.Max = 0 // Default max is 0 (unlimited)
 
 	if configMap, ok := configData.(map[string]any); ok {
-		// Parse max
-		if max, exists := configMap["max"]; exists {
-			if maxInt, ok := parseIntValue(max); ok {
-				securityReportsConfig.Max = maxInt
-			}
-		}
+		// Parse common base fields
+		c.parseBaseSafeOutputConfig(configMap, &securityReportsConfig.BaseSafeOutputConfig)
 
 		// Parse driver
 		if driver, exists := configMap["driver"]; exists {
 			if driverStr, ok := driver.(string); ok {
 				securityReportsConfig.Driver = driverStr
-			}
-		}
-
-		// Parse github-token
-		if githubToken, exists := configMap["github-token"]; exists {
-			if githubTokenStr, ok := githubToken.(string); ok {
-				securityReportsConfig.GitHubToken = githubTokenStr
 			}
 		}
 	}

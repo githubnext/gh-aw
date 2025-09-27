@@ -11,9 +11,8 @@ type AddCommentConfig struct {
 
 // AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddCommentsConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of comments to create
-	Target      string `yaml:"target,omitempty"`       // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	Target               string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 }
 
 // buildCreateOutputAddCommentJob creates the create_issue_comment job
@@ -105,27 +104,17 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 // parseCommentsConfig handles add-comment configuration
 func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsConfig {
 	if configData, exists := outputMap["add-comment"]; exists {
-		commentsConfig := &AddCommentsConfig{Max: 1} // Default max is 1
+		commentsConfig := &AddCommentsConfig{}
+		commentsConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse max
-			if max, exists := configMap["max"]; exists {
-				if maxInt, ok := parseIntValue(max); ok {
-					commentsConfig.Max = maxInt
-				}
-			}
+			// Parse common base fields
+			c.parseBaseSafeOutputConfig(configMap, &commentsConfig.BaseSafeOutputConfig)
 
 			// Parse target
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
 					commentsConfig.Target = targetStr
-				}
-			}
-
-			// Parse github-token
-			if githubToken, exists := configMap["github-token"]; exists {
-				if githubTokenStr, ok := githubToken.(string); ok {
-					commentsConfig.GitHubToken = githubTokenStr
 				}
 			}
 		}

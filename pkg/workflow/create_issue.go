@@ -7,16 +7,16 @@ import (
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
 type CreateIssuesConfig struct {
-	TitlePrefix string   `yaml:"title-prefix,omitempty"`
-	Labels      []string `yaml:"labels,omitempty"`
-	Max         int      `yaml:"max,omitempty"`          // Maximum number of issues to create
-	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
+	Labels               []string `yaml:"labels,omitempty"`
 }
 
 // parseIssuesConfig handles create-issue configuration
 func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConfig {
 	if configData, exists := outputMap["create-issue"]; exists {
-		issuesConfig := &CreateIssuesConfig{Max: 1} // Default max is 1
+		issuesConfig := &CreateIssuesConfig{}
+		issuesConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse title-prefix
@@ -39,19 +39,8 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 				}
 			}
 
-			// Parse max
-			if max, exists := configMap["max"]; exists {
-				if maxInt, ok := parseIntValue(max); ok {
-					issuesConfig.Max = maxInt
-				}
-			}
-
-			// Parse github-token
-			if githubToken, exists := configMap["github-token"]; exists {
-				if githubTokenStr, ok := githubToken.(string); ok {
-					issuesConfig.GitHubToken = githubTokenStr
-				}
-			}
+			// Parse common base fields
+			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig)
 		}
 
 		return issuesConfig
