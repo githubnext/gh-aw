@@ -2216,6 +2216,16 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		if data.SafeOutputs.UploadAssets != nil {
 			safeOutputsConfig["upload-asset"] = map[string]any{}
 		}
+		if data.SafeOutputs.EditWiki != nil {
+			editWikiConfig := map[string]any{}
+			if len(data.SafeOutputs.EditWiki.Path) > 0 {
+				editWikiConfig["path"] = data.SafeOutputs.EditWiki.Path
+			}
+			if data.SafeOutputs.EditWiki.Max > 0 {
+				editWikiConfig["max"] = data.SafeOutputs.EditWiki.Max
+			}
+			safeOutputsConfig["edit-wiki"] = editWikiConfig
+		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}
 			if data.SafeOutputs.MissingTool.Max > 0 {
@@ -2252,6 +2262,14 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 
 			safeOutputsConfig[jobName] = safeJobConfig
 		}
+	}
+
+	// Ensure that if safe outputs are enabled, the configuration is not empty
+	if len(safeOutputsConfig) == 0 {
+		// Safe outputs are enabled but no specific outputs are configured
+		// This could indicate a configuration error, so we should log a warning
+		// but still provide a valid empty configuration
+		safeOutputsConfig["missing-tool"] = map[string]any{}
 	}
 
 	configJSON, _ := json.Marshal(safeOutputsConfig)
