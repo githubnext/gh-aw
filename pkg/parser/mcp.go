@@ -82,84 +82,8 @@ type MCPServerInfo struct {
 func ExtractMCPConfigurations(frontmatter map[string]any, serverFilter string) ([]MCPServerConfig, error) {
 	var configs []MCPServerConfig
 
-	// Check for safe-outputs configuration first (built-in MCP)
-	if safeOutputsSection, hasSafeOutputs := frontmatter["safe-outputs"]; hasSafeOutputs {
-		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains("safe-outputs", strings.ToLower(serverFilter)) {
-			config := MCPServerConfig{
-				Name: "safe-outputs",
-				Type: "stdio",
-				// Command and args will be set up dynamically when the server is started
-				Command: "node",
-				Env:     make(map[string]string),
-			}
-
-			// Parse safe-outputs configuration to determine enabled tools
-			if safeOutputsMap, ok := safeOutputsSection.(map[string]any); ok {
-				for toolType := range safeOutputsMap {
-					// Convert tool types to the actual MCP tool names
-					switch toolType {
-					case "create-issue":
-						config.Allowed = append(config.Allowed, "create-issue")
-					case "create-discussion":
-						config.Allowed = append(config.Allowed, "create-discussion")
-					case "add-comment":
-						config.Allowed = append(config.Allowed, "add-comment")
-					case "create-pull-request":
-						config.Allowed = append(config.Allowed, "create-pull-request")
-					case "create-pull-request-review-comment":
-						config.Allowed = append(config.Allowed, "create-pull-request-review-comment")
-					case "create-code-scanning-alert":
-						config.Allowed = append(config.Allowed, "create-code-scanning-alert")
-					case "add-labels":
-						config.Allowed = append(config.Allowed, "add-labels")
-					case "update-issue":
-						config.Allowed = append(config.Allowed, "update-issue")
-					case "push-to-pull-request-branch":
-						config.Allowed = append(config.Allowed, "push-to-pull-request-branch")
-					case "missing-tool":
-						config.Allowed = append(config.Allowed, "missing-tool")
-
-					}
-				}
-			}
-
-			configs = append(configs, config)
-		}
-	}
-
-	// Check for top-level safe-jobs configuration
-	if safeJobsSection, hasSafeJobs := frontmatter["safe-jobs"]; hasSafeJobs {
-		// Apply server filter if specified
-		if serverFilter == "" || strings.Contains("safe-outputs", strings.ToLower(serverFilter)) {
-			// Find existing safe-outputs config or create new one
-			var config *MCPServerConfig
-			for i := range configs {
-				if configs[i].Name == "safe-outputs" {
-					config = &configs[i]
-					break
-				}
-			}
-
-			if config == nil {
-				newConfig := MCPServerConfig{
-					Name:    "safe-outputs",
-					Type:    "stdio",
-					Command: "node",
-					Env:     make(map[string]string),
-				}
-				configs = append(configs, newConfig)
-				config = &configs[len(configs)-1]
-			}
-
-			// Add each safe-job as a tool
-			if safeJobsMap, ok := safeJobsSection.(map[string]any); ok {
-				for jobName := range safeJobsMap {
-					config.Allowed = append(config.Allowed, jobName)
-				}
-			}
-		}
-	}
+	// Skip safe-outputs and safe-jobs configurations for MCP inspection
+	// These are handled by the workflow compiler and not meant to be inspected as MCP servers
 
 	// Get mcp-servers section from frontmatter
 	mcpServersSection, hasMCPServers := frontmatter["mcp-servers"]
