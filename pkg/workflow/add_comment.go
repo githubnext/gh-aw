@@ -12,6 +12,7 @@ type AddCommentConfig struct {
 // AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddCommentsConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of comments to create
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of comments to create
 	Target      string `yaml:"target,omitempty"`       // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
@@ -112,6 +113,13 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := parseIntValue(max); ok {
 					commentsConfig.Max = maxInt
+				}
+			}
+
+			// Parse min
+			if min, exists := configMap["min"]; exists {
+				if minInt, ok := parseIntValue(min); ok {
+					commentsConfig.Min = minInt
 				}
 			}
 

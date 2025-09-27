@@ -7,6 +7,7 @@ import (
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of review comments to create (default: 1)
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of review comments to create
 	Side        string `yaml:"side,omitempty"`         // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
@@ -98,6 +99,13 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 		if max, exists := configMap["max"]; exists {
 			if maxInt, ok := parseIntValue(max); ok {
 				prReviewCommentsConfig.Max = maxInt
+			}
+		}
+
+		// Parse min
+		if min, exists := configMap["min"]; exists {
+			if minInt, ok := parseIntValue(min); ok {
+				prReviewCommentsConfig.Min = minInt
 			}
 		}
 

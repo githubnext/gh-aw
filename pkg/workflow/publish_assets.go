@@ -10,6 +10,8 @@ type UploadAssetsConfig struct {
 	BranchName  string   `yaml:"branch,omitempty"`       // Branch name (default: "assets/${{ github.workflow }}")
 	MaxSizeKB   int      `yaml:"max-size,omitempty"`     // Maximum file size in KB (default: 10240 = 10MB)
 	AllowedExts []string `yaml:"allowed-exts,omitempty"` // Allowed file extensions (default: common non-executable types)
+	Max         int      `yaml:"max,omitempty"`          // Maximum number of assets to upload
+	Min         int      `yaml:"min,omitempty"`          // Minimum number of assets to upload
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -54,6 +56,20 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 					if len(extStrings) > 0 {
 						config.AllowedExts = extStrings
 					}
+				}
+			}
+
+			// Parse max
+			if max, exists := configMap["max"]; exists {
+				if maxInt, ok := parseIntValue(max); ok {
+					config.Max = maxInt
+				}
+			}
+
+			// Parse min
+			if min, exists := configMap["min"]; exists {
+				if minInt, ok := parseIntValue(min); ok {
+					config.Min = minInt
 				}
 			}
 

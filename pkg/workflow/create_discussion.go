@@ -9,6 +9,7 @@ type CreateDiscussionsConfig struct {
 	TitlePrefix string `yaml:"title-prefix,omitempty"`
 	CategoryId  string `yaml:"category-id,omitempty"`  // Discussion category ID
 	Max         int    `yaml:"max,omitempty"`          // Maximum number of discussions to create
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of discussions to create
 	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -36,6 +37,13 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := parseIntValue(max); ok {
 					discussionsConfig.Max = maxInt
+				}
+			}
+
+			// Parse min
+			if min, exists := configMap["min"]; exists {
+				if minInt, ok := parseIntValue(min); ok {
+					discussionsConfig.Min = minInt
 				}
 			}
 
