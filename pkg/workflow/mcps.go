@@ -52,6 +52,12 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		mcpTools = append(mcpTools, "safe-outputs")
 	}
 
+	// Generate safe-outputs configuration once to avoid duplicate computation
+	var safeOutputConfig string
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		safeOutputConfig = c.generateSafeOutputsConfig(workflowData)
+	}
+
 	// Sort tools to ensure stable code generation
 	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)
@@ -116,15 +122,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          mkdir -p /tmp/safe-outputs\n")
-		
+
 		// Write the safe-outputs configuration to config.json
-		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
 		if safeOutputConfig != "" {
 			yaml.WriteString("          cat > /tmp/safe-outputs/config.json << 'EOF'\n")
 			yaml.WriteString("          " + safeOutputConfig + "\n")
 			yaml.WriteString("          EOF\n")
 		}
-		
+
 		yaml.WriteString("          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'\n")
 		// Embed the safe-outputs MCP server script
 		for _, line := range FormatJavaScriptForYAML(safeOutputsMCPServerScript) {
@@ -138,7 +143,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		safeOutputConfig := c.generateSafeOutputsConfig(workflowData)
 		if safeOutputConfig != "" {
 			// Add environment variables for JSONL validation
 			yaml.WriteString("        env:\n")
