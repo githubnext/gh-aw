@@ -195,8 +195,6 @@ async function main() {
         return 10; // Default to 10 assets allowed
       case "edit-wiki":
         return 1; // Only one wiki edit operation allowed by default
-      case "create-wiki":
-        return 1; // Only one wiki creation operation allowed by default
       default:
         return 1; // Default to single item for unknown types
     }
@@ -886,7 +884,6 @@ async function main() {
           break;
 
         case "edit-wiki":
-        case "create-wiki":
           // Validate required path field
           if (!item.path || typeof item.path !== "string") {
             errors.push(`Line ${i + 1}: ${itemType} requires a 'path' string field`);

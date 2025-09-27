@@ -89,8 +89,6 @@ async function main() {
         return 10;
       case "edit-wiki":
         return 1;
-      case "create-wiki":
-        return 1;
       default:
         return 1;
     }
@@ -609,7 +607,6 @@ async function main() {
           }
           break;
         case "edit-wiki":
-        case "create-wiki":
           if (!item.path || typeof item.path !== "string") {
             errors.push(`Line ${i + 1}: ${itemType} requires a 'path' string field`);
             continue;
