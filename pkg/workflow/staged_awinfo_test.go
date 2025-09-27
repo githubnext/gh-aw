@@ -13,7 +13,7 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			CreateIssues: &CreateIssuesConfig{Max: 1},
+			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
 			Staged:       &[]bool{true}[0], // pointer to true
 		},
 	}

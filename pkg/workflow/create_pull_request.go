@@ -7,13 +7,11 @@ import (
 
 // CreatePullRequestsConfig holds configuration for creating GitHub pull requests from agent output
 type CreatePullRequestsConfig struct {
-	TitlePrefix string   `yaml:"title-prefix,omitempty"`
-	Labels      []string `yaml:"labels,omitempty"`
-	Draft       *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
-	Max         int      `yaml:"max,omitempty"`           // Maximum number of pull requests to create
-	Min         int      `yaml:"min,omitempty"`           // Minimum number of pull requests to create
-	IfNoChanges string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
-	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
+	Labels               []string `yaml:"labels,omitempty"`
+	Draft                *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
+	IfNoChanges          string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
@@ -142,7 +140,8 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	}
 
 	configData := outputMap["create-pull-request"]
-	pullRequestsConfig := &CreatePullRequestsConfig{Max: 1} // Always max 1 for pull requests
+	pullRequestsConfig := &CreatePullRequestsConfig{}
+	pullRequestsConfig.Max = 1 // Always max 1 for pull requests
 
 	if configMap, ok := configData.(map[string]any); ok {
 		// Parse title-prefix
@@ -179,17 +178,15 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 			}
 		}
 
-		// Parse github-token
-		if githubToken, exists := configMap["github-token"]; exists {
-			if githubTokenStr, ok := githubToken.(string); ok {
-				pullRequestsConfig.GitHubToken = githubTokenStr
-			}
-		}
-
-		// Parse min
+		// Parse min and github-token (max is always 1 for pull requests)
 		if min, exists := configMap["min"]; exists {
 			if minInt, ok := parseIntValue(min); ok {
 				pullRequestsConfig.Min = minInt
+			}
+		}
+		if githubToken, exists := configMap["github-token"]; exists {
+			if githubTokenStr, ok := githubToken.(string); ok {
+				pullRequestsConfig.GitHubToken = githubTokenStr
 			}
 		}
 

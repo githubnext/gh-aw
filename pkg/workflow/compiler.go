@@ -120,6 +120,13 @@ type WorkflowData struct {
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 }
 
+// BaseSafeOutputConfig holds common configuration fields for all safe output types
+type BaseSafeOutputConfig struct {
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of items to create
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
@@ -2409,4 +2416,28 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 	// For now, we rely on JSON schema validation for format checking
 
 	return nil
+}
+
+// parseBaseSafeOutputConfig parses common fields (max, min, github-token) from a config map
+func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *BaseSafeOutputConfig) {
+	// Parse max
+	if max, exists := configMap["max"]; exists {
+		if maxInt, ok := parseIntValue(max); ok {
+			config.Max = maxInt
+		}
+	}
+
+	// Parse min
+	if min, exists := configMap["min"]; exists {
+		if minInt, ok := parseIntValue(min); ok {
+			config.Min = minInt
+		}
+	}
+
+	// Parse github-token
+	if githubToken, exists := configMap["github-token"]; exists {
+		if githubTokenStr, ok := githubToken.(string); ok {
+			config.GitHubToken = githubTokenStr
+		}
+	}
 }
