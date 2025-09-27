@@ -8,7 +8,7 @@ Write agentic workflows in natural language markdown, and run them safely in Git
 > [!NOTE]
 > **For AI Agents**: To learn about GitHub Agentic Workflows syntax, file formats, tools, and best practices, please read the comprehensive instructions at: [.github/instructions/github-agentic-workflows.instructions.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows.instructions.md)
 >
-> **Chat Mode Template**: Use the AI-powered workflow designer chat mode template to interactively create agentic workflows. The template is available at: [.github/instructions/github-agentic-workflows-designer.chatmode.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/instructions/github-agentic-workflows-designer.chatmode.md)
+> **Prompt Template**: Use the AI-powered workflow designer prompt to interactively create agentic workflows. The prompt is available at: [.github/prompts/create-agentic-workflow.prompt.md](https://raw.githubusercontent.com/githubnext/gh-aw/main/.github/prompts/create-agentic-workflow.prompt.md)
 
 ## 🚀 Quick Start
 

@@ -8,26 +8,26 @@ import (
 	"testing"
 )
 
-func TestEnsureChatModeDesigner(t *testing.T) {
+func TestEnsureAgenticWorkflowPrompt(t *testing.T) {
 	tests := []struct {
 		name            string
 		existingContent string
 		expectedContent string
 	}{
 		{
-			name:            "creates new chat mode designer template file",
+			name:            "creates new agentic workflow prompt file",
 			existingContent: "",
-			expectedContent: strings.TrimSpace(chatModeDesignerTemplate),
+			expectedContent: strings.TrimSpace(agenticWorkflowPromptTemplate),
 		},
 		{
 			name:            "does not modify existing correct file",
-			existingContent: chatModeDesignerTemplate,
-			expectedContent: strings.TrimSpace(chatModeDesignerTemplate),
+			existingContent: agenticWorkflowPromptTemplate,
+			expectedContent: strings.TrimSpace(agenticWorkflowPromptTemplate),
 		},
 		{
 			name:            "updates modified file",
-			existingContent: "# Modified GitHub Agentic Workflows Designer\n\nThis is a modified version.",
-			expectedContent: strings.TrimSpace(chatModeDesignerTemplate),
+			existingContent: "# Modified Agentic Workflow Prompt\n\nThis is a modified version.",
+			expectedContent: strings.TrimSpace(agenticWorkflowPromptTemplate),
 		},
 	}
 
@@ -51,34 +51,34 @@ func TestEnsureChatModeDesigner(t *testing.T) {
 				t.Fatalf("Failed to init git repo: %v", err)
 			}
 
-			instructionsDir := filepath.Join(tempDir, ".github", "instructions")
-			chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.chatmode.md")
+			promptsDir := filepath.Join(tempDir, ".github", "prompts")
+			agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
 
 			// Create initial content if specified
 			if tt.existingContent != "" {
-				if err := os.MkdirAll(instructionsDir, 0755); err != nil {
-					t.Fatalf("Failed to create instructions directory: %v", err)
+				if err := os.MkdirAll(promptsDir, 0755); err != nil {
+					t.Fatalf("Failed to create prompts directory: %v", err)
 				}
-				if err := os.WriteFile(chatModeDesignerPath, []byte(tt.existingContent), 0644); err != nil {
-					t.Fatalf("Failed to create initial chat mode designer template: %v", err)
+				if err := os.WriteFile(agenticWorkflowPromptPath, []byte(tt.existingContent), 0644); err != nil {
+					t.Fatalf("Failed to create initial agentic workflow prompt: %v", err)
 				}
 			}
 
 			// Call the function with writeInstructions=true to test the functionality
-			err = ensureChatModeDesigner(false, true)
+			err = ensureAgenticWorkflowPrompt(false, true)
 			if err != nil {
-				t.Fatalf("ensureChatModeDesigner() returned error: %v", err)
+				t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
 			}
 
 			// Check that file exists
-			if _, err := os.Stat(chatModeDesignerPath); os.IsNotExist(err) {
-				t.Fatalf("Expected chat mode designer template file to exist")
+			if _, err := os.Stat(agenticWorkflowPromptPath); os.IsNotExist(err) {
+				t.Fatalf("Expected agentic workflow prompt file to exist")
 			}
 
 			// Check content
-			content, err := os.ReadFile(chatModeDesignerPath)
+			content, err := os.ReadFile(agenticWorkflowPromptPath)
 			if err != nil {
-				t.Fatalf("Failed to read chat mode designer template: %v", err)
+				t.Fatalf("Failed to read agentic workflow prompt: %v", err)
 			}
 
 			contentStr := strings.TrimSpace(string(content))
@@ -93,7 +93,7 @@ func TestEnsureChatModeDesigner(t *testing.T) {
 	}
 }
 
-func TestEnsureChatModeDesigner_WithWriteInstructionsFalse(t *testing.T) {
+func TestEnsureAgenticWorkflowPrompt_WithWriteInstructionsFalse(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
@@ -113,15 +113,15 @@ func TestEnsureChatModeDesigner_WithWriteInstructionsFalse(t *testing.T) {
 	}
 
 	// Call the function with writeInstructions=false
-	err = ensureChatModeDesigner(false, false)
+	err = ensureAgenticWorkflowPrompt(false, false)
 	if err != nil {
-		t.Fatalf("ensureChatModeDesigner() returned error: %v", err)
+		t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
 	}
 
 	// Check that file was NOT created
-	instructionsDir := filepath.Join(tempDir, ".github", "instructions")
-	chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.chatmode.md")
-	if _, err := os.Stat(chatModeDesignerPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected chat mode designer template file to NOT exist when writeInstructions=false")
+	promptsDir := filepath.Join(tempDir, ".github", "prompts")
+	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
+	if _, err := os.Stat(agenticWorkflowPromptPath); !os.IsNotExist(err) {
+		t.Fatalf("Expected agentic workflow prompt file to NOT exist when writeInstructions=false")
 	}
 }

@@ -34,8 +34,8 @@ var (
 //go:embed templates/instructions.md
 var copilotInstructionsTemplate string
 
-//go:embed templates/chat-mode-designer.chatmode.md
-var chatModeDesignerTemplate string
+//go:embed templates/create-agentic-workflow.prompt.md
+var agenticWorkflowPromptTemplate string
 
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
@@ -794,10 +794,10 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		}
 	}
 
-	// Ensure chat mode designer template is present
-	if err := ensureChatModeDesigner(verbose, writeInstructions); err != nil {
+	// Ensure agentic workflow prompt is present
+	if err := ensureAgenticWorkflowPrompt(verbose, writeInstructions); err != nil {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update chat mode designer template: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflow prompt: %v", err)))
 		}
 	}
 
@@ -1565,10 +1565,10 @@ func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 	return nil
 }
 
-// ensureChatModeDesigner ensures that .github/instructions/github-agentic-workflows-designer.chatmode.md contains the chat mode designer template
-func ensureChatModeDesigner(verbose bool, writeInstructions bool) error {
+// ensureAgenticWorkflowPrompt ensures that .github/prompts/create-agentic-workflow.prompt.md contains the agentic workflow creation prompt
+func ensureAgenticWorkflowPrompt(verbose bool, writeInstructions bool) error {
 	if !writeInstructions {
-		return nil // Skip writing template if flag is not set
+		return nil // Skip writing prompt if flag is not set
 	}
 
 	gitRoot, err := findGitRoot()
@@ -1576,39 +1576,39 @@ func ensureChatModeDesigner(verbose bool, writeInstructions bool) error {
 		return err // Not in a git repository, skip
 	}
 
-	instructionsDir := filepath.Join(gitRoot, ".github", "instructions")
-	chatModeDesignerPath := filepath.Join(instructionsDir, "github-agentic-workflows-designer.chatmode.md")
+	promptsDir := filepath.Join(gitRoot, ".github", "prompts")
+	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
 
-	// Ensure the .github/instructions directory exists
-	if err := os.MkdirAll(instructionsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/instructions directory: %w", err)
+	// Ensure the .github/prompts directory exists
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .github/prompts directory: %w", err)
 	}
 
-	// Check if the template file already exists and matches the template
+	// Check if the prompt file already exists and matches the template
 	existingContent := ""
-	if content, err := os.ReadFile(chatModeDesignerPath); err == nil {
+	if content, err := os.ReadFile(agenticWorkflowPromptPath); err == nil {
 		existingContent = string(content)
 	}
 
 	// Check if content matches our expected template
-	expectedContent := strings.TrimSpace(chatModeDesignerTemplate)
+	expectedContent := strings.TrimSpace(agenticWorkflowPromptTemplate)
 	if strings.TrimSpace(existingContent) == expectedContent {
 		if verbose {
-			fmt.Printf("Chat mode designer template is up-to-date: %s\n", chatModeDesignerPath)
+			fmt.Printf("Agentic workflow prompt is up-to-date: %s\n", agenticWorkflowPromptPath)
 		}
 		return nil
 	}
 
-	// Write the chat mode designer template file
-	if err := os.WriteFile(chatModeDesignerPath, []byte(chatModeDesignerTemplate), 0644); err != nil {
-		return fmt.Errorf("failed to write chat mode designer template: %w", err)
+	// Write the agentic workflow prompt file
+	if err := os.WriteFile(agenticWorkflowPromptPath, []byte(agenticWorkflowPromptTemplate), 0644); err != nil {
+		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
 	}
 
 	if verbose {
 		if existingContent == "" {
-			fmt.Printf("Created chat mode designer template: %s\n", chatModeDesignerPath)
+			fmt.Printf("Created agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
 		} else {
-			fmt.Printf("Updated chat mode designer template: %s\n", chatModeDesignerPath)
+			fmt.Printf("Updated agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
 		}
 	}
 
