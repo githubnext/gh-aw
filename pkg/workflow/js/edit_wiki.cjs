@@ -225,13 +225,14 @@ async function main() {
         // Wiki doesn't exist yet, create it
         core.info("Wiki repository doesn't exist, creating new one");
         execSync(`mkdir -p ${wikiDir}`, { stdio: "pipe" });
-        execSync(`cd ${wikiDir} && git init`, { stdio: "pipe" });
-        execSync(`cd ${wikiDir} && git remote add origin ${wikiUrl}`, { stdio: "pipe" });
+        // Initialize git repository in the created directory
+        execSync(`git init`, { cwd: wikiDir, stdio: "pipe" });
+        execSync(`git remote add origin ${wikiUrl}`, { cwd: wikiDir, stdio: "pipe" });
       }
 
       // Configure git user (required for commits)
-      execSync(`cd ${wikiDir} && git config user.name "github-actions[bot]"`, { stdio: "pipe" });
-      execSync(`cd ${wikiDir} && git config user.email "github-actions[bot]@users.noreply.github.com"`, { stdio: "pipe" });
+      execSync(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
+      execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
 
       // Create directory structure if needed
       const pageDir = path.dirname(wikiEdit.path);
@@ -245,17 +246,17 @@ async function main() {
       fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
 
       // Commit and push the changes
-      execSync(`cd ${wikiDir} && git add .`, { stdio: "pipe" });
+      execSync(`git add .`, { cwd: wikiDir, stdio: "pipe" });
 
       // Check if there are changes to commit
-      const status = execSync(`cd ${wikiDir} && git status --porcelain`, { encoding: "utf8" });
+      const status = execSync(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
       if (!status.trim()) {
         core.info(`No changes detected for wiki page: ${wikiEdit.path}`);
         continue;
       }
 
-      execSync(`cd ${wikiDir} && git commit -m "${wikiEdit.message}"`, { stdio: "pipe" });
-      execSync(`cd ${wikiDir} && git push origin HEAD:master`, { stdio: "pipe" });
+      execSync(`git commit -m "${wikiEdit.message}"`, { cwd: wikiDir, stdio: "pipe" });
+      execSync(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
 
       // Clean up temporary directory
       execSync(`rm -rf ${wikiDir}`, { stdio: "pipe" });
