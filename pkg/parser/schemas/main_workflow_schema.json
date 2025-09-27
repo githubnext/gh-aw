@@ -4,37 +4,37 @@
   "properties": {
     "name": {
       "type": "string",
-      "description": "Name of the workflow"
+      "description": "Workflow name that appears in the GitHub Actions interface. If not specified, defaults to the filename without extension."
     },
     "description": {
       "type": "string",
-      "description": "Optional description of the workflow that will be rendered as comments in the generated lock file"
+      "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)"
     },
     "on": {
-      "description": "GitHub Actions workflow triggers",
+      "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for @mentions (required)",
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple trigger event name"
+          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'schedule')"
         },
         {
           "type": "object",
-          "description": "Complex trigger configuration",
+          "description": "Complex trigger configuration with event-specific filters and options",
           "properties": {
             "command": {
-              "description": "Command trigger configuration for /mentions",
+              "description": "Special command trigger for @mention workflows (e.g., '/my-bot' in issue comments). Creates conditions to match mentions automatically.",
               "oneOf": [
                 {
                   "type": "null",
-                  "description": "Null command (defaults to filename)"
+                  "description": "Null command configuration - defaults to using the workflow filename (without .md extension) as the command name"
                 },
                 {
                   "type": "object",
-                  "description": "Command configuration object",
+                  "description": "Command configuration object with custom command name",
                   "properties": {
                     "name": {
                       "type": "string",
-                      "description": "Command name (defaults to filename without .md extension)"
+                      "description": "Custom command name for @mentions (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
                     }
                   },
                   "additionalProperties": false
@@ -42,7 +42,7 @@
               ]
             },
             "push": {
-              "description": "Push event trigger",
+              "description": "Push event trigger that runs the workflow when code is pushed to the repository",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -76,14 +76,14 @@
                 },
                 "tags": {
                   "type": "array",
-                  "description": "Tags to filter on",
+                  "description": "List of git tag names or patterns to include for push events (supports wildcards)",
                   "items": {
                     "type": "string"
                   }
                 },
                 "tags-ignore": {
                   "type": "array",
-                  "description": "Tags to ignore",
+                  "description": "List of git tag names or patterns to exclude from push events (supports wildcards)",
                   "items": {
                     "type": "string"
                   }
@@ -91,12 +91,12 @@
               }
             },
             "pull_request": {
-              "description": "Pull request event trigger",
+              "description": "Pull request event trigger that runs the workflow when pull requests are created, updated, or closed",
               "type": "object",
               "properties": {
                 "types": {
                   "type": "array",
-                  "description": "Types of pull request events",
+                  "description": "List of pull request event types to trigger on (e.g., 'opened', 'edited', 'closed', 'synchronize')",
                   "items": {
                     "type": "string"
                   }
@@ -131,7 +131,7 @@
                 },
                 "draft": {
                   "type": "boolean",
-                  "description": "Filter by draft state. Set to false to ignore draft PRs"
+                  "description": "Filter by draft pull request state. Set to false to exclude draft PRs, true to include only drafts, or omit to include both"
                 },
                 "forks": {
                   "oneOf": [
@@ -153,7 +153,7 @@
               "additionalProperties": false
             },
             "issues": {
-              "description": "Issues event trigger",
+              "description": "Issues event trigger that runs the workflow when repository issues are created, updated, or managed",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -378,7 +378,7 @@
       ]
     },
     "permissions": {
-      "description": "You can modify the default permissions granted to the GITHUB_TOKEN, adding or removing access as required, so that you only allow the minimum required access.",
+      "description": "GitHub token permissions for the workflow. Controls what the GITHUB_TOKEN can access during execution. Use the principle of least privilege - only grant the minimum permissions needed.",
       "oneOf": [
         {
           "type": "string",
@@ -388,11 +388,11 @@
             "read",
             "write"
           ],
-          "description": "Simple permissions string"
+          "description": "Simple permissions string: 'read-all' (all read permissions), 'write-all' (all write permissions), 'read' or 'write' (basic level)"
         },
         {
           "type": "object",
-          "description": "Detailed permissions object",
+          "description": "Detailed permissions object with granular control over specific GitHub API scopes",
           "additionalProperties": false,
           "properties": {
             "actions": {
@@ -401,7 +401,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for GitHub Actions workflows and runs (read: view workflows, write: manage workflows, none: no access)"
             },
             "attestations": {
               "type": "string",
@@ -409,7 +410,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for artifact attestations (read: view attestations, write: create attestations, none: no access)"
             },
             "checks": {
               "type": "string",
@@ -417,7 +419,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository checks and status checks (read: view checks, write: create/update checks, none: no access)"
             },
             "contents": {
               "type": "string",
@@ -425,7 +428,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository contents (read: view files, write: modify files/branches, none: no access)"
             },
             "deployments": {
               "type": "string",
@@ -433,7 +437,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository deployments (read: view deployments, write: create/update deployments, none: no access)"
             },
             "discussions": {
               "type": "string",
@@ -441,7 +446,8 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository discussions (read: view discussions, write: create/update discussions, none: no access)"
             },
             "id-token": {
               "type": "string",
@@ -457,14 +463,16 @@
                 "read",
                 "write",
                 "none"
-              ]
+              ],
+              "description": "Permission for repository issues (read: view issues, write: create/update/close issues, none: no access)"
             },
             "models": {
               "type": "string",
               "enum": [
                 "read",
                 "none"
-              ]
+              ],
+              "description": "Permission for GitHub Copilot models (read: access AI models for agentic workflows, none: no access)"
             },
             "packages": {
               "type": "string",
