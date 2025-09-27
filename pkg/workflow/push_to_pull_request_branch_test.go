@@ -478,3 +478,151 @@ This workflow explicitly sets branch to "triggering".
 		t.Errorf("Generated workflow should contain target configuration")
 	}
 }
+
+func TestPushToPullRequestBranchWithTitlePrefix(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with title-prefix configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
+    title-prefix: "[bot] "
+---
+
+# Test Push to Branch with Title Prefix
+
+This workflow validates PR title prefix.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-title-prefix.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that title prefix configuration is passed correctly
+	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_TITLE_PREFIX: "[bot] "`) {
+		t.Errorf("Generated workflow should contain title prefix configuration")
+	}
+}
+
+func TestPushToPullRequestBranchWithLabels(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with labels configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
+    labels: ["automated", "enhancement"]
+---
+
+# Test Push to Branch with Labels
+
+This workflow validates PR labels.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-labels.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that labels configuration is passed correctly
+	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_LABELS: "automated,enhancement"`) {
+		t.Errorf("Generated workflow should contain labels configuration")
+	}
+}
+
+func TestPushToPullRequestBranchWithTitlePrefixAndLabels(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test markdown file with both title-prefix and labels configuration
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened, synchronize]
+safe-outputs:
+  push-to-pull-request-branch:
+    target: "triggering"
+    title-prefix: "[automated] "
+    labels: ["bot", "feature", "enhancement"]
+---
+
+# Test Push to Branch with Title Prefix and Labels
+
+This workflow validates both PR title prefix and labels.
+`
+
+	// Write the test file
+	mdFile := filepath.Join(tmpDir, "test-push-to-pull-request-branch-title-prefix-and-labels.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	// Create compiler and compile the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated .lock.yml file
+	lockFile := strings.TrimSuffix(mdFile, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContentStr := string(lockContent)
+
+	// Verify that both title prefix and labels configurations are passed correctly
+	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_TITLE_PREFIX: "[automated] "`) {
+		t.Errorf("Generated workflow should contain title prefix configuration")
+	}
+	if !strings.Contains(lockContentStr, `GITHUB_AW_PR_LABELS: "bot,feature,enhancement"`) {
+		t.Errorf("Generated workflow should contain labels configuration")
+	}
+}

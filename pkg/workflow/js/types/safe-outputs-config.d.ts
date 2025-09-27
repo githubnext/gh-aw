@@ -91,6 +91,8 @@ interface UpdateIssueConfig extends SafeOutputConfig {
  */
 interface PushToPullRequestBranchConfig extends SafeOutputConfig {
   target?: string;
+  "title-prefix"?: string;
+  labels?: string[];
   "if-no-changes"?: string;
   "github-token"?: string;
 }

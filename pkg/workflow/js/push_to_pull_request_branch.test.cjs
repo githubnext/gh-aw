@@ -83,6 +83,8 @@ describe("push_to_pull_request_branch.cjs", () => {
     delete process.env.GITHUB_AW_PUSH_TARGET;
     delete process.env.GITHUB_AW_AGENT_OUTPUT;
     delete process.env.GITHUB_AW_PUSH_IF_NO_CHANGES;
+    delete process.env.GITHUB_AW_PR_TITLE_PREFIX;
+    delete process.env.GITHUB_AW_PR_LABELS;
 
     // Create fresh mock objects for each test
     mockFs = {
@@ -443,6 +445,203 @@ const exec = global.exec;`
 
       // Should not check patch size for empty patches
       expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringMatching(/Patch size:/));
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should validate PR title prefix when specified", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pull-request-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock the gh pr view command to return PR data with matching title prefix
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "[bot] Add new feature",
+            labels: [],
+          };
+          if (options && options.listeners && options.listeners.stdout) {
+            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
+          }
+          return Promise.resolve(0);
+        }
+        return Promise.resolve(0);
+      });
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[bot] "');
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail when PR title doesn't match required prefix", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pull-request-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock the gh pr view command to return PR data without matching title prefix
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Add new feature",
+            labels: [],
+          };
+          if (options && options.listeners && options.listeners.stdout) {
+            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
+          }
+          return Promise.resolve(0);
+        }
+        return Promise.resolve(0);
+      });
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Pull request title "Add new feature" does not start with required prefix "[bot] "');
+    });
+
+    it("should validate PR labels when specified", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pull-request-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock the gh pr view command to return PR data with required labels
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Add new feature",
+            labels: ["automation", "enhancement", "feature"],
+          };
+          if (options && options.listeners && options.listeners.stdout) {
+            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
+          }
+          return Promise.resolve(0);
+        }
+        return Promise.resolve(0);
+      });
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Labels validation passed: automation,enhancement");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should fail when PR is missing required labels", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pull-request-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock the gh pr view command to return PR data missing required labels
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "Add new feature",
+            labels: ["feature"], // Missing "automation" and "enhancement"
+          };
+          if (options && options.listeners && options.listeners.stdout) {
+            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
+          }
+          return Promise.resolve(0);
+        }
+        return Promise.resolve(0);
+      });
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        "Pull request is missing required labels: automation, enhancement. Current labels: feature"
+      );
+    });
+
+    it("should validate both title prefix and labels when both are specified", async () => {
+      const validOutput = {
+        items: [
+          {
+            type: "push-to-pull-request-branch",
+            content: "some changes to push",
+          },
+        ],
+      };
+
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      process.env.GITHUB_AW_PR_TITLE_PREFIX = "[automated] ";
+      process.env.GITHUB_AW_PR_LABELS = "bot,feature";
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+
+      // Mock the gh pr view command to return PR data with both valid title and labels
+      mockExec.exec.mockImplementation((command, args, options) => {
+        if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
+          const prData = {
+            headRefName: "feature-branch",
+            title: "[automated] Add new feature",
+            labels: ["bot", "feature", "enhancement"],
+          };
+          if (options && options.listeners && options.listeners.stdout) {
+            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
+          }
+          return Promise.resolve(0);
+        }
+        return Promise.resolve(0);
+      });
+
+      // Execute the script
+      await executeScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith('✓ Title prefix validation passed: "[automated] "');
+      expect(mockCore.info).toHaveBeenCalledWith("✓ Labels validation passed: bot,feature");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });

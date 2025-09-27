@@ -171,16 +171,26 @@ async function main() {
     pullNumber = parseInt(target, 10);
   }
   let branchName;
-  // Fetch the specific PR to get its head branch
+  let prTitle = "";
+  let prLabels = [];
+
+  // Fetch the specific PR to get its head branch, title, and labels
   try {
     let prInfo = "";
-    const prInfoRes = await exec.exec(`gh`, [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName`, `--jq`, `.headRefName`], {
-      listeners: { stdout: data => (prInfo += data.toString()) },
-    });
+    const prInfoRes = await exec.exec(
+      `gh`,
+      [`pr`, `view`, `${pullNumber}`, `--json`, `headRefName,title,labels`, `--jq`, `{headRefName, title, labels: [.labels[].name]}`],
+      {
+        listeners: { stdout: data => (prInfo += data.toString()) },
+      }
+    );
     if (!prInfoRes) {
-      branchName = prInfo.trim();
+      const prData = JSON.parse(prInfo.trim());
+      branchName = prData.headRefName;
+      prTitle = prData.title || "";
+      prLabels = prData.labels || [];
     } else {
-      throw new Error("No head branch found for PR");
+      throw new Error("No PR data found");
     }
   } catch (error) {
     core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
@@ -190,6 +200,33 @@ async function main() {
   }
 
   core.info(`Target branch: ${branchName}`);
+  core.info(`PR title: ${prTitle}`);
+  core.info(`PR labels: ${prLabels.join(", ")}`);
+
+  // Validate title prefix if specified
+  const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+  if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
+    core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
+    return;
+  }
+
+  // Validate labels if specified
+  const requiredLabelsStr = process.env.GITHUB_AW_PR_LABELS;
+  if (requiredLabelsStr) {
+    const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
+    const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
+    if (missingLabels.length > 0) {
+      core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
+      return;
+    }
+  }
+
+  if (titlePrefix) {
+    core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+  }
+  if (requiredLabelsStr) {
+    core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
+  }
 
   // Check if patch has actual changes (not just empty)
   const hasChanges = !isEmpty;
