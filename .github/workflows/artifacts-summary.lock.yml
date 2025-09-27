@@ -1931,7 +1931,7 @@ jobs:
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.detection.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[report] "
           GITHUB_AW_ISSUE_LABELS: "automation,artifacts,report"
         with:

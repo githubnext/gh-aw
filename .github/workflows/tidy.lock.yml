@@ -2173,8 +2173,8 @@ jobs:
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.detection.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "detection"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_WORKFLOW_ID: "agent"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_TITLE_PREFIX: "[tidy] "
           GITHUB_AW_PR_LABELS: "automation,maintenance"
@@ -2501,7 +2501,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GH_TOKEN: ${{ github.token }}
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.detection.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
