@@ -104,7 +104,7 @@ func (c *Compiler) buildEditWikiJob(data *WorkflowData, mainJobName string, task
 	formattedScript := FormatJavaScriptForYAML(editWikiScript)
 	for _, line := range formattedScript {
 		if strings.TrimSpace(line) != "" {
-			steps = append(steps, fmt.Sprintf("            %s\n", line))
+			steps = append(steps, fmt.Sprintf("            %s", line))
 		}
 	}
 
