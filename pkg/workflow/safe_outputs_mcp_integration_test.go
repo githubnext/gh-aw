@@ -56,6 +56,11 @@ Test safe outputs workflow with MCP server integration.
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
 	}
 
+	// Check that safe-outputs configuration file is written
+	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs/config.json") {
+		t.Error("Expected safe-outputs configuration to be written to config.json file")
+	}
+
 	// Check that safe_outputs is included in MCP configuration
 	if !strings.Contains(yamlStr, `"safe_outputs": {`) {
 		t.Error("Expected safe_outputs in MCP server configuration")
@@ -118,6 +123,11 @@ Test workflow without safe outputs.
 		t.Error("Expected safe-outputs MCP server to NOT be written when safe-outputs are disabled")
 	}
 
+	// Check that safe-outputs configuration file is NOT written
+	if strings.Contains(yamlStr, "cat > /tmp/safe-outputs/config.json") {
+		t.Error("Expected safe-outputs configuration to NOT be written when safe-outputs are disabled")
+	}
+
 	// Check that safe_outputs is NOT included in MCP configuration
 	if strings.Contains(yamlStr, `"safe_outputs": {`) {
 		t.Error("Expected safe_outputs to NOT be in MCP server configuration when disabled")
@@ -170,6 +180,11 @@ Test safe outputs workflow with Codex engine.
 	// Check that safe-outputs MCP server file is written
 	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs/mcp-server.cjs") {
 		t.Error("Expected safe-outputs MCP server to be written to temp file")
+	}
+
+	// Check that safe-outputs configuration file is written
+	if !strings.Contains(yamlStr, "cat > /tmp/safe-outputs/config.json") {
+		t.Error("Expected safe-outputs configuration to be written to config.json file")
 	}
 
 	// Check that safe_outputs is included in TOML configuration for Codex
