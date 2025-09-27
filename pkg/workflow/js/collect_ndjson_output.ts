@@ -600,8 +600,8 @@ async function main() {
   const outputContent = fs.readFileSync(outputFile, "utf8");
   if (outputContent.trim() === "") {
     core.info("Output file is empty");
-    core.setOutput("output", "");
-    return;
+    // Still need to check min requirements even with empty content
+    // Don't return early, continue to validation
   }
 
   core.info(`Raw output content length: ${outputContent.length}`);

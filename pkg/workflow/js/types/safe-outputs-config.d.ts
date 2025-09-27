@@ -94,8 +94,7 @@ interface UploadAssetConfig extends SafeOutputConfig {
 /**
  * Configuration for reporting missing tools
  */
-interface MissingToolConfig extends SafeOutputConfig {
-}
+interface MissingToolConfig extends SafeOutputConfig {}
 
 // === Safe Job Configuration Interfaces ===
 

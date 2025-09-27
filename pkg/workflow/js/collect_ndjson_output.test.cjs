@@ -118,7 +118,7 @@ describe("collect_ndjson_output.js", () => {
 
     await eval(`(async () => { ${collectScript} })()`);
 
-    expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("output", '{"items":[],"errors":[]}');
     expect(mockCore.info).toHaveBeenCalledWith("Output file is empty");
   });
 

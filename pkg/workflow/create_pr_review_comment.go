@@ -91,7 +91,7 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 
 	configData := outputMap["create-pull-request-review-comment"]
 	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Side: "RIGHT"} // Default side is RIGHT
-	prReviewCommentsConfig.Max = 10 // Default max is 10
+	prReviewCommentsConfig.Max = 10                                                 // Default max is 10
 
 	if configMap, ok := configData.(map[string]any); ok {
 		// Parse common base fields

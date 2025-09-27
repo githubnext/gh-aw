@@ -23,9 +23,9 @@ func TestParseUploadAssetConfig(t *testing.T) {
 				},
 			},
 			expected: &UploadAssetsConfig{
-				BranchName:  "my-assets/${{ github.event.repository.name }}",
-				MaxSizeKB:   5120,
-				AllowedExts: []string{".jpg", ".png", ".txt"},
+				BranchName:           "my-assets/${{ github.event.repository.name }}",
+				MaxSizeKB:            5120,
+				AllowedExts:          []string{".jpg", ".png", ".txt"},
 				BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: "${{ secrets.CUSTOM_TOKEN }}"},
 			},
 		},
