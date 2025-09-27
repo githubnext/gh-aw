@@ -88,6 +88,16 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return fmt.Errorf("failed to extract MCP configurations: %w", err)
 	}
 
+	// Filter out safe-outputs MCP servers for inspection
+	// Safe-outputs are handled by the workflow compiler, not actual MCP servers
+	var filteredConfigs []parser.MCPServerConfig
+	for _, config := range mcpConfigs {
+		if config.Name != "safe-outputs" {
+			filteredConfigs = append(filteredConfigs, config)
+		}
+	}
+	mcpConfigs = filteredConfigs
+
 	if len(mcpConfigs) == 0 {
 		if serverFilter != "" {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No MCP servers matching filter '%s' found in workflow", serverFilter)))
@@ -166,7 +176,16 @@ func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
 			continue
 		}
 
-		if len(mcpConfigs) > 0 {
+		// Filter out safe-outputs MCP servers for inspection
+		// Safe-outputs are handled by the workflow compiler, not actual MCP servers
+		var filteredConfigs []parser.MCPServerConfig
+		for _, config := range mcpConfigs {
+			if config.Name != "safe-outputs" {
+				filteredConfigs = append(filteredConfigs, config)
+			}
+		}
+
+		if len(filteredConfigs) > 0 {
 			workflowsWithMCP = append(workflowsWithMCP, filepath.Base(file))
 		}
 	}
