@@ -87,6 +87,10 @@ async function main() {
         return 1000;
       case "upload-asset":
         return 10;
+      case "edit-wiki":
+        return 1;
+      case "create-wiki":
+        return 1;
       default:
         return 1;
     }
@@ -602,6 +606,26 @@ async function main() {
           if (!item.path || typeof item.path !== "string") {
             errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
             continue;
+          }
+          break;
+        case "edit-wiki":
+        case "create-wiki":
+          if (!item.path || typeof item.path !== "string") {
+            errors.push(`Line ${i + 1}: ${itemType} requires a 'path' string field`);
+            continue;
+          }
+          if (!item.content || typeof item.content !== "string") {
+            errors.push(`Line ${i + 1}: ${itemType} requires a 'content' string field`);
+            continue;
+          }
+          if (item.message !== undefined && typeof item.message !== "string") {
+            errors.push(`Line ${i + 1}: ${itemType} 'message' must be a string if provided`);
+            continue;
+          }
+          item.path = sanitizeContent(item.path);
+          item.content = sanitizeContent(item.content);
+          if (item.message) {
+            item.message = sanitizeContent(item.message);
           }
           break;
         case "create-code-scanning-alert":

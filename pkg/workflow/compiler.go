@@ -132,8 +132,9 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
-	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
-	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`         // Safe-jobs configuration (moved from top-level)
+	EditWiki                        *EditWikiConfig                        `yaml:"edit-wiki,omitempty"`      // Configuration for editing wiki pages
+	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`   // Optional for reporting missing functionality
+	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`           // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
@@ -1352,6 +1353,17 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 		if err := c.jobManager.AddJob(missingToolJob); err != nil {
 			return fmt.Errorf("failed to add missing_tool job: %w", err)
+		}
+	}
+
+	// Build edit_wiki job if output.edit-wiki is configured
+	if data.SafeOutputs.EditWiki != nil {
+		editWikiJob, err := c.buildEditWikiJob(data, jobName, taskJobCreated, frontmatter)
+		if err != nil {
+			return fmt.Errorf("failed to build edit_wiki job: %w", err)
+		}
+		if err := c.jobManager.AddJob(editWikiJob); err != nil {
+			return fmt.Errorf("failed to add edit_wiki job: %w", err)
 		}
 	}
 

@@ -479,6 +479,30 @@ jobs:
                 handler: uploadAssetHandler,
               },
               {
+                name: "edit_wiki",
+                description: "Edit a GitHub wiki page with sanitized markdown content",
+                inputSchema: {
+                  type: "object",
+                  required: ["path", "content"],
+                  properties: {
+                    path: {
+                      type: "string",
+                      description: "Wiki page path (must be within allowed path restrictions)",
+                    },
+                    content: {
+                      type: "string",
+                      description: "Markdown content for the wiki page",
+                    },
+                    message: {
+                      type: "string",
+                      description: "Optional commit message for the wiki edit",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+                handler: defaultHandler("edit_wiki"),
+              },
+              {
                 name: "missing_tool",
                 description: "Report a missing tool or functionality needed to complete tasks",
                 inputSchema: {

@@ -1656,6 +1656,38 @@
             }
           ]
         },
+        "edit-wiki": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for editing GitHub wiki pages from agentic workflow output. The main job does not need 'contents: write' permission.",
+              "properties": {
+                "path": {
+                  "type": "array",
+                  "description": "Optional path restrictions for wiki page editing. Default allows pages under workflow name folder.",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of wiki pages to edit (default: 1)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Enable wiki editing with default configuration"
+            }
+          ]
+        },
         "upload-assets": {
           "oneOf": [
             {

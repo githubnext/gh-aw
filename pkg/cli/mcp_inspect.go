@@ -101,7 +101,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 	if toolFilter != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s), looking for tool '%s'", len(mcpConfigs), toolFilter)))
 	} else {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) to inspect", len(mcpConfigs))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d MCP server(s) to inspect", len(mcpConfigs))))
 	}
 	fmt.Println()
 

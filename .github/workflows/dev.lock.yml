@@ -4,7 +4,7 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
 name: "Dev"
-"on":
+on:
   push:
     branches:
     - copilot/*
@@ -101,164 +101,13 @@ jobs:
     steps:
       - run: echo "Activation success"
 
-  add_reaction:
-    needs: activation
-    if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
-      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      (github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REACTION: eyes
-        with:
-          script: |
-            async function main() {
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const command = process.env.GITHUB_AW_COMMAND; 
-              const runId = context.runId;
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              core.info(`Reaction type: ${reaction}`);
-              core.info(`Command name: ${command || "none"}`);
-              core.info(`Run ID: ${runId}`);
-              core.info(`Run URL: ${runUrl}`);
-              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-                return;
-              }
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldEditComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    shouldEditComment = false;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    shouldEditComment = false;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                await addReaction(reactionEndpoint, reaction);
-                if (shouldEditComment && commentUpdateEndpoint) {
-                  core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
-                  await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
-                } else {
-                  if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment edit - only available for command workflows");
-                  } else {
-                    core.info(`Skipping comment edit for event type: ${eventName}`);
-                  }
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
-              }
-            }
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                core.info(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            async function editCommentWithWorkflowLink(endpoint, runUrl) {
-              try {
-                const getResponse = await github.request("GET " + endpoint, {
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                const originalBody = getResponse.data.body || "";
-                const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
-                if (originalBody.includes("*🤖 [Workflow run](")) {
-                  core.info("Comment already contains a workflow run link, skipping edit");
-                  return;
-                }
-                const updatedBody = originalBody + workflowLinkText;
-                const updateResponse = await github.request("PATCH " + endpoint, {
-                  body: updatedBody,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                core.info(`Successfully updated comment with workflow link`);
-                core.info(`Comment ID: ${updateResponse.data.id}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
-              }
-            }
-            await main();
-
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -274,7 +123,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"print":{"inputs":{"message":{"description":"Message to print","required":true,"type":"string"}}}}
+          {}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -710,6 +559,30 @@ jobs:
                 handler: uploadAssetHandler,
               },
               {
+                name: "edit_wiki",
+                description: "Edit a GitHub wiki page with sanitized markdown content",
+                inputSchema: {
+                  type: "object",
+                  required: ["path", "content"],
+                  properties: {
+                    path: {
+                      type: "string",
+                      description: "Wiki page path (must be within allowed path restrictions)",
+                    },
+                    content: {
+                      type: "string",
+                      description: "Markdown content for the wiki page",
+                    },
+                    message: {
+                      type: "string",
+                      description: "Optional commit message for the wiki edit",
+                    },
+                  },
+                  additionalProperties: false,
+                },
+                handler: defaultHandler("edit_wiki"),
+              },
+              {
                 name: "missing_tool",
                 description: "Report a missing tool or functionality needed to complete tasks",
                 inputSchema: {
@@ -880,7 +753,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{}"
         run: |
           mkdir -p /tmp/mcp-config
           mkdir -p /home/runner/.copilot
@@ -914,9 +787,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Summarize and use print the message using the `print` tool.
-          
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          Write a poem and add it to the wiki.
           
           EOF
       - name: Append safe outputs instructions to prompt
@@ -927,9 +798,17 @@ jobs:
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Editing Wiki Pages, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Editing Wiki Pages**
+          
+          To edit GitHub wiki pages:
+          1. Use the `edit-wiki` tool from the safe-outputs MCP
+          2. Provide the page name and content for the wiki page
+          3. The tool will create or update the wiki page with sanitized markdown content
+          4. Pages are restricted to configured path patterns (defaults to workflow name folder)
           
           EOF
       - name: Print prompt to step summary
@@ -1044,7 +923,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{}"
         with:
           script: |
             async function main() {
@@ -2013,30 +1892,204 @@ jobs:
               main();
             }
 
-  print:
+  edit_wiki:
     needs: agent
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    outputs:
+      wiki_pages_edited: ${{ steps.edit_wiki.outputs.wiki_pages_edited }}
+      wiki_pages_failed: ${{ steps.edit_wiki.outputs.wiki_pages_failed }}
     steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
+      - name: Edit Wiki Pages
+        id: edit_wiki
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_WORKFLOW_NAME: Dev
+          GITHUB_AW_WIKI_ALLOWED_PATHS: "dev/,docs/"
+          GITHUB_AW_WIKI_MAX: 3
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
-          name: agent_output.json
-          path: /tmp/safe-jobs/
-      - name: Setup Safe Job Environment Variables
-        run: |
-          echo "Setting up environment for safe job"
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
-      - name: See artifacts
-        run: cd /tmp/safe-jobs && ls -lR
-      - name: print message
-        run: |-
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
-            echo "print: $MESSAGE"
-            echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
-            echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
-          else
-            echo "No agent output found, using default: Hello from safe-job!"
-          fi
+          script: |
+                        const fs = require("fs");
+                        const path = require("path");
+                        const { execSync } = require("child_process");
+                        function sanitizeMarkdown(content) {
+                          if (!content || typeof content !== "string") {
+                            return "";
+                          }
+                          let sanitized = content;
+                          sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+                          sanitized = sanitized.replace(/\s*(?:on\w+|javascript:|data:)\s*=\s*["'][^"']*["']/gi, "");
+                          sanitized = sanitized.replace(/<\s*(?:form|input|textarea|select|option|button)\b[^>]*>/gi, "");
+                          sanitized = sanitized.replace(/<\/\s*(?:form|input|textarea|select|option|button)\s*>/gi, "");
+                          sanitized = sanitized.replace(/\bhref\s*=\s*["'](?!(?:https?|mailto):)[^"']*["']/gi, 'href="#"');
+                          sanitized = sanitized.replace(/\bsrc\s*=\s*["'](?!https?:)[^"']*["']/gi, 'src="#"');
+                          sanitized = sanitized.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+                          const maxLength = 500 * 1024;
+                          if (sanitized.length > maxLength) {
+                            sanitized = sanitized.substring(0, maxLength) + "\n\n*Content truncated due to length limits*";
+                          }
+                          return sanitized;
+                        }
+                        function validatePagePath(pagePath, allowedPaths, workflowName) {
+                          if (!pagePath || typeof pagePath !== "string") {
+                            return false;
+                          }
+                          const normalizedPath = pagePath.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
+                          const pathsToCheck = allowedPaths && allowedPaths.length > 0 ? allowedPaths : [workflowName];
+                          for (const allowedPath of pathsToCheck) {
+                            const normalizedAllowed = allowedPath.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
+                            if (normalizedPath === normalizedAllowed || normalizedPath.startsWith(normalizedAllowed + "/")) {
+                              return true;
+                            }
+                          }
+                          return false;
+                        }
+                        async function main() {
+                          const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+                          const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+                          if (!outputContent) {
+                            core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                            return;
+                          }
+                          if (outputContent.trim() === "") {
+                            core.info("Agent output content is empty");
+                            return;
+                          }
+                          core.info(`Agent output content length: ${outputContent.length}`);
+                          let validatedOutput;
+                          try {
+                            validatedOutput = JSON.parse(outputContent);
+                          } catch (error) {
+                            core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                            return;
+                          }
+                          if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                            core.info("No valid items found in agent output");
+                            return;
+                          }
+                          const wikiItems = validatedOutput.items.filter( item => item.type === "edit-wiki");
+                          if (wikiItems.length === 0) {
+                            core.info("No edit-wiki items found in agent output");
+                            return;
+                          }
+                          core.info(`Found ${wikiItems.length} edit-wiki item(s)`);
+                          const workflowName = process.env.GITHUB_WORKFLOW_NAME || "workflow";
+                          const allowedPathsEnv = process.env.GITHUB_AW_WIKI_ALLOWED_PATHS;
+                          const allowedPaths = allowedPathsEnv ? allowedPathsEnv.split(",").map(p => p.trim()) : [];
+                          const maxEdits = process.env.GITHUB_AW_WIKI_MAX ? parseInt(process.env.GITHUB_AW_WIKI_MAX) : 1;
+                          core.info(`Workflow name: ${workflowName}`);
+                          core.info(`Allowed paths: ${allowedPaths.length > 0 ? allowedPaths.join(", ") : "default to workflow name"}`);
+                          core.info(`Max edits: ${maxEdits}`);
+                          if (isStaged) {
+                            let summaryContent = "## 🎭 Staged Mode: Edit Wiki Pages Preview\n\n";
+                            summaryContent += "The following wiki pages would be edited if staged mode was disabled:\n\n";
+                            for (let i = 0; i < Math.min(wikiItems.length, maxEdits); i++) {
+                              const item = wikiItems[i];
+                              const isPathValid = validatePagePath(item.path, allowedPaths, workflowName);
+                              summaryContent += `### Wiki Page ${i + 1}\n`;
+                              summaryContent += `**Path:** ${item.path || "No path provided"}\n\n`;
+                              summaryContent += `**Path Valid:** ${isPathValid ? "✅ Yes" : "❌ No (restricted)"}\n\n`;
+                              summaryContent += `**Content Length:** ${item.content ? item.content.length : 0} characters\n\n`;
+                              if (item.content && item.content.length > 0) {
+                                const preview = item.content.length > 200 ? item.content.substring(0, 200) + "..." : item.content;
+                                summaryContent += `**Content Preview:**\n\`\`\`markdown\n${preview}\n\`\`\`\n\n`;
+                              }
+                              summaryContent += "---\n\n";
+                            }
+                            if (wikiItems.length > maxEdits) {
+                              summaryContent += `*Note: ${wikiItems.length - maxEdits} additional wiki page(s) would be ignored due to max limit of ${maxEdits}*\n\n`;
+                            }
+                            await core.summary.addRaw(summaryContent).write();
+                            core.info("📝 Wiki edit preview written to step summary");
+                            return;
+                          }
+                          const validWikiEdits = [];
+                          for (let i = 0; i < Math.min(wikiItems.length, maxEdits); i++) {
+                            const item = wikiItems[i];
+                            if (!item.path) {
+                              core.warning(`Wiki edit ${i + 1}: Missing path, skipping`);
+                              continue;
+                            }
+                            if (!item.content) {
+                              core.warning(`Wiki edit ${i + 1}: Missing content, skipping`);
+                              continue;
+                            }
+                            if (!validatePagePath(item.path, allowedPaths, workflowName)) {
+                              core.warning(`Wiki edit ${i + 1}: Path '${item.path}' not allowed, skipping`);
+                              continue;
+                            }
+                            const sanitizedContent = sanitizeMarkdown(item.content);
+                            if (!sanitizedContent.trim()) {
+                              core.warning(`Wiki edit ${i + 1}: Content became empty after sanitization, skipping`);
+                              continue;
+                            }
+                            validWikiEdits.push({
+                              path: item.path.trim(),
+                              content: sanitizedContent,
+                              message: item.message || `Update ${item.path} via GitHub Agentic Workflow`,
+                            });
+                          }
+                          if (validWikiEdits.length === 0) {
+                            core.info("No valid wiki edits found after validation");
+                            return;
+                          }
+                          core.info(`Processing ${validWikiEdits.length} valid wiki edit(s)`);
+                          const owner = context.repo.owner;
+                          const repo = context.repo.repo;
+                          core.info(`Repository: ${owner}/${repo}`);
+                          let successCount = 0;
+                          let errorCount = 0;
+                          for (let i = 0; i < validWikiEdits.length; i++) {
+                            const wikiEdit = validWikiEdits[i];
+                            try {
+                              core.info(`Editing wiki page ${i + 1}/${validWikiEdits.length}: ${wikiEdit.path}`);
+                              const wikiUrl = `https://github.com/${owner}/${repo}.wiki.git`;
+                              const wikiDir = `/tmp/wiki-${Date.now()}-${i}`;
+                              try {
+                                core.info(`Cloning wiki repository: ${wikiUrl}`);
+                                execSync(`git clone ${wikiUrl} ${wikiDir}`, { stdio: "pipe" });
+                              } catch (cloneError) {
+                                core.info("Wiki repository doesn't exist, creating new one");
+                                execSync(`mkdir -p ${wikiDir}`, { stdio: "pipe" });
+                                execSync(`git init`, { cwd: wikiDir, stdio: "pipe" });
+                                execSync(`git remote add origin ${wikiUrl}`, { cwd: wikiDir, stdio: "pipe" });
+                              }
+                              execSync(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
+                              execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
+                              const pageDir = path.dirname(wikiEdit.path);
+                              if (pageDir !== ".") {
+                                const fullPageDir = path.join(wikiDir, pageDir);
+                                execSync(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
+                              }
+                              const wikiPagePath = path.join(wikiDir, `${wikiEdit.path}.md`);
+                              fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
+                              execSync(`git add .`, { cwd: wikiDir, stdio: "pipe" });
+                              const status = execSync(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
+                              if (!status.trim()) {
+                                core.info(`No changes detected for wiki page: ${wikiEdit.path}`);
+                                continue;
+                              }
+                              execSync(`git commit -m "${wikiEdit.message}"`, { cwd: wikiDir, stdio: "pipe" });
+                              execSync(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
+                              execSync(`rm -rf ${wikiDir}`, { stdio: "pipe" });
+                              core.info(`✅ Successfully edited wiki page: ${wikiEdit.path}`);
+                              successCount++;
+                            } catch (error) {
+                              const errorMessage = error instanceof Error ? error.message : String(error);
+                              core.error(`❌ Failed to edit wiki page ${wikiEdit.path}: ${errorMessage}`);
+                              errorCount++;
+                            }
+                          }
+                          core.info(`Wiki editing completed: ${successCount} successful, ${errorCount} failed`);
+                          if (errorCount > 0) {
+                            core.setFailed(`Failed to edit ${errorCount} wiki page(s). See logs for details.`);
+                          } else {
+                            core.info("🎉 All wiki pages edited successfully!");
+                          }
+                        }
+                        await main();
 

@@ -13,6 +13,7 @@ import type {
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
+  EditWikiConfig,
   MissingToolConfig,
   SafeJobInput,
   SafeJobConfig,
@@ -192,6 +193,10 @@ async function main() {
         return 1000; // Allow many repository security advisories (default: unlimited)
       case "upload-asset":
         return 10; // Default to 10 assets allowed
+      case "edit-wiki":
+        return 1; // Only one wiki edit operation allowed by default
+      case "create-wiki":
+        return 1; // Only one wiki creation operation allowed by default
       default:
         return 1; // Default to single item for unknown types
     }
@@ -879,6 +884,32 @@ async function main() {
             continue;
           }
           break;
+
+        case "edit-wiki":
+        case "create-wiki":
+          // Validate required path field
+          if (!item.path || typeof item.path !== "string") {
+            errors.push(`Line ${i + 1}: ${itemType} requires a 'path' string field`);
+            continue;
+          }
+          // Validate required content field
+          if (!item.content || typeof item.content !== "string") {
+            errors.push(`Line ${i + 1}: ${itemType} requires a 'content' string field`);
+            continue;
+          }
+          // Validate optional message field (defaults to generated message if not provided)
+          if (item.message !== undefined && typeof item.message !== "string") {
+            errors.push(`Line ${i + 1}: ${itemType} 'message' must be a string if provided`);
+            continue;
+          }
+          // Sanitize text content
+          item.path = sanitizeContent(item.path);
+          item.content = sanitizeContent(item.content);
+          if (item.message) {
+            item.message = sanitizeContent(item.message);
+          }
+          break;
+
         case "create-code-scanning-alert":
           // Validate required fields
           if (!item.file || typeof item.file !== "string") {
