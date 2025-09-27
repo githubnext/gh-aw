@@ -102,6 +102,7 @@ interface MissingToolConfig extends SafeOutputConfig {}
 interface EditWikiConfig extends SafeOutputConfig {
   path?: string[];
   max?: number;
+  min?: number;
   "github-token"?: string;
 }
 

@@ -9,6 +9,7 @@ import (
 type EditWikiConfig struct {
 	Path        []string `yaml:"path,omitempty"`         // Optional path restriction (defaults to workflowid/)
 	Max         int      `yaml:"max,omitempty"`          // Maximum number of wiki edits to perform
+	Min         int      `yaml:"min,omitempty"`          // Minimum number of wiki edits to perform (default: 0)
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
@@ -35,6 +36,13 @@ func (c *Compiler) parseEditWikiConfig(outputMap map[string]any) *EditWikiConfig
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := parseIntValue(max); ok {
 					editWikiConfig.Max = maxInt
+				}
+			}
+
+			// Parse min
+			if min, exists := configMap["min"]; exists {
+				if minInt, ok := parseIntValue(min); ok {
+					editWikiConfig.Min = minInt
 				}
 			}
 
