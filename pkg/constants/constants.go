@@ -138,3 +138,18 @@ var DefaultGitHubTools = []string{
 	"list_starred_repositories",
 	"list_sub_issues",
 }
+
+// DefaultBashTools defines basic bash commands that should be available by default when bash is enabled
+var DefaultBashTools = []string{
+	"echo",
+	"ls",
+	"pwd",
+	"cat",
+	"head",
+	"tail",
+	"grep",
+	"wc",
+	"sort",
+	"uniq",
+	"date",
+}

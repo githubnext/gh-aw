@@ -51,6 +51,20 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			},
 			safeOutputs: nil,
 		},
+		{
+			name: "bash enabled with empty list",
+			tools: map[string]any{
+				"bash": []any{},
+			},
+			safeOutputs: nil,
+		},
+		{
+			name: "bash enabled with true",
+			tools: map[string]any{
+				"bash": true,
+			},
+			safeOutputs: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -110,7 +124,7 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			}
 
 			// Log detailed analysis for debugging
-			t.Logf("Analysis - Claude has bash: %v (git: %v), Copilot has shell: %v (git: %v)", 
+			t.Logf("Analysis - Claude has bash: %v (git: %v), Copilot has shell: %v (git: %v)",
 				claudeHasBash, claudeHasGit, copilotHasShell, copilotHasGit)
 
 			// Both engines should agree on whether bash/shell tools are present
