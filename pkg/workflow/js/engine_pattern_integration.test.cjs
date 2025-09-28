@@ -108,7 +108,7 @@ describe("Engine Pattern Integration Tests", () => {
       expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Authentication failed"));
     });
 
-    it("should detect case-insensitive permission errors", () => {
+    it("should detect case-insensitive permission warnings", () => {
       const logContent = `Unauthorized access to resource
 PERMISSION DENIED for user
 Access is forbidden`;
@@ -186,7 +186,7 @@ Warning: Deprecated feature used`;
       expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("Cannot find module"));
     });
 
-    it("should detect NPM errors", () => {
+    it("should detect NPM error messages as warnings", () => {
       const logContent = `npm ERR! code EACCES
 npm ERR! Permission denied
 npm WARN deprecated package@1.0.0`;
@@ -224,7 +224,7 @@ npm WARN deprecated package@1.0.0`;
       }
     ];
 
-    it("should detect Claude permission errors", () => {
+    it("should detect Claude permission issues as warnings", () => {
       const logContent = `Access denied - user testuser not authorized for this action
 Repository permission check failed for write access
 Forbidden: Cannot modify protected branch`;
