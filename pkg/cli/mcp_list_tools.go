@@ -180,22 +180,20 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 
 	fmt.Printf("\n%s\n", console.FormatInfoMessage(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
 
+	// Create a map for quick lookup of allowed tools
+	allowedMap := make(map[string]bool)
+	for _, allowed := range info.Config.Allowed {
+		allowedMap[allowed] = true
+	}
+
 	if verbose {
-		// Detailed table with descriptions
+		// Detailed table with full descriptions
 		headers := []string{"Tool Name", "Allow", "Description"}
 		rows := make([][]string, 0, len(info.Tools))
 
-		// Create a map for quick lookup of allowed tools
-		allowedMap := make(map[string]bool)
-		for _, allowed := range info.Config.Allowed {
-			allowedMap[allowed] = true
-		}
-
 		for _, tool := range info.Tools {
+			// In verbose mode, show full descriptions without truncation
 			description := tool.Description
-			if len(description) > maxDescriptionLength {
-				description = description[:truncationLength] + "..."
-			}
 
 			// Determine status
 			status := "🚫"
@@ -225,14 +223,25 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 		fmt.Printf("\n📊 Summary: %d allowed, %d not allowed out of %d total tools\n",
 			allowedCount, len(info.Tools)-allowedCount, len(info.Tools))
 	} else {
-		// Simple list of tool names
-		for i, tool := range info.Tools {
-			fmt.Printf("%d. %s", i+1, tool.Name)
-			if tool.Description != "" {
-				fmt.Printf(" - %s", tool.Description)
+		// Compact table with truncated descriptions for single-line display
+		headers := []string{"Tool Name", "Description"}
+		rows := make([][]string, 0, len(info.Tools))
+
+		for _, tool := range info.Tools {
+			// In non-verbose mode, truncate descriptions to keep tools on single lines
+			description := tool.Description
+			if len(description) > maxDescriptionLength {
+				description = description[:truncationLength] + "..."
 			}
-			fmt.Println()
+
+			rows = append(rows, []string{tool.Name, description})
 		}
+
+		table := console.RenderTable(console.TableConfig{
+			Headers: headers,
+			Rows:    rows,
+		})
+		fmt.Print(table)
 		fmt.Printf("\nRun with --verbose for detailed information\n")
 	}
 }
