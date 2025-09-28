@@ -196,35 +196,35 @@ describe("edit_wiki_page.cjs", () => {
       }
     });
 
-    it("should add pages/ prefix and .md extension to simple path", () => {
-      expect(normalizeWikiFilePath("readme")).toBe("pages/readme.md");
-      expect(normalizeWikiFilePath("api-guide")).toBe("pages/api-guide.md");
+    it("should add .md extension to simple path", () => {
+      expect(normalizeWikiFilePath("readme")).toBe("readme.md");
+      expect(normalizeWikiFilePath("api-guide")).toBe("api-guide.md");
     });
 
     it("should handle paths with subdirectories", () => {
-      expect(normalizeWikiFilePath("docs/readme")).toBe("pages/docs/readme.md");
-      expect(normalizeWikiFilePath("api/v1/guide")).toBe("pages/api/v1/guide.md");
+      expect(normalizeWikiFilePath("docs/readme")).toBe("docs/readme.md");
+      expect(normalizeWikiFilePath("api/v1/guide")).toBe("api/v1/guide.md");
     });
 
     it("should remove leading slashes to enforce relative paths", () => {
-      expect(normalizeWikiFilePath("/readme")).toBe("pages/readme.md");
-      expect(normalizeWikiFilePath("///docs/readme")).toBe("pages/docs/readme.md");
-      expect(normalizeWikiFilePath("/api/guide")).toBe("pages/api/guide.md");
+      expect(normalizeWikiFilePath("/readme")).toBe("readme.md");
+      expect(normalizeWikiFilePath("///docs/readme")).toBe("docs/readme.md");
+      expect(normalizeWikiFilePath("/api/guide")).toBe("api/guide.md");
     });
 
     it("should remove trailing slashes", () => {
-      expect(normalizeWikiFilePath("readme/")).toBe("pages/readme.md");
-      expect(normalizeWikiFilePath("docs/readme///")).toBe("pages/docs/readme.md");
+      expect(normalizeWikiFilePath("readme/")).toBe("readme.md");
+      expect(normalizeWikiFilePath("docs/readme///")).toBe("docs/readme.md");
     });
 
     it("should not duplicate .md extension", () => {
-      expect(normalizeWikiFilePath("readme.md")).toBe("pages/readme.md");
-      expect(normalizeWikiFilePath("docs/guide.md")).toBe("pages/docs/guide.md");
+      expect(normalizeWikiFilePath("readme.md")).toBe("readme.md");
+      expect(normalizeWikiFilePath("docs/guide.md")).toBe("docs/guide.md");
     });
 
     it("should handle complex cases with leading/trailing slashes and existing extension", () => {
-      expect(normalizeWikiFilePath("/docs/readme.md/")).toBe("pages/docs/readme.md");
-      expect(normalizeWikiFilePath("///api/guide.md///")).toBe("pages/api/guide.md");
+      expect(normalizeWikiFilePath("/docs/readme.md/")).toBe("docs/readme.md");
+      expect(normalizeWikiFilePath("///api/guide.md///")).toBe("api/guide.md");
     });
 
     it("should throw error for invalid inputs", () => {
@@ -267,7 +267,7 @@ describe("edit_wiki_page.cjs", () => {
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Error parsing agent output JSON"));
     });
 
-    it("should handle no edit-wiki items", async () => {
+    it("should handle no edit-wiki-page items", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           { type: "create-issue", title: "Test" },
@@ -277,12 +277,12 @@ describe("edit_wiki_page.cjs", () => {
 
       await import("./edit_wiki_page.cjs");
 
-      expect(mockCore.info).toHaveBeenCalledWith("No edit-wiki items found in agent output");
+      expect(mockCore.info).toHaveBeenCalledWith("No edit-wiki-page items found in agent output");
     });
 
     it("should handle staged mode", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "edit-wiki", path: "docs/test", content: "# Test Page" }],
+        items: [{ type: "edit-wiki-page", path: "docs/test", content: "# Test Page" }],
       });
       process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
       process.env.GITHUB_WORKFLOW_NAME = "test-workflow";
@@ -297,10 +297,10 @@ describe("edit_wiki_page.cjs", () => {
     it("should validate wiki items", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
-          { type: "edit-wiki", path: "", content: "# Test" }, // Missing path
-          { type: "edit-wiki", path: "docs/test", content: "" }, // Missing content
-          { type: "edit-wiki", path: "restricted/path", content: "# Test" }, // Restricted path
-          { type: "edit-wiki", path: "test-workflow/valid", content: "# Valid" }, // Valid
+          { type: "edit-wiki-page", path: "", content: "# Test" }, // Missing path
+          { type: "edit-wiki-page", path: "docs/test", content: "" }, // Missing content
+          { type: "edit-wiki-page", path: "restricted/path", content: "# Test" }, // Restricted path
+          { type: "edit-wiki-page", path: "test-workflow/valid", content: "# Valid" }, // Valid
         ],
       });
       process.env.GITHUB_WORKFLOW_NAME = "test-workflow";
@@ -315,9 +315,9 @@ describe("edit_wiki_page.cjs", () => {
     it("should respect max limit", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
-          { type: "edit-wiki", path: "test-workflow/page1", content: "# Page 1" },
-          { type: "edit-wiki", path: "test-workflow/page2", content: "# Page 2" },
-          { type: "edit-wiki", path: "test-workflow/page3", content: "# Page 3" },
+          { type: "edit-wiki-page", path: "test-workflow/page1", content: "# Page 1" },
+          { type: "edit-wiki-page", path: "test-workflow/page2", content: "# Page 2" },
+          { type: "edit-wiki-page", path: "test-workflow/page3", content: "# Page 3" },
         ],
       });
       process.env.GITHUB_WORKFLOW_NAME = "test-workflow";

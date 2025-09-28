@@ -43,7 +43,7 @@ function sanitizeMarkdown(content) {
 /**
  * Normalizes wiki file path for proper GitHub wiki structure
  * @param {string} inputPath - The input path from user
- * @returns {string} Normalized path with pages/ prefix and .md extension
+ * @returns {string} Normalized path with .md extension
  */
 function normalizeWikiFilePath(inputPath) {
   if (!inputPath || typeof inputPath !== "string") {
@@ -61,8 +61,8 @@ function normalizeWikiFilePath(inputPath) {
     normalizedPath += ".md";
   }
 
-  // Prepend pages/ directory
-  const fullPath = `pages/${normalizedPath}`;
+  // Return the path without forcing pages/ directory
+  const fullPath = normalizedPath;
 
   return fullPath;
 }
@@ -129,10 +129,10 @@ async function main() {
     return;
   }
 
-  // Find all edit-wiki items
-  const wikiItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "edit-wiki");
+  // Find all edit-wiki-page items
+  const wikiItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "edit-wiki-page");
   if (wikiItems.length === 0) {
-    core.info("No edit-wiki items found in agent output");
+    core.info("No edit-wiki-page items found in agent output");
     return;
   }
 
@@ -269,7 +269,7 @@ async function main() {
       execSync(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
       execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
 
-      // Normalize the wiki file path (adds pages/ prefix and .md extension)
+      // Normalize the wiki file path (adds .md extension and ensures relative path)
       const normalizedFilePath = normalizeWikiFilePath(wikiEdit.path);
       core.info(`Normalized wiki file path: ${normalizedFilePath}`);
 
