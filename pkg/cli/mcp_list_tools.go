@@ -182,7 +182,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 
 	// Create a map for quick lookup of allowed tools from workflow configuration
 	allowedMap := make(map[string]bool)
-	
+
 	// Check for wildcard "*" which means all tools are allowed
 	hasWildcard := false
 	for _, allowed := range info.Config.Allowed {

@@ -511,7 +511,7 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 		t.Error("Should generate error validation step with engine patterns")
 	}
 
-	// Test with no engine config and engine that doesn't support error validation
+	// Test with no engine config but engine that has built-in error patterns (like Claude)
 	dataEmpty2 := &WorkflowData{
 		EngineConfig: nil,
 	}
@@ -521,8 +521,8 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 
 	generated3 := yamlBuilder3.String()
 
-	// Should not generate any validation step
-	if strings.Contains(generated3, "Validate agent logs for errors") {
-		t.Error("Should not generate error validation step without patterns")
+	// Should generate validation step with engine's built-in patterns since Claude now supports error validation
+	if !strings.Contains(generated3, "Validate agent logs for errors") {
+		t.Error("Should generate error validation step with engine's built-in patterns")
 	}
 }

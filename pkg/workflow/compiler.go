@@ -1067,7 +1067,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// Add default bash commands when bash is enabled but no specific commands are provided
 	// This runs after git commands logic, so it only applies when git commands weren't added
 	// Behavior:
-	//   - bash: true or bash: nil → Add default commands  
+	//   - bash: true or bash: nil → Add default commands
 	//   - bash: [] → No commands (empty array means no tools allowed)
 	//   - bash: ["cmd1", "cmd2"] → Keep specific commands as-is
 	if bashTool, exists := tools["bash"]; exists {
