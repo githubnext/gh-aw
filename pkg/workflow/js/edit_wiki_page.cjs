@@ -1,6 +1,59 @@
 const fs = require("fs");
 const path = require("path");
-const { execSync } = require("child_process");
+const child_process = require("child_process");
+
+/**
+ * Run a shell command synchronously while logging the command and its output.
+ * Keeps behavior similar to child_process.execSync but logs stdout/stderr
+ * and rethrows errors after logging useful information.
+ *
+ * @param {string} cmd - The shell command to run
+ * @param {object} [options] - Options passed to execSync
+ * @returns {string|Buffer} The command stdout (string when encoding present)
+ */
+function runCmd(cmd, options = {}) {
+  // Prefer the existing `core` logger if available (this module runs inside GH Actions),
+  // otherwise fall back to console.
+  const info = typeof core !== "undefined" && core && core.info ? core.info.bind(core) : console.log.bind(console);
+  const error = typeof core !== "undefined" && core && core.error ? core.error.bind(core) : console.error.bind(console);
+
+  try {
+    info(`$ ${cmd}`);
+
+    const result = child_process.execSync(cmd, options);
+
+    // Normalize Buffer -> string for easier logging/consumption.
+    let out = result;
+    if (Buffer.isBuffer(result)) {
+      const enc = options && options.encoding ? options.encoding : "utf8";
+      out = result.toString(enc);
+    }
+
+    if (out && String(out).trim()) {
+      info(`stdout: ${String(out).trim()}`);
+    }
+
+    return out;
+  } catch (err) {
+    // err may contain stdout/stderr buffers on execSync failures
+    const stdout = err && err.stdout ? (Buffer.isBuffer(err.stdout) ? err.stdout.toString("utf8") : String(err.stdout)) : "";
+    const stderr = err && err.stderr ? (Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8") : String(err.stderr)) : "";
+
+    if (stdout && stdout.trim()) {
+      error(`stdout: ${stdout.trim()}`);
+    }
+    if (stderr && stderr.trim()) {
+      error(`stderr: ${stderr.trim()}`);
+    }
+
+    const status = err && typeof err.status === "number" ? err.status : "unknown";
+    error(`Command failed: ${cmd}`);
+    error(`Exit code: ${status}`);
+
+    // Rethrow so existing callers' error handling still works
+    throw err;
+  }
+}
 
 /**
  * Sanitizes markdown content for wiki pages
@@ -253,21 +306,21 @@ async function main() {
 
       // Clone the wiki repository (it might not exist yet)
 
-      try {
+        try {
         core.info(`Cloning wiki repository: ${wikiUrl}`);
-        execSync(`git clone ${wikiUrl} ${wikiDir}`, { stdio: "pipe" });
+        runCmd(`git clone ${wikiUrl} ${wikiDir}`, { stdio: "pipe" });
       } catch (cloneError) {
         // Wiki doesn't exist yet, create it
         core.info("Wiki repository doesn't exist, creating new one");
-        execSync(`mkdir -p ${wikiDir}`, { stdio: "pipe" });
+        runCmd(`mkdir -p ${wikiDir}`, { stdio: "pipe" });
         // Initialize git repository in the created directory
-        execSync(`git init`, { cwd: wikiDir, stdio: "pipe" });
-        execSync(`git remote add origin ${wikiUrl}`, { cwd: wikiDir, stdio: "pipe" });
+        runCmd(`git init`, { cwd: wikiDir, stdio: "pipe" });
+        runCmd(`git remote add origin ${wikiUrl}`, { cwd: wikiDir, stdio: "pipe" });
       }
 
       // Configure git user (required for commits)
-      execSync(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
-      execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
+  runCmd(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
+  runCmd(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
 
       // Normalize the wiki file path (adds .md extension and ensures relative path)
       const normalizedFilePath = normalizeWikiFilePath(wikiEdit.path);
@@ -277,7 +330,7 @@ async function main() {
       const pageDir = path.dirname(normalizedFilePath);
       if (pageDir !== ".") {
         const fullPageDir = path.join(wikiDir, pageDir);
-        execSync(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
+        runCmd(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
       }
 
       // Write the content to the wiki page
@@ -285,20 +338,20 @@ async function main() {
       fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
 
       // Commit and push the changes
-      execSync(`git add .`, { cwd: wikiDir, stdio: "pipe" });
+  runCmd(`git add .`, { cwd: wikiDir, stdio: "pipe" });
 
       // Check if there are changes to commit
-      const status = execSync(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
+      const status = runCmd(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
       if (!status.trim()) {
         core.info(`No changes detected for wiki page: ${wikiEdit.path}`);
         continue;
       }
 
-      execSync(`git commit -m "${wikiEdit.message}"`, { cwd: wikiDir, stdio: "pipe" });
-      execSync(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
+      runCmd(`git commit -m "${wikiEdit.message}"`, { cwd: wikiDir, stdio: "pipe" });
+      runCmd(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
 
       // Clean up temporary directory
-      execSync(`rm -rf ${wikiDir}`, { stdio: "pipe" });
+      runCmd(`rm -rf ${wikiDir}`, { stdio: "pipe" });
 
       core.info(`✅ Successfully edited wiki page: ${wikiEdit.path}`);
       successCount++;
