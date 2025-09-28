@@ -52,7 +52,7 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			safeOutputs: nil,
 		},
 		{
-			name: "bash enabled with empty list",
+			name: "bash with empty array (no tools)",
 			tools: map[string]any{
 				"bash": []any{},
 			},
