@@ -106,13 +106,40 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 	})
 
-	// Test ClaudeEngine default behavior (should return empty error patterns)
-	t.Run("ClaudeEngine_no_error_validation", func(t *testing.T) {
+	// Test ClaudeEngine error validation support (now includes permission error patterns)
+	t.Run("ClaudeEngine_error_validation", func(t *testing.T) {
 		engine := NewClaudeEngine()
 
 		patterns := engine.GetErrorPatterns()
-		if len(patterns) != 0 {
-			t.Errorf("ClaudeEngine should return empty error patterns, got %d", len(patterns))
+		if len(patterns) == 0 {
+			t.Error("ClaudeEngine should return permission error patterns")
+		}
+
+		// Verify permission patterns are present
+		foundPermissionDenied := false
+		foundUnauthorized := false
+		foundForbidden := false
+
+		for _, pattern := range patterns {
+			if strings.Contains(strings.ToLower(pattern.Description), "permission denied") {
+				foundPermissionDenied = true
+			}
+			if strings.Contains(strings.ToLower(pattern.Description), "unauthorized") {
+				foundUnauthorized = true
+			}
+			if strings.Contains(strings.ToLower(pattern.Description), "forbidden") {
+				foundForbidden = true
+			}
+		}
+
+		if !foundPermissionDenied {
+			t.Error("Missing permission denied pattern")
+		}
+		if !foundUnauthorized {
+			t.Error("Missing unauthorized pattern")
+		}
+		if !foundForbidden {
+			t.Error("Missing forbidden pattern")
 		}
 	})
 
