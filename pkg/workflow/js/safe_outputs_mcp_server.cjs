@@ -539,8 +539,21 @@ const TOOLS = {};
 
 // Add predefined tools that are enabled in configuration
 ALL_TOOLS.forEach(tool => {
-  if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-    TOOLS[tool.name] = tool;
+  const configKey = Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name);
+  if (configKey) {
+    // Clone the tool to avoid modifying the original
+    const clonedTool = JSON.parse(JSON.stringify(tool));
+    
+    // Special handling for edit_wiki_page to dynamically update description with allowed paths
+    if (tool.name === "edit_wiki_page") {
+      const wikiConfig = safeOutputsConfig[configKey];
+      if (wikiConfig && wikiConfig.path && wikiConfig.path.length > 0) {
+        clonedTool.description = `Edit a GitHub wiki page with sanitized markdown content. Allowed paths: ${wikiConfig.path.join(', ')}`;
+        clonedTool.inputSchema.properties.path.description = `Wiki page path (must start with one of: ${wikiConfig.path.join(', ')})`;
+      }
+    }
+    
+    TOOLS[tool.name] = clonedTool;
   }
 });
 

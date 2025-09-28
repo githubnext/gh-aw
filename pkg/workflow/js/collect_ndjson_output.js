@@ -624,6 +624,18 @@ async function main() {
                         errors.push(`Line ${i + 1}: ${itemType} 'message' must be a string if provided`);
                         continue;
                     }
+                    const wikiConfig = expectedOutputTypes["edit-wiki-page"];
+                    if (wikiConfig && wikiConfig.path && wikiConfig.path.length > 0) {
+                        const normalizedPath = item.path.replace(/^\/+/, '');
+                        const isPathAllowed = wikiConfig.path.some(allowedPath => {
+                            const normalizedAllowed = allowedPath.replace(/^\/+/, '').replace(/\/+$/, '');
+                            return normalizedPath.startsWith(normalizedAllowed + '/') || normalizedPath === normalizedAllowed;
+                        });
+                        if (!isPathAllowed) {
+                            errors.push(`Line ${i + 1}: ${itemType} path '${item.path}' is not allowed. Must start with one of: ${wikiConfig.path.join(', ')}`);
+                            continue;
+                        }
+                    }
                     item.path = sanitizeContent(item.path);
                     item.content = sanitizeContent(item.content);
                     if (item.message) {
