@@ -61,7 +61,7 @@ vi.mock("fs", () => ({
   mkdirSync: vi.fn(),
 }));
 
-describe("edit_wiki.cjs", () => {
+describe("edit_wiki_page.cjs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -75,8 +75,8 @@ describe("edit_wiki.cjs", () => {
     let sanitizeMarkdown;
 
     beforeEach(async () => {
-      // Load the edit_wiki.cjs file and extract the sanitizeMarkdown function
-      const editWikiPath = path.join(__dirname, "edit_wiki.cjs");
+      // Load the edit_wiki_page.cjs file and extract the sanitizeMarkdown function
+      const editWikiPath = path.join(__dirname, "edit_wiki_page.cjs");
       const content = await fs.promises.readFile(editWikiPath, "utf8");
 
       // Extract and eval the sanitizeMarkdown function
@@ -136,8 +136,8 @@ describe("edit_wiki.cjs", () => {
     let validatePagePath;
 
     beforeEach(async () => {
-      // Load the edit_wiki.cjs file and extract the validatePagePath function
-      const editWikiPath = path.join(__dirname, "edit_wiki.cjs");
+      // Load the edit_wiki_page.cjs file and extract the validatePagePath function
+      const editWikiPath = path.join(__dirname, "edit_wiki_page.cjs");
       const content = await fs.promises.readFile(editWikiPath, "utf8");
 
       // Extract and eval the validatePagePath function
@@ -184,8 +184,8 @@ describe("edit_wiki.cjs", () => {
     let normalizeWikiFilePath;
 
     beforeEach(async () => {
-      // Load the edit_wiki.cjs file and extract the normalizeWikiFilePath function
-      const editWikiPath = path.join(__dirname, "edit_wiki.cjs");
+      // Load the edit_wiki_page.cjs file and extract the normalizeWikiFilePath function
+      const editWikiPath = path.join(__dirname, "edit_wiki_page.cjs");
       const content = await fs.promises.readFile(editWikiPath, "utf8");
 
       // Extract and eval the normalizeWikiFilePath function
@@ -246,7 +246,7 @@ describe("edit_wiki.cjs", () => {
       delete process.env.GITHUB_AW_AGENT_OUTPUT;
 
       // Import and run the edit_wiki script
-      await import("./edit_wiki.cjs");
+      await import("./edit_wiki_page.cjs");
 
       expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     });
@@ -254,7 +254,7 @@ describe("edit_wiki.cjs", () => {
     it("should handle empty agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "";
 
-      await import("./edit_wiki.cjs");
+      await import("./edit_wiki_page.cjs");
 
       expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     });
@@ -262,7 +262,7 @@ describe("edit_wiki.cjs", () => {
     it("should handle invalid JSON in agent output", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
 
-      await import("./edit_wiki.cjs");
+      await import("./edit_wiki_page.cjs");
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Error parsing agent output JSON"));
     });
@@ -275,7 +275,7 @@ describe("edit_wiki.cjs", () => {
         ],
       });
 
-      await import("./edit_wiki.cjs");
+      await import("./edit_wiki_page.cjs");
 
       expect(mockCore.info).toHaveBeenCalledWith("No edit-wiki items found in agent output");
     });
@@ -287,7 +287,7 @@ describe("edit_wiki.cjs", () => {
       process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
       process.env.GITHUB_WORKFLOW_NAME = "test-workflow";
 
-      await import("./edit_wiki.cjs");
+      await import("./edit_wiki_page.cjs");
 
       expect(mockCore.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("🎭 Staged Mode: Edit Wiki Pages Preview"));
       expect(mockCore.summary.write).toHaveBeenCalled();
@@ -305,7 +305,7 @@ describe("edit_wiki.cjs", () => {
       });
       process.env.GITHUB_WORKFLOW_NAME = "test-workflow";
 
-      await import("./edit_wiki.cjs");
+      await import("./edit_wiki_page.cjs");
 
       expect(mockCore.warning).toHaveBeenCalledWith("Wiki edit 1: Missing path, skipping");
       expect(mockCore.warning).toHaveBeenCalledWith("Wiki edit 2: Missing content, skipping");
@@ -323,7 +323,7 @@ describe("edit_wiki.cjs", () => {
       process.env.GITHUB_WORKFLOW_NAME = "test-workflow";
       process.env.GITHUB_AW_WIKI_MAX = "2";
 
-      await import("./edit_wiki.cjs");
+      await import("./edit_wiki_page.cjs");
 
       // Should only process 2 items due to max limit
       expect(mockCore.info).toHaveBeenCalledWith("Processing 2 valid wiki edit(s)");

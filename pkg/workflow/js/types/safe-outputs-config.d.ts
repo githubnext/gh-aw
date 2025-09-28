@@ -99,7 +99,7 @@ interface MissingToolConfig extends SafeOutputConfig {}
 /**
  * Configuration for editing wiki pages
  */
-interface EditWikiConfig extends SafeOutputConfig {
+interface EditWikiPageConfig extends SafeOutputConfig {
   path?: string[];
   max?: number;
   min?: number;
@@ -147,7 +147,7 @@ type SpecificSafeOutputConfig =
   | UpdateIssueConfig
   | PushToPullRequestBranchConfig
   | UploadAssetConfig
-  | EditWikiConfig
+  | EditWikiPageConfig
   | MissingToolConfig;
 
 type SafeOutputConfigs = Record<string, SafeOutputConfig | SpecificSafeOutputConfig>;
@@ -166,7 +166,7 @@ export {
   UpdateIssueConfig,
   PushToPullRequestBranchConfig,
   UploadAssetConfig,
-  EditWikiConfig,
+  EditWikiPageConfig,
   MissingToolConfig,
   SpecificSafeOutputConfig,
   // Safe job configuration types

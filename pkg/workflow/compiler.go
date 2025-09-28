@@ -139,7 +139,7 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
-	EditWiki                        *EditWikiConfig                        `yaml:"edit-wiki,omitempty"`      // Configuration for editing wiki pages
+	EditWikiPage                    *EditWikiPageConfig                    `yaml:"edit-wiki-page,omitempty"` // Configuration for editing wiki pages
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`   // Optional for reporting missing functionality
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`           // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
@@ -1363,13 +1363,13 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build edit_wiki job if output.edit-wiki is configured
-	if data.SafeOutputs.EditWiki != nil {
-		editWikiJob, err := c.buildEditWikiJob(data, jobName, taskJobCreated, frontmatter)
+	// Build edit_wiki_page job if output.edit-wiki-page is configured
+	if data.SafeOutputs.EditWikiPage != nil {
+		editWikiPageJob, err := c.buildEditWikiPageJob(data, jobName, taskJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build edit_wiki job: %w", err)
 		}
-		if err := c.jobManager.AddJob(editWikiJob); err != nil {
+		if err := c.jobManager.AddJob(editWikiPageJob); err != nil {
 			return fmt.Errorf("failed to add edit_wiki job: %w", err)
 		}
 	}
@@ -2277,15 +2277,15 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["upload-asset"] = uploadConfig
 		}
-		if data.SafeOutputs.EditWiki != nil {
-			editWikiConfig := map[string]any{}
-			if len(data.SafeOutputs.EditWiki.Path) > 0 {
-				editWikiConfig["path"] = data.SafeOutputs.EditWiki.Path
+		if data.SafeOutputs.EditWikiPage != nil {
+			editWikiPageConfig := map[string]any{}
+			if len(data.SafeOutputs.EditWikiPage.Path) > 0 {
+				editWikiPageConfig["path"] = data.SafeOutputs.EditWikiPage.Path
 			}
-			if data.SafeOutputs.EditWiki.Max > 0 {
-				editWikiConfig["max"] = data.SafeOutputs.EditWiki.Max
+			if data.SafeOutputs.EditWikiPage.Max > 0 {
+				editWikiPageConfig["max"] = data.SafeOutputs.EditWikiPage.Max
 			}
-			safeOutputsConfig["edit-wiki"] = editWikiConfig
+			safeOutputsConfig["edit-wiki-page"] = editWikiPageConfig
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}

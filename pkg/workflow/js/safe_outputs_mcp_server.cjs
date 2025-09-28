@@ -488,7 +488,7 @@ const ALL_TOOLS = [
     handler: uploadAssetHandler,
   },
   {
-    name: "edit_wiki",
+    name: "edit_wiki_page",
     description: "Edit a GitHub wiki page with sanitized markdown content",
     inputSchema: {
       type: "object",
@@ -509,7 +509,7 @@ const ALL_TOOLS = [
       },
       additionalProperties: false,
     },
-    handler: defaultHandler("edit_wiki"),
+    handler: defaultHandler("edit_wiki_page"),
   },
   {
     name: "missing_tool",

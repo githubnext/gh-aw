@@ -17,7 +17,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
-		safeOutputs.EditWiki != nil ||
+		safeOutputs.EditWikiPage != nil ||
 		safeOutputs.MissingTool != nil ||
 		len(safeOutputs.Jobs) > 0
 }
@@ -92,7 +92,7 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		written = true
 	}
 
-	if safeOutputs.EditWiki != nil {
+	if safeOutputs.EditWikiPage != nil {
 		if written {
 			yaml.WriteString(", ")
 		}
@@ -179,11 +179,11 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          \n")
 	}
 
-	if safeOutputs.EditWiki != nil {
+	if safeOutputs.EditWikiPage != nil {
 		yaml.WriteString("          **Editing Wiki Pages**\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          To edit GitHub wiki pages:\n")
-		yaml.WriteString("          1. Use the `edit-wiki` tool from the safe-outputs MCP\n")
+		yaml.WriteString("          1. Use the `edit-wiki-page` tool from the safe-outputs MCP\n")
 		yaml.WriteString("          2. Provide the page name and content for the wiki page\n")
 		yaml.WriteString("          3. The tool will create or update the wiki page with sanitized markdown content\n")
 		yaml.WriteString("          4. Pages are restricted to configured path patterns (defaults to workflow name folder)\n")
@@ -361,10 +361,10 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadAssets = uploadAssetsConfig
 			}
 
-			// Handle edit-wiki
-			editWikiConfig := c.parseEditWikiConfig(outputMap)
+			// Handle edit-wiki-page
+			editWikiConfig := c.parseEditWikiPageConfig(outputMap)
 			if editWikiConfig != nil {
-				config.EditWiki = editWikiConfig
+				config.EditWikiPage = editWikiConfig
 			}
 
 			// Handle missing-tool (parse configuration if present)

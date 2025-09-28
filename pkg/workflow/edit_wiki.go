@@ -5,18 +5,18 @@ import (
 	"strings"
 )
 
-// EditWikiConfig holds configuration for editing GitHub wiki pages from agent output
-type EditWikiConfig struct {
+// EditWikiPageConfig holds configuration for editing GitHub wiki pages from agent output
+type EditWikiPageConfig struct {
 	Path        []string `yaml:"path,omitempty"`         // Optional path restriction (defaults to workflowid/)
 	Max         int      `yaml:"max,omitempty"`          // Maximum number of wiki edits to perform
 	Min         int      `yaml:"min,omitempty"`          // Minimum number of wiki edits to perform (default: 0)
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 }
 
-// parseEditWikiConfig handles edit-wiki configuration
-func (c *Compiler) parseEditWikiConfig(outputMap map[string]any) *EditWikiConfig {
-	if configData, exists := outputMap["edit-wiki"]; exists {
-		editWikiConfig := &EditWikiConfig{Max: 1} // Default max is 1
+// parseEditWikiPageConfig handles edit-wiki-page configuration
+func (c *Compiler) parseEditWikiPageConfig(outputMap map[string]any) *EditWikiPageConfig {
+	if configData, exists := outputMap["edit-wiki-page"]; exists {
+		editWikiPageConfig := &EditWikiPageConfig{Max: 1} // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
 			// Parse path
@@ -28,50 +28,50 @@ func (c *Compiler) parseEditWikiConfig(outputMap map[string]any) *EditWikiConfig
 							pathStrings = append(pathStrings, pathStr)
 						}
 					}
-					editWikiConfig.Path = pathStrings
+					editWikiPageConfig.Path = pathStrings
 				}
 			}
 
 			// Parse max
 			if max, exists := configMap["max"]; exists {
 				if maxInt, ok := parseIntValue(max); ok {
-					editWikiConfig.Max = maxInt
+					editWikiPageConfig.Max = maxInt
 				}
 			}
 
 			// Parse min
 			if min, exists := configMap["min"]; exists {
 				if minInt, ok := parseIntValue(min); ok {
-					editWikiConfig.Min = minInt
+					editWikiPageConfig.Min = minInt
 				}
 			}
 
 			// Parse github-token
 			if githubToken, exists := configMap["github-token"]; exists {
 				if githubTokenStr, ok := githubToken.(string); ok {
-					editWikiConfig.GitHubToken = githubTokenStr
+					editWikiPageConfig.GitHubToken = githubTokenStr
 				}
 			}
 		} else if configData == nil {
 			// Handle null case: create empty config with defaults
-			editWikiConfig = &EditWikiConfig{Max: 1}
+			editWikiPageConfig = &EditWikiPageConfig{Max: 1}
 		}
 
-		return editWikiConfig
+		return editWikiPageConfig
 	}
 	return nil
 }
 
-// buildEditWikiJob creates the edit_wiki job
-func (c *Compiler) buildEditWikiJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.EditWiki == nil {
-		return nil, fmt.Errorf("safe-outputs.edit-wiki configuration is required")
+// buildEditWikiPageJob creates the edit_wiki job
+func (c *Compiler) buildEditWikiPageJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.EditWikiPage == nil {
+		return nil, fmt.Errorf("safe-outputs.edit-wiki-page configuration is required")
 	}
 
 	var steps []string
 
 	steps = append(steps, "      - name: Edit Wiki Pages\n")
-	steps = append(steps, "        id: edit_wiki\n")
+	steps = append(steps, "        id: edit_wiki_page\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables
@@ -81,14 +81,14 @@ func (c *Compiler) buildEditWikiJob(data *WorkflowData, mainJobName string, task
 	steps = append(steps, fmt.Sprintf("          GITHUB_WORKFLOW_NAME: %s\n", data.Name))
 
 	// Add path restriction if configured
-	if len(data.SafeOutputs.EditWiki.Path) > 0 {
-		pathsStr := strings.Join(data.SafeOutputs.EditWiki.Path, ",")
+	if len(data.SafeOutputs.EditWikiPage.Path) > 0 {
+		pathsStr := strings.Join(data.SafeOutputs.EditWikiPage.Path, ",")
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WIKI_ALLOWED_PATHS: %q\n", pathsStr))
 	}
 
 	// Add max configuration
-	if data.SafeOutputs.EditWiki.Max > 0 {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WIKI_MAX: %d\n", data.SafeOutputs.EditWiki.Max))
+	if data.SafeOutputs.EditWikiPage.Max > 0 {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WIKI_MAX: %d\n", data.SafeOutputs.EditWikiPage.Max))
 	}
 
 	// Pass the staged flag if it's set to true
@@ -101,15 +101,15 @@ func (c *Compiler) buildEditWikiJob(data *WorkflowData, mainJobName string, task
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	if data.SafeOutputs.EditWiki.GitHubToken != "" {
-		steps = append(steps, fmt.Sprintf("          github-token: %s\n", data.SafeOutputs.EditWiki.GitHubToken))
+	if data.SafeOutputs.EditWikiPage.GitHubToken != "" {
+		steps = append(steps, fmt.Sprintf("          github-token: %s\n", data.SafeOutputs.EditWikiPage.GitHubToken))
 	} else if data.SafeOutputs.GitHubToken != "" {
 		steps = append(steps, fmt.Sprintf("          github-token: %s\n", data.SafeOutputs.GitHubToken))
 	}
 	steps = append(steps, "          script: |\n")
 
-	// Use the embedded JavaScript from edit_wiki.cjs
-	formattedScript := FormatJavaScriptForYAML(editWikiScript)
+	// Use the embedded JavaScript from edit_wiki_page.cjs
+	formattedScript := FormatJavaScriptForYAML(editWikiPageScript)
 	for _, line := range formattedScript {
 		if strings.TrimSpace(line) != "" {
 			steps = append(steps, fmt.Sprintf("            %s", line))

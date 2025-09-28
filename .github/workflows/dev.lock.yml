@@ -107,7 +107,7 @@ jobs:
     permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"edit-wiki\":{\"max\":3,\"path\":[\"dev/\",\"docs/\"]}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"edit-wiki-page\":{\"max\":3,\"path\":[\"dev/\",\"docs/\"]}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -123,7 +123,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"edit-wiki":{"max":3,"path":["dev/","docs/"]}}
+          {"edit-wiki-page":{"max":3,"path":["dev/","docs/"]}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -559,7 +559,7 @@ jobs:
                 handler: uploadAssetHandler,
               },
               {
-                name: "edit_wiki",
+                name: "edit_wiki_page",
                 description: "Edit a GitHub wiki page with sanitized markdown content",
                 inputSchema: {
                   type: "object",
@@ -580,7 +580,7 @@ jobs:
                   },
                   additionalProperties: false,
                 },
-                handler: defaultHandler("edit_wiki"),
+                handler: defaultHandler("edit_wiki_page"),
               },
               {
                 name: "missing_tool",
@@ -753,7 +753,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"edit-wiki\":{\"max\":3,\"path\":[\"dev/\",\"docs/\"]}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"edit-wiki-page\":{\"max\":3,\"path\":[\"dev/\",\"docs/\"]}}"
         run: |
           mkdir -p /tmp/mcp-config
           mkdir -p /home/runner/.copilot
@@ -805,7 +805,7 @@ jobs:
           **Editing Wiki Pages**
           
           To edit GitHub wiki pages:
-          1. Use the `edit-wiki` tool from the safe-outputs MCP
+          1. Use the `edit-wiki-page` tool from the safe-outputs MCP
           2. Provide the page name and content for the wiki page
           3. The tool will create or update the wiki page with sanitized markdown content
           4. Pages are restricted to configured path patterns (defaults to workflow name folder)
@@ -923,7 +923,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"edit-wiki\":{\"max\":3,\"path\":[\"dev/\",\"docs/\"]}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"edit-wiki-page\":{\"max\":3,\"path\":[\"dev/\",\"docs/\"]}}"
         with:
           script: |
             async function main() {
@@ -1015,7 +1015,7 @@ jobs:
                     return 1000;
                   case "upload-asset":
                     return 10;
-                  case "edit-wiki":
+                  case "edit-wiki-page":
                     return 1;
                   default:
                     return 1;
@@ -1539,7 +1539,7 @@ jobs:
                         continue;
                       }
                       break;
-                    case "edit-wiki":
+                    case "edit-wiki-page":
                       if (!item.path || typeof item.path !== "string") {
                         errors.push(`Line ${i + 1}: ${itemType} requires a 'path' string field`);
                         continue;
@@ -1938,7 +1938,7 @@ jobs:
       wiki_pages_failed: ${{ steps.edit_wiki.outputs.wiki_pages_failed }}
     steps:
       - name: Edit Wiki Pages
-        id: edit_wiki
+        id: edit_wiki_page
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}

@@ -1703,7 +1703,7 @@
             }
           ]
         },
-        "edit-wiki": {
+        "edit-wiki-page": {
           "oneOf": [
             {
               "type": "object",

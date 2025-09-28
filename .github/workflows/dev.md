@@ -7,7 +7,7 @@ on:
 engine: copilot
 safe-outputs:
     staged: false
-    edit-wiki:
+    edit-wiki-page:
       path: ["dev/", "docs/"]
       max: 3
       min: 1

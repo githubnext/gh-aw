@@ -87,7 +87,7 @@ async function main() {
         return 1000;
       case "upload-asset":
         return 10;
-      case "edit-wiki":
+      case "edit-wiki-page":
         return 1;
       default:
         return 1;
@@ -611,7 +611,7 @@ async function main() {
             continue;
           }
           break;
-        case "edit-wiki":
+        case "edit-wiki-page":
           if (!item.path || typeof item.path !== "string") {
             errors.push(`Line ${i + 1}: ${itemType} requires a 'path' string field`);
             continue;

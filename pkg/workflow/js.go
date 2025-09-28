@@ -42,8 +42,8 @@ var pushToBranchScript string
 //go:embed js/upload_assets.cjs
 var uploadAssetsScript string
 
-//go:embed js/edit_wiki.cjs
-var editWikiScript string
+//go:embed js/edit_wiki_page.cjs
+var editWikiPageScript string
 
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScript string
