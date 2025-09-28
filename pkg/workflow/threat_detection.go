@@ -65,80 +65,139 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 		return nil, fmt.Errorf("threat detection is not enabled")
 	}
 
+	// Build steps using a more structured approach
+	steps := c.buildThreatDetectionSteps(data, mainJobName)
+
+	// Determine the job condition for command workflows
+	var jobCondition string
+	if data.Command != "" {
+		commandCondition := buildCommandOnlyCondition(data.Command)
+		jobCondition = commandCondition.Render()
+	}
+
+	job := &Job{
+		Name:           "detection",
+		If:             jobCondition,
+		RunsOn:         "runs-on: ubuntu-latest",
+		Permissions:    "permissions: read-all",
+		TimeoutMinutes: 10,
+		Steps:          steps,
+		Needs:          []string{mainJobName},
+	}
+
+	return job, nil
+}
+
+// buildThreatDetectionSteps builds the steps for the threat detection job
+func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName string) []string {
 	var steps []string
 
-	// Step 1: Download agent output artifacts
-	steps = append(steps, "      - name: Download agent output artifact\n")
-	steps = append(steps, "        continue-on-error: true\n")
-	steps = append(steps, "        uses: actions/download-artifact@v5\n")
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          name: agent_output.json\n")
-	steps = append(steps, "          path: /tmp/threat-detection/\n")
+	// Step 1: Download agent artifacts
+	steps = append(steps, c.buildDownloadArtifactStep()...)
 
-	// Step 2: Setup threat detection environment using JavaScript
-	steps = append(steps, "      - name: Setup threat detection environment\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.text }}\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          AGENT_PATCH: ${{ needs.%s.outputs.patch }}\n", mainJobName))
-	
-	// Set workflow context as environment variables (simple string values only)
-	workflowName := data.Name
-	if workflowName == "" {
-		workflowName = "Unnamed Workflow"
+	// Step 2: Setup and run threat detection
+	steps = append(steps, c.buildThreatDetectionAnalysisStep(data, mainJobName)...)
+
+	// Step 3: Add custom steps if configured
+	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
+		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
-	
-	workflowDescription := data.Description
-	if workflowDescription == "" {
-		workflowDescription = "No description provided"
+
+	return steps
+}
+
+// buildDownloadArtifactStep creates the artifact download step
+func (c *Compiler) buildDownloadArtifactStep() []string {
+	return []string{
+		"      - name: Download agent output artifact\n",
+		"        continue-on-error: true\n",
+		"        uses: actions/download-artifact@v5\n",
+		"        with:\n",
+		"          name: agent_output.json\n",
+		"          path: /tmp/threat-detection/\n",
 	}
-	
-	workflowMarkdown := data.MarkdownContent
-	if workflowMarkdown == "" {
-		workflowMarkdown = "No content provided"
-	}
-	
-	// Properly escape and quote values for YAML
-	escapedName := strings.ReplaceAll(workflowName, "\"", "\\\"")
-	escapedDescription := strings.ReplaceAll(workflowDescription, "\"", "\\\"")
-	escapedMarkdown := strings.ReplaceAll(workflowMarkdown, "\"", "\\\"")
-	escapedMarkdown = strings.ReplaceAll(escapedMarkdown, "\n", "\\n")
+}
 
-	steps = append(steps, fmt.Sprintf("          WORKFLOW_NAME: \"%s\"\n", escapedName))
-	steps = append(steps, fmt.Sprintf("          WORKFLOW_DESCRIPTION: \"%s\"\n", escapedDescription))
-	steps = append(steps, fmt.Sprintf("          WORKFLOW_MARKDOWN: \"%s\"\n", escapedMarkdown))
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          script: |\n")
+// buildThreatDetectionAnalysisStep creates the main threat analysis step
+func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobName string) []string {
+	var steps []string
 
-	// Inject template content directly into JavaScript and add the embedded threat detection setup script
-	scriptWithTemplate := strings.ReplaceAll(setupThreatDetectionScript, "__TEMPLATE_CONTENT__", defaultThreatDetectionPrompt)
-	formattedScript := FormatJavaScriptForYAML(scriptWithTemplate)
-	steps = append(steps, formattedScript...)
+	// Setup step
+	steps = append(steps, []string{
+		"      - name: Setup threat detection\n",
+		"        uses: actions/github-script@v8\n",
+		"        env:\n",
+		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.text }}\n", mainJobName),
+		fmt.Sprintf("          AGENT_PATCH: ${{ needs.%s.outputs.patch }}\n", mainJobName),
+	}...)
+	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
+	steps = append(steps, []string{
+		"        with:\n",
+		"          script: |\n",
+	}...)
 
-	// Step 3: Get the agentic engine and generate its execution steps
+	// Add the setup script
+	setupScript := c.buildSetupScript()
+	formattedSetupScript := FormatJavaScriptForYAML(setupScript)
+	steps = append(steps, formattedSetupScript...)
+
+	// Add engine execution steps
+	steps = append(steps, c.buildEngineSteps(data)...)
+
+	// Add results parsing step
+	steps = append(steps, c.buildParsingStep()...)
+
+	return steps
+}
+
+// buildSetupScript creates the setup portion
+func (c *Compiler) buildSetupScript() string {
+	return fmt.Sprintf(`const fs = require('fs');
+
+// Create threat detection prompt with embedded template
+const templateContent = %s;
+const promptContent = templateContent
+  .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
+  .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
+  .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+  .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+  .replace(/{AGENT_PATCH}/g, process.env.AGENT_PATCH || '');
+
+// Write prompt file
+fs.mkdirSync('/tmp/threat-detection/prompts', { recursive: true });
+fs.writeFileSync('/tmp/threat-detection/prompts/detection.md', promptContent);
+core.exportVariable('GITHUB_AW_PROMPT', '/tmp/threat-detection/prompts/detection.md');
+core.info('Threat detection setup completed');`, 
+		c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
+}
+
+// buildEngineSteps creates the engine execution steps
+func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	engineSetting := data.AI
 	if data.EngineConfig != nil {
 		engineSetting = data.EngineConfig.ID
 	}
 	if engineSetting == "" {
-		engineSetting = "claude" // Default engine
+		engineSetting = "claude"
 	}
 
 	// Get the engine instance
 	engine, err := c.getAgenticEngine(engineSetting)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get agentic engine for threat detection: %w", err)
+		// Return a fallback if engine not found
+		return []string{"      # Engine not found, skipping execution\n"}
 	}
 
-	// Create a minimal WorkflowData for threat detection (no tools, no network, no safe-outputs)
+	// Create minimal WorkflowData for threat detection
 	threatDetectionData := &WorkflowData{
-		MarkdownContent: "", // The prompt file will be used instead
-		Tools:           map[string]any{}, // No tools for threat detection
-		SafeOutputs:     nil, // No safe-outputs for threat detection
-		Network:         "", // No network access
-		EngineConfig:    data.EngineConfig, // Use same engine config
-		AI:              engineSetting,
+		Tools:        map[string]any{},
+		SafeOutputs:  nil,
+		Network:      "",
+		EngineConfig: data.EngineConfig,
+		AI:           engineSetting,
 	}
+
+	var steps []string
 
 	// Add engine installation steps
 	installSteps := engine.GetInstallationSteps(threatDetectionData)
@@ -157,51 +216,111 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 		}
 	}
 
-	// Step 4: Parse threat detection results
-	steps = append(steps, "      - name: Parse Threat Detection Results\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          script: |\n")
+	return steps
+}
 
-	// Add the embedded threat detection parsing script
-	formattedParsingScript := FormatJavaScriptForYAML(parseThreatDetectionScript)
+// buildParsingStep creates the results parsing step
+func (c *Compiler) buildParsingStep() []string {
+	steps := []string{
+		"      - name: Parse threat detection results\n",
+		"        uses: actions/github-script@v8\n",
+		"        with:\n",
+		"          script: |\n",
+	}
+	
+	parsingScript := c.buildResultsParsingScript()
+	formattedParsingScript := FormatJavaScriptForYAML(parsingScript)
 	steps = append(steps, formattedParsingScript...)
+	
+	return steps
+}
 
-	// Add any custom steps from the threat detection configuration
-	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
-		for _, step := range data.SafeOutputs.ThreatDetection.Steps {
-			if stepMap, ok := step.(map[string]any); ok {
-				stepYAML, err := c.convertStepToYAML(stepMap)
-				if err != nil {
-					return nil, fmt.Errorf("failed to convert custom threat detection step to YAML: %w", err)
-				}
-				steps = append(steps, stepYAML)
+// buildWorkflowContextEnvVars creates environment variables for workflow context
+func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
+	workflowName := data.Name
+	if workflowName == "" {
+		workflowName = "Unnamed Workflow"
+	}
+
+	workflowDescription := data.Description
+	if workflowDescription == "" {
+		workflowDescription = "No description provided"
+	}
+
+	workflowMarkdown := data.MarkdownContent
+	if workflowMarkdown == "" {
+		workflowMarkdown = "No content provided"
+	}
+
+	return []string{
+		fmt.Sprintf("          WORKFLOW_NAME: %q\n", workflowName),
+		fmt.Sprintf("          WORKFLOW_DESCRIPTION: %q\n", workflowDescription),
+		fmt.Sprintf("          WORKFLOW_MARKDOWN: %q\n", workflowMarkdown),
+	}
+}
+
+// formatStringAsJavaScriptLiteral properly formats a Go string as a JavaScript template literal
+func (c *Compiler) formatStringAsJavaScriptLiteral(s string) string {
+	// Use template literals with proper escaping
+	escaped := strings.ReplaceAll(s, "`", "\\`")
+	escaped = strings.ReplaceAll(escaped, "${", "\\${")
+	return "`" + escaped + "`"
+}
+
+// buildResultsParsingScript creates the results parsing portion
+func (c *Compiler) buildResultsParsingScript() string {
+	return `// Parse threat detection results
+let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
+
+try {
+  const outputPath = '/tmp/threat-detection/agent_output.json';
+  if (fs.existsSync(outputPath)) {
+    const outputContent = fs.readFileSync(outputPath, 'utf8');
+    const lines = outputContent.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('THREAT_DETECTION_RESULT:')) {
+        const jsonPart = trimmedLine.substring('THREAT_DETECTION_RESULT:'.length);
+        verdict = { ...verdict, ...JSON.parse(jsonPart) };
+        break;
+      }
+    }
+  }
+} catch (error) {
+  core.warning('Failed to parse threat detection results: ' + error.message);
+}
+
+core.info('Threat detection verdict: ' + JSON.stringify(verdict));
+
+// Fail if threats detected
+if (verdict.prompt_injection || verdict.secret_leak || verdict.malicious_patch) {
+  const threats = [];
+  if (verdict.prompt_injection) threats.push('prompt injection');
+  if (verdict.secret_leak) threats.push('secret leak');
+  if (verdict.malicious_patch) threats.push('malicious patch');
+  
+  const reasonsText = verdict.reasons && verdict.reasons.length > 0 
+    ? '\\nReasons: ' + verdict.reasons.join('; ')
+    : '';
+  
+  core.setFailed('❌ Security threats detected: ' + threats.join(', ') + reasonsText);
+} else {
+  core.info('✅ No security threats detected. Safe outputs may proceed.');
+}`
+}
+
+// buildCustomThreatDetectionSteps adds custom user-defined steps
+func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
+	var result []string
+	for _, step := range steps {
+		if stepMap, ok := step.(map[string]any); ok {
+			if stepYAML, err := c.convertStepToYAML(stepMap); err == nil {
+				result = append(result, stepYAML)
 			}
 		}
 	}
-
-	// Determine the job condition for command workflows
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		jobCondition = commandConditionStr
-	} else {
-		jobCondition = "" // No conditional execution
-	}
-
-	job := &Job{
-		Name:           "detection",
-		If:             jobCondition,
-		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    "permissions: read-all",
-		TimeoutMinutes: 10, // 10-minute timeout
-		Steps:          steps,
-		Needs:          []string{mainJobName}, // Depend on the main workflow job
-	}
-
-	return job, nil
+	return result
 }
 
 

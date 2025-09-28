@@ -69,11 +69,7 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
-//go:embed js/parse_threat_detection.cjs
-var parseThreatDetectionScript string
 
-//go:embed js/setup_threat_detection.cjs
-var setupThreatDetectionScript string
 
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
@@ -447,7 +443,4 @@ func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
 }
 
-// GetThreatDetectionParsingScript returns the JavaScript content for threat detection parsing
-func GetThreatDetectionParsingScript() string {
-	return parseThreatDetectionScript
-}
+
