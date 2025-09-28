@@ -760,7 +760,13 @@ jobs:
               const lines = logContent.split("\n");
               let hasErrors = false;
               for (const pattern of patterns) {
-                const regex = new RegExp(pattern.pattern, "g");
+                let regex;
+                try {
+                  regex = new RegExp(pattern.pattern, "g");
+                } catch (e) {
+                  core.error(`invalid error regex pattern: ${pattern.pattern}`);
+                  continue;
+                }
                 for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
                   const line = lines[lineIndex];
                   let match;
