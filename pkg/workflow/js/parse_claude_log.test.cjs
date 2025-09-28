@@ -464,7 +464,7 @@ npm warn exec The following package was not found
       // Mock fs.appendFileSync for this test
       const originalAppendFileSync = fs.appendFileSync;
       fs.appendFileSync = vi.fn();
-      
+
       // Set up environment for safe outputs
       process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/test_safe_outputs.jsonl";
 
@@ -498,7 +498,8 @@ npm warn exec The following package was not found
                   type: "tool_result",
                   tool_use_id: "tool_permission_error",
                   is_error: true,
-                  content: "Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintain",
+                  content:
+                    "Access denied: Only authorized users can trigger this workflow. User 'testuser' is not authorized. Required permissions: admin, maintain",
                 },
               ],
             },
@@ -509,19 +510,18 @@ npm warn exec The following package was not found
 
         // Verify the log was parsed successfully
         expect(result.markdown).toContain("🚀 Initialization");
-        
+
         // Verify that the permission error was detected and written to safe outputs
-        expect(fs.appendFileSync).toHaveBeenCalledWith(
-          "/tmp/test_safe_outputs.jsonl",
-          expect.stringContaining('"type":"missing-tool"')
-        );
+        expect(fs.appendFileSync).toHaveBeenCalledWith("/tmp/test_safe_outputs.jsonl", expect.stringContaining('"type":"missing-tool"'));
         expect(fs.appendFileSync).toHaveBeenCalledWith(
           "/tmp/test_safe_outputs.jsonl",
           expect.stringContaining('"tool":"mcp__github__create_issue"')
         );
         expect(fs.appendFileSync).toHaveBeenCalledWith(
           "/tmp/test_safe_outputs.jsonl",
-          expect.stringContaining('"reason":"Permission denied: Access denied: Only authorized users can trigger this workflow. User \'testuser\' is not authorized. Required permissions: admin, maintain"')
+          expect.stringContaining(
+            '"reason":"Permission denied: Access denied: Only authorized users can trigger this workflow. User \'testuser\' is not authorized. Required permissions: admin, maintain"'
+          )
         );
       } finally {
         // Restore original function
@@ -534,7 +534,7 @@ npm warn exec The following package was not found
       // Mock fs.appendFileSync for this test
       const originalAppendFileSync = fs.appendFileSync;
       fs.appendFileSync = vi.fn();
-      
+
       // Set up environment for safe outputs
       process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/test_safe_outputs.jsonl";
 
@@ -559,7 +559,7 @@ npm warn exec The following package was not found
                 },
                 {
                   type: "tool_use",
-                  id: "tool_auth_error", 
+                  id: "tool_auth_error",
                   name: "Bash",
                   input: { command: "gh auth status" },
                 },
@@ -591,10 +591,10 @@ npm warn exec The following package was not found
 
         // Verify the log was parsed successfully
         expect(result.markdown).toContain("🚀 Initialization");
-        
+
         // Verify that both permission errors were detected
         expect(fs.appendFileSync).toHaveBeenCalledTimes(2);
-        
+
         // Check for first error
         expect(fs.appendFileSync).toHaveBeenCalledWith(
           "/tmp/test_safe_outputs.jsonl",
@@ -604,12 +604,9 @@ npm warn exec The following package was not found
           "/tmp/test_safe_outputs.jsonl",
           expect.stringContaining('"reason":"Permission denied: Repository permission check failed: 403 Forbidden"')
         );
-        
+
         // Check for second error
-        expect(fs.appendFileSync).toHaveBeenCalledWith(
-          "/tmp/test_safe_outputs.jsonl",
-          expect.stringContaining('"tool":"Bash"')
-        );
+        expect(fs.appendFileSync).toHaveBeenCalledWith("/tmp/test_safe_outputs.jsonl", expect.stringContaining('"tool":"Bash"'));
         expect(fs.appendFileSync).toHaveBeenCalledWith(
           "/tmp/test_safe_outputs.jsonl",
           expect.stringContaining('"reason":"Permission denied: Unauthorized: token is invalid or expired"')
@@ -625,7 +622,7 @@ npm warn exec The following package was not found
       // Mock fs.appendFileSync for this test
       const originalAppendFileSync = fs.appendFileSync;
       fs.appendFileSync = vi.fn();
-      
+
       // Set up environment for safe outputs
       process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/test_safe_outputs.jsonl";
 
@@ -670,7 +667,7 @@ npm warn exec The following package was not found
 
         // Verify the log was parsed successfully
         expect(result.markdown).toContain("🚀 Initialization");
-        
+
         // Verify that no permission errors were detected (should not call appendFileSync)
         expect(fs.appendFileSync).not.toHaveBeenCalled();
       } finally {

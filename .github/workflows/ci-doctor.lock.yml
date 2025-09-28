@@ -2231,8 +2231,8 @@ jobs:
                       const toolUse = findToolUseById(logEntries, toolUseId);
                       if (toolUse) {
                         permissionErrors.push({
-                          tool: toolUse.name || 'unknown',
-                          reason: `Permission denied: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}`,
+                          tool: toolUse.name || "unknown",
+                          reason: `Permission denied: ${content.substring(0, 200)}${content.length > 200 ? "..." : ""}`,
                           content: content,
                         });
                       }
@@ -2275,7 +2275,9 @@ jobs:
                   core.info(`Recorded permission error as missing tool: ${error.tool}`);
                 }
               } catch (writeError) {
-                core.warning(`Failed to write permission error missing-tool entries: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+                core.warning(
+                  `Failed to write permission error missing-tool entries: ${writeError instanceof Error ? writeError.message : String(writeError)}`
+                );
               }
             }
             if (typeof module !== "undefined" && module.exports) {

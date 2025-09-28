@@ -523,7 +523,7 @@ function truncateString(str, maxLength) {
  */
 function extractPermissionErrors(logEntries, toolUsePairs) {
   const permissionErrors = [];
-  
+
   // Permission error patterns to look for in tool results
   const permissionPatterns = [
     /access denied.*only authorized.*can trigger.*workflow/i,
@@ -541,7 +541,7 @@ function extractPermissionErrors(logEntries, toolUsePairs) {
   for (const [toolUseId, toolResult] of toolUsePairs) {
     if (toolResult && toolResult.is_error === true && toolResult.content) {
       const content = String(toolResult.content);
-      
+
       // Check if the error content matches permission error patterns
       for (const pattern of permissionPatterns) {
         if (pattern.test(content)) {
@@ -549,8 +549,8 @@ function extractPermissionErrors(logEntries, toolUsePairs) {
           const toolUse = findToolUseById(logEntries, toolUseId);
           if (toolUse) {
             permissionErrors.push({
-              tool: toolUse.name || 'unknown',
-              reason: `Permission denied: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}`,
+              tool: toolUse.name || "unknown",
+              reason: `Permission denied: ${content.substring(0, 200)}${content.length > 200 ? "..." : ""}`,
               content: content,
             });
           }
@@ -588,7 +588,7 @@ function findToolUseById(logEntries, toolUseId) {
  */
 function outputMissingToolsForPermissionErrors(permissionErrors) {
   const fs = require("fs");
-  
+
   // Get the safe outputs file path from environment
   const safeOutputsFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
   if (!safeOutputsFile) {
@@ -606,13 +606,15 @@ function outputMissingToolsForPermissionErrors(permissionErrors) {
         alternatives: "Check repository permissions and access controls",
         timestamp: new Date().toISOString(),
       };
-      
+
       // Append to the safe outputs file as NDJSON
       fs.appendFileSync(safeOutputsFile, JSON.stringify(missingToolEntry) + "\n");
       core.info(`Recorded permission error as missing tool: ${error.tool}`);
     }
   } catch (writeError) {
-    core.warning(`Failed to write permission error missing-tool entries: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+    core.warning(
+      `Failed to write permission error missing-tool entries: ${writeError instanceof Error ? writeError.message : String(writeError)}`
+    );
   }
 }
 

@@ -137,7 +137,7 @@ function parseCopilotLog(logContent) {
 function extractPermissionErrorsFromCopilotLog(logContent) {
   const permissionErrors = [];
   const lines = logContent.split("\n");
-  
+
   // Permission error patterns to look for in Copilot CLI logs
   const permissionPatterns = [
     /access denied.*only authorized.*can trigger.*workflow/i,
@@ -157,13 +157,13 @@ function extractPermissionErrorsFromCopilotLog(logContent) {
   for (const line of lines) {
     const trimmedLine = line.trim();
     if (!trimmedLine) continue;
-    
+
     // Check if the line matches permission error patterns
     for (const pattern of permissionPatterns) {
       if (pattern.test(trimmedLine)) {
         permissionErrors.push({
-          tool: 'github-copilot-cli',
-          reason: `Permission denied: ${trimmedLine.substring(0, 200)}${trimmedLine.length > 200 ? '...' : ''}`,
+          tool: "github-copilot-cli",
+          reason: `Permission denied: ${trimmedLine.substring(0, 200)}${trimmedLine.length > 200 ? "..." : ""}`,
           content: trimmedLine,
         });
         break; // Found a match, no need to check other patterns
@@ -180,7 +180,7 @@ function extractPermissionErrorsFromCopilotLog(logContent) {
  */
 function outputMissingToolsForPermissionErrors(permissionErrors) {
   const fs = require("fs");
-  
+
   // Get the safe outputs file path from environment
   const safeOutputsFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
   if (!safeOutputsFile) {
@@ -198,13 +198,15 @@ function outputMissingToolsForPermissionErrors(permissionErrors) {
         alternatives: "Check repository permissions and access controls",
         timestamp: new Date().toISOString(),
       };
-      
+
       // Append to the safe outputs file as NDJSON
       fs.appendFileSync(safeOutputsFile, JSON.stringify(missingToolEntry) + "\n");
       console.log(`Recorded permission error as missing tool: ${error.tool}`);
     }
   } catch (writeError) {
-    console.log(`Failed to write permission error missing-tool entries: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+    console.log(
+      `Failed to write permission error missing-tool entries: ${writeError instanceof Error ? writeError.message : String(writeError)}`
+    );
   }
 }
 
