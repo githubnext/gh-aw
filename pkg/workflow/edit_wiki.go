@@ -70,6 +70,9 @@ func (c *Compiler) buildEditWikiPageJob(data *WorkflowData, mainJobName string, 
 
 	var steps []string
 
+	// Add git configuration step before the main action
+	steps = append(steps, c.generateGitConfigurationSteps()...)
+
 	steps = append(steps, "      - name: Edit Wiki Pages\n")
 	steps = append(steps, "        id: edit_wiki_page\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")

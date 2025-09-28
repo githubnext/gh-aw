@@ -154,6 +154,18 @@ func TestEditWikiJobCreation(t *testing.T) {
 
 		// Check that the job has the expected steps
 		stepsStr := strings.Join(job.Steps, "")
+		if !strings.Contains(stepsStr, "Configure Git credentials") {
+			t.Error("Expected job to have 'Configure Git credentials' step")
+		}
+
+		if !strings.Contains(stepsStr, "git config --global user.email \"github-actions[bot]@users.noreply.github.com\"") {
+			t.Error("Expected job to configure git user email")
+		}
+
+		if !strings.Contains(stepsStr, "git config --global user.name \"${{ github.workflow }}\"") {
+			t.Error("Expected job to configure git user name")
+		}
+
 		if !strings.Contains(stepsStr, "Edit Wiki Pages") {
 			t.Error("Expected job to have 'Edit Wiki Pages' step")
 		}
