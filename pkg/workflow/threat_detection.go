@@ -75,54 +75,45 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	steps = append(steps, "          name: agent_output.json\n")
 	steps = append(steps, "          path: /tmp/threat-detection/\n")
 
-	// Step 2: Setup threat detection environment and prompt file
+	// Step 2: Setup threat detection environment using JavaScript
 	steps = append(steps, "      - name: Setup threat detection environment\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          mkdir -p /tmp/threat-detection/prompts\n")
-	steps = append(steps, "          \n")
+	steps = append(steps, "        uses: actions/github-script@v8\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.text }}\n", mainJobName))
+	steps = append(steps, fmt.Sprintf("          AGENT_PATCH: ${{ needs.%s.outputs.patch }}\n", mainJobName))
 	
-	// Create threat detection prompt using default template
-	steps = append(steps, "          # Create threat detection prompt\n")
-	steps = append(steps, "          cat > /tmp/threat-detection/prompts/detection.md << 'THREAT_DETECTION_EOF'\n")
-	
-	// Include the default prompt content
-	for _, line := range strings.Split(defaultThreatDetectionPrompt, "\n") {
-		steps = append(steps, "          "+line+"\n")
+	// Set workflow context as environment variables (simple string values only)
+	workflowName := data.Name
+	if workflowName == "" {
+		workflowName = "Unnamed Workflow"
 	}
-	steps = append(steps, "          THREAT_DETECTION_EOF\n")
+	
+	workflowDescription := data.Description
+	if workflowDescription == "" {
+		workflowDescription = "No description provided"
+	}
+	
+	workflowMarkdown := data.MarkdownContent
+	if workflowMarkdown == "" {
+		workflowMarkdown = "No content provided"
+	}
+	
+	// Properly escape and quote values for YAML
+	escapedName := strings.ReplaceAll(workflowName, "\"", "\\\"")
+	escapedDescription := strings.ReplaceAll(workflowDescription, "\"", "\\\"")
+	escapedMarkdown := strings.ReplaceAll(workflowMarkdown, "\"", "\\\"")
+	escapedMarkdown = strings.ReplaceAll(escapedMarkdown, "\n", "\\n")
 
-	steps = append(steps, "          \n")
-	steps = append(steps, "          # Prepare workflow source context and agent output for analysis\n")
-	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_TEXT=\"${{ needs.%s.outputs.text }}\"\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_PATCH=\"${{ needs.%s.outputs.patch }}\"\n", mainJobName))
-	steps = append(steps, "          \n")
-	steps = append(steps, "          # Create workflow context files to avoid shell escaping issues\n")
-	steps = append(steps, "          cat > /tmp/threat-detection/workflow_name.txt << 'WORKFLOW_NAME_EOF'\n")
-	for _, line := range strings.Split(data.Name, "\n") {
-		steps = append(steps, "          "+line+"\n")
-	}
-	steps = append(steps, "          WORKFLOW_NAME_EOF\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          cat > /tmp/threat-detection/workflow_description.txt << 'WORKFLOW_DESC_EOF'\n")
-	for _, line := range strings.Split(data.Description, "\n") {
-		steps = append(steps, "          "+line+"\n")
-	}
-	steps = append(steps, "          WORKFLOW_DESC_EOF\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          cat > /tmp/threat-detection/workflow_markdown.txt << 'WORKFLOW_MARKDOWN_EOF'\n")
-	for _, line := range strings.Split(data.MarkdownContent, "\n") {
-		steps = append(steps, "          "+line+"\n")
-	}
-	steps = append(steps, "          WORKFLOW_MARKDOWN_EOF\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          # Replace workflow context placeholders using Python one-liner\n")
-	steps = append(steps, "          python3 -c \"import re; content = open('/tmp/threat-detection/prompts/detection.md', 'r').read(); workflow_name = open('/tmp/threat-detection/workflow_name.txt', 'r').read().strip(); workflow_description = open('/tmp/threat-detection/workflow_description.txt', 'r').read().strip(); workflow_markdown = open('/tmp/threat-detection/workflow_markdown.txt', 'r').read().strip(); content = content.replace('{WORKFLOW_NAME}', workflow_name).replace('{WORKFLOW_DESCRIPTION}', workflow_description).replace('{WORKFLOW_MARKDOWN}', workflow_markdown); open('/tmp/threat-detection/prompts/detection.md', 'w').write(content)\"\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          # Replace agent output placeholders using sed (these are single-line and safer)\n")
-	steps = append(steps, "          sed -i \"s/{AGENT_OUTPUT}/${AGENT_OUTPUT_TEXT//\\/\\\\/}/g\" /tmp/threat-detection/prompts/detection.md\n")
-	steps = append(steps, "          sed -i \"s/{AGENT_PATCH}/${AGENT_OUTPUT_PATCH//\\/\\\\/}/g\" /tmp/threat-detection/prompts/detection.md\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          echo \"GITHUB_AW_PROMPT=/tmp/threat-detection/prompts/detection.md\" >> $GITHUB_ENV\n")
+	steps = append(steps, fmt.Sprintf("          WORKFLOW_NAME: \"%s\"\n", escapedName))
+	steps = append(steps, fmt.Sprintf("          WORKFLOW_DESCRIPTION: \"%s\"\n", escapedDescription))
+	steps = append(steps, fmt.Sprintf("          WORKFLOW_MARKDOWN: \"%s\"\n", escapedMarkdown))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Inject template content directly into JavaScript and add the embedded threat detection setup script
+	scriptWithTemplate := strings.ReplaceAll(setupThreatDetectionScript, "__TEMPLATE_CONTENT__", defaultThreatDetectionPrompt)
+	formattedScript := FormatJavaScriptForYAML(scriptWithTemplate)
+	steps = append(steps, formattedScript...)
 
 	// Step 3: Get the agentic engine and generate its execution steps
 	engineSetting := data.AI
@@ -173,8 +164,8 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	steps = append(steps, "          script: |\n")
 
 	// Add the embedded threat detection parsing script
-	formattedScript := FormatJavaScriptForYAML(parseThreatDetectionScript)
-	steps = append(steps, formattedScript...)
+	formattedParsingScript := FormatJavaScriptForYAML(parseThreatDetectionScript)
+	steps = append(steps, formattedParsingScript...)
 
 	// Add any custom steps from the threat detection configuration
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {

@@ -2030,9 +2030,12 @@ jobs:
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.text }}
           AGENT_PATCH: ${{ needs.agent.outputs.patch }}
-          WORKFLOW_NAME: "Dev"
-          WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Summarize and use print the message using the `print` tool.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n"
+          WORKFLOW_NAME: Dev
+          WORKFLOW_DESCRIPTION: No description provided
+          WORKFLOW_MARKDOWN: Summarize and use print the message using the `print` tool.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
         with:
           script: |
             const fs = require('fs');

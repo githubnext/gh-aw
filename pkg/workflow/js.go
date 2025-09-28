@@ -72,6 +72,9 @@ var safeOutputsMCPServerScript string
 //go:embed js/parse_threat_detection.cjs
 var parseThreatDetectionScript string
 
+//go:embed js/setup_threat_detection.cjs
+var setupThreatDetectionScript string
+
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {
