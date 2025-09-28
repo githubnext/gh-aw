@@ -223,7 +223,7 @@ tools:
 }
 
 func TestDisplayToolsList(t *testing.T) {
-	// Import parser to create mock data
+	// Create mock data using parser types
 	// Create a mock MCPServerInfo with sample tools
 	mockInfo := &parser.MCPServerInfo{
 		Config: parser.MCPServerConfig{
@@ -253,7 +253,7 @@ func TestDisplayToolsList(t *testing.T) {
 			Config: parser.MCPServerConfig{Name: "empty-server"},
 			Tools:  []*mcp.Tool{},
 		}
-		
+
 		// Should not panic with empty tools
 		displayToolsList(emptyInfo, false)
 		displayToolsList(emptyInfo, true)
@@ -285,7 +285,7 @@ func TestDisplayToolsList(t *testing.T) {
 				},
 			},
 		}
-		
+
 		displayToolsList(noAllowedInfo, true)
 	})
 }

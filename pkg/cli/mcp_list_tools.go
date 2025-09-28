@@ -180,13 +180,12 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 
 	fmt.Printf("\n%s\n", console.FormatInfoMessage(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
 
-	// Create a map for quick lookup of allowed tools
-	allowedMap := make(map[string]bool)
-	for _, allowed := range info.Config.Allowed {
-		allowedMap[allowed] = true
-	}
-
 	if verbose {
+		// Create a map for quick lookup of allowed tools
+		allowedMap := make(map[string]bool)
+		for _, allowed := range info.Config.Allowed {
+			allowedMap[allowed] = true
+		}
 		// Detailed table with full descriptions
 		headers := []string{"Tool Name", "Allow", "Description"}
 		rows := make([][]string, 0, len(info.Tools))
