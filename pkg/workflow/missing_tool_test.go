@@ -59,6 +59,18 @@ func TestMissingToolSafeOutput(t *testing.T) {
 			expectJob:    true,
 			expectMax:    0,
 		},
+		{
+			name: "Safe-outputs with other config should enable missing-tool by default",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"create-issue": nil,
+				},
+			},
+			expectConfig: true,
+			expectJob:    true,
+			expectMax:    0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -168,18 +180,18 @@ func TestMissingToolPromptGeneration(t *testing.T) {
 	}
 }
 
-func TestMissingToolNotEnabledByDefault(t *testing.T) {
+func TestMissingToolEnabledByDefault(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
-	// Test with completely empty frontmatter
+	// Test with completely empty frontmatter - should not enable missing-tool
 	emptyFrontmatter := map[string]any{}
 	safeOutputs := compiler.extractSafeOutputsConfig(emptyFrontmatter)
 
 	if safeOutputs != nil && safeOutputs.MissingTool != nil {
-		t.Error("Expected MissingTool to not be enabled by default with empty frontmatter")
+		t.Error("Expected MissingTool to not be enabled with empty frontmatter")
 	}
 
-	// Test with frontmatter that has other content but no safe-outputs
+	// Test with frontmatter that has other content but no safe-outputs - should not enable missing-tool
 	frontmatterWithoutSafeOutputs := map[string]any{
 		"name": "Test Workflow",
 		"on":   map[string]any{"workflow_dispatch": nil},
@@ -187,7 +199,23 @@ func TestMissingToolNotEnabledByDefault(t *testing.T) {
 	safeOutputs = compiler.extractSafeOutputsConfig(frontmatterWithoutSafeOutputs)
 
 	if safeOutputs != nil && safeOutputs.MissingTool != nil {
-		t.Error("Expected MissingTool to not be enabled by default without safe-outputs section")
+		t.Error("Expected MissingTool to not be enabled without safe-outputs section")
+	}
+
+	// Test with safe-outputs section containing other configurations - should enable missing-tool by default
+	frontmatterWithSafeOutputs := map[string]any{
+		"name": "Test Workflow",
+		"safe-outputs": map[string]any{
+			"create-issue": nil,
+		},
+	}
+	safeOutputs = compiler.extractSafeOutputsConfig(frontmatterWithSafeOutputs)
+
+	if safeOutputs == nil {
+		t.Fatal("Expected SafeOutputsConfig to be created when safe-outputs section exists")
+	}
+	if safeOutputs.MissingTool == nil {
+		t.Error("Expected MissingTool to be enabled by default when safe-outputs section exists")
 	}
 }
 

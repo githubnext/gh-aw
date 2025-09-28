@@ -258,7 +258,7 @@ jobs:
     permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -274,7 +274,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"print":{"inputs":{"message":{"description":"Message to print","required":true,"type":"string"}}}}
+          {"missing-tool":{},"print":{"inputs":{"message":{"description":"Message to print","required":true,"type":"string"}}}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -880,7 +880,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         run: |
           mkdir -p /tmp/mcp-config
           mkdir -p /home/runner/.copilot
@@ -930,6 +930,10 @@ jobs:
           ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Reporting Missing Tools or Functionality**
+          
+          To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
       - name: Print prompt to step summary
@@ -1044,7 +1048,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
         with:
           script: |
             async function main() {
@@ -2026,6 +2030,111 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+
+  missing_tool:
+    needs: agent
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
+      total_count: ${{ steps.missing_tool.outputs.total_count }}
+    steps:
+      - name: Record Missing Tool
+        id: missing_tool
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+        with:
+          script: |
+            async function main() {
+              const fs = require("fs");
+              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
+              core.info("Processing missing-tool reports...");
+              core.info(`Agent output length: ${agentOutput.length}`);
+              if (maxReports) {
+                core.info(`Maximum reports allowed: ${maxReports}`);
+              }
+              const missingTools = [];
+              if (!agentOutput.trim()) {
+                core.info("No agent output to process");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(agentOutput);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
+              core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
+              for (const entry of validatedOutput.items) {
+                if (entry.type === "missing-tool") {
+                  if (!entry.tool) {
+                    core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
+                    continue;
+                  }
+                  if (!entry.reason) {
+                    core.warning(`missing-tool entry missing 'reason' field: ${JSON.stringify(entry)}`);
+                    continue;
+                  }
+                  const missingTool = {
+                    tool: entry.tool,
+                    reason: entry.reason,
+                    alternatives: entry.alternatives || null,
+                    timestamp: new Date().toISOString(),
+                  };
+                  missingTools.push(missingTool);
+                  core.info(`Recorded missing tool: ${missingTool.tool}`);
+                  if (maxReports && missingTools.length >= maxReports) {
+                    core.info(`Reached maximum number of missing tool reports (${maxReports})`);
+                    break;
+                  }
+                }
+              }
+              core.info(`Total missing tools reported: ${missingTools.length}`);
+              core.setOutput("tools_reported", JSON.stringify(missingTools));
+              core.setOutput("total_count", missingTools.length.toString());
+              if (missingTools.length > 0) {
+                core.info("Missing tools summary:");
+                core.summary
+                  .addHeading("Missing Tools Report", 2)
+                  .addRaw(`Found **${missingTools.length}** missing tool${missingTools.length > 1 ? "s" : ""} in this workflow execution.\n\n`);
+                missingTools.forEach((tool, index) => {
+                  core.info(`${index + 1}. Tool: ${tool.tool}`);
+                  core.info(`   Reason: ${tool.reason}`);
+                  if (tool.alternatives) {
+                    core.info(`   Alternatives: ${tool.alternatives}`);
+                  }
+                  core.info(`   Reported at: ${tool.timestamp}`);
+                  core.info("");
+                  core.summary.addRaw(`### ${index + 1}. \`${tool.tool}\`\n\n`).addRaw(`**Reason:** ${tool.reason}\n\n`);
+                  if (tool.alternatives) {
+                    core.summary.addRaw(`**Alternatives:** ${tool.alternatives}\n\n`);
+                  }
+                  core.summary.addRaw(`**Reported at:** ${tool.timestamp}\n\n---\n\n`);
+                });
+                core.summary.write();
+              } else {
+                core.info("No missing tools reported in this workflow execution.");
+                core.summary.addHeading("Missing Tools Report", 2).addRaw("✅ No missing tools reported in this workflow execution.").write();
+              }
+            }
+            main().catch(error => {
+              core.error(`Error processing missing-tool reports: ${error}`);
+              core.setFailed(`Error processing missing-tool reports: ${error}`);
+            });
 
   print:
     needs: agent

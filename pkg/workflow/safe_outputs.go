@@ -341,10 +341,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadAssets = uploadAssetsConfig
 			}
 
-			// Handle missing-tool (parse configuration if present)
+			// Handle missing-tool (parse configuration if present, or enable by default)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {
 				config.MissingTool = missingToolConfig
+			} else {
+				// Enable missing-tool by default when safe-outputs are configured
+				config.MissingTool = &MissingToolConfig{}
 			}
 
 			// Handle staged flag
