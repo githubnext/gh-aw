@@ -1977,7 +1977,37 @@ jobs:
           script: |
                         const fs = require("fs");
                         const path = require("path");
-                        const { execSync } = require("child_process");
+                        const child_process = require("child_process");
+                        function runCmd(cmd, options = {}) {
+                          const info = typeof core !== "undefined" && core && core.info ? core.info.bind(core) : console.log.bind(console);
+                          const error = typeof core !== "undefined" && core && core.error ? core.error.bind(core) : console.error.bind(console);
+                          try {
+                            info(`$ ${cmd}`);
+                            const result = child_process.execSync(cmd, options);
+                            let out = result;
+                            if (Buffer.isBuffer(result)) {
+                              const enc = options && options.encoding ? options.encoding : "utf8";
+                              out = result.toString(enc);
+                            }
+                            if (out && String(out).trim()) {
+                              info(`stdout: ${String(out).trim()}`);
+                            }
+                            return out;
+                          } catch (err) {
+                            const stdout = err && err.stdout ? (Buffer.isBuffer(err.stdout) ? err.stdout.toString("utf8") : String(err.stdout)) : "";
+                            const stderr = err && err.stderr ? (Buffer.isBuffer(err.stderr) ? err.stderr.toString("utf8") : String(err.stderr)) : "";
+                            if (stdout && stdout.trim()) {
+                              error(`stdout: ${stdout.trim()}`);
+                            }
+                            if (stderr && stderr.trim()) {
+                              error(`stderr: ${stderr.trim()}`);
+                            }
+                            const status = err && typeof err.status === "number" ? err.status : "unknown";
+                            error(`Command failed: ${cmd}`);
+                            error(`Exit code: ${status}`);
+                            throw err;
+                          }
+                        }
                         function sanitizeMarkdown(content) {
                           if (!content || typeof content !== "string") {
                             return "";
@@ -2131,33 +2161,33 @@ jobs:
                               const wikiDir = `/tmp/wiki-${Date.now()}-${i}`;
                               try {
                                 core.info(`Cloning wiki repository: ${wikiUrl}`);
-                                execSync(`git clone ${wikiUrl} ${wikiDir}`, { stdio: "pipe" });
+                                runCmd(`git clone ${wikiUrl} ${wikiDir}`, { stdio: "pipe" });
                               } catch (cloneError) {
                                 core.info("Wiki repository doesn't exist, creating new one");
-                                execSync(`mkdir -p ${wikiDir}`, { stdio: "pipe" });
-                                execSync(`git init`, { cwd: wikiDir, stdio: "pipe" });
-                                execSync(`git remote add origin ${wikiUrl}`, { cwd: wikiDir, stdio: "pipe" });
+                                runCmd(`mkdir -p ${wikiDir}`, { stdio: "pipe" });
+                                runCmd(`git init`, { cwd: wikiDir, stdio: "pipe" });
+                                runCmd(`git remote add origin ${wikiUrl}`, { cwd: wikiDir, stdio: "pipe" });
                               }
-                              execSync(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
-                              execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
+                              runCmd(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
+                              runCmd(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
                               const normalizedFilePath = normalizeWikiFilePath(wikiEdit.path);
                               core.info(`Normalized wiki file path: ${normalizedFilePath}`);
                               const pageDir = path.dirname(normalizedFilePath);
                               if (pageDir !== ".") {
                                 const fullPageDir = path.join(wikiDir, pageDir);
-                                execSync(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
+                                runCmd(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
                               }
                               const wikiPagePath = path.join(wikiDir, normalizedFilePath);
                               fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
-                              execSync(`git add .`, { cwd: wikiDir, stdio: "pipe" });
-                              const status = execSync(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
+                              runCmd(`git add .`, { cwd: wikiDir, stdio: "pipe" });
+                              const status = runCmd(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
                               if (!status.trim()) {
                                 core.info(`No changes detected for wiki page: ${wikiEdit.path}`);
                                 continue;
                               }
-                              execSync(`git commit -m "${wikiEdit.message}"`, { cwd: wikiDir, stdio: "pipe" });
-                              execSync(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
-                              execSync(`rm -rf ${wikiDir}`, { stdio: "pipe" });
+                              runCmd(`git commit -m "${wikiEdit.message}"`, { cwd: wikiDir, stdio: "pipe" });
+                              runCmd(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
+                              runCmd(`rm -rf ${wikiDir}`, { stdio: "pipe" });
                               core.info(`✅ Successfully edited wiki page: ${wikiEdit.path}`);
                               successCount++;
                             } catch (error) {

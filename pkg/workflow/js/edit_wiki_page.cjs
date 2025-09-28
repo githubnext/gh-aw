@@ -306,7 +306,7 @@ async function main() {
 
       // Clone the wiki repository (it might not exist yet)
 
-        try {
+      try {
         core.info(`Cloning wiki repository: ${wikiUrl}`);
         runCmd(`git clone ${wikiUrl} ${wikiDir}`, { stdio: "pipe" });
       } catch (cloneError) {
@@ -319,8 +319,8 @@ async function main() {
       }
 
       // Configure git user (required for commits)
-  runCmd(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
-  runCmd(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
+      runCmd(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
+      runCmd(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
 
       // Normalize the wiki file path (adds .md extension and ensures relative path)
       const normalizedFilePath = normalizeWikiFilePath(wikiEdit.path);
@@ -338,7 +338,7 @@ async function main() {
       fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
 
       // Commit and push the changes
-  runCmd(`git add .`, { cwd: wikiDir, stdio: "pipe" });
+      runCmd(`git add .`, { cwd: wikiDir, stdio: "pipe" });
 
       // Check if there are changes to commit
       const status = runCmd(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
