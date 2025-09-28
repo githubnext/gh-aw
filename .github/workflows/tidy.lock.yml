@@ -1939,12 +1939,13 @@ jobs:
               }
             }
             function validateErrors(logContent, patterns) {
+              const { createJSRegexFromGoPattern } = require("./regex_compatibility.cjs");
               const lines = logContent.split("\n");
               let hasErrors = false;
               for (const pattern of patterns) {
                 let regex;
                 try {
-                  regex = new RegExp(pattern.pattern, "g");
+                  regex = createJSRegexFromGoPattern(pattern.pattern);
                 } catch (e) {
                   core.error(`invalid error regex pattern: ${pattern.pattern}`);
                   continue;
