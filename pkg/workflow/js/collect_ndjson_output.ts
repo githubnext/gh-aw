@@ -916,22 +916,24 @@ async function main() {
             errors.push(`Line ${i + 1}: ${itemType} 'message' must be a string if provided`);
             continue;
           }
-          
+
           // Validate path against allowed paths
           const wikiConfig = expectedOutputTypes["edit-wiki-page"] as EditWikiPageConfig;
           if (wikiConfig && wikiConfig.path && wikiConfig.path.length > 0) {
-            const normalizedPath = item.path.replace(/^\/+/, ''); // Remove leading slashes
+            const normalizedPath = item.path.replace(/^\/+/, ""); // Remove leading slashes
             const isPathAllowed = wikiConfig.path.some(allowedPath => {
-              const normalizedAllowed = allowedPath.replace(/^\/+/, '').replace(/\/+$/, ''); // Remove leading/trailing slashes
-              return normalizedPath.startsWith(normalizedAllowed + '/') || normalizedPath === normalizedAllowed;
+              const normalizedAllowed = allowedPath.replace(/^\/+/, "").replace(/\/+$/, ""); // Remove leading/trailing slashes
+              return normalizedPath.startsWith(normalizedAllowed + "/") || normalizedPath === normalizedAllowed;
             });
-            
+
             if (!isPathAllowed) {
-              errors.push(`Line ${i + 1}: ${itemType} path '${item.path}' is not allowed. Must start with one of: ${wikiConfig.path.join(', ')}`);
+              errors.push(
+                `Line ${i + 1}: ${itemType} path '${item.path}' is not allowed. Must start with one of: ${wikiConfig.path.join(", ")}`
+              );
               continue;
             }
           }
-          
+
           // Sanitize text content
           item.path = sanitizeContent(item.path);
           item.content = sanitizeContent(item.content);
