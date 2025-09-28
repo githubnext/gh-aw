@@ -298,6 +298,35 @@ func TestDisplayToolsList(t *testing.T) {
 		// Test --allowed flag in verbose mode
 		displayToolsList(mockInfo, true, []string{"tool1", "tool3"}) // Only tool1 and tool3 should be allowed
 	})
+
+	t.Run("wildcard_allows_all_tools", func(t *testing.T) {
+		// Test that "*" wildcard allows all tools
+		displayToolsList(mockInfo, false, []string{"*"}) // All tools should be allowed
+	})
+
+	t.Run("workflow_config_with_wildcard", func(t *testing.T) {
+		wildcardInfo := &parser.MCPServerInfo{
+			Config: parser.MCPServerConfig{
+				Name:    "wildcard-server",
+				Type:    "stdio",
+				Command: "test",
+				Allowed: []string{"*"}, // Wildcard in workflow config
+			},
+			Tools: []*mcp.Tool{
+				{
+					Name:        "any_tool1",
+					Description: "First tool",
+				},
+				{
+					Name:        "any_tool2", 
+					Description: "Second tool",
+				},
+			},
+		}
+		
+		// All tools should be allowed due to wildcard in workflow config
+		displayToolsList(wildcardInfo, false, []string{})
+	})
 }
 
 func TestNewMCPListToolsSubcommand(t *testing.T) {

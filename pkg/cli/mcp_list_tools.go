@@ -191,7 +191,12 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 		effectiveAllowed = info.Config.Allowed
 	}
 	
+	// Check for wildcard "*" which means all tools are allowed
+	hasWildcard := false
 	for _, allowed := range effectiveAllowed {
+		if allowed == "*" {
+			hasWildcard = true
+		}
 		allowedMap[allowed] = true
 	}
 
@@ -206,8 +211,8 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 
 			// Determine status
 			status := "🚫"
-			if len(effectiveAllowed) == 0 {
-				// If no allowed list is specified, assume all tools are allowed
+			if len(effectiveAllowed) == 0 || hasWildcard {
+				// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
 				status = "✅"
 			} else if allowedMap[tool.Name] {
 				status = "✅"
@@ -225,7 +230,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 		// Display summary
 		allowedCount := 0
 		for _, tool := range info.Tools {
-			if len(effectiveAllowed) == 0 || allowedMap[tool.Name] {
+			if len(effectiveAllowed) == 0 || hasWildcard || allowedMap[tool.Name] {
 				allowedCount++
 			}
 		}
@@ -245,8 +250,8 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 
 			// Determine status
 			status := "🚫"
-			if len(effectiveAllowed) == 0 {
-				// If no allowed list is specified, assume all tools are allowed
+			if len(effectiveAllowed) == 0 || hasWildcard {
+				// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
 				status = "✅"
 			} else if allowedMap[tool.Name] {
 				status = "✅"
@@ -281,6 +286,7 @@ Examples:
   gh aw mcp list-tools safe-outputs issue-triage # List tools for 'safe-outputs' server in issue-triage.md
   gh aw mcp list-tools playwright test-workflow -v  # Verbose output with tool descriptions
   gh aw mcp list-tools github weekly-research --allowed tool1,tool2  # Override allowed tools list
+  gh aw mcp list-tools github weekly-research --allowed "*"       # Allow all tools using wildcard
 
 The command will:
 - Parse the workflow to find the specified MCP server configuration
