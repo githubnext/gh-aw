@@ -2015,6 +2015,10 @@ jobs:
                     }
                   }
                 }
+                const permissionErrors = extractPermissionErrors(logEntries, toolUsePairs);
+                if (permissionErrors.length > 0) {
+                  outputMissingToolsForPermissionErrors(permissionErrors);
+                }
                 return { markdown, mcpFailures };
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
@@ -2206,6 +2210,74 @@ jobs:
               if (str.length <= maxLength) return str;
               return str.substring(0, maxLength) + "...";
             }
+            function extractPermissionErrors(logEntries, toolUsePairs) {
+              const permissionErrors = [];
+              const permissionPatterns = [
+                /access denied.*only authorized.*can trigger.*workflow/i,
+                /access denied.*user.*not authorized/i,
+                /repository permission check failed/i,
+                /configuration error.*required permissions not specified/i,
+                /permission.*denied/i,
+                /unauthorized/i,
+                /forbidden/i,
+                /access.*restricted/i,
+                /insufficient.*permission/i,
+              ];
+              for (const [toolUseId, toolResult] of toolUsePairs) {
+                if (toolResult && toolResult.is_error === true && toolResult.content) {
+                  const content = String(toolResult.content);
+                  for (const pattern of permissionPatterns) {
+                    if (pattern.test(content)) {
+                      const toolUse = findToolUseById(logEntries, toolUseId);
+                      if (toolUse) {
+                        permissionErrors.push({
+                          tool: toolUse.name || 'unknown',
+                          reason: `Permission denied: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}`,
+                          content: content,
+                        });
+                      }
+                      break; 
+                    }
+                  }
+                }
+              }
+              return permissionErrors;
+            }
+            function findToolUseById(logEntries, toolUseId) {
+              for (const entry of logEntries) {
+                if (entry.type === "assistant" && entry.message?.content) {
+                  for (const content of entry.message.content) {
+                    if (content.type === "tool_use" && content.id === toolUseId) {
+                      return content;
+                    }
+                  }
+                }
+              }
+              return null;
+            }
+            function outputMissingToolsForPermissionErrors(permissionErrors) {
+              const fs = require("fs");
+              const safeOutputsFile = process.env.GITHUB_AW_SAFE_OUTPUTS;
+              if (!safeOutputsFile) {
+                core.warning("GITHUB_AW_SAFE_OUTPUTS not set, cannot write permission error missing-tool entries");
+                return;
+              }
+              try {
+                for (const error of permissionErrors) {
+                  const missingToolEntry = {
+                    type: "missing-tool",
+                    tool: error.tool,
+                    reason: error.reason,
+                    alternatives: "Check repository permissions and access controls",
+                    timestamp: new Date().toISOString(),
+                  };
+                  fs.appendFileSync(safeOutputsFile, JSON.stringify(missingToolEntry) + "\n");
+                  core.info(`Recorded permission error as missing tool: ${error.tool}`);
+                }
+              } catch (writeError) {
+                core.warning(`Failed to write permission error missing-tool entries: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+              }
+            }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 parseClaudeLog,
@@ -2213,6 +2285,9 @@ jobs:
                 formatInitializationSummary,
                 formatBashCommand,
                 truncateString,
+                extractPermissionErrors,
+                findToolUseById,
+                outputMissingToolsForPermissionErrors,
               };
             }
             main();
