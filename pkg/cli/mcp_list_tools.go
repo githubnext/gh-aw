@@ -19,7 +19,7 @@ const (
 )
 
 // ListToolsForMCP lists available tools for a specific MCP server
-func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) error {
+func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool, allowedTools []string) error {
 	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, search for workflows containing the MCP server
@@ -103,7 +103,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	}
 
 	// Display the tools
-	displayToolsList(info, verbose)
+	displayToolsList(info, verbose, allowedTools)
 
 	return nil
 }
@@ -172,7 +172,7 @@ func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbo
 }
 
 // displayToolsList shows the tools available from the MCP server in a formatted table
-func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
+func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []string) {
 	if len(info.Tools) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No tools available from this MCP server"))
 		return
@@ -180,12 +180,22 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 
 	fmt.Printf("\n%s\n", console.FormatInfoMessage(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
 
+	// Create a map for quick lookup of allowed tools
+	allowedMap := make(map[string]bool)
+	var effectiveAllowed []string
+	
+	// Use command-line allowed tools if provided, otherwise use workflow configuration
+	if len(allowedTools) > 0 {
+		effectiveAllowed = allowedTools
+	} else {
+		effectiveAllowed = info.Config.Allowed
+	}
+	
+	for _, allowed := range effectiveAllowed {
+		allowedMap[allowed] = true
+	}
+
 	if verbose {
-		// Create a map for quick lookup of allowed tools
-		allowedMap := make(map[string]bool)
-		for _, allowed := range info.Config.Allowed {
-			allowedMap[allowed] = true
-		}
 		// Detailed table with full descriptions
 		headers := []string{"Tool Name", "Allow", "Description"}
 		rows := make([][]string, 0, len(info.Tools))
@@ -196,7 +206,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 
 			// Determine status
 			status := "🚫"
-			if len(info.Config.Allowed) == 0 {
+			if len(effectiveAllowed) == 0 {
 				// If no allowed list is specified, assume all tools are allowed
 				status = "✅"
 			} else if allowedMap[tool.Name] {
@@ -215,7 +225,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 		// Display summary
 		allowedCount := 0
 		for _, tool := range info.Tools {
-			if len(info.Config.Allowed) == 0 || allowedMap[tool.Name] {
+			if len(effectiveAllowed) == 0 || allowedMap[tool.Name] {
 				allowedCount++
 			}
 		}
@@ -223,7 +233,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 			allowedCount, len(info.Tools)-allowedCount, len(info.Tools))
 	} else {
 		// Compact table with truncated descriptions for single-line display
-		headers := []string{"Tool Name", "Description"}
+		headers := []string{"Tool Name", "Allow", "Description"}
 		rows := make([][]string, 0, len(info.Tools))
 
 		for _, tool := range info.Tools {
@@ -233,7 +243,16 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 				description = description[:truncationLength] + "..."
 			}
 
-			rows = append(rows, []string{tool.Name, description})
+			// Determine status
+			status := "🚫"
+			if len(effectiveAllowed) == 0 {
+				// If no allowed list is specified, assume all tools are allowed
+				status = "✅"
+			} else if allowedMap[tool.Name] {
+				status = "✅"
+			}
+
+			rows = append(rows, []string{tool.Name, status, description})
 		}
 
 		table := console.RenderTable(console.TableConfig{
@@ -261,6 +280,7 @@ Examples:
   gh aw mcp list-tools github weekly-research    # List tools for 'github' server in weekly-research.md
   gh aw mcp list-tools safe-outputs issue-triage # List tools for 'safe-outputs' server in issue-triage.md
   gh aw mcp list-tools playwright test-workflow -v  # Verbose output with tool descriptions
+  gh aw mcp list-tools github weekly-research --allowed tool1,tool2  # Override allowed tools list
 
 The command will:
 - Parse the workflow to find the specified MCP server configuration
@@ -275,6 +295,7 @@ The command will:
 			}
 
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			allowedTools, _ := cmd.Flags().GetStringSlice("allowed")
 
 			// Inherit verbose from parent commands
 			if !verbose {
@@ -290,11 +311,12 @@ The command will:
 				}
 			}
 
-			return ListToolsForMCP(workflowFile, mcpServerName, verbose)
+			return ListToolsForMCP(workflowFile, mcpServerName, verbose, allowedTools)
 		},
 	}
 
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed tool information")
+	cmd.Flags().StringSliceP("allowed", "a", []string{}, "List of allowed tools (overrides workflow configuration)")
 
 	return cmd
 }

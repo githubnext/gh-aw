@@ -83,7 +83,7 @@ This workflow has no GitHub MCP server.`
 
 	t.Run("find_workflows_with_mcp_server", func(t *testing.T) {
 		// Test searching for workflows containing a specific MCP server
-		err := ListToolsForMCP("", "github", false)
+		err := ListToolsForMCP("", "github", false, []string{})
 		// This should not error, but should output info about finding workflows
 		if err != nil {
 			t.Errorf("ListToolsForMCP search failed: %v", err)
@@ -92,7 +92,7 @@ This workflow has no GitHub MCP server.`
 
 	t.Run("find_workflows_with_safe_outputs", func(t *testing.T) {
 		// Test searching for workflows containing safe-outputs
-		err := ListToolsForMCP("", "safe-outputs", false)
+		err := ListToolsForMCP("", "safe-outputs", false, []string{})
 		// This should not error, but should output info about finding workflows
 		if err != nil {
 			t.Errorf("ListToolsForMCP safe-outputs search failed: %v", err)
@@ -101,7 +101,7 @@ This workflow has no GitHub MCP server.`
 
 	t.Run("mcp_server_not_found_in_any_workflow", func(t *testing.T) {
 		// Test searching for a non-existent MCP server
-		err := ListToolsForMCP("", "nonexistent-server", false)
+		err := ListToolsForMCP("", "nonexistent-server", false, []string{})
 		// This should not error, but should output warning about not finding the server
 		if err != nil {
 			t.Errorf("ListToolsForMCP nonexistent server search failed: %v", err)
@@ -110,7 +110,7 @@ This workflow has no GitHub MCP server.`
 
 	t.Run("mcp_server_not_found_in_specific_workflow", func(t *testing.T) {
 		// Test looking for MCP server in workflow that doesn't have it
-		err := ListToolsForMCP("other-workflow", "github", false)
+		err := ListToolsForMCP("other-workflow", "github", false, []string{})
 		// This should not error, but should output warning about not finding the server
 		if err != nil {
 			t.Errorf("ListToolsForMCP specific workflow without server failed: %v", err)
@@ -119,7 +119,7 @@ This workflow has no GitHub MCP server.`
 
 	t.Run("nonexistent_workflow", func(t *testing.T) {
 		// Test with non-existent workflow file
-		err := ListToolsForMCP("nonexistent", "github", false)
+		err := ListToolsForMCP("nonexistent", "github", false, []string{})
 		if err == nil {
 			t.Error("Expected error for nonexistent workflow, got nil")
 		}
@@ -130,7 +130,7 @@ This workflow has no GitHub MCP server.`
 
 	t.Run("verbose_mode", func(t *testing.T) {
 		// Test verbose output (should not crash)
-		err := ListToolsForMCP("", "github", true)
+		err := ListToolsForMCP("", "github", true, []string{})
 		if err != nil {
 			t.Errorf("ListToolsForMCP verbose search failed: %v", err)
 		}
@@ -255,19 +255,19 @@ func TestDisplayToolsList(t *testing.T) {
 		}
 
 		// Should not panic with empty tools
-		displayToolsList(emptyInfo, false)
-		displayToolsList(emptyInfo, true)
+		displayToolsList(emptyInfo, false, []string{})
+		displayToolsList(emptyInfo, true, []string{})
 	})
 
 	t.Run("non_verbose_mode_uses_table_format", func(t *testing.T) {
 		// Capture stdout to verify table format is used
 		// This is a basic test to ensure the function doesn't crash and processes the data
-		displayToolsList(mockInfo, false)
+		displayToolsList(mockInfo, false, []string{})
 	})
 
 	t.Run("verbose_mode_includes_allow_column", func(t *testing.T) {
 		// Test verbose mode includes the Allow column
-		displayToolsList(mockInfo, true)
+		displayToolsList(mockInfo, true, []string{})
 	})
 
 	t.Run("no_allowed_tools_means_all_allowed", func(t *testing.T) {
@@ -286,7 +286,17 @@ func TestDisplayToolsList(t *testing.T) {
 			},
 		}
 
-		displayToolsList(noAllowedInfo, true)
+		displayToolsList(noAllowedInfo, true, []string{})
+	})
+
+	t.Run("allowed_flag_overrides_workflow_config", func(t *testing.T) {
+		// Test that --allowed flag overrides workflow configuration
+		displayToolsList(mockInfo, false, []string{"tool2"}) // Only tool2 should be allowed
+	})
+
+	t.Run("allowed_flag_verbose_mode", func(t *testing.T) {
+		// Test --allowed flag in verbose mode
+		displayToolsList(mockInfo, true, []string{"tool1", "tool3"}) // Only tool1 and tool3 should be allowed
 	})
 }
 
