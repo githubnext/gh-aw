@@ -843,7 +843,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               created_at: new Date().toISOString()
             };
             
@@ -1945,7 +1945,6 @@ jobs:
           GITHUB_WORKFLOW_NAME: Dev
           GITHUB_AW_WIKI_ALLOWED_PATHS: "dev/,docs/"
           GITHUB_AW_WIKI_MAX: 3
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
                         const fs = require("fs");

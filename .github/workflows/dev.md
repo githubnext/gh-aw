@@ -6,7 +6,7 @@ on:
       - copilot/*
 engine: copilot
 safe-outputs:
-    staged: true
+    staged: false
     edit-wiki:
       path: ["dev/", "docs/"]
       max: 3
