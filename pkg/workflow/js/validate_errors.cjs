@@ -54,13 +54,15 @@ function getErrorPatternsFromEnv() {
  * @returns {boolean}
  */
 function validateErrors(logContent, patterns) {
+  const { createJSRegexFromGoPattern } = require("./regex_compatibility.cjs");
   const lines = logContent.split("\n");
   let hasErrors = false;
 
   for (const pattern of patterns) {
     let regex;
     try {
-      regex = new RegExp(pattern.pattern, "g");
+      // Use Go-to-JS regex compatibility function
+      regex = createJSRegexFromGoPattern(pattern.pattern);
     } catch (e) {
       core.error(`invalid error regex pattern: ${pattern.pattern}`);
       continue;
