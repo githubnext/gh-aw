@@ -26,6 +26,7 @@ network: {}
 tools:
   github:
     allowed: [list_pull_requests, get_pull_request]
+  bash: ["make:*"]
 
 safe-outputs:
   create-pull-request:
