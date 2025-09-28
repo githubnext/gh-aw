@@ -19,7 +19,7 @@ const (
 )
 
 // ListToolsForMCP lists available tools for a specific MCP server
-func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool, allowedTools []string) error {
+func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) error {
 	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, search for workflows containing the MCP server
@@ -103,7 +103,7 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool, al
 	}
 
 	// Display the tools
-	displayToolsList(info, verbose, allowedTools)
+	displayToolsList(info, verbose)
 
 	return nil
 }
@@ -172,7 +172,7 @@ func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbo
 }
 
 // displayToolsList shows the tools available from the MCP server in a formatted table
-func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []string) {
+func displayToolsList(info *parser.MCPServerInfo, verbose bool) {
 	if len(info.Tools) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No tools available from this MCP server"))
 		return
@@ -180,20 +180,12 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 
 	fmt.Printf("\n%s\n", console.FormatInfoMessage(fmt.Sprintf("🛠️  Available Tools (%d total)", len(info.Tools))))
 
-	// Create a map for quick lookup of allowed tools
+	// Create a map for quick lookup of allowed tools from workflow configuration
 	allowedMap := make(map[string]bool)
-	var effectiveAllowed []string
-	
-	// Use command-line allowed tools if provided, otherwise use workflow configuration
-	if len(allowedTools) > 0 {
-		effectiveAllowed = allowedTools
-	} else {
-		effectiveAllowed = info.Config.Allowed
-	}
 	
 	// Check for wildcard "*" which means all tools are allowed
 	hasWildcard := false
-	for _, allowed := range effectiveAllowed {
+	for _, allowed := range info.Config.Allowed {
 		if allowed == "*" {
 			hasWildcard = true
 		}
@@ -211,7 +203,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 
 			// Determine status
 			status := "🚫"
-			if len(effectiveAllowed) == 0 || hasWildcard {
+			if len(info.Config.Allowed) == 0 || hasWildcard {
 				// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
 				status = "✅"
 			} else if allowedMap[tool.Name] {
@@ -230,7 +222,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 		// Display summary
 		allowedCount := 0
 		for _, tool := range info.Tools {
-			if len(effectiveAllowed) == 0 || hasWildcard || allowedMap[tool.Name] {
+			if len(info.Config.Allowed) == 0 || hasWildcard || allowedMap[tool.Name] {
 				allowedCount++
 			}
 		}
@@ -250,7 +242,7 @@ func displayToolsList(info *parser.MCPServerInfo, verbose bool, allowedTools []s
 
 			// Determine status
 			status := "🚫"
-			if len(effectiveAllowed) == 0 || hasWildcard {
+			if len(info.Config.Allowed) == 0 || hasWildcard {
 				// If no allowed list is specified or "*" wildcard is present, assume all tools are allowed
 				status = "✅"
 			} else if allowedMap[tool.Name] {
@@ -285,8 +277,6 @@ Examples:
   gh aw mcp list-tools github weekly-research    # List tools for 'github' server in weekly-research.md
   gh aw mcp list-tools safe-outputs issue-triage # List tools for 'safe-outputs' server in issue-triage.md
   gh aw mcp list-tools playwright test-workflow -v  # Verbose output with tool descriptions
-  gh aw mcp list-tools github weekly-research --allowed tool1,tool2  # Override allowed tools list
-  gh aw mcp list-tools github weekly-research --allowed "*"       # Allow all tools using wildcard
 
 The command will:
 - Parse the workflow to find the specified MCP server configuration
@@ -301,7 +291,6 @@ The command will:
 			}
 
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			allowedTools, _ := cmd.Flags().GetStringSlice("allowed")
 
 			// Inherit verbose from parent commands
 			if !verbose {
@@ -317,12 +306,11 @@ The command will:
 				}
 			}
 
-			return ListToolsForMCP(workflowFile, mcpServerName, verbose, allowedTools)
+			return ListToolsForMCP(workflowFile, mcpServerName, verbose)
 		},
 	}
 
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed tool information")
-	cmd.Flags().StringSliceP("allowed", "a", []string{}, "List of allowed tools (overrides workflow configuration)")
 
 	return cmd
 }
