@@ -106,13 +106,40 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 	})
 
-	// Test ClaudeEngine default behavior (should return empty error patterns)
-	t.Run("ClaudeEngine_no_error_validation", func(t *testing.T) {
+	// Test ClaudeEngine error validation support (now includes permission error patterns)
+	t.Run("ClaudeEngine_error_validation", func(t *testing.T) {
 		engine := NewClaudeEngine()
 
 		patterns := engine.GetErrorPatterns()
-		if len(patterns) != 0 {
-			t.Errorf("ClaudeEngine should return empty error patterns, got %d", len(patterns))
+		if len(patterns) == 0 {
+			t.Error("ClaudeEngine should return permission error patterns")
+		}
+
+		// Verify permission patterns are present
+		foundPermissionDenied := false
+		foundUnauthorized := false
+		foundForbidden := false
+
+		for _, pattern := range patterns {
+			if strings.Contains(strings.ToLower(pattern.Description), "permission denied") {
+				foundPermissionDenied = true
+			}
+			if strings.Contains(strings.ToLower(pattern.Description), "unauthorized") {
+				foundUnauthorized = true
+			}
+			if strings.Contains(strings.ToLower(pattern.Description), "forbidden") {
+				foundForbidden = true
+			}
+		}
+
+		if !foundPermissionDenied {
+			t.Error("Missing permission denied pattern")
+		}
+		if !foundUnauthorized {
+			t.Error("Missing unauthorized pattern")
+		}
+		if !foundForbidden {
+			t.Error("Missing forbidden pattern")
 		}
 	})
 
@@ -484,7 +511,7 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 		t.Error("Should generate error validation step with engine patterns")
 	}
 
-	// Test with no engine config and engine that doesn't support error validation
+	// Test with no engine config but engine that has built-in error patterns (like Claude)
 	dataEmpty2 := &WorkflowData{
 		EngineConfig: nil,
 	}
@@ -494,8 +521,8 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 
 	generated3 := yamlBuilder3.String()
 
-	// Should not generate any validation step
-	if strings.Contains(generated3, "Validate agent logs for errors") {
-		t.Error("Should not generate error validation step without patterns")
+	// Should generate validation step with engine's built-in patterns since Claude now supports error validation
+	if !strings.Contains(generated3, "Validate agent logs for errors") {
+		t.Error("Should generate error validation step with engine's built-in patterns")
 	}
 }

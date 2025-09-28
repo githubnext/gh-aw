@@ -1064,6 +1064,36 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	bashComplete:
 	}
+
+	// Add default bash commands when bash is enabled but no specific commands are provided
+	// This runs after git commands logic, so it only applies when git commands weren't added
+	// Behavior:
+	//   - bash: true or bash: nil → Add default commands
+	//   - bash: [] → No commands (empty array means no tools allowed)
+	//   - bash: ["cmd1", "cmd2"] → Keep specific commands as-is
+	if bashTool, exists := tools["bash"]; exists {
+		// Check if bash was left as nil or true after git processing
+		if bashTool == nil {
+			// bash is nil - only add defaults if this wasn't processed by git commands
+			// If git commands were needed, bash would have been set to git commands or left as nil intentionally
+			if !(safeOutputs != nil && needsGitCommands(safeOutputs)) {
+				defaultCommands := make([]any, len(constants.DefaultBashTools))
+				for i, cmd := range constants.DefaultBashTools {
+					defaultCommands[i] = cmd
+				}
+				tools["bash"] = defaultCommands
+			}
+		} else if bashTool == true {
+			// bash is true - always add default commands
+			defaultCommands := make([]any, len(constants.DefaultBashTools))
+			for i, cmd := range constants.DefaultBashTools {
+				defaultCommands[i] = cmd
+			}
+			tools["bash"] = defaultCommands
+		}
+		// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
+	}
+
 	return tools
 }
 
