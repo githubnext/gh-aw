@@ -303,12 +303,12 @@ func TestDisplayToolsList(t *testing.T) {
 					Description: "First tool",
 				},
 				{
-					Name:        "any_tool2", 
+					Name:        "any_tool2",
 					Description: "Second tool",
 				},
 			},
 		}
-		
+
 		// All tools should be allowed due to wildcard in workflow config
 		displayToolsList(wildcardInfo, false)
 	})
