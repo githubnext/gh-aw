@@ -347,6 +347,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MissingTool = missingToolConfig
 			} else {
 				// Enable missing-tool by default when safe-outputs are configured
+				// Creates a default MissingToolConfig with no maximum limit (unlimited reporting)
 				config.MissingTool = &MissingToolConfig{}
 			}
 
