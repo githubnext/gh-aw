@@ -92,11 +92,33 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	steps = append(steps, "          THREAT_DETECTION_EOF\n")
 
 	steps = append(steps, "          \n")
-	steps = append(steps, "          # Prepare agent output files for analysis\n")
+	steps = append(steps, "          # Prepare workflow source context and agent output for analysis\n")
 	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_TEXT=\"${{ needs.%s.outputs.text }}\"\n", mainJobName))
 	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_PATCH=\"${{ needs.%s.outputs.patch }}\"\n", mainJobName))
 	steps = append(steps, "          \n")
-	steps = append(steps, "          # Replace placeholders in detection prompt\n")
+	steps = append(steps, "          # Create workflow context files to avoid shell escaping issues\n")
+	steps = append(steps, "          cat > /tmp/threat-detection/workflow_name.txt << 'WORKFLOW_NAME_EOF'\n")
+	for _, line := range strings.Split(data.Name, "\n") {
+		steps = append(steps, "          "+line+"\n")
+	}
+	steps = append(steps, "          WORKFLOW_NAME_EOF\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          cat > /tmp/threat-detection/workflow_description.txt << 'WORKFLOW_DESC_EOF'\n")
+	for _, line := range strings.Split(data.Description, "\n") {
+		steps = append(steps, "          "+line+"\n")
+	}
+	steps = append(steps, "          WORKFLOW_DESC_EOF\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          cat > /tmp/threat-detection/workflow_markdown.txt << 'WORKFLOW_MARKDOWN_EOF'\n")
+	for _, line := range strings.Split(data.MarkdownContent, "\n") {
+		steps = append(steps, "          "+line+"\n")
+	}
+	steps = append(steps, "          WORKFLOW_MARKDOWN_EOF\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          # Replace workflow context placeholders using Python one-liner\n")
+	steps = append(steps, "          python3 -c \"import re; content = open('/tmp/threat-detection/prompts/detection.md', 'r').read(); workflow_name = open('/tmp/threat-detection/workflow_name.txt', 'r').read().strip(); workflow_description = open('/tmp/threat-detection/workflow_description.txt', 'r').read().strip(); workflow_markdown = open('/tmp/threat-detection/workflow_markdown.txt', 'r').read().strip(); content = content.replace('{WORKFLOW_NAME}', workflow_name).replace('{WORKFLOW_DESCRIPTION}', workflow_description).replace('{WORKFLOW_MARKDOWN}', workflow_markdown); open('/tmp/threat-detection/prompts/detection.md', 'w').write(content)\"\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          # Replace agent output placeholders using sed (these are single-line and safer)\n")
 	steps = append(steps, "          sed -i \"s/{AGENT_OUTPUT}/${AGENT_OUTPUT_TEXT//\\/\\\\/}/g\" /tmp/threat-detection/prompts/detection.md\n")
 	steps = append(steps, "          sed -i \"s/{AGENT_PATCH}/${AGENT_OUTPUT_PATCH//\\/\\\\/}/g\" /tmp/threat-detection/prompts/detection.md\n")
 	steps = append(steps, "          \n")
