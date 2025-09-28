@@ -1316,7 +1316,7 @@ func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 func (e *ClaudeEngine) detectPermissionErrorsAndCreateMissingTools(logContent string, verbose bool) {
 	// Get permission error patterns
 	patterns := e.GetErrorPatterns()
-	
+
 	// Try to parse as JSON array first (Claude logs are structured)
 	var logEntries []map[string]any
 	if err := json.Unmarshal([]byte(logContent), &logEntries); err == nil {
@@ -1360,13 +1360,13 @@ func (e *ClaudeEngine) processClaudeJSONForPermissionErrors(logEntries []map[str
 // processClaudeTextForPermissionErrors processes text-based Claude logs for permission errors
 func (e *ClaudeEngine) processClaudeTextForPermissionErrors(logContent string, patterns []ErrorPattern, verbose bool) {
 	lines := strings.Split(logContent, "\n")
-	
+
 	for _, pattern := range patterns {
 		regex, err := regexp.Compile(pattern.Pattern)
 		if err != nil {
 			continue // Skip invalid patterns
 		}
-		
+
 		for _, line := range lines {
 			if regex.MatchString(line) {
 				// Found a permission error, create missing-tool entry
@@ -1390,7 +1390,7 @@ func (e *ClaudeEngine) isPermissionError(errorContent string) bool {
 		`(?i)access.*restricted`,
 		`(?i)insufficient.*permission`,
 	}
-	
+
 	for _, pattern := range patterns {
 		if matched, _ := regexp.MatchString(pattern, errorContent); matched {
 			return true
@@ -1425,7 +1425,7 @@ func (e *ClaudeEngine) extractToolNameFromContext(logEntries []map[string]any, t
 			}
 		}
 	}
-	
+
 	return defaultTool
 }
 
@@ -1448,7 +1448,7 @@ func (e *ClaudeEngine) createMissingToolEntry(toolName, reason string, verbose b
 		"alternatives": "Check repository permissions and access controls",
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 	}
-	
+
 	// Convert to JSON and append to safe outputs file
 	entryJSON, err := json.Marshal(missingToolEntry)
 	if err != nil {
@@ -1457,7 +1457,7 @@ func (e *ClaudeEngine) createMissingToolEntry(toolName, reason string, verbose b
 		}
 		return
 	}
-	
+
 	// Append to the safe outputs file
 	file, err := os.OpenFile(safeOutputsFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -1467,14 +1467,14 @@ func (e *ClaudeEngine) createMissingToolEntry(toolName, reason string, verbose b
 		return
 	}
 	defer file.Close()
-	
+
 	if _, err := file.WriteString(string(entryJSON) + "\n"); err != nil {
 		if verbose {
 			fmt.Printf("Failed to write missing-tool entry: %v\n", err)
 		}
 		return
 	}
-	
+
 	if verbose {
 		fmt.Printf("Recorded permission error as missing tool: %s\n", toolName)
 	}

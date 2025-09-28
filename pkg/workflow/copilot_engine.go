@@ -695,13 +695,13 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 func (e *CopilotEngine) detectPermissionErrorsAndCreateMissingTools(logContent string, verbose bool) {
 	patterns := e.getPermissionErrorPatterns()
 	lines := strings.Split(logContent, "\n")
-	
+
 	for _, pattern := range patterns {
 		regex, err := regexp.Compile(pattern.Pattern)
 		if err != nil {
 			continue // Skip invalid patterns
 		}
-		
+
 		for _, line := range lines {
 			if regex.MatchString(line) {
 				// Found a permission error - for Copilot CLI, the tool is generally the CLI itself
@@ -716,18 +716,18 @@ func (e *CopilotEngine) detectPermissionErrorsAndCreateMissingTools(logContent s
 func (e *CopilotEngine) getPermissionErrorPatterns() []ErrorPattern {
 	allPatterns := e.GetErrorPatterns()
 	var permissionPatterns []ErrorPattern
-	
+
 	for _, pattern := range allPatterns {
 		if strings.Contains(strings.ToLower(pattern.Description), "permission") ||
-		   strings.Contains(strings.ToLower(pattern.Description), "unauthorized") ||
-		   strings.Contains(strings.ToLower(pattern.Description), "forbidden") ||
-		   strings.Contains(strings.ToLower(pattern.Description), "access") ||
-		   strings.Contains(strings.ToLower(pattern.Description), "authentication") ||
-		   strings.Contains(strings.ToLower(pattern.Description), "token") {
+			strings.Contains(strings.ToLower(pattern.Description), "unauthorized") ||
+			strings.Contains(strings.ToLower(pattern.Description), "forbidden") ||
+			strings.Contains(strings.ToLower(pattern.Description), "access") ||
+			strings.Contains(strings.ToLower(pattern.Description), "authentication") ||
+			strings.Contains(strings.ToLower(pattern.Description), "token") {
 			permissionPatterns = append(permissionPatterns, pattern)
 		}
 	}
-	
+
 	return permissionPatterns
 }
 
@@ -750,7 +750,7 @@ func (e *CopilotEngine) createCopilotMissingToolEntry(toolName, reason string, v
 		"alternatives": "Check repository permissions and access controls",
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 	}
-	
+
 	// Convert to JSON and append to safe outputs file
 	entryJSON, err := json.Marshal(missingToolEntry)
 	if err != nil {
@@ -759,7 +759,7 @@ func (e *CopilotEngine) createCopilotMissingToolEntry(toolName, reason string, v
 		}
 		return
 	}
-	
+
 	// Append to the safe outputs file
 	file, err := os.OpenFile(safeOutputsFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -769,14 +769,14 @@ func (e *CopilotEngine) createCopilotMissingToolEntry(toolName, reason string, v
 		return
 	}
 	defer file.Close()
-	
+
 	if _, err := file.WriteString(string(entryJSON) + "\n"); err != nil {
 		if verbose {
 			fmt.Printf("Failed to write missing-tool entry: %v\n", err)
 		}
 		return
 	}
-	
+
 	if verbose {
 		fmt.Printf("Recorded permission error as missing tool: %s\n", toolName)
 	}
