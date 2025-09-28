@@ -41,8 +41,35 @@ function sanitizeMarkdown(content) {
 }
 
 /**
+ * Normalizes wiki file path for proper GitHub wiki structure
+ * @param {string} inputPath - The input path from user
+ * @returns {string} Normalized path with pages/ prefix and .md extension
+ */
+function normalizeWikiFilePath(inputPath) {
+  if (!inputPath || typeof inputPath !== "string") {
+    throw new Error("Wiki path must be a non-empty string");
+  }
+
+  // Enforce relative path - remove leading slashes
+  let normalizedPath = inputPath.replace(/^\/+/, "");
+
+  // Remove trailing slashes
+  normalizedPath = normalizedPath.replace(/\/+$/, "");
+
+  // Ensure .md extension
+  if (!normalizedPath.endsWith(".md")) {
+    normalizedPath += ".md";
+  }
+
+  // Prepend pages/ directory
+  const fullPath = `pages/${normalizedPath}`;
+
+  return fullPath;
+}
+
+/**
  * Validates wiki page path against allowed patterns
- * @param {string} pagePath - The page path to validate
+ * @param {string} pagePath - The page path to validate (before normalization)
  * @param {string[]} allowedPaths - Array of allowed path patterns
  * @param {string} workflowName - Default workflow name for path restriction
  * @returns {boolean} Whether the path is allowed
@@ -52,7 +79,7 @@ function validatePagePath(pagePath, allowedPaths, workflowName) {
     return false;
   }
 
-  // Remove leading/trailing slashes and normalize
+  // Remove leading/trailing slashes and normalize for validation
   const normalizedPath = pagePath.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
 
   // If no allowed paths configured, default to workflow name folder
@@ -130,8 +157,16 @@ async function main() {
       const item = wikiItems[i];
       const isPathValid = validatePagePath(item.path, allowedPaths, workflowName);
 
+      let normalizedPath = "N/A";
+      try {
+        normalizedPath = normalizeWikiFilePath(item.path);
+      } catch (error) {
+        // Keep N/A if path normalization fails
+      }
+
       summaryContent += `### Wiki Page ${i + 1}\n`;
       summaryContent += `**Path:** ${item.path || "No path provided"}\n\n`;
+      summaryContent += `**Normalized Path:** ${normalizedPath}\n\n`;
       summaryContent += `**Path Valid:** ${isPathValid ? "✅ Yes" : "❌ No (restricted)"}\n\n`;
       summaryContent += `**Content Length:** ${item.content ? item.content.length : 0} characters\n\n`;
 
@@ -234,15 +269,19 @@ async function main() {
       execSync(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
       execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
 
+      // Normalize the wiki file path (adds pages/ prefix and .md extension)
+      const normalizedFilePath = normalizeWikiFilePath(wikiEdit.path);
+      core.info(`Normalized wiki file path: ${normalizedFilePath}`);
+
       // Create directory structure if needed
-      const pageDir = path.dirname(wikiEdit.path);
+      const pageDir = path.dirname(normalizedFilePath);
       if (pageDir !== ".") {
         const fullPageDir = path.join(wikiDir, pageDir);
         execSync(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
       }
 
       // Write the content to the wiki page
-      const wikiPagePath = path.join(wikiDir, `${wikiEdit.path}.md`);
+      const wikiPagePath = path.join(wikiDir, normalizedFilePath);
       fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
 
       // Commit and push the changes

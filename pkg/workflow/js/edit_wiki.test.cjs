@@ -180,6 +180,60 @@ describe("edit_wiki.cjs", () => {
     });
   });
 
+  describe("normalizeWikiFilePath", () => {
+    let normalizeWikiFilePath;
+
+    beforeEach(async () => {
+      // Load the edit_wiki.cjs file and extract the normalizeWikiFilePath function
+      const editWikiPath = path.join(__dirname, "edit_wiki.cjs");
+      const content = await fs.promises.readFile(editWikiPath, "utf8");
+
+      // Extract and eval the normalizeWikiFilePath function
+      const funcMatch = content.match(/function normalizeWikiFilePath\([^)]*\)\s*{[^}]*(?:{[^}]*}[^}]*)*}/);
+      if (funcMatch) {
+        eval(funcMatch[0]);
+        normalizeWikiFilePath = global.normalizeWikiFilePath || eval("(" + funcMatch[0] + ")");
+      }
+    });
+
+    it("should add pages/ prefix and .md extension to simple path", () => {
+      expect(normalizeWikiFilePath("readme")).toBe("pages/readme.md");
+      expect(normalizeWikiFilePath("api-guide")).toBe("pages/api-guide.md");
+    });
+
+    it("should handle paths with subdirectories", () => {
+      expect(normalizeWikiFilePath("docs/readme")).toBe("pages/docs/readme.md");
+      expect(normalizeWikiFilePath("api/v1/guide")).toBe("pages/api/v1/guide.md");
+    });
+
+    it("should remove leading slashes to enforce relative paths", () => {
+      expect(normalizeWikiFilePath("/readme")).toBe("pages/readme.md");
+      expect(normalizeWikiFilePath("///docs/readme")).toBe("pages/docs/readme.md");
+      expect(normalizeWikiFilePath("/api/guide")).toBe("pages/api/guide.md");
+    });
+
+    it("should remove trailing slashes", () => {
+      expect(normalizeWikiFilePath("readme/")).toBe("pages/readme.md");
+      expect(normalizeWikiFilePath("docs/readme///")).toBe("pages/docs/readme.md");
+    });
+
+    it("should not duplicate .md extension", () => {
+      expect(normalizeWikiFilePath("readme.md")).toBe("pages/readme.md");
+      expect(normalizeWikiFilePath("docs/guide.md")).toBe("pages/docs/guide.md");
+    });
+
+    it("should handle complex cases with leading/trailing slashes and existing extension", () => {
+      expect(normalizeWikiFilePath("/docs/readme.md/")).toBe("pages/docs/readme.md");
+      expect(normalizeWikiFilePath("///api/guide.md///")).toBe("pages/api/guide.md");
+    });
+
+    it("should throw error for invalid inputs", () => {
+      expect(() => normalizeWikiFilePath("")).toThrow("Wiki path must be a non-empty string");
+      expect(() => normalizeWikiFilePath(null)).toThrow("Wiki path must be a non-empty string");
+      expect(() => normalizeWikiFilePath(undefined)).toThrow("Wiki path must be a non-empty string");
+    });
+  });
+
   describe("main function", () => {
     beforeEach(() => {
       // Reset mocks

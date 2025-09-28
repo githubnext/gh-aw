@@ -1968,6 +1968,18 @@ jobs:
                           }
                           return sanitized;
                         }
+                        function normalizeWikiFilePath(inputPath) {
+                          if (!inputPath || typeof inputPath !== "string") {
+                            throw new Error("Wiki path must be a non-empty string");
+                          }
+                          let normalizedPath = inputPath.replace(/^\/+/, "");
+                          normalizedPath = normalizedPath.replace(/\/+$/, "");
+                          if (!normalizedPath.endsWith(".md")) {
+                            normalizedPath += ".md";
+                          }
+                          const fullPath = `pages/${normalizedPath}`;
+                          return fullPath;
+                        }
                         function validatePagePath(pagePath, allowedPaths, workflowName) {
                           if (!pagePath || typeof pagePath !== "string") {
                             return false;
@@ -2024,8 +2036,14 @@ jobs:
                             for (let i = 0; i < Math.min(wikiItems.length, maxEdits); i++) {
                               const item = wikiItems[i];
                               const isPathValid = validatePagePath(item.path, allowedPaths, workflowName);
+                              let normalizedPath = "N/A";
+                              try {
+                                normalizedPath = normalizeWikiFilePath(item.path);
+                              } catch (error) {
+                              }
                               summaryContent += `### Wiki Page ${i + 1}\n`;
                               summaryContent += `**Path:** ${item.path || "No path provided"}\n\n`;
+                              summaryContent += `**Normalized Path:** ${normalizedPath}\n\n`;
                               summaryContent += `**Path Valid:** ${isPathValid ? "✅ Yes" : "❌ No (restricted)"}\n\n`;
                               summaryContent += `**Content Length:** ${item.content ? item.content.length : 0} characters\n\n`;
                               if (item.content && item.content.length > 0) {
@@ -2094,12 +2112,14 @@ jobs:
                               }
                               execSync(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
                               execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
-                              const pageDir = path.dirname(wikiEdit.path);
+                              const normalizedFilePath = normalizeWikiFilePath(wikiEdit.path);
+                              core.info(`Normalized wiki file path: ${normalizedFilePath}`);
+                              const pageDir = path.dirname(normalizedFilePath);
                               if (pageDir !== ".") {
                                 const fullPageDir = path.join(wikiDir, pageDir);
                                 execSync(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
                               }
-                              const wikiPagePath = path.join(wikiDir, `${wikiEdit.path}.md`);
+                              const wikiPagePath = path.join(wikiDir, normalizedFilePath);
                               fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
                               execSync(`git add .`, { cwd: wikiDir, stdio: "pipe" });
                               const status = execSync(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
