@@ -28,15 +28,12 @@ try {
   const promptFile = path.join(promptsDir, 'detection.md');
   fs.writeFileSync(promptFile, processedContent);
 
-  // Set environment variable for subsequent steps
-  if (typeof process.env.GITHUB_ENV !== 'undefined') {
-    fs.appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_PROMPT=${promptFile}\n`);
-  }
+  // Set environment variable for subsequent steps using core.exportVariable
+  core.exportVariable('GITHUB_AW_PROMPT', promptFile);
 
-  console.log('Threat detection setup completed successfully');
-  console.log(`Prompt file created at: ${promptFile}`);
+  core.info('Threat detection setup completed successfully');
+  core.info(`Prompt file created at: ${promptFile}`);
 
 } catch (error) {
-  console.error('Failed to setup threat detection:', error.message);
-  process.exit(1);
+  core.setFailed(`Failed to setup threat detection: ${error.message}`);
 }

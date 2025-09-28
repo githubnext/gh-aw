@@ -2089,14 +2089,11 @@ jobs:
                 .replace(/{AGENT_PATCH}/g, agentPatch);
               const promptFile = path.join(promptsDir, 'detection.md');
               fs.writeFileSync(promptFile, processedContent);
-              if (typeof process.env.GITHUB_ENV !== 'undefined') {
-                fs.appendFileSync(process.env.GITHUB_ENV, `GITHUB_AW_PROMPT=${promptFile}\n`);
-              }
-              console.log('Threat detection setup completed successfully');
-              console.log(`Prompt file created at: ${promptFile}`);
+              core.exportVariable('GITHUB_AW_PROMPT', promptFile);
+              core.info('Threat detection setup completed successfully');
+              core.info(`Prompt file created at: ${promptFile}`);
             } catch (error) {
-              console.error('Failed to setup threat detection:', error.message);
-              process.exit(1);
+              core.setFailed(`Failed to setup threat detection: ${error.message}`);
             }
       - name: Setup Node.js
         uses: actions/setup-node@v4
