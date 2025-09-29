@@ -152,5 +152,4 @@ var DefaultBashTools = []string{
 	"sort",
 	"uniq",
 	"date",
-	"make:*",
 }

@@ -65,6 +65,15 @@ func TestBashDefaultsConsistency(t *testing.T) {
 			},
 			safeOutputs: nil,
 		},
+		{
+			name: "bash with make array and create-pull-request (tidy.md config)",
+			tools: map[string]any{
+				"bash": []any{"make:*"},
+			},
+			safeOutputs: &SafeOutputsConfig{
+				CreatePullRequests: &CreatePullRequestsConfig{},
+			},
+		},
 	}
 
 	for _, tt := range tests {

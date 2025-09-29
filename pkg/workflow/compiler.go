@@ -1069,7 +1069,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// Behavior:
 	//   - bash: true or bash: nil → Add default commands
 	//   - bash: [] → No commands (empty array means no tools allowed)
-	//   - bash: ["cmd1", "cmd2"] → Keep specific commands as-is
+	//   - bash: ["cmd1", "cmd2"] → Add default commands + specific commands
 	if bashTool, exists := tools["bash"]; exists {
 		// Check if bash was left as nil or true after git processing
 		if bashTool == nil {
@@ -1089,8 +1089,31 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 				defaultCommands[i] = cmd
 			}
 			tools["bash"] = defaultCommands
+		} else if bashArray, ok := bashTool.([]any); ok {
+			// bash is an array - merge default commands with custom commands
+			if len(bashArray) > 0 {
+				// Create a set to track existing commands to avoid duplicates
+				existingCommands := make(map[string]bool)
+				for _, cmd := range bashArray {
+					if cmdStr, ok := cmd.(string); ok {
+						existingCommands[cmdStr] = true
+					}
+				}
+				
+				// Start with default commands
+				mergedCommands := make([]any, 0, len(constants.DefaultBashTools)+len(bashArray))
+				for _, cmd := range constants.DefaultBashTools {
+					if !existingCommands[cmd] {
+						mergedCommands = append(mergedCommands, cmd)
+					}
+				}
+				
+				// Add the custom commands
+				mergedCommands = append(mergedCommands, bashArray...)
+				tools["bash"] = mergedCommands
+			}
+			// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
 		}
-		// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
 	}
 
 	return tools
