@@ -9,4 +9,4 @@ safe-outputs:
     staged: true
     create-issue:
 ---
-Do nothing.
+Create a poem and post it as a new issue.

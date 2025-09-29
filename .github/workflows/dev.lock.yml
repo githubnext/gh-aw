@@ -763,7 +763,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Do nothing.
+          Create a poem and post it as a new issue.
           
           EOF
       - name: Append safe outputs instructions to prompt
