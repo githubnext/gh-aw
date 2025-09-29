@@ -123,7 +123,7 @@ This is a test workflow.`
 
 	// Check that all safe-outputs jobs use the custom runs-on
 	expectedRunsOn := "runs-on: self-hosted"
-	
+
 	// Count occurrences - should appear for safe-outputs jobs + activation/membership jobs
 	count := strings.Count(yamlStr, expectedRunsOn)
 	if count < 1 { // At least one job should use the custom runner
@@ -138,7 +138,7 @@ This is a test workflow.`
 			jobStart := strings.Index(yamlStr, jobName)
 			if jobStart != -1 {
 				// Look for runs-on within the next 500 characters of this job
-				jobSection := yamlStr[jobStart:jobStart+500]
+				jobSection := yamlStr[jobStart : jobStart+500]
 				if strings.Contains(jobSection, "runs-on: ubuntu-latest") {
 					t.Errorf("Job %q still uses default 'runs-on: ubuntu-latest' instead of custom runner.\nJob section:\n%s", jobName, jobSection)
 				}
