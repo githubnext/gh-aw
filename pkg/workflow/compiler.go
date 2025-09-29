@@ -1554,7 +1554,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	var outputs map[string]string
 	if data.SafeOutputs != nil {
 		outputs = map[string]string{
-			"output": "${{ steps.collect_output.outputs.output }}",
+			"output":       "${{ steps.collect_output.outputs.output }}",
 			"output_types": "${{ steps.collect_output.outputs.output_types }}",
 		}
 	}
