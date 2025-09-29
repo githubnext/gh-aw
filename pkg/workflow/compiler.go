@@ -1731,6 +1731,41 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	}
 }
 
+// JavaScriptErrorPattern represents an error pattern that has been converted for JavaScript compatibility
+type JavaScriptErrorPattern struct {
+	Pattern           string `json:"pattern"`
+	LevelGroup        int    `json:"level_group"`
+	MessageGroup      int    `json:"message_group"`
+	Description       string `json:"description"`
+	CaseInsensitive   bool   `json:"case_insensitive"`
+}
+
+// convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
+// This converts Go's (?i) inline case-insensitive flag to a separate flag
+func (c *Compiler) convertGoPatternToJavaScript(goPattern string) (pattern string, caseInsensitive bool) {
+	// Convert (?i) inline case-insensitive flag
+	if strings.HasPrefix(goPattern, "(?i)") {
+		return goPattern[4:], true // Remove (?i) prefix and mark as case-insensitive
+	}
+	return goPattern, false
+}
+
+// convertErrorPatternsToJavaScript converts a slice of Go error patterns to JavaScript-compatible patterns
+func (c *Compiler) convertErrorPatternsToJavaScript(goPatterns []ErrorPattern) []JavaScriptErrorPattern {
+	jsPatterns := make([]JavaScriptErrorPattern, len(goPatterns))
+	for i, pattern := range goPatterns {
+		jsPattern, caseInsensitive := c.convertGoPatternToJavaScript(pattern.Pattern)
+		jsPatterns[i] = JavaScriptErrorPattern{
+			Pattern:         jsPattern,
+			LevelGroup:      pattern.LevelGroup,
+			MessageGroup:    pattern.MessageGroup,
+			Description:     pattern.Description,
+			CaseInsensitive: caseInsensitive,
+		}
+	}
+	return jsPatterns
+}
+
 func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string, data *WorkflowData) {
 	// Concatenate engine error patterns and configured error patterns
 	var errorPatterns []ErrorPattern
@@ -1749,6 +1784,9 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 		return
 	}
 
+	// Convert Go regex patterns to JavaScript-compatible patterns
+	jsCompatiblePatterns := c.convertErrorPatternsToJavaScript(errorPatterns)
+
 	errorValidationScript := validateErrorsScript
 	if errorValidationScript == "" {
 		// Skip if validation script not found
@@ -1761,8 +1799,8 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
 
-	// Add error patterns as a single JSON array
-	patternsJSON, err := json.Marshal(errorPatterns)
+	// Add JavaScript-compatible error patterns as a single JSON array
+	patternsJSON, err := json.Marshal(jsCompatiblePatterns)
 	if err != nil {
 		// Skip if patterns can't be marshaled
 		return

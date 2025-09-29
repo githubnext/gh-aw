@@ -60,16 +60,18 @@ describe("Engine Pattern Integration Tests", () => {
         description: "Codex ERROR messages with timestamp"
       },
       {
-        pattern: "(?i)unauthorized",
+        pattern: "unauthorized",
         level_group: 0,
         message_group: 0,
-        description: "Unauthorized access error"
+        description: "Unauthorized access error",
+        case_insensitive: true
       },
       {
-        pattern: "(?i)permission.*denied",
+        pattern: "permission.*denied",
         level_group: 0,
         message_group: 0,
-        description: "Generic permission denied error"
+        description: "Generic permission denied error",
+        case_insensitive: true
       }
     ];
 
