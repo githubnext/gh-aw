@@ -268,205 +268,25 @@ await main();
 
 **File**: `pkg/workflow/js/your_new_type.test.cjs`
 
-Create comprehensive tests:
-
-```javascript
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import fs from "fs";
-
-// Mock the global objects that GitHub Actions provides
-const mockCore = {
-  debug: vi.fn(),
-  info: vi.fn(),
-  notice: vi.fn(),
-  warning: vi.fn(),
-  error: vi.fn(),
-  setFailed: vi.fn(),
-  setOutput: vi.fn(),
-  exportVariable: vi.fn(),
-  setSecret: vi.fn(),
-  getInput: vi.fn(),
-  getBooleanInput: vi.fn(),
-  getMultilineInput: vi.fn(),
-  getState: vi.fn(),
-  saveState: vi.fn(),
-  startGroup: vi.fn(),
-  endGroup: vi.fn(),
-  group: vi.fn(),
-  addPath: vi.fn(),
-  setCommandEcho: vi.fn(),
-  isDebug: vi.fn().mockReturnValue(false),
-  getIDToken: vi.fn(),
-  toPlatformPath: vi.fn(),
-  toPosixPath: vi.fn(),
-  toWin32Path: vi.fn(),
-  summary: {
-    addRaw: vi.fn().mockReturnThis(),
-    write: vi.fn().mockResolvedValue(),
-  },
-};
-
-const mockGithub = {
-  rest: {
-    // Mock your GitHub API calls here
-  },
-};
-
-const mockContext = {
-  repo: {
-    owner: "test-owner",
-    repo: "test-repo",
-  },
-};
-
-// Set up global mocks
-globalThis.core = mockCore;
-globalThis.github = mockGithub;
-globalThis.context = mockContext;
-globalThis.require = require;
-
-describe("your_new_type.cjs", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Clear environment variables
-    delete process.env.GITHUB_AW_AGENT_OUTPUT;
-    delete process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED;
-  });
-
-  const loadScript = () => {
-    const scriptPath = new URL("./your_new_type.cjs", import.meta.url).pathname;
-    return fs.readFileSync(scriptPath, "utf8");
-  };
-
-  it("should handle empty agent output", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = "";
-    
-    const script = loadScript();
-    await eval(`(async () => { ${script} })()`);
-    
-    expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
-  });
-
-  it("should process valid your-new-type items", async () => {
-    const testOutput = {
-      items: [
-        {
-          type: "your-new-type",
-          required_field: "test value",
-          optional_field: "optional value"
-        }
-      ],
-      errors: []
-    };
-    
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testOutput);
-    
-    const script = loadScript();
-    await eval(`(async () => { ${script} })()`);
-    
-    expect(mockCore.info).toHaveBeenCalledWith("Found 1 your-new-type item(s)");
-    // Add more specific assertions based on your implementation
-  });
-
-  it("should handle staged mode correctly", async () => {
-    const testOutput = {
-      items: [
-        {
-          type: "your-new-type", 
-          required_field: "test value"
-        }
-      ],
-      errors: []
-    };
-    
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testOutput);
-    process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-    
-    const script = loadScript();
-    await eval(`(async () => { ${script} })()`);
-    
-    expect(mockCore.summary.addRaw).toHaveBeenCalled();
-    expect(mockCore.summary.write).toHaveBeenCalled();
-  });
-
-  it("should handle missing items gracefully", async () => {
-    const testOutput = {
-      items: [
-        {
-          type: "create-issue",
-          title: "Test",
-          body: "Test body"
-        }
-      ],
-      errors: []
-    };
-    
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testOutput);
-    
-    const script = loadScript();
-    await eval(`(async () => { ${script} })()`);
-    
-    expect(mockCore.info).toHaveBeenCalledWith("No your-new-type items found in agent output");
-  });
-});
-```
+Create comprehensive tests following existing patterns in the codebase:
 
 **Testing Guidelines**:
 - Test empty/missing input scenarios
-- Test valid input processing
-- Test staged mode behavior  
+- Test valid input processing  
+- Test staged mode behavior
 - Test error handling
 - Use vitest framework with proper mocking
-- Follow existing test patterns in the codebase
+- Follow existing test patterns in `.test.cjs` files
 
 ### Step 6: Update Collection Tests
 
 **File**: `pkg/workflow/js/collect_ndjson_output.test.cjs`
 
-Add test cases for your new type:
-
-```javascript
-it("should handle your-new-type validation", async () => {
-  const testFile = "/tmp/test-ndjson-output.txt";
-  const ndjsonContent = `{"type": "your-new-type", "required_field": "test value", "optional_field": "optional"}`;
-
-  fs.writeFileSync(testFile, ndjsonContent);
-  process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-  process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"your-new-type": true}';
-
-  await eval(`(async () => { ${collectScript} })()`);
-
-  const setOutputCalls = mockCore.setOutput.mock.calls;
-  const outputCall = setOutputCalls.find(call => call[0] === "output");
-  expect(outputCall).toBeDefined();
-
-  const parsedOutput = JSON.parse(outputCall[1]);
-  expect(parsedOutput.items).toHaveLength(1);
-  expect(parsedOutput.items[0].type).toBe("your-new-type");
-  expect(parsedOutput.items[0].required_field).toBe("test value");
-  expect(parsedOutput.errors).toHaveLength(0);
-});
-
-it("should reject your-new-type items with missing required fields", async () => {
-  const testFile = "/tmp/test-ndjson-output.txt";
-  const ndjsonContent = `{"type": "your-new-type", "optional_field": "optional"}`;
-
-  fs.writeFileSync(testFile, ndjsonContent);
-  process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-  process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"your-new-type": true}';
-
-  await eval(`(async () => { ${collectScript} })()`);
-
-  const setOutputCalls = mockCore.setOutput.mock.calls;
-  const outputCall = setOutputCalls.find(call => call[0] === "output");
-  expect(outputCall).toBeDefined();
-
-  const parsedOutput = JSON.parse(outputCall[1]);
-  expect(parsedOutput.items).toHaveLength(0);
-  expect(parsedOutput.errors).toHaveLength(1);
-  expect(parsedOutput.errors[0]).toContain("requires a 'required_field' string field");
-});
-```
+Add test cases for your new type following existing patterns:
+- Test successful validation with valid fields
+- Test validation errors with missing required fields  
+- Test field type validation
+- Follow existing test structure in the file
 
 ### Step 7: Create Test Agentic Workflows
 
