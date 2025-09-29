@@ -780,6 +780,9 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool safe_outputs
+        # --allow-tool shell(cat)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
         # --allow-tool shell(git add:*)
         # --allow-tool shell(git branch:*)
         # --allow-tool shell(git checkout:*)
@@ -787,6 +790,14 @@ jobs:
         # --allow-tool shell(git merge:*)
         # --allow-tool shell(git rm:*)
         # --allow-tool shell(git switch:*)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(pwd)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
         # --allow-tool write
         timeout-minutes: 5
         run: |
@@ -795,7 +806,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git switch:*)' --allow-tool write --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool write --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1565,6 +1576,14 @@ jobs:
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
+              const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
+              core.info(`output_types: ${outputTypes.join(", ")}`);
+              core.setOutput("output_types", outputTypes.join(","));
+              outputTypes.forEach(type => {
+                const typeCount = parsedItems.filter(item => item.type === type).length;
+                core.info(`output_type_${type}: ${typeCount}`);
+                core.setOutput(`output_type_${type}`, typeCount);
+              });
               try {
                 await core.summary
                   .addRaw("## Processed Output\n\n")

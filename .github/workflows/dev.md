@@ -8,6 +8,7 @@ on:
 engine: copilot
 safe-outputs:
     staged: true
+    create-issue:
     jobs:
       print:
         #name: "print the message"

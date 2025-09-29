@@ -1383,6 +1383,7 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(cat)
         # - Bash(date)
         # - Bash(echo)
         # - Bash(git add:*)
@@ -1392,6 +1393,14 @@ jobs:
         # - Bash(git merge:*)
         # - Bash(git rm:*)
         # - Bash(git switch:*)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(ls)
+        # - Bash(pwd)
+        # - Bash(sort)
+        # - Bash(tail)
+        # - Bash(uniq)
+        # - Bash(wc)
         # - Bash(whoami)
         # - BashOutput
         # - Edit
@@ -1468,7 +1477,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --model claude-3-5-sonnet-20241022 --max-turns 3 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),Bash(whoami),BashOutput,Edit,Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,WebFetch,Write,Write(/tmp/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
+          npx @anthropic-ai/claude-code@latest --print --model claude-3-5-sonnet-20241022 --max-turns 3 --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(whoami),BashOutput,Edit,Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,WebFetch,Write,Write(/tmp/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -2248,6 +2257,14 @@ jobs:
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
+              const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
+              core.info(`output_types: ${outputTypes.join(", ")}`);
+              core.setOutput("output_types", outputTypes.join(","));
+              outputTypes.forEach(type => {
+                const typeCount = parsedItems.filter(item => item.type === type).length;
+                core.info(`output_type_${type}: ${typeCount}`);
+                core.setOutput(`output_type_${type}`, typeCount);
+              });
               try {
                 await core.summary
                   .addRaw("## Processed Output\n\n")
@@ -2874,6 +2891,7 @@ jobs:
 
   create_issue:
     needs: agent
+    if: needs.agent.collect_output.outputs.output_type_create_issue
     runs-on: ubuntu-latest
     permissions:
       contents: read
