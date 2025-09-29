@@ -108,15 +108,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 
 	// Determine the job condition for command workflows
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		jobCondition = commandConditionStr
-	} else {
-		jobCondition = "" // No conditional execution
-	}
+	jobCondition := "contains(needs.agent.collect_output.outputs.output_types, 'create-pull-request')"
 
 	job := &Job{
 		Name:           "create_pull_request",

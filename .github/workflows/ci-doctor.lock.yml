@@ -2343,7 +2343,7 @@ jobs:
 
   create_issue:
     needs: agent
-    if: contains(needs.agent.collect_output.outputs.output_types, 'create_issue')
+    if: contains(needs.agent.collect_output.outputs.output_types, 'create-issue')
     runs-on: ubuntu-latest
     permissions:
       contents: read

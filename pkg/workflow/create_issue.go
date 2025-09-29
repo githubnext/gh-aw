@@ -125,7 +125,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	}
 
 	// Determine the job condition for command workflows
-	jobCondition := "contains(needs.agent.collect_output.outputs.output_types, 'create_issue')"
+	jobCondition := "contains(needs.agent.collect_output.outputs.output_types, 'create-issue')"
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: read\n      issues: write"
