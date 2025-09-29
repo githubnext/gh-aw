@@ -111,6 +111,7 @@ jobs:
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"upload-asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
+      output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -913,16 +914,27 @@ jobs:
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
         # --allow-tool safe_outputs
+        # --allow-tool shell(cat)
         # --allow-tool shell(cd *)
         # --allow-tool shell(cp *)
         # --allow-tool shell(curl *)
+        # --allow-tool shell(date)
+        # --allow-tool shell(echo)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
         # --allow-tool shell(kill *)
+        # --allow-tool shell(ls)
         # --allow-tool shell(mkdir *)
         # --allow-tool shell(mv *)
         # --allow-tool shell(node *)
         # --allow-tool shell(npm *)
         # --allow-tool shell(ps *)
+        # --allow-tool shell(pwd)
         # --allow-tool shell(sleep *)
+        # --allow-tool shell(sort)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(uniq)
+        # --allow-tool shell(wc)
         timeout-minutes: 5
         run: |
           set -o pipefail
@@ -930,7 +942,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool 'shell(cd *)' --allow-tool 'shell(cp *)' --allow-tool 'shell(curl *)' --allow-tool 'shell(kill *)' --allow-tool 'shell(mkdir *)' --allow-tool 'shell(mv *)' --allow-tool 'shell(node *)' --allow-tool 'shell(npm *)' --allow-tool 'shell(ps *)' --allow-tool 'shell(sleep *)' --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(cd *)' --allow-tool 'shell(cp *)' --allow-tool 'shell(curl *)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(kill *)' --allow-tool 'shell(ls)' --allow-tool 'shell(mkdir *)' --allow-tool 'shell(mv *)' --allow-tool 'shell(node *)' --allow-tool 'shell(npm *)' --allow-tool 'shell(ps *)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sleep *)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1700,6 +1712,9 @@ jobs:
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
+              const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
+              core.info(`output_types: ${outputTypes.join(", ")}`);
+              core.setOutput("output_types", outputTypes.join(","));
               try {
                 await core.summary
                   .addRaw("## Processed Output\n\n")
@@ -1973,6 +1988,7 @@ jobs:
 
   create_issue:
     needs: agent
+    if: contains(needs.agent.outputs.output_types, 'create-issue')
     runs-on: ubuntu-latest
     permissions:
       contents: read

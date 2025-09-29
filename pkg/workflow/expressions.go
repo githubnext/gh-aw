@@ -304,6 +304,13 @@ func BuildNotFromFork() *ComparisonNode {
 	)
 }
 
+func BuildSafeOutputType(outputType string) ConditionNode {
+	return BuildFunctionCall("contains",
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
+		BuildStringLiteral(outputType),
+	)
+}
+
 // BuildFromAllowedForks creates a condition to check if a pull request is from an allowed fork
 // Supports glob patterns like "org/*" and exact matches like "org/repo"
 func BuildFromAllowedForks(allowedForks []string) ConditionNode {

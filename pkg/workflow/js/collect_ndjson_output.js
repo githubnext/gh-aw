@@ -720,6 +720,9 @@ async function main() {
   }
   core.setOutput("output", JSON.stringify(validatedOutput));
   core.setOutput("raw_output", outputContent);
+  const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
+  core.info(`output_types: ${outputTypes.join(", ")}`);
+  core.setOutput("output_types", outputTypes.join(","));
   try {
     await core.summary
       .addRaw("## Processed Output\n\n")
