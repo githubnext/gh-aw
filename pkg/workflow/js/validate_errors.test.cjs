@@ -151,10 +151,10 @@ Some normal log content
 
     // Should handle invalid patterns gracefully, not throw
     const hasErrors = validateErrors(logContent, patterns);
-    
+
     // Should return false since no valid patterns matched
     expect(hasErrors).toBe(false);
-    
+
     // Should log an error about the invalid pattern
     expect(global.core.error).toHaveBeenCalledWith("invalid error regex pattern: [invalid regex");
   });
