@@ -1,6 +1,18 @@
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
+
+// formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
+func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
+	if safeOutputs == nil || safeOutputs.RunsOn == "" {
+		return "runs-on: ubuntu-latest" // Default
+	}
+
+	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
+}
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
@@ -399,6 +411,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Set default value if not specified or invalid
 			if config.MaximumPatchSize == 0 {
 				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
+			}
+
+			// Handle runs-on configuration
+			if runsOn, exists := outputMap["runs-on"]; exists {
+				if runsOnStr, ok := runsOn.(string); ok {
+					config.RunsOn = runsOnStr
+				}
 			}
 
 			// Handle jobs (safe-jobs moved under safe-outputs)

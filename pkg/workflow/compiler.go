@@ -146,6 +146,7 @@ type SafeOutputsConfig struct {
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
+	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1445,7 +1446,7 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[s
 	job := &Job{
 		Name:        "check-membership",
 		If:          data.If, // Use the existing condition (which may include alias checks)
-		RunsOn:      "runs-on: ubuntu-latest",
+		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: "", // No special permissions needed - just reading repo permissions
 		Steps:       steps,
 		Outputs:     outputs,
@@ -1512,7 +1513,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	job := &Job{
 		Name:        "activation",
 		If:          activationCondition,
-		RunsOn:      "runs-on: ubuntu-latest",
+		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,

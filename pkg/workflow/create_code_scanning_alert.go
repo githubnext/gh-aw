@@ -96,7 +96,7 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	job := &Job{
 		Name:           "create_code_scanning_alert",
 		If:             jobCondition,
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      security-events: write\n      actions: read", // Need security-events:write for SARIF upload
 		TimeoutMinutes: 10,                                                                                      // 10-minute timeout
 		Steps:          steps,
