@@ -95,11 +95,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		"push_url":    "${{ steps.push_to_pull_request_branch.outputs.push_url }}",
 	}
 
-	// Build the job condition using expression trees
-	// Always run in pull request context, or issue context with a linked PR
-	// Combine safe output condition AND ((issue.number AND issue.pull_request) OR pull_request)
 	safeOutputCondition := BuildSafeOutputType("push-to-pull-request-branch")
-
 	issueWithPR := &AndNode{
 		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
 		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},

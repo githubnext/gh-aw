@@ -61,9 +61,6 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	// Build the job condition using expression trees
-	// Always require issue number context
-	// Combine safe output condition AND issue number exists
 	safeOutputCondition := BuildSafeOutputType("update-issue")
 
 	baseCondition := &ExpressionNode{Expression: "github.event.issue.number"}
