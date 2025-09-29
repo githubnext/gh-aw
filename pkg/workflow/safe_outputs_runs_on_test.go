@@ -40,23 +40,6 @@ safe-outputs:
 This is a test workflow.`,
 			expectedRunsOn: "runs-on: windows-latest",
 		},
-		{
-			name: "custom runs-on array",
-			frontmatter: `---
-safe-outputs:
-  create-issue:
-    title-prefix: "[ai] "
-  runs-on: [self-hosted, linux, x64]
----
-
-# Test Workflow
-
-This is a test workflow.`,
-			expectedRunsOn: `runs-on:
-      - self-hosted
-      - linux
-      - x64`,
-		},
 	}
 
 	for _, tt := range tests {
@@ -183,21 +166,7 @@ func TestFormatSafeOutputsRunsOnEdgeCases(t *testing.T) {
 		{
 			name: "safe outputs config with nil runs-on",
 			safeOutputs: &SafeOutputsConfig{
-				RunsOn: nil,
-			},
-			expectedRunsOn: "runs-on: ubuntu-latest",
-		},
-		{
-			name: "safe outputs config with empty array",
-			safeOutputs: &SafeOutputsConfig{
-				RunsOn: []any{},
-			},
-			expectedRunsOn: "runs-on: ubuntu-latest",
-		},
-		{
-			name: "safe outputs config with invalid type",
-			safeOutputs: &SafeOutputsConfig{
-				RunsOn: 123, // invalid type
+				RunsOn: "",
 			},
 			expectedRunsOn: "runs-on: ubuntu-latest",
 		},

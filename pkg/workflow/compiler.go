@@ -146,7 +146,7 @@ type SafeOutputsConfig struct {
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
-	RunsOn                          any                                    `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
+	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML

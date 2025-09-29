@@ -7,26 +7,11 @@ import (
 
 // formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
 func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
-	if safeOutputs == nil || safeOutputs.RunsOn == nil {
+	if safeOutputs == nil || safeOutputs.RunsOn == "" {
 		return "runs-on: ubuntu-latest" // Default
 	}
 
-	if runsOnStr, ok := safeOutputs.RunsOn.(string); ok {
-		return fmt.Sprintf("runs-on: %s", runsOnStr)
-	} else if runsOnList, ok := safeOutputs.RunsOn.([]any); ok {
-		// Handle array format
-		var runsOnItems []string
-		for _, item := range runsOnList {
-			if itemStr, ok := item.(string); ok {
-				runsOnItems = append(runsOnItems, fmt.Sprintf("      - %s", itemStr))
-			}
-		}
-		if len(runsOnItems) > 0 {
-			return fmt.Sprintf("runs-on:\n%s", strings.Join(runsOnItems, "\n"))
-		}
-	}
-
-	return "runs-on: ubuntu-latest" // Fallback to default
+	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
 }
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
@@ -430,7 +415,9 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 
 			// Handle runs-on configuration
 			if runsOn, exists := outputMap["runs-on"]; exists {
-				config.RunsOn = runsOn
+				if runsOnStr, ok := runsOn.(string); ok {
+					config.RunsOn = runsOnStr
+				}
 			}
 
 			// Handle jobs (safe-jobs moved under safe-outputs)
