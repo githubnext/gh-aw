@@ -1099,7 +1099,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 						existingCommands[cmdStr] = true
 					}
 				}
-				
+
 				// Start with default commands
 				mergedCommands := make([]any, 0, len(constants.DefaultBashTools)+len(bashArray))
 				for _, cmd := range constants.DefaultBashTools {
@@ -1107,7 +1107,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 						mergedCommands = append(mergedCommands, cmd)
 					}
 				}
-				
+
 				// Add the custom commands
 				mergedCommands = append(mergedCommands, bashArray...)
 				tools["bash"] = mergedCommands
