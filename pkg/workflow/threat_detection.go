@@ -164,9 +164,9 @@ const promptContent = templateContent
   .replace(/{AGENT_PATCH}/g, process.env.AGENT_PATCH || '');
 
 // Write prompt file
-fs.mkdirSync('/tmp/threat-detection/prompts', { recursive: true });
-fs.writeFileSync('/tmp/threat-detection/prompts/detection.md', promptContent);
-core.exportVariable('GITHUB_AW_PROMPT', '/tmp/threat-detection/prompts/detection.md');
+fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
+fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
+core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
 core.info('Threat detection setup completed');`, 
 		c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
 }
