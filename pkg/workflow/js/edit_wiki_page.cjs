@@ -290,83 +290,115 @@ async function main() {
 
   core.info(`Repository: ${owner}/${repo}`);
 
-  // Process each wiki edit
   let successCount = 0;
   let errorCount = 0;
 
+  const wikiDir = `/tmp/wiki`;
+  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+  const baseWikiUrl = `${serverUrl}/${owner}/${repo}.wiki.git`;
+  const token = process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || process.env.INPUT_TOKEN;
+
+  // Clone (with token if available) or init new repo if wiki doesn't exist
+  try {
+    // Avoid leaking the token in logs
+    core.info(`Cloning wiki repository (token auth): ${baseWikiUrl}`);
+    runCmd(`git clone https://x-access-token:${token}@${serverUrl}/${owner}/${repo}.wiki.git ${wikiDir}`, {
+      stdio: "pipe",
+    });
+  } catch (fatalClone) {
+    core.setFailed(`Failed to prepare wiki repository: ${fatalClone instanceof Error ? fatalClone.message : String(fatalClone)}`);
+    return;
+  }
+
+  // Configure git user once
+  try {
+    runCmd(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
+    runCmd(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
+  } catch (gitConfigErr) {
+    core.setFailed(`Failed to configure git user: ${gitConfigErr instanceof Error ? gitConfigErr.message : String(gitConfigErr)}`);
+    return;
+  }
+
+  // Write each page (staging all changes first)
   for (let i = 0; i < validWikiEdits.length; i++) {
     const wikiEdit = validWikiEdits[i];
-
     try {
-      core.info(`Editing wiki page ${i + 1}/${validWikiEdits.length}: ${wikiEdit.path}`);
-
-      // Clone or update the wiki repository
-      const wikiUrl = `https://github.com/${owner}/${repo}.wiki.git`;
-      const wikiDir = `/tmp/wiki-${Date.now()}-${i}`;
-
-      // Clone the wiki repository (it might not exist yet)
-
-      try {
-        core.info(`Cloning wiki repository: ${wikiUrl}`);
-        runCmd(`git clone ${wikiUrl} ${wikiDir}`, { stdio: "pipe" });
-      } catch (cloneError) {
-        // Wiki doesn't exist yet, create it
-        core.info("Wiki repository doesn't exist, creating new one");
-        runCmd(`mkdir -p ${wikiDir}`, { stdio: "pipe" });
-        // Initialize git repository in the created directory
-        runCmd(`git init`, { cwd: wikiDir, stdio: "pipe" });
-        runCmd(`git remote add origin ${wikiUrl}`, { cwd: wikiDir, stdio: "pipe" });
-      }
-
-      // Configure git user (required for commits)
-      runCmd(`git config user.name "github-actions[bot]"`, { cwd: wikiDir, stdio: "pipe" });
-      runCmd(`git config user.email "github-actions[bot]@users.noreply.github.com"`, { cwd: wikiDir, stdio: "pipe" });
-
-      // Normalize the wiki file path (adds .md extension and ensures relative path)
+      core.info(`Writing wiki page ${i + 1}/${validWikiEdits.length}: ${wikiEdit.path}`);
       const normalizedFilePath = normalizeWikiFilePath(wikiEdit.path);
       core.info(`Normalized wiki file path: ${normalizedFilePath}`);
-
-      // Create directory structure if needed
       const pageDir = path.dirname(normalizedFilePath);
       if (pageDir !== ".") {
         const fullPageDir = path.join(wikiDir, pageDir);
         runCmd(`mkdir -p "${fullPageDir}"`, { stdio: "pipe" });
       }
-
-      // Write the content to the wiki page
       const wikiPagePath = path.join(wikiDir, normalizedFilePath);
       fs.writeFileSync(wikiPagePath, wikiEdit.content, "utf8");
-
-      // Commit and push the changes
-      runCmd(`git add .`, { cwd: wikiDir, stdio: "pipe" });
-
-      // Check if there are changes to commit
-      const status = runCmd(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
-      if (!status.trim()) {
-        core.info(`No changes detected for wiki page: ${wikiEdit.path}`);
-        continue;
-      }
-
-      runCmd(`git commit -m "${wikiEdit.message}"`, { cwd: wikiDir, stdio: "pipe" });
-      runCmd(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
-
-      // Clean up temporary directory
-      runCmd(`rm -rf ${wikiDir}`, { stdio: "pipe" });
-
-      core.info(`✅ Successfully edited wiki page: ${wikiEdit.path}`);
+      runCmd(`git add "${normalizedFilePath}"`, { cwd: wikiDir, stdio: "pipe" });
       successCount++;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      core.error(`❌ Failed to edit wiki page ${wikiEdit.path}: ${errorMessage}`);
+    } catch (writeErr) {
+      const msg = writeErr instanceof Error ? writeErr.message : String(writeErr);
+      core.error(`❌ Failed to stage wiki page ${wikiEdit.path}: ${msg}`);
       errorCount++;
     }
   }
 
-  // Report final results
-  core.info(`Wiki editing completed: ${successCount} successful, ${errorCount} failed`);
+  // Check if there is anything to commit
+  let statusOutput = "";
+  try {
+    statusOutput = runCmd(`git status --porcelain`, { cwd: wikiDir, encoding: "utf8" });
+  } catch (statusErr) {
+    core.setFailed(`Failed to check git status: ${statusErr instanceof Error ? statusErr.message : String(statusErr)}`);
+    return;
+  }
 
-  if (errorCount > 0) {
-    core.setFailed(`Failed to edit ${errorCount} wiki page(s). See logs for details.`);
+  if (statusOutput.trim()) {
+    // Build a consolidated commit message
+    const uniqueMessages = [...new Set(validWikiEdits.map(e => e.message).filter(Boolean))];
+    let commitMessage;
+    if (uniqueMessages.length === 1) {
+      commitMessage = uniqueMessages[0];
+    } else {
+      commitMessage = `Update ${validWikiEdits.length} wiki pages`;
+      if (uniqueMessages.length > 1) {
+        commitMessage +=
+          `\n\n` +
+          uniqueMessages
+            .slice(0, 20)
+            .map(m => `- ${m}`)
+            .join("\n");
+        if (uniqueMessages.length > 20) {
+          commitMessage += `\n- ...and ${uniqueMessages.length - 20} more messages`;
+        }
+      }
+    }
+
+    // Write commit message to a temp file to avoid shell quoting issues
+    const commitMsgFile = path.join(wikiDir, `.commit-message.txt`);
+    fs.writeFileSync(commitMsgFile, commitMessage, "utf8");
+
+    try {
+      runCmd(`git commit -F .commit-message.txt`, { cwd: wikiDir, stdio: "pipe" });
+    } catch (commitErr) {
+      core.setFailed(`Failed to commit wiki changes: ${commitErr instanceof Error ? commitErr.message : String(commitErr)}`);
+      return;
+    }
+
+    // Push changes (token embedded in remote URL already if provided)
+    try {
+      runCmd(`git push origin HEAD:master`, { cwd: wikiDir, stdio: "pipe" });
+    } catch (pushErr) {
+      core.setFailed(`Failed to push wiki changes: ${pushErr instanceof Error ? pushErr.message : String(pushErr)}`);
+      return;
+    }
+  } else {
+    core.info("No wiki changes to commit");
+  }
+
+  core.info(`Wiki editing completed: ${successCount} processed, ${errorCount} failed to stage`);
+  if (errorCount > 0 && successCount === 0) {
+    core.setFailed(`All wiki edits failed (${errorCount})`);
+  } else if (errorCount > 0) {
+    core.warning(`Some wiki edits failed: ${errorCount}`);
   } else {
     core.info("🎉 All wiki pages edited successfully!");
   }
