@@ -294,15 +294,15 @@ async function main() {
   let errorCount = 0;
 
   const wikiDir = `/tmp/wiki`;
-  const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
-  const baseWikiUrl = `${serverUrl}/${owner}/${repo}.wiki.git`;
+  const serverHostname = new URL(process.env.GITHUB_SERVER_URL || "https://github.com").hostname;
+  const baseWikiUrl = `${serverHostname}/${owner}/${repo}.wiki.git`;
   const token = process.env.GITHUB_TOKEN || process.env.INPUT_GITHUB_TOKEN || process.env.INPUT_TOKEN;
 
   // Clone (with token if available) or init new repo if wiki doesn't exist
   try {
     // Avoid leaking the token in logs
     core.info(`Cloning wiki repository (token auth): ${baseWikiUrl}`);
-    runCmd(`git clone https://x-access-token:${token}@${serverUrl}/${owner}/${repo}.wiki.git ${wikiDir}`, {
+    runCmd(`git clone https://x-access-token:${token}@${serverHostname}/${owner}/${repo}.wiki.git ${wikiDir}`, {
       stdio: "pipe",
     });
   } catch (fatalClone) {
