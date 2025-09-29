@@ -153,7 +153,7 @@ tools:
   edit:        # File editing capabilities
   web-fetch:    # Web content fetching
   web-search:   # Web search capabilities
-  bash: true   # Default safe commands (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date)
+  bash: true   # Default safe commands (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date, make:*)
   # bash: ["echo", "ls", "git status"]  # Or specify custom commands
 ```
 
@@ -184,13 +184,14 @@ When `bash: true` or `bash: null` is specified, the system automatically provide
 
 **File Operations**: `ls`, `pwd`, `cat`, `head`, `tail`  
 **Text Processing**: `grep`, `sort`, `uniq`, `wc`  
-**Basic Utilities**: `echo`, `date`
+**Basic Utilities**: `echo`, `date`  
+**Build Tools**: `make:*` (all make commands)
 
 These defaults ensure consistent behavior across Claude and Copilot engines while maintaining security.
 
 #### Configuration Behavior
 
-- **`bash: true`** → Adds default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`)
+- **`bash: true`** → Adds default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`, `make:*`)
 - **`bash: null`** → Adds default commands (only if no git commands needed for safe outputs)  
 - **`bash: []`** → No bash commands allowed (empty array preserved)
 - **`bash: ["cmd1", "cmd2"]`** → Only specified commands allowed
