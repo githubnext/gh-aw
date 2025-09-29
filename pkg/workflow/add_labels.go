@@ -71,8 +71,6 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	// Build the job condition using expression trees
-	// Combine safe output condition AND (issue number OR PR number)
 	safeOutputCondition := BuildSafeOutputType("add-labels")
 	baseCondition := &OrNode{
 		Left:  &ExpressionNode{Expression: "github.event.issue.number"},

@@ -124,7 +124,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
-	// Build the job condition using expression tree
 	jobCondition := BuildSafeOutputType("create-issue")
 
 	// Set base permissions

@@ -52,9 +52,6 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
-	// Build the job condition using expression trees
-	// We only run in pull request context, Note that in pull request comments only github.event.issue.pull_request is set.
-	// Combine safe output condition AND ((issue.number AND issue.pull_request) OR pull_request)
 	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment")
 	issueWithPR := &AndNode{
 		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
