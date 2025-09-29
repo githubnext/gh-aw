@@ -52,16 +52,26 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
+	// Build the job condition using expression trees
 	// We only run in pull request context, Note that in pull request comments only github.event.issue.pull_request is set.
-	baseCondition := "(github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request"
-
-	// Combine the base condition with the safe output type condition
-	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment").Render()
-	jobCondition := fmt.Sprintf("(%s) && (%s)", safeOutputCondition, baseCondition)
+	// Combine safe output condition AND ((issue.number AND issue.pull_request) OR pull_request)
+	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment")
+	issueWithPR := &AndNode{
+		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
+		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
+	}
+	baseCondition := &OrNode{
+		Left:  issueWithPR,
+		Right: &ExpressionNode{Expression: "github.event.pull_request"},
+	}
+	jobCondition := &AndNode{
+		Left:  safeOutputCondition,
+		Right: baseCondition,
+	}
 
 	job := &Job{
 		Name:           "create_pr_review_comment",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required

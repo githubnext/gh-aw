@@ -71,14 +71,21 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	// Combine the base condition with the safe output type condition
-	var baseCondition = "github.event.issue.number || github.event.pull_request.number" // Only run in issue or PR context
-	safeOutputCondition := BuildSafeOutputType("add-labels").Render()
-	jobCondition := fmt.Sprintf("(%s) && (%s)", safeOutputCondition, baseCondition)
+	// Build the job condition using expression trees
+	// Combine safe output condition AND (issue number OR PR number)
+	safeOutputCondition := BuildSafeOutputType("add-labels")
+	baseCondition := &OrNode{
+		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
+		Right: &ExpressionNode{Expression: "github.event.pull_request.number"},
+	}
+	jobCondition := &AndNode{
+		Left:  safeOutputCondition,
+		Right: baseCondition,
+	}
 
 	job := &Job{
 		Name:           "add_labels",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required

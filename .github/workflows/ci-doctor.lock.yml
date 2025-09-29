@@ -2525,7 +2525,7 @@ jobs:
   create_issue_comment:
     needs: agent
     if: >
-      (contains(needs.agent.outputs.output_types, 'add-comment')) && (github.event.issue.number || github.event.pull_request.number)
+      (contains(needs.agent.outputs.output_types, 'add-comment')) && ((github.event.issue.number) || (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
       contents: read

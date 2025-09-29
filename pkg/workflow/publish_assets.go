@@ -165,16 +165,15 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		"branch_name":     "${{ steps.upload_assets.outputs.branch_name }}",
 	}
 
-	// Determine the job condition based on safe output type
-	safeOutputCondition := BuildSafeOutputType("publish-assets").Render()
-	jobCondition := safeOutputCondition
+	// Build the job condition using expression tree
+	jobCondition := BuildSafeOutputType("publish-assets")
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: write  # Required for creating orphaned branch and pushing assets"
 
 	job := &Job{
 		Name:           "upload_assets",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    permissions,
 		TimeoutMinutes: 10, // 10-minute timeout as required

@@ -90,13 +90,12 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
 	}
 
-	// Determine the job condition based on safe output type
-	safeOutputCondition := BuildSafeOutputType("create-discussion").Render()
-	jobCondition := safeOutputCondition
+	// Build the job condition using expression tree
+	jobCondition := BuildSafeOutputType("create-discussion")
 
 	job := &Job{
 		Name:           "create_discussion",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      discussions: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required

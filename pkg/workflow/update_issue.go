@@ -61,34 +61,31 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	// Determine the job condition based on target configuration
-	var baseCondition string
+	// Build the job condition using expression trees
+	safeOutputCondition := BuildSafeOutputType("update-issue")
+
+	var jobCondition ConditionNode
 	if data.SafeOutputs.UpdateIssues.Target == "*" {
 		// Allow updates to any issue - no specific context required
-		baseCondition = "always()"
+		// Just use the safe output condition
+		jobCondition = safeOutputCondition
 	} else if data.SafeOutputs.UpdateIssues.Target != "" {
 		// Explicit issue number specified - no specific context required
-		baseCondition = "always()"
-	} else {
-		// Default behavior: only update triggering issue
-		baseCondition = "github.event.issue.number"
-	}
-
-	// Combine the base condition with the safe output type condition
-	var jobCondition string
-	safeOutputCondition := BuildSafeOutputType("update-issue").Render()
-	
-	if baseCondition == "always()" {
-		// If base condition is always(), just use the safe output condition
+		// Just use the safe output condition
 		jobCondition = safeOutputCondition
 	} else {
-		// Combine both conditions with AND
-		jobCondition = fmt.Sprintf("(%s) && (%s)", safeOutputCondition, baseCondition)
+		// Default behavior: only update triggering issue
+		// Combine safe output condition AND issue number exists
+		baseCondition := &ExpressionNode{Expression: "github.event.issue.number"}
+		jobCondition = &AndNode{
+			Left:  safeOutputCondition,
+			Right: baseCondition,
+		}
 	}
 
 	job := &Job{
 		Name:           "update_issue",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
