@@ -264,11 +264,8 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          
-          # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool inferred-http --allow-tool 'inferred-http(inferred_http_tool)' --allow-tool inferred-stdio --allow-tool 'inferred-stdio(inferred_tool)' --allow-tool local-server --allow-tool 'local-server(local_action)' --allow-tool my-http-server --allow-tool 'my-http-server(fetch_data)' --allow-tool my-stdio-server --allow-tool 'my-stdio-server(get_info)' --allow-tool 'my-stdio-server(process_data)' --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool inferred-http --allow-tool 'inferred-http(inferred_http_tool)' --allow-tool inferred-stdio --allow-tool 'inferred-stdio(inferred_tool)' --allow-tool local-server --allow-tool 'local-server(local_action)' --allow-tool my-http-server --allow-tool 'my-http-server(fetch_data)' --allow-tool my-stdio-server --allow-tool 'my-stdio-server(get_info)' --allow-tool 'my-stdio-server(process_data)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

@@ -124,11 +124,8 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail
-          
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          
-          # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
