@@ -118,7 +118,7 @@ describe("collect_ndjson_output.js", () => {
 
     await eval(`(async () => { ${collectScript} })()`);
 
-    expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
+    expect(mockCore.setOutput).toHaveBeenCalledWith("output", '{"items":[],"errors":[]}');
     expect(mockCore.info).toHaveBeenCalledWith("Output file is empty");
   });
 
@@ -1854,6 +1854,158 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
 
       expect(parsedOutput.items[0].body).toBe("This is visible  more visible text  and more text  final text");
+    });
+  });
+
+  describe("Min validation tests", () => {
+    it("should pass when min requirement is met", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
+{"type": "create-issue", "title": "Second Issue", "body": "Second body"}
+{"type": "create-issue", "title": "Third Issue", "body": "Third body"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      // Set min to 2 for create-issue
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 2, "max": 5}}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(3); // All 3 items should be valid
+      expect(parsedOutput.errors).toHaveLength(0); // No errors for meeting min requirement
+    });
+
+    it("should fail when min requirement is not met", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Only Issue", "body": "Only body"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      // Set min to 3 for create-issue, but we only have 1 item
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 3, "max": 5}}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1); // The 1 valid item is still processed
+      expect(parsedOutput.errors).toHaveLength(1); // Error for not meeting min requirement
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'create-issue'. Minimum required: 3, found: 1.");
+    });
+
+    it("should handle multiple types with different min requirements", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Issue 1", "body": "Body 1"}
+{"type": "create-issue", "title": "Issue 2", "body": "Body 2"}
+{"type": "add-comment", "body": "Comment 1"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      // Set min to 1 for create-issue (satisfied) and min to 2 for add-comment (not satisfied)
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 1, "max": 5}, "add-comment": {"min": 2, "max": 5}}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(3); // All items are processed
+      expect(parsedOutput.errors).toHaveLength(1); // Only error for add-comment min requirement
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'add-comment'. Minimum required: 2, found: 1.");
+    });
+
+    it("should ignore min when set to 0", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Issue", "body": "Body"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      // Set min to 0 for create-issue (should be ignored)
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 0, "max": 5}}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.errors).toHaveLength(0); // No min validation errors
+    });
+
+    it("should work when no min is specified (defaults to 0)", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "create-issue", "title": "Issue", "body": "Body"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      // No min specified, should default to 0
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"max": 5}}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(1);
+      expect(parsedOutput.errors).toHaveLength(0); // No min validation errors
+    });
+
+    it("should validate min even when no items are present", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = ``; // Empty file
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      // Set min to 1 for create-issue, but no items present
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 1, "max": 5}}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(0); // No items
+      expect(parsedOutput.errors).toHaveLength(1); // Error for not meeting min requirement
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'create-issue'. Minimum required: 1, found: 0.");
+    });
+
+    it("should work with different safe output types", async () => {
+      const testFile = "/tmp/test-ndjson-output.txt";
+      const ndjsonContent = `{"type": "add-comment", "body": "Comment"}
+{"type": "create-discussion", "title": "Discussion", "body": "Discussion body"}
+{"type": "create-discussion", "title": "Discussion 2", "body": "Discussion body 2"}`;
+
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      // Set min requirements for different types
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-comment": {"min": 2, "max": 5}, "create-discussion": {"min": 1, "max": 5}}';
+
+      await eval(`(async () => { ${collectScript} })()`);
+
+      const setOutputCalls = mockCore.setOutput.mock.calls;
+      const outputCall = setOutputCalls.find(call => call[0] === "output");
+      expect(outputCall).toBeDefined();
+
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.items).toHaveLength(3); // All items processed
+      expect(parsedOutput.errors).toHaveLength(1); // Error only for add-comment min requirement
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'add-comment'. Minimum required: 2, found: 1.");
     });
   });
 });

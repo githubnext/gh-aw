@@ -22,7 +22,7 @@ func TestNeutralToolsExpandsToClaudeTools(t *testing.T) {
 	// Test with safe outputs that require git commands
 	safeOutputs := &SafeOutputsConfig{
 		CreatePullRequests: &CreatePullRequestsConfig{
-			Max: 1,
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
 		},
 	}
 

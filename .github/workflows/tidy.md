@@ -26,6 +26,7 @@ network: {}
 tools:
   github:
     allowed: [list_pull_requests, get_pull_request]
+  bash: ["make:*"]
 
 safe-outputs:
   create-pull-request:
@@ -33,7 +34,7 @@ safe-outputs:
     labels: [automation, maintenance]
     draft: false
   push-to-pull-request-branch:
-
+  missing-tool:
 steps:
   - name: Set up Node.js
     uses: actions/setup-node@v5

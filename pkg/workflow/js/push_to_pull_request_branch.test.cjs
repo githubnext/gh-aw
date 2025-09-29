@@ -97,11 +97,25 @@ describe("push_to_pull_request_branch.cjs", () => {
       exec: vi.fn().mockImplementation((command, args, options) => {
         // Handle the gh pr view command specifically
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
-          // Simulate the stdout listener being called with branch name
-          if (options && options.listeners && options.listeners.stdout) {
-            options.listeners.stdout(Buffer.from("feature-branch\n"));
+          // Check if this is the JSON query for PR details
+          if (args.includes("--json") && args.includes("headRefName,title,labels")) {
+            // Simulate the stdout listener being called with JSON PR data
+            if (options && options.listeners && options.listeners.stdout) {
+              const prData = JSON.stringify({
+                headRefName: "feature-branch",
+                title: "Test PR Title",
+                labels: ["bug", "enhancement"],
+              });
+              options.listeners.stdout(Buffer.from(prData + "\n"));
+            }
+            return Promise.resolve(0); // Return exit code directly, not an object
+          } else {
+            // For non-JSON gh pr view commands, return simple branch name
+            if (options && options.listeners && options.listeners.stdout) {
+              options.listeners.stdout(Buffer.from("feature-branch\n"));
+            }
+            return Promise.resolve(0);
           }
-          return Promise.resolve(0); // Return exit code directly, not an object
         }
         // For other commands, just return success
         return Promise.resolve(0);

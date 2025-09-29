@@ -6,8 +6,7 @@ import (
 
 // MissingToolConfig holds configuration for reporting missing tools or functionality
 type MissingToolConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of missing tool reports (default: unlimited)
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
 }
 
 // buildCreateOutputMissingToolJob creates the missing_tool job
@@ -79,36 +78,8 @@ func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingTool
 		}
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse max (optional)
-			if max, exists := configMap["max"]; exists {
-				// Handle different numeric types that YAML parsers might return
-				var maxInt int
-				var validMax bool
-				switch v := max.(type) {
-				case int:
-					maxInt = v
-					validMax = true
-				case int64:
-					maxInt = int(v)
-					validMax = true
-				case uint64:
-					maxInt = int(v)
-					validMax = true
-				case float64:
-					maxInt = int(v)
-					validMax = true
-				}
-				if validMax {
-					missingToolConfig.Max = maxInt
-				}
-			}
-
-			// Parse github-token
-			if githubToken, exists := configMap["github-token"]; exists {
-				if githubTokenStr, ok := githubToken.(string); ok {
-					missingToolConfig.GitHubToken = githubTokenStr
-				}
-			}
+			// Parse common base fields
+			c.parseBaseSafeOutputConfig(configMap, &missingToolConfig.BaseSafeOutputConfig)
 		}
 
 		return missingToolConfig

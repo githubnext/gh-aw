@@ -18,7 +18,7 @@ tools:
   playwright:
     allowed_domains: ["github.com", "*.example.com"]
   edit:
-  bash: ["echo", "ls", "git status"]
+  bash: true  # Uses default safe commands
 ```
 
 All tools declared in included components are merged into the final workflow.
@@ -153,28 +153,71 @@ tools:
   edit:        # File editing capabilities
   web-fetch:    # Web content fetching
   web-search:   # Web search capabilities
-  bash: ["echo", "ls", "git status"]  # Allowed bash commands
+  bash: true   # Default safe commands (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date)
+  # bash: ["echo", "ls", "git status"]  # Or specify custom commands
 ```
 
 ### Bash Command Configuration
 
+The bash tool provides access to shell commands with different levels of control and security.
+
+#### Basic Configuration Options
+
 ```yaml
 tools:
-  bash: ["echo", "ls", "git", "npm", "python"]
+  # Default commands: Provides common safe commands (echo, ls, pwd, cat, etc.)
+  bash: true
+
+  # Specific commands: Only allow specified commands
+  bash: ["echo", "ls", "git status", "npm test"]
+
+  # No commands: Bash tool enabled but no commands allowed
+  bash: []
+
+  # All commands: Unrestricted bash access (use with caution)
+  bash: [":*"]
 ```
 
-#### Bash Wildcards
+#### Default Bash Commands
+
+When `bash: true` or `bash: null` is specified, the system automatically provides these safe, read-only commands:
+
+**File Operations**: `ls`, `pwd`, `cat`, `head`, `tail`  
+**Text Processing**: `grep`, `sort`, `uniq`, `wc`  
+**Basic Utilities**: `echo`, `date`
+
+These defaults ensure consistent behavior across Claude and Copilot engines while maintaining security.
+
+#### Configuration Behavior
+
+- **`bash: true`** → Adds default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`)
+- **`bash: null`** → Adds default commands (only if no git commands needed for safe outputs)  
+- **`bash: []`** → No bash commands allowed (empty array preserved)
+- **`bash: ["cmd1", "cmd2"]`** → Only specified commands allowed
+- **`bash: [":*"]`** → All bash commands allowed (unrestricted access)
+
+#### Wildcards and Advanced Patterns
 
 ```yaml
 tools:
-  bash: [":*"]  # Allow ALL bash commands - use with caution
+  bash: [":*"]                    # Allow ALL bash commands - use with caution
+  bash: ["git:*"]                 # Allow all git commands with any arguments
+  bash: ["npm:*", "echo", "ls"]   # Mix of wildcards and specific commands
 ```
 
 **Wildcard Options:**
 - **`:*`**: Allows **all bash commands** without restriction
-- **`prefix:*`**: Allows **all commands starting with prefix**
+- **`command:*`**: Allows **all invocations of a specific command** with any arguments
 
-**Security Note**: Using `:*` allows unrestricted bash access. Use only in trusted environments.
+#### Security Considerations
+
+**Default Commands**: The default command set is designed to be safe and read-only, suitable for most workflows without security concerns.
+
+**Custom Commands**: When specifying custom commands, ensure they don't provide unintended access to sensitive operations.
+
+**Wildcard Access**: Using `:*` allows unrestricted bash access. Use only in trusted environments or when comprehensive shell access is required.
+
+**Git Integration**: When safe outputs require git commands (e.g., `create-pull-request`), the system automatically adds necessary git commands like `git add`, `git commit`, etc.
 
 ## Related Documentation
 

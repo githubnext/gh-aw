@@ -21,7 +21,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					"create-code-scanning-alert": nil,
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{Max: 0}, // 0 means unlimited
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}}, // 0 means unlimited
 		},
 		{
 			name: "code scanning alert with max configuration",
@@ -32,7 +32,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					},
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{Max: 50},
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 50}},
 		},
 		{
 			name: "code scanning alert with driver configuration",
@@ -43,7 +43,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					},
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{Max: 0, Driver: "Custom Security Scanner"},
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}, Driver: "Custom Security Scanner"},
 		},
 		{
 			name: "code scanning alert with max and driver configuration",
@@ -55,7 +55,7 @@ func TestCodeScanningAlertsConfig(t *testing.T) {
 					},
 				},
 			},
-			expectedConfig: &CreateCodeScanningAlertsConfig{Max: 25, Driver: "Advanced Scanner"},
+			expectedConfig: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 25}, Driver: "Advanced Scanner"},
 		},
 		{
 			name: "no code scanning alert configuration",
@@ -103,7 +103,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	// Test valid configuration
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{Max: 0},
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}},
 		},
 	}
 
@@ -142,7 +142,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 	// Test with max configuration
 	dataWithMax := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{Max: 25},
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 25}},
 		},
 	}
 
@@ -180,7 +180,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 		Name:            "Security Analysis Workflow",
 		FrontmatterName: "Security Analysis Workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{Max: 0}, // No driver specified
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}}, // No driver specified
 		},
 	}
 
@@ -199,7 +199,7 @@ func TestBuildCreateOutputCodeScanningAlertJob(t *testing.T) {
 		Name:            "Security Analysis",
 		FrontmatterName: "", // No frontmatter name
 		SafeOutputs: &SafeOutputsConfig{
-			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{Max: 0}, // No driver specified
+			CreateCodeScanningAlerts: &CreateCodeScanningAlertsConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 0}}, // No driver specified
 		},
 	}
 

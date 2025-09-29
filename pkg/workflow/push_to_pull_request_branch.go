@@ -7,11 +7,11 @@ import (
 
 // PushToPullRequestBranchConfig holds configuration for pushing changes to a specific branch from agent output
 type PushToPullRequestBranchConfig struct {
-	Target      string   `yaml:"target,omitempty"`        // Target for push-to-pull-request-branch: like add-comment but for pull requests
-	TitlePrefix string   `yaml:"title-prefix,omitempty"`  // Required title prefix for pull request validation
-	Labels      []string `yaml:"labels,omitempty"`        // Required labels for pull request validation
-	IfNoChanges string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
-	GitHubToken string   `yaml:"github-token,omitempty"`  // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	Target               string   `yaml:"target,omitempty"`        // Target for push-to-pull-request-branch: like add-comment but for pull requests
+	TitlePrefix          string   `yaml:"title-prefix,omitempty"`  // Required title prefix for pull request validation
+	Labels               []string `yaml:"labels,omitempty"`        // Required labels for pull request validation
+	IfNoChanges          string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn", "error", or "ignore" (default: "warn")
 }
 
 // buildCreateOutputPushToPullRequestBranchJob creates the push_to_pull_request_branch job
@@ -196,12 +196,8 @@ func (c *Compiler) parsePushToPullRequestBranchConfig(outputMap map[string]any) 
 				}
 			}
 
-			// Parse github-token
-			if githubToken, exists := configMap["github-token"]; exists {
-				if githubTokenStr, ok := githubToken.(string); ok {
-					pushToBranchConfig.GitHubToken = githubTokenStr
-				}
-			}
+			// Parse common base fields
+			c.parseBaseSafeOutputConfig(configMap, &pushToBranchConfig.BaseSafeOutputConfig)
 		}
 
 		return pushToBranchConfig

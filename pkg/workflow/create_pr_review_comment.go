@@ -6,9 +6,8 @@ import (
 
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
-	Max         int    `yaml:"max,omitempty"`          // Maximum number of review comments to create (default: 1)
-	Side        string `yaml:"side,omitempty"`         // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
-	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	BaseSafeOutputConfig `yaml:",inline"`
+	Side                 string `yaml:"side,omitempty"` // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
 }
 
 // buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
@@ -91,15 +90,12 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 	}
 
 	configData := outputMap["create-pull-request-review-comment"]
-	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Max: 10, Side: "RIGHT"} // Default max is 10, side is RIGHT
+	prReviewCommentsConfig := &CreatePullRequestReviewCommentsConfig{Side: "RIGHT"} // Default side is RIGHT
+	prReviewCommentsConfig.Max = 10                                                 // Default max is 10
 
 	if configMap, ok := configData.(map[string]any); ok {
-		// Parse max
-		if max, exists := configMap["max"]; exists {
-			if maxInt, ok := parseIntValue(max); ok {
-				prReviewCommentsConfig.Max = maxInt
-			}
-		}
+		// Parse common base fields
+		c.parseBaseSafeOutputConfig(configMap, &prReviewCommentsConfig.BaseSafeOutputConfig)
 
 		// Parse side
 		if side, exists := configMap["side"]; exists {
@@ -108,13 +104,6 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 				if sideStr == "LEFT" || sideStr == "RIGHT" {
 					prReviewCommentsConfig.Side = sideStr
 				}
-			}
-		}
-
-		// Parse github-token
-		if githubToken, exists := configMap["github-token"]; exists {
-			if githubTokenStr, ok := githubToken.(string); ok {
-				prReviewCommentsConfig.GitHubToken = githubTokenStr
 			}
 		}
 	}

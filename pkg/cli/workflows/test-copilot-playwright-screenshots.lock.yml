@@ -108,7 +108,7 @@ jobs:
     permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"upload-asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -138,7 +138,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"create-issue":{},"upload-asset":{}}
+          {"create-issue":{"max":1},"upload-asset":{}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -744,7 +744,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"upload-asset\":{}}"
           GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
@@ -975,7 +975,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{},\"upload-asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"upload-asset\":{}}"
         with:
           script: |
             async function main() {
@@ -1070,6 +1070,13 @@ jobs:
                   default:
                     return 1;
                 }
+              }
+              function getMinRequiredForType(itemType, config) {
+                const itemConfig = config?.[itemType];
+                if (itemConfig && typeof itemConfig === "object" && "min" in itemConfig && itemConfig.min) {
+                  return itemConfig.min;
+                }
+                return 0;
               }
               function repairJson(jsonStr) {
                 let repaired = jsonStr.trim();
@@ -1341,8 +1348,6 @@ jobs:
               const outputContent = fs.readFileSync(outputFile, "utf8");
               if (outputContent.trim() === "") {
                 core.info("Output file is empty");
-                core.setOutput("output", "");
-                return;
               }
               core.info(`Raw output content length: ${outputContent.length}`);
               let expectedOutputTypes = {};
@@ -1668,6 +1673,15 @@ jobs:
                   return;
                 }
               }
+              for (const itemType of Object.keys(expectedOutputTypes)) {
+                const minRequired = getMinRequiredForType(itemType, expectedOutputTypes);
+                if (minRequired > 0) {
+                  const actualCount = parsedItems.filter(item => item.type === itemType).length;
+                  if (actualCount < minRequired) {
+                    errors.push(`Too few items of type '${itemType}'. Minimum required: ${minRequired}, found: ${actualCount}.`);
+                  }
+                }
+              }
               core.info(`Successfully parsed ${parsedItems.length} valid output items`);
               const validatedOutput = {
                 items: parsedItems,
@@ -1848,7 +1862,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"}]"
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Generic permission denied error\"},{\"pattern\":\"unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized access error\"},{\"pattern\":\"forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden access error\"},{\"pattern\":\"access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error\"},{\"pattern\":\"insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error\"},{\"pattern\":\"authentication failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Authentication failure with Copilot CLI\"},{\"pattern\":\"token.*invalid\",\"level_group\":0,\"message_group\":0,\"description\":\"Invalid token error with Copilot CLI\"},{\"pattern\":\"not authorized.*copilot\",\"level_group\":0,\"message_group\":0,\"description\":\"Not authorized for Copilot CLI access\"}]"
         with:
           script: |
             function main() {
@@ -1896,7 +1910,13 @@ jobs:
               const lines = logContent.split("\n");
               let hasErrors = false;
               for (const pattern of patterns) {
-                const regex = new RegExp(pattern.pattern, "g");
+                let regex;
+                try {
+                  regex = new RegExp(pattern.pattern, "g");
+                } catch (e) {
+                  core.error(`invalid error regex pattern: ${pattern.pattern}`);
+                  continue;
+                }
                 for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
                   const line = lines[lineIndex];
                   let match;

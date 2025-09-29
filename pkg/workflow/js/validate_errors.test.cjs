@@ -138,7 +138,7 @@ Some normal log content
     expect(global.core.warning).not.toHaveBeenCalled();
   });
 
-  test("should crash with invalid regex patterns", () => {
+  test("should handle invalid regex patterns gracefully", () => {
     const logContent = "ERROR: Something went wrong";
     const patterns = [
       {
@@ -149,8 +149,14 @@ Some normal log content
       },
     ];
 
-    // Should throw an exception instead of handling gracefully
-    expect(() => validateErrors(logContent, patterns)).toThrow();
+    // Should handle invalid patterns gracefully, not throw
+    const hasErrors = validateErrors(logContent, patterns);
+
+    // Should return false since no valid patterns matched
+    expect(hasErrors).toBe(false);
+
+    // Should log an error about the invalid pattern
+    expect(global.core.error).toHaveBeenCalledWith("invalid error regex pattern: [invalid regex");
   });
 
   test("should detect 401 unauthorized errors from issue #668", () => {

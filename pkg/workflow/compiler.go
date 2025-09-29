@@ -120,6 +120,13 @@ type WorkflowData struct {
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 }
 
+// BaseSafeOutputConfig holds common configuration fields for all safe output types
+type BaseSafeOutputConfig struct {
+	Max         int    `yaml:"max,omitempty"`          // Maximum number of items to create
+	Min         int    `yaml:"min,omitempty"`          // Minimum number of items to create
+	GitHubToken string `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+}
+
 // SafeOutputsConfig holds configuration for automatic output routes
 type SafeOutputsConfig struct {
 	CreateIssues                    *CreateIssuesConfig                    `yaml:"create-issues,omitempty"`
@@ -1057,6 +1064,59 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	bashComplete:
 	}
+
+	// Add default bash commands when bash is enabled but no specific commands are provided
+	// This runs after git commands logic, so it only applies when git commands weren't added
+	// Behavior:
+	//   - bash: true or bash: nil → Add default commands
+	//   - bash: [] → No commands (empty array means no tools allowed)
+	//   - bash: ["cmd1", "cmd2"] → Add default commands + specific commands
+	if bashTool, exists := tools["bash"]; exists {
+		// Check if bash was left as nil or true after git processing
+		if bashTool == nil {
+			// bash is nil - only add defaults if this wasn't processed by git commands
+			// If git commands were needed, bash would have been set to git commands or left as nil intentionally
+			if !(safeOutputs != nil && needsGitCommands(safeOutputs)) {
+				defaultCommands := make([]any, len(constants.DefaultBashTools))
+				for i, cmd := range constants.DefaultBashTools {
+					defaultCommands[i] = cmd
+				}
+				tools["bash"] = defaultCommands
+			}
+		} else if bashTool == true {
+			// bash is true - always add default commands
+			defaultCommands := make([]any, len(constants.DefaultBashTools))
+			for i, cmd := range constants.DefaultBashTools {
+				defaultCommands[i] = cmd
+			}
+			tools["bash"] = defaultCommands
+		} else if bashArray, ok := bashTool.([]any); ok {
+			// bash is an array - merge default commands with custom commands
+			if len(bashArray) > 0 {
+				// Create a set to track existing commands to avoid duplicates
+				existingCommands := make(map[string]bool)
+				for _, cmd := range bashArray {
+					if cmdStr, ok := cmd.(string); ok {
+						existingCommands[cmdStr] = true
+					}
+				}
+
+				// Start with default commands
+				mergedCommands := make([]any, 0, len(constants.DefaultBashTools)+len(bashArray))
+				for _, cmd := range constants.DefaultBashTools {
+					if !existingCommands[cmd] {
+						mergedCommands = append(mergedCommands, cmd)
+					}
+				}
+
+				// Add the custom commands
+				mergedCommands = append(mergedCommands, bashArray...)
+				tools["bash"] = mergedCommands
+			}
+			// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
+		}
+	}
+
 	return tools
 }
 
@@ -1760,6 +1820,32 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	}
 }
 
+// convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
+// This removes Go's (?i) inline case-insensitive flag since JavaScript doesn't support it
+// The original JavaScript code will use the pattern as-is with "g" flags
+func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {
+	// Convert (?i) inline case-insensitive flag by removing it
+	// JavaScript RegExp will be created with "gi" flags to handle case insensitivity
+	if strings.HasPrefix(goPattern, "(?i)") {
+		return goPattern[4:] // Remove (?i) prefix
+	}
+	return goPattern
+}
+
+// convertErrorPatternsToJavaScript converts a slice of Go error patterns to JavaScript-compatible patterns
+func (c *Compiler) convertErrorPatternsToJavaScript(goPatterns []ErrorPattern) []ErrorPattern {
+	jsPatterns := make([]ErrorPattern, len(goPatterns))
+	for i, pattern := range goPatterns {
+		jsPatterns[i] = ErrorPattern{
+			Pattern:      c.convertGoPatternToJavaScript(pattern.Pattern),
+			LevelGroup:   pattern.LevelGroup,
+			MessageGroup: pattern.MessageGroup,
+			Description:  pattern.Description,
+		}
+	}
+	return jsPatterns
+}
+
 func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string, data *WorkflowData) {
 	// Concatenate engine error patterns and configured error patterns
 	var errorPatterns []ErrorPattern
@@ -1778,6 +1864,9 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 		return
 	}
 
+	// Convert Go regex patterns to JavaScript-compatible patterns
+	jsCompatiblePatterns := c.convertErrorPatternsToJavaScript(errorPatterns)
+
 	errorValidationScript := validateErrorsScript
 	if errorValidationScript == "" {
 		// Skip if validation script not found
@@ -1790,8 +1879,8 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
 
-	// Add error patterns as a single JSON array
-	patternsJSON, err := json.Marshal(errorPatterns)
+	// Add JavaScript-compatible error patterns as a single JSON array
+	patternsJSON, err := json.Marshal(jsCompatiblePatterns)
 	if err != nil {
 		// Skip if patterns can't be marshaled
 		return
@@ -2220,12 +2309,25 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	// Handle safe-outputs configuration if present
 	if data.SafeOutputs != nil {
 		if data.SafeOutputs.CreateIssues != nil {
-			safeOutputsConfig["create-issue"] = map[string]any{}
+			issueConfig := map[string]any{}
+			if data.SafeOutputs.CreateIssues.Max > 0 {
+				issueConfig["max"] = data.SafeOutputs.CreateIssues.Max
+			}
+			if data.SafeOutputs.CreateIssues.Min > 0 {
+				issueConfig["min"] = data.SafeOutputs.CreateIssues.Min
+			}
+			safeOutputsConfig["create-issue"] = issueConfig
 		}
 		if data.SafeOutputs.AddComments != nil {
 			commentConfig := map[string]any{}
 			if data.SafeOutputs.AddComments.Target != "" {
 				commentConfig["target"] = data.SafeOutputs.AddComments.Target
+			}
+			if data.SafeOutputs.AddComments.Max > 0 {
+				commentConfig["max"] = data.SafeOutputs.AddComments.Max
+			}
+			if data.SafeOutputs.AddComments.Min > 0 {
+				commentConfig["min"] = data.SafeOutputs.AddComments.Min
 			}
 			safeOutputsConfig["add-comment"] = commentConfig
 		}
@@ -2234,15 +2336,26 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateDiscussions.Max > 0 {
 				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
 			}
+			if data.SafeOutputs.CreateDiscussions.Min > 0 {
+				discussionConfig["min"] = data.SafeOutputs.CreateDiscussions.Min
+			}
 			safeOutputsConfig["create-discussion"] = discussionConfig
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
-			safeOutputsConfig["create-pull-request"] = map[string]any{}
+			prConfig := map[string]any{}
+			// Note: max is always 1 for pull requests, not configurable
+			if data.SafeOutputs.CreatePullRequests.Min > 0 {
+				prConfig["min"] = data.SafeOutputs.CreatePullRequests.Min
+			}
+			safeOutputsConfig["create-pull-request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 			prReviewCommentConfig := map[string]any{}
 			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
 				prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
+			}
+			if data.SafeOutputs.CreatePullRequestReviewComments.Min > 0 {
+				prReviewCommentConfig["min"] = data.SafeOutputs.CreatePullRequestReviewComments.Min
 			}
 			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
 		}
@@ -2252,28 +2365,61 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
 				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
 			}
+			if data.SafeOutputs.CreateCodeScanningAlerts.Min > 0 {
+				securityReportConfig["min"] = data.SafeOutputs.CreateCodeScanningAlerts.Min
+			}
 			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
 		}
 		if data.SafeOutputs.AddLabels != nil {
-			safeOutputsConfig["add-labels"] = map[string]any{}
+			labelConfig := map[string]any{}
+			if data.SafeOutputs.AddLabels.MaxCount != nil && *data.SafeOutputs.AddLabels.MaxCount > 0 {
+				labelConfig["max"] = *data.SafeOutputs.AddLabels.MaxCount
+			}
+			if data.SafeOutputs.AddLabels.MinCount != nil && *data.SafeOutputs.AddLabels.MinCount > 0 {
+				labelConfig["min"] = *data.SafeOutputs.AddLabels.MinCount
+			}
+			safeOutputsConfig["add-labels"] = labelConfig
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
-			safeOutputsConfig["update-issue"] = map[string]any{}
+			updateConfig := map[string]any{}
+			if data.SafeOutputs.UpdateIssues.Max > 0 {
+				updateConfig["max"] = data.SafeOutputs.UpdateIssues.Max
+			}
+			if data.SafeOutputs.UpdateIssues.Min > 0 {
+				updateConfig["min"] = data.SafeOutputs.UpdateIssues.Min
+			}
+			safeOutputsConfig["update-issue"] = updateConfig
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]any{}
 			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
 				pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
 			}
+			if data.SafeOutputs.PushToPullRequestBranch.Max > 0 {
+				pushToBranchConfig["max"] = data.SafeOutputs.PushToPullRequestBranch.Max
+			}
+			if data.SafeOutputs.PushToPullRequestBranch.Min > 0 {
+				pushToBranchConfig["min"] = data.SafeOutputs.PushToPullRequestBranch.Min
+			}
 			safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
 		}
 		if data.SafeOutputs.UploadAssets != nil {
-			safeOutputsConfig["upload-asset"] = map[string]any{}
+			uploadConfig := map[string]any{}
+			if data.SafeOutputs.UploadAssets.Max > 0 {
+				uploadConfig["max"] = data.SafeOutputs.UploadAssets.Max
+			}
+			if data.SafeOutputs.UploadAssets.Min > 0 {
+				uploadConfig["min"] = data.SafeOutputs.UploadAssets.Min
+			}
+			safeOutputsConfig["upload-asset"] = uploadConfig
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}
 			if data.SafeOutputs.MissingTool.Max > 0 {
 				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			}
+			if data.SafeOutputs.MissingTool.Min > 0 {
+				missingToolConfig["min"] = data.SafeOutputs.MissingTool.Min
 			}
 			safeOutputsConfig["missing-tool"] = missingToolConfig
 		}
@@ -2418,4 +2564,28 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 	// For now, we rely on JSON schema validation for format checking
 
 	return nil
+}
+
+// parseBaseSafeOutputConfig parses common fields (max, min, github-token) from a config map
+func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *BaseSafeOutputConfig) {
+	// Parse max
+	if max, exists := configMap["max"]; exists {
+		if maxInt, ok := parseIntValue(max); ok {
+			config.Max = maxInt
+		}
+	}
+
+	// Parse min
+	if min, exists := configMap["min"]; exists {
+		if minInt, ok := parseIntValue(min); ok {
+			config.Min = minInt
+		}
+	}
+
+	// Parse github-token
+	if githubToken, exists := configMap["github-token"]; exists {
+		if githubTokenStr, ok := githubToken.(string); ok {
+			config.GitHubToken = githubTokenStr
+		}
+	}
 }

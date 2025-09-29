@@ -895,6 +895,26 @@ The `--tool` flag provides detailed information about a specific tool, including
 
 **Note**: The `--tool` flag requires the `--server` flag to specify which MCP server contains the tool.
 
+### MCP Tool Discovery
+
+Use the `mcp list-tools` command to explore tools available from specific MCP servers:
+
+```bash
+# Find workflows containing a specific MCP server
+gh aw mcp list-tools github
+
+# List tools from a specific MCP server in a workflow
+gh aw mcp list-tools github weekly-research
+
+# List tools with detailed descriptions and allowance status  
+gh aw mcp list-tools safe-outputs issue-triage --verbose
+```
+
+This command is useful for:
+- **Discovering capabilities**: See what tools are available from each MCP server
+- **Workflow discovery**: Find which workflows use a specific MCP server  
+- **Permission debugging**: Check which tools are allowed in your workflow configuration
+
 ## Compilation Process
 
 Agentic workflows compile to GitHub Actions YAML:
