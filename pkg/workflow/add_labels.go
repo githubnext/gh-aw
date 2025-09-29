@@ -88,7 +88,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	job := &Job{
 		Name:           "add_labels",
 		If:             jobCondition,
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,

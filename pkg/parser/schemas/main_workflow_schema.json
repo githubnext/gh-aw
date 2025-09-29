@@ -1863,6 +1863,13 @@
             }
           },
           "additionalProperties": false
+        },
+        "runs-on": {
+          "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.)",
+          "oneOf": [
+            {"type": "string", "description": "Single runner label (e.g., 'ubuntu-latest', 'windows-latest', 'self-hosted')"},
+            {"type": "array", "items": {"type": "string"}, "description": "Array of runner labels for multi-label runners (e.g., ['self-hosted', 'linux', 'x64'])"}
+          ]
         }
       },
       "additionalProperties": false
