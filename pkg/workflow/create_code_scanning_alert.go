@@ -81,8 +81,9 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		"codeql_uploaded":   "${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("create-code-scanning-alert").Render()
+	// Build job condition - repository security advisories can run in any context unlike PR review comments
+	safeOutputCondition := BuildSafeOutputType("create-code-scanning-alert").Render()
+	jobCondition := safeOutputCondition
 
 	job := &Job{
 		Name:           "create_code_scanning_alert",

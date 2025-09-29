@@ -52,8 +52,12 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("create-pull-request-review-comment").Render()
+	// We only run in pull request context, Note that in pull request comments only github.event.issue.pull_request is set.
+	baseCondition := "(github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request"
+
+	// Combine the base condition with the safe output type condition
+	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment").Render()
+	jobCondition := fmt.Sprintf("(%s) && (%s)", safeOutputCondition, baseCondition)
 
 	job := &Job{
 		Name:           "create_pr_review_comment",

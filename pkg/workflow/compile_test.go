@@ -573,8 +573,20 @@ This workflow tests the create_issue_comment job generation.
 		t.Error("Expected github-script action to be used in create_issue_comment job")
 	}
 
-	// Verify job has conditional execution using BuildSafeOutputType
-	if !strings.Contains(lockContent, "if: contains(needs.agent.outputs.output_types, 'add-comment')") {
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"contains(needs.agent.outputs.output_types, 'add-comment')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
 		t.Error("Expected create_issue_comment job to have conditional execution")
 	}
 
@@ -643,8 +655,20 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 		t.Error("Expected 'create_issue_comment' job to be in generated workflow")
 	}
 
-	// Verify job has conditional execution using BuildSafeOutputType
-	if !strings.Contains(lockContent, "if: contains(needs.agent.outputs.output_types, 'add-comment')") {
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"contains(needs.agent.outputs.output_types, 'add-comment')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
 		t.Error("Expected create_issue_comment job to have conditional execution for skipping")
 	}
 
@@ -1116,8 +1140,20 @@ This workflow tests the add_labels job generation.
 		t.Error("Expected github-script action to be used in add_labels job")
 	}
 
-	// Verify job has conditional execution using BuildSafeOutputType
-	if !strings.Contains(lockContent, "if: contains(needs.agent.outputs.output_types, 'add-labels')") {
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"contains(needs.agent.outputs.output_types, 'add-labels')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
 		t.Error("Expected add_labels job to have conditional execution")
 	}
 	if !strings.Contains(lockContent, "needs: agent") {
@@ -1190,8 +1226,20 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 	}
 	lockContent := string(lockBytes)
 
-	// Verify job has conditional execution using BuildSafeOutputType
-	if !strings.Contains(lockContent, "if: contains(needs.agent.outputs.output_types, 'add-labels')") {
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"contains(needs.agent.outputs.output_types, 'add-labels')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
 		t.Error("Expected add_labels job to have conditional execution")
 	}
 
@@ -1266,8 +1314,20 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected 'add_labels' job to be in generated workflow")
 	}
 
-	// Verify job has conditional execution using BuildSafeOutputType
-	if !strings.Contains(lockContent, "if: contains(needs.agent.outputs.output_types, 'add-labels')") {
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"contains(needs.agent.outputs.output_types, 'add-labels')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
 		t.Error("Expected add_labels job to have conditional execution")
 	}
 

@@ -165,8 +165,9 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 		"branch_name":     "${{ steps.upload_assets.outputs.branch_name }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("upload-assets").Render()
+	// Determine the job condition based on safe output type
+	safeOutputCondition := BuildSafeOutputType("publish-assets").Render()
+	jobCondition := safeOutputCondition
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: write  # Required for creating orphaned branch and pushing assets"

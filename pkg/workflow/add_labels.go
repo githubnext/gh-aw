@@ -71,8 +71,10 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("add-labels").Render()
+	// Combine the base condition with the safe output type condition
+	var baseCondition = "github.event.issue.number || github.event.pull_request.number" // Only run in issue or PR context
+	safeOutputCondition := BuildSafeOutputType("add-labels").Render()
+	jobCondition := fmt.Sprintf("(%s) && (%s)", safeOutputCondition, baseCondition)
 
 	job := &Job{
 		Name:           "add_labels",

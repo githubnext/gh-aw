@@ -70,8 +70,22 @@ Please make changes and push them to the feature branch.
 		t.Errorf("Generated workflow should have dependency on main job")
 	}
 
-	// Verify conditional execution using BuildSafeOutputType
-	if !strings.Contains(lockContentStr, "if: contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')") {
+	// Verify conditional execution using BuildSafeOutputType combined with pull request context
+	expectedConditionParts := []string{
+		"contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')",
+		"github.event.issue.number",
+		"github.event.issue.pull_request",
+		"github.event.pull_request",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContentStr, part) {
+			conditionFound = false
+			t.Logf("Missing condition part: %s", part)
+			break
+		}
+	}
+	if !conditionFound {
 		t.Errorf("Generated workflow should have pull request context condition")
 	}
 }
@@ -280,8 +294,21 @@ This workflow has minimal push-to-pull-request-branch configuration.
 		t.Errorf("Generated workflow should not contain target configuration when not specified")
 	}
 
-	// Verify default conditional execution using BuildSafeOutputType
-	if !strings.Contains(lockContentStr, "if: contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')") {
+	// Verify default conditional execution using BuildSafeOutputType combined with pull request context
+	expectedConditionParts := []string{
+		"contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')",
+		"github.event.issue.number",
+		"github.event.issue.pull_request",
+		"github.event.pull_request",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContentStr, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
 		t.Errorf("Generated workflow should have default pull request context condition")
 	}
 }

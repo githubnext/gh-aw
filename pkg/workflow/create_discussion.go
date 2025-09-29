@@ -90,8 +90,9 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("create-discussion").Render()
+	// Determine the job condition based on safe output type
+	safeOutputCondition := BuildSafeOutputType("create-discussion").Render()
+	jobCondition := safeOutputCondition
 
 	job := &Job{
 		Name:           "create_discussion",

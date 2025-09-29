@@ -57,8 +57,27 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("add-comment").Render()
+	// Determine the job condition based on target configuration
+	var baseCondition string
+	if data.SafeOutputs.AddComments.Target == "*" {
+		// Allow the job to run in any context when target is "*"
+		baseCondition = "always()" // This allows the job to run even without triggering issue/PR
+	} else {
+		// Default behavior: only run in issue or PR context
+		baseCondition = "github.event.issue.number || github.event.pull_request.number"
+	}
+
+	// Combine the base condition with the safe output type condition
+	var jobCondition string
+	safeOutputCondition := BuildSafeOutputType("add-comment").Render()
+	
+	if baseCondition == "always()" {
+		// If base condition is always(), just use the safe output condition
+		jobCondition = safeOutputCondition
+	} else {
+		// Combine both conditions with AND
+		jobCondition = fmt.Sprintf("(%s) && (%s)", safeOutputCondition, baseCondition)
+	}
 
 	job := &Job{
 		Name:           "create_issue_comment",

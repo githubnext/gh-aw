@@ -61,8 +61,30 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("update-issue").Render()
+	// Determine the job condition based on target configuration
+	var baseCondition string
+	if data.SafeOutputs.UpdateIssues.Target == "*" {
+		// Allow updates to any issue - no specific context required
+		baseCondition = "always()"
+	} else if data.SafeOutputs.UpdateIssues.Target != "" {
+		// Explicit issue number specified - no specific context required
+		baseCondition = "always()"
+	} else {
+		// Default behavior: only update triggering issue
+		baseCondition = "github.event.issue.number"
+	}
+
+	// Combine the base condition with the safe output type condition
+	var jobCondition string
+	safeOutputCondition := BuildSafeOutputType("update-issue").Render()
+	
+	if baseCondition == "always()" {
+		// If base condition is always(), just use the safe output condition
+		jobCondition = safeOutputCondition
+	} else {
+		// Combine both conditions with AND
+		jobCondition = fmt.Sprintf("(%s) && (%s)", safeOutputCondition, baseCondition)
+	}
 
 	job := &Job{
 		Name:           "update_issue",
