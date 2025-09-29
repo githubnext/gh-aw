@@ -53,23 +53,6 @@ function getErrorPatternsFromEnv() {
  * @param {any[]} patterns
  * @returns {boolean}
  */
-/**
- * Creates a JavaScript RegExp from a pattern object that may have been converted from Go
- * @param {Object} patternObj - The pattern object with pattern and case_insensitive fields
- * @returns {RegExp} - JavaScript RegExp object
- */
-function createJSRegexFromPattern(patternObj) {
-  let pattern = patternObj.pattern;
-  let flags = "g"; // Default to global matching
-
-  // Check if this pattern should be case-insensitive
-  if (patternObj.case_insensitive) {
-    flags = "gi"; // Add case-insensitive flag
-  }
-
-  return new RegExp(pattern, flags);
-}
-
 function validateErrors(logContent, patterns) {
   const lines = logContent.split("\n");
   let hasErrors = false;
@@ -77,8 +60,7 @@ function validateErrors(logContent, patterns) {
   for (const pattern of patterns) {
     let regex;
     try {
-      // Create JavaScript RegExp from the pattern object
-      regex = createJSRegexFromPattern(pattern);
+      regex = new RegExp(pattern.pattern, "g");
     } catch (e) {
       core.error(`invalid error regex pattern: ${pattern.pattern}`);
       continue;

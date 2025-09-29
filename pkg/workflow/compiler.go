@@ -1731,36 +1731,27 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	}
 }
 
-// JavaScriptErrorPattern represents an error pattern that has been converted for JavaScript compatibility
-type JavaScriptErrorPattern struct {
-	Pattern           string `json:"pattern"`
-	LevelGroup        int    `json:"level_group"`
-	MessageGroup      int    `json:"message_group"`
-	Description       string `json:"description"`
-	CaseInsensitive   bool   `json:"case_insensitive"`
-}
-
 // convertGoPatternToJavaScript converts a Go regex pattern to JavaScript-compatible format
-// This converts Go's (?i) inline case-insensitive flag to a separate flag
-func (c *Compiler) convertGoPatternToJavaScript(goPattern string) (pattern string, caseInsensitive bool) {
-	// Convert (?i) inline case-insensitive flag
+// This removes Go's (?i) inline case-insensitive flag since JavaScript doesn't support it
+// The original JavaScript code will use the pattern as-is with "g" flags
+func (c *Compiler) convertGoPatternToJavaScript(goPattern string) string {
+	// Convert (?i) inline case-insensitive flag by removing it
+	// JavaScript RegExp will be created with "gi" flags to handle case insensitivity
 	if strings.HasPrefix(goPattern, "(?i)") {
-		return goPattern[4:], true // Remove (?i) prefix and mark as case-insensitive
+		return goPattern[4:] // Remove (?i) prefix
 	}
-	return goPattern, false
+	return goPattern
 }
 
 // convertErrorPatternsToJavaScript converts a slice of Go error patterns to JavaScript-compatible patterns
-func (c *Compiler) convertErrorPatternsToJavaScript(goPatterns []ErrorPattern) []JavaScriptErrorPattern {
-	jsPatterns := make([]JavaScriptErrorPattern, len(goPatterns))
+func (c *Compiler) convertErrorPatternsToJavaScript(goPatterns []ErrorPattern) []ErrorPattern {
+	jsPatterns := make([]ErrorPattern, len(goPatterns))
 	for i, pattern := range goPatterns {
-		jsPattern, caseInsensitive := c.convertGoPatternToJavaScript(pattern.Pattern)
-		jsPatterns[i] = JavaScriptErrorPattern{
-			Pattern:         jsPattern,
-			LevelGroup:      pattern.LevelGroup,
-			MessageGroup:    pattern.MessageGroup,
-			Description:     pattern.Description,
-			CaseInsensitive: caseInsensitive,
+		jsPatterns[i] = ErrorPattern{
+			Pattern:      c.convertGoPatternToJavaScript(pattern.Pattern),
+			LevelGroup:   pattern.LevelGroup,
+			MessageGroup: pattern.MessageGroup,
+			Description:  pattern.Description,
 		}
 	}
 	return jsPatterns

@@ -68,21 +68,18 @@ Some normal log content
         level_group: 2,
         message_group: 3,
         description: "Codex stream errors with timestamp",
-        case_insensitive: false,
       },
       {
         pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex ERROR messages with timestamp",
-        case_insensitive: false,
       },
       {
         pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(WARN|WARNING):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex warning messages with timestamp",
-        case_insensitive: false,
       },
     ];
 
@@ -107,7 +104,6 @@ Some normal log content
         level_group: 0,
         message_group: 1,
         description: "Simple error pattern",
-        case_insensitive: false,
       },
     ];
 
@@ -129,7 +125,6 @@ Some normal log content
         level_group: 0,
         message_group: 1,
         description: "Critical errors",
-        case_insensitive: false,
       },
     ];
 
@@ -143,7 +138,7 @@ Some normal log content
     expect(global.core.warning).not.toHaveBeenCalled();
   });
 
-  test("should handle invalid regex patterns gracefully", () => {
+  test("should crash with invalid regex patterns", () => {
     const logContent = "ERROR: Something went wrong";
     const patterns = [
       {
@@ -151,19 +146,11 @@ Some normal log content
         level_group: 0,
         message_group: 1,
         description: "Invalid pattern",
-        case_insensitive: false,
       },
     ];
 
-    // Should handle invalid patterns gracefully, not throw
-    expect(() => validateErrors(logContent, patterns)).not.toThrow();
-    
-    // Should return false since no valid patterns matched
-    const hasErrors = validateErrors(logContent, patterns);
-    expect(hasErrors).toBe(false);
-    
-    // Should call core.error for the invalid pattern
-    expect(global.core.error).toHaveBeenCalledWith(expect.stringContaining("invalid error regex pattern"));
+    // Should throw an exception instead of handling gracefully
+    expect(() => validateErrors(logContent, patterns)).toThrow();
   });
 
   test("should detect 401 unauthorized errors from issue #668", () => {
@@ -181,14 +168,12 @@ Some normal log content
         level_group: 2,
         message_group: 3,
         description: "Codex stream errors with timestamp",
-        case_insensitive: false,
       },
       {
         pattern: "\\[(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})\\]\\s+(ERROR):\\s+(.+)",
         level_group: 2,
         message_group: 3,
         description: "Codex ERROR messages with timestamp",
-        case_insensitive: false,
       },
     ];
 
@@ -291,7 +276,6 @@ describe("main function behavior", () => {
         level_group: 0,
         message_group: 1,
         description: "Test error pattern",
-        case_insensitive: false,
       },
     ]);
 
@@ -310,8 +294,6 @@ describe("main function behavior", () => {
         level_group: 0,
         message_group: 1,
         description: "Test error pattern",
-        case_insensitive: false,
-        case_insensitive: false,
       },
     ];
 
@@ -337,7 +319,6 @@ describe("main function behavior", () => {
         level_group: 0,
         message_group: 1,
         description: "Test warning pattern",
-        case_insensitive: false,
       },
     ];
 
