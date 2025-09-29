@@ -4,7 +4,7 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
 name: "Dev"
-"on":
+on:
   push:
     branches:
     - copilot/*
@@ -101,164 +101,13 @@ jobs:
     steps:
       - run: echo "Activation success"
 
-  add_reaction:
-    needs: activation
-    if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
-      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      (github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REACTION: eyes
-        with:
-          script: |
-            async function main() {
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const command = process.env.GITHUB_AW_COMMAND; 
-              const runId = context.runId;
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              core.info(`Reaction type: ${reaction}`);
-              core.info(`Command name: ${command || "none"}`);
-              core.info(`Run ID: ${runId}`);
-              core.info(`Run URL: ${runUrl}`);
-              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-                return;
-              }
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldEditComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    shouldEditComment = false;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    shouldEditComment = false;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                await addReaction(reactionEndpoint, reaction);
-                if (shouldEditComment && commentUpdateEndpoint) {
-                  core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
-                  await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
-                } else {
-                  if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment edit - only available for command workflows");
-                  } else {
-                    core.info(`Skipping comment edit for event type: ${eventName}`);
-                  }
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
-              }
-            }
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                core.info(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            async function editCommentWithWorkflowLink(endpoint, runUrl) {
-              try {
-                const getResponse = await github.request("GET " + endpoint, {
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                const originalBody = getResponse.data.body || "";
-                const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
-                if (originalBody.includes("*🤖 [Workflow run](")) {
-                  core.info("Comment already contains a workflow run link, skipping edit");
-                  return;
-                }
-                const updatedBody = originalBody + workflowLinkText;
-                const updateResponse = await github.request("PATCH " + endpoint, {
-                  body: updatedBody,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                core.info(`Successfully updated comment with workflow link`);
-                core.info(`Comment ID: ${updateResponse.data.id}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
-              }
-            }
-            await main();
-
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -274,7 +123,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"create-issue":{"max":1},"print":{"inputs":{"message":{"description":"Message to print","required":true,"type":"string"}}}}
+          {"create-issue":{"max":1}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -880,7 +729,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1}}"
         run: |
           mkdir -p /tmp/mcp-config
           mkdir -p /home/runner/.copilot
@@ -914,9 +763,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Summarize and use print the message using the `print` tool.
-          
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          Do nothing.
           
           EOF
       - name: Append safe outputs instructions to prompt
@@ -1048,7 +895,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1}}"
         with:
           script: |
             async function main() {
@@ -2225,31 +2072,4 @@ jobs:
             (async () => {
               await main();
             })();
-
-  print:
-    needs: agent
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: agent_output.json
-          path: /tmp/safe-jobs/
-      - name: Setup Safe Job Environment Variables
-        run: |
-          echo "Setting up environment for safe job"
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
-      - name: See artifacts
-        run: cd /tmp/safe-jobs && ls -lR
-      - name: print message
-        run: |-
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
-            echo "print: $MESSAGE"
-            echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
-            echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
-          else
-            echo "No agent output found, using default: Hello from safe-job!"
-          fi
 
