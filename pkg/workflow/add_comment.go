@@ -58,24 +58,17 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	}
 
 	// Build the job condition using expression trees
+	// Always run in issue or PR context
+	// Combine safe output condition AND (issue number OR PR number)
 	safeOutputCondition := BuildSafeOutputType("add-comment")
 
-	var jobCondition ConditionNode
-	if data.SafeOutputs.AddComments.Target == "*" {
-		// Allow the job to run in any context when target is "*"
-		// Just use the safe output condition
-		jobCondition = safeOutputCondition
-	} else {
-		// Default behavior: only run in issue or PR context
-		// Combine safe output condition AND (issue number OR PR number)
-		baseCondition := &OrNode{
-			Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-			Right: &ExpressionNode{Expression: "github.event.pull_request.number"},
-		}
-		jobCondition = &AndNode{
-			Left:  safeOutputCondition,
-			Right: baseCondition,
-		}
+	baseCondition := &OrNode{
+		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
+		Right: &ExpressionNode{Expression: "github.event.pull_request.number"},
+	}
+	jobCondition := &AndNode{
+		Left:  safeOutputCondition,
+		Right: baseCondition,
 	}
 
 	job := &Job{

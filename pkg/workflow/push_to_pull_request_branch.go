@@ -96,28 +96,21 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	}
 
 	// Build the job condition using expression trees
+	// Always run in pull request context, or issue context with a linked PR
+	// Combine safe output condition AND ((issue.number AND issue.pull_request) OR pull_request)
 	safeOutputCondition := BuildSafeOutputType("push-to-pull-request-branch")
 
-	var jobCondition ConditionNode
-	if data.SafeOutputs.PushToPullRequestBranch.Target == "*" {
-		// Allow pushing to any pull request - no specific context required
-		// Just use the safe output condition
-		jobCondition = safeOutputCondition
-	} else {
-		// Default behavior: only run in pull request context, or issue context with a linked PR
-		// Combine safe output condition AND ((issue.number AND issue.pull_request) OR pull_request)
-		issueWithPR := &AndNode{
-			Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-			Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
-		}
-		baseCondition := &OrNode{
-			Left:  issueWithPR,
-			Right: &ExpressionNode{Expression: "github.event.pull_request"},
-		}
-		jobCondition = &AndNode{
-			Left:  safeOutputCondition,
-			Right: baseCondition,
-		}
+	issueWithPR := &AndNode{
+		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
+		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
+	}
+	baseCondition := &OrNode{
+		Left:  issueWithPR,
+		Right: &ExpressionNode{Expression: "github.event.pull_request"},
+	}
+	jobCondition := &AndNode{
+		Left:  safeOutputCondition,
+		Right: baseCondition,
 	}
 
 	job := &Job{

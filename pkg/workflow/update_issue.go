@@ -62,25 +62,14 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	}
 
 	// Build the job condition using expression trees
+	// Always require issue number context
+	// Combine safe output condition AND issue number exists
 	safeOutputCondition := BuildSafeOutputType("update-issue")
 
-	var jobCondition ConditionNode
-	if data.SafeOutputs.UpdateIssues.Target == "*" {
-		// Allow updates to any issue - no specific context required
-		// Just use the safe output condition
-		jobCondition = safeOutputCondition
-	} else if data.SafeOutputs.UpdateIssues.Target != "" {
-		// Explicit issue number specified - no specific context required
-		// Just use the safe output condition
-		jobCondition = safeOutputCondition
-	} else {
-		// Default behavior: only update triggering issue
-		// Combine safe output condition AND issue number exists
-		baseCondition := &ExpressionNode{Expression: "github.event.issue.number"}
-		jobCondition = &AndNode{
-			Left:  safeOutputCondition,
-			Right: baseCondition,
-		}
+	baseCondition := &ExpressionNode{Expression: "github.event.issue.number"}
+	jobCondition := &AndNode{
+		Left:  safeOutputCondition,
+		Right: baseCondition,
 	}
 
 	job := &Job{
