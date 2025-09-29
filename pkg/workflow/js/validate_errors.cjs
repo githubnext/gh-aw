@@ -53,8 +53,35 @@ function getErrorPatternsFromEnv() {
  * @param {any[]} patterns
  * @returns {boolean}
  */
+/**
+ * Converts a Go regex pattern to a JavaScript-compatible pattern
+ * @param {string} goPattern - The Go regex pattern (may include (?i) for case-insensitive)
+ * @returns {{pattern: string, flags: string}} - Object with converted pattern and flags
+ */
+function convertGoPatternToJS(goPattern) {
+  let pattern = goPattern;
+  let flags = "g"; // Default to global matching
+
+  // Convert (?i) inline case-insensitive flag to JavaScript 'i' flag
+  if (pattern.startsWith("(?i)")) {
+    pattern = pattern.substring(4); // Remove (?i) prefix
+    flags = "gi"; // Add case-insensitive flag
+  }
+
+  return { pattern, flags };
+}
+
+/**
+ * Creates a JavaScript RegExp from a Go regex pattern
+ * @param {string} goPattern - The Go regex pattern
+ * @returns {RegExp} - JavaScript RegExp object
+ */
+function createJSRegexFromGoPattern(goPattern) {
+  const { pattern, flags } = convertGoPatternToJS(goPattern);
+  return new RegExp(pattern, flags);
+}
+
 function validateErrors(logContent, patterns) {
-  const { createJSRegexFromGoPattern } = require("./regex_compatibility.cjs");
   const lines = logContent.split("\n");
   let hasErrors = false;
 
