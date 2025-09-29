@@ -4,7 +4,7 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
 name: "Dev"
-"on":
+on:
   push:
     branches:
     - copilot/*
@@ -101,164 +101,13 @@ jobs:
     steps:
       - run: echo "Activation success"
 
-  add_reaction:
-    needs: activation
-    if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
-      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      (github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-    outputs:
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REACTION: eyes
-        with:
-          script: |
-            async function main() {
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const command = process.env.GITHUB_AW_COMMAND; 
-              const runId = context.runId;
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              core.info(`Reaction type: ${reaction}`);
-              core.info(`Command name: ${command || "none"}`);
-              core.info(`Run ID: ${runId}`);
-              core.info(`Run URL: ${runUrl}`);
-              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-                return;
-              }
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldEditComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    shouldEditComment = false;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    shouldEditComment = false;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                await addReaction(reactionEndpoint, reaction);
-                if (shouldEditComment && commentUpdateEndpoint) {
-                  core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
-                  await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
-                } else {
-                  if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment edit - only available for command workflows");
-                  } else {
-                    core.info(`Skipping comment edit for event type: ${eventName}`);
-                  }
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
-              }
-            }
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                core.info(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            async function editCommentWithWorkflowLink(endpoint, runUrl) {
-              try {
-                const getResponse = await github.request("GET " + endpoint, {
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                const originalBody = getResponse.data.body || "";
-                const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
-                if (originalBody.includes("*🤖 [Workflow run](")) {
-                  core.info("Comment already contains a workflow run link, skipping edit");
-                  return;
-                }
-                const updatedBody = originalBody + workflowLinkText;
-                const updateResponse = await github.request("PATCH " + endpoint, {
-                  body: updatedBody,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                core.info(`Successfully updated comment with workflow link`);
-                core.info(`Comment ID: ${updateResponse.data.id}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
-              }
-            }
-            await main();
-
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
     steps:
@@ -274,7 +123,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"print":{"inputs":{"message":{"description":"Message to print","required":true,"type":"string"}}}}
+          {"create-issue":{"max":1}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -880,7 +729,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1}}"
         run: |
           mkdir -p /tmp/mcp-config
           mkdir -p /home/runner/.copilot
@@ -914,9 +763,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Summarize and use print the message using the `print` tool.
-          
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          Write a poem and post it as an issue.
           
           EOF
       - name: Append safe outputs instructions to prompt
@@ -927,9 +774,13 @@ jobs:
           
           ---
           
-          ## Reporting Missing Tools or Functionality
+          ## Creating an IssueReporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
+          
+          **Creating an Issue**
+          
+          To create an issue, use the create-issue tool from the safe-outputs MCP
           
           EOF
       - name: Print prompt to step summary
@@ -1044,7 +895,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1}}"
         with:
           script: |
             async function main() {
@@ -2052,7 +1903,7 @@ jobs:
           AGENT_PATCH: ${{ needs.agent.outputs.patch }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Summarize and use print the message using the `print` tool.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n"
+          WORKFLOW_MARKDOWN: "Write a poem and post it as an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2167,30 +2018,183 @@ jobs:
               core.info('✅ No security threats detected. Safe outputs may proceed.');
             }
 
-  print:
+  create_issue:
     needs: detection
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    timeout-minutes: 10
+    outputs:
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
+      - name: Create Output Issue
+        id: create_issue
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
-          name: agent_output.json
-          path: /tmp/safe-jobs/
-      - name: Setup Safe Job Environment Variables
-        run: |
-          echo "Setting up environment for safe job"
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
-      - name: See artifacts
-        run: cd /tmp/safe-jobs && ls -lR
-      - name: print message
-        run: |-
-          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-            MESSAGE=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.items[] | select(.type == "print") | .message')
-            echo "print: $MESSAGE"
-            echo "### Print Step Summary" >> "$GITHUB_STEP_SUMMARY"
-            echo "$MESSAGE" >> "$GITHUB_STEP_SUMMARY"    
-          else
-            echo "No agent output found, using default: Hello from safe-job!"
-          fi
+          script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            async function main() {
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
+                return;
+              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createIssueItems.length; i++) {
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Issue creation preview written to step summary");
+                return;
+              }
+              const parentIssueNumber = context.payload?.issue?.number;
+              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(label => label.trim())
+                    .filter(label => label)
+                : [];
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                );
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels];
+                }
+                labels = labels
+                  .filter(label => label != null && label !== false && label !== 0)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let bodyLines = createIssueItem.body.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
+                }
+                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (parentIssueNumber) {
+                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
+                  bodyLines.push(`Related to #${parentIssueNumber}`);
+                }
+                const runId = context.runId;
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `https://github.com/actions/runs/${runId}`;
+                bodyLines.push(``, ``, `> Generated by Agentic Workflow [Run](${runUrl})`, "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: body,
+                    labels: labels,
+                  });
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  createdIssues.push(issue);
+                  if (parentIssueNumber) {
+                    try {
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: parentIssueNumber,
+                        body: `Created related issue: #${issue.number}`,
+                      });
+                      core.info("Added comment to parent issue #" + parentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
+                    }
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                  }
+                } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  throw error;
+                }
+              }
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+            }
+            (async () => {
+              await main();
+            })();
 
