@@ -1047,11 +1047,6 @@ async function main() {
   const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
   core.info(`output_types: ${outputTypes.join(", ")}`);
   core.setOutput("output_types", outputTypes.join(","));
-  outputTypes.forEach(type => {
-    const typeCount = parsedItems.filter(item => item.type === type).length;
-    core.info(`output_type_${type}: ${typeCount}`);
-    core.setOutput(`output_type_${type}`, typeCount);
-  });
 
   // Write processed output to step summary using core.summary
   try {

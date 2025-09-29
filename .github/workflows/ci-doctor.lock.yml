@@ -37,6 +37,7 @@ jobs:
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"create-issue\":{\"max\":1}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
+      output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -1810,11 +1811,6 @@ jobs:
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
               core.setOutput("output_types", outputTypes.join(","));
-              outputTypes.forEach(type => {
-                const typeCount = parsedItems.filter(item => item.type === type).length;
-                core.info(`output_type_${type}: ${typeCount}`);
-                core.setOutput(`output_type_${type}`, typeCount);
-              });
               try {
                 await core.summary
                   .addRaw("## Processed Output\n\n")
@@ -2347,7 +2343,7 @@ jobs:
 
   create_issue:
     needs: agent
-    if: needs.agent.collect_output.outputs.output_type_create_issue
+    if: contains(needs.agent.collect_output.outputs.output_types, 'create_issue')
     runs-on: ubuntu-latest
     permissions:
       contents: read
