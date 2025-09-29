@@ -26,7 +26,7 @@ func TestEngineErrorPatternsGoCompatibility(t *testing.T) {
 					// Test that the pattern compiles in Go
 					_, err := regexp.Compile(pattern.Pattern)
 					if err != nil {
-						t.Errorf("Pattern %d (%s) failed to compile in Go: %v\nPattern: %s", 
+						t.Errorf("Pattern %d (%s) failed to compile in Go: %v\nPattern: %s",
 							i, pattern.Description, err, pattern.Pattern)
 					}
 
@@ -53,7 +53,7 @@ func TestEngineErrorPatternsGoCompatibility(t *testing.T) {
 func TestEngineErrorPatternsJavaScriptCompatibility(t *testing.T) {
 	engines := []CodingAgentEngine{
 		NewCodexEngine(),
-		NewClaudeEngine(), 
+		NewClaudeEngine(),
 		NewCopilotEngine(),
 	}
 
@@ -68,7 +68,7 @@ func TestEngineErrorPatternsJavaScriptCompatibility(t *testing.T) {
 				t.Run(pattern.Description, func(t *testing.T) {
 					jsCompatible := testPatternJavaScriptCompatibility(pattern.Pattern)
 					if !jsCompatible {
-						t.Errorf("Pattern %d (%s) is not JavaScript compatible\nPattern: %s", 
+						t.Errorf("Pattern %d (%s) is not JavaScript compatible\nPattern: %s",
 							i, pattern.Description, pattern.Pattern)
 					}
 				})
@@ -105,7 +105,7 @@ func TestSpecificPatternFunctionality(t *testing.T) {
 			shouldMatch: true,
 		},
 		{
-			name:        "case_insensitive_forbidden", 
+			name:        "case_insensitive_forbidden",
 			goPattern:   "(?i)forbidden",
 			testString:  "Forbidden resource",
 			shouldMatch: true,
@@ -146,7 +146,7 @@ func TestSpecificPatternFunctionality(t *testing.T) {
 
 			goMatch := goRegex.MatchString(tc.testString)
 			if goMatch != tc.shouldMatch {
-				t.Errorf("Go pattern match result: got %v, want %v\nPattern: %s\nString: %s", 
+				t.Errorf("Go pattern match result: got %v, want %v\nPattern: %s\nString: %s",
 					goMatch, tc.shouldMatch, tc.goPattern, tc.testString)
 			}
 
@@ -164,7 +164,7 @@ func TestSpecificPatternFunctionality(t *testing.T) {
 				}
 				jsMatch := jsRegex.MatchString(tc.testString)
 				if jsMatch != tc.shouldMatch {
-					t.Errorf("JS-compatible pattern match result: got %v, want %v\nOriginal: %s\nConverted: %s\nString: %s", 
+					t.Errorf("JS-compatible pattern match result: got %v, want %v\nOriginal: %s\nConverted: %s\nString: %s",
 						jsMatch, tc.shouldMatch, tc.goPattern, jsPattern, tc.testString)
 				}
 			} else {
@@ -175,7 +175,7 @@ func TestSpecificPatternFunctionality(t *testing.T) {
 				}
 				jsMatch := jsRegex.MatchString(tc.testString)
 				if jsMatch != tc.shouldMatch {
-					t.Errorf("JS-compatible pattern match result: got %v, want %v\nPattern: %s\nString: %s", 
+					t.Errorf("JS-compatible pattern match result: got %v, want %v\nPattern: %s\nString: %s",
 						jsMatch, tc.shouldMatch, jsPattern, tc.testString)
 				}
 			}
@@ -186,10 +186,10 @@ func TestSpecificPatternFunctionality(t *testing.T) {
 // TestErrorPatternGroupExtraction tests that regex groups are extracted correctly
 func TestErrorPatternGroupExtraction(t *testing.T) {
 	testCases := []struct {
-		name           string
-		pattern        ErrorPattern
-		testString     string
-		expectedLevel  string
+		name            string
+		pattern         ErrorPattern
+		testString      string
+		expectedLevel   string
 		expectedMessage string
 	}{
 		{
@@ -227,7 +227,7 @@ func TestErrorPatternGroupExtraction(t *testing.T) {
 
 			matches := regex.FindStringSubmatch(tc.testString)
 			if matches == nil {
-				t.Fatalf("Pattern did not match test string\nPattern: %s\nString: %s", 
+				t.Fatalf("Pattern did not match test string\nPattern: %s\nString: %s",
 					tc.pattern.Pattern, tc.testString)
 			}
 
