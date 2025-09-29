@@ -15,7 +15,7 @@ type AddCommentsConfig struct {
 	Target               string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 }
 
-// buildCreateOutputAddCommentJob creates the create_issue_comment job
+// buildCreateOutputAddCommentJob creates the add_comments job
 func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
 		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
@@ -72,7 +72,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	}
 
 	job := &Job{
-		Name:           "create_issue_comment",
+		Name:           "add_comments",
 		If:             jobCondition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",

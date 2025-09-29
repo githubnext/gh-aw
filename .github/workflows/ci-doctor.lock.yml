@@ -2522,7 +2522,7 @@ jobs:
               await main();
             })();
 
-  create_issue_comment:
+  add_comments:
     needs: agent
     if: >
       (contains(needs.agent.outputs.output_types, 'add-comment')) && ((github.event.issue.number) || (github.event.pull_request.number))

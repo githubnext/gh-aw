@@ -3068,9 +3068,10 @@ jobs:
               await main();
             })();
 
-  create_issue_comment:
+  add_comments:
     needs: agent
-    if: always()
+    if: >
+      (contains(needs.agent.outputs.output_types, 'add-comment')) && ((github.event.issue.number) || (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -3236,7 +3237,9 @@ jobs:
 
   create_pr_review_comment:
     needs: agent
-    if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
+    if: >
+      (contains(needs.agent.outputs.output_types, 'create-pull-request-review-comment')) && (((github.event.issue.number) &&
+      (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -3760,7 +3763,8 @@ jobs:
 
   add_labels:
     needs: agent
-    if: github.event.issue.number || github.event.pull_request.number
+    if: >
+      (contains(needs.agent.outputs.output_types, 'add-labels')) && ((github.event.issue.number) || (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -3957,7 +3961,7 @@ jobs:
 
   update_issue:
     needs: agent
-    if: always()
+    if: (contains(needs.agent.outputs.output_types, 'update-issue')) && (github.event.issue.number)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4150,7 +4154,9 @@ jobs:
 
   push_to_pull_request_branch:
     needs: agent
-    if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
+    if: >
+      (contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')) && (((github.event.issue.number) &&
+      (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -2642,6 +2642,7 @@ jobs:
 
   upload_assets:
     needs: agent
+    if: contains(needs.agent.outputs.output_types, 'publish-assets')
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required for creating orphaned branch and pushing assets
