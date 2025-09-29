@@ -261,6 +261,7 @@ jobs:
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"print\":{\"inputs\":{\"message\":{\"description\":\"Message to print\",\"required\":true,\"type\":\"string\"}}}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
+      output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -1769,6 +1770,9 @@ jobs:
               }
               core.setOutput("output", JSON.stringify(validatedOutput));
               core.setOutput("raw_output", outputContent);
+              const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
+              core.info(`output_types: ${outputTypes.join(", ")}`);
+              core.setOutput("output_types", outputTypes.join(","));
               try {
                 await core.summary
                   .addRaw("## Processed Output\n\n")

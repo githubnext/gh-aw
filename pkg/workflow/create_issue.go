@@ -125,15 +125,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	}
 
 	// Determine the job condition for command workflows
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		jobCondition = commandConditionStr
-	} else {
-		jobCondition = "" // No conditional execution
-	}
+	jobCondition := BuildSafeOutputType("create-issue").Render()
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: read\n      issues: write"

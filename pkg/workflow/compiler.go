@@ -1227,7 +1227,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 	// If frontmatter cannot be read, we'll fall back to the basic permission check logic
 
-	// Main job ID is always "agent"
+	// Main job ID is always constants.AgentJobName
 
 	// Build check-membership job if needed (validates team membership levels)
 	// Team membership checks are specifically for command workflows
@@ -1554,7 +1554,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	var outputs map[string]string
 	if data.SafeOutputs != nil {
 		outputs = map[string]string{
-			"output": "${{ steps.collect_output.outputs.output }}",
+			"output":       "${{ steps.collect_output.outputs.output }}",
+			"output_types": "${{ steps.collect_output.outputs.output_types }}",
 		}
 	}
 
@@ -1575,7 +1576,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	job := &Job{
-		Name:        "agent",
+		Name:        constants.AgentJobName,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
