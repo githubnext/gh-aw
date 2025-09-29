@@ -72,18 +72,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	}
 
 	// Determine the job condition for command workflows
-	var baseCondition = "github.event.issue.number || github.event.pull_request.number" // Only run in issue or PR context
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		// Combine command condition with base condition using AND
-		jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
-	} else {
-		// No command trigger, just use the base condition
-		jobCondition = baseCondition
-	}
+	jobCondition := BuildSafeOutputType("add-labels").Render()
 
 	job := &Job{
 		Name:           "add_labels",
