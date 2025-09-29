@@ -306,7 +306,7 @@ func BuildNotFromFork() *ComparisonNode {
 
 func BuildSafeOutputType(outputType string) ConditionNode {
 	return BuildFunctionCall("contains",
-		BuildPropertyAccess(fmt.Sprintf("needs.%s.collect_output.outputs.output_types", constants.AgentJobName)),
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
 		BuildStringLiteral(outputType),
 	)
 }
