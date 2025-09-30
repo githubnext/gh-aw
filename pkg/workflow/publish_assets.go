@@ -166,7 +166,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	}
 
 	// Build the job condition using expression tree
-	jobCondition := BuildSafeOutputType("publish-assets")
+	jobCondition := BuildSafeOutputType("upload-asset")
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: write  # Required for creating orphaned branch and pushing assets"
