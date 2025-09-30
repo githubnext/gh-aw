@@ -166,7 +166,8 @@ func TestMainFunction(t *testing.T) {
 		r, w, _ := os.Pipe()
 		os.Stderr = w
 
-		// Reset the command's output to use the new os.Stderr
+		// Update the command's output to use the new os.Stderr pipe
+		// This is necessary because rootCmd captured the original os.Stderr in init()
 		rootCmd.SetOut(os.Stderr)
 
 		// Execute help
@@ -176,7 +177,7 @@ func TestMainFunction(t *testing.T) {
 		// Restore output
 		w.Close()
 		os.Stderr = oldStderr
-		rootCmd.SetOut(os.Stderr) // Restore to original stderr
+		rootCmd.SetOut(os.Stderr) // Restore the command's output to the original stderr
 
 		// Read captured output
 		var buf bytes.Buffer
