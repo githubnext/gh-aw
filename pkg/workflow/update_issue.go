@@ -61,12 +61,10 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	safeOutputCondition := BuildSafeOutputType("update-issue")
-
-	baseCondition := &ExpressionNode{Expression: "github.event.issue.number"}
-	jobCondition := &AndNode{
-		Left:  safeOutputCondition,
-		Right: baseCondition,
+	var jobCondition = BuildSafeOutputType("update-issue")
+	if data.SafeOutputs.UpdateIssues.Target == "" {
+		eventCondition := BuildPropertyAccess("github.event.issue.number")
+		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
 	job := &Job{

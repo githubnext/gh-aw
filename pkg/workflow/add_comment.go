@@ -15,7 +15,7 @@ type AddCommentsConfig struct {
 	Target               string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 }
 
-// buildCreateOutputAddCommentJob creates the add_comments job
+// buildCreateOutputAddCommentJob creates the add_comment job
 func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
 		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
@@ -57,22 +57,17 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
 	}
 
-	// Build the job condition using expression trees
-	// Always run in issue or PR context
-	// Combine safe output condition AND (issue number OR PR number)
-	safeOutputCondition := BuildSafeOutputType("add-comment")
-
-	baseCondition := &OrNode{
-		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-		Right: &ExpressionNode{Expression: "github.event.pull_request.number"},
-	}
-	jobCondition := &AndNode{
-		Left:  safeOutputCondition,
-		Right: baseCondition,
+	var jobCondition = BuildSafeOutputType("add-comment")
+	if data.SafeOutputs.AddComments.Target == "" {
+		eventCondition := buildOr(
+			BuildPropertyAccess("github.event.issue.number"),
+			BuildPropertyAccess("github.event.pull_request.number"),
+		)
+		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
 	job := &Job{
-		Name:           "add_comments",
+		Name:           "add_comment",
 		If:             jobCondition.Render(),
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",

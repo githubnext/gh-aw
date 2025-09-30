@@ -1325,14 +1325,14 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build add_comments job if output.add-comment is configured
+	// Build add_comment job if output.add-comment is configured
 	if data.SafeOutputs.AddComments != nil {
 		createCommentJob, err := c.buildCreateOutputAddCommentJob(data, jobName)
 		if err != nil {
-			return fmt.Errorf("failed to build add_comments job: %w", err)
+			return fmt.Errorf("failed to build add_comment job: %w", err)
 		}
 		if err := c.jobManager.AddJob(createCommentJob); err != nil {
-			return fmt.Errorf("failed to add add_comments job: %w", err)
+			return fmt.Errorf("failed to add add_comment job: %w", err)
 		}
 	}
 
