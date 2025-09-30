@@ -225,6 +225,67 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 			expected: []string{"--allow-tool", "safe_outputs"},
 		},
+		{
+			name: "github tool with allowed tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_repository", "list_commits"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)"},
+		},
+		{
+			name: "github tool with single allowed tool",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"add_issue_comment"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(add_issue_comment)"},
+		},
+		{
+			name: "github tool with empty allowed array",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{},
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name: "github tool without allowed field",
+			tools: map[string]any{
+				"github": map[string]any{},
+			},
+			expected: []string{},
+		},
+		{
+			name: "github tool as nil (no config)",
+			tools: map[string]any{
+				"github": nil,
+			},
+			expected: []string{},
+		},
+		{
+			name: "github tool with multiple allowed tools sorted",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"update_issue", "add_issue_comment", "create_issue"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(add_issue_comment)", "--allow-tool", "github(create_issue)", "--allow-tool", "github(update_issue)"},
+		},
+		{
+			name: "github tool with bash and edit tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_repository", "list_commits"},
+				},
+				"bash": []any{"echo", "ls"},
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
+		},
 	}
 
 	for _, tt := range tests {

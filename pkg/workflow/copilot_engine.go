@@ -486,6 +486,23 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", "safe_outputs")
 	}
 
+	// Handle GitHub MCP tools - GitHub is built-in to Copilot CLI but still needs tool allowlist
+	if githubConfig, hasGithub := tools["github"]; hasGithub {
+		if githubConfigMap, ok := githubConfig.(map[string]any); ok {
+			// GitHub is built-in, so we don't add --allow-tool github itself
+			// But we do need to add --allow-tool github(tool_name) for each allowed tool
+			if allowed, hasAllowed := githubConfigMap["allowed"]; hasAllowed {
+				if allowedList, ok := allowed.([]any); ok {
+					for _, allowedTool := range allowedList {
+						if toolStr, ok := allowedTool.(string); ok {
+							args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Built-in tool names that should be skipped when processing MCP servers
 	builtInTools := map[string]bool{
 		"bash":       true,
