@@ -971,10 +971,13 @@ gh extension install githubnext/gh-aw
 If there are authentication issues, use the standalone installer:
 
 ```bash
+# Download and run: curl -sL https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh | bash
 curl -O https://raw.githubusercontent.com/githubnext/gh-aw/main/install-gh-aw.sh
 chmod +x install-gh-aw.sh
 ./install-gh-aw.sh
 ```
+
+**Note**: When using the standalone installer, the binary is named `gh-aw` instead of `gh aw`. Use `./gh-aw compile` or add it to your PATH.
 
 ### Compile Workflows
 
