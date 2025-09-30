@@ -767,7 +767,8 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Dev
           
-          List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Post result in an issue.
+          List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else.
+          Post result in an issue.
           
           EOF
       - name: Append safe outputs instructions to prompt
@@ -827,7 +828,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: false,
+              staged: true,
               created_at: new Date().toISOString()
             };
             
@@ -1967,6 +1968,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             function sanitizeLabelContent(content) {
