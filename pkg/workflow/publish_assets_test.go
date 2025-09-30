@@ -76,7 +76,7 @@ func TestParseUploadAssetConfig(t *testing.T) {
 			}
 
 			if result.GitHubToken != tt.expected.GitHubToken {
-				t.Errorf("BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: expected %s, got %s", tt.expected.GitHubToken, result.GitHubToken)
+				t.Errorf("GitHubToken: expected %s, got %s", tt.expected.GitHubToken, result.GitHubToken)
 			}
 
 			if result.Max != tt.expected.Max {
