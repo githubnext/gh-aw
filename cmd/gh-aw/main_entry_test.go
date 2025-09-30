@@ -307,6 +307,52 @@ func TestVersionCommandFunctionality(t *testing.T) {
 			t.Error("GetVersion() should return version information")
 		}
 	})
+
+	t.Run("--version flag is supported", func(t *testing.T) {
+		// Test that --version flag works
+		cmd := exec.Command("go", "run", "main.go", "--version")
+		cmd.Dir = "."
+
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to run main with --version: %v", err)
+		}
+
+		outputStr := string(output)
+		// Should produce version output
+		if len(strings.TrimSpace(outputStr)) == 0 {
+			t.Error("--version flag should produce output")
+		}
+
+		// Should contain "version" in the output
+		if !strings.Contains(outputStr, "version") {
+			t.Errorf("--version output should contain 'version', got: %s", outputStr)
+		}
+	})
+
+	t.Run("version subcommand and --version flag produce same output", func(t *testing.T) {
+		// Test version subcommand
+		cmdVersion := exec.Command("go", "run", "main.go", "version")
+		cmdVersion.Dir = "."
+		outputVersion, err := cmdVersion.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to run main with version subcommand: %v", err)
+		}
+
+		// Test --version flag
+		cmdFlag := exec.Command("go", "run", "main.go", "--version")
+		cmdFlag.Dir = "."
+		outputFlag, err := cmdFlag.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Failed to run main with --version flag: %v", err)
+		}
+
+		// Both should produce the same output
+		if string(outputVersion) != string(outputFlag) {
+			t.Errorf("version subcommand and --version flag should produce same output.\nSubcommand: %s\nFlag: %s",
+				string(outputVersion), string(outputFlag))
+		}
+	})
 }
 
 func TestCommandLineIntegration(t *testing.T) {

@@ -27,8 +27,9 @@ func validateEngine(engine string) error {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   constants.CLIExtensionPrefix,
-	Short: "GitHub Agentic Workflows CLI from GitHub Next",
+	Use:     constants.CLIExtensionPrefix,
+	Short:   "GitHub Agentic Workflows CLI from GitHub Next",
+	Version: version,
 	Long: `GitHub Agentic Workflows from GitHub Next
 
 A natural language GitHub Action is a markdown file checked into the .github/workflows directory of a repository.
@@ -255,6 +256,11 @@ var versionCmd = &cobra.Command{
 func init() {
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
+
+	// Set version template to match the version subcommand format
+	rootCmd.SetVersionTemplate(fmt.Sprintf("%s\n%s\n",
+		console.FormatInfoMessage(fmt.Sprintf("%s version {{.Version}}", constants.CLIExtensionPrefix)),
+		console.FormatInfoMessage("GitHub Agentic Workflows CLI from GitHub Next")))
 
 	// Override the help function to hide completion command
 	originalHelpFunc := rootCmd.HelpFunc()
