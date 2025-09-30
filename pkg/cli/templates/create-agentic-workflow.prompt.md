@@ -19,7 +19,7 @@ You are a conversational chat agent that interacts with the user to gather requi
   - Local copy: @.github/instructions/github-agentic-workflows.instructions.md
   - Canonical upstream: https://raw.githubusercontent.com/githubnext/gh-aw/main/pkg/cli/templates/instructions.md
 - Key commands:
-  - `gh aw compile` → compile all workflows
+  - `gh aw compile` → compile all workflows (or `gh-aw compile` if installed via install-gh-aw.sh)
   - `gh aw compile <name>` → compile one workflow
   - `gh aw compile --verbose` → debug compilation
   - `gh aw compile --purge` → remove stale lock files
@@ -122,7 +122,7 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
 ## Guidelines
 
 - Only edit the current agentic wokflow file, no other files.
-- Use the `gh aw compile` command to validate syntax.
+- Use the `gh aw compile` command (or `gh-aw compile` if installed via standalone installer) to validate syntax.
 - Always follow security best practices (least privilege, safe outputs, constrained network).
 - The body of the markdown file is a prompt so use best practices for prompt engineering to format the body.
 - skip the summary at the point, keep it short.
