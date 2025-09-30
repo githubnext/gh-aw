@@ -257,6 +257,9 @@ func init() {
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
 
+	// Set output to stderr for consistency with CLI logging guidelines
+	rootCmd.SetOut(os.Stderr)
+
 	// Set version template to match the version subcommand format
 	rootCmd.SetVersionTemplate(fmt.Sprintf("%s\n%s\n",
 		console.FormatInfoMessage(fmt.Sprintf("%s version {{.Version}}", constants.CLIExtensionPrefix)),

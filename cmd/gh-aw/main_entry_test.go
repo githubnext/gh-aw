@@ -162,9 +162,12 @@ func TestMainFunction(t *testing.T) {
 
 	t.Run("root command help", func(t *testing.T) {
 		// Capture output
-		oldStdout := os.Stdout
+		oldStderr := os.Stderr
 		r, w, _ := os.Pipe()
-		os.Stdout = w
+		os.Stderr = w
+
+		// Reset the command's output to use the new os.Stderr
+		rootCmd.SetOut(os.Stderr)
 
 		// Execute help
 		rootCmd.SetArgs([]string{"--help"})
@@ -172,7 +175,8 @@ func TestMainFunction(t *testing.T) {
 
 		// Restore output
 		w.Close()
-		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+		rootCmd.SetOut(os.Stderr) // Restore to original stderr
 
 		// Read captured output
 		var buf bytes.Buffer
@@ -206,7 +210,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		cmd := exec.Command("go", "run", "main.go", "--help")
 		cmd.Dir = "."
 
-		output, err := cmd.Output()
+		output, err := cmd.CombinedOutput() // Use CombinedOutput to capture stderr
 		if err != nil {
 			t.Fatalf("Failed to run main with --help: %v", err)
 		}
