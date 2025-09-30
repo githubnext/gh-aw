@@ -5,6 +5,7 @@ on:
     branches:
       - copilot/*
       - collect-guards
+      - github*
 engine: copilot
 tools:
   github:

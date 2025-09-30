@@ -485,6 +485,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	if HasSafeOutputsEnabled(safeOutputs) {
 		args = append(args, "--allow-tool", "safe_outputs")
 	}
+	args = append(args, "--allow-tool", "github")
 
 	// Built-in tool names that should be skipped when processing MCP servers
 	builtInTools := map[string]bool{

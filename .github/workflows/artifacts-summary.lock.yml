@@ -837,6 +837,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool github
         # --allow-tool safe_outputs
         timeout-minutes: 15
         run: |
@@ -845,7 +846,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool github --allow-tool safe_outputs --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}

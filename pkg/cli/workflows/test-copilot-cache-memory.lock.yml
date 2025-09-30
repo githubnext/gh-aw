@@ -207,6 +207,8 @@ jobs:
           if-no-files-found: warn
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool github
         timeout-minutes: 5
         run: |
           set -o pipefail
@@ -214,7 +216,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --add-dir /tmp/cache-memory/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool github --add-dir /tmp/cache-memory/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

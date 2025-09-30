@@ -921,6 +921,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool github
         # --allow-tool safe_outputs
         # --allow-tool shell(cat)
         # --allow-tool shell(cd *)
@@ -950,7 +951,7 @@ jobs:
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(cd *)' --allow-tool 'shell(cp *)' --allow-tool 'shell(curl *)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(kill *)' --allow-tool 'shell(ls)' --allow-tool 'shell(mkdir *)' --allow-tool 'shell(mv *)' --allow-tool 'shell(node *)' --allow-tool 'shell(npm *)' --allow-tool 'shell(ps *)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sleep *)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool github --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(cd *)' --allow-tool 'shell(cp *)' --allow-tool 'shell(curl *)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(kill *)' --allow-tool 'shell(ls)' --allow-tool 'shell(mkdir *)' --allow-tool 'shell(mv *)' --allow-tool 'shell(node *)' --allow-tool 'shell(npm *)' --allow-tool 'shell(ps *)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sleep *)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
