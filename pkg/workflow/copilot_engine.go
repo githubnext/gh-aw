@@ -196,7 +196,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			// Skip adding it to the MCP configuration since no server is needed
 			continue
 		default:
-			// Include github, playwright, safe-outputs, and custom MCP tools
+			// Include all other tools (github, playwright, safe-outputs, and custom MCP tools)
 			actualMCPTools = append(actualMCPTools, toolName)
 		}
 	}
