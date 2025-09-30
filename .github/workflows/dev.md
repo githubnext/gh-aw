@@ -6,9 +6,15 @@ on:
       - copilot/*
       - collect-guards
 engine: copilot
+tools:
+  github:
+    allowed:
+      - list_pull_requests
+      - get_pull_request
 safe-outputs:
     staged: true
     create-issue:
-    create-pull-request:
 ---
-Create a poem and post it as a new issue.
+# Dev
+
+Generate a comprehensive table of all accessible tools in the current chat session, detailing their names, descriptions, and usage examples.
