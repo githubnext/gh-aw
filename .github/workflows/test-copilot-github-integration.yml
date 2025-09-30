@@ -41,11 +41,7 @@ jobs:
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Fetch Last Closed Pull Request
-          
-          Use the GitHub CLI to fetch the title of the last closed pull request in this repository.
-          
-          Use the command: gh pr list --state closed --limit 1 --json title --jq '.[0].title'
-          
+          Fetch the title of the last closed pull request in this repository.
           Then echo the title to the step summary.
           EOF
       
