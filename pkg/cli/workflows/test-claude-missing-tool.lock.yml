@@ -902,6 +902,11 @@ jobs:
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
+      - name: Capture agent version
+        run: |
+          VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
+          echo "AGENT_VERSION=$VERSION_OUTPUT" >> $GITHUB_ENV
+          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:
@@ -913,6 +918,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
+              agent_version: process.env.AGENT_VERSION || "",
               workflow_name: "Test Claude with Missing Tool Safe Output and Cache Memory",
               experimental: false,
               supports_tools_allowlist: true,

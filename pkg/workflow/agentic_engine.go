@@ -56,6 +56,10 @@ type CodingAgentEngine interface {
 
 	// GetErrorPatterns returns regex patterns for extracting error messages from logs
 	GetErrorPatterns() []ErrorPattern
+
+	// GetVersionCommand returns the command to get the version of the agent (e.g., "copilot --version")
+	// Returns empty string if the engine does not support version reporting
+	GetVersionCommand() string
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -119,6 +123,11 @@ func (e *BaseEngine) GetDeclaredOutputFiles() []string {
 // GetErrorPatterns returns an empty list by default (engines can override)
 func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{}
+}
+
+// GetVersionCommand returns empty string by default (engines can override)
+func (e *BaseEngine) GetVersionCommand() string {
+	return ""
 }
 
 // EngineRegistry manages available agentic engines
