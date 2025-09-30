@@ -16,4 +16,4 @@ safe-outputs:
 ---
 # Dev
 
-Generate a comprehensive table of all accessible tools in the current chat session, detailing their names, descriptions, and usage examples. Post result in an issue.
+List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Post result in an issue.
