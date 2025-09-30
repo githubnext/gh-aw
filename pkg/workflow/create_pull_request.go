@@ -112,7 +112,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	job := &Job{
 		Name:           "create_pull_request",
 		If:             jobCondition.Render(),
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: write\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,

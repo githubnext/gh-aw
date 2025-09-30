@@ -69,7 +69,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	job := &Job{
 		Name:           "create_pr_review_comment",
 		If:             jobCondition.Render(),
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,

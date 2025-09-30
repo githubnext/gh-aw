@@ -132,7 +132,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	job := &Job{
 		Name:           "create_issue",
 		If:             jobCondition.Render(),
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    permissions,
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
