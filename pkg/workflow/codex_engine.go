@@ -74,6 +74,11 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	}
 }
 
+// GetVersionCommand returns the command to get Codex's version
+func (e *CodexEngine) GetVersionCommand() string {
+	return "codex --version"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep

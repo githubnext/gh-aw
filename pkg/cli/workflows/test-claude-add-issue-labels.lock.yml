@@ -173,6 +173,13 @@ jobs:
           echo '``````markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '``````' >> $GITHUB_STEP_SUMMARY
+      - name: Capture agent version
+        run: |
+          VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
+          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
+          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
+          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+          echo "Agent version: $VERSION_OUTPUT"
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:
@@ -184,6 +191,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
+              agent_version: process.env.AGENT_VERSION || "",
               workflow_name: "Test Claude Add Issue Labels",
               experimental: false,
               supports_tools_allowlist: true,

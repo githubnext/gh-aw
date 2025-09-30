@@ -60,6 +60,11 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
 }
 
+// GetVersionCommand returns the command to get Claude's version
+func (e *ClaudeEngine) GetVersionCommand() string {
+	return "claude --version"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
