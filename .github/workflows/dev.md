@@ -15,6 +15,6 @@ safe-outputs:
     staged: true
     create-issue:
 ---
-# Available Tools Report
+# Dev
 
 Generate a comprehensive table of all accessible tools in the current chat session, detailing their names, descriptions, and usage examples.
