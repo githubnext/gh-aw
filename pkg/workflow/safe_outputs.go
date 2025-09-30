@@ -328,6 +328,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
+					// Parse target
+					if target, exists := labelsMap["target"]; exists {
+						if targetStr, ok := target.(string); ok {
+							labelConfig.Target = targetStr
+						}
+					}
+
 					config.AddLabels = labelConfig
 				} else if labels == nil {
 					// Handle null case: create empty config (allows any labels)

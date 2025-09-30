@@ -11,6 +11,7 @@ type AddLabelsConfig struct {
 	MaxCount    *int     `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
 	MinCount    *int     `yaml:"min,omitempty"`          // Optional minimum number of labels to add
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	Target      string   `yaml:"target,omitempty"`       // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
 }
 
 // buildCreateOutputLabelJob creates the add_labels job
@@ -45,6 +46,11 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	// Pass the max limit
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
+	// Pass the target configuration
+	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.Target != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
+	}
+
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
@@ -71,14 +77,13 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	safeOutputCondition := BuildSafeOutputType("add-labels")
-	baseCondition := &OrNode{
-		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-		Right: &ExpressionNode{Expression: "github.event.pull_request.number"},
-	}
-	jobCondition := &AndNode{
-		Left:  safeOutputCondition,
-		Right: baseCondition,
+	var jobCondition = BuildSafeOutputType("add-labels")
+	if data.SafeOutputs.AddLabels == nil || data.SafeOutputs.AddLabels.Target == "" {
+		eventCondition := buildOr(
+			BuildPropertyAccess("github.event.issue.number"),
+			BuildPropertyAccess("github.event.pull_request.number"),
+		)
+		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
 	job := &Job{

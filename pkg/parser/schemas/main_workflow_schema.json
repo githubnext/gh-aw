@@ -1574,6 +1574,10 @@
                   "description": "Minimum number of labels to add (default: 0 - no requirement)",
                   "minimum": 0
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
