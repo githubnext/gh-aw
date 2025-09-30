@@ -62,7 +62,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	}
 
 	var jobCondition = BuildSafeOutputType("update-issue")
-	if data.SafeOutputs.UpdateIssues.Target == "" {
+	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.Target == "" {
 		eventCondition := BuildPropertyAccess("github.event.issue.number")
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
