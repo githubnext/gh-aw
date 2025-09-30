@@ -2172,7 +2172,9 @@ func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine Cod
 	yaml.WriteString("      - name: Capture agent version\n")
 	yaml.WriteString("        run: |\n")
 	fmt.Fprintf(yaml, "          VERSION_OUTPUT=$(%s 2>&1 || echo \"unknown\")\n", versionCmd)
-	yaml.WriteString("          echo \"AGENT_VERSION=$VERSION_OUTPUT\" >> $GITHUB_ENV\n")
+	fmt.Fprintf(yaml, "          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)\n")
+	fmt.Fprintf(yaml, "          CLEAN_VERSION=$(echo \"$VERSION_OUTPUT\" | grep -oE 'v?[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo \"unknown\")\n")
+	yaml.WriteString("          echo \"AGENT_VERSION=$CLEAN_VERSION\" >> $GITHUB_ENV\n")
 	yaml.WriteString("          echo \"Agent version: $VERSION_OUTPUT\"\n")
 }
 
