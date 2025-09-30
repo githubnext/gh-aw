@@ -61,6 +61,11 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 	return []string{logsFolder}
 }
 
+// GetVersionCommand returns the command to get Copilot CLI's version
+func (e *CopilotEngine) GetVersionCommand() string {
+	return "copilot --version"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
