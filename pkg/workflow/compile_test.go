@@ -529,7 +529,7 @@ safe-outputs:
 
 # Test Output Issue Comment Job Generation
 
-This workflow tests the create_issue_comment job generation.
+This workflow tests the add_comment job generation.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue-comment.md")
@@ -554,23 +554,23 @@ This workflow tests the create_issue_comment job generation.
 
 	lockContent := string(content)
 
-	// Verify create_issue_comment job exists
-	if !strings.Contains(lockContent, "create_issue_comment:") {
-		t.Error("Expected 'create_issue_comment' job to be in generated workflow")
+	// Verify add_comment job exists
+	if !strings.Contains(lockContent, "add_comment:") {
+		t.Error("Expected 'add_comment' job to be in generated workflow")
 	}
 
 	// Verify job properties
 	if !strings.Contains(lockContent, "timeout-minutes: 10") {
-		t.Error("Expected 10-minute timeout in create_issue_comment job")
+		t.Error("Expected 10-minute timeout in add_comment job")
 	}
 
 	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write\n      pull-requests: write") {
-		t.Error("Expected correct permissions in create_issue_comment job")
+		t.Error("Expected correct permissions in add_comment job")
 	}
 
 	// Verify the job uses github-script
 	if !strings.Contains(lockContent, "uses: actions/github-script@v8") {
-		t.Error("Expected github-script action to be used in create_issue_comment job")
+		t.Error("Expected github-script action to be used in add_comment job")
 	}
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
@@ -587,12 +587,12 @@ This workflow tests the create_issue_comment job generation.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected create_issue_comment job to have conditional execution")
+		t.Error("Expected add_comment job to have conditional execution")
 	}
 
 	// Verify job dependencies
 	if !strings.Contains(lockContent, "needs: agent") {
-		t.Error("Expected create_issue_comment job to depend on main job")
+		t.Error("Expected add_comment job to depend on main job")
 	}
 
 	// Verify JavaScript content includes environment variable for agent output
@@ -650,9 +650,9 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 
 	lockContent := string(content)
 
-	// Verify create_issue_comment job exists (it should be generated regardless of trigger)
-	if !strings.Contains(lockContent, "create_issue_comment:") {
-		t.Error("Expected 'create_issue_comment' job to be in generated workflow")
+	// Verify add_comment job exists (it should be generated regardless of trigger)
+	if !strings.Contains(lockContent, "add_comment:") {
+		t.Error("Expected 'add_comment' job to be in generated workflow")
 	}
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
@@ -669,7 +669,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected create_issue_comment job to have conditional execution for skipping")
+		t.Error("Expected add_comment job to have conditional execution for skipping")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
