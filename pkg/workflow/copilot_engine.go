@@ -596,12 +596,12 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 				pairs = append(pairs, argPair{flag: args[i], value: args[i+1]})
 			}
 		}
-		
+
 		// Sort by value
 		sort.Slice(pairs, func(i, j int) bool {
 			return pairs[i].value < pairs[j].value
 		})
-		
+
 		// Rebuild args with sorted pairs
 		newArgs := make([]string, 0, len(args))
 		for _, pair := range pairs {
