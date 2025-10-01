@@ -32,11 +32,14 @@ func TestInitRepository(t *testing.T) {
 			tempDir := t.TempDir()
 
 			// Change to temp directory
-			oldWd, _ := os.Getwd()
+			oldWd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
 			defer func() {
 				_ = os.Chdir(oldWd)
 			}()
-			err := os.Chdir(tempDir)
+			err = os.Chdir(tempDir)
 			if err != nil {
 				t.Fatalf("Failed to change directory: %v", err)
 			}
@@ -98,11 +101,14 @@ func TestInitRepository_Idempotent(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Change to temp directory
-	oldWd, _ := os.Getwd()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
 	defer func() {
 		_ = os.Chdir(oldWd)
 	}()
-	err := os.Chdir(tempDir)
+	err = os.Chdir(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
@@ -146,11 +152,14 @@ func TestInitRepository_Verbose(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Change to temp directory
-	oldWd, _ := os.Getwd()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
 	defer func() {
 		_ = os.Chdir(oldWd)
 	}()
-	err := os.Chdir(tempDir)
+	err = os.Chdir(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to change directory: %v", err)
 	}
