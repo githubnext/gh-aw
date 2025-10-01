@@ -53,3 +53,5 @@ logs/
 
 node_modules/
 gh-aw-test/
+
+pkg/cli/workflows/*.yml
