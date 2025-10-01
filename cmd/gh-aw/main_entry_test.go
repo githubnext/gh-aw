@@ -208,7 +208,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 		}
 
 		// Test help command execution through main function
-		cmd := exec.Command("go", "run", "main.go", "--help")
+		cmd := exec.Command("go", "run", ".", "--help")
 		cmd.Dir = "."
 
 		output, err := cmd.CombinedOutput() // Use CombinedOutput to capture stderr
@@ -228,7 +228,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 
 	t.Run("main function version command", func(t *testing.T) {
 		// Test version command execution through main function
-		cmd := exec.Command("go", "run", "main.go", "version")
+		cmd := exec.Command("go", "run", ".", "version")
 		cmd.Dir = "."
 
 		output, err := cmd.CombinedOutput() // Use CombinedOutput to capture both stdout and stderr
@@ -245,7 +245,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 
 	t.Run("main function error handling", func(t *testing.T) {
 		// Test error handling in main function
-		cmd := exec.Command("go", "run", "main.go", "invalid-command")
+		cmd := exec.Command("go", "run", ".", "invalid-command")
 		cmd.Dir = "."
 
 		_, err := cmd.Output()
@@ -282,7 +282,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 
 	t.Run("main function basic execution flow", func(t *testing.T) {
 		// Test that main function sets up CLI properly and exits cleanly for valid commands
-		cmd := exec.Command("go", "run", "main.go", "list")
+		cmd := exec.Command("go", "run", ".", "list")
 		cmd.Dir = "."
 
 		// This should run successfully (exit code 0) even if no workflows found
@@ -315,7 +315,7 @@ func TestVersionCommandFunctionality(t *testing.T) {
 
 	t.Run("--version flag is supported", func(t *testing.T) {
 		// Test that --version flag works
-		cmd := exec.Command("go", "run", "main.go", "--version")
+		cmd := exec.Command("go", "run", ".", "--version")
 		cmd.Dir = "."
 
 		output, err := cmd.CombinedOutput()
@@ -337,7 +337,7 @@ func TestVersionCommandFunctionality(t *testing.T) {
 
 	t.Run("version subcommand and --version flag produce same output", func(t *testing.T) {
 		// Test version subcommand
-		cmdVersion := exec.Command("go", "run", "main.go", "version")
+		cmdVersion := exec.Command("go", "run", ".", "version")
 		cmdVersion.Dir = "."
 		outputVersion, err := cmdVersion.CombinedOutput()
 		if err != nil {
@@ -345,7 +345,7 @@ func TestVersionCommandFunctionality(t *testing.T) {
 		}
 
 		// Test --version flag
-		cmdFlag := exec.Command("go", "run", "main.go", "--version")
+		cmdFlag := exec.Command("go", "run", ".", "--version")
 		cmdFlag.Dir = "."
 		outputFlag, err := cmdFlag.CombinedOutput()
 		if err != nil {
