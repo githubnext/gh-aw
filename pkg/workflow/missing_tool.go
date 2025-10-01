@@ -52,11 +52,14 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		"total_count":    "${{ steps.missing_tool.outputs.total_count }}",
 	}
 
+	// Build the job condition using BuildSafeOutputType
+	jobCondition := BuildSafeOutputType("missing-tool").Render()
+
 	// Create the job
 	job := &Job{
 		Name:           "missing_tool",
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		If:             "${{ always() }}",                    // Always run to capture missing tools
+		If:             jobCondition,
 		Permissions:    "permissions:\n      contents: read", // Only needs read access for logging
 		TimeoutMinutes: 5,                                    // Short timeout since it's just processing output
 		Steps:          steps,
