@@ -1,6 +1,18 @@
 package workflow
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
+
+// formatSafeOutputsRunsOn formats the runs-on value from SafeOutputsConfig for job output
+func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) string {
+	if safeOutputs == nil || safeOutputs.RunsOn == "" {
+		return "runs-on: ubuntu-latest" // Default
+	}
+
+	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
+}
 
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
@@ -91,11 +103,13 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		written = true
 	}
 
-	// Missing-tool is always available
-	if written {
-		yaml.WriteString(", ")
+	// Missing-tool is enabled by default when safe-outputs is configured
+	if safeOutputs.MissingTool != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Reporting Missing Tools or Functionality")
 	}
-	yaml.WriteString("Reporting Missing Tools or Functionality")
 
 	yaml.WriteString("\n")
 	yaml.WriteString("          \n")
@@ -316,6 +330,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
+					// Parse target
+					if target, exists := labelsMap["target"]; exists {
+						if targetStr, ok := target.(string); ok {
+							labelConfig.Target = targetStr
+						}
+					}
+
 					config.AddLabels = labelConfig
 				} else if labels == nil {
 					// Handle null case: create empty config (allows any labels)
@@ -341,10 +362,15 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.UploadAssets = uploadAssetsConfig
 			}
 
-			// Handle missing-tool (parse configuration if present)
+			// Handle missing-tool (parse configuration if present, or enable by default)
 			missingToolConfig := c.parseMissingToolConfig(outputMap)
 			if missingToolConfig != nil {
 				config.MissingTool = missingToolConfig
+			} else {
+				// Enable missing-tool by default if safe-outputs exists and it wasn't explicitly disabled
+				if _, exists := outputMap["missing-tool"]; !exists {
+					config.MissingTool = &MissingToolConfig{} // Default: enabled with no max limit
+				}
 			}
 
 			// Handle staged flag
@@ -405,6 +431,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			threatDetectionConfig := c.parseThreatDetectionConfig(outputMap)
 			if threatDetectionConfig != nil {
 				config.ThreatDetection = threatDetectionConfig
+			}
+
+			// Handle runs-on configuration
+			if runsOn, exists := outputMap["runs-on"]; exists {
+				if runsOnStr, ok := runsOn.(string); ok {
+					config.RunsOn = runsOnStr
+				}
 			}
 
 			// Handle jobs (safe-jobs moved under safe-outputs)

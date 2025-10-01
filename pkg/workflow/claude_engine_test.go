@@ -60,16 +60,16 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected step name 'Execute Claude Code CLI' in step lines: %v", stepLines)
 	}
 
-	// Check npx usage instead of GitHub Action
+	// Check npx usage with pinned version instead of GitHub Action
 	found = false
 	for _, line := range stepLines {
-		if strings.Contains(line, "npx @anthropic-ai/claude-code@latest") {
+		if strings.Contains(line, "npx @anthropic-ai/claude-code@2.0.1") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@latest in step lines: %v", stepLines)
+		t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 in step lines: %v", stepLines)
 	}
 
 	// Check that required CLI arguments are present
@@ -171,8 +171,8 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 				t.Errorf("Expected step name 'Execute Claude Code CLI' in step content")
 			}
 
-			if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
-				t.Errorf("Expected npx @anthropic-ai/claude-code@latest in step content")
+			if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@2.0.1") {
+				t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 in step content")
 			}
 
 			// Verify all required CLI elements are present
@@ -249,9 +249,9 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that npx uses the default latest version when no version specified
-	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@latest when no version specified in step content:\n%s", stepContent)
+	// Check that npx uses the default pinned version when no version specified
+	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@2.0.1") {
+		t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 when no version specified in step content:\n%s", stepContent)
 	}
 }
 
@@ -273,9 +273,9 @@ func TestClaudeEngineWithNilConfig(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that npx uses the default latest version when no engine config
-	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@latest") {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@latest when no engine config in step content:\n%s", stepContent)
+	// Check that npx uses the default pinned version when no engine config
+	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@2.0.1") {
+		t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 when no engine config in step content:\n%s", stepContent)
 	}
 }
 

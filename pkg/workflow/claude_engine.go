@@ -60,6 +60,11 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
 }
 
+// GetVersionCommand returns the command to get Claude's version
+func (e *ClaudeEngine) GetVersionCommand() string {
+	return "claude --version"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
@@ -146,8 +151,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
 	// Build the command string with proper argument formatting
-	// Use version from engine config if provided, otherwise default to latest
-	version := "latest"
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := constants.DefaultClaudeCodeVersion
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
 	}
@@ -621,6 +626,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 // Always uses Docker MCP as the default
 func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	customArgs := getGitHubCustomArgs(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -632,7 +639,16 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+	if readOnly {
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
+	}
+	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "                  ")
+
+	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
@@ -649,6 +665,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	yaml.WriteString("              \"playwright\": {\n")
 	yaml.WriteString("                \"command\": \"npx\",\n")
@@ -661,6 +678,10 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 		yaml.WriteString("                  \"--allowed-origins\",\n")
 		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "                  ")
+
 	yaml.WriteString("\n")
 	yaml.WriteString("                ]\n")
 

@@ -985,6 +985,10 @@
           "description": "GitHub API tools for repository operations (issues, pull requests, content management)",
           "oneOf": [
             {
+              "type": "null",
+              "description": "Empty GitHub tool configuration (enables all read-only GitHub API functions)"
+            },
+            {
               "type": "string",
               "description": "Simple GitHub tool configuration (enables all GitHub API functions)"
             },
@@ -1002,6 +1006,17 @@
                 "version": {
                   "type": "string",
                   "description": "Optional version specification for the GitHub MCP server"
+                },
+                "args": {
+                  "type": "array",
+                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "read-only": {
+                  "type": "boolean",
+                  "description": "Enable read-only mode to restrict GitHub MCP server to read-only operations only"
                 }
               },
               "additionalProperties": false
@@ -1139,6 +1154,13 @@
                       "description": "Single allowed domain (e.g., 'github.com')"
                     }
                   ]
+                },
+                "args": {
+                  "type": "array",
+                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               },
               "additionalProperties": false
@@ -1574,6 +1596,10 @@
                   "description": "Minimum number of labels to add (default: 0 - no requirement)",
                   "minimum": 0
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1700,6 +1726,11 @@
             {
               "type": "null",
               "description": "Enable missing tool reporting with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable missing tool reporting (false). Missing tool reporting is enabled by default when safe-outputs is configured."
             }
           ]
         },
@@ -1728,6 +1759,18 @@
                     "type": "string",
                     "pattern": "^\\.[a-zA-Z0-9]+$"
                   }
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of assets to upload (default: 10)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of assets to upload (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
                 },
                 "github-token": {
                   "type": "string",
@@ -1892,6 +1935,10 @@
             }
           },
           "additionalProperties": false
+        },
+        "runs-on": {
+          "type": "string",
+          "description": "Runner specification for all safe-outputs jobs (activation, create-issue, add-comment, etc.). Single runner label (e.g., 'ubuntu-latest', 'windows-latest', 'self-hosted')"
         }
       },
       "additionalProperties": false

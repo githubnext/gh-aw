@@ -3,8 +3,13 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - copilot/*
+      - copilot*
 engine: copilot
+tools:
+  github:
+    allowed:
+      - list_pull_requests
+      - get_pull_request
 safe-outputs:
     staged: true
     create-issue:

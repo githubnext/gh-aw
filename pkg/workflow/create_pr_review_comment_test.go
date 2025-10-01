@@ -242,9 +242,23 @@ This workflow tests job generation for PR review comments.
 			t.Error("Expected create_pr_review_comment job to be generated")
 		}
 
-		// Verify job condition is correct for PR context
-		if !strings.Contains(workflowContent, "if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request") {
-			t.Error("Expected job condition to check for pull request context")
+		// Verify job condition uses BuildSafeOutputType combined with pull request context
+		expectedConditionParts := []string{
+			"always()",
+			"contains(needs.agent.outputs.output_types, 'create-pull-request-review-comment')",
+			"github.event.issue.number",
+			"github.event.issue.pull_request",
+			"github.event.pull_request",
+		}
+		conditionFound := true
+		for _, part := range expectedConditionParts {
+			if !strings.Contains(workflowContent, part) {
+				conditionFound = false
+				break
+			}
+		}
+		if !conditionFound {
+			t.Error("Expected job condition to check for pull request context with always()")
 		}
 
 		// Verify correct permissions are set

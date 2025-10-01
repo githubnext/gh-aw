@@ -147,6 +147,7 @@ type SafeOutputsConfig struct {
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
+	RunsOn                          string                                 `yaml:"runs-on,omitempty"`        // Runner configuration for safe-outputs jobs
 }
 
 // CompileWorkflow converts a markdown workflow to GitHub Actions YAML
@@ -1228,7 +1229,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 	// If frontmatter cannot be read, we'll fall back to the basic permission check logic
 
-	// Main job ID is always "agent"
+	// Main job ID is always constants.AgentJobName
 
 	// Build check-membership job if needed (validates team membership levels)
 	// Team membership checks are specifically for command workflows
@@ -1355,18 +1356,18 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		}
 	}
 
-	// Build create_issue_comment job if output.add-comment is configured
+	// Build add_comment job if output.add-comment is configured
 	if data.SafeOutputs.AddComments != nil {
 		createCommentJob, err := c.buildCreateOutputAddCommentJob(data, jobName)
 		if err != nil {
-			return fmt.Errorf("failed to build create_issue_comment job: %w", err)
+			return fmt.Errorf("failed to build add_comment job: %w", err)
 		}
 		// Update job dependencies to use detection job if threat detection is enabled
 		if dependencyJobName != jobName {
 			createCommentJob.Needs = []string{dependencyJobName}
 		}
 		if err := c.jobManager.AddJob(createCommentJob); err != nil {
-			return fmt.Errorf("failed to add create_issue_comment job: %w", err)
+			return fmt.Errorf("failed to add add_comment job: %w", err)
 		}
 	}
 
@@ -1511,7 +1512,7 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[s
 	job := &Job{
 		Name:        "check-membership",
 		If:          data.If, // Use the existing condition (which may include alias checks)
-		RunsOn:      "runs-on: ubuntu-latest",
+		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: "", // No special permissions needed - just reading repo permissions
 		Steps:       steps,
 		Outputs:     outputs,
@@ -1578,7 +1579,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	job := &Job{
 		Name:        "activation",
 		If:          activationCondition,
-		RunsOn:      "runs-on: ubuntu-latest",
+		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
@@ -1620,7 +1621,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	var outputs map[string]string
 	if data.SafeOutputs != nil {
 		outputs = map[string]string{
-			"output": "${{ steps.collect_output.outputs.output }}",
+			"output":       "${{ steps.collect_output.outputs.output }}",
+			"output_types": "${{ steps.collect_output.outputs.output_types }}",
 		}
 	}
 
@@ -1641,7 +1643,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	job := &Job{
-		Name:        "agent",
+		Name:        constants.AgentJobName,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
@@ -1722,6 +1724,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/agent-stdio.log"
+
+	// Capture agent version if engine supports it
+	c.generateAgentVersionCapture(yaml, engine)
 
 	// Generate aw_info.json with agentic run metadata
 	c.generateCreateAwInfo(yaml, data, engine)
@@ -2220,6 +2225,25 @@ func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *Wor
 	}
 }
 
+// generateAgentVersionCapture generates a step that captures the agent version if the engine supports it
+func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine CodingAgentEngine) {
+	versionCmd := engine.GetVersionCommand()
+	if versionCmd == "" {
+		// Engine doesn't support version reporting, set empty env var
+		yaml.WriteString("      - name: Set agent version (not available)\n")
+		yaml.WriteString("        run: echo \"AGENT_VERSION=\" >> $GITHUB_ENV\n")
+		return
+	}
+
+	yaml.WriteString("      - name: Capture agent version\n")
+	yaml.WriteString("        run: |\n")
+	fmt.Fprintf(yaml, "          VERSION_OUTPUT=$(%s 2>&1 || echo \"unknown\")\n", versionCmd)
+	fmt.Fprintf(yaml, "          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)\n")
+	fmt.Fprintf(yaml, "          CLEAN_VERSION=$(echo \"$VERSION_OUTPUT\" | grep -oE 'v?[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo \"unknown\")\n")
+	yaml.WriteString("          echo \"AGENT_VERSION=$CLEAN_VERSION\" >> $GITHUB_ENV\n")
+	yaml.WriteString("          echo \"Agent version: $VERSION_OUTPUT\"\n")
+}
+
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
 func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine) {
 	yaml.WriteString("      - name: Generate agentic run info\n")
@@ -2255,6 +2279,9 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 		version = data.EngineConfig.Version
 	}
 	fmt.Fprintf(yaml, "              version: \"%s\",\n", version)
+
+	// Agent version captured from running version command
+	yaml.WriteString("              agent_version: process.env.AGENT_VERSION || \"\",\n")
 
 	// Workflow information
 	fmt.Fprintf(yaml, "              workflow_name: \"%s\",\n", data.Name)

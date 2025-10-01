@@ -237,16 +237,16 @@ This should use the default engine.
 		t.Fatal("Expected lock file to be created")
 	}
 
-	// Verify lock file contains default claude engine configuration
+	// Verify lock file contains default copilot engine configuration
 	lockContent, err := os.ReadFile(lockFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to claude CLI (default engine)
-	if !strings.Contains(lockStr, "npx @anthropic-ai/claude-code") {
-		t.Error("Expected lock file to contain claude CLI reference")
+	// Should contain references to copilot CLI (default engine)
+	if !strings.Contains(lockStr, "npm install -g @github/copilot") {
+		t.Error("Expected lock file to contain copilot CLI reference")
 	}
 }
 

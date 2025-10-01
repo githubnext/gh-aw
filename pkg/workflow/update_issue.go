@@ -61,43 +61,16 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	// Determine the job condition based on target configuration
-	var baseCondition string
-	if data.SafeOutputs.UpdateIssues.Target == "*" {
-		// Allow updates to any issue - no specific context required
-		baseCondition = "always()"
-	} else if data.SafeOutputs.UpdateIssues.Target != "" {
-		// Explicit issue number specified - no specific context required
-		baseCondition = "always()"
-	} else {
-		// Default behavior: only update triggering issue
-		baseCondition = "github.event.issue.number"
-	}
-
-	// If this is a command workflow, combine the command trigger condition with the base condition
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-
-		// Combine command condition with base condition using AND
-		if baseCondition == "always()" {
-			// If base condition is always(), just use the command condition
-			jobCondition = commandConditionStr
-		} else {
-			// Combine both conditions with AND
-			jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
-		}
-	} else {
-		// No command trigger, just use the base condition
-		jobCondition = baseCondition
+	var jobCondition = BuildSafeOutputType("update-issue")
+	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.Target == "" {
+		eventCondition := BuildPropertyAccess("github.event.issue.number")
+		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
 	job := &Job{
 		Name:           "update_issue",
-		If:             jobCondition,
-		RunsOn:         "runs-on: ubuntu-latest",
+		If:             jobCondition.Render(),
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      issues: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,

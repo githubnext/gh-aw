@@ -81,22 +81,12 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		"codeql_uploaded":   "${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}",
 	}
 
-	// Build job condition - repository security advisories can run in any context unlike PR review comments
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		jobCondition = commandConditionStr
-	} else {
-		// No specific condition needed - repository security advisories can run anytime
-		jobCondition = ""
-	}
+	jobCondition := BuildSafeOutputType("create-code-scanning-alert").Render()
 
 	job := &Job{
 		Name:           "create_code_scanning_alert",
 		If:             jobCondition,
-		RunsOn:         "runs-on: ubuntu-latest",
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      security-events: write\n      actions: read", // Need security-events:write for SARIF upload
 		TimeoutMinutes: 10,                                                                                      // 10-minute timeout
 		Steps:          steps,

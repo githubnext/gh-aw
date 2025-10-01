@@ -63,8 +63,8 @@ func TestEngineRegistry(t *testing.T) {
 
 	// Test GetDefaultEngine
 	defaultEngine := registry.GetDefaultEngine()
-	if defaultEngine.GetID() != "claude" {
-		t.Errorf("Expected default engine to be claude, got '%s'", defaultEngine.GetID())
+	if defaultEngine.GetID() != "copilot" {
+		t.Errorf("Expected default engine to be copilot, got '%s'", defaultEngine.GetID())
 	}
 
 	// Test GetEngineByPrefix
@@ -118,5 +118,49 @@ func TestEngineRegistryCustomEngine(t *testing.T) {
 	supportedEngines := registry.GetSupportedEngines()
 	if len(supportedEngines) != 5 {
 		t.Errorf("Expected 5 supported engines after adding test-custom, got %d", len(supportedEngines))
+	}
+}
+
+func TestGetVersionCommand(t *testing.T) {
+	registry := NewEngineRegistry()
+
+	// Test Claude engine version command
+	claudeEngine, err := registry.GetEngine("claude")
+	if err != nil {
+		t.Fatalf("Failed to get claude engine: %v", err)
+	}
+	claudeVersionCmd := claudeEngine.GetVersionCommand()
+	if claudeVersionCmd != "claude --version" {
+		t.Errorf("Expected 'claude --version', got '%s'", claudeVersionCmd)
+	}
+
+	// Test Copilot engine version command
+	copilotEngine, err := registry.GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get copilot engine: %v", err)
+	}
+	copilotVersionCmd := copilotEngine.GetVersionCommand()
+	if copilotVersionCmd != "copilot --version" {
+		t.Errorf("Expected 'copilot --version', got '%s'", copilotVersionCmd)
+	}
+
+	// Test Codex engine version command
+	codexEngine, err := registry.GetEngine("codex")
+	if err != nil {
+		t.Fatalf("Failed to get codex engine: %v", err)
+	}
+	codexVersionCmd := codexEngine.GetVersionCommand()
+	if codexVersionCmd != "codex --version" {
+		t.Errorf("Expected 'codex --version', got '%s'", codexVersionCmd)
+	}
+
+	// Test Custom engine version command (should return empty string)
+	customEngine, err := registry.GetEngine("custom")
+	if err != nil {
+		t.Fatalf("Failed to get custom engine: %v", err)
+	}
+	customVersionCmd := customEngine.GetVersionCommand()
+	if customVersionCmd != "" {
+		t.Errorf("Expected empty string for custom engine, got '%s'", customVersionCmd)
 	}
 }

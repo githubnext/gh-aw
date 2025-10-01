@@ -1043,6 +1043,11 @@ async function main() {
   core.setOutput("output", JSON.stringify(validatedOutput));
   core.setOutput("raw_output", outputContent);
 
+  // collect set of validated output types and create output variables for it.
+  const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
+  core.info(`output_types: ${outputTypes.join(", ")}`);
+  core.setOutput("output_types", outputTypes.join(","));
+
   // Write processed output to step summary using core.summary
   try {
     await core.summary

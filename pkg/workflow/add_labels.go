@@ -11,6 +11,7 @@ type AddLabelsConfig struct {
 	MaxCount    *int     `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
 	MinCount    *int     `yaml:"min,omitempty"`          // Optional minimum number of labels to add
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	Target      string   `yaml:"target,omitempty"`       // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
 }
 
 // buildCreateOutputLabelJob creates the add_labels job
@@ -45,6 +46,11 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	// Pass the max limit
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
+	// Pass the target configuration
+	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.Target != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
+	}
+
 	// Pass the staged flag if it's set to true
 	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
@@ -71,24 +77,19 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	// Determine the job condition for command workflows
-	var baseCondition = "github.event.issue.number || github.event.pull_request.number" // Only run in issue or PR context
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		// Combine command condition with base condition using AND
-		jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
-	} else {
-		// No command trigger, just use the base condition
-		jobCondition = baseCondition
+	var jobCondition = BuildSafeOutputType("add-labels")
+	if data.SafeOutputs.AddLabels == nil || data.SafeOutputs.AddLabels.Target == "" {
+		eventCondition := buildOr(
+			BuildPropertyAccess("github.event.issue.number"),
+			BuildPropertyAccess("github.event.pull_request.number"),
+		)
+		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
 	job := &Job{
 		Name:           "add_labels",
-		If:             jobCondition,
-		RunsOn:         "runs-on: ubuntu-latest",
+		If:             jobCondition.Render(),
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,

@@ -52,11 +52,14 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		"total_count":    "${{ steps.missing_tool.outputs.total_count }}",
 	}
 
+	// Build the job condition using BuildSafeOutputType
+	jobCondition := BuildSafeOutputType("missing-tool").Render()
+
 	// Create the job
 	job := &Job{
 		Name:           "missing_tool",
-		RunsOn:         "runs-on: ubuntu-latest",
-		If:             "${{ always() }}",                    // Always run to capture missing tools
+		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
+		If:             jobCondition,
 		Permissions:    "permissions:\n      contents: read", // Only needs read access for logging
 		TimeoutMinutes: 5,                                    // Short timeout since it's just processing output
 		Steps:          steps,
@@ -70,6 +73,11 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 // parseMissingToolConfig handles missing-tool configuration
 func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
 	if configData, exists := outputMap["missing-tool"]; exists {
+		// Handle the case where configData is false (explicitly disabled)
+		if configBool, ok := configData.(bool); ok && !configBool {
+			return nil
+		}
+
 		missingToolConfig := &MissingToolConfig{} // Default: no max limit
 
 		// Handle the case where configData is nil (missing-tool: with no value)

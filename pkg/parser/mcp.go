@@ -264,6 +264,14 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 		// Check for custom GitHub configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
+			// Check for read-only mode
+			if readOnly, hasReadOnly := toolConfig["read-only"]; hasReadOnly {
+				if readOnlyBool, ok := readOnly.(bool); ok && readOnlyBool {
+					// When read-only is true, inline GITHUB_READ_ONLY=1 in docker args
+					config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
+				}
+			}
+
 			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
 				if allowedSlice, ok := allowed.([]any); ok {
 					for _, item := range allowedSlice {
@@ -285,6 +293,22 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 							break
 						}
 					}
+				}
+			}
+
+			// Check for custom args
+			if argsValue, exists := toolConfig["args"]; exists {
+				// Handle []any format
+				if argsSlice, ok := argsValue.([]any); ok {
+					for _, arg := range argsSlice {
+						if argStr, ok := arg.(string); ok {
+							config.Args = append(config.Args, argStr)
+						}
+					}
+				}
+				// Handle []string format
+				if argsSlice, ok := argsValue.([]string); ok {
+					config.Args = append(config.Args, argsSlice...)
 				}
 			}
 		}
@@ -343,6 +367,22 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 							break
 						}
 					}
+				}
+			}
+
+			// Check for custom args
+			if argsValue, exists := toolConfig["args"]; exists {
+				// Handle []any format
+				if argsSlice, ok := argsValue.([]any); ok {
+					for _, arg := range argsSlice {
+						if argStr, ok := arg.(string); ok {
+							config.Args = append(config.Args, argStr)
+						}
+					}
+				}
+				// Handle []string format
+				if argsSlice, ok := argsValue.([]string); ok {
+					config.Args = append(config.Args, argsSlice...)
 				}
 			}
 		}

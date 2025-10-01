@@ -56,6 +56,10 @@ type CodingAgentEngine interface {
 
 	// GetErrorPatterns returns regex patterns for extracting error messages from logs
 	GetErrorPatterns() []ErrorPattern
+
+	// GetVersionCommand returns the command to get the version of the agent (e.g., "copilot --version")
+	// Returns empty string if the engine does not support version reporting
+	GetVersionCommand() string
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -121,6 +125,11 @@ func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{}
 }
 
+// GetVersionCommand returns empty string by default (engines can override)
+func (e *BaseEngine) GetVersionCommand() string {
+	return ""
+}
+
 // EngineRegistry manages available agentic engines
 type EngineRegistry struct {
 	engines map[string]CodingAgentEngine
@@ -183,9 +192,9 @@ func (r *EngineRegistry) IsValidEngine(id string) bool {
 	return exists
 }
 
-// GetDefaultEngine returns the default engine (Claude)
+// GetDefaultEngine returns the default engine (Copilot)
 func (r *EngineRegistry) GetDefaultEngine() CodingAgentEngine {
-	return r.engines["claude"]
+	return r.engines["copilot"]
 }
 
 // GetEngineByPrefix returns an engine that matches the given prefix

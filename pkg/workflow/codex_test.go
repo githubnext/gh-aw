@@ -25,13 +25,13 @@ func TestCodexAIConfiguration(t *testing.T) {
 		expectWarning bool
 	}{
 		{
-			name: "default claude ai",
+			name: "default copilot ai",
 			frontmatter: `---
 tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedAI:    "claude",
+			expectedAI:    "copilot",
 			expectCodex:   false,
 			expectWarning: false,
 		},
@@ -157,12 +157,12 @@ This is a test workflow.
 				if strings.Contains(lockContent, "Execute Claude Code Action") {
 					t.Errorf("Expected lock file to NOT contain 'Execute Claude Code Action' step when using codex.\nContent:\n%s", lockContent)
 				}
-			} else {
+			} else if tt.expectedAI == "claude" {
 				// Check that Claude Code CLI is present
 				if !strings.Contains(lockContent, "Execute Claude Code CLI") {
 					t.Errorf("Expected lock file to contain 'Execute Claude Code CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code@latest") {
+				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code@2.0.1") {
 					t.Errorf("Expected lock file to contain Claude Code npx command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
@@ -190,6 +190,40 @@ This is a test workflow.
 				// Ensure it does NOT contain CODEX_HOME
 				if strings.Contains(lockContent, "CODEX_HOME") {
 					t.Errorf("Expected lock file to NOT contain 'CODEX_HOME' when using claude.\nContent:\n%s", lockContent)
+				}
+			} else if tt.expectedAI == "copilot" {
+				// Check that Copilot CLI is present
+				if !strings.Contains(lockContent, "Execute GitHub Copilot CLI") {
+					t.Errorf("Expected lock file to contain 'Execute GitHub Copilot CLI' step but it didn't.\nContent:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, "npm install -g @github/copilot") {
+					t.Errorf("Expected lock file to contain Copilot npm install command but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Check that prompt printing step is present
+				if !strings.Contains(lockContent, "Print prompt to step summary") {
+					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
+					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Check that mcp-config.json is generated (Copilot format)
+				if !strings.Contains(lockContent, "cat > /home/runner/.copilot/mcp-config.json") {
+					t.Errorf("Expected lock file to contain mcp-config.json generation for copilot but it didn't.\nContent:\n%s", lockContent)
+				}
+				if !strings.Contains(lockContent, "\"mcpServers\":") {
+					t.Errorf("Expected lock file to contain '\"mcpServers\":' section in mcp-config.json but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Ensure it does NOT contain codex
+				if strings.Contains(lockContent, "codex exec") {
+					t.Errorf("Expected lock file to NOT contain 'codex exec' when using copilot.\nContent:\n%s", lockContent)
+				}
+				// Ensure it does NOT contain config.toml
+				if strings.Contains(lockContent, "config.toml") {
+					t.Errorf("Expected lock file to NOT contain 'config.toml' when using copilot.\nContent:\n%s", lockContent)
+				}
+				// Ensure it does NOT contain CODEX_HOME
+				if strings.Contains(lockContent, "CODEX_HOME") {
+					t.Errorf("Expected lock file to NOT contain 'CODEX_HOME' when using copilot.\nContent:\n%s", lockContent)
 				}
 			}
 		})

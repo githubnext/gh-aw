@@ -211,15 +211,12 @@ A critical guardrail is strict control over outbound network connections. Agenti
 Example (domain allowlist):
 
 ```yaml
-tools:
+mcp-servers:
   fetch:
-    mcp:
-      type: stdio
-      container: mcp/fetch
-      permissions:
-        network:
-          allowed:
-            - "example.com"
+    container: mcp/fetch
+    network:
+      allowed:
+        - "example.com"
     allowed: ["fetch"]
 ```
 
@@ -358,9 +355,9 @@ Different agentic engines have distinct defaults and operational surfaces.
 - Keep `allowed_tools` minimal in the compiled step; review `.lock.yml` outputs
 - Use engine network permissions with ecosystem identifiers to grant access to only required development tools
 
-#### Security posture differences with Codex
+#### Security posture differences across engines
 
-Claude exposes richer default tools and optional Bash; codex relies more on CLI behaviors. In both cases, tool allow-lists, network restrictions, and pinned dependencies are your primary controls.
+Copilot and Claude expose richer default tools and optional Bash; Codex relies more on CLI behaviors. In all cases, tool allow-lists, network restrictions, and pinned dependencies are your primary controls.
 
 ## See also
 

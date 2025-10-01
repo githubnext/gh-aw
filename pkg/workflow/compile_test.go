@@ -529,7 +529,7 @@ safe-outputs:
 
 # Test Output Issue Comment Job Generation
 
-This workflow tests the create_issue_comment job generation.
+This workflow tests the add_comment job generation.
 `
 
 	testFile := filepath.Join(tmpDir, "test-output-issue-comment.md")
@@ -554,33 +554,46 @@ This workflow tests the create_issue_comment job generation.
 
 	lockContent := string(content)
 
-	// Verify create_issue_comment job exists
-	if !strings.Contains(lockContent, "create_issue_comment:") {
-		t.Error("Expected 'create_issue_comment' job to be in generated workflow")
+	// Verify add_comment job exists
+	if !strings.Contains(lockContent, "add_comment:") {
+		t.Error("Expected 'add_comment' job to be in generated workflow")
 	}
 
 	// Verify job properties
 	if !strings.Contains(lockContent, "timeout-minutes: 10") {
-		t.Error("Expected 10-minute timeout in create_issue_comment job")
+		t.Error("Expected 10-minute timeout in add_comment job")
 	}
 
 	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write\n      pull-requests: write") {
-		t.Error("Expected correct permissions in create_issue_comment job")
+		t.Error("Expected correct permissions in add_comment job")
 	}
 
 	// Verify the job uses github-script
 	if !strings.Contains(lockContent, "uses: actions/github-script@v8") {
-		t.Error("Expected github-script action to be used in create_issue_comment job")
+		t.Error("Expected github-script action to be used in add_comment job")
 	}
 
-	// Verify job has conditional execution
-	if !strings.Contains(lockContent, "if: github.event.issue.number || github.event.pull_request.number") {
-		t.Error("Expected create_issue_comment job to have conditional execution")
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"always()",
+		"contains(needs.agent.outputs.output_types, 'add-comment')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
+		t.Error("Expected add_comment job to have conditional execution with always()")
 	}
 
 	// Verify job dependencies
 	if !strings.Contains(lockContent, "needs: agent") {
-		t.Error("Expected create_issue_comment job to depend on main job")
+		t.Error("Expected add_comment job to depend on main job")
 	}
 
 	// Verify JavaScript content includes environment variable for agent output
@@ -638,14 +651,27 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 
 	lockContent := string(content)
 
-	// Verify create_issue_comment job exists (it should be generated regardless of trigger)
-	if !strings.Contains(lockContent, "create_issue_comment:") {
-		t.Error("Expected 'create_issue_comment' job to be in generated workflow")
+	// Verify add_comment job exists (it should be generated regardless of trigger)
+	if !strings.Contains(lockContent, "add_comment:") {
+		t.Error("Expected 'add_comment' job to be in generated workflow")
 	}
 
-	// Verify job has conditional execution to skip when not in issue/PR context
-	if !strings.Contains(lockContent, "if: github.event.issue.number || github.event.pull_request.number") {
-		t.Error("Expected create_issue_comment job to have conditional execution for skipping")
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"always()",
+		"contains(needs.agent.outputs.output_types, 'add-comment')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
+		t.Error("Expected add_comment job to have conditional execution with always() for skipping")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
@@ -1116,12 +1142,23 @@ This workflow tests the add_labels job generation.
 		t.Error("Expected github-script action to be used in add_labels job")
 	}
 
-	// Verify job has conditional execution
-	if !strings.Contains(lockContent, "if: github.event.issue.number || github.event.pull_request.number") {
-		t.Error("Expected add_labels job to have conditional execution")
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"always()",
+		"contains(needs.agent.outputs.output_types, 'add-labels')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
 	}
-
-	// Verify job dependencies
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
+		t.Error("Expected add_labels job to have conditional execution with always()")
+	}
 	if !strings.Contains(lockContent, "needs: agent") {
 		t.Error("Expected add_labels job to depend on main job")
 	}
@@ -1192,9 +1229,22 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 	}
 	lockContent := string(lockBytes)
 
-	// Verify job has conditional execution
-	if !strings.Contains(lockContent, "if: github.event.issue.number || github.event.pull_request.number") {
-		t.Error("Expected add_labels job to have conditional execution")
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"always()",
+		"contains(needs.agent.outputs.output_types, 'add-labels')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
+		t.Error("Expected add_labels job to have conditional execution with always()")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
@@ -1268,9 +1318,22 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		t.Error("Expected 'add_labels' job to be in generated workflow")
 	}
 
-	// Verify job has conditional execution
-	if !strings.Contains(lockContent, "if: github.event.issue.number || github.event.pull_request.number") {
-		t.Error("Expected add_labels job to have conditional execution")
+	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
+	expectedConditionParts := []string{
+		"always()",
+		"contains(needs.agent.outputs.output_types, 'add-labels')",
+		"github.event.issue.number",
+		"github.event.pull_request.number",
+	}
+	conditionFound := true
+	for _, part := range expectedConditionParts {
+		if !strings.Contains(lockContent, part) {
+			conditionFound = false
+			break
+		}
+	}
+	if !conditionFound {
+		t.Error("Expected add_labels job to have conditional execution with always()")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
