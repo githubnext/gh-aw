@@ -7,8 +7,7 @@ name: "Dev"
 on:
   push:
     branches:
-    - copilot/*
-    - collect-guards
+    - copilot*
   workflow_dispatch: null
 
 permissions: {}
@@ -738,6 +737,19 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
+              "github": {
+                "type": "local",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}",
+                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                ],
+                "tools": ["*"]
+              },
               "safe_outputs": {
                 "type": "local",
                 "command": "node",
@@ -766,7 +778,6 @@ jobs:
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           # Dev
-          
           List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else.
           Post result in an issue.
           

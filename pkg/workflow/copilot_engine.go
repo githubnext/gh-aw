@@ -196,15 +196,12 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	var actualMCPTools []string
 	for _, toolName := range mcpTools {
 		switch toolName {
-		case "github":
-			// GitHub MCP is built-in to Copilot CLI, so skip adding it to configuration
-			continue
 		case "cache-memory":
 			// Cache-memory is handled as a simple file share, not an MCP server
 			// Skip adding it to the MCP configuration since no server is needed
 			continue
 		default:
-			// Include playwright, safe-outputs, and custom MCP tools
+			// Include all other tools (github, playwright, safe-outputs, and custom MCP tools)
 			actualMCPTools = append(actualMCPTools, toolName)
 		}
 	}
@@ -218,6 +215,9 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		isLast := serverCount == totalServers
 
 		switch toolName {
+		case "github":
+			githubTool := tools["github"]
+			e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
@@ -248,6 +248,34 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
 	//yaml.WriteString("          echo \"GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\"")
 
+}
+
+// renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
+// Uses Docker-based GitHub MCP server (similar to Claude engine)
+func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+
+	yaml.WriteString("              \"github\": {\n")
+	yaml.WriteString("                \"type\": \"local\",\n")
+
+	// Use Docker-based GitHub MCP server (same as Claude engine)
+	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"run\",\n")
+	yaml.WriteString("                  \"-i\",\n")
+	yaml.WriteString("                  \"--rm\",\n")
+	yaml.WriteString("                  \"-e\",\n")
+	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}\",\n")
+	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+	yaml.WriteString("                ],\n")
+	yaml.WriteString("                \"tools\": [\"*\"]\n")
+	// copilot does not support env
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
