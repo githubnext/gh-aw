@@ -164,7 +164,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "safe-outputs":
 			e.renderSafeOutputsMCPConfig(yaml, isLast)
 		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "json", "              ", isLast)
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {

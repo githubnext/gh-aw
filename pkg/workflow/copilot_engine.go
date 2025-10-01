@@ -225,7 +225,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		case "safe-outputs":
 			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
 		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "json", "              ", isLast)
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {

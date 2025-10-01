@@ -257,7 +257,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "safe-outputs":
 			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
 		case "web-fetch":
-			renderMCPFetchServerConfig(yaml, "toml", "          ", false)
+			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := expandedTools[toolName].(map[string]any); ok {

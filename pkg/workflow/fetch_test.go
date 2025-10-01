@@ -119,13 +119,15 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 		format       string
 		indent       string
 		isLast       bool
+		includeTools bool
 		expectSubstr []string
 	}{
 		{
-			name:   "JSON format, not last",
-			format: "json",
-			indent: "    ",
-			isLast: false,
+			name:         "JSON format, not last, without tools",
+			format:       "json",
+			indent:       "    ",
+			isLast:       false,
+			includeTools: false,
 			expectSubstr: []string{
 				`"web-fetch": {`,
 				`"command": "docker"`,
@@ -134,10 +136,11 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			},
 		},
 		{
-			name:   "JSON format, last",
-			format: "json",
-			indent: "    ",
-			isLast: true,
+			name:         "JSON format, last, without tools",
+			format:       "json",
+			indent:       "    ",
+			isLast:       true,
+			includeTools: false,
 			expectSubstr: []string{
 				`"web-fetch": {`,
 				`"command": "docker"`,
@@ -146,10 +149,39 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			},
 		},
 		{
-			name:   "TOML format",
-			format: "toml",
-			indent: "  ",
-			isLast: false,
+			name:         "JSON format, not last, with tools",
+			format:       "json",
+			indent:       "    ",
+			isLast:       false,
+			includeTools: true,
+			expectSubstr: []string{
+				`"web-fetch": {`,
+				`"command": "docker"`,
+				`"mcp/fetch"`,
+				`"tools": ["*"]`,
+				`},`,
+			},
+		},
+		{
+			name:         "JSON format, last, with tools",
+			format:       "json",
+			indent:       "    ",
+			isLast:       true,
+			includeTools: true,
+			expectSubstr: []string{
+				`"web-fetch": {`,
+				`"command": "docker"`,
+				`"mcp/fetch"`,
+				`"tools": ["*"]`,
+				`}`, // No comma
+			},
+		},
+		{
+			name:         "TOML format",
+			format:       "toml",
+			indent:       "  ",
+			isLast:       false,
+			includeTools: false,
 			expectSubstr: []string{
 				`[mcp_servers."web-fetch"]`,
 				`command = "docker"`,
@@ -161,7 +193,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
-			renderMCPFetchServerConfig(&yaml, tt.format, tt.indent, tt.isLast)
+			renderMCPFetchServerConfig(&yaml, tt.format, tt.indent, tt.isLast, tt.includeTools)
 			output := yaml.String()
 
 			for _, substr := range tt.expectSubstr {
