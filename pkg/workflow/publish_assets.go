@@ -166,7 +166,9 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	}
 
 	// Build the job condition using expression tree
-	jobCondition := BuildSafeOutputType("upload-asset")
+	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
+	skipContains := data.SafeOutputs.UploadAssets.Min > 0
+	jobCondition := BuildSafeOutputType("upload-asset", skipContains)
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: write  # Required for creating orphaned branch and pushing assets"

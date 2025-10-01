@@ -81,7 +81,9 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		"codeql_uploaded":   "${{ steps.create_code_scanning_alert.outputs.codeql_uploaded }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create-code-scanning-alert").Render()
+	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
+	skipContains := data.SafeOutputs.CreateCodeScanningAlerts.Min > 0
+	jobCondition := BuildSafeOutputType("create-code-scanning-alert", skipContains).Render()
 
 	job := &Job{
 		Name:           "create_code_scanning_alert",

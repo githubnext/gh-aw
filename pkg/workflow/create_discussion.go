@@ -90,7 +90,9 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create-discussion")
+	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
+	skipContains := data.SafeOutputs.CreateDiscussions.Min > 0
+	jobCondition := BuildSafeOutputType("create-discussion", skipContains)
 
 	job := &Job{
 		Name:           "create_discussion",

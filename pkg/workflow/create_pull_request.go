@@ -107,7 +107,9 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create-pull-request")
+	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
+	skipContains := data.SafeOutputs.CreatePullRequests.Min > 0
+	jobCondition := BuildSafeOutputType("create-pull-request", skipContains)
 
 	job := &Job{
 		Name:           "create_pull_request",

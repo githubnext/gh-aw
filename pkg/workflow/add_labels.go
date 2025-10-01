@@ -77,7 +77,9 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("add-labels")
+	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
+	skipContains := data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.MinCount != nil && *data.SafeOutputs.AddLabels.MinCount > 0
+	var jobCondition = BuildSafeOutputType("add-labels", skipContains)
 	if data.SafeOutputs.AddLabels == nil || data.SafeOutputs.AddLabels.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),

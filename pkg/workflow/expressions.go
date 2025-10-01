@@ -312,8 +312,15 @@ func BuildNotFromFork() *ComparisonNode {
 	)
 }
 
-func BuildSafeOutputType(outputType string) ConditionNode {
+func BuildSafeOutputType(outputType string, skipContains ...bool) ConditionNode {
 	alwaysFunc := BuildFunctionCall("always")
+
+	// If skipContains is true, only return always() without the contains check
+	// This is needed when min > 0 to ensure the job runs even with 0 outputs
+	if len(skipContains) > 0 && skipContains[0] {
+		return alwaysFunc
+	}
+
 	containsFunc := BuildFunctionCall("contains",
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
 		BuildStringLiteral(outputType),

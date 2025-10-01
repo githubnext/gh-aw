@@ -124,7 +124,9 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create-issue")
+	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
+	skipContains := data.SafeOutputs.CreateIssues.Min > 0
+	jobCondition := BuildSafeOutputType("create-issue", skipContains)
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: read\n      issues: write"

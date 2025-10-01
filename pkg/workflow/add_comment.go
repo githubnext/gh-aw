@@ -57,7 +57,9 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("add-comment")
+	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
+	skipContains := data.SafeOutputs.AddComments.Min > 0
+	var jobCondition = BuildSafeOutputType("add-comment", skipContains)
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),
