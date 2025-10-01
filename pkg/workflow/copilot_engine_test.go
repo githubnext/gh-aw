@@ -225,6 +225,85 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			},
 			expected: []string{"--allow-tool", "safe_outputs"},
 		},
+		{
+			name: "github tool with allowed tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_repository", "list_commits"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)"},
+		},
+		{
+			name: "github tool with single allowed tool",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"add_issue_comment"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(add_issue_comment)"},
+		},
+		{
+			name: "github tool with wildcard",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"*"},
+				},
+			},
+			expected: []string{"--allow-tool", "github"},
+		},
+		{
+			name: "github tool with wildcard and specific tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"*", "get_repository", "list_commits"},
+				},
+			},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)"},
+		},
+		{
+			name: "github tool with empty allowed array",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{},
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name: "github tool without allowed field",
+			tools: map[string]any{
+				"github": map[string]any{},
+			},
+			expected: []string{},
+		},
+		{
+			name: "github tool as nil (no config)",
+			tools: map[string]any{
+				"github": nil,
+			},
+			expected: []string{},
+		},
+		{
+			name: "github tool with multiple allowed tools sorted",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"update_issue", "add_issue_comment", "create_issue"},
+				},
+			},
+			expected: []string{"--allow-tool", "github(add_issue_comment)", "--allow-tool", "github(create_issue)", "--allow-tool", "github(update_issue)"},
+		},
+		{
+			name: "github tool with bash and edit tools",
+			tools: map[string]any{
+				"github": map[string]any{
+					"allowed": []any{"get_repository", "list_commits"},
+				},
+				"bash": []any{"echo", "ls"},
+				"edit": nil,
+			},
+			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -567,4 +646,50 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
 		}
 	}
+}
+
+func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
+engine := NewCopilotEngine()
+workflowData := &WorkflowData{
+Name: "test-workflow",
+Tools: map[string]any{
+"github": map[string]any{
+"allowed": []any{"add_issue_comment", "get_issue"},
+},
+},
+}
+steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+if len(steps) != 2 {
+t.Fatalf("Expected 2 steps, got %d", len(steps))
+}
+
+// Get the full command from the execution step (step 0 is the copilot execution)
+stepContent := strings.Join([]string(steps[0]), "\n")
+
+// Find the line that contains the copilot command
+lines := strings.Split(stepContent, "\n")
+var copilotCommand string
+for _, line := range lines {
+if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-tool") {
+copilotCommand = strings.TrimSpace(line)
+break
+}
+}
+
+if copilotCommand == "" {
+t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+}
+
+// Verify that GitHub tool arguments are properly single-quoted
+t.Logf("Generated command: %s", copilotCommand)
+
+// The command should contain properly escaped GitHub tool arguments with single quotes
+if !strings.Contains(copilotCommand, "'github(add_issue_comment)'") {
+t.Errorf("Expected 'github(add_issue_comment)' to be single-quoted in command: %s", copilotCommand)
+}
+
+if !strings.Contains(copilotCommand, "'github(get_issue)'") {
+t.Errorf("Expected 'github(get_issue)' to be single-quoted in command: %s", copilotCommand)
+}
 }

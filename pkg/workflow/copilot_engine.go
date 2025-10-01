@@ -515,19 +515,49 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	}
 
 	// Built-in tool names that should be skipped when processing MCP servers
+	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
 		"web-fetch":  true,
 		"web-search": true,
 		"playwright": true,
-		"github":     true,
 	}
 
 	// Handle MCP server tools
 	for toolName, toolConfig := range tools {
 		// Skip built-in tools we've already handled
 		if builtInTools[toolName] {
+			continue
+		}
+
+		// GitHub is a special case - it's an MCP server but doesn't have explicit MCP config in the workflow
+		// It gets MCP configuration through the parser's processBuiltinMCPTool
+		if toolName == "github" {
+			if toolConfigMap, ok := toolConfig.(map[string]any); ok {
+				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
+					if allowedList, ok := allowed.([]any); ok {
+						// Process allowed list in a single pass
+						hasWildcard := false
+						for _, allowedTool := range allowedList {
+							if toolStr, ok := allowedTool.(string); ok {
+								if toolStr == "*" {
+									// Wildcard means allow entire GitHub MCP server
+									hasWildcard = true
+								} else {
+									// Add individual tool permission
+									args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+								}
+							}
+						}
+						
+						// Add server-level permission only if wildcard was present
+						if hasWildcard {
+							args = append(args, "--allow-tool", "github")
+						}
+					}
+				}
+			}
 			continue
 		}
 
