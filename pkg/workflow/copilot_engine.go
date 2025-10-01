@@ -270,12 +270,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 	// Append custom args if present
-	for _, arg := range customArgs {
-		yaml.WriteString(",\n")
-		// Use json.Marshal to properly quote and escape the argument
-		quotedArg, _ := json.Marshal(arg)
-		yaml.WriteString("                  " + string(quotedArg))
-	}
+	writeArgsToYAML(yaml, customArgs, "                  ")
 
 	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
@@ -307,11 +302,7 @@ func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, 
 	}
 
 	// Append custom args if present
-	for _, arg := range customArgs {
-		// Use json.Marshal to properly quote and escape the argument
-		quotedArg, _ := json.Marshal(arg)
-		yaml.WriteString(", " + string(quotedArg))
-	}
+	writeArgsToYAMLInline(yaml, customArgs)
 
 	yaml.WriteString("],\n")
 	yaml.WriteString("                \"tools\": [\"*\"]\n")
