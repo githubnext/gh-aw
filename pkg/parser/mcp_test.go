@@ -75,6 +75,81 @@ func TestExtractMCPConfigurations(t *testing.T) {
 		expectError  bool
 	}{
 		{
+			name: "GitHub tool with read-only true",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"read-only": true,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "github",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"-e", "GITHUB_READ_ONLY",
+						"ghcr.io/github/github-mcp-server:sha-09deac4",
+					},
+					Env: map[string]string{
+						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+						"GITHUB_READ_ONLY":             "1",
+					},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
+			name: "GitHub tool with read-only false",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{
+						"read-only": false,
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "github",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:sha-09deac4",
+					},
+					Env: map[string]string{
+						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+					},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
+			name: "GitHub tool without read-only (default behavior)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"github": map[string]any{},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name:    "github",
+					Type:    "docker",
+					Command: "docker",
+					Args: []string{
+						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+						"ghcr.io/github/github-mcp-server:sha-09deac4",
+					},
+					Env: map[string]string{
+						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
+					},
+					Allowed: []string{},
+				},
+			},
+		},
+		{
 			name: "New format: Custom MCP server with direct fields",
 			frontmatter: map[string]any{
 				"tools": map[string]any{

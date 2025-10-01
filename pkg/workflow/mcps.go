@@ -173,6 +173,18 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
+// getGitHubReadOnly checks if read-only mode is enabled for GitHub tool
+func getGitHubReadOnly(githubTool any) bool {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if readOnlySetting, exists := toolConfig["read-only"]; exists {
+			if boolValue, ok := readOnlySetting.(bool); ok {
+				return boolValue
+			}
+		}
+	}
+	return false
+}
+
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
 	// Extract version setting from tool properties

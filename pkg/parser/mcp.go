@@ -264,6 +264,16 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 		// Check for custom GitHub configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
+			// Check for read-only mode
+			if readOnly, hasReadOnly := toolConfig["read-only"]; hasReadOnly {
+				if readOnlyBool, ok := readOnly.(bool); ok && readOnlyBool {
+					// When read-only is true, pass GITHUB_READ_ONLY environment variable
+					config.Env["GITHUB_READ_ONLY"] = "1"
+					// Add the environment variable to docker args
+					config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY"}, config.Args[5:]...)...)
+				}
+			}
+
 			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
 				if allowedSlice, ok := allowed.([]any); ok {
 					for _, item := range allowedSlice {

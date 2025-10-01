@@ -985,6 +985,10 @@
           "description": "GitHub API tools for repository operations (issues, pull requests, content management)",
           "oneOf": [
             {
+              "type": "null",
+              "description": "Empty GitHub tool configuration (enables all read-only GitHub API functions)"
+            },
+            {
               "type": "string",
               "description": "Simple GitHub tool configuration (enables all GitHub API functions)"
             },
@@ -1009,6 +1013,10 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "read-only": {
+                  "type": "boolean",
+                  "description": "Enable read-only mode to restrict GitHub MCP server to read-only operations only"
                 }
               },
               "additionalProperties": false
