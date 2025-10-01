@@ -31,7 +31,7 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 	// The actual rendering is done by renderMCPFetchServerConfig() which uses
 	// the standardized Docker command format for all engines.
 	webFetchConfig := map[string]any{
-		"container": "ghcr.io/modelcontextprotocol/servers/fetch:latest",
+		"container": "mcp/fetch",
 	}
 
 	// Add the web-fetch server to the tools
@@ -52,7 +52,7 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		yaml.WriteString(indent + "    \"run\",\n")
 		yaml.WriteString(indent + "    \"-i\",\n")
 		yaml.WriteString(indent + "    \"--rm\",\n")
-		yaml.WriteString(indent + "    \"ghcr.io/modelcontextprotocol/servers/fetch:latest\"\n")
+		yaml.WriteString(indent + "    \"mcp/fetch\"\n")
 		yaml.WriteString(indent + "  ]\n")
 		if isLast {
 			yaml.WriteString(indent + "}\n")
@@ -68,7 +68,7 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		yaml.WriteString(indent + "  \"run\",\n")
 		yaml.WriteString(indent + "  \"-i\",\n")
 		yaml.WriteString(indent + "  \"--rm\",\n")
-		yaml.WriteString(indent + "  \"ghcr.io/modelcontextprotocol/servers/fetch:latest\"\n")
+		yaml.WriteString(indent + "  \"mcp/fetch\"\n")
 		yaml.WriteString(indent + "]\n")
 	}
 }

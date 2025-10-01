@@ -58,8 +58,8 @@ Fetch content from the web.
 	}
 
 	// Verify the Docker command is present
-	if !strings.Contains(lockContent, `ghcr.io/modelcontextprotocol/servers/fetch:latest`) {
-		t.Errorf("Expected web-fetch MCP server to use the Docker image, but it didn't")
+	if !strings.Contains(lockContent, `"mcp/fetch"`) {
+		t.Errorf("Expected web-fetch MCP server to use the mcp/fetch Docker image, but it didn't")
 	}
 
 	// Verify that the MCP server is configured with Docker

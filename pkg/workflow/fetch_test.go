@@ -129,7 +129,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			expectSubstr: []string{
 				`"web-fetch": {`,
 				`"command": "docker"`,
-				`"ghcr.io/modelcontextprotocol/servers/fetch:latest"`,
+				`"mcp/fetch"`,
 				`},`,
 			},
 		},
@@ -141,7 +141,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			expectSubstr: []string{
 				`"web-fetch": {`,
 				`"command": "docker"`,
-				`"ghcr.io/modelcontextprotocol/servers/fetch:latest"`,
+				`"mcp/fetch"`,
 				`}`, // No comma
 			},
 		},
@@ -153,7 +153,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			expectSubstr: []string{
 				`[mcp_servers."web-fetch"]`,
 				`command = "docker"`,
-				`"ghcr.io/modelcontextprotocol/servers/fetch:latest"`,
+				`"mcp/fetch"`,
 			},
 		},
 	}
