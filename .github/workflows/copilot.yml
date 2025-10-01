@@ -18,6 +18,10 @@ jobs:
       - run: gh auth login --with-token < ~/.github_token
       - run: gh auth status
       - run: |
-          copilot --prompt "List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else."
+          copilot --log-level all --log-dir ./logs --prompt "List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else."
         env:
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+      - run: echo "Listing all files in ./logs directory:"
+      - run: ls -la ./logs
+      - run: echo "Content of all files in ./logs directory:"
+      - run: find ./logs -type f -exec echo "=== {} ===" \; -exec cat {} \;
