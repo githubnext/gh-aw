@@ -27,9 +27,11 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 	delete(updatedTools, "web-fetch")
 
 	// Add the mcp/fetch server configuration
+	// Note: The "container" key marks this as an MCP server with stdio transport.
+	// The actual rendering is done by renderMCPFetchServerConfig() which uses
+	// the standardized Docker command format for all engines.
 	mcpFetchConfig := map[string]any{
 		"container": "ghcr.io/modelcontextprotocol/servers/fetch:latest",
-		"allowed":   []any{"*"}, // Allow all fetch operations by default
 	}
 
 	// Add the mcp/fetch server to the tools
