@@ -109,7 +109,6 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Reporting Missing Tools or Functionality")
-		written = true
 	}
 
 	yaml.WriteString("\n")
