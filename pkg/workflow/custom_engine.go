@@ -197,7 +197,7 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
 	if readOnly {
 		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_READ_ONLY\",\n")
+		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 	}
 	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
@@ -207,13 +207,7 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"")
-	if readOnly {
-		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"GITHUB_READ_ONLY\": \"1\"\n")
-	} else {
-		yaml.WriteString("\n")
-	}
+	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {
