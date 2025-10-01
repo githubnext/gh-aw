@@ -649,47 +649,47 @@ func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
 }
 
 func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
-engine := NewCopilotEngine()
-workflowData := &WorkflowData{
-Name: "test-workflow",
-Tools: map[string]any{
-"github": map[string]any{
-"allowed": []any{"add_issue_comment", "get_issue"},
-},
-},
-}
-steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"github": map[string]any{
+				"allowed": []any{"add_issue_comment", "get_issue"},
+			},
+		},
+	}
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-if len(steps) != 2 {
-t.Fatalf("Expected 2 steps, got %d", len(steps))
-}
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	}
 
-// Get the full command from the execution step (step 0 is the copilot execution)
-stepContent := strings.Join([]string(steps[0]), "\n")
+	// Get the full command from the execution step (step 0 is the copilot execution)
+	stepContent := strings.Join([]string(steps[0]), "\n")
 
-// Find the line that contains the copilot command
-lines := strings.Split(stepContent, "\n")
-var copilotCommand string
-for _, line := range lines {
-if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-tool") {
-copilotCommand = strings.TrimSpace(line)
-break
-}
-}
+	// Find the line that contains the copilot command
+	lines := strings.Split(stepContent, "\n")
+	var copilotCommand string
+	for _, line := range lines {
+		if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-tool") {
+			copilotCommand = strings.TrimSpace(line)
+			break
+		}
+	}
 
-if copilotCommand == "" {
-t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
-}
+	if copilotCommand == "" {
+		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
+	}
 
-// Verify that GitHub tool arguments are properly single-quoted
-t.Logf("Generated command: %s", copilotCommand)
+	// Verify that GitHub tool arguments are properly single-quoted
+	t.Logf("Generated command: %s", copilotCommand)
 
-// The command should contain properly escaped GitHub tool arguments with single quotes
-if !strings.Contains(copilotCommand, "'github(add_issue_comment)'") {
-t.Errorf("Expected 'github(add_issue_comment)' to be single-quoted in command: %s", copilotCommand)
-}
+	// The command should contain properly escaped GitHub tool arguments with single quotes
+	if !strings.Contains(copilotCommand, "'github(add_issue_comment)'") {
+		t.Errorf("Expected 'github(add_issue_comment)' to be single-quoted in command: %s", copilotCommand)
+	}
 
-if !strings.Contains(copilotCommand, "'github(get_issue)'") {
-t.Errorf("Expected 'github(get_issue)' to be single-quoted in command: %s", copilotCommand)
-}
+	if !strings.Contains(copilotCommand, "'github(get_issue)'") {
+		t.Errorf("Expected 'github(get_issue)' to be single-quoted in command: %s", copilotCommand)
+	}
 }
