@@ -1938,7 +1938,7 @@ jobs:
 
   create_pull_request:
     needs: agent
-    if: contains(needs.agent.outputs.output_types, 'create-pull-request')
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-pull-request'))
     runs-on: ubuntu-latest
     permissions:
       contents: write

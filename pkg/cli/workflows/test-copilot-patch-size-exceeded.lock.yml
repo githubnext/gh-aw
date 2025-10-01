@@ -1941,7 +1941,8 @@ jobs:
   push_to_pull_request_branch:
     needs: agent
     if: >
-      (contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')) && (((github.event.issue.number) &&
+      ((always()) && (contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch'))) &&
+      (((github.event.issue.number) &&
       (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:

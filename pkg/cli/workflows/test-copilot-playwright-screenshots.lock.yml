@@ -1988,7 +1988,7 @@ jobs:
 
   create_issue:
     needs: agent
-    if: contains(needs.agent.outputs.output_types, 'create-issue')
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2170,7 +2170,7 @@ jobs:
 
   upload_assets:
     needs: agent
-    if: contains(needs.agent.outputs.output_types, 'publish-assets')
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'upload-asset'))
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required for creating orphaned branch and pushing assets
