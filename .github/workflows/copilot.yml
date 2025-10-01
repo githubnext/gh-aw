@@ -56,6 +56,7 @@ jobs:
         id: copilot_execution
         timeout-minutes: 5
         run: |
+          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           copilot --prompt "$INSTRUCTION"
         env:
           XDG_CONFIG_HOME: /home/runner
