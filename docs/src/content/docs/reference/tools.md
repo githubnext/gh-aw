@@ -45,7 +45,20 @@ tools:
   github:
     allowed: [create_issue, update_issue, add_issue_comment]  # Optional: specific permissions
     version: "latest"                          # Optional: MCP server version
+    args: ["--verbose", "--debug"]            # Optional: additional command-line arguments
 ```
+
+### GitHub Args Configuration
+
+The `args` field allows you to pass additional command-line arguments to the GitHub MCP server:
+
+```yaml
+tools:
+  github:
+    args: ["--custom-flag", "--verbose"]
+```
+
+Arguments are appended to the generated MCP server command and properly escaped for special characters including spaces, quotes, and backslashes.
 
 The system automatically includes comprehensive default read-only GitHub tools. These defaults are merged with your custom `allowed` tools, providing comprehensive repository access.
 
@@ -78,7 +91,24 @@ tools:
   playwright:
     version: "latest"                    # Optional: Playwright version
     allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
+    args: ["--browser", "firefox"]      # Optional: additional command-line arguments
 ```
+
+### Playwright Args Configuration
+
+The `args` field allows you to pass additional command-line arguments to the Playwright MCP server:
+
+```yaml
+tools:
+  playwright:
+    args: ["--browser", "chromium", "--headless"]
+```
+
+Common use cases include:
+- Browser selection: `["--browser", "firefox"]` or `["--browser", "chromium"]`
+- Custom flags for debugging or testing scenarios
+
+Arguments are appended to the generated MCP server command and properly escaped for special characters.
 
 ### Domain Configuration
 
