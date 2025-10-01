@@ -64,12 +64,12 @@ analyze and provide a helpful summary.
 The current context text is: "${{ needs.activation.outputs.text }}"
 ```
 
-Using shorthand string format:
+Or using the shorthand string format (same behavior, more concise):
 
 ```aw wrap
 ---
 on:
-  command: "summarize-issue"
+  command: "summarize-issue"  # Shorthand: string directly specifies command name
 permissions:
   issues: write
 tools:
@@ -79,10 +79,7 @@ tools:
 
 # Issue Summarizer
 
-When someone mentions /summarize-issue in an issue or comment, 
-analyze and provide a helpful summary.
-
-The current context text is: "${{ needs.activation.outputs.text }}"
+Same workflow as above, just using the shorthand string syntax.
 ```
 
 ## Context Text (`needs.activation.outputs.text`)
