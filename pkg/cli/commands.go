@@ -47,6 +47,56 @@ func GetVersion() string {
 	return version
 }
 
+// InitRepository initializes the repository for agentic workflows
+func InitRepository(verbose bool) error {
+	// Ensure we're in a git repository
+	if !isGitRepo() {
+		return fmt.Errorf("not in a git repository")
+	}
+
+	// Configure .gitattributes
+	if err := ensureGitAttributes(); err != nil {
+		return fmt.Errorf("failed to configure .gitattributes: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+	}
+
+	// Write copilot instructions
+	if err := ensureCopilotInstructions(verbose, false); err != nil {
+		return fmt.Errorf("failed to write copilot instructions: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created GitHub Copilot instructions"))
+	}
+
+	// Write agentic workflow prompt
+	if err := ensureAgenticWorkflowPrompt(verbose, false); err != nil {
+		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-agentic-workflow command"))
+	}
+
+	// Display success message with next steps
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Next steps:"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  1. Create a workflow using GitHub Copilot:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Open GitHub Copilot Chat and use /create-agentic-workflow"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  2. Or add a workflow from the catalog:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+constants.CLIExtensionPrefix+" add <workflow-name>"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  3. Or create a new workflow from scratch:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+constants.CLIExtensionPrefix+" new <workflow-name>"))
+	fmt.Fprintln(os.Stderr, "")
+
+	return nil
+}
+
 // GitHubWorkflow represents a GitHub Actions workflow from the API
 // GitHubWorkflowsResponse represents the GitHub API response for workflows
 // Note: The API returns an array directly, not wrapped in a workflows field
