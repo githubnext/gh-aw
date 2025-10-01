@@ -981,32 +981,42 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 
 	// Get existing allowed tools
 	var existingAllowed []any
+	hasExplicitAllowed := false
 	if allowed, hasAllowed := githubConfig["allowed"]; hasAllowed {
+		hasExplicitAllowed = true
 		if allowedSlice, ok := allowed.([]any); ok {
 			existingAllowed = allowedSlice
 		}
 	}
 
-	// Create a set of existing tools for efficient lookup
-	existingToolsSet := make(map[string]bool)
-	for _, tool := range existingAllowed {
-		if toolStr, ok := tool.(string); ok {
-			existingToolsSet[toolStr] = true
+	// Only add default GitHub tools if there's no explicit allowed field
+	// or if the allowed field has values (not empty array)
+	// An empty array [] means "no GitHub tools allowed" and should not get defaults added
+	if !hasExplicitAllowed || len(existingAllowed) > 0 {
+		// Create a set of existing tools for efficient lookup
+		existingToolsSet := make(map[string]bool)
+		for _, tool := range existingAllowed {
+			if toolStr, ok := tool.(string); ok {
+				existingToolsSet[toolStr] = true
+			}
 		}
-	}
 
-	// Add default GitHub tools that aren't already present
-	newAllowed := make([]any, len(existingAllowed))
-	copy(newAllowed, existingAllowed)
+		// Add default GitHub tools that aren't already present
+		newAllowed := make([]any, len(existingAllowed))
+		copy(newAllowed, existingAllowed)
 
-	for _, defaultTool := range constants.DefaultGitHubTools {
-		if !existingToolsSet[defaultTool] {
-			newAllowed = append(newAllowed, defaultTool)
+		for _, defaultTool := range constants.DefaultGitHubTools {
+			if !existingToolsSet[defaultTool] {
+				newAllowed = append(newAllowed, defaultTool)
+			}
 		}
-	}
 
-	// Update the github tool configuration
-	githubConfig["allowed"] = newAllowed
+		// Update the github tool configuration
+		githubConfig["allowed"] = newAllowed
+	} else {
+		// Keep the explicitly empty allowed array as-is
+		githubConfig["allowed"] = existingAllowed
+	}
 	tools["github"] = githubConfig
 
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch

@@ -488,18 +488,33 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	// Handle GitHub MCP tools - GitHub is built-in to Copilot CLI but still needs tool allowlist
 	if githubConfig, hasGithub := tools["github"]; hasGithub {
-		if githubConfigMap, ok := githubConfig.(map[string]any); ok {
+		// Check if GitHub is explicitly disabled (false value)
+		if githubBool, isBool := githubConfig.(bool); isBool && !githubBool {
+			// GitHub is explicitly disabled - deny it
+			args = append(args, "--deny-tool", "github")
+		} else if githubConfigMap, ok := githubConfig.(map[string]any); ok {
 			// GitHub is built-in, so we don't add --allow-tool github itself
 			// But we do need to add --allow-tool github(tool_name) for each allowed tool
 			if allowed, hasAllowed := githubConfigMap["allowed"]; hasAllowed {
 				if allowedList, ok := allowed.([]any); ok {
-					for _, allowedTool := range allowedList {
-						if toolStr, ok := allowedTool.(string); ok {
-							args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+					if len(allowedList) == 0 {
+						// Empty allowed list means GitHub is disabled - deny it
+						args = append(args, "--deny-tool", "github")
+					} else {
+						for _, allowedTool := range allowedList {
+							if toolStr, ok := allowedTool.(string); ok {
+								args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+							}
 						}
 					}
 				}
+			} else {
+				// No allowed field means GitHub is disabled - deny it
+				args = append(args, "--deny-tool", "github")
 			}
+		} else if githubConfig == nil {
+			// GitHub is set to nil - deny it
+			args = append(args, "--deny-tool", "github")
 		}
 	}
 
@@ -540,18 +555,29 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		}
 	}
 
-	// Simple sort - extract values, sort them, and rebuild args
+	// Sort arguments while preserving their flag types (--allow-tool or --deny-tool)
 	if len(args) > 0 {
-		var values []string
-		for i := 1; i < len(args); i += 2 {
-			values = append(values, args[i])
+		// Create pairs of (flag, value) for sorting
+		type argPair struct {
+			flag  string
+			value string
 		}
-		sort.Strings(values)
-
-		// Rebuild args with sorted values
+		var pairs []argPair
+		for i := 0; i < len(args); i += 2 {
+			if i+1 < len(args) {
+				pairs = append(pairs, argPair{flag: args[i], value: args[i+1]})
+			}
+		}
+		
+		// Sort by value
+		sort.Slice(pairs, func(i, j int) bool {
+			return pairs[i].value < pairs[j].value
+		})
+		
+		// Rebuild args with sorted pairs
 		newArgs := make([]string, 0, len(args))
-		for _, value := range values {
-			newArgs = append(newArgs, "--allow-tool", value)
+		for _, pair := range pairs {
+			newArgs = append(newArgs, pair.flag, pair.value)
 		}
 		args = newArgs
 	}
