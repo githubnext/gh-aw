@@ -15,7 +15,11 @@ jobs:
           node-version: '22'
       - run: npm install -g @github/copilot
       - run: gh auth login
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           copilot --prompt "List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else."
         env:
