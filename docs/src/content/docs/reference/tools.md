@@ -91,7 +91,6 @@ tools:
   playwright:
     version: "latest"                    # Optional: Playwright version
     allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
-    args: ["--browser", "firefox"]      # Optional: additional command-line arguments
 ```
 
 ### Playwright Args Configuration
@@ -104,11 +103,9 @@ tools:
     args: ["--browser", "chromium"]
 ```
 
-Common use cases include:
-- Browser selection: `["--browser", "firefox"]` or `["--browser", "chromium"]`
-- Custom flags for debugging or testing scenarios
+Common use cases include custom flags for debugging or testing scenarios.
 
-**Note**: Only Chromium is available in headless mode.
+**Note**: Only Chromium browser is supported.
 
 Arguments are appended to the generated MCP server command and properly escaped for special characters.
 
