@@ -14,7 +14,6 @@ jobs:
         with:
           node-version: '22'
       - run: npm install -g @github/copilot
-      - run: gh auth status
       - run: gh auth login
       - run: gh auth status
       - run: |
