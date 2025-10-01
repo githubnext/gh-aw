@@ -16,8 +16,8 @@ func TestGitHubModelsEngine(t *testing.T) {
 		t.Errorf("Expected display name 'GitHub Models', got '%s'", engine.GetDisplayName())
 	}
 
-	if engine.IsExperimental() {
-		t.Error("Expected GitHub Models engine to not be experimental")
+	if !engine.IsExperimental() {
+		t.Error("Expected GitHub Models engine to be experimental")
 	}
 
 	if !engine.SupportsToolsAllowlist() {
@@ -68,6 +68,10 @@ func TestGitHubModelsEngineGetExecutionSteps(t *testing.T) {
 
 	if !strings.Contains(allSteps, "prompt-file: '/tmp/aw-prompts/prompt.txt'") {
 		t.Error("Expected steps to contain prompt-file parameter")
+	}
+
+	if !strings.Contains(allSteps, "token: ${{ secrets.GITHUB_TOKEN }}") {
+		t.Error("Expected steps to contain token parameter")
 	}
 
 	if !strings.Contains(allSteps, "Process AI Response") {

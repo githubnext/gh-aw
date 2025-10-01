@@ -18,7 +18,7 @@ func NewGitHubModelsEngine() *GitHubModelsEngine {
 			id:                     "github-models",
 			displayName:            "GitHub Models",
 			description:            "Uses GitHub Models via actions/ai-inference action",
-			experimental:           false,
+			experimental:           true,
 			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  true,  // Supports HTTP transport via MCP
 			supportsMaxTurns:       false, // GitHub Models does not support max-turns yet
@@ -78,6 +78,9 @@ func (e *GitHubModelsEngine) GetExecutionSteps(workflowData *WorkflowData, logFi
 		inferenceStepLines = append(inferenceStepLines, fmt.Sprintf("          model: '%s'", workflowData.EngineConfig.Model))
 	}
 
+	// Token is always required for actions/ai-inference
+	inferenceStepLines = append(inferenceStepLines, "          token: ${{ secrets.GITHUB_TOKEN }}")
+
 	// Add GitHub MCP support if github tool is enabled
 	hasGitHubTool := false
 	if workflowData.Tools != nil {
@@ -89,7 +92,6 @@ func (e *GitHubModelsEngine) GetExecutionSteps(workflowData *WorkflowData, logFi
 	if hasGitHubTool {
 		inferenceStepLines = append(inferenceStepLines,
 			"          enable-github-mcp: true",
-			"          token: ${{ secrets.GITHUB_TOKEN }}",
 			"          github-mcp-token: ${{ secrets.GITHUB_MCP_TOKEN }}",
 		)
 	}
