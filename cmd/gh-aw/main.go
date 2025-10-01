@@ -166,14 +166,17 @@ Examples:
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
 		workflowDir, _ := cmd.Flags().GetString("workflows-dir")
-		instructions, _ := cmd.Flags().GetBool("instructions")
+		noInstructions, _ := cmd.Flags().GetBool("no-instructions")
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
-		if err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, workflowDir, instructions, noEmit, purge); err != nil {
+		// Invert noInstructions to get skipInstructions (by default, we want to write instructions)
+		// Also skip instructions when noEmit is true (validation-only mode)
+		skipInstructions := noInstructions || noEmit
+		if err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, workflowDir, skipInstructions, noEmit, purge); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -298,7 +301,7 @@ func init() {
 	compileCmd.Flags().Bool("validate", true, "Enable GitHub Actions workflow schema validation (default: true)")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
-	compileCmd.Flags().Bool("instructions", false, "Generate or update GitHub Copilot instructions file")
+	compileCmd.Flags().Bool("no-instructions", false, "Skip generating or updating GitHub Copilot instructions and prompt files")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 

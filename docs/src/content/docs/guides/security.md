@@ -211,15 +211,12 @@ A critical guardrail is strict control over outbound network connections. Agenti
 Example (domain allowlist):
 
 ```yaml
-tools:
+mcp-servers:
   fetch:
-    mcp:
-      type: stdio
-      container: mcp/fetch
-      permissions:
-        network:
-          allowed:
-            - "example.com"
+    container: mcp/fetch
+    network:
+      allowed:
+        - "example.com"
     allowed: ["fetch"]
 ```
 

@@ -64,8 +64,8 @@ func TestEnsureAgenticWorkflowPrompt(t *testing.T) {
 				}
 			}
 
-			// Call the function with writeInstructions=true to test the functionality
-			err = ensureAgenticWorkflowPrompt(false, true)
+			// Call the function with skipInstructions=false to test the functionality
+			err = ensureAgenticWorkflowPrompt(false, false)
 			if err != nil {
 				t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
 			}
@@ -93,7 +93,7 @@ func TestEnsureAgenticWorkflowPrompt(t *testing.T) {
 	}
 }
 
-func TestEnsureAgenticWorkflowPrompt_WithWriteInstructionsFalse(t *testing.T) {
+func TestEnsureAgenticWorkflowPrompt_WithSkipInstructionsTrue(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
@@ -112,8 +112,8 @@ func TestEnsureAgenticWorkflowPrompt_WithWriteInstructionsFalse(t *testing.T) {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
 
-	// Call the function with writeInstructions=false
-	err = ensureAgenticWorkflowPrompt(false, false)
+	// Call the function with skipInstructions=true
+	err = ensureAgenticWorkflowPrompt(false, true)
 	if err != nil {
 		t.Fatalf("ensureAgenticWorkflowPrompt() returned error: %v", err)
 	}
@@ -122,6 +122,6 @@ func TestEnsureAgenticWorkflowPrompt_WithWriteInstructionsFalse(t *testing.T) {
 	promptsDir := filepath.Join(tempDir, ".github", "prompts")
 	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
 	if _, err := os.Stat(agenticWorkflowPromptPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected agentic workflow prompt file to NOT exist when writeInstructions=false")
+		t.Fatalf("Expected agentic workflow prompt file to NOT exist when skipInstructions=true")
 	}
 }

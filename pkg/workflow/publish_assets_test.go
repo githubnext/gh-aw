@@ -30,6 +30,21 @@ func TestParseUploadAssetConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "upload-asset config with max and min",
+			input: map[string]any{
+				"upload-assets": map[string]any{
+					"max": 5,
+					"min": 1,
+				},
+			},
+			expected: &UploadAssetsConfig{
+				BranchName:           "assets/${{ github.workflow }}",
+				MaxSizeKB:            10240,
+				AllowedExts:          []string{".png", ".jpg", ".jpeg"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 5, Min: 1},
+			},
+		},
+		{
 			name:     "no upload-asset config",
 			input:    map[string]any{},
 			expected: nil,
@@ -61,7 +76,15 @@ func TestParseUploadAssetConfig(t *testing.T) {
 			}
 
 			if result.GitHubToken != tt.expected.GitHubToken {
-				t.Errorf("BaseSafeOutputConfig: BaseSafeOutputConfig{GitHubToken: expected %s, got %s", tt.expected.GitHubToken, result.GitHubToken)
+				t.Errorf("GitHubToken: expected %s, got %s", tt.expected.GitHubToken, result.GitHubToken)
+			}
+
+			if result.Max != tt.expected.Max {
+				t.Errorf("Max: expected %d, got %d", tt.expected.Max, result.Max)
+			}
+
+			if result.Min != tt.expected.Min {
+				t.Errorf("Min: expected %d, got %d", tt.expected.Min, result.Min)
 			}
 
 			if len(result.AllowedExts) != len(tt.expected.AllowedExts) {

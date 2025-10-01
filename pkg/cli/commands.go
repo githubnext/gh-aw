@@ -595,7 +595,7 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 	return nil
 }
-func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, workflowDir string, writeInstructions bool, noEmit bool, purge bool) error {
+func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, workflowDir string, skipInstructions bool, noEmit bool, purge bool) error {
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
 		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
@@ -675,7 +675,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		}
 
 		// Ensure copilot instructions are present
-		if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
+		if err := ensureCopilotInstructions(verbose, skipInstructions); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
 			}
@@ -788,14 +788,14 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	}
 
 	// Ensure copilot instructions are present
-	if err := ensureCopilotInstructions(verbose, writeInstructions); err != nil {
+	if err := ensureCopilotInstructions(verbose, skipInstructions); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
 		}
 	}
 
 	// Ensure agentic workflow prompt is present
-	if err := ensureAgenticWorkflowPrompt(verbose, writeInstructions); err != nil {
+	if err := ensureAgenticWorkflowPrompt(verbose, skipInstructions); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflow prompt: %v", err)))
 		}
@@ -1516,9 +1516,9 @@ func compileWorkflowWithTracking(filePath string, verbose bool, engineOverride s
 }
 
 // ensureCopilotInstructions ensures that .github/instructions/github-agentic-workflows.md contains the copilot instructions
-func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
-	if !writeInstructions {
-		return nil // Skip writing instructions if flag is not set
+func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
+	if skipInstructions {
+		return nil // Skip writing instructions if flag is set
 	}
 
 	gitRoot, err := findGitRoot()
@@ -1566,9 +1566,9 @@ func ensureCopilotInstructions(verbose bool, writeInstructions bool) error {
 }
 
 // ensureAgenticWorkflowPrompt ensures that .github/prompts/create-agentic-workflow.prompt.md contains the agentic workflow creation prompt
-func ensureAgenticWorkflowPrompt(verbose bool, writeInstructions bool) error {
-	if !writeInstructions {
-		return nil // Skip writing prompt if flag is not set
+func ensureAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
+	if skipInstructions {
+		return nil // Skip writing prompt if flag is set
 	}
 
 	gitRoot, err := findGitRoot()
