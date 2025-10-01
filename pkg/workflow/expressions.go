@@ -313,10 +313,15 @@ func BuildNotFromFork() *ComparisonNode {
 }
 
 func BuildSafeOutputType(outputType string) ConditionNode {
-	return BuildFunctionCall("contains",
+	alwaysFunc := BuildFunctionCall("always")
+	containsFunc := BuildFunctionCall("contains",
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
 		BuildStringLiteral(outputType),
 	)
+	return &AndNode{
+		Left:  alwaysFunc,
+		Right: containsFunc,
+	}
 }
 
 // BuildFromAllowedForks creates a condition to check if a pull request is from an allowed fork

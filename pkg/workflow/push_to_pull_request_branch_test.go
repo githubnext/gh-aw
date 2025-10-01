@@ -72,6 +72,7 @@ Please make changes and push them to the feature branch.
 
 	// Verify conditional execution using BuildSafeOutputType combined with pull request context
 	expectedConditionParts := []string{
+		"always()",
 		"contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')",
 		"github.event.issue.number",
 		"github.event.issue.pull_request",
@@ -296,6 +297,7 @@ This workflow has minimal push-to-pull-request-branch configuration.
 
 	// Verify default conditional execution using BuildSafeOutputType combined with pull request context
 	expectedConditionParts := []string{
+		"always()",
 		"contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch')",
 		"github.event.issue.number",
 		"github.event.issue.pull_request",

@@ -575,6 +575,7 @@ This workflow tests the add_comment job generation.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
+		"always()",
 		"contains(needs.agent.outputs.output_types, 'add-comment')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -587,7 +588,7 @@ This workflow tests the add_comment job generation.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected add_comment job to have conditional execution")
+		t.Error("Expected add_comment job to have conditional execution with always()")
 	}
 
 	// Verify job dependencies
@@ -657,6 +658,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
+		"always()",
 		"contains(needs.agent.outputs.output_types, 'add-comment')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -669,7 +671,7 @@ This workflow tests that issue comment job is skipped for non-issue/PR events.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected add_comment job to have conditional execution for skipping")
+		t.Error("Expected add_comment job to have conditional execution with always() for skipping")
 	}
 
 	// t.Logf("Generated workflow content:\n%s", lockContent)
@@ -1142,6 +1144,7 @@ This workflow tests the add_labels job generation.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
+		"always()",
 		"contains(needs.agent.outputs.output_types, 'add-labels')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -1154,7 +1157,7 @@ This workflow tests the add_labels job generation.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected add_labels job to have conditional execution")
+		t.Error("Expected add_labels job to have conditional execution with always()")
 	}
 	if !strings.Contains(lockContent, "needs: agent") {
 		t.Error("Expected add_labels job to depend on main job")
@@ -1228,6 +1231,7 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
+		"always()",
 		"contains(needs.agent.outputs.output_types, 'add-labels')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -1240,7 +1244,7 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected add_labels job to have conditional execution")
+		t.Error("Expected add_labels job to have conditional execution with always()")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
@@ -1316,6 +1320,7 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 
 	// Verify job has conditional execution using BuildSafeOutputType combined with base condition
 	expectedConditionParts := []string{
+		"always()",
 		"contains(needs.agent.outputs.output_types, 'add-labels')",
 		"github.event.issue.number",
 		"github.event.pull_request.number",
@@ -1328,7 +1333,7 @@ Write your labels to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}, one per line.
 		}
 	}
 	if !conditionFound {
-		t.Error("Expected add_labels job to have conditional execution")
+		t.Error("Expected add_labels job to have conditional execution with always()")
 	}
 
 	// Verify JavaScript content includes environment variables for configuration
