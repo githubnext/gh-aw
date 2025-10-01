@@ -897,10 +897,15 @@ func (c *Compiler) generateJobName(workflowName string) string {
 	return jobName
 } // extractCommandName extracts the command name from frontmatter using the new nested format
 func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
-	// Check new format: on.command.name
+	// Check new format: on.command or on.command.name
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			if commandValue, hasCommand := onMap["command"]; hasCommand {
+				// Check if command is a string (shorthand format)
+				if commandStr, ok := commandValue.(string); ok {
+					return commandStr
+				}
+				// Check if command is a map with a name key (object format)
 				if commandMap, ok := commandValue.(map[string]any); ok {
 					if nameValue, hasName := commandMap["name"]; hasName {
 						if nameStr, ok := nameValue.(string); ok {
