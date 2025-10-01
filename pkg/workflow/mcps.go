@@ -173,17 +173,20 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
+// getPlaywrightDockerImageVersion returns the Playwright MCP package version
+// Note: Despite the name, this function returns the MCP NPM package version (not Docker image version)
+// as all engines now use NPX instead of Docker
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
-	playwrightDockerImageVersion := constants.DefaultPlaywrightMCPVersion // Default Playwright Docker image version
+	playwrightMCPVersion := constants.DefaultPlaywrightMCPVersion // Default Playwright MCP NPM package version
 	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
 			if stringValue, ok := versionSetting.(string); ok {
-				playwrightDockerImageVersion = stringValue
+				playwrightMCPVersion = stringValue
 			}
 		}
 	}
-	return playwrightDockerImageVersion
+	return playwrightMCPVersion
 }
 
 func getPlaywrightMCPPackageVersion(playwrightTool any) string {
@@ -239,13 +242,15 @@ func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *Ne
 	return allowedDomains
 }
 
-// PlaywrightDockerArgs represents the common Docker arguments for Playwright container
+// PlaywrightDockerArgs represents the common arguments for Playwright MCP server
+// Note: Despite the name, this is used for NPX-based MCP servers, not Docker containers
 type PlaywrightDockerArgs struct {
-	ImageVersion   string
+	ImageVersion   string // Actually the MCP package version, not Docker image version
 	AllowedDomains []string
 }
 
-// generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
+// generatePlaywrightDockerArgs creates the common arguments for Playwright MCP server
+// Note: Despite the name, this generates arguments for NPX-based MCP servers, not Docker
 func generatePlaywrightDockerArgs(playwrightTool any, networkPermissions *NetworkPermissions) PlaywrightDockerArgs {
 	return PlaywrightDockerArgs{
 		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),

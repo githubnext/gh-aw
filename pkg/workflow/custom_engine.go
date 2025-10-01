@@ -209,18 +209,23 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration using shared logic
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+	// Get the MCP NPM package version
+	mcpVersion := getPlaywrightMCPPackageVersion(playwrightTool)
+	playwrightPackage := "@playwright/mcp@" + mcpVersion
+
+	// Get allowed domains
+	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
 
 	yaml.WriteString("              \"playwright\": {\n")
 	yaml.WriteString("                \"command\": \"npx\",\n")
 	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("                  \"" + playwrightPackage + "\",\n")
 	yaml.WriteString("                  \"--output-dir\",\n")
 	yaml.WriteString("                  \"/tmp/mcp-logs/playwright\"")
-	if len(args.AllowedDomains) > 0 {
+	if len(allowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"--allowed-origins\",\n")
-		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+		yaml.WriteString("                  \"" + strings.Join(allowedDomains, ";") + "\"")
 	}
 	yaml.WriteString("\n")
 	yaml.WriteString("                ]\n")

@@ -509,19 +509,24 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+	// Get the MCP NPM package version
+	mcpVersion := getPlaywrightMCPPackageVersion(playwrightTool)
+	playwrightPackage := "@playwright/mcp@" + mcpVersion
+
+	// Get allowed domains
+	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
 	yaml.WriteString("          command = \"npx\"\n")
 	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("            \"" + playwrightPackage + "\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
 	yaml.WriteString("            \"/tmp/mcp-logs/playwright\"")
-	if len(args.AllowedDomains) > 0 {
+	if len(allowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-origins\",\n")
-		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+		yaml.WriteString("            \"" + strings.Join(allowedDomains, ";") + "\"")
 	}
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
