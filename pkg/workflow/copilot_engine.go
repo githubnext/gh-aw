@@ -254,6 +254,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 // Uses Docker-based GitHub MCP server (similar to Claude engine)
 func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	customArgs := getGitHubCustomArgs(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 	yaml.WriteString("                \"type\": \"local\",\n")
@@ -266,7 +267,12 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}\",\n")
-	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "                  ")
+
+	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"tools\": [\"*\"]\n")
 	// copilot does not support env
@@ -281,6 +287,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
 func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	// Use the version from docker args (which handles version configuration)
 	playwrightPackage := "@playwright/mcp@" + args.ImageVersion
@@ -293,6 +300,9 @@ func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, 
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
+
+	// Append custom args if present
+	writeArgsToYAMLInline(yaml, customArgs)
 
 	yaml.WriteString("],\n")
 	yaml.WriteString("                \"tools\": [\"*\"]\n")

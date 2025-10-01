@@ -477,6 +477,8 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 // Always uses Docker MCP as the default
 func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	customArgs := getGitHubCustomArgs(githubTool)
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
 
@@ -501,7 +503,12 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"-e\",\n")
 	yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "            ")
+
+	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
 	yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
 }
@@ -510,6 +517,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
@@ -523,6 +531,10 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 		yaml.WriteString("            \"--allowed-origins\",\n")
 		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "            ")
+
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
 }
