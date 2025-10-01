@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -199,7 +200,9 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString("                  " + string(quotedArg))
 	}
 
 	yaml.WriteString("\n")
@@ -236,7 +239,9 @@ func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString("                  " + string(quotedArg))
 	}
 
 	yaml.WriteString("\n")

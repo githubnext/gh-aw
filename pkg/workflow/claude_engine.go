@@ -643,7 +643,9 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString("                  " + string(quotedArg))
 	}
 
 	yaml.WriteString("\n")
@@ -680,7 +682,9 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString("                  " + string(quotedArg))
 	}
 
 	yaml.WriteString("\n")

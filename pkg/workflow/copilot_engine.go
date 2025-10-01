@@ -272,7 +272,9 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString("                  " + string(quotedArg))
 	}
 
 	yaml.WriteString("\n")
@@ -306,7 +308,9 @@ func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, 
 
 	// Append custom args if present
 	for _, arg := range customArgs {
-		yaml.WriteString(", \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString(", " + string(quotedArg))
 	}
 
 	yaml.WriteString("],\n")

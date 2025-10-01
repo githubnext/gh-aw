@@ -508,7 +508,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		yaml.WriteString("            \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString("            " + string(quotedArg))
 	}
 
 	yaml.WriteString("\n")
@@ -538,7 +540,9 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
-		yaml.WriteString("            \"" + arg + "\"")
+		// Use json.Marshal to properly quote and escape the argument
+		quotedArg, _ := json.Marshal(arg)
+		yaml.WriteString("            " + string(quotedArg))
 	}
 
 	yaml.WriteString("\n")
