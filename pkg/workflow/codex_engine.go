@@ -478,6 +478,7 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
@@ -503,6 +504,10 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	yaml.WriteString("            \"--rm\",\n")
 	yaml.WriteString("            \"-e\",\n")
 	yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+	if readOnly {
+		yaml.WriteString("            \"-e\",\n")
+		yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
+	}
 	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 	// Append custom args if present

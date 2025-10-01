@@ -46,7 +46,22 @@ tools:
     allowed: [create_issue, update_issue, add_issue_comment]  # Optional: specific permissions
     version: "latest"                          # Optional: MCP server version
     args: ["--verbose", "--debug"]            # Optional: additional command-line arguments
+    read-only: true                           # Optional: restrict to read-only operations
 ```
+
+### GitHub Read-Only Mode
+
+The `read-only` flag restricts the GitHub MCP server to read-only operations, preventing any modifications to repositories, issues, pull requests, etc.
+
+```yaml
+tools:
+  github:
+    read-only: true
+```
+
+When `read-only: true` is specified, the GitHub MCP server runs with the `GITHUB_READ_ONLY` environment variable set, which enables read-only mode at the server level.
+
+**Default behavior**: When the GitHub tool is specified without any configuration (just `github:` with no properties), the default behavior provides read-only access with all read-only tools available.
 
 ### GitHub Args Configuration
 
