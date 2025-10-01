@@ -966,6 +966,7 @@ Second include file with bash tools.
 
 	// Create main workflow file that includes both files (new format)
 	mainContent := fmt.Sprintf(`---
+engine: claude
 tools:
   bash: ["pwd"] # Additional command in main file
 ---
@@ -984,6 +985,7 @@ More content.
 	// Test now with simplified structure - no includes, just main file
 	// Create a simple workflow file with claude.Bash tools (no includes) (new format)
 	simpleContent := `---
+engine: claude
 tools:
   bash: ["pwd", "ls", "cat"]
 ---
