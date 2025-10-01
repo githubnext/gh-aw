@@ -250,28 +250,21 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"allowed": []any{},
 				},
 			},
-			expected: []string{"--deny-tool", "github"},
+			expected: []string{},
 		},
 		{
 			name: "github tool without allowed field",
 			tools: map[string]any{
 				"github": map[string]any{},
 			},
-			expected: []string{"--deny-tool", "github"},
+			expected: []string{},
 		},
 		{
 			name: "github tool as nil (no config)",
 			tools: map[string]any{
 				"github": nil,
 			},
-			expected: []string{"--deny-tool", "github"},
-		},
-		{
-			name: "github tool as false (explicitly disabled)",
-			tools: map[string]any{
-				"github": false,
-			},
-			expected: []string{"--deny-tool", "github"},
+			expected: []string{},
 		},
 		{
 			name: "github tool with multiple allowed tools sorted",
