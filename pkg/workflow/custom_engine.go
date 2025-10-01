@@ -182,6 +182,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 // renderGitHubMCPConfig generates the GitHub MCP server configuration using shared logic
 func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+	customArgs := getGitHubCustomArgs(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -193,7 +194,15 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+	
+	// Append custom args if present
+	for _, arg := range customArgs {
+		yaml.WriteString(",\n")
+		yaml.WriteString("                  \"" + arg + "\"")
+	}
+	
+	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
@@ -210,6 +219,7 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
 	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	yaml.WriteString("              \"playwright\": {\n")
 	yaml.WriteString("                \"command\": \"npx\",\n")
@@ -222,6 +232,13 @@ func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 		yaml.WriteString("                  \"--allowed-origins\",\n")
 		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
+	
+	// Append custom args if present
+	for _, arg := range customArgs {
+		yaml.WriteString(",\n")
+		yaml.WriteString("                  \"" + arg + "\"")
+	}
+	
 	yaml.WriteString("\n")
 	yaml.WriteString("                ]\n")
 

@@ -173,6 +173,29 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
+// getGitHubCustomArgs extracts custom args from GitHub tool configuration
+func getGitHubCustomArgs(githubTool any) []string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if argsValue, exists := toolConfig["args"]; exists {
+			// Handle []any format
+			if argsSlice, ok := argsValue.([]any); ok {
+				customArgs := make([]string, 0, len(argsSlice))
+				for _, arg := range argsSlice {
+					if argStr, ok := arg.(string); ok {
+						customArgs = append(customArgs, argStr)
+					}
+				}
+				return customArgs
+			}
+			// Handle []string format
+			if argsSlice, ok := argsValue.([]string); ok {
+				return argsSlice
+			}
+		}
+	}
+	return nil
+}
+
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
 	// Extract version setting from tool properties
@@ -184,6 +207,29 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 		}
 	}
 	return playwrightDockerImageVersion
+}
+
+// getPlaywrightCustomArgs extracts custom args from Playwright tool configuration
+func getPlaywrightCustomArgs(playwrightTool any) []string {
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if argsValue, exists := toolConfig["args"]; exists {
+			// Handle []any format
+			if argsSlice, ok := argsValue.([]any); ok {
+				customArgs := make([]string, 0, len(argsSlice))
+				for _, arg := range argsSlice {
+					if argStr, ok := arg.(string); ok {
+						customArgs = append(customArgs, argStr)
+					}
+				}
+				return customArgs
+			}
+			// Handle []string format
+			if argsSlice, ok := argsValue.([]string); ok {
+				return argsSlice
+			}
+		}
+	}
+	return nil
 }
 
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
