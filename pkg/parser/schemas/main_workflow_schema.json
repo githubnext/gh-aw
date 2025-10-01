@@ -1700,6 +1700,11 @@
             {
               "type": "null",
               "description": "Enable missing tool reporting with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable missing tool reporting (false). Missing tool reporting is enabled by default when safe-outputs is configured."
             }
           ]
         },

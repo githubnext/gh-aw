@@ -70,6 +70,11 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 // parseMissingToolConfig handles missing-tool configuration
 func (c *Compiler) parseMissingToolConfig(outputMap map[string]any) *MissingToolConfig {
 	if configData, exists := outputMap["missing-tool"]; exists {
+		// Handle the case where configData is false (explicitly disabled)
+		if configBool, ok := configData.(bool); ok && !configBool {
+			return nil
+		}
+
 		missingToolConfig := &MissingToolConfig{} // Default: no max limit
 
 		// Handle the case where configData is nil (missing-tool: with no value)

@@ -35,7 +35,7 @@ This declares that the workflow should create at most one new issue.
 | **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
 | **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
-| **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality needed to complete tasks | unlimited |
+| **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality (enabled by default when safe-outputs is configured) | unlimited |
 
 ### New Issue Creation (`create-issue:`)
 
@@ -559,12 +559,19 @@ When `create-pull-request` or `push-to-pull-request-branch` are enabled in the `
 
 ### Missing Tool Reporting (`missing-tool:`)
 
-**Note:** Missing tool reporting is optional and must be explicitly configured in the `safe-outputs:` section if you want workflows to report when they encounter limitations or need tools that aren't available.
+**Note:** Missing tool reporting is **enabled by default** whenever `safe-outputs:` is configured. This helps identify tools that weren't available or lacked proper permissions during workflow execution.
 
-**Basic Configuration:**
+**Basic Configuration (enabled by default):**
 ```yaml
 safe-outputs:
-  missing-tool:                           # Enable missing-tool reporting
+  create-issue:    # Any safe-output configuration enables missing-tool by default
+```
+
+**Explicitly Disable:**
+```yaml
+safe-outputs:
+  create-issue:
+  missing-tool: false    # Explicitly disable missing-tool reporting
 ```
 
 **With Configuration:**
@@ -574,7 +581,7 @@ safe-outputs:
     max: 10                             # Optional: maximum number of missing tool reports (default: unlimited)
 ```
 
-The agentic part of your workflow can report missing tools or functionality that prevents it from completing its task.
+The agentic part of your workflow can report missing tools or functionality that prevents it from completing its task. Additionally, the system **automatically detects and reports tools that failed due to permission errors**, ensuring visibility into authorization-related issues.
 
 **Example natural language to generate the output:**
 
@@ -588,16 +595,24 @@ permissions:
   actions: read
 engine: claude
 safe-outputs:
-  missing-tool:
-    max: 10
+  create-issue:    # missing-tool is enabled by default
 ---
 
 # Development Task Agent
 
-Analyze the repository and implement the requested feature. If you encounter missing tools, capabilities, or permissions that prevent completion, report them so the user can address these limitations.
+Analyze the repository and implement the requested feature. If you encounter missing tools, capabilities, or permissions that prevent completion, they will be automatically reported so the user can address these limitations.
 ```
 
 The compiled workflow will have additional prompting describing that, to report missing tools, it should write the tool information to a special file.
+
+**Automatic Permission Error Detection:**
+
+The workflow engine automatically scans execution logs for permission-related errors and creates missing-tool entries for:
+- Tools that were attempted but lacked required permissions
+- API calls that failed due to insufficient authorization
+- Operations blocked by repository access controls
+
+This helps identify configuration issues without requiring manual reporting.
 
 **Safety Features:**
 
