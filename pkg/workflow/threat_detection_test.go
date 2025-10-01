@@ -115,7 +115,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				t.Errorf("Expected Enabled %v, got %v", tt.expectedConfig.Enabled, result.Enabled)
 			}
 
-
 			if len(result.Steps) != len(tt.expectedConfig.Steps) {
 				t.Errorf("Expected %d steps, got %d", len(tt.expectedConfig.Steps), len(result.Steps))
 			}
@@ -259,7 +258,7 @@ func TestThreatDetectionExplicitDisable(t *testing.T) {
 	// Test that threat detection can be explicitly disabled
 	frontmatter := map[string]any{
 		"safe-outputs": map[string]any{
-			"create-issue":       map[string]any{},
+			"create-issue":     map[string]any{},
 			"threat-detection": false,
 		},
 	}
@@ -300,7 +299,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	// Check that both detection and create_issue jobs were created
 	jobs := compiler.jobManager.GetAllJobs()
 	var detectionJob, createIssueJob *Job
-	
+
 	for _, job := range jobs {
 		switch job.Name {
 		case "detection":

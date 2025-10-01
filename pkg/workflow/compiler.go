@@ -139,9 +139,9 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
-	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
+	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`     // Optional for reporting missing functionality
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"` // Threat detection configuration
-	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`         // Safe-jobs configuration (moved from top-level)
+	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`             // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs

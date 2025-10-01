@@ -11,8 +11,8 @@ var defaultThreatDetectionPrompt string
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
-	Enabled bool     `yaml:"enabled,omitempty"`        // Whether threat detection is enabled
-	Steps   []any    `yaml:"steps,omitempty"`          // Array of extra job steps
+	Enabled bool  `yaml:"enabled,omitempty"` // Whether threat detection is enabled
+	Steps   []any `yaml:"steps,omitempty"`   // Array of extra job steps
 }
 
 // parseThreatDetectionConfig handles threat-detection configuration
@@ -37,10 +37,6 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 					threatConfig.Enabled = enabledBool
 				}
 			}
-
-
-
-
 
 			// Parse steps field
 			if steps, exists := configMap["steps"]; exists {
@@ -68,16 +64,9 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	// Build steps using a more structured approach
 	steps := c.buildThreatDetectionSteps(data, mainJobName)
 
-	// Determine the job condition for command workflows
-	var jobCondition string
-	if data.Command != "" {
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		jobCondition = commandCondition.Render()
-	}
-
 	job := &Job{
 		Name:           "detection",
-		If:             jobCondition,
+		If:             "",
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions: read-all",
 		TimeoutMinutes: 10,
@@ -167,7 +156,7 @@ const promptContent = templateContent
 fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
 fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
 core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
-core.info('Threat detection setup completed');`, 
+core.info('Threat detection setup completed');`,
 		c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
 }
 
@@ -227,11 +216,11 @@ func (c *Compiler) buildParsingStep() []string {
 		"        with:\n",
 		"          script: |\n",
 	}
-	
+
 	parsingScript := c.buildResultsParsingScript()
 	formattedParsingScript := FormatJavaScriptForYAML(parsingScript)
 	steps = append(steps, formattedParsingScript...)
-	
+
 	return steps
 }
 
@@ -322,6 +311,3 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 	}
 	return result
 }
-
-
-

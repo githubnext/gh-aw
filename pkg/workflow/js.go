@@ -69,8 +69,6 @@ var missingToolScript string
 //go:embed js/safe_outputs_mcp_server.cjs
 var safeOutputsMCPServerScript string
 
-
-
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {
@@ -442,5 +440,3 @@ func GetLogParserScript(name string) string {
 func GetSafeOutputsMCPServerScript() string {
 	return safeOutputsMCPServerScript
 }
-
-
