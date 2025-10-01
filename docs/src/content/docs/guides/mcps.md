@@ -85,7 +85,8 @@ This command automatically:
 
 Different AI engines support different MCP features:
 
-- **Claude** (default): ✅ Full MCP support (stdio, Docker, HTTP)
+- **Copilot** (default): ✅ Full MCP support (stdio, Docker, HTTP)
+- **Claude**: ✅ Full MCP support (stdio, Docker, HTTP)
 - **Codex** (experimental): ✅ Limited MCP support (stdio only, no HTTP)
 
 **Note**: When using Codex engine, HTTP MCP servers will be ignored and only stdio-based servers will be configured.
