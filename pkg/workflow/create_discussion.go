@@ -90,20 +90,11 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 		"discussion_url":    "${{ steps.create_discussion.outputs.discussion_url }}",
 	}
 
-	// Determine the job condition based on command configuration
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-		jobCondition = commandConditionStr
-	} else {
-		jobCondition = "" // No conditional execution
-	}
+	jobCondition := BuildSafeOutputType("create-discussion")
 
 	job := &Job{
 		Name:           "create_discussion",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      discussions: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required

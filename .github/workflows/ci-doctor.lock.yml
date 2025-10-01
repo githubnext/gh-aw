@@ -2091,7 +2091,7 @@ jobs:
 
   create_issue:
     needs: agent
-    if: contains(needs.agent.outputs.output_types, 'create-issue')
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2270,9 +2270,11 @@ jobs:
               await main();
             })();
 
-  create_issue_comment:
+  add_comment:
     needs: agent
-    if: github.event.issue.number || github.event.pull_request.number
+    if: >
+      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && ((github.event.issue.number) ||
+      (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2436,7 +2438,7 @@ jobs:
 
   missing_tool:
     needs: agent
-    if: ${{ always() }}
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing-tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
