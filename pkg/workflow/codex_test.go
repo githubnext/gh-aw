@@ -162,7 +162,7 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Execute Claude Code CLI") {
 					t.Errorf("Expected lock file to contain 'Execute Claude Code CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code@latest") {
+				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code@2.0.1") {
 					t.Errorf("Expected lock file to contain Claude Code npx command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
