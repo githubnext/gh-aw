@@ -151,8 +151,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
 	// Build the command string with proper argument formatting
-	// Use version from engine config if provided, otherwise default to latest
-	version := "latest"
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := constants.DefaultClaudeCodeVersion
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
 	}
