@@ -137,7 +137,7 @@ func (b *InteractiveWorkflowBuilder) promptForEngine() error {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Which AI engine should process this workflow?").
-				Description("Claude is recommended for most use cases").
+				Description("Copilot is recommended for most use cases").
 				Options(engineOptions...).
 				Value(&b.Engine),
 		),

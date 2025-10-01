@@ -85,7 +85,8 @@ This command automatically:
 
 Different AI engines support different MCP features:
 
-- **Claude** (default): ✅ Full MCP support (stdio, Docker, HTTP)
+- **Copilot** (default): ✅ Full MCP support (stdio, Docker, HTTP)
+- **Claude**: ✅ Full MCP support (stdio, Docker, HTTP)
 - **Codex** (experimental): ✅ Limited MCP support (stdio only, no HTTP)
 
 **Note**: When using Codex engine, HTTP MCP servers will be ignored and only stdio-based servers will be configured.
@@ -176,7 +177,7 @@ tools:
 
 ## Tool Allow-listing
 
-When using an agentic engine that allows tool whitelisting (e.g. Claude), you can control which MCP tools are available to your workflow.
+When using an agentic engine that supports tool allow-listing (e.g. Claude), you can control which MCP tools are available to your workflow.
 
 ### Specific Tools
 
@@ -188,7 +189,7 @@ mcp-servers:
     allowed: ["tool1", "tool2", "tool3"]
 ```
 
-When using an agentic engine that allows tool whitelisting (e.g. Claude), this generates tool names: `mcp__servername__tool1`, `mcp__servername__tool2`, etc.
+When using an agentic engine that supports tool allow-listing (e.g. Claude), this generates tool names: `mcp__servername__tool1`, `mcp__servername__tool2`, etc.
 
 > [!TIP]
 > You can inspect tools available from MCP servers by running: <br/>
@@ -205,7 +206,7 @@ mcp-servers:
     allowed: ["*"]  # Allow ALL tools from this server
 ```
 
-When using an agentic engine that allows tool whitelisting (e.g. Claude), this generates: `mcp__servername` (access to all server tools)
+When using an agentic engine that supports tool allow-listing (e.g. Claude), this generates: `mcp__servername` (access to all server tools)
 
 ### HTTP Headers
 

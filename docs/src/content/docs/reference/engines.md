@@ -9,33 +9,9 @@ GitHub Agentic Workflows support multiple AI engines to interpret and execute na
 
 ## Agentic Engines
 
-### Anthropic Claude Code (Default)
+### GitHub Copilot (Default)
 
-Claude Code is the default and recommended AI engine for most workflows. It excels at reasoning, code analysis, and understanding complex contexts.
-
-```yaml
-engine: claude
-```
-
-**Extended configuration:**
-```yaml
-engine:
-  id: claude
-  version: beta
-  model: claude-3-5-sonnet-20241022
-  max-turns: 5
-  env:
-    AWS_REGION: us-west-2
-    DEBUG_MODE: "true"
-```
-
-#### Secrets
-
-- `ANTHROPIC_API_KEY` secret is required for authentication.
-
-### GitHub Copilot (Experimental)
-
-[GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) with MCP server support. Designed for conversational AI workflows with access to GitHub repositories and development tools.
+GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows with access to GitHub repositories and development tools.
 
 ```yaml
 engine: copilot
@@ -61,6 +37,30 @@ engine:
 - `COPILOT_CLI_TOKEN` secret is required for authentication.
 
 > **Important**: The standard GitHub Actions `GITHUB_TOKEN` is **not compatible** with GitHub Copilot CLI. You must use a Personal Access Token (PAT) with appropriate permissions.
+
+### Anthropic Claude Code
+
+Claude Code excels at reasoning, code analysis, and understanding complex contexts. It provides robust capabilities for agentic workflows.
+
+```yaml
+engine: claude
+```
+
+**Extended configuration:**
+```yaml
+engine:
+  id: claude
+  version: beta
+  model: claude-3-5-sonnet-20241022
+  max-turns: 5
+  env:
+    AWS_REGION: us-west-2
+    DEBUG_MODE: "true"
+```
+
+#### Secrets
+
+- `ANTHROPIC_API_KEY` secret is required for authentication.
 
 ### OpenAI Codex (Experimental)
 

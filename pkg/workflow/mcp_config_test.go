@@ -28,6 +28,7 @@ func TestGitHubMCPConfiguration(t *testing.T) {
 		{
 			name: "default Docker server",
 			frontmatter: `---
+engine: claude
 tools:
   github:
     allowed: [list_issues, create_issue]

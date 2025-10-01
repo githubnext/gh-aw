@@ -75,8 +75,8 @@ func TestEngineRegistry(t *testing.T) {
 
 	// Test GetDefaultEngine
 	defaultEngine := registry.GetDefaultEngine()
-	if defaultEngine.GetID() != "claude" {
-		t.Errorf("Expected default engine to be claude, got '%s'", defaultEngine.GetID())
+	if defaultEngine.GetID() != "copilot" {
+		t.Errorf("Expected default engine to be copilot, got '%s'", defaultEngine.GetID())
 	}
 
 	// Test GetEngineByPrefix

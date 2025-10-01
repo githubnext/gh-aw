@@ -826,7 +826,7 @@ jobs:
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
               workflow_name: "Test Copilot with Missing Tool Safe Output and Cache Memory",
-              experimental: true,
+              experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -1963,7 +1963,7 @@ jobs:
 
   missing_tool:
     needs: agent
-    if: ${{ always() }}
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing-tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

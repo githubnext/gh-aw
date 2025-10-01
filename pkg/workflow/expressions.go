@@ -205,6 +205,14 @@ func buildConditionTree(existingCondition string, draftCondition string) Conditi
 	return &AndNode{Left: existingNode, Right: draftNode}
 }
 
+func buildOr(left ConditionNode, right ConditionNode) ConditionNode {
+	return &OrNode{Left: left, Right: right}
+}
+
+func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
+	return &AndNode{Left: left, Right: right}
+}
+
 // buildReactionCondition creates a condition tree for the add_reaction job
 func buildReactionCondition() ConditionNode {
 	// Build a list of event types that should trigger reactions using the new expression nodes
@@ -305,10 +313,15 @@ func BuildNotFromFork() *ComparisonNode {
 }
 
 func BuildSafeOutputType(outputType string) ConditionNode {
-	return BuildFunctionCall("contains",
+	alwaysFunc := BuildFunctionCall("always")
+	containsFunc := BuildFunctionCall("contains",
 		BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
 		BuildStringLiteral(outputType),
 	)
+	return &AndNode{
+		Left:  alwaysFunc,
+		Right: containsFunc,
+	}
 }
 
 // BuildFromAllowedForks creates a condition to check if a pull request is from an allowed fork
