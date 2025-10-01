@@ -124,15 +124,14 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("create-issue").Render()
+	jobCondition := BuildSafeOutputType("create-issue")
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: read\n      issues: write"
 
 	job := &Job{
 		Name:           "create_issue",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    permissions,
 		TimeoutMinutes: 10, // 10-minute timeout as required

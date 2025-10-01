@@ -2186,7 +2186,7 @@ jobs:
 
   create_pull_request:
     needs: agent
-    if: contains(needs.agent.outputs.output_types, 'create-pull-request')
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-pull-request'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -2516,7 +2516,10 @@ jobs:
 
   push_to_pull_request_branch:
     needs: agent
-    if: (github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request
+    if: >
+      ((always()) && (contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch'))) &&
+      (((github.event.issue.number) &&
+      (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -2814,7 +2817,7 @@ jobs:
 
   missing_tool:
     needs: agent
-    if: ${{ always() }}
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing-tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -107,12 +107,11 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
 	}
 
-	// Determine the job condition for command workflows
-	jobCondition := BuildSafeOutputType("create-pull-request").Render()
+	jobCondition := BuildSafeOutputType("create-pull-request")
 
 	job := &Job{
 		Name:           "create_pull_request",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: write\n      issues: write\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
