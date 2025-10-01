@@ -256,7 +256,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
 		case "safe-outputs":
 			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
-		case "mcp/fetch":
+		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "toml", "          ", false)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)

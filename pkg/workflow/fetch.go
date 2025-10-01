@@ -26,19 +26,19 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 	// Remove the web-fetch tool since we'll replace it with an MCP server
 	delete(updatedTools, "web-fetch")
 
-	// Add the mcp/fetch server configuration
+	// Add the web-fetch server configuration
 	// Note: The "container" key marks this as an MCP server with stdio transport.
 	// The actual rendering is done by renderMCPFetchServerConfig() which uses
 	// the standardized Docker command format for all engines.
-	mcpFetchConfig := map[string]any{
+	webFetchConfig := map[string]any{
 		"container": "ghcr.io/modelcontextprotocol/servers/fetch:latest",
 	}
 
-	// Add the mcp/fetch server to the tools
-	updatedTools["mcp/fetch"] = mcpFetchConfig
+	// Add the web-fetch server to the tools
+	updatedTools["web-fetch"] = webFetchConfig
 
 	// Return the updated tools and the list of added MCP servers
-	return updatedTools, []string{"mcp/fetch"}
+	return updatedTools, []string{"web-fetch"}
 }
 
 // renderMCPFetchServerConfig renders the MCP fetch server configuration
@@ -46,7 +46,7 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent string, isLast bool) {
 	if format == "json" {
 		// JSON format (for Claude, Custom engines)
-		yaml.WriteString(indent + "\"mcp/fetch\": {\n")
+		yaml.WriteString(indent + "\"web-fetch\": {\n")
 		yaml.WriteString(indent + "  \"command\": \"docker\",\n")
 		yaml.WriteString(indent + "  \"args\": [\n")
 		yaml.WriteString(indent + "    \"run\",\n")
@@ -62,7 +62,7 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 	} else if format == "toml" {
 		// TOML format (for Codex engine)
 		yaml.WriteString(indent + "\n")
-		yaml.WriteString(indent + "[mcp_servers.\"mcp/fetch\"]\n")
+		yaml.WriteString(indent + "[mcp_servers.\"web-fetch\"]\n")
 		yaml.WriteString(indent + "command = \"docker\"\n")
 		yaml.WriteString(indent + "args = [\n")
 		yaml.WriteString(indent + "  \"run\",\n")

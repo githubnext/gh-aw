@@ -224,7 +224,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
 		case "safe-outputs":
 			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
-		case "mcp/fetch":
+		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "json", "              ", isLast)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)

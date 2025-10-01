@@ -8,7 +8,7 @@ import (
 )
 
 // TestWebFetchMCPServerAddition tests that when a Codex workflow uses web-fetch,
-// the mcp/fetch server is automatically added
+// the web-fetch MCP server is automatically added
 func TestWebFetchMCPServerAddition(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
@@ -49,28 +49,27 @@ Fetch content from the web.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	// Verify that the compiled workflow contains the mcp/fetch server configuration
+	// Verify that the compiled workflow contains the web-fetch MCP server configuration
 	lockContent := string(lockData)
 
-	// The TOML config should contain the mcp/fetch server
-	if !strings.Contains(lockContent, `[mcp_servers."mcp/fetch"]`) {
-		t.Errorf("Expected compiled workflow to contain mcp/fetch server configuration, but it didn't")
+	// The TOML config should contain the web-fetch server
+	if !strings.Contains(lockContent, `[mcp_servers."web-fetch"]`) {
+		t.Errorf("Expected compiled workflow to contain web-fetch MCP server configuration, but it didn't")
 	}
 
 	// Verify the Docker command is present
 	if !strings.Contains(lockContent, `ghcr.io/modelcontextprotocol/servers/fetch:latest`) {
-		t.Errorf("Expected mcp/fetch server to use the Docker image, but it didn't")
+		t.Errorf("Expected web-fetch MCP server to use the Docker image, but it didn't")
 	}
 
-	// Verify that web-fetch is no longer in the tools section (it should be replaced by mcp/fetch)
-	// This is harder to verify directly, but we can check that the mcp/fetch server is configured
+	// Verify that the MCP server is configured with Docker
 	if !strings.Contains(lockContent, `command = "docker"`) {
-		t.Errorf("Expected mcp/fetch server to have Docker command")
+		t.Errorf("Expected web-fetch MCP server to have Docker command")
 	}
 }
 
 // TestWebFetchNotAddedForClaudeEngine tests that when a Claude workflow uses web-fetch,
-// the mcp/fetch server is NOT added (because Claude has native support)
+// the web-fetch MCP server is NOT added (because Claude has native support)
 func TestWebFetchNotAddedForClaudeEngine(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
@@ -111,12 +110,19 @@ Fetch content from the web.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	// Verify that the compiled workflow does NOT contain the mcp/fetch server configuration
+	// Verify that the compiled workflow does NOT contain the web-fetch MCP server configuration
 	lockContent := string(lockData)
 
-	// Claude uses JSON format, so check for JSON-style mcp/fetch
-	if strings.Contains(lockContent, `"mcp/fetch"`) {
-		t.Errorf("Expected Claude workflow NOT to contain mcp/fetch server (since Claude has native web-fetch support), but it did")
+	// Claude uses JSON format, check that web-fetch is NOT configured as an MCP server
+	// Look for the MCP server configuration pattern with "command": "docker"
+	// We can't simply search for "web-fetch" because Claude will have it in the allowed tools
+	if strings.Contains(lockContent, `"web-fetch": {`) && strings.Contains(lockContent, `"command": "docker"`) {
+		// Check if both appear close together (indicating MCP server config)
+		dockerIdx := strings.Index(lockContent, `"command": "docker"`)
+		webFetchIdx := strings.Index(lockContent, `"web-fetch": {`)
+		if dockerIdx > 0 && webFetchIdx > 0 && dockerIdx-webFetchIdx < 200 {
+			t.Errorf("Expected Claude workflow NOT to contain web-fetch MCP server (since Claude has native web-fetch support), but it did")
+		}
 	}
 
 	// Instead, Claude should have the WebFetch tool in its allowed tools list
@@ -126,7 +132,7 @@ Fetch content from the web.
 }
 
 // TestNoWebFetchNoMCPFetchServer tests that when a workflow doesn't use web-fetch,
-// the mcp/fetch server is not added
+// the web-fetch MCP server is not added
 func TestNoWebFetchNoMCPFetchServer(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
@@ -168,10 +174,11 @@ Run some bash commands.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	// Verify that the compiled workflow does NOT contain the mcp/fetch server configuration
+	// Verify that the compiled workflow does NOT contain the web-fetch MCP server configuration
 	lockContent := string(lockData)
 
-	if strings.Contains(lockContent, `mcp/fetch`) {
-		t.Errorf("Expected workflow without web-fetch NOT to contain mcp/fetch server, but it did")
+	// Check for web-fetch MCP server configuration (Docker-based)
+	if strings.Contains(lockContent, `"web-fetch"`) || strings.Contains(lockContent, `[mcp_servers."web-fetch"]`) {
+		t.Errorf("Expected workflow without web-fetch NOT to contain web-fetch MCP server, but it did")
 	}
 }

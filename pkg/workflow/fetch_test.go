@@ -7,45 +7,45 @@ import (
 
 func TestAddMCPFetchServerIfNeeded(t *testing.T) {
 	tests := []struct {
-		name           string
-		tools          map[string]any
-		engineSupports bool
-		expectFetch    bool
-		expectWebFetch bool
+		name             string
+		tools            map[string]any
+		engineSupports   bool
+		expectMCPServer  bool // expect web-fetch to be an MCP server (with container key)
+		expectNativeTool bool // expect web-fetch to be a native tool (nil or simple config)
 	}{
 		{
 			name: "web-fetch requested, engine supports it",
 			tools: map[string]any{
 				"web-fetch": nil,
 			},
-			engineSupports: true,
-			expectFetch:    false,
-			expectWebFetch: true,
+			engineSupports:   true,
+			expectMCPServer:  false,
+			expectNativeTool: true,
 		},
 		{
 			name: "web-fetch requested, engine does not support it",
 			tools: map[string]any{
 				"web-fetch": nil,
 			},
-			engineSupports: false,
-			expectFetch:    true,
-			expectWebFetch: false,
+			engineSupports:   false,
+			expectMCPServer:  true,
+			expectNativeTool: false,
 		},
 		{
 			name: "web-fetch not requested",
 			tools: map[string]any{
 				"bash": nil,
 			},
-			engineSupports: false,
-			expectFetch:    false,
-			expectWebFetch: false,
+			engineSupports:   false,
+			expectMCPServer:  false,
+			expectNativeTool: false,
 		},
 		{
-			name:           "empty tools",
-			tools:          map[string]any{},
-			engineSupports: false,
-			expectFetch:    false,
-			expectWebFetch: false,
+			name:             "empty tools",
+			tools:            map[string]any{},
+			engineSupports:   false,
+			expectMCPServer:  false,
+			expectNativeTool: false,
 		},
 	}
 
@@ -62,22 +62,47 @@ func TestAddMCPFetchServerIfNeeded(t *testing.T) {
 
 			updatedTools, addedServers := AddMCPFetchServerIfNeeded(tt.tools, engine)
 
-			// Check if mcp/fetch was added
-			_, hasFetch := updatedTools["mcp/fetch"]
-			if hasFetch != tt.expectFetch {
-				t.Errorf("Expected mcp/fetch present=%v, got %v", tt.expectFetch, hasFetch)
+			// Check if web-fetch entry exists and determine if it's MCP server or native tool
+			webFetchEntry, hasWebFetch := updatedTools["web-fetch"]
+			
+			if tt.expectMCPServer {
+				if !hasWebFetch {
+					t.Errorf("Expected web-fetch MCP server to be present, but it wasn't")
+				} else {
+					// Check if it's an MCP server config (has "container" key)
+					if configMap, ok := webFetchEntry.(map[string]any); ok {
+						if _, hasContainer := configMap["container"]; !hasContainer {
+							t.Errorf("Expected web-fetch to be an MCP server (with container key), but it wasn't")
+						}
+					} else {
+						t.Errorf("Expected web-fetch to be a map config, got %T", webFetchEntry)
+					}
+				}
 			}
 
-			// Check if web-fetch was kept or removed
-			_, hasWebFetch := updatedTools["web-fetch"]
-			if hasWebFetch != tt.expectWebFetch {
-				t.Errorf("Expected web-fetch present=%v, got %v", tt.expectWebFetch, hasWebFetch)
+			if tt.expectNativeTool {
+				if !hasWebFetch {
+					t.Errorf("Expected web-fetch native tool to be present, but it wasn't")
+				} else {
+					// Native tool should be nil or not have MCP config
+					if configMap, ok := webFetchEntry.(map[string]any); ok {
+						if _, hasContainer := configMap["container"]; hasContainer {
+							t.Errorf("Expected web-fetch to be a native tool, but it has MCP server config")
+						}
+					}
+				}
+			}
+
+			if !tt.expectMCPServer && !tt.expectNativeTool {
+				if hasWebFetch {
+					t.Errorf("Expected no web-fetch entry, but found one")
+				}
 			}
 
 			// Check the returned list of added servers
-			if tt.expectFetch {
-				if len(addedServers) != 1 || addedServers[0] != "mcp/fetch" {
-					t.Errorf("Expected addedServers to contain 'mcp/fetch', got %v", addedServers)
+			if tt.expectMCPServer {
+				if len(addedServers) != 1 || addedServers[0] != "web-fetch" {
+					t.Errorf("Expected addedServers to contain 'web-fetch', got %v", addedServers)
 				}
 			} else {
 				if len(addedServers) != 0 {
@@ -102,7 +127,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			indent: "    ",
 			isLast: false,
 			expectSubstr: []string{
-				`"mcp/fetch": {`,
+				`"web-fetch": {`,
 				`"command": "docker"`,
 				`"ghcr.io/modelcontextprotocol/servers/fetch:latest"`,
 				`},`,
@@ -114,7 +139,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			indent: "    ",
 			isLast: true,
 			expectSubstr: []string{
-				`"mcp/fetch": {`,
+				`"web-fetch": {`,
 				`"command": "docker"`,
 				`"ghcr.io/modelcontextprotocol/servers/fetch:latest"`,
 				`}`, // No comma
@@ -126,7 +151,7 @@ func TestRenderMCPFetchServerConfig(t *testing.T) {
 			indent: "  ",
 			isLast: false,
 			expectSubstr: []string{
-				`[mcp_servers."mcp/fetch"]`,
+				`[mcp_servers."web-fetch"]`,
 				`command = "docker"`,
 				`"ghcr.io/modelcontextprotocol/servers/fetch:latest"`,
 			},
