@@ -174,7 +174,8 @@ Examples:
 			os.Exit(1)
 		}
 		// Invert noInstructions to get skipInstructions (by default, we want to write instructions)
-		skipInstructions := noInstructions
+		// Also skip instructions when noEmit is true (validation-only mode)
+		skipInstructions := noInstructions || noEmit
 		if err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, workflowDir, skipInstructions, noEmit, purge); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
