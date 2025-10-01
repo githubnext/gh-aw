@@ -147,32 +147,6 @@ var disableCmd = &cobra.Command{
 	},
 }
 
-var initCmd = &cobra.Command{
-	Use:   "init",
-	Short: "Initialize repository for agentic workflows",
-	Long: `Initialize the repository for agentic workflows by configuring .gitattributes and creating GitHub Copilot instruction files.
-
-This command:
-- Configures .gitattributes to mark .lock.yml files as generated
-- Creates GitHub Copilot custom instructions at .github/instructions/github-agentic-workflows.instructions.md
-- Creates the /create-agentic-workflow prompt at .github/prompts/create-agentic-workflow.prompt.md
-
-After running this command, you can:
-- Use GitHub Copilot Chat with /create-agentic-workflow to create workflows interactively
-- Add workflows from the catalog with: ` + constants.CLIExtensionPrefix + ` add <workflow-name>
-- Create new workflows from scratch with: ` + constants.CLIExtensionPrefix + ` new <workflow-name>
-
-Examples:
-  ` + constants.CLIExtensionPrefix + ` init
-  ` + constants.CLIExtensionPrefix + ` init -v`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := cli.InitRepository(verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
-	},
-}
-
 var compileCmd = &cobra.Command{
 	Use:   "compile [markdown-file]...",
 	Short: "Compile markdown to YAML workflows",
@@ -308,6 +282,9 @@ func init() {
 
 	// Create and setup add command
 	addCmd := cli.NewAddCommand(verbose, validateEngine)
+
+	// Create and setup init command
+	initCmd := NewInitCommand(verbose)
 
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
