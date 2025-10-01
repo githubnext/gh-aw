@@ -4,16 +4,9 @@ on:
   push:
     branches:
       - copilot*
-engine: copilot
-tools:
-  github:
-    allowed:
-      - list_pull_requests
-      - get_pull_request
+engine: github-models
 safe-outputs:
     staged: true
     create-issue:
 ---
-# Dev
-List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else.
-Post result in an issue.
+Generate a poem. Post result in an issue.
