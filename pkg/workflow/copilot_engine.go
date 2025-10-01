@@ -550,7 +550,7 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 								}
 							}
 						}
-						
+
 						// Add server-level permission only if wildcard was present
 						if hasWildcard {
 							args = append(args, "--allow-tool", "github")
