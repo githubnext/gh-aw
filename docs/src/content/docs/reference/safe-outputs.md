@@ -665,7 +665,7 @@ When `create-pull-request` or `push-to-pull-request-branch` are configured, thes
 - **Write**: Allows creating new files or overwriting existing files
 - **NotebookEdit**: Allows editing Jupyter notebook files
 
-Along with the file editing tools, these Git commands are also automatically whitelisted:
+Along with the file editing tools, these Git commands are also automatically allowed:
 
 - `git checkout:*`
 - `git branch:*`

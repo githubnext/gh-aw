@@ -105,7 +105,7 @@ jobs:
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
               workflow_name: "Test Copilot Push to PR Branch",
-              experimental: true,
+              experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,

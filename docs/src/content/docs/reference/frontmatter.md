@@ -150,11 +150,11 @@ roles: admin
 
 ## AI Engine (`engine:`)
 
-The `engine:` section specifies which AI engine to use to interpret the markdown section of the workflow, and controls options about how this execution proceeds. Defaults to `claude`.
+The `engine:` section specifies which AI engine to use to interpret the markdown section of the workflow, and controls options about how this execution proceeds. Defaults to `copilot`.
 
 ```yaml
-engine: claude  # Default: Claude Code
-engine: copilot # Experimental: GitHub Copilot CLI with MCP support
+engine: copilot # Default: GitHub Copilot CLI with MCP support
+engine: claude  # Anthropic Claude Code
 engine: codex   # Experimental: OpenAI Codex CLI with MCP support
 engine: custom  # Custom: Execute user-defined GitHub Actions steps
 ```
@@ -165,10 +165,10 @@ Extended format:
 
 ```yaml
 engine:
-  id: claude                        # Required: engine identifier
-  version: beta                     # Optional: version of the action
-  model: claude-3-5-sonnet-20241022 # Optional: specific LLM model
-  max-turns: 5                      # Optional: maximum chat iterations per run
+  id: copilot                       # Required: engine identifier (copilot, claude, codex, custom)
+  version: latest                   # Optional: version of the action
+  model: gpt-5                      # Optional: specific LLM model (for copilot)
+  max-turns: 5                      # Optional: maximum chat iterations per run (for claude)
   env:                              # Optional: custom environment variables
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com

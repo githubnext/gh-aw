@@ -23,7 +23,7 @@ func NewCopilotEngine() *CopilotEngine {
 			id:                     "copilot",
 			displayName:            "GitHub Copilot CLI",
 			description:            "Uses GitHub Copilot CLI with MCP server support",
-			experimental:           true,
+			experimental:           false,
 			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  true,  // Copilot CLI supports HTTP transport via MCP
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet

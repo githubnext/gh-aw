@@ -17,8 +17,8 @@ func TestCopilotEngine(t *testing.T) {
 		t.Errorf("Expected 'GitHub Copilot CLI' display name, got '%s'", engine.GetDisplayName())
 	}
 
-	if !engine.IsExperimental() {
-		t.Error("Expected copilot engine to be experimental")
+	if engine.IsExperimental() {
+		t.Error("Expected copilot engine to not be experimental")
 	}
 
 	if !engine.SupportsToolsAllowlist() {
