@@ -1704,6 +1704,11 @@
             {
               "type": "null",
               "description": "Enable missing tool reporting with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": false,
+              "description": "Explicitly disable missing tool reporting (false). Missing tool reporting is enabled by default when safe-outputs is configured."
             }
           ]
         },
@@ -1732,6 +1737,18 @@
                     "type": "string",
                     "pattern": "^\\.[a-zA-Z0-9]+$"
                   }
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of assets to upload (default: 10)",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of assets to upload (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 100
                 },
                 "github-token": {
                   "type": "string",

@@ -61,6 +61,11 @@ func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
 	return []string{logsFolder}
 }
 
+// GetVersionCommand returns the command to get Copilot CLI's version
+func (e *CopilotEngine) GetVersionCommand() string {
+	return "copilot --version"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
@@ -191,15 +196,12 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	var actualMCPTools []string
 	for _, toolName := range mcpTools {
 		switch toolName {
-		case "github":
-			// GitHub MCP is built-in to Copilot CLI, so skip adding it to configuration
-			continue
 		case "cache-memory":
 			// Cache-memory is handled as a simple file share, not an MCP server
 			// Skip adding it to the MCP configuration since no server is needed
 			continue
 		default:
-			// Include playwright, safe-outputs, and custom MCP tools
+			// Include all other tools (github, playwright, safe-outputs, and custom MCP tools)
 			actualMCPTools = append(actualMCPTools, toolName)
 		}
 	}
@@ -213,6 +215,9 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		isLast := serverCount == totalServers
 
 		switch toolName {
+		case "github":
+			githubTool := tools["github"]
+			e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
@@ -243,6 +248,34 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
 	//yaml.WriteString("          echo \"GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\"")
 
+}
+
+// renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
+// Uses Docker-based GitHub MCP server (similar to Claude engine)
+func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+
+	yaml.WriteString("              \"github\": {\n")
+	yaml.WriteString("                \"type\": \"local\",\n")
+
+	// Use Docker-based GitHub MCP server (same as Claude engine)
+	yaml.WriteString("                \"command\": \"docker\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"run\",\n")
+	yaml.WriteString("                  \"-i\",\n")
+	yaml.WriteString("                  \"--rm\",\n")
+	yaml.WriteString("                  \"-e\",\n")
+	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}\",\n")
+	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+	yaml.WriteString("                ],\n")
+	yaml.WriteString("                \"tools\": [\"*\"]\n")
+	// copilot does not support env
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
 }
 
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
@@ -482,19 +515,49 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 	}
 
 	// Built-in tool names that should be skipped when processing MCP servers
+	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
 		"web-fetch":  true,
 		"web-search": true,
 		"playwright": true,
-		"github":     true,
 	}
 
 	// Handle MCP server tools
 	for toolName, toolConfig := range tools {
 		// Skip built-in tools we've already handled
 		if builtInTools[toolName] {
+			continue
+		}
+
+		// GitHub is a special case - it's an MCP server but doesn't have explicit MCP config in the workflow
+		// It gets MCP configuration through the parser's processBuiltinMCPTool
+		if toolName == "github" {
+			if toolConfigMap, ok := toolConfig.(map[string]any); ok {
+				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
+					if allowedList, ok := allowed.([]any); ok {
+						// Process allowed list in a single pass
+						hasWildcard := false
+						for _, allowedTool := range allowedList {
+							if toolStr, ok := allowedTool.(string); ok {
+								if toolStr == "*" {
+									// Wildcard means allow entire GitHub MCP server
+									hasWildcard = true
+								} else {
+									// Add individual tool permission
+									args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+								}
+							}
+						}
+
+						// Add server-level permission only if wildcard was present
+						if hasWildcard {
+							args = append(args, "--allow-tool", "github")
+						}
+					}
+				}
+			}
 			continue
 		}
 

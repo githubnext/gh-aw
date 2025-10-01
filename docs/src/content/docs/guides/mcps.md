@@ -222,16 +222,15 @@ mcp-servers:
 
 ## Network Egress Permissions
 
-Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `permissions.network.allowed`.
+Restrict outbound network access for containerized MCP servers using a per‑tool domain allowlist. Define allowed domains under `network.allowed`.
 
 ```yaml
 mcp-servers:
   fetch:
     container: mcp/fetch
-    permissions:
-      network:
-        allowed:
-          - "example.com"
+    network:
+      allowed:
+        - "example.com"
     allowed: ["fetch"]
 ```
 

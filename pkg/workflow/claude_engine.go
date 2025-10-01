@@ -60,6 +60,11 @@ func (e *ClaudeEngine) GetDeclaredOutputFiles() []string {
 	return []string{}
 }
 
+// GetVersionCommand returns the command to get Claude's version
+func (e *ClaudeEngine) GetVersionCommand() string {
+	return "claude --version"
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
@@ -146,8 +151,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
 	// Build the command string with proper argument formatting
-	// Use version from engine config if provided, otherwise default to latest
-	version := "latest"
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := constants.DefaultClaudeCodeVersion
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
 	}

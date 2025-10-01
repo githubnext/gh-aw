@@ -112,8 +112,8 @@ gh aw compile --no-emit
 # Override the AI engine for specific compilation
 gh aw compile --engine copilot
 
-# Generate GitHub Copilot instructions file alongside workflows
-gh aw compile --instructions
+# Skip generating GitHub Copilot instructions and prompt files
+gh aw compile --no-instructions
 
 # Compile all workflows and remove orphaned .lock.yml files
 gh aw compile --purge

@@ -21,6 +21,31 @@ func TestMissingToolSafeOutput(t *testing.T) {
 			expectMax:    0,
 		},
 		{
+			name: "Safe-outputs with other config should enable missing-tool by default",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"create-issue": nil,
+				},
+			},
+			expectConfig: true,
+			expectJob:    true,
+			expectMax:    0,
+		},
+		{
+			name: "Explicit missing-tool: false should disable it",
+			frontmatter: map[string]any{
+				"name": "Test",
+				"safe-outputs": map[string]any{
+					"create-issue": nil,
+					"missing-tool": false,
+				},
+			},
+			expectConfig: false,
+			expectJob:    false,
+			expectMax:    0,
+		},
+		{
 			name: "Explicit missing-tool config with max",
 			frontmatter: map[string]any{
 				"name": "Test",
@@ -231,6 +256,13 @@ func TestMissingToolConfigParsing(t *testing.T) {
 			configData: map[string]any{},
 			expectMax:  -1, // Indicates nil config
 		},
+		{
+			name: "Explicit false disables missing-tool",
+			configData: map[string]any{
+				"missing-tool": false,
+			},
+			expectMax: -1, // Indicates nil config (disabled)
+		},
 	}
 
 	for _, tt := range tests {
@@ -239,7 +271,7 @@ func TestMissingToolConfigParsing(t *testing.T) {
 
 			if tt.expectMax == -1 {
 				if config != nil {
-					t.Error("Expected nil config when missing-tool key is absent")
+					t.Error("Expected nil config when missing-tool key is absent or disabled")
 				}
 			} else {
 				if config == nil {
