@@ -64,8 +64,8 @@ func TestEnsureCopilotInstructions(t *testing.T) {
 				}
 			}
 
-			// Call the function with writeInstructions=true to test the functionality
-			err = ensureCopilotInstructions(false, true)
+			// Call the function with skipInstructions=false to test the functionality
+			err = ensureCopilotInstructions(false, false)
 			if err != nil {
 				t.Fatalf("ensureCopilotInstructions() returned error: %v", err)
 			}
@@ -93,7 +93,7 @@ func TestEnsureCopilotInstructions(t *testing.T) {
 	}
 }
 
-func TestEnsureCopilotInstructions_WithWriteInstructionsFalse(t *testing.T) {
+func TestEnsureCopilotInstructions_WithSkipInstructionsTrue(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
@@ -115,15 +115,15 @@ func TestEnsureCopilotInstructions_WithWriteInstructionsFalse(t *testing.T) {
 	copilotDir := filepath.Join(tempDir, ".github", "instructions")
 	copilotInstructionsPath := filepath.Join(copilotDir, "github-agentic-workflows.instructions.md")
 
-	// Call the function with writeInstructions=false
-	err = ensureCopilotInstructions(false, false)
+	// Call the function with skipInstructions=true
+	err = ensureCopilotInstructions(false, true)
 	if err != nil {
 		t.Fatalf("ensureCopilotInstructions() returned error: %v", err)
 	}
 
 	// Check that file does not exist
 	if _, err := os.Stat(copilotInstructionsPath); !os.IsNotExist(err) {
-		t.Fatalf("Expected copilot instructions file to not exist when writeInstructions=false")
+		t.Fatalf("Expected copilot instructions file to not exist when skipInstructions=true")
 	}
 }
 
