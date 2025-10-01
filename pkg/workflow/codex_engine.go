@@ -478,7 +478,7 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
-	
+
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
 
@@ -504,13 +504,13 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	yaml.WriteString("            \"-e\",\n")
 	yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
 	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-	
+
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"" + arg + "\"")
 	}
-	
+
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
 	yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
@@ -534,13 +534,13 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 		yaml.WriteString("            \"--allowed-origins\",\n")
 		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
-	
+
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"" + arg + "\"")
 	}
-	
+
 	yaml.WriteString("\n")
 	yaml.WriteString("          ]\n")
 }

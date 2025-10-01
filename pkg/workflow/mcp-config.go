@@ -517,7 +517,9 @@ func getRawMCPConfig(toolConfig map[string]any, toolName string) (map[string]any
 	result := make(map[string]any)
 
 	// List of MCP fields that can be direct children of the tool config
-	mcpFields := []string{"type", "url", "command", "container", "args", "env", "headers", "network"}
+	// Note: "args" is NOT included here because it's used for built-in tools (github, playwright)
+	// to add custom arguments without making them custom MCP tools
+	mcpFields := []string{"type", "url", "command", "container", "env", "headers", "network"}
 
 	// Check new format: direct fields in tool config
 	for _, field := range mcpFields {

@@ -639,13 +639,13 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	yaml.WriteString("                  \"-e\",\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
 	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-	
+
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"" + arg + "\"")
 	}
-	
+
 	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
@@ -676,13 +676,13 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 		yaml.WriteString("                  \"--allowed-origins\",\n")
 		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
 	}
-	
+
 	// Append custom args if present
 	for _, arg := range customArgs {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"" + arg + "\"")
 	}
-	
+
 	yaml.WriteString("\n")
 	yaml.WriteString("                ]\n")
 
