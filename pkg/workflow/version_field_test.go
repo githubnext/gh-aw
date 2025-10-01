@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
@@ -47,8 +48,8 @@ func TestVersionField(t *testing.T) {
 			"allowed_domains": []any{"example.com"},
 		}
 		result = getPlaywrightDockerImageVersion(playwrightToolDefault)
-		if result != "latest" {
-			t.Errorf("Expected default latest, got %s", result)
+		if result != constants.DefaultPlaywrightVersion {
+			t.Errorf("Expected default %s, got %s", constants.DefaultPlaywrightVersion, result)
 		}
 	})
 

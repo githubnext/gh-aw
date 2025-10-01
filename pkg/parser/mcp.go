@@ -299,7 +299,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			Args: []string{
 				"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 				"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-				"mcr.microsoft.com/playwright:latest",
+				"mcr.microsoft.com/playwright:" + constants.DefaultPlaywrightVersion,
 			},
 			Env: make(map[string]string),
 		}

@@ -771,7 +771,7 @@ jobs:
               "playwright": {
                 "type": "local",
                 "command": "npx",
-                "args": ["@playwright/mcp@latest", "--output-dir", "/tmp/mcp-logs/playwright", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*"],
+                "args": ["@playwright/mcp@v1.55.1", "--output-dir", "/tmp/mcp-logs/playwright", "--allowed-origins", "localhost;localhost:*;127.0.0.1;127.0.0.1:*"],
                 "tools": ["*"]
               },
               "safe_outputs": {

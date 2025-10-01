@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestEnsureLocalhostDomains tests the helper function that ensures localhost domains are always included
@@ -232,7 +234,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"mcr.microsoft.com/playwright:latest",
+						"mcr.microsoft.com/playwright:" + constants.DefaultPlaywrightVersion,
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"},
 				},
@@ -277,7 +279,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
 						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"mcr.microsoft.com/playwright:latest",
+						"mcr.microsoft.com/playwright:" + constants.DefaultPlaywrightVersion,
 					},
 					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"},
 				},
