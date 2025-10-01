@@ -280,18 +280,20 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
 func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+	// Get the MCP NPM package version (different from Docker image version)
+	mcpVersion := getPlaywrightMCPPackageVersion(playwrightTool)
+	playwrightPackage := "@playwright/mcp@" + mcpVersion
 
-	// Use the version from docker args (which handles version configuration)
-	playwrightPackage := "@playwright/mcp@" + args.ImageVersion
+	// Get allowed domains
+	allowedDomains := generatePlaywrightAllowedDomains(playwrightTool, networkPermissions)
 
 	yaml.WriteString("              \"playwright\": {\n")
 	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"npx\",\n")
 	yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/mcp-logs/playwright\"")
 
-	if len(args.AllowedDomains) > 0 {
-		yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+	if len(allowedDomains) > 0 {
+		yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(allowedDomains, ";") + "\"")
 	}
 
 	yaml.WriteString("],\n")

@@ -33,7 +33,7 @@ func TestVersionField(t *testing.T) {
 
 	// Test Playwright tool version extraction
 	t.Run("Playwright version field extraction", func(t *testing.T) {
-		// Test "version" field
+		// Test "version" field for Docker image
 		playwrightTool := map[string]any{
 			"allowed_domains": []any{"example.com"},
 			"version":         "v1.41.0",
@@ -43,13 +43,35 @@ func TestVersionField(t *testing.T) {
 			t.Errorf("Expected v1.41.0, got %s", result)
 		}
 
-		// Test default value when version field is not present
+		// Test default value for Docker image when version field is not present
 		playwrightToolDefault := map[string]any{
 			"allowed_domains": []any{"example.com"},
 		}
 		result = getPlaywrightDockerImageVersion(playwrightToolDefault)
 		if result != constants.DefaultPlaywrightVersion {
 			t.Errorf("Expected default %s, got %s", constants.DefaultPlaywrightVersion, result)
+		}
+	})
+
+	// Test Playwright MCP package version extraction
+	t.Run("Playwright MCP package version field extraction", func(t *testing.T) {
+		// Test "version" field for MCP package
+		playwrightTool := map[string]any{
+			"allowed_domains": []any{"example.com"},
+			"version":         "v0.0.35",
+		}
+		result := getPlaywrightMCPPackageVersion(playwrightTool)
+		if result != "v0.0.35" {
+			t.Errorf("Expected v0.0.35, got %s", result)
+		}
+
+		// Test default value for MCP package when version field is not present
+		playwrightToolDefault := map[string]any{
+			"allowed_domains": []any{"example.com"},
+		}
+		result = getPlaywrightMCPPackageVersion(playwrightToolDefault)
+		if result != constants.DefaultPlaywrightMCPVersion {
+			t.Errorf("Expected default %s, got %s", constants.DefaultPlaywrightMCPVersion, result)
 		}
 	})
 
@@ -85,7 +107,7 @@ func TestVersionField(t *testing.T) {
 			t.Errorf("Expected to find v2.0.0 in args, got: %v", configs[0].Args)
 		}
 
-		// Test Playwright tool with "version" field
+		// Test Playwright tool with "version" field (now uses NPX with MCP package)
 		frontmatterPlaywright := map[string]any{
 			"tools": map[string]any{
 				"playwright": map[string]any{
@@ -106,13 +128,13 @@ func TestVersionField(t *testing.T) {
 
 		found = false
 		for _, arg := range configs[0].Args {
-			if strings.Contains(arg, "mcr.microsoft.com/playwright:v1.41.0") {
+			if strings.Contains(arg, "@playwright/mcp@v1.41.0") {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Expected to find v1.41.0 in args, got: %v", configs[0].Args)
+			t.Errorf("Expected to find @playwright/mcp@v1.41.0 in args, got: %v", configs[0].Args)
 		}
 	})
 }

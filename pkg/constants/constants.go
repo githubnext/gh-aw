@@ -12,8 +12,11 @@ const ExpressionBreakThreshold = 100
 // DefaultMCPRegistryURL is the default MCP registry URL
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
-// DefaultPlaywrightVersion is the pinned Playwright Docker image version
+// DefaultPlaywrightVersion is the pinned Playwright Docker image version (for Claude engine)
 const DefaultPlaywrightVersion = "v1.55.1"
+
+// DefaultPlaywrightMCPVersion is the pinned Playwright MCP NPM package version (for Copilot engine)
+const DefaultPlaywrightMCPVersion = "v0.0.40"
 
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation

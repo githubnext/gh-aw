@@ -229,19 +229,21 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			expected: []MCPServerConfig{
 				{
 					Name:    "playwright",
-					Type:    "docker",
-					Command: "docker",
+					Type:    "stdio",
+					Command: "npx",
 					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"mcr.microsoft.com/playwright:" + constants.DefaultPlaywrightVersion,
+						"@playwright/mcp@" + constants.DefaultPlaywrightMCPVersion,
+						"--output-dir",
+						"/tmp/mcp-logs/playwright",
+						"--allowed-origins",
+						"localhost;localhost:*;127.0.0.1;127.0.0.1:*;github.com;*.github.com",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,github.com,*.github.com"},
+					Env: map[string]string{},
 				},
 			},
 		},
 		{
-			name: "Playwright tool with custom Docker image",
+			name: "Playwright tool with custom MCP package version",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
 					"playwright": map[string]any{
@@ -253,14 +255,16 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			expected: []MCPServerConfig{
 				{
 					Name:    "playwright",
-					Type:    "docker",
-					Command: "docker",
+					Type:    "stdio",
+					Command: "npx",
 					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"mcr.microsoft.com/playwright:v1.41.0",
+						"@playwright/mcp@v1.41.0",
+						"--output-dir",
+						"/tmp/mcp-logs/playwright",
+						"--allowed-origins",
+						"localhost;localhost:*;127.0.0.1;127.0.0.1:*;example.com",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*,example.com"},
+					Env: map[string]string{},
 				},
 			},
 		},
@@ -274,14 +278,16 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			expected: []MCPServerConfig{
 				{
 					Name:    "playwright",
-					Type:    "docker",
-					Command: "docker",
+					Type:    "stdio",
+					Command: "npx",
 					Args: []string{
-						"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-						"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-						"mcr.microsoft.com/playwright:" + constants.DefaultPlaywrightVersion,
+						"@playwright/mcp@" + constants.DefaultPlaywrightMCPVersion,
+						"--output-dir",
+						"/tmp/mcp-logs/playwright",
+						"--allowed-origins",
+						"localhost;localhost:*;127.0.0.1;127.0.0.1:*",
 					},
-					Env: map[string]string{"PLAYWRIGHT_ALLOWED_DOMAINS": "localhost,localhost:*,127.0.0.1,127.0.0.1:*"},
+					Env: map[string]string{},
 				},
 			},
 		},

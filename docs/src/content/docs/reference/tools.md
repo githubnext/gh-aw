@@ -76,7 +76,7 @@ tools:
 ```yaml
 tools:
   playwright:
-    version: "v1.55.1"                   # Optional: Playwright version (defaults to v1.55.1)
+    version: "v0.0.40"                   # Optional: Playwright MCP package version (defaults to v0.0.40)
     allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
 ```
 

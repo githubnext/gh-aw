@@ -291,15 +291,16 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 		return &config, nil
 	} else if toolName == "playwright" {
-		// Handle Playwright MCP server - always use Docker by default
+		// Handle Playwright MCP server - use NPX with MCP package (matches engine implementations)
+		mcpVersion := constants.DefaultPlaywrightMCPVersion
 		config := MCPServerConfig{
 			Name:    "playwright",
-			Type:    "docker", // Playwright defaults to Docker (containerized)
-			Command: "docker",
+			Type:    "stdio", // Playwright uses npx to launch MCP server
+			Command: "npx",
 			Args: []string{
-				"run", "-i", "--rm", "--shm-size=2gb", "--cap-add=SYS_ADMIN",
-				"-e", "PLAYWRIGHT_ALLOWED_DOMAINS",
-				"mcr.microsoft.com/playwright:" + constants.DefaultPlaywrightVersion,
+				"@playwright/mcp@" + mcpVersion,
+				"--output-dir",
+				"/tmp/mcp-logs/playwright",
 			},
 			Env: make(map[string]string),
 		}
@@ -332,14 +333,14 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				allowedDomains = EnsureLocalhostDomains(customDomains)
 			}
 
-			// Check for custom Docker image version
+			// Check for custom MCP package version
 			if version, exists := toolConfig["version"]; exists {
 				if versionStr, ok := version.(string); ok {
-					dockerImage := "mcr.microsoft.com/playwright:" + versionStr
-					// Update the Docker image in args
+					mcpPackage := "@playwright/mcp@" + versionStr
+					// Update the MCP package version in args
 					for i, arg := range config.Args {
-						if strings.HasPrefix(arg, "mcr.microsoft.com/playwright:") {
-							config.Args[i] = dockerImage
+						if strings.HasPrefix(arg, "@playwright/mcp@") {
+							config.Args[i] = mcpPackage
 							break
 						}
 					}
@@ -347,9 +348,9 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			}
 		}
 
-		config.Env["PLAYWRIGHT_ALLOWED_DOMAINS"] = strings.Join(allowedDomains, ",")
-		if len(allowedDomains) == 0 {
-			config.Env["PLAYWRIGHT_BLOCK_ALL_DOMAINS"] = "true"
+		// Add allowed-origins flag if domains are specified
+		if len(allowedDomains) > 0 {
+			config.Args = append(config.Args, "--allowed-origins", strings.Join(allowedDomains, ";"))
 		}
 
 		return &config, nil

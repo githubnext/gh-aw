@@ -186,6 +186,19 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	return playwrightDockerImageVersion
 }
 
+func getPlaywrightMCPPackageVersion(playwrightTool any) string {
+	playwrightMCPVersion := constants.DefaultPlaywrightMCPVersion // Default Playwright MCP NPM package version
+	// Extract version setting from tool properties
+	if toolConfig, ok := playwrightTool.(map[string]any); ok {
+		if versionSetting, exists := toolConfig["version"]; exists {
+			if stringValue, ok := versionSetting.(string); ok {
+				playwrightMCPVersion = stringValue
+			}
+		}
+	}
+	return playwrightMCPVersion
+}
+
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
 func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
