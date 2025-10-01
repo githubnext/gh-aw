@@ -514,37 +514,41 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		args = append(args, "--allow-tool", "safe_outputs")
 	}
 
-	// Handle GitHub MCP tools - GitHub is built-in to Copilot CLI but still needs tool allowlist
-	if githubConfig, hasGithub := tools["github"]; hasGithub {
-		if githubConfigMap, ok := githubConfig.(map[string]any); ok {
-			// GitHub is built-in, so we don't add --allow-tool github itself
-			// But we do need to add --allow-tool github(tool_name) for each allowed tool
-			if allowed, hasAllowed := githubConfigMap["allowed"]; hasAllowed {
-				if allowedList, ok := allowed.([]any); ok {
-					for _, allowedTool := range allowedList {
-						if toolStr, ok := allowedTool.(string); ok {
-							args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
-						}
-					}
-				}
-			}
-		}
-	}
-
 	// Built-in tool names that should be skipped when processing MCP servers
+	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
 		"web-fetch":  true,
 		"web-search": true,
 		"playwright": true,
-		"github":     true,
 	}
 
 	// Handle MCP server tools
 	for toolName, toolConfig := range tools {
 		// Skip built-in tools we've already handled
 		if builtInTools[toolName] {
+			continue
+		}
+
+		// GitHub is a special case - it's an MCP server but doesn't have explicit MCP config in the workflow
+		// It gets MCP configuration through the parser's processBuiltinMCPTool
+		if toolName == "github" {
+			if toolConfigMap, ok := toolConfig.(map[string]any); ok {
+				// Allow the GitHub MCP server
+				args = append(args, "--allow-tool", "github")
+
+				// Add individual tool permissions
+				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
+					if allowedList, ok := allowed.([]any); ok {
+						for _, allowedTool := range allowedList {
+							if toolStr, ok := allowedTool.(string); ok {
+								args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+							}
+						}
+					}
+				}
+			}
 			continue
 		}
 

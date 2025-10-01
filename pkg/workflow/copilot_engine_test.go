@@ -232,7 +232,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"allowed": []any{"get_repository", "list_commits"},
 				},
 			},
-			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)"},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)"},
 		},
 		{
 			name: "github tool with single allowed tool",
@@ -241,7 +241,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"allowed": []any{"add_issue_comment"},
 				},
 			},
-			expected: []string{"--allow-tool", "github(add_issue_comment)"},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "github(add_issue_comment)"},
 		},
 		{
 			name: "github tool with empty allowed array",
@@ -250,14 +250,14 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"allowed": []any{},
 				},
 			},
-			expected: []string{},
+			expected: []string{"--allow-tool", "github"},
 		},
 		{
 			name: "github tool without allowed field",
 			tools: map[string]any{
 				"github": map[string]any{},
 			},
-			expected: []string{},
+			expected: []string{"--allow-tool", "github"},
 		},
 		{
 			name: "github tool as nil (no config)",
@@ -273,7 +273,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 					"allowed": []any{"update_issue", "add_issue_comment", "create_issue"},
 				},
 			},
-			expected: []string{"--allow-tool", "github(add_issue_comment)", "--allow-tool", "github(create_issue)", "--allow-tool", "github(update_issue)"},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "github(add_issue_comment)", "--allow-tool", "github(create_issue)", "--allow-tool", "github(update_issue)"},
 		},
 		{
 			name: "github tool with bash and edit tools",
@@ -284,7 +284,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 				"bash": []any{"echo", "ls"},
 				"edit": nil,
 			},
-			expected: []string{"--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
+			expected: []string{"--allow-tool", "github", "--allow-tool", "github(get_repository)", "--allow-tool", "github(list_commits)", "--allow-tool", "shell(echo)", "--allow-tool", "shell(ls)", "--allow-tool", "write"},
 		},
 	}
 
