@@ -3,8 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - copilot/*
-      - collect-guards
+      - copilot*
 engine: copilot
 tools:
   github:
@@ -16,6 +15,5 @@ safe-outputs:
     create-issue:
 ---
 # Dev
-
 List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else.
 Post result in an issue.

@@ -489,3 +489,150 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 		t.Errorf("$INSTRUCTION should remain double-quoted: %s", copilotCommand)
 	}
 }
+
+func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name         string
+		githubTool   any
+		isLast       bool
+		expectedStrs []string
+	}{
+		{
+			name:       "GitHub MCP with default version",
+			githubTool: nil,
+			isLast:     false,
+			expectedStrs: []string{
+				`"github": {`,
+				`"type": "local",`,
+				`"command": "docker",`,
+				`"args": [`,
+				`"run",`,
+				`"-i",`,
+				`"--rm",`,
+				`"-e",`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}",`,
+				`"ghcr.io/github/github-mcp-server:sha-09deac4"`,
+				`"tools": ["*"]`,
+				`},`,
+			},
+		},
+		{
+			name: "GitHub MCP with custom version",
+			githubTool: map[string]any{
+				"version": "v1.2.3",
+			},
+			isLast: true,
+			expectedStrs: []string{
+				`"github": {`,
+				`"type": "local",`,
+				`"command": "docker",`,
+				`"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}",`,
+				`"ghcr.io/github/github-mcp-server:v1.2.3"`,
+				`"tools": ["*"]`,
+				`}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yaml strings.Builder
+			workflowData := &WorkflowData{}
+			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, tt.isLast, workflowData)
+			output := yaml.String()
+
+			for _, expected := range tt.expectedStrs {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+				}
+			}
+
+			// Verify proper ending based on isLast
+			if tt.isLast {
+				if !strings.HasSuffix(strings.TrimSpace(output), "}") {
+					t.Errorf("Expected output to end with '}' when isLast=true, got:\n%s", output)
+				}
+			} else {
+				if !strings.HasSuffix(strings.TrimSpace(output), "},") {
+					t.Errorf("Expected output to end with '},' when isLast=false, got:\n%s", output)
+				}
+			}
+		})
+	}
+}
+
+func TestCopilotEngineRenderMCPConfigWithGitHub(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github": map[string]any{
+				"version": "custom-version",
+			},
+		},
+	}
+
+	mcpTools := []string{"github"}
+	var yaml strings.Builder
+	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
+	output := yaml.String()
+
+	// Verify the MCP config structure
+	expectedStrs := []string{
+		"mkdir -p /home/runner/.copilot",
+		`cat > /home/runner/.copilot/mcp-config.json << 'EOF'`,
+		`"mcpServers": {`,
+		`"github": {`,
+		`"type": "local",`,
+		`"command": "docker",`,
+		`"ghcr.io/github/github-mcp-server:custom-version"`,
+		`"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}",`,
+		`"tools": ["*"]`,
+		"EOF",
+		"-------START MCP CONFIG-----------",
+		"cat /home/runner/.copilot/mcp-config.json",
+		"-------END MCP CONFIG-----------",
+	}
+
+	for _, expected := range expectedStrs {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+		}
+	}
+}
+
+func TestCopilotEngineRenderMCPConfigWithGitHubAndPlaywright(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"github":     nil,
+			"playwright": nil,
+		},
+	}
+
+	mcpTools := []string{"github", "playwright"}
+	var yaml strings.Builder
+	engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
+	output := yaml.String()
+
+	// Verify both tools are configured
+	expectedStrs := []string{
+		`"github": {`,
+		`"type": "local",`,
+		`"command": "docker",`,
+		`"ghcr.io/github/github-mcp-server:sha-09deac4"`,
+		`},`, // GitHub should NOT be last (comma after closing brace)
+		`"playwright": {`,
+		`"type": "local",`,
+		`"command": "npx",`,
+	}
+
+	for _, expected := range expectedStrs {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain '%s', but it didn't.\nFull output:\n%s", expected, output)
+		}
+	}
+}
