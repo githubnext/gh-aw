@@ -853,7 +853,15 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
-			workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
+			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
+			
+			// Clean up quoted keys - replace "on": with on:
+			// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+			quotedKeyPattern := `"on":`
+			unquotedKey := "on:"
+			yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
+			
+			workflowData.On = yamlStr
 		} else {
 			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)
 			workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")

@@ -70,7 +70,15 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 				// Convert merged events to YAML
 				mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
 				if err == nil {
-					data.On = strings.TrimSuffix(string(mergedEventsYAML), "\n")
+					yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+					
+					// Clean up quoted keys - replace "on": with on:
+					// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+					quotedKeyPattern := `"on":`
+					unquotedKey := "on:"
+					yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
+					
+					data.On = yamlStr
 				} else {
 					// If conversion fails, just use command events
 					data.On = commandEvents
