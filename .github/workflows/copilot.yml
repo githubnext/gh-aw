@@ -9,17 +9,14 @@ jobs:
   copilot:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
-      - name: Execute GitHub Copilot CLI
-        run: |
+      - run: npm install -g @github/copilot
+      - run: |
           copilot --prompt "List tools defined in the current chat session (do not run commands, I am asking about tools defined in the LLM). Just the names in a table, nothing else."
         env:
-          XDG_CONFIG_HOME: /home/runner
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          #XDG_CONFIG_HOME: /home/runner
+          #COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          
