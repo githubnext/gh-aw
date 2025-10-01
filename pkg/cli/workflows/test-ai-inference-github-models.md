@@ -3,7 +3,8 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-engine: claude
+  models: read
+engine: github-models
 ---
 
 # Test AI Inference GitHub Models

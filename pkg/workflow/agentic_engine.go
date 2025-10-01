@@ -151,6 +151,7 @@ func NewEngineRegistry() *EngineRegistry {
 	registry.Register(NewCodexEngine())
 	registry.Register(NewCopilotEngine())
 	registry.Register(NewCustomEngine())
+	registry.Register(NewGitHubModelsEngine())
 
 	return registry
 }

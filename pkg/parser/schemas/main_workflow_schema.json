@@ -826,9 +826,10 @@
             "claude",
             "codex",
             "copilot",
-            "custom"
+            "custom",
+            "github-models"
           ],
-          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
+          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), 'github-models' (GitHub Models via actions/ai-inference), or 'custom' (user-defined steps)"
         },
         {
           "type": "object",
@@ -840,9 +841,10 @@
                 "claude",
                 "codex",
                 "custom",
-                "copilot"
+                "copilot",
+                "github-models"
               ],
-              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
+              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), 'github-models' (GitHub Models via actions/ai-inference), or 'custom' (user-defined GitHub Actions steps)"
             },
             "version": {
               "type": "string",

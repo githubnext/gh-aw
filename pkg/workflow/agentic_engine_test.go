@@ -9,8 +9,8 @@ func TestEngineRegistry(t *testing.T) {
 
 	// Test that built-in engines are registered
 	supportedEngines := registry.GetSupportedEngines()
-	if len(supportedEngines) != 4 {
-		t.Errorf("Expected 4 supported engines, got %d", len(supportedEngines))
+	if len(supportedEngines) != 5 {
+		t.Errorf("Expected 5 supported engines, got %d", len(supportedEngines))
 	}
 
 	// Test getting engines by ID
@@ -38,6 +38,14 @@ func TestEngineRegistry(t *testing.T) {
 		t.Errorf("Expected custom engine ID, got '%s'", customEngine.GetID())
 	}
 
+	githubModelsEngine, err := registry.GetEngine("github-models")
+	if err != nil {
+		t.Errorf("Expected to find github-models engine, got error: %v", err)
+	}
+	if githubModelsEngine.GetID() != "github-models" {
+		t.Errorf("Expected github-models engine ID, got '%s'", githubModelsEngine.GetID())
+	}
+
 	// Test getting non-existent engine
 	_, err = registry.GetEngine("nonexistent")
 	if err == nil {
@@ -55,6 +63,10 @@ func TestEngineRegistry(t *testing.T) {
 
 	if !registry.IsValidEngine("custom") {
 		t.Error("Expected custom to be valid engine")
+	}
+
+	if !registry.IsValidEngine("github-models") {
+		t.Error("Expected github-models to be valid engine")
 	}
 
 	if registry.IsValidEngine("nonexistent") {
@@ -116,8 +128,8 @@ func TestEngineRegistryCustomEngine(t *testing.T) {
 
 	// Test that supported engines list is updated
 	supportedEngines := registry.GetSupportedEngines()
-	if len(supportedEngines) != 5 {
-		t.Errorf("Expected 5 supported engines after adding test-custom, got %d", len(supportedEngines))
+	if len(supportedEngines) != 6 {
+		t.Errorf("Expected 6 supported engines after adding test-custom, got %d", len(supportedEngines))
 	}
 }
 
