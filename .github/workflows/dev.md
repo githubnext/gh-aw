@@ -3,8 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - copilot/*
-      - collect-guards
+      - copilot*
 engine: copilot
 tools:
   github:

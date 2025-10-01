@@ -265,13 +265,11 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 	yaml.WriteString("                  \"-i\",\n")
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }}\",\n")
 	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
 	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"tools\": [\"*\"],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
-	yaml.WriteString("                }\n")
+	yaml.WriteString("                \"tools\": [\"*\"]\n")
+	// copilot does not support env
 
 	if isLast {
 		yaml.WriteString("              }\n")
