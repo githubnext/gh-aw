@@ -52,9 +52,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
-	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
-	skipContains := data.SafeOutputs.CreatePullRequestReviewComments.Min > 0
-	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment", skipContains)
+	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment", data.SafeOutputs.CreatePullRequestReviewComments.Min)
 	issueWithPR := &AndNode{
 		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
 		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},

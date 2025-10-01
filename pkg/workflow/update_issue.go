@@ -61,9 +61,7 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		"issue_url":    "${{ steps.update_issue.outputs.issue_url }}",
 	}
 
-	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
-	skipContains := data.SafeOutputs.UpdateIssues.Min > 0
-	var jobCondition = BuildSafeOutputType("update-issue", skipContains)
+	var jobCondition = BuildSafeOutputType("update-issue", data.SafeOutputs.UpdateIssues.Min)
 	if data.SafeOutputs.UpdateIssues != nil && data.SafeOutputs.UpdateIssues.Target == "" {
 		eventCondition := BuildPropertyAccess("github.event.issue.number")
 		jobCondition = buildAnd(jobCondition, eventCondition)

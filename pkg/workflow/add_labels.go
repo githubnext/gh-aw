@@ -8,8 +8,8 @@ import (
 // AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddLabelsConfig struct {
 	Allowed     []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	MaxCount    *int     `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
-	MinCount    *int     `yaml:"min,omitempty"`          // Optional minimum number of labels to add
+	Max         int      `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
+	Min         int      `yaml:"min,omitempty"`          // Optional minimum number of labels to add
 	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
 	Target      string   `yaml:"target,omitempty"`       // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
 }
@@ -26,8 +26,8 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 
 	if data.SafeOutputs.AddLabels != nil {
 		allowedLabels = data.SafeOutputs.AddLabels.Allowed
-		if data.SafeOutputs.AddLabels.MaxCount != nil {
-			maxCount = *data.SafeOutputs.AddLabels.MaxCount
+		if data.SafeOutputs.AddLabels.Max > 0 {
+			maxCount = data.SafeOutputs.AddLabels.Max
 		}
 	}
 
@@ -77,9 +77,11 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
-	skipContains := data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.MinCount != nil && *data.SafeOutputs.AddLabels.MinCount > 0
-	var jobCondition = BuildSafeOutputType("add-labels", skipContains)
+	minValue := 0
+	if data.SafeOutputs.AddLabels != nil {
+		minValue = data.SafeOutputs.AddLabels.Min
+	}
+	var jobCondition = BuildSafeOutputType("add-labels", minValue)
 	if data.SafeOutputs.AddLabels == nil || data.SafeOutputs.AddLabels.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),

@@ -95,9 +95,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 		"push_url":    "${{ steps.push_to_pull_request_branch.outputs.push_url }}",
 	}
 
-	// When min > 0, skip the contains check to allow the job to run even with 0 outputs
-	skipContains := data.SafeOutputs.PushToPullRequestBranch.Min > 0
-	safeOutputCondition := BuildSafeOutputType("push-to-pull-request-branch", skipContains)
+	safeOutputCondition := BuildSafeOutputType("push-to-pull-request-branch", data.SafeOutputs.PushToPullRequestBranch.Min)
 	issueWithPR := &AndNode{
 		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
 		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},

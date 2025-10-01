@@ -131,40 +131,40 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 	}
 }
 
-// TestBuildSafeOutputTypeWithSkipContains tests the BuildSafeOutputType function directly
-func TestBuildSafeOutputTypeWithSkipContains(t *testing.T) {
+// TestBuildSafeOutputTypeWithMin tests the BuildSafeOutputType function directly
+func TestBuildSafeOutputTypeWithMin(t *testing.T) {
 	tests := []struct {
 		name                string
 		outputType          string
-		skipContains        bool
+		min                 int
 		expectedCondition   string
 		unexpectedCondition string
 	}{
 		{
-			name:                "without skipContains should include contains check",
+			name:                "with min=0 should include contains check",
 			outputType:          "create-issue",
-			skipContains:        false,
+			min:                 0,
 			expectedCondition:   "contains(needs.agent.outputs.output_types, 'create-issue')",
 			unexpectedCondition: "",
 		},
 		{
-			name:                "with skipContains=true should only have always()",
+			name:                "with min>0 should only have always()",
 			outputType:          "create-issue",
-			skipContains:        true,
+			min:                 1,
 			expectedCondition:   "always()",
 			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'create-issue')",
 		},
 		{
-			name:                "missing-tool without skipContains",
+			name:                "missing-tool with min=0",
 			outputType:          "missing-tool",
-			skipContains:        false,
+			min:                 0,
 			expectedCondition:   "contains(needs.agent.outputs.output_types, 'missing-tool')",
 			unexpectedCondition: "",
 		},
 		{
-			name:                "missing-tool with skipContains",
+			name:                "missing-tool with min>0",
 			outputType:          "missing-tool",
-			skipContains:        true,
+			min:                 2,
 			expectedCondition:   "always()",
 			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'missing-tool')",
 		},
@@ -172,12 +172,7 @@ func TestBuildSafeOutputTypeWithSkipContains(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var condition string
-			if tt.skipContains {
-				condition = BuildSafeOutputType(tt.outputType, true).Render()
-			} else {
-				condition = BuildSafeOutputType(tt.outputType).Render()
-			}
+			condition := BuildSafeOutputType(tt.outputType, tt.min).Render()
 
 			if tt.expectedCondition != "" && !strings.Contains(condition, tt.expectedCondition) {
 				t.Errorf("Expected condition to contain '%s', but got: %s", tt.expectedCondition, condition)
