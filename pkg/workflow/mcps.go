@@ -174,7 +174,7 @@ func getGitHubDockerImageVersion(githubTool any) string {
 }
 
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
-	playwrightDockerImageVersion := constants.DefaultPlaywrightVersion // Default Playwright Docker image version
+	playwrightDockerImageVersion := constants.DefaultPlaywrightMCPVersion // Default Playwright Docker image version
 	// Extract version setting from tool properties
 	if toolConfig, ok := playwrightTool.(map[string]any); ok {
 		if versionSetting, exists := toolConfig["version"]; exists {
