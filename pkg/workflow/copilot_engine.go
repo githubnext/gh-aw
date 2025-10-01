@@ -535,15 +535,35 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 		// It gets MCP configuration through the parser's processBuiltinMCPTool
 		if toolName == "github" {
 			if toolConfigMap, ok := toolConfig.(map[string]any); ok {
-				// Allow the GitHub MCP server
-				args = append(args, "--allow-tool", "github")
-
-				// Add individual tool permissions
+				// Check if allowed contains "*" wildcard
+				hasWildcard := false
 				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
 					if allowedList, ok := allowed.([]any); ok {
 						for _, allowedTool := range allowedList {
 							if toolStr, ok := allowedTool.(string); ok {
-								args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+								if toolStr == "*" {
+									hasWildcard = true
+									break
+								}
+							}
+						}
+					}
+				}
+
+				// Only allow the GitHub MCP server if wildcard "*" is present
+				if hasWildcard {
+					args = append(args, "--allow-tool", "github")
+				}
+
+				// Add individual tool permissions (excluding wildcard)
+				if allowed, hasAllowed := toolConfigMap["allowed"]; hasAllowed {
+					if allowedList, ok := allowed.([]any); ok {
+						for _, allowedTool := range allowedList {
+							if toolStr, ok := allowedTool.(string); ok {
+								// Skip wildcard as we've already handled it
+								if toolStr != "*" {
+									args = append(args, "--allow-tool", fmt.Sprintf("github(%s)", toolStr))
+								}
 							}
 						}
 					}
