@@ -82,16 +82,7 @@ func InitRepository(verbose bool) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Next steps:"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  1. Create a workflow using GitHub Copilot:"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     Open GitHub Copilot Chat and use /create-agentic-workflow"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  2. Or add a workflow from the catalog:"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+constants.CLIExtensionPrefix+" add <workflow-name>"))
-	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("  3. Or create a new workflow from scratch:"))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("     "+constants.CLIExtensionPrefix+" new <workflow-name>"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See .github/instructions for Copilot guidance or run "+constants.CLIExtensionPrefix+" add to get started."))
 	fmt.Fprintln(os.Stderr, "")
 
 	return nil
