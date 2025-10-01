@@ -449,22 +449,7 @@ tools:
       - add_issue_comment
       - update_issue
       - create_issue
-    version: "latest"              # Optional: MCP server version
-    args: ["--verbose", "--debug"] # Optional: additional command-line arguments
 ```
-
-The `args` field allows passing additional command-line arguments to the GitHub MCP server. Arguments are properly escaped for special characters.
-
-### Playwright Tools
-```yaml
-tools:
-  playwright:
-    allowed_domains: ["github.com", "*.example.com"]
-    version: "latest"                    # Optional: Playwright version
-    args: ["--browser", "chromium"]      # Optional: additional command-line arguments
-```
-
-The `args` field allows passing additional command-line arguments to the Playwright MCP server. Common use cases include browser selection (`["--browser", "firefox"]`) or custom testing flags. Arguments are properly escaped for special characters.
 
 ### General Tools
 ```yaml

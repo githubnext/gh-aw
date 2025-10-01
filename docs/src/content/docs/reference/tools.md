@@ -101,12 +101,14 @@ The `args` field allows you to pass additional command-line arguments to the Pla
 ```yaml
 tools:
   playwright:
-    args: ["--browser", "chromium", "--headless"]
+    args: ["--browser", "chromium"]
 ```
 
 Common use cases include:
 - Browser selection: `["--browser", "firefox"]` or `["--browser", "chromium"]`
 - Custom flags for debugging or testing scenarios
+
+**Note**: Only Chromium is available in headless mode.
 
 Arguments are appended to the generated MCP server command and properly escaped for special characters.
 
