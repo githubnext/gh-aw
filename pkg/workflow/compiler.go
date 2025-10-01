@@ -501,6 +501,9 @@ func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
+	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
+	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
+
 	// Validate MCP configurations
 	if err := ValidateMCPConfigs(tools); err != nil {
 		return nil, fmt.Errorf("invalid MCP configuration: %w", err)
