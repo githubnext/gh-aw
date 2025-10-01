@@ -57,8 +57,8 @@ See [Workflow Structure](/gh-aw/reference/workflow-structure/) and [Frontmatter 
 
 Agentic workflows are powered by different agentic AI engines:
 
-- **Claude Code** (default) — Anthropic's AI engine, excellent for reasoning and code analysis
-- **GitHub Copilot CLI** (experimental) — GitHub's conversational AI engine with repository integration
+- **GitHub Copilot CLI** (default) — GitHub's conversational AI engine with repository integration
+- **Claude Code** — Anthropic's AI engine, excellent for reasoning and code analysis
 - **Codex** (experimental) — OpenAI's code-focused engine
 
 The engine interprets your natural language instructions and executes them using the tools and permissions you've configured.

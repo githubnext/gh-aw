@@ -832,7 +832,7 @@ jobs:
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
               workflow_name: "Dev",
-              experimental: true,
+              experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
               run_id: context.runId,
@@ -1968,7 +1968,7 @@ jobs:
 
   create_issue:
     needs: agent
-    if: contains(needs.agent.outputs.output_types, 'create-issue')
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2149,7 +2149,7 @@ jobs:
 
   missing_tool:
     needs: agent
-    if: ${{ always() }}
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing-tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

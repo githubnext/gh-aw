@@ -52,26 +52,23 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
-	// We only run in pull request context, Note that in pull request comments only github.event.issue.pull_request is set.
-	baseCondition := "(github.event.issue.number && github.event.issue.pull_request) || github.event.pull_request"
-
-	// If this is a command workflow, combine the command trigger condition with the base condition
-	var jobCondition string
-	if data.Command != "" {
-		// Build the command trigger condition
-		commandCondition := buildCommandOnlyCondition(data.Command)
-		commandConditionStr := commandCondition.Render()
-
-		// Combine command condition with base condition using AND
-		jobCondition = fmt.Sprintf("(%s) && (%s)", commandConditionStr, baseCondition)
-	} else {
-		// No command trigger, just use the base condition
-		jobCondition = baseCondition
+	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment")
+	issueWithPR := &AndNode{
+		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
+		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
+	}
+	baseCondition := &OrNode{
+		Left:  issueWithPR,
+		Right: &ExpressionNode{Expression: "github.event.pull_request"},
+	}
+	jobCondition := &AndNode{
+		Left:  safeOutputCondition,
+		Right: baseCondition,
 	}
 
 	job := &Job{
 		Name:           "create_pr_review_comment",
-		If:             jobCondition,
+		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions:    "permissions:\n      contents: read\n      pull-requests: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required

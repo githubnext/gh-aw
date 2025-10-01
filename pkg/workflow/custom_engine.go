@@ -186,6 +186,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -197,6 +198,10 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("                  \"--rm\",\n")
 	yaml.WriteString("                  \"-e\",\n")
 	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+	if readOnly {
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
+	}
 	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 	// Append custom args if present
