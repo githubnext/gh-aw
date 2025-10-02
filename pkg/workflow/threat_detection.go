@@ -118,7 +118,7 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 		"      - name: Setup threat detection\n",
 		"        uses: actions/github-script@v8\n",
 		"        env:\n",
-		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.text }}\n", mainJobName),
+		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
 		fmt.Sprintf("          AGENT_PATCH: ${{ needs.%s.outputs.patch }}\n", mainJobName),
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
