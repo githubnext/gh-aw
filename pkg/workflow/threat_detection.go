@@ -13,8 +13,9 @@ var defaultThreatDetectionPrompt string
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
-	Enabled bool  `yaml:"enabled,omitempty"` // Whether threat detection is enabled
-	Steps   []any `yaml:"steps,omitempty"`   // Array of extra job steps
+	Enabled bool   `yaml:"enabled,omitempty"` // Whether threat detection is enabled
+	Prompt  string `yaml:"prompt,omitempty"`  // Additional custom prompt instructions to append
+	Steps   []any  `yaml:"steps,omitempty"`   // Array of extra job steps
 }
 
 // parseThreatDetectionConfig handles threat-detection configuration
@@ -37,6 +38,13 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 			if enabled, exists := configMap["enabled"]; exists {
 				if enabledBool, ok := enabled.(bool); ok {
 					threatConfig.Enabled = enabledBool
+				}
+			}
+
+			// Parse prompt field
+			if prompt, exists := configMap["prompt"]; exists {
+				if promptStr, ok := prompt.(string); ok {
+					threatConfig.Prompt = promptStr
 				}
 			}
 
@@ -127,6 +135,16 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
+
+	// Add custom prompt instructions if configured
+	customPrompt := ""
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		customPrompt = data.SafeOutputs.ThreatDetection.Prompt
+	}
+	if customPrompt != "" {
+		steps = append(steps, fmt.Sprintf("          CUSTOM_PROMPT: %q\n", customPrompt))
+	}
+
 	steps = append(steps, []string{
 		"        with:\n",
 		"          script: |\n",
@@ -166,12 +184,18 @@ if (fs.existsSync(patchPath)) {
 
 // Create threat detection prompt with embedded template
 const templateContent = %s;
-const promptContent = templateContent
+let promptContent = templateContent
   .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
   .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
   .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
   .replace(/{AGENT_PATCH}/g, patchContent);
+
+// Append custom prompt instructions if provided
+const customPrompt = process.env.CUSTOM_PROMPT;
+if (customPrompt) {
+  promptContent += '\n\n## Additional Instructions\n\n' + customPrompt;
+}
 
 // Write prompt file
 fs.mkdirSync('/tmp/aw-prompts', { recursive: true });

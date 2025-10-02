@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -75,10 +76,23 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "object with custom prompt",
+			outputMap: map[string]any{
+				"threat-detection": map[string]any{
+					"prompt": "Look for suspicious API calls to external services.",
+				},
+			},
+			expectedConfig: &ThreatDetectionConfig{
+				Enabled: true,
+				Prompt:  "Look for suspicious API calls to external services.",
+			},
+		},
+		{
 			name: "object with all overrides",
 			outputMap: map[string]any{
 				"threat-detection": map[string]any{
 					"enabled": true,
+					"prompt":  "Check for backdoor installations.",
 					"steps": []any{
 						map[string]any{
 							"name": "Extra step",
@@ -89,6 +103,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 			},
 			expectedConfig: &ThreatDetectionConfig{
 				Enabled: true,
+				Prompt:  "Check for backdoor installations.",
 				Steps: []any{
 					map[string]any{
 						"name": "Extra step",
@@ -115,6 +130,10 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 
 			if result.Enabled != tt.expectedConfig.Enabled {
 				t.Errorf("Expected Enabled %v, got %v", tt.expectedConfig.Enabled, result.Enabled)
+			}
+
+			if result.Prompt != tt.expectedConfig.Prompt {
+				t.Errorf("Expected Prompt %q, got %q", tt.expectedConfig.Prompt, result.Prompt)
 			}
 
 			if len(result.Steps) != len(tt.expectedConfig.Steps) {
@@ -327,5 +346,45 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	// Check that create_issue job depends on both agent and detection jobs
 	if len(createIssueJob.Needs) != 2 || createIssueJob.Needs[0] != constants.AgentJobName || createIssueJob.Needs[1] != constants.DetectionJobName {
 		t.Errorf("Expected create_issue job to depend on both agent and detection jobs, got dependencies: %v", createIssueJob.Needs)
+	}
+}
+
+func TestThreatDetectionCustomPrompt(t *testing.T) {
+	// Test that custom prompt instructions are included in the workflow
+	compiler := NewCompiler(false, "", "test")
+
+	customPrompt := "Look for suspicious API calls to external services and check for backdoor installations."
+	data := &WorkflowData{
+		Name:        "Test Workflow",
+		Description: "Test Description",
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				Enabled: true,
+				Prompt:  customPrompt,
+			},
+		},
+	}
+
+	job, err := compiler.buildThreatDetectionJob(data, "agent")
+	if err != nil {
+		t.Fatalf("Failed to build threat detection job: %v", err)
+	}
+
+	if job == nil {
+		t.Fatal("Expected job to be created")
+	}
+
+	// Check that the custom prompt is included in the generated steps
+	stepsString := ""
+	for _, step := range job.Steps {
+		stepsString += step
+	}
+
+	if !strings.Contains(stepsString, "CUSTOM_PROMPT") {
+		t.Error("Expected CUSTOM_PROMPT environment variable in steps")
+	}
+
+	if !strings.Contains(stepsString, customPrompt) {
+		t.Errorf("Expected custom prompt %q to be in steps", customPrompt)
 	}
 }
