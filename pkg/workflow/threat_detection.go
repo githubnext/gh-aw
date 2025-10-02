@@ -178,6 +178,15 @@ fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
 fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
 core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
 
+// Write agent output to step summary
+const agentOutput = process.env.AGENT_OUTPUT || '';
+await core.summary
+  .addHeading('Agent Output', 2)
+  .addRaw('\n')
+  .addRaw(agentOutput || '_No agent output_')
+  .addRaw('\n\n')
+  .write();
+
 // Write rendered prompt to step summary
 await core.summary
   .addHeading('Threat Detection Prompt', 2)
