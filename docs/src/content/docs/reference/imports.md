@@ -56,6 +56,7 @@ The install command:
 3. Clones repositories at the specified versions
 4. Stores imported files in `.aw/imports/`
 5. Creates/updates `.aw/imports.lock` with resolved SHAs
+6. Creates `.aw/.gitignore` to automatically ignore the `imports/` folder
 
 ## Lock File
 
@@ -136,7 +137,9 @@ Result: GitHub tools will have both sets of allowed functions.
 
 ## Version Control
 
-Add `.aw/imports/` to `.gitignore` to exclude cached imported files while keeping the lock file:
+The `gh aw install` command automatically creates a `.aw/.gitignore` file that ignores the `imports/` folder. This ensures the cached imported files are not committed while the lock file remains trackable.
+
+You can also add `.aw/imports/` to your project's root `.gitignore` for additional protection:
 
 ```gitignore
 # Workflow imports (cached files only, not the lock file)

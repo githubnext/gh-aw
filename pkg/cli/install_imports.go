@@ -65,6 +65,11 @@ func InstallImports(workflowName string, verbose bool) error {
 		return fmt.Errorf("failed to create .aw directory: %w", err)
 	}
 
+	// Create .gitignore in .aw directory to ignore imports folder
+	if err := ensureAwGitignore(awDir, verbose); err != nil {
+		return fmt.Errorf("failed to create .aw/.gitignore: %w", err)
+	}
+
 	// Read existing lock file
 	lock, err := parser.ReadImportLockFile(lockFilePath)
 	if err != nil {
@@ -414,4 +419,35 @@ func collectTransitiveFiles(filePath, baseDir string, verbose bool) ([]string, e
 	}
 
 	return files, nil
+}
+
+// ensureAwGitignore creates or updates .gitignore in .aw directory to ignore imports folder
+func ensureAwGitignore(awDir string, verbose bool) error {
+	gitignorePath := filepath.Join(awDir, ".gitignore")
+
+	// Content to write - ignore the imports folder
+	content := "# Ignore cached imported files\nimports/\n"
+
+	// Check if .gitignore already exists
+	existingContent, err := os.ReadFile(gitignorePath)
+	if err == nil {
+		// File exists, check if it already has the imports/ entry
+		if strings.Contains(string(existingContent), "imports/") {
+			// Already configured, no need to update
+			return nil
+		}
+		// Append to existing content
+		content = string(existingContent) + "\n" + content
+	}
+
+	// Write the .gitignore file
+	if err := os.WriteFile(gitignorePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write .gitignore: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Created/updated %s", gitignorePath)))
+	}
+
+	return nil
 }
