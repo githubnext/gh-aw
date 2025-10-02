@@ -38,6 +38,7 @@ type Compiler struct {
 	version         string          // Version of the extension
 	skipValidation  bool            // If true, skip schema validation
 	noEmit          bool            // If true, validate without generating lock files
+	strictMode      bool            // If true, enforce strict validation requirements
 	trialMode       bool            // If true, suppress safe outputs for trial mode execution
 	trialTargetRepo string          // If set in trial mode, the target repository to checkout
 	jobManager      *JobManager     // Manages jobs and dependencies
@@ -82,6 +83,11 @@ func (c *Compiler) SetTrialMode(trialMode bool) {
 // SetTrialTargetRepo configures the target repository for trial mode
 func (c *Compiler) SetTrialTargetRepo(targetRepo string) {
 	c.trialTargetRepo = targetRepo
+}
+
+// SetStrictMode configures whether to enable strict validation mode
+func (c *Compiler) SetStrictMode(strict bool) {
+	c.strictMode = strict
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -459,6 +465,24 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		networkPermissions = &NetworkPermissions{
 			Mode: "defaults",
 		}
+	}
+
+	// Check if strict mode is enabled in frontmatter
+	// If strict is true in frontmatter, enable strict mode for this workflow
+	// This allows declarative strict mode control per workflow
+	// Note: CLI --strict flag is already set in c.strictMode and takes precedence
+	// Frontmatter can enable strict mode, but cannot disable it if CLI flag is set
+	if !c.strictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				c.strictMode = true
+			}
+		}
+	}
+
+	// Perform strict mode validations
+	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
+		return nil, err
 	}
 
 	// Override with command line AI engine setting if provided
@@ -884,6 +908,11 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	// Clear command field if no command trigger was found
 	if !hasCommand {
 		workflowData.Command = ""
+	}
+
+	// Auto-enable "eyes" reaction for command triggers if no explicit reaction was specified
+	if hasCommand && !hasReaction && workflowData.AIReaction == "" {
+		workflowData.AIReaction = "eyes"
 	}
 
 	// Store other events for merging in applyDefaults
@@ -1324,6 +1353,17 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		}
 	}
 
+	// Build stop-time check job if stop-time is configured
+	if data.StopTime != "" {
+		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
+		if err != nil {
+			return fmt.Errorf("failed to build stop_time_check job: %w", err)
+		}
+		if err := c.jobManager.AddJob(stopTimeCheckJob); err != nil {
+			return fmt.Errorf("failed to add stop_time_check job: %w", err)
+		}
+	}
+
 	// Build main workflow job
 	mainJob, err := c.buildMainJob(data, activationJobCreated)
 	if err != nil {
@@ -1663,6 +1703,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 			yaml.WriteString("          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
+
+		// Add step to checkout PR branch if the event is a comment on a PR
+		c.generatePRBranchCheckout(yaml, data)
 	}
 
 	// Add custom steps if present
@@ -1712,8 +1755,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
 
-	// Add safety checks before executing agentic tools
-	c.generateStopTimeChecks(yaml, data)
+	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
+	// No longer generated in the main job steps
 
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
@@ -2058,6 +2101,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add safe outputs prompt as separate step if enabled
 	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
+
+	// Add PR context prompt as separate step if enabled
+	c.generatePRContextPromptStep(yaml, data)
 
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")

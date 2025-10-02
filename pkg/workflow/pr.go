@@ -1,0 +1,86 @@
+package workflow
+
+import "strings"
+
+// generatePRBranchCheckout generates a step to checkout the PR branch if the event is a comment on a PR
+func (c *Compiler) generatePRBranchCheckout(yaml *strings.Builder, data *WorkflowData) {
+	// Check if any of the workflow's event triggers are comment-related events
+	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
+
+	if !hasCommentTriggers {
+		return // No comment-related triggers, skip PR branch checkout
+	}
+
+	// Check that permissions allow contents read access
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return // No contents read access, cannot checkout
+	}
+
+	// Add a conditional step that checks out the PR branch if applicable
+	yaml.WriteString("      - name: Checkout PR branch if applicable\n")
+
+	// Use the helper function to render the condition
+	condition := BuildPRCommentCondition()
+	RenderConditionAsIf(yaml, condition, "          ")
+
+	yaml.WriteString("        run: |\n")
+	WriteShellScriptToYAML(yaml, checkoutPRScript, "          ")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+}
+
+// generatePRContextPromptStep generates a separate step for PR context instructions
+func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *WorkflowData) {
+	// Check if any of the workflow's event triggers are comment-related events
+	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
+
+	if !hasCommentTriggers {
+		return // No comment-related triggers, skip PR context instructions
+	}
+
+	// Also check if checkout step will be added - only show prompt if checkout happens
+	needsCheckout := c.shouldAddCheckoutStep(data)
+	if !needsCheckout {
+		return // No checkout, so no PR branch checkout will happen
+	}
+
+	// Check that permissions allow contents read access
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return // No contents read access, cannot checkout
+	}
+
+	yaml.WriteString("      - name: Append PR context instructions to prompt\n")
+
+	// Use the helper function to render the condition
+	condition := BuildPRCommentCondition()
+	RenderConditionAsIf(yaml, condition, "          ")
+
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        run: |\n")
+	WritePromptTextToYAML(yaml, prContextPromptText, "          ")
+}
+
+// hasCommentRelatedTriggers checks if the workflow has any comment-related event triggers
+func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
+	// Check for command trigger (which expands to comment events)
+	if data.Command != "" {
+		return true
+	}
+
+	if data.On == "" {
+		return false
+	}
+
+	// Check for comment-related event types in the "on" configuration
+	commentEvents := []string{"issue_comment", "pull_request_review_comment", "pull_request_review"}
+	for _, event := range commentEvents {
+		if strings.Contains(data.On, event) {
+			return true
+		}
+	}
+
+	return false
+}

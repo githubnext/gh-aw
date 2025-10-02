@@ -169,6 +169,7 @@ Examples:
 		noInstructions, _ := cmd.Flags().GetBool("no-instructions")
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
+		strict, _ := cmd.Flags().GetBool("strict")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
@@ -188,6 +189,7 @@ Examples:
 			Purge:            purge,
 			TrialMode:        false,
 			TrialTargetRepo:  "",
+			Strict:           strict,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -350,6 +352,7 @@ func init() {
 	compileCmd.Flags().Bool("no-instructions", false, "Skip generating or updating GitHub Copilot instructions and prompt files")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
+	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
