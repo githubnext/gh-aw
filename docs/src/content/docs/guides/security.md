@@ -80,6 +80,21 @@ permissions:
   contents: read
 ```
 
+**Production workflows**: Consider using strict mode to enforce additional security constraints:
+
+```yaml
+# Enable strict mode for production workflows
+strict: true
+permissions:
+  contents: read  # Write permissions are blocked in strict mode
+timeout_minutes: 10
+network:
+  allowed:
+    - "api.example.com"
+```
+
+Strict mode prevents write permissions (`contents:write`, `issues:write`, `pull-requests:write`) and requires explicit network configuration and timeouts. Use `safe-outputs` configuration instead for controlled GitHub API interactions. See [Strict Mode Validation](#strict-mode-validation) for details.
+
 ### Human in the Loop
 
 GitHub Actions workflows are designed to be steps within a larger process. Some critical operations should always involve human review:
@@ -90,6 +105,49 @@ GitHub Actions workflows are designed to be steps within a larger process. Some 
 - **Review and audit**: Regularly review workflow history, permissions, and tool usage to ensure compliance with security policies.
 
 ### Limit operations
+
+#### Strict Mode Validation
+
+For production workflows, use strict mode to enforce enhanced security and reliability constraints:
+
+```yaml
+# Enable strict mode declaratively in frontmatter
+strict: true
+timeout_minutes: 10
+permissions:
+  contents: read
+network:
+  allowed:
+    - "api.example.com"
+```
+
+Or enable for all workflows during compilation:
+
+```bash
+gh aw compile --strict
+```
+
+**Strict mode enforces:**
+
+1. **Timeout Required**: All workflows must specify `timeout_minutes` to prevent runaway executions
+2. **Write Permissions Blocked**: Refuses `contents:write`, `issues:write`, and `pull-requests:write` (use `safe-outputs` instead)
+3. **Network Configuration Required**: Must explicitly configure network access (cannot rely on defaults)
+4. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
+5. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
+
+**Benefits:**
+- **Cost Control**: Prevents unbounded execution times through mandatory timeouts
+- **Security**: Minimizes attack surface by blocking write permissions and requiring explicit network access
+- **Compliance**: Ensures workflows meet organizational security standards
+- **Auditability**: Clear security requirements make workflows easier to review
+
+**Behavior:**
+- CLI `--strict` flag applies to all workflows during compilation
+- Frontmatter `strict: true` enables strict mode for individual workflows
+- CLI flag takes precedence over frontmatter settings
+- Default is non-strict mode for backward compatibility
+
+See the [Frontmatter Reference](/gh-aw/reference/frontmatter/#strict-mode-strict) for complete strict mode documentation.
 
 #### Limit workflow longevity by `stop-after:`
 

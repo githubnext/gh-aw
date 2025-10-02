@@ -38,6 +38,7 @@ type Compiler struct {
 	version         string          // Version of the extension
 	skipValidation  bool            // If true, skip schema validation
 	noEmit          bool            // If true, validate without generating lock files
+	strictMode      bool            // If true, enforce strict validation requirements
 	trialMode       bool            // If true, suppress safe outputs for trial mode execution
 	trialTargetRepo string          // If set in trial mode, the target repository to checkout
 	jobManager      *JobManager     // Manages jobs and dependencies
@@ -82,6 +83,11 @@ func (c *Compiler) SetTrialMode(trialMode bool) {
 // SetTrialTargetRepo configures the target repository for trial mode
 func (c *Compiler) SetTrialTargetRepo(targetRepo string) {
 	c.trialTargetRepo = targetRepo
+}
+
+// SetStrictMode configures whether to enable strict validation mode
+func (c *Compiler) SetStrictMode(strict bool) {
+	c.strictMode = strict
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -435,6 +441,24 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		networkPermissions = &NetworkPermissions{
 			Mode: "defaults",
 		}
+	}
+
+	// Check if strict mode is enabled in frontmatter
+	// If strict is true in frontmatter, enable strict mode for this workflow
+	// This allows declarative strict mode control per workflow
+	// Note: CLI --strict flag is already set in c.strictMode and takes precedence
+	// Frontmatter can enable strict mode, but cannot disable it if CLI flag is set
+	if !c.strictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				c.strictMode = true
+			}
+		}
+	}
+
+	// Perform strict mode validations
+	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
+		return nil, err
 	}
 
 	// Override with command line AI engine setting if provided
