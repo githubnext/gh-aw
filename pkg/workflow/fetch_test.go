@@ -64,7 +64,7 @@ func TestAddMCPFetchServerIfNeeded(t *testing.T) {
 
 			// Check if web-fetch entry exists and determine if it's MCP server or native tool
 			webFetchEntry, hasWebFetch := updatedTools["web-fetch"]
-			
+
 			if tt.expectMCPServer {
 				if !hasWebFetch {
 					t.Errorf("Expected web-fetch MCP server to be present, but it wasn't")
