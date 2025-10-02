@@ -175,6 +175,13 @@ tools:
 **Configuration Options**:
 - `version`: Version (default: `"sha-09deac4"`)
 
+### GitHub Authentication
+
+The GitHub MCP server uses a token precedence system for authentication:
+
+1. **`GH_AW_GITHUB_TOKEN`** - Override token (highest priority)
+2. **`GITHUB_TOKEN`** - Standard GitHub Actions token (fallback)
+
 ## Tool Allow-listing
 
 When using an agentic engine that supports tool allow-listing (e.g. Claude), you can control which MCP tools are available to your workflow.

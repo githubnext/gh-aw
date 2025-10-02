@@ -48,7 +48,7 @@ This is a test workflow with network permissions.`
 		filePath, cleanup := createTempWorkflowFile(yamlContent)
 		defer cleanup()
 
-		workflowData, err := compiler.parseWorkflowFile(filePath)
+		workflowData, err := compiler.ParseWorkflowFile(filePath)
 		if err != nil {
 			t.Fatalf("Failed to parse workflow: %v", err)
 		}
@@ -82,7 +82,7 @@ This workflow has no network permissions.`
 		filePath, cleanup := createTempWorkflowFile(yamlContent)
 		defer cleanup()
 
-		workflowData, err := compiler.parseWorkflowFile(filePath)
+		workflowData, err := compiler.ParseWorkflowFile(filePath)
 		if err != nil {
 			t.Fatalf("Failed to parse workflow: %v", err)
 		}
@@ -110,7 +110,7 @@ This workflow has empty network permissions (deny all).`
 		filePath, cleanup := createTempWorkflowFile(yamlContent)
 		defer cleanup()
 
-		workflowData, err := compiler.parseWorkflowFile(filePath)
+		workflowData, err := compiler.ParseWorkflowFile(filePath)
 		if err != nil {
 			t.Fatalf("Failed to parse workflow: %v", err)
 		}
@@ -140,7 +140,7 @@ This workflow has a single allowed domain.`
 		filePath, cleanup := createTempWorkflowFile(yamlContent)
 		defer cleanup()
 
-		workflowData, err := compiler.parseWorkflowFile(filePath)
+		workflowData, err := compiler.ParseWorkflowFile(filePath)
 		if err != nil {
 			t.Fatalf("Failed to parse workflow: %v", err)
 		}
@@ -174,7 +174,7 @@ Test that network permissions are passed to engine during compilation.`
 		filePath, cleanup := createTempWorkflowFile(yamlContent)
 		defer cleanup()
 
-		workflowData, err := compiler.parseWorkflowFile(filePath)
+		workflowData, err := compiler.ParseWorkflowFile(filePath)
 		if err != nil {
 			t.Fatalf("Failed to parse workflow: %v", err)
 		}
@@ -219,12 +219,12 @@ network:
 		filePath2, cleanup2 := createTempWorkflowFile(yaml2)
 		defer cleanup2()
 
-		workflowData1, err := compiler.parseWorkflowFile(filePath1)
+		workflowData1, err := compiler.ParseWorkflowFile(filePath1)
 		if err != nil {
 			t.Fatalf("Failed to parse first workflow: %v", err)
 		}
 
-		workflowData2, err := compiler.parseWorkflowFile(filePath2)
+		workflowData2, err := compiler.ParseWorkflowFile(filePath2)
 		if err != nil {
 			t.Fatalf("Failed to parse second workflow: %v", err)
 		}

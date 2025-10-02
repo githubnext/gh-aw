@@ -41,7 +41,7 @@ This workflow tests the output configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with output config: %v", err)
 	}
@@ -104,7 +104,7 @@ This workflow has no output configuration.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow without output config: %v", err)
 	}
@@ -151,7 +151,7 @@ This workflow tests the null output configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with null output config: %v", err)
 	}
@@ -322,7 +322,7 @@ This workflow tests the output.add-comment configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with output comment config: %v", err)
 	}
@@ -372,7 +372,7 @@ This workflow tests the output.add-comment configuration parsing with null value
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with null output comment config: %v", err)
 	}
@@ -423,7 +423,7 @@ This workflow tests the output.add-comment target configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with target comment config: %v", err)
 	}
@@ -479,7 +479,7 @@ This workflow tests the add-comment max and target configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with max target comment config: %v", err)
 	}
@@ -711,7 +711,7 @@ This workflow tests the output pull request configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with output pull-request config: %v", err)
 	}
@@ -1043,7 +1043,7 @@ This workflow tests the output labels configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with output labels config: %v", err)
 	}
@@ -1389,7 +1389,7 @@ This workflow tests the output labels null configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with null labels config: %v", err)
 	}
@@ -1451,7 +1451,7 @@ This workflow tests the output labels max configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with output labels max config: %v", err)
 	}
@@ -1524,7 +1524,7 @@ This workflow tests the default max behavior.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow without max: %v", err)
 	}
@@ -1799,7 +1799,7 @@ This workflow tests the create-pull-request if-no-changes configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with create-pull-request if-no-changes config: %v", err)
 	}
@@ -1840,7 +1840,7 @@ This workflow tests the default if-no-changes behavior.
 	}
 
 	// Parse the workflow data for default case
-	workflowDataDefault, err := compiler.parseWorkflowFile(testFileDefault)
+	workflowDataDefault, err := compiler.ParseWorkflowFile(testFileDefault)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with default if-no-changes config: %v", err)
 	}

@@ -469,5 +469,6 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling the generated workflow..."))
 
 	// Use the existing compile functionality
-	return CompileWorkflows([]string{b.WorkflowName}, verbose, "", true, false, "", false, false, false)
+	_, err := CompileWorkflows([]string{b.WorkflowName}, verbose, "", true, false, "", false, false, false, false)
+	return err
 }

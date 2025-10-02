@@ -176,7 +176,7 @@ Examples:
 		// Invert noInstructions to get skipInstructions (by default, we want to write instructions)
 		// Also skip instructions when noEmit is true (validation-only mode)
 		skipInstructions := noInstructions || noEmit
-		if err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, workflowDir, skipInstructions, noEmit, purge); err != nil {
+		if _, err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, workflowDir, skipInstructions, noEmit, purge, false); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -283,6 +283,9 @@ func init() {
 	// Create and setup add command
 	addCmd := cli.NewAddCommand(verbose, validateEngine)
 
+	// Create and setup trial command
+	trialCmd := cli.NewTrialCommand(verbose, validateEngine)
+
 	// Create and setup init command
 	initCmd := NewInitCommand(verbose)
 
@@ -317,6 +320,7 @@ func init() {
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(trialCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
