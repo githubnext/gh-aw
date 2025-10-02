@@ -133,6 +133,41 @@ func (p *PermissionsParser) HasContentsReadAccess() bool {
 	return false
 }
 
+// IsAllowed checks if a specific permission scope has the specified access level
+// scope: "contents", "issues", "pull-requests", etc.
+// level: "read", "write", "none"
+func (p *PermissionsParser) IsAllowed(scope, level string) bool {
+	// Handle shorthand permissions
+	if p.isShorthand {
+		switch p.shorthandValue {
+		case "read-all":
+			return level == "read"
+		case "write-all":
+			return level == "read" || level == "write"
+		case "read":
+			return level == "read"
+		case "write":
+			return level == "read" || level == "write"
+		case "none":
+			return false
+		default:
+			return false
+		}
+	}
+
+	// Handle explicit permissions map
+	if permLevel, exists := p.parsedPerms[scope]; exists {
+		if level == "read" {
+			// Read access is allowed if permission is "read" or "write"
+			return permLevel == "read" || permLevel == "write"
+		}
+		return permLevel == level
+	}
+
+	// Default: permission not specified means no access
+	return false
+}
+
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
 func ContainsCheckout(customSteps string) bool {
 	if customSteps == "" {
