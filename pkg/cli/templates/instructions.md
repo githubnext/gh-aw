@@ -173,28 +173,6 @@ The YAML frontmatter supports these fields:
         max: 3                          # Optional: maximum number of issues to update (default: 1)
     ```
     When using `safe-outputs.update-issue`, the main job does **not** need `issues: write` permission since issue updates are handled by a separate job with appropriate permissions.
-  - `threat-detection:` - Security analysis of agent output and code changes (enabled by default)
-    ```yaml
-    safe-outputs:
-      threat-detection: true              # Enabled by default when safe-outputs configured
-      create-issue:
-    ```
-    Threat detection analyzes agent output and code changes for security threats (prompt injection, secret leaks, malicious code) before any safe outputs are processed. It runs as a separate job and blocks safe output jobs if threats are detected.
-    
-    **Advanced Configuration:**
-    ```yaml
-    safe-outputs:
-      threat-detection:
-        enabled: true
-        prompt: "Focus on identifying backdoor installations and data exfiltration attempts."
-        steps:
-          - name: Additional security scan
-            uses: actions/custom-security-scan@v1
-      create-pull-request:
-    ```
-    - **`enabled`** (boolean): Whether threat detection is enabled (default: `true`)
-    - **`prompt`** (string): Additional custom instructions to append to the default threat detection prompt
-    - **`steps`** (array): Custom GitHub Actions steps to run as part of threat detection
 
   **Global Safe Output Configuration:**
   - `github-token:` - Custom GitHub token for all safe output jobs

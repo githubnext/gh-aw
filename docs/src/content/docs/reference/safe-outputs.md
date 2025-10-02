@@ -36,7 +36,6 @@ This declares that the workflow should create at most one new issue.
 | **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality (enabled by default when safe-outputs is configured) | unlimited |
-| **Threat Detection** | `threat-detection:` | Analyze agent output and code changes for security threats (enabled by default when safe-outputs is configured) | N/A |
 
 ### New Issue Creation (`create-issue:`)
 
@@ -799,46 +798,8 @@ In staged mode, this shows as a preview error rather than failing the workflow.
 - Ensure manageable code review sizes
 - Control CI/CD resource usage
 
-## Threat Detection
-
-Threat detection is a security feature that automatically analyzes agent output and code changes for potential security threats before any safe outputs are processed. It is **enabled by default** when any safe-outputs are configured.
-
-**Basic Usage (Enabled by Default):**
-```yaml
-safe-outputs:
-  create-issue:
-  # threat-detection is automatically enabled
-```
-
-**Explicitly Disable (Not Recommended):**
-```yaml
-safe-outputs:
-  threat-detection: false
-  create-issue:
-```
-
-**With Custom Configuration:**
-```yaml
-safe-outputs:
-  threat-detection:
-    enabled: true
-    prompt: "Focus on identifying backdoor installations and data exfiltration attempts."
-    steps:
-      - name: Additional security scan
-        uses: actions/custom-security-scan@v1
-  create-pull-request:
-```
-
-**Configuration Options:**
-- **`enabled`** (boolean): Whether threat detection is enabled (default: `true` when safe-outputs configured)
-- **`prompt`** (string): Additional custom instructions to append to the default threat detection prompt
-- **`steps`** (array): Custom GitHub Actions steps to run as part of threat detection
-
-For complete documentation on threat detection, see [Threat Detection](/gh-aw/reference/threat-detection/).
-
 ## Related Documentation
 
-- [Threat Detection](/gh-aw/reference/threat-detection/) - Security analysis of agent output and code changes
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special /my-bot triggers and context text
