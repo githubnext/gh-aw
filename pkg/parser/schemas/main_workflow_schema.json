@@ -29,6 +29,10 @@
                   "description": "Null command configuration - defaults to using the workflow filename (without .md extension) as the command name"
                 },
                 {
+                  "type": "string",
+                  "description": "Command name as a string (shorthand format, e.g., 'customname' for '/customname' triggers)"
+                },
+                {
                   "type": "object",
                   "description": "Command configuration object with custom command name",
                   "properties": {
