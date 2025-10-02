@@ -46,7 +46,7 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			runIDOrURL := args[0]
-			
+
 			// Extract run ID from input (either numeric ID or URL)
 			runID, err := extractRunID(runIDOrURL)
 			if err != nil {
@@ -85,7 +85,7 @@ func extractRunID(input string) (int64, error) {
 	// - https://github.com/owner/repo/actions/runs/12345678/attempts/2
 	runIDPattern := regexp.MustCompile(`/actions/runs/(\d+)`)
 	matches := runIDPattern.FindStringSubmatch(input)
-	
+
 	if len(matches) >= 2 {
 		runID, err := strconv.ParseInt(matches[1], 10, 64)
 		if err != nil {
@@ -117,14 +117,14 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 	}
 
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
-	
+
 	// Check if we have locally cached artifacts first
 	hasLocalCache := dirExists(runOutputDir) && !isDirEmpty(runOutputDir)
-	
+
 	// Try to get run metadata from GitHub API
 	run, metadataErr := fetchWorkflowRunMetadata(runID, verbose)
 	var useLocalCache bool
-	
+
 	if metadataErr != nil {
 		// Check if it's a permission error
 		if isPermissionError(metadataErr) {
@@ -133,12 +133,12 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 				useLocalCache = true
 			} else {
 				// Provide helpful message about using GitHub MCP server
-				return fmt.Errorf("GitHub API access denied and no local cache found.\n\n" +
-					"To download artifacts, use the GitHub MCP server:\n\n" +
-					"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n" +
-					"   - run_id: %d\n" +
-					"   - output_directory: %s\n\n" +
-					"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n" +
+				return fmt.Errorf("GitHub API access denied and no local cache found.\n\n"+
+					"To download artifacts, use the GitHub MCP server:\n\n"+
+					"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
+					"   - run_id: %d\n"+
+					"   - output_directory: %s\n\n"+
+					"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
 					"Original error: %v", runID, runOutputDir, metadataErr)
 			}
 		} else {
@@ -159,12 +159,12 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Artifact download failed due to permissions, but found locally cached artifacts. Processing cached data..."))
 					useLocalCache = true
 				} else {
-					return fmt.Errorf("failed to download artifacts due to permissions and no local cache found.\n\n" +
-						"To download artifacts, use the GitHub MCP server:\n\n" +
-						"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n" +
-						"   - run_id: %d\n" +
-						"   - output_directory: %s\n\n" +
-						"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n" +
+					return fmt.Errorf("failed to download artifacts due to permissions and no local cache found.\n\n"+
+						"To download artifacts, use the GitHub MCP server:\n\n"+
+						"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n"+
+						"   - run_id: %d\n"+
+						"   - output_directory: %s\n\n"+
+						"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n"+
 						"Original error: %v", runID, runOutputDir, err)
 				}
 			} else {
@@ -172,7 +172,7 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 			}
 		}
 	}
-	
+
 	// If using local cache without metadata, create a minimal run structure
 	if useLocalCache && run.DatabaseID == 0 {
 		run = WorkflowRun{

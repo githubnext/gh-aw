@@ -71,7 +71,7 @@ func TestExtractRunID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := extractRunID(tt.input)
-			
+
 			if tt.shouldErr {
 				if err == nil {
 					t.Errorf("Expected error but got none")
