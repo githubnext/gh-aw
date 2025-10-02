@@ -127,19 +127,106 @@ async function main() {
         .filter(label => label != null && label !== false && label !== 0)
         .map(label => String(label).trim())
         .filter(label => label)
-        .map(label => sanitizeLabelContent(label))
-        .filter(label => label)
-        .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-        .filter((label, index, arr) => arr.indexOf(label) === index);
-    if (uniqueLabels.length > maxCount) {
-        core.debug(`too many labels, keep ${maxCount}`);
-        uniqueLabels = uniqueLabels.slice(0, maxCount);
+    : undefined;
+  if (allowedLabels) {
+    core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
+  } else {
+    core.debug("No label restrictions - any labels are allowed");
+  }
+  const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
+  const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
+  if (isNaN(maxCount) || maxCount < 1) {
+    core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+    return;
+  }
+  core.debug(`Max count: ${maxCount}`);
+  const labelsTarget = process.env.GITHUB_AW_LABELS_TARGET || "triggering";
+  core.info(`Labels target configuration: ${labelsTarget}`);
+  const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+  const isPRContext =
+    context.eventName === "pull_request" ||
+    context.eventName === "pull_request_review" ||
+    context.eventName === "pull_request_review_comment";
+  if (labelsTarget === "triggering" && !isIssueContext && !isPRContext) {
+    core.info('Target is "triggering" but not running in issue or pull request context, skipping label addition');
+    return;
+  }
+  let issueNumber;
+  let contextType;
+  if (labelsTarget === "*") {
+    if (labelsItem.issue_number) {
+      issueNumber = typeof labelsItem.issue_number === "number" ? labelsItem.issue_number : parseInt(String(labelsItem.issue_number), 10);
+      if (isNaN(issueNumber) || issueNumber <= 0) {
+        core.setFailed(`Invalid issue number specified: ${labelsItem.issue_number}`);
+        return;
+      }
+      contextType = "issue";
+    } else {
+      core.setFailed('Target is "*" but no issue_number specified in labels item');
+      return;
     }
-    if (uniqueLabels.length === 0) {
-        core.info("No labels to add");
-        core.setOutput("labels_added", "");
-        await core.summary
-            .addRaw(`
+  } else if (labelsTarget && labelsTarget !== "triggering") {
+    issueNumber = parseInt(labelsTarget, 10);
+    if (isNaN(issueNumber) || issueNumber <= 0) {
+      core.setFailed(`Invalid issue number in target configuration: ${labelsTarget}`);
+      return;
+    }
+    contextType = "issue";
+  } else {
+    if (isIssueContext) {
+      if (context.payload.issue) {
+        issueNumber = context.payload.issue.number;
+        contextType = "issue";
+      } else {
+        core.setFailed("Issue context detected but no issue found in payload");
+        return;
+      }
+    } else if (isPRContext) {
+      if (context.payload.pull_request) {
+        issueNumber = context.payload.pull_request.number;
+        contextType = "pull request";
+      } else {
+        core.setFailed("Pull request context detected but no pull request found in payload");
+        return;
+      }
+    }
+  }
+  if (!issueNumber) {
+    core.setFailed("Could not determine issue or pull request number");
+    return;
+  }
+  const requestedLabels = labelsItem.labels || [];
+  core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+  for (const label of requestedLabels) {
+    if (label && typeof label === "string" && label.startsWith("-")) {
+      core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
+      return;
+    }
+  }
+  let validLabels;
+  if (allowedLabels) {
+    validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
+  } else {
+    validLabels = requestedLabels;
+  }
+  let uniqueLabels = validLabels
+    .filter(label => label != null && label !== false && label !== 0)
+    .map(label => String(label).trim())
+    .filter(label => label)
+    .map(label => sanitizeLabelContent(label))
+    .filter(label => label)
+    .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+    .filter((label, index, arr) => arr.indexOf(label) === index);
+  if (uniqueLabels.length > maxCount) {
+    core.debug(`too many labels, keep ${maxCount}`);
+    uniqueLabels = uniqueLabels.slice(0, maxCount);
+  }
+  if (uniqueLabels.length === 0) {
+    core.info("No labels to add");
+    core.setOutput("labels_added", "");
+    await core.summary
+      .addRaw(
+        `
 ## Label Addition
 
 No labels were added (no valid labels found in agent output).

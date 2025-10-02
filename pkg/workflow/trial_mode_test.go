@@ -1,0 +1,243 @@
+package workflow
+
+import (
+	"os"
+	"strings"
+	"testing"
+)
+
+func TestTrialModeCompilation(t *testing.T) {
+	// Create a test markdown workflow file with safe outputs
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: claude
+safe-outputs:
+  create-pull-request: {}
+  create-issue: {}
+---
+
+# Test Workflow
+
+This is a test workflow for trial mode compilation.
+
+## Instructions
+
+- Test with safe outputs
+- Test checkout token handling
+`
+
+	// Create temporary file
+	tmpFile, err := os.CreateTemp("", "trial-mode-test-*.md")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// Write content to file
+	if _, err := tmpFile.WriteString(workflowContent); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Test normal mode compilation (should include safe outputs)
+	t.Run("Normal Mode", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetTrialMode(false)     // Normal mode
+		compiler.SetSkipValidation(true) // Skip validation for test
+
+		// Parse the workflow file to get WorkflowData
+		workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("Failed to parse workflow file in normal mode: %v", err)
+		}
+
+		// Generate YAML content
+		lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+		if err != nil {
+			t.Fatalf("Failed to generate YAML in normal mode: %v", err)
+		}
+
+		// In normal mode, safe output jobs should be included
+		if !strings.Contains(lockContent, "create_pull_request:") {
+			t.Error("Expected create_pull_request job in normal mode")
+		}
+		if !strings.Contains(lockContent, "create_issue:") {
+			t.Error("Expected create_issue job in normal mode")
+		}
+
+		// Checkout should not include github-token in normal mode
+		if strings.Contains(lockContent, "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+			t.Error("Did not expect github-token in checkout step in normal mode")
+		}
+	})
+
+	// Test trial mode compilation (should suppress safe outputs and add token)
+	t.Run("Trial Mode", func(t *testing.T) {
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetTrialMode(true)      // Trial mode
+		compiler.SetSkipValidation(true) // Skip validation for test
+
+		// Parse the workflow file to get WorkflowData
+		workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+		if err != nil {
+			t.Fatalf("Failed to parse workflow file in trial mode: %v", err)
+		}
+
+		// Generate YAML content
+		lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+		if err != nil {
+			t.Fatalf("Failed to generate YAML in trial mode: %v", err)
+		}
+
+		// In trial mode, safe output jobs should be suppressed
+		if strings.Contains(lockContent, "create_pull_request:") {
+			t.Error("Did not expect create_pull_request job in trial mode")
+		}
+		if strings.Contains(lockContent, "create_issue:") {
+			t.Error("Did not expect create_issue job in trial mode")
+		}
+
+		// Checkout should include github-token in trial mode
+		if !strings.Contains(lockContent, "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+			t.Error("Expected github-token in checkout step in trial mode")
+		}
+
+		// Should still include the main workflow job
+		if !strings.Contains(lockContent, "jobs:") {
+			t.Error("Expected jobs section to be present in trial mode")
+		}
+	})
+}
+
+func TestTrialModeWithDifferentSafeOutputs(t *testing.T) {
+	// Test different combinations of safe outputs
+	testCases := []struct {
+		name           string
+		safeOutputs    string
+		shouldSuppress []string
+	}{
+		{
+			name:           "CreatePullRequest only",
+			safeOutputs:    "create-pull-request",
+			shouldSuppress: []string{"create_pull_request:"},
+		},
+		{
+			name:           "CreateIssue only",
+			safeOutputs:    "create-issue",
+			shouldSuppress: []string{"create_issue:"},
+		},
+		{
+			name:           "Both safe outputs",
+			safeOutputs:    "create-pull-request, create-issue",
+			shouldSuppress: []string{"create_pull_request:", "create_issue:"},
+		},
+		{
+			name:           "No safe outputs",
+			safeOutputs:    "",
+			shouldSuppress: []string{}, // Nothing should be suppressed
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create workflow content with specific safe outputs
+			workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: claude
+`
+			if tc.safeOutputs != "" {
+				// Convert comma-separated string to YAML object format
+				safeOutputsList := strings.Split(tc.safeOutputs, ",")
+				workflowContent += "safe-outputs:\n"
+				for _, output := range safeOutputsList {
+					workflowContent += "  " + strings.TrimSpace(output) + ": {}\n"
+				}
+			}
+			workflowContent += `---
+
+# Test Workflow
+
+This is a test workflow for trial mode compilation.
+
+## Instructions
+
+- Test with different safe outputs configurations
+`
+
+			// Create temporary file
+			tmpFile, err := os.CreateTemp("", "trial-mode-safe-outputs-"+strings.ReplaceAll(tc.name, " ", "_")+"-*.md")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			// Write content to file
+			if _, err := tmpFile.WriteString(workflowContent); err != nil {
+				t.Fatalf("Failed to write to temp file: %v", err)
+			}
+			tmpFile.Close()
+
+			compiler := NewCompiler(false, "", "test")
+			compiler.SetTrialMode(true)      // Trial mode
+			compiler.SetSkipValidation(true) // Skip validation for test
+
+			// Parse the workflow file to get WorkflowData
+			workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to parse workflow file: %v", err)
+			}
+
+			// Generate YAML content
+			lockContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			// Check that specified jobs are suppressed
+			for _, suppressedJob := range tc.shouldSuppress {
+				if strings.Contains(lockContent, suppressedJob) {
+					t.Errorf("Expected job %s to be suppressed in trial mode", suppressedJob)
+				}
+			}
+
+			// Check that the main workflow jobs section is included
+			if !strings.Contains(lockContent, "jobs:") {
+				t.Error("Expected jobs section to be present in trial mode")
+			}
+
+			// In trial mode, checkout should always include github-token
+			if strings.Contains(lockContent, "uses: actions/checkout@v5") {
+				if !strings.Contains(lockContent, "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+					t.Error("Expected github-token in checkout step in trial mode")
+				}
+			}
+		})
+	}
+}
+
+func TestTrialModeSetterAndGetter(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test default value
+	if compiler.trialMode {
+		t.Error("Expected trialMode to be false by default")
+	}
+
+	// Test setting trial mode to true
+	compiler.SetTrialMode(true)
+	if !compiler.trialMode {
+		t.Error("Expected trialMode to be true after setting")
+	}
+
+	// Test setting trial mode to false
+	compiler.SetTrialMode(false)
+	if compiler.trialMode {
+		t.Error("Expected trialMode to be false after setting to false")
+	}
+}

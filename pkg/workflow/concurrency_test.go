@@ -123,7 +123,7 @@ This is a test workflow for concurrency behavior.
 			}
 
 			// Parse the workflow to get its data
-			workflowData, err := compiler.parseWorkflowFile(testFile)
+			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			if err != nil {
 				t.Errorf("Failed to parse workflow: %v", err)
 				return

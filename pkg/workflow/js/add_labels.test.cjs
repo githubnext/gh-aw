@@ -255,7 +255,7 @@ describe("add_labels.js", () => {
   });
 
   describe("Context validation", () => {
-    it("should fail when not in issue or PR context", async () => {
+    it("should skip when not in issue or PR context (with default target)", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
@@ -270,7 +270,9 @@ describe("add_labels.js", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Not running in issue or pull request context, skipping label addition");
+      expect(mockCore.info).toHaveBeenCalledWith(
+        'Target is "triggering" but not running in issue or pull request context, skipping label addition'
+      );
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -855,6 +857,207 @@ describe("add_labels.js", () => {
         issue_number: 123,
         labels: ["bug", "enhancement"],
       });
+    });
+  });
+
+  describe("Target configuration", () => {
+    beforeEach(() => {
+      // Reset environment variables
+      delete process.env.GITHUB_AW_LABELS_TARGET;
+    });
+
+    it("should use triggering issue when target is not specified (default behavior)", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug"],
+          },
+        ],
+      });
+
+      global.context.eventName = "issues";
+      global.context.payload.issue = { number: 456 };
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith("Labels target configuration: triggering");
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        issue_number: 456,
+        labels: ["bug"],
+      });
+    });
+
+    it("should use triggering issue when target is explicitly set to 'triggering'", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["enhancement"],
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_TARGET = "triggering";
+
+      global.context.eventName = "issues";
+      global.context.payload.issue = { number: 789 };
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith("Labels target configuration: triggering");
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        issue_number: 789,
+        labels: ["enhancement"],
+      });
+    });
+
+    it("should skip when target is 'triggering' but not in issue context", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug"],
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_TARGET = "triggering";
+
+      // Set context to something other than issues or PR
+      global.context.eventName = "push";
+      delete global.context.payload.issue;
+      delete global.context.payload.pull_request;
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith(
+        'Target is "triggering" but not running in issue or pull request context, skipping label addition'
+      );
+      expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("should use explicit issue number from target configuration", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug", "urgent"],
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_TARGET = "999";
+
+      // Context doesn't matter when explicit issue number is provided
+      global.context.eventName = "push";
+      delete global.context.payload.issue;
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith("Labels target configuration: 999");
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        issue_number: 999,
+        labels: ["bug", "urgent"],
+      });
+    });
+
+    it("should use issue_number from labels item when target is '*'", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["documentation"],
+            issue_number: 555,
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_TARGET = "*";
+
+      // Context doesn't matter when issue_number is provided in the item
+      global.context.eventName = "push";
+      delete global.context.payload.issue;
+
+      mockGithub.rest.issues.addLabels.mockResolvedValue({});
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.info).toHaveBeenCalledWith("Labels target configuration: *");
+      expect(mockGithub.rest.issues.addLabels).toHaveBeenCalledWith({
+        owner: "testowner",
+        repo: "testrepo",
+        issue_number: 555,
+        labels: ["documentation"],
+      });
+    });
+
+    it("should fail when target is '*' but no issue_number in labels item", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug"],
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_TARGET = "*";
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Target is "*" but no issue_number specified in labels item');
+      expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("should fail when target has invalid issue number", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug"],
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_TARGET = "invalid";
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid issue number in target configuration: invalid");
+      expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
+    });
+
+    it("should fail when target is '*' and issue_number in item is invalid", async () => {
+      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+        items: [
+          {
+            type: "add-labels",
+            labels: ["bug"],
+            issue_number: -5,
+          },
+        ],
+      });
+      process.env.GITHUB_AW_LABELS_TARGET = "*";
+
+      // Execute the script
+      await eval(`(async () => { ${addLabelsScript} })()`);
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid issue number specified: -5");
+      expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
   });
 });

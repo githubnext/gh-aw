@@ -152,6 +152,58 @@ roles: all
 
 **Important:** Use `roles: all` with extreme caution, especially in public repositories where any authenticated user can potentially trigger workflows through issues, comments, or pull requests.
 
+### Authorization and Token Management
+
+GitHub Agentic Workflows support flexible token configuration for different execution contexts and security requirements.
+
+#### GitHub Token Precedence
+
+By default, workflows use GitHub's standard `GITHUB_TOKEN` for authentication. However, you can override this behavior using environment variables with the following precedence:
+
+1. **`GH_AW_GITHUB_TOKEN`** - Primary override token (highest priority)
+2. **`GITHUB_TOKEN`** - Standard GitHub Actions token (fallback)
+
+#### Token Configuration Examples
+
+**Basic override for enhanced permissions:**
+
+```yaml
+# Set via repository secrets
+env:
+  GH_AW_GITHUB_TOKEN: ${{ secrets.CUSTOM_PAT }}
+```
+
+**Per-job token configuration:**
+
+```yaml
+jobs:
+  agentic-task:
+    runs-on: ubuntu-latest
+    env:
+      GH_AW_GITHUB_TOKEN: ${{ secrets.ENHANCED_PAT }}
+    steps:
+      # Workflow steps use the enhanced token
+```
+
+**Safe outputs with custom tokens:**
+
+```yaml
+safe-outputs:
+  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+  create-issue:
+  create-pull-request:
+```
+
+#### Security Considerations
+
+When using custom tokens:
+
+- **Principle of least privilege**: Grant only the minimum permissions required
+- **Token rotation**: Regularly rotate Personal Access Tokens
+- **Scope limitation**: Use fine-grained PATs when possible to limit repository access
+- **Audit logging**: Monitor token usage through GitHub's audit logs
+- **Secret management**: Store tokens as GitHub repository or organization secrets, never in code
+
 ### MCP Tool Hardening
 
 Model Context Protocol tools require strict containment:

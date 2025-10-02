@@ -181,7 +181,7 @@ This is a test workflow that should automatically get additional Claude tools wh
 
 // Helper function to parse workflow content and return both WorkflowData and allowed tools string
 func (c *Compiler) parseWorkflowMarkdownContentWithToolsString(content string) (*WorkflowData, string, error) {
-	// This would normally be in parseWorkflowFile, but we'll extract the core logic for testing
+	// This would normally be in ParseWorkflowFile, but we'll extract the core logic for testing
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return nil, "", err
