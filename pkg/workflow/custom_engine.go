@@ -20,7 +20,8 @@ func NewCustomEngine() *CustomEngine {
 			experimental:           false,
 			supportsToolsAllowlist: false,
 			supportsHTTPTransport:  false,
-			supportsMaxTurns:       true, // Custom engine supports max-turns for consistency
+			supportsMaxTurns:       true,  // Custom engine supports max-turns for consistency
+			supportsWebFetch:       false, // Custom engine does not have built-in web-fetch support
 		},
 	}
 }
@@ -162,6 +163,8 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		case "safe-outputs":
 			e.renderSafeOutputsMCPConfig(yaml, isLast)
+		case "web-fetch":
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {

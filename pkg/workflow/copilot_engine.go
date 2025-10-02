@@ -27,6 +27,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  true,  // Copilot CLI supports HTTP transport via MCP
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
+			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
 		},
 	}
 }
@@ -223,6 +224,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
 		case "safe-outputs":
 			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
+		case "web-fetch":
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -531,10 +534,10 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	// Built-in tool names that should be skipped when processing MCP servers
 	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
+	// Note: web-fetch is NOT included here because it may be an MCP server for engines without native support
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
-		"web-fetch":  true,
 		"web-search": true,
 		"playwright": true,
 	}
