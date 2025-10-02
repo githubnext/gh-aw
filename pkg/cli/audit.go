@@ -97,27 +97,91 @@ func extractRunID(input string) (int64, error) {
 	return 0, fmt.Errorf("invalid run ID or URL '%s': must be a numeric run ID or a GitHub Actions URL containing '/actions/runs/{run-id}'", input)
 }
 
+// isPermissionError checks if an error is related to permissions/authentication
+func isPermissionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "authentication required") ||
+		strings.Contains(errStr, "exit status 4") ||
+		strings.Contains(errStr, "GitHub CLI authentication") ||
+		strings.Contains(errStr, "permission") ||
+		strings.Contains(errStr, "GH_TOKEN")
+}
+
 // AuditWorkflowRun audits a single workflow run and generates a report
 func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runID)))
 	}
 
-	// Get run metadata from GitHub API
-	run, err := fetchWorkflowRunMetadata(runID, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to fetch run metadata: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run: %s (Status: %s, Conclusion: %s)", run.WorkflowName, run.Status, run.Conclusion)))
-	}
-
-	// Download artifacts for the run
 	runOutputDir := filepath.Join(outputDir, fmt.Sprintf("run-%d", runID))
-	err = downloadRunArtifacts(runID, runOutputDir, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to download artifacts: %w", err)
+	
+	// Check if we have locally cached artifacts first
+	hasLocalCache := dirExists(runOutputDir) && !isDirEmpty(runOutputDir)
+	
+	// Try to get run metadata from GitHub API
+	run, metadataErr := fetchWorkflowRunMetadata(runID, verbose)
+	var useLocalCache bool
+	
+	if metadataErr != nil {
+		// Check if it's a permission error
+		if isPermissionError(metadataErr) {
+			if hasLocalCache {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("GitHub API access denied, but found locally cached artifacts. Processing cached data..."))
+				useLocalCache = true
+			} else {
+				// Provide helpful message about using GitHub MCP server
+				return fmt.Errorf("GitHub API access denied and no local cache found.\n\n" +
+					"To download artifacts, use the GitHub MCP server:\n\n" +
+					"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n" +
+					"   - run_id: %d\n" +
+					"   - output_directory: %s\n\n" +
+					"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n" +
+					"Original error: %v", runID, runOutputDir, metadataErr)
+			}
+		} else {
+			return fmt.Errorf("failed to fetch run metadata: %w", metadataErr)
+		}
+	}
+
+	if !useLocalCache {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run: %s (Status: %s, Conclusion: %s)", run.WorkflowName, run.Status, run.Conclusion)))
+		}
+
+		// Download artifacts for the run
+		err := downloadRunArtifacts(runID, runOutputDir, verbose)
+		if err != nil {
+			if isPermissionError(err) {
+				if hasLocalCache {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Artifact download failed due to permissions, but found locally cached artifacts. Processing cached data..."))
+					useLocalCache = true
+				} else {
+					return fmt.Errorf("failed to download artifacts due to permissions and no local cache found.\n\n" +
+						"To download artifacts, use the GitHub MCP server:\n\n" +
+						"1. Use the github-mcp-server tool 'download_workflow_run_artifacts' with:\n" +
+						"   - run_id: %d\n" +
+						"   - output_directory: %s\n\n" +
+						"2. After downloading, run this audit command again to analyze the cached artifacts.\n\n" +
+						"Original error: %v", runID, runOutputDir, err)
+				}
+			} else {
+				return fmt.Errorf("failed to download artifacts: %w", err)
+			}
+		}
+	}
+	
+	// If using local cache without metadata, create a minimal run structure
+	if useLocalCache && run.DatabaseID == 0 {
+		run = WorkflowRun{
+			DatabaseID:   runID,
+			WorkflowName: fmt.Sprintf("Workflow Run %d", runID),
+			Status:       "unknown",
+			LogsPath:     runOutputDir,
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Using locally cached artifacts without metadata. Some report details may be unavailable."))
 	}
 
 	// Extract metrics from logs

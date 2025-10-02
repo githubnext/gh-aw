@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,6 +83,59 @@ func TestExtractRunID(t *testing.T) {
 				if result != tt.expected {
 					t.Errorf("Expected run ID %d, got %d", tt.expected, result)
 				}
+			}
+		})
+	}
+}
+
+func TestIsPermissionError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "Nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "Authentication required error",
+			err:      fmt.Errorf("authentication required"),
+			expected: true,
+		},
+		{
+			name:     "Exit status 4 error",
+			err:      fmt.Errorf("exit status 4"),
+			expected: true,
+		},
+		{
+			name:     "GitHub CLI authentication error",
+			err:      fmt.Errorf("GitHub CLI authentication required"),
+			expected: true,
+		},
+		{
+			name:     "Permission denied error",
+			err:      fmt.Errorf("permission denied"),
+			expected: true,
+		},
+		{
+			name:     "GH_TOKEN error",
+			err:      fmt.Errorf("GH_TOKEN environment variable not set"),
+			expected: true,
+		},
+		{
+			name:     "Other error",
+			err:      fmt.Errorf("some other error"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isPermissionError(tt.err)
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}
 		})
 	}
