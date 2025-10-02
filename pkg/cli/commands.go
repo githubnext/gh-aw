@@ -609,6 +609,7 @@ type CompileConfig struct {
 	Purge            bool     // Remove orphaned lock files
 	TrialMode        bool     // Enable trial mode (suppress safe outputs)
 	TrialTargetRepo  string   // Target repository for trial mode
+	Strict           bool     // Enable strict mode validation
 }
 
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
@@ -623,6 +624,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	purge := config.Purge
 	trialMode := config.TrialMode
 	trialTargetRepo := config.TrialTargetRepo
+	strict := config.Strict
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
 		return nil, fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
@@ -648,6 +650,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Set noEmit flag to validate without generating lock files
 	compiler.SetNoEmit(noEmit)
+
+	// Set strict mode if specified
+	compiler.SetStrictMode(strict)
 
 	// Set trial mode if specified
 	if trialMode {

@@ -24,6 +24,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 
 **Properties specific to GitHub Agentic Workflows:**
 - `engine`: AI engine configuration (claude/copilot/codex) with optional max-turns setting
+- `strict`: Enable strict mode validation (boolean, defaults to false)
 - `roles`: Permission restrictions based on repository access levels
 - `safe-outputs`: [Safe Output Processing](/gh-aw/reference/safe-outputs/)
 - `network`: Network access control for AI engines
@@ -99,6 +100,9 @@ on:
 
 An additional kind of trigger called `command:` is supported, see [Command Triggers](/gh-aw/reference/command-triggers/) for special `/my-bot` triggers and context text functionality.
 
+> [!NOTE]
+> Command workflows automatically enable the "eyes" (👀) reaction by default. This can be customized by explicitly specifying a different reaction in the `reaction:` field.
+
 ## Permissions (`permissions:`)
 
 The `permissions:` section uses standard GitHub Actions permissions syntax to specify the permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Actions permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions).
@@ -150,6 +154,62 @@ roles: admin
 - "Safe" triggers like `workflow_dispatch`, `schedule`, and `workflow_run` skip permission checks by default
 - When permission checks fail, the workflow is automatically cancelled with a warning message
 - Users without sufficient permissions will see the workflow start but then immediately stop
+
+## Strict Mode (`strict:`)
+
+The `strict:` field enables enhanced validation for production workflows, enforcing security and reliability constraints. When enabled, the compiler will reject workflows that don't meet strict mode requirements.
+
+```yaml
+# Enable strict mode for this workflow
+strict: true
+
+# Explicitly disable strict mode (default)
+strict: false
+```
+
+**Strict Mode Requirements:**
+
+When `strict: true`, the workflow must satisfy these requirements:
+
+1. **Timeout Required**: Must specify `timeout_minutes` with a positive integer value to prevent runaway executions
+2. **Write Permissions Blocked**: Cannot use `contents: write`, `issues: write`, or `pull-requests: write` permissions (use `safe-outputs` instead for controlled GitHub API interactions)
+3. **Network Configuration Required**: Must explicitly configure network access (cannot rely on default behavior)
+4. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
+5. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
+
+**Example Strict Mode Workflow:**
+
+```yaml
+---
+on: push
+strict: true
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+network:
+  allowed:
+    - "api.example.com"
+    - "*.trusted.com"
+---
+
+# Strict Mode Workflow
+This workflow follows all strict mode requirements.
+```
+
+**Enabling Strict Mode:**
+
+Strict mode can be enabled in two ways:
+- **Frontmatter**: Add `strict: true` to the workflow frontmatter (per-workflow control)
+- **CLI flag**: Use `gh aw compile --strict` (applies to all workflows being compiled)
+
+The CLI `--strict` flag takes precedence over frontmatter settings. If the CLI flag is used, workflows with `strict: false` will still be validated in strict mode.
+
+**Use Cases:**
+- Production workflows that require enhanced security validation
+- Workflows with elevated permissions that need extra scrutiny
+- Cost-sensitive workflows where timeout enforcement is critical
+- Workflows that need to comply with security policies
 
 ## AI Engine (`engine:`)
 

@@ -27,6 +27,8 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  true,  // Copilot CLI supports HTTP transport via MCP
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
+			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
+			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
 		},
 	}
 }
@@ -223,6 +225,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
 		case "safe-outputs":
 			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
+		case "web-fetch":
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {
@@ -531,10 +535,10 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	// Built-in tool names that should be skipped when processing MCP servers
 	// Note: GitHub is NOT included here because it needs MCP configuration in CLI mode
+	// Note: web-fetch is NOT included here because it may be an MCP server for engines without native support
 	builtInTools := map[string]bool{
 		"bash":       true,
 		"edit":       true,
-		"web-fetch":  true,
 		"web-search": true,
 		"playwright": true,
 	}
@@ -764,6 +768,57 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Not authorized for Copilot CLI access",
+		},
+		// Command execution failures
+		{
+			Pattern:      `(?i)command not found:\s*(.+)`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell command not found error",
+		},
+		{
+			Pattern:      `(?i)(.+):\s*command not found`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell command not found error (alternate format)",
+		},
+		{
+			Pattern:      `(?i)sh:\s*\d+:\s*(.+):\s*not found`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell command not found error (sh format)",
+		},
+		{
+			Pattern:      `(?i)bash:\s*(.+):\s*command not found`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Bash command not found error",
+		},
+		// Copilot CLI specific errors
+		{
+			Pattern:      `(?i)permission denied and could not request permission`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Copilot CLI permission denied error",
+		},
+		{
+			Pattern:      `(?i)✗\s+(.+)`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Copilot CLI failed command indicator",
+		},
+		// Node.js and npm test failures
+		{
+			Pattern:      `(?i)Error:\s*Cannot find module\s*'(.+)'`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Node.js module not found error",
+		},
+		{
+			Pattern:      `(?i)sh:\s*\d+:\s*(.+):\s*Permission denied`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell permission denied error",
 		},
 	}
 }

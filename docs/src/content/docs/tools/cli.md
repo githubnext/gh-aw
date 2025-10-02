@@ -26,6 +26,7 @@ gh aw run weekly-research                                    # Execute workflow
 gh aw run weekly-research daily-plan                        # Execute multiple workflows
 gh aw run weekly-research --repeat 3600                     # Execute workflow every hour
 gh aw logs weekly-research                                   # View execution logs
+gh aw audit 12345678                                         # Audit a specific run
 ```
 
 ## Global Flags
@@ -109,6 +110,9 @@ gh aw compile --validate
 # Validate without generating lock files (dry-run)
 gh aw compile --no-emit
 
+# Enable strict mode validation for enhanced security checks
+gh aw compile --strict
+
 # Override the AI engine for specific compilation
 gh aw compile --engine copilot
 
@@ -143,6 +147,28 @@ gh aw compile --purge
 # With verbose output to see which files are removed
 gh aw compile --purge --verbose
 ```
+
+**Strict Mode Validation:**
+
+The `--strict` flag enables enhanced validation for production workflows, enforcing security and reliability constraints:
+
+```bash
+# Compile with strict mode validation
+gh aw compile --strict
+
+# Combine strict mode with other flags
+gh aw compile --strict --verbose
+gh aw compile --strict --no-emit  # Validate without generating files
+```
+
+Strict mode enforces the following requirements:
+- **Timeout Required**: Workflows must specify `timeout_minutes`
+- **Write Permissions Blocked**: Prevents `contents:write`, `issues:write`, `pull-requests:write`
+- **Network Configuration Required**: Must explicitly configure network access
+- **No Network Wildcards**: Cannot use wildcard `*` in allowed domains
+- **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
+
+Workflows can also enable strict mode declaratively using `strict: true` in their frontmatter. The CLI flag takes precedence over frontmatter settings.
 
 ## ⚙️ Workflow Operations on GitHub Actions
 
@@ -280,6 +306,74 @@ gh aw logs weekly-research -c 5 --verbose
 - Success/failure rates and error categorization
 - Workflow run frequency and scheduling patterns
 - Resource usage and performance trends
+
+## 🔎 Single Run Audit
+
+The `audit` command investigates a single GitHub Actions workflow run and generates a concise markdown report suitable for AI agent consumption. It provides focused, detailed analysis of individual runs with smart permission handling.
+
+**Basic Usage:**
+```bash
+# Audit a run by numeric ID
+gh aw audit 12345678
+
+# Audit using GitHub Actions run URL
+gh aw audit https://github.com/owner/repo/actions/runs/12345678
+
+# Audit using GitHub Actions job URL (automatically extracts run ID)
+gh aw audit https://github.com/owner/repo/actions/runs/12345678/job/98765432
+
+# Audit with custom output directory
+gh aw audit 12345678 -o ./audit-reports
+
+# Audit with verbose output for debugging
+gh aw audit 12345678 -v
+```
+
+**Smart Permission Handling:**
+
+The `audit` command intelligently handles permission/authentication errors, making it ideal for AI agents working in restricted environments:
+
+1. **Checks local cache first**: Looks for cached artifacts in `logs/run-{id}` before attempting downloads
+2. **Detects permission errors**: Automatically identifies GitHub API authentication failures
+3. **Provides helpful instructions**: When permissions fail and no cache exists, provides MCP server usage instructions
+4. **Processes cached data**: If cache exists but API access fails, automatically uses cached artifacts
+
+**Example workflow for restricted environments:**
+
+```bash
+# Step 1: Try to audit (may fail with permission error)
+gh aw audit 18167668416
+
+# Output: Instructions to download artifacts using GitHub MCP server
+# Use the github-mcp-server tool 'download_workflow_run_artifacts' with:
+#   - run_id: 18167668416
+#   - output_directory: logs/run-18167668416
+
+# Step 2: Use MCP server to download artifacts (AI agents can learn this)
+# (Use GitHub MCP server tool as instructed)
+
+# Step 3: Run audit again to process cached artifacts
+gh aw audit 18167668416
+# Now processes cached data and generates report
+```
+
+**Report Sections:**
+
+The audit command generates a structured markdown report with:
+
+- **Overview**: Run ID, workflow name, status, duration, event type, branch, URL
+- **Metrics**: Token usage, estimated cost, turns, errors, warnings
+- **MCP Tool Usage**: Table showing tool calls, output sizes, and durations
+- **MCP Server Failures**: Lists any servers that failed to initialize
+- **Missing Tools**: Reports tools the agent attempted but weren't available
+- **Available Artifacts**: Lists downloaded artifacts (aw_info.json, safe_output.jsonl, aw.patch, etc.)
+
+**Benefits:**
+- Works in restricted environments without direct GitHub API access
+- Teaches AI agents how to download artifacts using MCP tools
+- Graceful degradation with limited metadata
+- Reusable cache saves time and API calls
+- Concise format optimized for AI agent parsing
 
 ## 🔍 MCP Server Management
 

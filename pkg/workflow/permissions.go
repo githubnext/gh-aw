@@ -133,6 +133,70 @@ func (p *PermissionsParser) HasContentsReadAccess() bool {
 	return false
 }
 
+// IsAllowed checks if a specific permission scope has the specified access level
+// scope: "contents", "issues", "pull-requests", etc.
+// level: "read", "write", "none"
+func (p *PermissionsParser) IsAllowed(scope, level string) bool {
+	// Handle shorthand permissions
+	if p.isShorthand {
+		switch p.shorthandValue {
+		case "read-all":
+			return level == "read"
+		case "write-all":
+			return level == "read" || level == "write"
+		case "read":
+			return level == "read"
+		case "write":
+			return level == "read" || level == "write"
+		case "none":
+			return false
+		default:
+			return false
+		}
+	}
+
+	// Handle explicit permissions map
+	if permLevel, exists := p.parsedPerms[scope]; exists {
+		if level == "read" {
+			// Read access is allowed if permission is "read" or "write"
+			return permLevel == "read" || permLevel == "write"
+		}
+		return permLevel == level
+	}
+
+	// Default: permission not specified means no access
+	return false
+}
+
+// NewPermissionsParserFromValue creates a PermissionsParser from a frontmatter value (any type)
+func NewPermissionsParserFromValue(permissionsValue any) *PermissionsParser {
+	parser := &PermissionsParser{
+		parsedPerms: make(map[string]string),
+	}
+
+	if permissionsValue == nil {
+		return parser
+	}
+
+	// Handle string shorthand (read-all, write-all, etc.)
+	if strValue, ok := permissionsValue.(string); ok {
+		parser.isShorthand = true
+		parser.shorthandValue = strValue
+		return parser
+	}
+
+	// Handle map format
+	if mapValue, ok := permissionsValue.(map[string]any); ok {
+		for key, value := range mapValue {
+			if strValue, ok := value.(string); ok {
+				parser.parsedPerms[key] = strValue
+			}
+		}
+	}
+
+	return parser
+}
+
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
 func ContainsCheckout(customSteps string) bool {
 	if customSteps == "" {

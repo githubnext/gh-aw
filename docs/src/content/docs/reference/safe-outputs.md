@@ -118,20 +118,24 @@ The compiled workflow will have additional prompting describing that, to create 
 
 ### Add Issue Label (`add-labels:`)
 
-Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
+Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to issues or pull requests based on the coding agent's analysis. By default, labels are added to the triggering issue or pull request, but this can be configured using the `target` option.
 
+**Basic Configuration:**
 ```yaml
 safe-outputs:
   add-labels:
 ```
 
-or with further configuration:
-
+**With Configuration:**
 ```yaml
 safe-outputs:
   add-labels:
-    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition.
+    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition
     max: 3                              # Optional: maximum number of labels to add (default: 3)
+    target: "*"                         # Optional: target for labels
+                                        # "triggering" (default) - only add labels to triggering issue/PR
+                                        # "*" - allow labels on any issue (requires issue_number in agent output)
+                                        # Explicit number - add labels to specific issue/PR (e.g., "123")
 ```
 
 The agentic part of your workflow should analyze the issue content and determine appropriate labels. 
@@ -148,7 +152,7 @@ The agentic part of your workflow will have implicit additional prompting saying
 
 ### Issue Updates (`update-issue:`)
 
-Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. You can configure which fields are allowed to be updated.
+Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. By default, updates are applied to the triggering issue, but this can be configured using the `target` option. You can also configure which fields are allowed to be updated.
 
 **Basic Configuration:**
 ```yaml
@@ -339,6 +343,10 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 3                          # Optional: maximum number of review comments (default: 1)
     side: "RIGHT"                   # Optional: side of the diff ("LEFT" or "RIGHT", default: "RIGHT")
+    target: "*"                     # Optional: target for review comments
+                                    # "triggering" (default) - only comment on triggering PR
+                                    # "*" - allow comments on any PR (requires pull_request_number in agent output)
+                                    # explicit number - comment on specific PR number
 ```
 
 The agentic part of your workflow should describe the review comment(s) it wants created with specific file paths and line numbers.
@@ -377,10 +385,13 @@ The compiled workflow will have additional prompting describing that, to create 
 - `line`: The line number where the comment should be placed
 - `start_line`: (Optional) The starting line number for multi-line comments
 - `side`: (Optional) The side of the diff ("LEFT" for old version, "RIGHT" for new version)
+- `pull_request_number`: (Optional) The PR number when using `target: "*"` to comment on any PR
 - `body`: The comment content
 
 **Key Features:**
-- Only works in pull request contexts for security
+- Only works in pull request contexts by default (when `target` is not specified)
+- With `target: "*"`, can comment on any PR by including `pull_request_number` in the output
+- With explicit `target` number, comments on that specific PR regardless of triggering event
 - Supports both single-line and multi-line code comments
 - Comments are automatically positioned on the correct side of the diff
 - Maximum comment limits prevent spam
