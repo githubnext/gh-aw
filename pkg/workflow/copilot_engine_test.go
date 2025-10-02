@@ -490,14 +490,14 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 		t.Fatalf("Could not find copilot command in step content:\n%s", stepContent)
 	}
 
-	// The $INSTRUCTION should NOT be wrapped in additional single quotes
-	if strings.Contains(copilotCommand, `'"$INSTRUCTION"'`) {
-		t.Errorf("$INSTRUCTION should not be wrapped in single quotes: %s", copilotCommand)
+	// The $COPILOT_CLI_INSTRUCTION should NOT be wrapped in additional single quotes
+	if strings.Contains(copilotCommand, `'"$COPILOT_CLI_INSTRUCTION"'`) {
+		t.Errorf("$COPILOT_CLI_INSTRUCTION should not be wrapped in single quotes: %s", copilotCommand)
 	}
 
-	// The $INSTRUCTION should remain double-quoted for variable expansion
-	if !strings.Contains(copilotCommand, `"$INSTRUCTION"`) {
-		t.Errorf("$INSTRUCTION should remain double-quoted: %s", copilotCommand)
+	// The $COPILOT_CLI_INSTRUCTION should remain double-quoted for variable expansion
+	if !strings.Contains(copilotCommand, `"$COPILOT_CLI_INSTRUCTION"`) {
+		t.Errorf("$COPILOT_CLI_INSTRUCTION should remain double-quoted: %s", copilotCommand)
 	}
 }
 
