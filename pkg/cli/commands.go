@@ -1339,7 +1339,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	}
 
 	// Build table configuration
-	headers := []string{"Name", "Installed", "Up-to-date", "Status", "Time Remaining"}
+	headers := []string{"Name", "Installed", "Up-to-date", "Status", "Source", "Update Available"}
 	var rows [][]string
 
 	for _, file := range mdFiles {
@@ -1355,7 +1355,6 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
 		compiled := "No"
 		upToDate := "N/A"
-		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
 			compiled = "Yes"
@@ -1367,11 +1366,6 @@ func StatusWorkflows(pattern string, verbose bool) error {
 				upToDate = "No"
 			} else {
 				upToDate = "Yes"
-			}
-
-			// Extract stop-time from lock file
-			if stopTime := extractStopTimeFromLockFile(lockFile); stopTime != "" {
-				timeRemaining = calculateTimeRemaining(stopTime)
 			}
 		}
 
@@ -1385,8 +1379,30 @@ func StatusWorkflows(pattern string, verbose bool) error {
 			}
 		}
 
+		// Check for source field and update availability
+		sourceInfo := "N/A"
+		updateAvailable := "N/A"
+		
+		content, err := os.ReadFile(file)
+		if err == nil {
+			frontmatter, err := parser.ExtractFrontmatterFromContent(string(content))
+			if err == nil {
+				if source, ok := frontmatter.Frontmatter["source"].(string); ok && source != "" {
+					// Show first 30 chars of source to keep table readable
+					if len(source) > 30 {
+						sourceInfo = source[:27] + "..."
+					} else {
+						sourceInfo = source
+					}
+					
+					// Check if update is available
+					updateAvailable = checkUpdateAvailable(file, source, verbose)
+				}
+			}
+		}
+
 		// Build row data
-		row := []string{name, compiled, upToDate, status, timeRemaining}
+		row := []string{name, compiled, upToDate, status, sourceInfo, updateAvailable}
 		rows = append(rows, row)
 	}
 
@@ -1461,6 +1477,90 @@ func calculateTimeRemaining(stopTimeStr string) string {
 	} else {
 		return "< 1m"
 	}
+}
+
+// checkUpdateAvailable checks if an update is available for a workflow with source
+func checkUpdateAvailable(workflowPath string, sourceSpec string, verbose bool) string {
+	// Parse the source spec: "org/repo ref path.md"
+	parts := strings.Fields(sourceSpec)
+	if len(parts) != 3 {
+		return "Invalid"
+	}
+
+	repo := parts[0]
+	currentRef := parts[1]
+	workflowFile := parts[2]
+
+	// Get packages directory
+	packagesDir, err := getPackagesDir(false)
+	if err != nil {
+		return "Unknown"
+	}
+
+	packagePath := filepath.Join(packagesDir, repo)
+	
+	// Check if package is installed
+	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
+		return "Not installed"
+	}
+
+	// Get current commit SHA from package metadata
+	packageCommitSHA := readCommitSHAFromMetadata(packagePath)
+	if packageCommitSHA == "" {
+		return "Unknown"
+	}
+
+	// Compare with source ref
+	if currentRef == packageCommitSHA || currentRef == packageCommitSHA[:8] {
+		// Check if the workflow content is different
+		sourceFilePath := filepath.Join(packagePath, workflowFile)
+		sourceContent, err := os.ReadFile(sourceFilePath)
+		if err != nil {
+			return "Unknown"
+		}
+
+		localContent, err := os.ReadFile(workflowPath)
+		if err != nil {
+			return "Unknown"
+		}
+
+		// Parse both frontmatter
+		sourceFrontmatter, err := parser.ExtractFrontmatterFromContent(string(sourceContent))
+		if err != nil {
+			return "Unknown"
+		}
+
+		localFrontmatter, err := parser.ExtractFrontmatterFromContent(string(localContent))
+		if err != nil {
+			return "Unknown"
+		}
+
+		// Compare frontmatter (excluding source field)
+		localCopy := make(map[string]any)
+		for k, v := range localFrontmatter.Frontmatter {
+			if k != "source" {
+				localCopy[k] = v
+			}
+		}
+
+		sourceCopy := make(map[string]any)
+		for k, v := range sourceFrontmatter.Frontmatter {
+			sourceCopy[k] = v
+		}
+
+		// Convert to YAML for comparison
+		localYAML, _ := yaml.Marshal(localCopy)
+		sourceYAML, _ := yaml.Marshal(sourceCopy)
+
+		if string(localYAML) != string(sourceYAML) {
+			return "Yes"
+		}
+
+		return "No"
+	}
+
+	// Ref is different, update available
+	return "Yes"
 }
 
 // Helper functions
