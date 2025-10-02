@@ -151,6 +151,46 @@ This workflow tests null configuration.
 		}
 	})
 
+	t.Run("PR review comment configuration with target", func(t *testing.T) {
+		// Test case with target configuration
+		testContent := `---
+on: pull_request
+engine: claude
+safe-outputs:
+  create-pull-request-review-comment:
+    max: 5
+    target: "*"
+---
+
+# Test PR Review Comment Configuration with Target
+
+This workflow tests target configuration.
+`
+
+		testFile := filepath.Join(tmpDir, "test-pr-review-comment-target.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		compiler := NewCompiler(false, "", "test")
+
+		// Parse the workflow data
+		workflowData, err := compiler.parseWorkflowFile(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected error parsing workflow with target config: %v", err)
+		}
+
+		// Verify target configuration value
+		if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.CreatePullRequestReviewComments == nil {
+			t.Fatal("Expected create-pull-request-review-comment configuration to be parsed")
+		}
+
+		config := workflowData.SafeOutputs.CreatePullRequestReviewComments
+		if config.Target != "*" {
+			t.Errorf("Expected target to be '*', got %s", config.Target)
+		}
+	})
+
 	t.Run("PR review comment configuration rejects invalid side values", func(t *testing.T) {
 		// Test case with invalid side value (should be rejected by schema validation)
 		testContent := `---
@@ -278,6 +318,82 @@ This workflow tests job generation for PR review comments.
 		// Verify the JavaScript script is embedded
 		if !strings.Contains(workflowContent, "create-pull-request-review-comment") {
 			t.Error("Expected PR review comment script to be embedded")
+		}
+	})
+
+	t.Run("generate PR review comment job with target", func(t *testing.T) {
+		testContent := `---
+on: pull_request
+engine: claude
+safe-outputs:
+  create-pull-request-review-comment:
+    max: 3
+    target: "*"
+---
+
+# Test PR Review Comment Job Generation with Target
+
+This workflow tests job generation for PR review comments with target configuration.
+`
+
+		testFile := filepath.Join(tmpDir, "test-pr-review-comment-job-target.md")
+		if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		compiler := NewCompiler(false, "", "test")
+
+		// Compile the workflow
+		err := compiler.CompileWorkflow(testFile)
+		if err != nil {
+			t.Fatalf("Unexpected error compiling workflow: %v", err)
+		}
+
+		// Check that the output file exists
+		outputFile := filepath.Join(tmpDir, "test-pr-review-comment-job-target.lock.yml")
+		if _, err := os.Stat(outputFile); os.IsNotExist(err) {
+			t.Fatal("Expected output file to be created")
+		}
+
+		// Read the output content
+		content, err := os.ReadFile(outputFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		workflowContent := string(content)
+
+		// Verify the PR review comment job is generated
+		if !strings.Contains(workflowContent, "create_pr_review_comment:") {
+			t.Error("Expected create_pr_review_comment job to be generated")
+		}
+
+		// Verify environment variables are passed
+		if !strings.Contains(workflowContent, `GITHUB_AW_PR_REVIEW_COMMENT_TARGET: "*"`) {
+			t.Error("Expected GITHUB_AW_PR_REVIEW_COMMENT_TARGET environment variable to be set to '*'")
+		}
+
+		// When target is specified, the job condition should not include event context checks
+		// Extract the create_pr_review_comment job section
+		jobStartIdx := strings.Index(workflowContent, "create_pr_review_comment:")
+		if jobStartIdx == -1 {
+			t.Error("Could not find create_pr_review_comment job in workflow")
+		}
+		// Find the next job (or end of file)
+		nextJobIdx := strings.Index(workflowContent[jobStartIdx+1:], "\njobs:")
+		var jobSection string
+		if nextJobIdx == -1 {
+			jobSection = workflowContent[jobStartIdx:]
+		} else {
+			jobSection = workflowContent[jobStartIdx : jobStartIdx+1+nextJobIdx]
+		}
+		// Check the job condition specifically (should not have event context checks)
+		if strings.Contains(jobSection, "github.event.issue.number") || strings.Contains(jobSection, "github.event.issue.pull_request") {
+			t.Error("Expected job condition to not include issue event context checks when target is specified")
+		}
+		// The job condition should only contain the safe-output type check
+		if !strings.Contains(jobSection, "contains(needs.agent.outputs.output_types, 'create-pull-request-review-comment')") {
+			t.Error("Expected job condition to contain safe-output type check")
 		}
 	})
 }

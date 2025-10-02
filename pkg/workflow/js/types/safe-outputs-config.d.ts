@@ -46,6 +46,7 @@ interface CreatePullRequestConfig extends SafeOutputConfig {
  */
 interface CreatePullRequestReviewCommentConfig extends SafeOutputConfig {
   side?: string;
+  target?: string;
 }
 
 /**

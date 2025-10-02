@@ -46,6 +46,11 @@ async function main() {
     for (let i = 0; i < reviewCommentItems.length; i++) {
       const item = reviewCommentItems[i];
       summaryContent += `### Review Comment ${i + 1}\n`;
+      if (item.pull_request_number) {
+        summaryContent += `**Target PR:** #${item.pull_request_number}\n\n`;
+      } else {
+        summaryContent += `**Target:** Current PR\n\n`;
+      }
       summaryContent += `**File:** ${item.path || "No path provided"}\n\n`;
       summaryContent += `**Line:** ${item.line || "No line provided"}\n\n`;
       if (item.start_line) {
@@ -66,6 +71,10 @@ async function main() {
   const defaultSide = process.env.GITHUB_AW_PR_REVIEW_COMMENT_SIDE || "RIGHT";
   core.info(`Default comment side configuration: ${defaultSide}`);
 
+  // Get the target configuration from environment variable
+  const commentTarget = process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET || "triggering";
+  core.info(`PR review comment target configuration: ${commentTarget}`);
+
   // Check if we're in a pull request context, or an issue comment context on a PR
   const isPRContext =
     context.eventName === "pull_request" ||
@@ -73,45 +82,11 @@ async function main() {
     context.eventName === "pull_request_review_comment" ||
     (context.eventName === "issue_comment" && context.payload.issue && context.payload.issue.pull_request);
 
-  if (!isPRContext) {
-    core.info("Not running in pull request context, skipping review comment creation");
+  // Validate context based on target configuration
+  if (commentTarget === "triggering" && !isPRContext) {
+    core.info('Target is "triggering" but not running in pull request context, skipping review comment creation');
     return;
   }
-  let pullRequest = context.payload.pull_request;
-
-  if (!pullRequest) {
-    //No, github.event.issue.pull_request does not contain the full pull request data like head.sha. It only includes a minimal object with a url pointing to the pull request API resource.
-    //To get full PR details (like head.sha, base.ref, etc.), you need to make an API call using that URL.
-
-    if (context.payload.issue && context.payload.issue.pull_request) {
-      // Fetch full pull request details using the GitHub API
-      const prUrl = context.payload.issue.pull_request.url;
-      try {
-        const { data: fullPR } = await github.request(`GET ${prUrl}`, {
-          headers: {
-            Accept: "application/vnd.github+json",
-          },
-        });
-        pullRequest = fullPR;
-        core.info("Fetched full pull request details from API");
-      } catch (error) {
-        core.info(`Failed to fetch full pull request details: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-    } else {
-      core.info("Pull request data not found in payload - cannot create review comments");
-      return;
-    }
-  }
-
-  // Check if we have the commit SHA needed for creating review comments
-  if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
-    core.info("Pull request head commit SHA not found in payload - cannot create review comments");
-    return;
-  }
-
-  const pullRequestNumber = pullRequest.number;
-  core.info(`Creating review comments on PR #${pullRequestNumber}`);
 
   const createdComments = [];
 
@@ -137,6 +112,73 @@ async function main() {
       core.info('Missing or invalid required field "body" in review comment item');
       continue;
     }
+
+    // Determine the PR number for this review comment
+    let pullRequestNumber;
+    let pullRequest;
+
+    if (commentTarget === "*") {
+      // For target "*", we need an explicit PR number from the comment item
+      if (commentItem.pull_request_number) {
+        pullRequestNumber = parseInt(commentItem.pull_request_number, 10);
+        if (isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
+          core.info(`Invalid pull request number specified: ${commentItem.pull_request_number}`);
+          continue;
+        }
+      } else {
+        core.info('Target is "*" but no pull_request_number specified in comment item');
+        continue;
+      }
+    } else if (commentTarget && commentTarget !== "triggering") {
+      // Explicit PR number specified in target
+      pullRequestNumber = parseInt(commentTarget, 10);
+      if (isNaN(pullRequestNumber) || pullRequestNumber <= 0) {
+        core.info(`Invalid pull request number in target configuration: ${commentTarget}`);
+        continue;
+      }
+    } else {
+      // Default behavior: use triggering PR
+      if (context.payload.pull_request) {
+        pullRequestNumber = context.payload.pull_request.number;
+        pullRequest = context.payload.pull_request;
+      } else if (context.payload.issue && context.payload.issue.pull_request) {
+        pullRequestNumber = context.payload.issue.number;
+      } else {
+        core.info("Pull request context detected but no pull request found in payload");
+        continue;
+      }
+    }
+
+    if (!pullRequestNumber) {
+      core.info("Could not determine pull request number");
+      continue;
+    }
+
+    // If we don't have the full PR details yet, fetch them
+    if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
+      try {
+        const { data: fullPR } = await github.rest.pulls.get({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          pull_number: pullRequestNumber,
+        });
+        pullRequest = fullPR;
+        core.info(`Fetched full pull request details for PR #${pullRequestNumber}`);
+      } catch (error) {
+        core.info(
+          `Failed to fetch pull request details for PR #${pullRequestNumber}: ${error instanceof Error ? error.message : String(error)}`
+        );
+        continue;
+      }
+    }
+
+    // Check if we have the commit SHA needed for creating review comments
+    if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
+      core.info(`Pull request head commit SHA not found for PR #${pullRequestNumber} - cannot create review comment`);
+      continue;
+    }
+
+    core.info(`Creating review comment on PR #${pullRequestNumber}`);
 
     // Parse line numbers
     const line = parseInt(commentItem.line, 10);

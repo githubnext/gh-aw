@@ -7,7 +7,8 @@ import (
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Side                 string `yaml:"side,omitempty"` // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+	Side                 string `yaml:"side,omitempty"`   // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+	Target               string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any PR), or explicit PR number
 }
 
 // buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
@@ -28,6 +29,10 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
+	}
+	// Pass the target configuration
+	if data.SafeOutputs.CreatePullRequestReviewComments.Target != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
 	}
 
 	// Add custom environment variables from safe-outputs.env
@@ -52,18 +57,17 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		"review_comment_url": "${{ steps.create_pr_review_comment.outputs.review_comment_url }}",
 	}
 
-	safeOutputCondition := BuildSafeOutputType("create-pull-request-review-comment", data.SafeOutputs.CreatePullRequestReviewComments.Min)
-	issueWithPR := &AndNode{
-		Left:  &ExpressionNode{Expression: "github.event.issue.number"},
-		Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
-	}
-	baseCondition := &OrNode{
-		Left:  issueWithPR,
-		Right: &ExpressionNode{Expression: "github.event.pull_request"},
-	}
-	jobCondition := &AndNode{
-		Left:  safeOutputCondition,
-		Right: baseCondition,
+	var jobCondition = BuildSafeOutputType("create-pull-request-review-comment", data.SafeOutputs.CreatePullRequestReviewComments.Min)
+	if data.SafeOutputs.CreatePullRequestReviewComments != nil && data.SafeOutputs.CreatePullRequestReviewComments.Target == "" {
+		issueWithPR := &AndNode{
+			Left:  &ExpressionNode{Expression: "github.event.issue.number"},
+			Right: &ExpressionNode{Expression: "github.event.issue.pull_request"},
+		}
+		eventCondition := buildOr(
+			issueWithPR,
+			BuildPropertyAccess("github.event.pull_request"),
+		)
+		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
 
 	job := &Job{
@@ -101,6 +105,13 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 				if sideStr == "LEFT" || sideStr == "RIGHT" {
 					prReviewCommentsConfig.Side = sideStr
 				}
+			}
+		}
+
+		// Parse target
+		if target, exists := configMap["target"]; exists {
+			if targetStr, ok := target.(string); ok {
+				prReviewCommentsConfig.Target = targetStr
 			}
 		}
 	}
