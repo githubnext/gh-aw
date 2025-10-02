@@ -138,9 +138,7 @@ async function main() {
   if (labelsTarget === "*") {
     // For target "*", we need an explicit issue number from the labels item
     if (labelsItem.issue_number) {
-      issueNumber = typeof labelsItem.issue_number === "number" 
-        ? labelsItem.issue_number 
-        : parseInt(String(labelsItem.issue_number), 10);
+      issueNumber = typeof labelsItem.issue_number === "number" ? labelsItem.issue_number : parseInt(String(labelsItem.issue_number), 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
         core.setFailed(`Invalid issue number specified: ${labelsItem.issue_number}`);
         return;

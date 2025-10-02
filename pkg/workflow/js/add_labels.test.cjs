@@ -270,7 +270,9 @@ describe("add_labels.js", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue or pull request context, skipping label addition');
+      expect(mockCore.info).toHaveBeenCalledWith(
+        'Target is "triggering" but not running in issue or pull request context, skipping label addition'
+      );
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -938,7 +940,9 @@ describe("add_labels.js", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith('Target is "triggering" but not running in issue or pull request context, skipping label addition');
+      expect(mockCore.info).toHaveBeenCalledWith(
+        'Target is "triggering" but not running in issue or pull request context, skipping label addition'
+      );
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
