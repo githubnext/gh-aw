@@ -160,8 +160,9 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
-	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"` // Optional for reporting missing functionality
-	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`         // Safe-jobs configuration (moved from top-level)
+	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`     // Optional for reporting missing functionality
+	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"` // Threat detection configuration
+	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`             // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
 	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
@@ -1086,6 +1087,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			"git rm:*",
 			"git commit:*",
 			"git merge:*",
+			"git status",
 		}
 
 		// Add bash tool with Git commands if not already present
@@ -1362,7 +1364,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Build safe-jobs if configured (skip in trial mode)
 	if !c.trialMode {
-		if err := c.buildSafeJobs(data); err != nil {
+		// Build safe-jobs if configured
+		// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
+		threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled
+		if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
 			return fmt.Errorf("failed to build safe-jobs: %w", err)
 		}
 	}
@@ -1381,11 +1386,30 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		return nil
 	}
 
+	// Track whether threat detection job is enabled
+	threatDetectionEnabled := false
+
+	// Build threat detection job if enabled
+	if data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled {
+		detectionJob, err := c.buildThreatDetectionJob(data, jobName)
+		if err != nil {
+			return fmt.Errorf("failed to build detection job: %w", err)
+		}
+		if err := c.jobManager.AddJob(detectionJob); err != nil {
+			return fmt.Errorf("failed to add detection job: %w", err)
+		}
+		threatDetectionEnabled = true
+	}
+
 	// Build create_issue job if output.create_issue is configured
 	if data.SafeOutputs.CreateIssues != nil {
 		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName, taskJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createIssueJob.Needs = append(createIssueJob.Needs, constants.DetectionJobName)
 		}
 		if err := c.jobManager.AddJob(createIssueJob); err != nil {
 			return fmt.Errorf("failed to add create_issue job: %w", err)
@@ -1398,6 +1422,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		if err != nil {
 			return fmt.Errorf("failed to build create_discussion job: %w", err)
 		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createDiscussionJob.Needs = append(createDiscussionJob.Needs, constants.DetectionJobName)
+		}
 		if err := c.jobManager.AddJob(createDiscussionJob); err != nil {
 			return fmt.Errorf("failed to add create_discussion job: %w", err)
 		}
@@ -1409,6 +1437,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		if err != nil {
 			return fmt.Errorf("failed to build add_comment job: %w", err)
 		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createCommentJob.Needs = append(createCommentJob.Needs, constants.DetectionJobName)
+		}
 		if err := c.jobManager.AddJob(createCommentJob); err != nil {
 			return fmt.Errorf("failed to add add_comment job: %w", err)
 		}
@@ -1419,6 +1451,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		createPRReviewCommentJob, err := c.buildCreateOutputPullRequestReviewCommentJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_pr_review_comment job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createPRReviewCommentJob.Needs = append(createPRReviewCommentJob.Needs, constants.DetectionJobName)
 		}
 		if err := c.jobManager.AddJob(createPRReviewCommentJob); err != nil {
 			return fmt.Errorf("failed to add create_pr_review_comment job: %w", err)
@@ -1433,6 +1469,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		if err != nil {
 			return fmt.Errorf("failed to build create_code_scanning_alert job: %w", err)
 		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createCodeScanningAlertJob.Needs = append(createCodeScanningAlertJob.Needs, constants.DetectionJobName)
+		}
 		if err := c.jobManager.AddJob(createCodeScanningAlertJob); err != nil {
 			return fmt.Errorf("failed to add create_code_scanning_alert job: %w", err)
 		}
@@ -1443,6 +1483,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		createPullRequestJob, err := c.buildCreateOutputPullRequestJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_pull_request job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			createPullRequestJob.Needs = append(createPullRequestJob.Needs, constants.DetectionJobName)
 		}
 		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
 			return fmt.Errorf("failed to add create_pull_request job: %w", err)
@@ -1455,6 +1499,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		if err != nil {
 			return fmt.Errorf("failed to build add_labels job: %w", err)
 		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			addLabelsJob.Needs = append(addLabelsJob.Needs, constants.DetectionJobName)
+		}
 		if err := c.jobManager.AddJob(addLabelsJob); err != nil {
 			return fmt.Errorf("failed to add add_labels job: %w", err)
 		}
@@ -1465,6 +1513,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		updateIssueJob, err := c.buildCreateOutputUpdateIssueJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build update_issue job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			updateIssueJob.Needs = append(updateIssueJob.Needs, constants.DetectionJobName)
 		}
 		if err := c.jobManager.AddJob(updateIssueJob); err != nil {
 			return fmt.Errorf("failed to add update_issue job: %w", err)
@@ -1477,6 +1529,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		if err != nil {
 			return fmt.Errorf("failed to build push_to_pull_request_branch job: %w", err)
 		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			pushToBranchJob.Needs = append(pushToBranchJob.Needs, constants.DetectionJobName)
+		}
 		if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
 			return fmt.Errorf("failed to add push_to_pull_request_branch job: %w", err)
 		}
@@ -1488,6 +1544,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		if err != nil {
 			return fmt.Errorf("failed to build missing_tool job: %w", err)
 		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			missingToolJob.Needs = append(missingToolJob.Needs, constants.DetectionJobName)
+		}
 		if err := c.jobManager.AddJob(missingToolJob); err != nil {
 			return fmt.Errorf("failed to add missing_tool job: %w", err)
 		}
@@ -1498,6 +1558,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName, taskJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build upload_assets job: %w", err)
+		}
+		// Safe-output jobs should depend on agent job (always) AND detection job (if enabled)
+		if threatDetectionEnabled {
+			uploadAssetsJob.Needs = append(uploadAssetsJob.Needs, constants.DetectionJobName)
 		}
 		if err := c.jobManager.AddJob(uploadAssetsJob); err != nil {
 			return fmt.Errorf("failed to add upload_assets job: %w", err)
@@ -1588,7 +1652,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	var permissions string
 
 	job := &Job{
-		Name:        "activation",
+		Name:        constants.ActivationJobName,
 		If:          activationCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
@@ -1624,7 +1688,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	var depends []string
 	if activationJobCreated {
-		depends = []string{"activation"} // Depend on the activation job only if it exists
+		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
 	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)

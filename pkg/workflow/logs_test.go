@@ -49,7 +49,7 @@ This is a test workflow.`
 
 	expected := []string{
 		"touch /tmp/agent-stdio.log",
-		"tail -10 /tmp/agent-stdio.log",
+		"cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY",
 	}
 
 	for _, expected := range expected {
