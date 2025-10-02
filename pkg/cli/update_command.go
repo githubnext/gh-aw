@@ -190,7 +190,7 @@ func updateWorkflowsWithPR(workflowsToUpdate []WorkflowWithSource, verbose bool)
 		}
 		commitMessage = fmt.Sprintf("Update workflows: %s", strings.Join(workflowNames, ", "))
 		prTitle = fmt.Sprintf("Update %d workflows from source", len(workflowsToUpdate))
-		prBody = fmt.Sprintf("Automatically created PR to update workflows from their source repositories.\n\nUpdated workflows:\n")
+		prBody = "Automatically created PR to update workflows from their source repositories.\n\nUpdated workflows:\n"
 		for _, wf := range workflowsToUpdate {
 			prBody += fmt.Sprintf("- %s (source: %s)\n", wf.Name, wf.SourceSpec)
 		}
