@@ -72,11 +72,9 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 				if err == nil {
 					yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
 
-					// Clean up quoted keys - replace "on": with on:
+					// Clean up quoted keys - replace "on": with on: at the start of a line
 					// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-					quotedKeyPattern := `"on":`
-					unquotedKey := "on:"
-					yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
+					yamlStr = unquoteYAMLKey(yamlStr, "on")
 
 					data.On = yamlStr
 				} else {
