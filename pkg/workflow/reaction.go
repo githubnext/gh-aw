@@ -2,6 +2,10 @@ package workflow
 
 import (
 	"fmt"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // buildAddReactionJob creates the add_reaction job
@@ -34,7 +38,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, activationJobCreated 
 
 	var depends []string
 	if activationJobCreated {
-		depends = []string{"activation"} // Depend on the activation job only if it exists
+		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
 	// Set base permissions

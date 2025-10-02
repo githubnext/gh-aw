@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 //go:embed templates/threat_detection.md
@@ -65,7 +67,7 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	steps := c.buildThreatDetectionSteps(data, mainJobName)
 
 	job := &Job{
-		Name:           "detection",
+		Name:           constants.DetectionJobName,
 		If:             "",
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions: read-all",

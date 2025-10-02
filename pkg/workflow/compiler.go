@@ -1299,7 +1299,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Determine dependency job name for safe-jobs
 	safeJobDependency := constants.AgentJobName
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled {
-		safeJobDependency = "detection"
+		safeJobDependency = constants.DetectionJobName
 	}
 	if err := c.buildSafeJobs(data, safeJobDependency); err != nil {
 		return fmt.Errorf("failed to build safe-jobs: %w", err)
@@ -1332,7 +1332,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 			return fmt.Errorf("failed to add detection job: %w", err)
 		}
 		// All other safe-output jobs should depend on detection job instead of agent job
-		dependencyJobName = "detection"
+		dependencyJobName = constants.DetectionJobName
 	}
 
 	// Build create_issue job if output.create_issue is configured
@@ -1586,7 +1586,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	var permissions string
 
 	job := &Job{
-		Name:        "activation",
+		Name:        constants.ActivationJobName,
 		If:          activationCondition,
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: permissions,
@@ -1622,7 +1622,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 
 	var depends []string
 	if activationJobCreated {
-		depends = []string{"activation"} // Depend on the activation job only if it exists
+		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
 	// Build outputs for all engines (GITHUB_AW_SAFE_OUTPUTS functionality)

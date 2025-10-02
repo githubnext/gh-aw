@@ -2,6 +2,10 @@ package workflow
 
 import (
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestParseThreatDetectionConfig(t *testing.T) {
@@ -208,7 +212,7 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 
 			if job != nil {
 				// Verify job properties
-				if job.Name != "detection" {
+				if job.Name != constants.DetectionJobName {
 					t.Errorf("Expected job name 'detection', got %q", job.Name)
 				}
 				if job.RunsOn != "runs-on: ubuntu-latest" {
@@ -302,7 +306,7 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 
 	for _, job := range jobs {
 		switch job.Name {
-		case "detection":
+		case constants.DetectionJobName:
 			detectionJob = job
 		case "create_issue":
 			createIssueJob = job
@@ -318,12 +322,12 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 	}
 
 	// Check that detection job depends on agent job
-	if len(detectionJob.Needs) != 1 || detectionJob.Needs[0] != "agent" {
+	if len(detectionJob.Needs) != 1 || detectionJob.Needs[0] != constants.AgentJobName {
 		t.Errorf("Expected detection job to depend on agent job, got dependencies: %v", detectionJob.Needs)
 	}
 
 	// Check that create_issue job depends on detection job
-	if len(createIssueJob.Needs) != 1 || createIssueJob.Needs[0] != "detection" {
+	if len(createIssueJob.Needs) != 1 || createIssueJob.Needs[0] != constants.DetectionJobName {
 		t.Errorf("Expected create_issue job to depend on detection job, got dependencies: %v", createIssueJob.Needs)
 	}
 }
