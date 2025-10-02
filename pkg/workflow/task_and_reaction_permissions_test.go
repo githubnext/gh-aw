@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestActivationAndAddReactionJobsPermissions(t *testing.T) {
@@ -59,12 +61,12 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 	lockContentStr := string(lockContent)
 
 	// Test 1: Verify activation job exists and has no contents permission
-	if !strings.Contains(lockContentStr, "activation:") {
+	if !strings.Contains(lockContentStr, constants.ActivationJobName+":") {
 		t.Error("Expected activation job to be present in generated workflow")
 	}
 
 	// Test 2: Verify activation job has no checkout step
-	activationJobSection := extractJobSection(lockContentStr, "activation")
+	activationJobSection := extractJobSection(lockContentStr, constants.ActivationJobName)
 	if strings.Contains(activationJobSection, "actions/checkout") {
 		t.Error("Activation job should not contain actions/checkout step")
 	}
