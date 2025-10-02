@@ -5,6 +5,24 @@
 
 name: "Tidy"
 on:
+  issue_comment:
+    types:
+    - created
+    - edited
+  issues:
+    types:
+    - opened
+    - edited
+    - reopened
+  pull_request:
+    types:
+    - opened
+    - edited
+    - reopened
+  pull_request_review_comment:
+    types:
+    - created
+    - edited
   push:
     branches:
     - main
@@ -25,6 +43,12 @@ run-name: "Tidy"
 
 jobs:
   check-membership:
+    if: >
+      ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/tidy')) ||
+      (contains(github.event.comment.body, '/tidy'))) || (contains(github.event.pull_request.body, '/tidy')))) ||
+      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment'))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -32,7 +56,7 @@ jobs:
       result: ${{ steps.check-membership.outputs.result }}
       user_permission: ${{ steps.check-membership.outputs.user_permission }}
     steps:
-      - name: Check team membership for workflow
+      - name: Check team membership for command workflow
         id: check-membership
         uses: actions/github-script@v8
         env:
@@ -102,7 +126,12 @@ jobs:
 
   activation:
     needs: check-membership
-    if: needs.check-membership.outputs.is_team_member == 'true'
+    if: >
+      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/tidy')) ||
+      (contains(github.event.comment.body, '/tidy'))) || (contains(github.event.pull_request.body, '/tidy')))) ||
+      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment')))
     runs-on: ubuntu-latest
     steps:
       - run: echo "Activation success"

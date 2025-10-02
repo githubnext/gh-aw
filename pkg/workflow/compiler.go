@@ -654,11 +654,9 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// Remove the trailing newline
 	yamlStr = strings.TrimSuffix(yamlStr, "\n")
 
-	// Clean up quoted keys - replace "key": with key:
+	// Clean up quoted keys - replace "key": with key: at the start of a line
 	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-	quotedKeyPattern := `"` + key + `":`
-	unquotedKey := key + ":"
-	yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
+	yamlStr = unquoteYAMLKey(yamlStr, key)
 
 	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
@@ -853,7 +851,13 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
-			workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
+			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
+
+			// Clean up quoted keys - replace "on": with on: at the start of a line
+			// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+			yamlStr = unquoteYAMLKey(yamlStr, "on")
+
+			workflowData.On = yamlStr
 		} else {
 			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)
 			workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")
@@ -897,10 +901,15 @@ func (c *Compiler) generateJobName(workflowName string) string {
 	return jobName
 } // extractCommandName extracts the command name from frontmatter using the new nested format
 func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
-	// Check new format: on.command.name
+	// Check new format: on.command or on.command.name
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			if commandValue, hasCommand := onMap["command"]; hasCommand {
+				// Check if command is a string (shorthand format)
+				if commandStr, ok := commandValue.(string); ok {
+					return commandStr
+				}
+				// Check if command is a map with a name key (object format)
 				if commandMap, ok := commandValue.(map[string]any); ok {
 					if nameValue, hasName := commandMap["name"]; hasName {
 						if nameStr, ok := nameValue.(string); ok {
