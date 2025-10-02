@@ -5543,7 +5543,7 @@ tools:
 			compiler := NewCompiler(false, "", "test")
 
 			// Parse the workflow
-			workflowData, err := compiler.parseWorkflowFile(testFile)
+			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)
 			}
