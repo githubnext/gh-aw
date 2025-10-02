@@ -89,8 +89,8 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// Parse permissions using the helper
-	perms := ParsePermissions(permissionsValue)
+	// Parse permissions using the PermissionsParser
+	perms := NewPermissionsParserFromValue(permissionsValue)
 
 	// Check for write permissions on sensitive scopes
 	writePermissions := []string{"contents", "issues", "pull-requests"}
