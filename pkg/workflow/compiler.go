@@ -2046,7 +2046,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	}
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p $(dirname \"$GITHUB_AW_PROMPT\")\n")
+	WriteShellScriptToYAML(yaml, createPromptFirstScript, "          ")
 
 	if len(chunks) > 0 {
 		yaml.WriteString("          cat > $GITHUB_AW_PROMPT << 'EOF'\n")
@@ -2086,11 +2086,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Generated Prompt\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````markdown' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
+	WriteShellScriptToYAML(yaml, printPromptSummaryScript, "          ")
 }
 
 // generateCacheMemoryPromptStep generates a separate step for cache memory prompt section
@@ -2256,10 +2252,7 @@ func (c *Compiler) generateAgentVersionCapture(yaml *strings.Builder, engine Cod
 	yaml.WriteString("      - name: Capture agent version\n")
 	yaml.WriteString("        run: |\n")
 	fmt.Fprintf(yaml, "          VERSION_OUTPUT=$(%s 2>&1 || echo \"unknown\")\n", versionCmd)
-	fmt.Fprintf(yaml, "          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)\n")
-	fmt.Fprintf(yaml, "          CLEAN_VERSION=$(echo \"$VERSION_OUTPUT\" | grep -oE 'v?[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo \"unknown\")\n")
-	yaml.WriteString("          echo \"AGENT_VERSION=$CLEAN_VERSION\" >> $GITHUB_ENV\n")
-	yaml.WriteString("          echo \"Agent version: $VERSION_OUTPUT\"\n")
+	WriteShellScriptToYAML(yaml, captureAgentVersionScript, "          ")
 }
 
 // generateCreateAwInfo generates a step that creates aw_info.json with agentic run metadata
@@ -2509,20 +2502,7 @@ func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *Wor
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          echo \"## Safe Outputs (JSONL)\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo '``````json' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          if [ -f ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ]; then\n")
-	yaml.WriteString("            cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("            # Ensure there's a newline after the file content if it doesn't end with one\n")
-	yaml.WriteString("            if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ \"$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})\" != \"\" ]; then\n")
-	yaml.WriteString("              echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("            fi\n")
-	yaml.WriteString("          else\n")
-	yaml.WriteString("            echo \"No agent output file found\" >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          fi\n")
-	yaml.WriteString("          echo '``````' >> $GITHUB_STEP_SUMMARY\n")
-	yaml.WriteString("          echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	WriteShellScriptToYAML(yaml, printSafeOutputsSummaryScript, "          ")
 
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
