@@ -57,11 +57,6 @@ This workflow has a stop-after configuration.
 			t.Error("Expected stop_time_check job to have actions: write permission")
 		}
 
-		// Verify main job depends on stop_time_check
-		if !strings.Contains(lockContentStr, "needs: stop_time_check") {
-			t.Error("Expected main job to depend on stop_time_check job")
-		}
-
 		// Verify safety checks are in stop_time_check job, not main job
 		stopTimeCheckStart := strings.Index(lockContentStr, "stop_time_check:")
 		agentStart := strings.Index(lockContentStr, "agent:")
@@ -114,11 +109,6 @@ This workflow has no stop-after configuration.
 		// Verify stop_time_check job does not exist
 		if strings.Contains(lockContentStr, "stop_time_check:") {
 			t.Error("Expected NO stop_time_check job without stop-after")
-		}
-
-		// Verify main job has no dependency on stop_time_check
-		if strings.Contains(lockContentStr, "needs: stop_time_check") {
-			t.Error("Expected main job to not depend on stop_time_check job")
 		}
 	})
 
@@ -184,7 +174,7 @@ This workflow has activation job and stop-after.
 			t.Error("Expected stop_time_check job to depend on activation job")
 		}
 
-		// Verify agent job depends on stop_time_check
+		// Verify agent job exists and depends on activation (not stop_time_check)
 		if !strings.Contains(lockContentStr, "agent:") {
 			t.Error("Expected agent job")
 		}
@@ -200,8 +190,8 @@ This workflow has activation job and stop-after.
 			agentSection = agentSection[:nextJobIdx+20]
 		}
 
-		if !strings.Contains(agentSection, "needs: stop_time_check") {
-			t.Error("Expected agent job to depend on stop_time_check job")
+		if !strings.Contains(agentSection, "needs: activation") {
+			t.Error("Expected agent job to depend on activation job")
 		}
 	})
 }

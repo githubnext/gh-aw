@@ -1306,7 +1306,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build stop-time check job if stop-time is configured
-	var stopTimeCheckJobCreated bool
 	if data.StopTime != "" {
 		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
 		if err != nil {
@@ -1315,11 +1314,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		if err := c.jobManager.AddJob(stopTimeCheckJob); err != nil {
 			return fmt.Errorf("failed to add stop_time_check job: %w", err)
 		}
-		stopTimeCheckJobCreated = true
 	}
 
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, activationJobCreated, stopTimeCheckJobCreated)
+	mainJob, err := c.buildMainJob(data, activationJobCreated)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1575,7 +1573,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, stopTimeCheckJobCreated bool) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
 	var steps []string
 
 	var jobCondition = data.If
@@ -1597,10 +1595,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, s
 	}
 
 	var depends []string
-	if stopTimeCheckJobCreated {
-		// If stop-time check job exists, main job must depend on it
-		depends = []string{"stop_time_check"}
-	} else if activationJobCreated {
+	if activationJobCreated {
 		depends = []string{"activation"} // Depend on the activation job only if it exists
 	}
 
