@@ -34,7 +34,11 @@ Analyze the above content for the following security threats, using the workflow
 
 2. **Secret Leak**: Look for exposed secrets, API keys, passwords, tokens, or other sensitive information that should not be disclosed.
 
-3. **Malicious Patch**: Look for code changes that could introduce security vulnerabilities, backdoors, or malicious functionality.
+3. **Malicious Patch**: Look for code changes that could introduce security vulnerabilities, backdoors, or malicious functionality. Specifically check for:
+   - **Suspicious Web Service Calls**: HTTP requests to unusual domains, data exfiltration attempts, or connections to suspicious endpoints
+   - **Backdoor Installation**: Hidden remote access mechanisms, unauthorized authentication bypass, or persistent access methods
+   - **Encoded Strings**: Base64, hex, or other encoded strings that appear to hide secrets, commands, or malicious payloads without legitimate purpose
+   - **Suspicious Dependencies**: Addition of unknown packages, dependencies from untrusted sources, or libraries with known vulnerabilities
 
 ## Response Format
 
