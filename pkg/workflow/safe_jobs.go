@@ -185,7 +185,7 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 }
 
 // buildSafeJobs creates custom safe-output jobs defined in SafeOutputs.Jobs
-func (c *Compiler) buildSafeJobs(data *WorkflowData, agentJobName string, threatDetectionEnabled bool) error {
+func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool) error {
 	if data.SafeOutputs == nil || len(data.SafeOutputs.Jobs) == 0 {
 		return nil
 	}
@@ -201,7 +201,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, agentJobName string, threat
 		}
 
 		// Safe-jobs should depend on agent job (always) AND detection job (if enabled)
-		job.Needs = append(job.Needs, agentJobName)
+		job.Needs = append(job.Needs, constants.AgentJobName)
 		if threatDetectionEnabled {
 			job.Needs = append(job.Needs, constants.DetectionJobName)
 		}

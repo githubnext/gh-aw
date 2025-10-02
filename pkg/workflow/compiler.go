@@ -1349,12 +1349,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// Build safe-jobs if configured
 	// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
 	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled
-	if err := c.buildSafeJobs(data, constants.AgentJobName, threatDetectionEnabledForSafeJobs); err != nil {
+	if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
 		return fmt.Errorf("failed to build safe-jobs: %w", err)
-  }
+	}
 	// Build safe-jobs if configured (skip in trial mode)
 	if !c.trialMode {
-		if err := c.buildSafeJobs(data); err != nil {
+		if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
 			return fmt.Errorf("failed to build safe-jobs: %w", err)
 		}
 	}
