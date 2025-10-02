@@ -769,6 +769,141 @@
         }
       ]
     },
+    "container": {
+      "description": "Container to run the job steps in",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Docker image name (e.g., 'node:18', 'ubuntu:latest')"
+        },
+        {
+          "type": "object",
+          "description": "Container configuration object",
+          "properties": {
+            "image": {
+              "type": "string",
+              "description": "The Docker image to use as the container"
+            },
+            "credentials": {
+              "type": "object",
+              "description": "Credentials for private registries",
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "password": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "env": {
+              "type": "object",
+              "description": "Environment variables for the container",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "ports": {
+              "type": "array",
+              "description": "Ports to expose on the container",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "volumes": {
+              "type": "array",
+              "description": "Volumes for the container",
+              "items": {
+                "type": "string"
+              }
+            },
+            "options": {
+              "type": "string",
+              "description": "Additional Docker container options"
+            }
+          },
+          "required": ["image"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "services": {
+      "description": "Service containers for the job",
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Docker image name for the service"
+          },
+          {
+            "type": "object",
+            "description": "Service container configuration",
+            "properties": {
+              "image": {
+                "type": "string",
+                "description": "The Docker image to use for the service"
+              },
+              "credentials": {
+                "type": "object",
+                "description": "Credentials for private registries",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "env": {
+                "type": "object",
+                "description": "Environment variables for the service",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "ports": {
+                "type": "array",
+                "description": "Ports to expose on the service",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "volumes": {
+                "type": "array",
+                "description": "Volumes for the service",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "options": {
+                "type": "string",
+                "description": "Additional Docker container options"
+              }
+            },
+            "required": ["image"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
     "network": {
       "description": "Network access control for AI engines using ecosystem identifiers and domain allowlists. Controls web fetch and search capabilities.",
       "oneOf": [
