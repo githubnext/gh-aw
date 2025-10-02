@@ -45,26 +45,27 @@ making actual changes to the target repository.
 
 Single workflow:
   ` + constants.CLIExtensionPrefix + ` trial weekly-research -w githubnext/agentics
-  Outputs: stdout + trials/weekly-research.DATETIME-ID.json
+  Outputs: stdout + local trials/weekly-research.DATETIME-ID.json + trial repo trials/
 
 Multiple workflows (for comparison):
   ` + constants.CLIExtensionPrefix + ` trial daily-plan weekly-research -w githubnext/agentics
-  Outputs: stdout + trials/daily-plan.DATETIME-ID.json + trials/weekly-research.DATETIME-ID.json + trials/daily-plan-weekly-research.DATETIME-ID.json
+  Outputs: stdout + local trials/ + trial repo trials/ (individual + combined results)
 
 Other examples:
-  ` + constants.CLIExtensionPrefix + ` trial my-workflow -w organization/repository --delete-repo
+  ` + constants.CLIExtensionPrefix + ` trial my-workflow -w organization/repository --delete-trial-repo
   ` + constants.CLIExtensionPrefix + ` trial my-workflow -w organization/repository --quiet --trial-repo my-custom-trial
   ` + constants.CLIExtensionPrefix + ` trial my-workflow -w source/repo -t target/repo
 
 All workflows must support workflow_dispatch trigger to be used in trial mode.
-The trial repository will be created as private and kept by default unless --delete-repo is specified.`,
+The trial repository will be created as private and kept by default unless --delete-trial-repo is specified.
+Trial results are saved both locally (in trials/ directory) and in the trial repository for future reference.`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			workflowNames := args
 			sourceRepo, _ := cmd.Flags().GetString("workflow-repo")
 			targetRepo, _ := cmd.Flags().GetString("target-repo")
 			trialRepo, _ := cmd.Flags().GetString("trial-repo")
-			deleteRepo, _ := cmd.Flags().GetBool("delete-repo")
+			deleteRepo, _ := cmd.Flags().GetBool("delete-trial-repo")
 			quiet, _ := cmd.Flags().GetBool("quiet")
 			timeout, _ := cmd.Flags().GetInt("timeout")
 
@@ -92,7 +93,7 @@ The trial repository will be created as private and kept by default unless --del
 	}
 
 	cmd.Flags().String("trial-repo", "", fmt.Sprintf("Custom trial repository slug (defaults to '%s')", defaultTrialRepo))
-	cmd.Flags().Bool("delete-repo", false, "Delete the trial repository after completion (default: keep)")
+	cmd.Flags().Bool("delete-trial-repo", false, "Delete the trial repository after completion (default: keep)")
 	cmd.Flags().BoolP("quiet", "q", false, "Skip confirmation prompts")
 	cmd.Flags().Int("timeout", 30, "Timeout in minutes for workflow execution (default: 30)")
 
@@ -279,6 +280,11 @@ func RunWorkflowTrials(workflowNames []string, sourceRepo string, targetRepo str
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save combined trial result: %v", err)))
 		}
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Combined results saved to: %s", combinedFilename)))
+	}
+
+	// Step 6.5: Copy trial results to trial repository and commit them
+	if err := copyTrialResultsToRepo(tempDir, dateTimeID, workflowNames, verbose); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy trial results to repository: %v", err)))
 	}
 
 	// Step 7: Clean up secrets
@@ -967,4 +973,116 @@ func saveTrialResult(filename string, result interface{}, verbose bool) error {
 	}
 
 	return nil
+}
+
+// copyTrialResultsToRepo copies trial result files to the trial repository and commits them
+func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, verbose bool) error {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Copying trial results to trial repository"))
+	}
+
+	// Create trials directory in the trial repository
+	trialsDir := filepath.Join(tempDir, "trials")
+	if err := os.MkdirAll(trialsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create trials directory in repository: %w", err)
+	}
+
+	// Copy individual workflow result files
+	for _, workflowName := range workflowNames {
+		sourceFile := fmt.Sprintf("trials/%s.%s.json", workflowName, dateTimeID)
+		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s.%s.json", workflowName, dateTimeID))
+
+		if err := copyFile(sourceFile, destFile); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy %s: %v", sourceFile, err)))
+			}
+			continue
+		}
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Copied %s to repository", sourceFile)))
+		}
+	}
+
+	// Copy combined results file if it exists (for multi-workflow trials)
+	if len(workflowNames) > 1 {
+		workflowNamesStr := strings.Join(workflowNames, "-")
+		combinedSourceFile := fmt.Sprintf("trials/%s.%s.json", workflowNamesStr, dateTimeID)
+		combinedDestFile := filepath.Join(trialsDir, fmt.Sprintf("%s.%s.json", workflowNamesStr, dateTimeID))
+
+		if err := copyFile(combinedSourceFile, combinedDestFile); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy combined results: %v", err)))
+			}
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Copied %s to repository", combinedSourceFile)))
+		}
+	}
+
+	// Change to temp directory to commit the changes
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(tempDir); err != nil {
+		return fmt.Errorf("failed to change to temp directory: %w", err)
+	}
+
+	// Add trial results to git
+	cmd := exec.Command("git", "add", "trials/")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to add trial results: %w (output: %s)", err, string(output))
+	}
+
+	// Check if there are any changes to commit
+	statusCmd := exec.Command("git", "status", "--porcelain", "trials/")
+	statusOutput, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	// If no changes, skip commit and push
+	if len(strings.TrimSpace(string(statusOutput))) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No new trial results to commit"))
+		}
+		return nil
+	}
+
+	// Commit trial results
+	commitMsg := fmt.Sprintf("Add trial results for %s (%s)", strings.Join(workflowNames, ", "), dateTimeID)
+	cmd = exec.Command("git", "commit", "-m", commitMsg)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to commit trial results: %w (output: %s)", err, string(output))
+	}
+
+	// Push to main
+	cmd = exec.Command("git", "push", "origin", "main")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to push trial results: %w (output: %s)", err, string(output))
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Trial results copied to repository and pushed"))
+
+	return nil
+}
+
+// copyFile copies a file from source to destination
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = destFile.ReadFrom(sourceFile)
+	return err
 }
