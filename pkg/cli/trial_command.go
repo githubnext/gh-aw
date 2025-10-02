@@ -418,7 +418,6 @@ func ensureTrialRepository(repoSlug string, verbose bool) error {
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid repository slug format: %s (expected user/repo)", repoSlug)
 	}
-	repoName := parts[1]
 
 	// Check if repository already exists
 	cmd := exec.Command("gh", "repo", "view", fullRepoName)
@@ -436,8 +435,8 @@ func ensureTrialRepository(repoSlug string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating private trial repository: %s", fullRepoName)))
 	}
 
-	// Use gh CLI to create private repo with initial README (gh repo create only accepts the repo name)
-	cmd = exec.Command("gh", "repo", "create", repoName, "--private", "--add-readme", "--description", "GitHub Agentic Workflows trial repository")
+	// Use gh CLI to create private repo with initial README using full OWNER/REPO format
+	cmd = exec.Command("gh", "repo", "create", fullRepoName, "--private", "--add-readme", "--description", "GitHub Agentic Workflows trial repository")
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -597,40 +596,25 @@ func triggerWorkflowRun(repoSlug, workflowName string, verbose bool) (string, er
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Triggering workflow run for: %s", workflowName)))
 	}
 
-	// Use the repository slug directly
-	fullRepoName := repoSlug
-
 	// Trigger workflow using gh CLI
 	lockFileName := fmt.Sprintf("%s.lock.yml", workflowName)
-	cmd := exec.Command("gh", "workflow", "run", lockFileName, "--repo", fullRepoName)
+	cmd := exec.Command("gh", "workflow", "run", lockFileName, "--repo", repoSlug)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
 		return "", fmt.Errorf("failed to trigger workflow run: %w (output: %s)", err, string(output))
 	}
 
-	// Get the most recent run ID for this workflow
-	time.Sleep(2 * time.Second) // Wait for the run to be created
-
-	cmd = exec.Command("gh", "run", "list", "--repo", fullRepoName, "--workflow", lockFileName, "--limit", "1", "--json", "databaseId")
-	output, err = cmd.Output()
-
+	// Get the most recent run ID for this workflow using shared retry logic
+	runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoSlug, verbose)
 	if err != nil {
 		return "", fmt.Errorf("failed to get workflow run ID: %w", err)
 	}
 
-	// Parse the JSON to extract run ID - simple regex since we know the format
-	runIDRegex := regexp.MustCompile(`"databaseId":(\d+)`)
-	matches := runIDRegex.FindStringSubmatch(string(output))
-
-	if len(matches) < 2 {
-		return "", fmt.Errorf("could not extract run ID from output: %s", string(output))
-	}
-
-	runID := matches[1]
+	runID := fmt.Sprintf("%d", runInfo.DatabaseID)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Workflow run started with ID: %s", runID)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Workflow run started with ID: %s (status: %s)", runID, runInfo.Status)))
 	}
 
 	return runID, nil

@@ -792,7 +792,7 @@ Monitor workflow execution and costs using the `logs` command:
 gh aw logs
 
 # Download logs for a specific workflow
-gh aw logs weekly-research
+gh aw logs ci-doctor
 
 # Filter logs by AI engine type
 gh aw logs --engine claude           # Only Claude workflows
@@ -904,7 +904,7 @@ Use the `mcp list-tools` command to explore tools available from specific MCP se
 gh aw mcp list-tools github
 
 # List tools from a specific MCP server in a workflow
-gh aw mcp list-tools github weekly-research
+gh aw mcp list-tools github ci-doctor
 
 # List tools with detailed descriptions and allowance status  
 gh aw mcp list-tools safe-outputs issue-triage --verbose

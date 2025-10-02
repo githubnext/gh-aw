@@ -45,8 +45,8 @@ and they are compiled to GitHub Actions Workflows files (`*.lock.yml`)
 ```
 .github/
 └── workflows/
-  ├── weekly-research.md # Agentic Workflow
-  └── weekly-research.lock.yml # Compiled GitHub Actions Workflow
+  ├── ci-doctor.md # Agentic Workflow
+  └── ci-doctor.lock.yml # Compiled GitHub Actions Workflow
 ```
 
 When you run the `compile` command you generate the lock file.

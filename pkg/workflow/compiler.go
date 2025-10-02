@@ -121,6 +121,9 @@ type WorkflowData struct {
 	CustomSteps        string
 	PostSteps          string // steps to run after AI execution
 	RunsOn             string
+	Environment        string // environment setting for the main job
+	Container          string // container setting for the main job
+	Services           string // services setting for the main job
 	Tools              map[string]any
 	MarkdownContent    string
 	AI                 string        // "claude" or "codex" (for backwards compatibility)
@@ -569,10 +572,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("max-turns not supported: %w", err)
 	}
 
-	// Validate web-search support for the current engine
-	if err := c.validateWebSearchSupport(tools, agenticEngine); err != nil {
-		return nil, fmt.Errorf("web-search not supported: %w", err)
-	}
+	// Validate web-search support for the current engine (warning only)
+	c.validateWebSearchSupport(tools, agenticEngine)
 
 	// Process @include directives in markdown content
 	markdownContent, err := parser.ExpandIncludes(result.Markdown, markdownDir, false)
@@ -629,6 +630,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
+	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
+	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
+	workflowData.Services = c.extractTopLevelYAMLSection(result.Frontmatter, "services")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
 
@@ -1716,6 +1720,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Name:        constants.AgentJobName,
 		If:          jobCondition,
 		RunsOn:      c.indentYAMLLines(data.RunsOn, "    "),
+		Environment: c.indentYAMLLines(data.Environment, "    "),
+		Container:   c.indentYAMLLines(data.Container, "    "),
+		Services:    c.indentYAMLLines(data.Services, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
 		Env:         env,
 		Steps:       steps,
@@ -2652,21 +2659,19 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 }
 
 // validateWebSearchSupport validates that web-search tool is only used with engines that support this feature
-func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) error {
+func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) {
 	// Check if web-search tool is requested
 	_, hasWebSearch := tools["web-search"]
 
 	if !hasWebSearch {
 		// No web-search specified, no validation needed
-		return nil
+		return
 	}
 
 	// web-search is specified, check if the engine supports it
 	if !engine.SupportsWebSearch() {
-		return fmt.Errorf("engine '%s' does not support the web-search tool", engine.GetID())
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool", engine.GetID())))
 	}
-
-	return nil
 }
 
 // parseBaseSafeOutputConfig parses common fields (max, min, github-token) from a config map

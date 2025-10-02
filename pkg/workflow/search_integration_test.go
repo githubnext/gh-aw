@@ -8,7 +8,7 @@ import (
 )
 
 // TestWebSearchValidationForCopilot tests that when a Copilot workflow uses web-search,
-// compilation fails with an appropriate error message
+// compilation succeeds but emits a warning
 func TestWebSearchValidationForCopilot(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
@@ -36,19 +36,16 @@ Search the web for information.
 	// Create a compiler
 	compiler := NewCompiler(false, "", "test")
 
-	// Compile the workflow - should fail
+	// Compile the workflow - should succeed with a warning
 	err := compiler.CompileWorkflow(workflowPath)
-	if err == nil {
-		t.Fatal("Expected compilation to fail for Copilot engine with web-search tool, but it succeeded")
+	if err != nil {
+		t.Fatalf("Expected compilation to succeed for Copilot engine with web-search tool (with warning), but got error: %v", err)
 	}
 
-	// Check that the error message mentions web-search and copilot
-	errMsg := err.Error()
-	if !strings.Contains(errMsg, "web-search") {
-		t.Errorf("Expected error message to mention 'web-search', got: %s", errMsg)
-	}
-	if !strings.Contains(errMsg, "copilot") {
-		t.Errorf("Expected error message to mention 'copilot', got: %s", errMsg)
+	// Verify the lock file was created
+	lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
+		t.Fatal("Expected lock file to be created")
 	}
 }
 

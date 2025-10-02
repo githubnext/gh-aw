@@ -156,11 +156,11 @@ If no files are specified, all markdown files in .github/workflows will be compi
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` compile                    # Compile all markdown files
-  ` + constants.CLIExtensionPrefix + ` compile weekly-research    # Compile a specific workflow
-  ` + constants.CLIExtensionPrefix + ` compile weekly-research daily-plan  # Compile multiple workflows
+  ` + constants.CLIExtensionPrefix + ` compile ci-doctor    # Compile a specific workflow
+  ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
   ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
-  ` + constants.CLIExtensionPrefix + ` compile --watch weekly-research     # Watch and auto-compile`,
+  ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile`,
 	Run: func(cmd *cobra.Command, args []string) {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
@@ -210,10 +210,9 @@ This command only works with workflows that have workflow_dispatch triggers.
 It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on GitHub Actions.
 
 Examples:
-  gh aw run weekly-research
-  gh aw run weekly-research daily-plan
-  gh aw run weekly-research --repeat 3600  # Run every hour
-  gh aw run weekly-research --enable-if-needed # Enable if disabled, run, then restore state`,
+  gh aw run daily-perf-improver
+  gh aw run daily-perf-improver --repeat 3600  # Run every hour
+  gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		repeatSeconds, _ := cmd.Flags().GetInt("repeat")
