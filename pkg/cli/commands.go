@@ -1382,7 +1382,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		// Check for source field and update availability
 		sourceInfo := "N/A"
 		updateAvailable := "N/A"
-		
+
 		content, err := os.ReadFile(file)
 		if err == nil {
 			frontmatter, err := parser.ExtractFrontmatterFromContent(string(content))
@@ -1394,7 +1394,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 					} else {
 						sourceInfo = source
 					}
-					
+
 					// Check if update is available
 					updateAvailable = checkUpdateAvailable(file, source, verbose)
 				}
@@ -1498,7 +1498,7 @@ func checkUpdateAvailable(workflowPath string, sourceSpec string, verbose bool) 
 	}
 
 	packagePath := filepath.Join(packagesDir, repo)
-	
+
 	// Check if package is installed
 	if _, err := os.Stat(packagePath); os.IsNotExist(err) {
 		return "Not installed"
@@ -1615,7 +1615,7 @@ func generateSourceField(sourceInfo *WorkflowSourceInfo, workflowPath string, ve
 	if err != nil {
 		return "", err
 	}
-	
+
 	relPath, err := filepath.Rel(packagesDir, sourceInfo.PackagePath)
 	if err != nil {
 		// Try local packages directory
