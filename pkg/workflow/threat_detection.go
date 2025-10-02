@@ -155,6 +155,14 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 	formattedSetupScript := FormatJavaScriptForYAML(setupScript)
 	steps = append(steps, formattedSetupScript...)
 
+	// Add a small shell step in YAML to ensure the output directory and log file exist
+	steps = append(steps, []string{
+		"      - name: Ensure threat-detection directory and log\n",
+		"        run: |\n",
+		"          mkdir -p /tmp/threat-detection\n",
+		"          touch /tmp/threat-detection/detection.log\n",
+	}...)
+
 	// Add engine execution steps
 	steps = append(steps, c.buildEngineSteps(data)...)
 
@@ -201,6 +209,8 @@ if (customPrompt) {
 fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
 fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
 core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+
+// Note: creation of /tmp/threat-detection and detection.log is handled by a separate shell step
 
 // Write rendered prompt to step summary
 await core.summary

@@ -2047,6 +2047,10 @@ jobs:
               .addCodeBlock(promptContent, 'text')
               .write();
             core.info('Threat detection setup completed');
+      - name: Ensure threat-detection directory and log
+        run: |
+          mkdir -p /tmp/threat-detection
+          touch /tmp/threat-detection/detection.log
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

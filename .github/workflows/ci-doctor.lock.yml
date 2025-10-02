@@ -2567,6 +2567,10 @@ jobs:
               .addCodeBlock(promptContent, 'text')
               .write();
             core.info('Threat detection setup completed');
+      - name: Ensure threat-detection directory and log
+        run: |
+          mkdir -p /tmp/threat-detection
+          touch /tmp/threat-detection/detection.log
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
