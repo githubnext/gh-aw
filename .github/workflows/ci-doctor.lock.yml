@@ -2544,12 +2544,16 @@ jobs:
             - Focus on actual security risks rather than style issues
             - If you're uncertain about a potential threat, err on the side of caution
             - Provide clear, actionable reasons for any threats detected`;
-            const promptContent = templateContent
+            let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
               .replace(/{AGENT_PATCH}/g, patchContent);
+            const customPrompt = process.env.CUSTOM_PROMPT;
+            if (customPrompt) {
+              promptContent += '\n\n## Additional Instructions\n\n' + customPrompt;
+            }
             fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
