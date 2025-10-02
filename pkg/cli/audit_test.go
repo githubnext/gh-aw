@@ -10,6 +10,83 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
+func TestExtractRunID(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		expected  int64
+		shouldErr bool
+	}{
+		{
+			name:      "Numeric run ID",
+			input:     "1234567890",
+			expected:  1234567890,
+			shouldErr: false,
+		},
+		{
+			name:      "Run URL",
+			input:     "https://github.com/owner/repo/actions/runs/12345678",
+			expected:  12345678,
+			shouldErr: false,
+		},
+		{
+			name:      "Job URL",
+			input:     "https://github.com/owner/repo/actions/runs/12345678/job/98765432",
+			expected:  12345678,
+			shouldErr: false,
+		},
+		{
+			name:      "Job URL with attempts",
+			input:     "https://github.com/owner/repo/actions/runs/12345678/attempts/2",
+			expected:  12345678,
+			shouldErr: false,
+		},
+		{
+			name:      "Run URL with trailing slash",
+			input:     "https://github.com/owner/repo/actions/runs/12345678/",
+			expected:  12345678,
+			shouldErr: false,
+		},
+		{
+			name:      "Invalid format",
+			input:     "not-a-number",
+			expected:  0,
+			shouldErr: true,
+		},
+		{
+			name:      "Invalid URL without run ID",
+			input:     "https://github.com/owner/repo/actions",
+			expected:  0,
+			shouldErr: true,
+		},
+		{
+			name:      "Empty string",
+			input:     "",
+			expected:  0,
+			shouldErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := extractRunID(tt.input)
+			
+			if tt.shouldErr {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("Expected run ID %d, got %d", tt.expected, result)
+				}
+			}
+		})
+	}
+}
+
 func TestGenerateAuditReport(t *testing.T) {
 	// Create test data
 	run := WorkflowRun{

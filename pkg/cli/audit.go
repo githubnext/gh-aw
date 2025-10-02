@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,10 +20,15 @@ import (
 // NewAuditCommand creates the audit command
 func NewAuditCommand() *cobra.Command {
 	auditCmd := &cobra.Command{
-		Use:   "audit <run-id>",
+		Use:   "audit <run-id-or-url>",
 		Short: "Investigate a single GitHub Actions workflow run and generate a concise report",
 		Long: `Audit a single workflow run by downloading artifacts and logs, detecting errors,
 analyzing MCP tool usage, and generating a concise markdown report suitable for AI agents.
+
+This command accepts:
+- A numeric run ID (e.g., 1234567890)
+- A GitHub Actions run URL (e.g., https://github.com/owner/repo/actions/runs/1234567890)
+- A GitHub Actions job URL (e.g., https://github.com/owner/repo/actions/runs/1234567890/job/9876543210)
 
 This command:
 - Downloads artifacts and logs for the specified run ID
@@ -33,14 +39,18 @@ This command:
 
 Examples:
   ` + constants.CLIExtensionPrefix + ` audit 1234567890     # Audit run with ID 1234567890
+  ` + constants.CLIExtensionPrefix + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
+  ` + constants.CLIExtensionPrefix + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit from job URL
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -o ./audit-reports  # Custom output directory
   ` + constants.CLIExtensionPrefix + ` audit 1234567890 -v  # Verbose output`,
 		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			runIDStr := args[0]
-			runID, err := strconv.ParseInt(runIDStr, 10, 64)
+			runIDOrURL := args[0]
+			
+			// Extract run ID from input (either numeric ID or URL)
+			runID, err := extractRunID(runIDOrURL)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("invalid run ID '%s': must be a number", runIDStr)))
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 
@@ -59,6 +69,32 @@ Examples:
 	auditCmd.Flags().BoolP("verbose", "v", false, "Show detailed information during audit")
 
 	return auditCmd
+}
+
+// extractRunID extracts the run ID from either a numeric string or a GitHub Actions URL
+func extractRunID(input string) (int64, error) {
+	// First try to parse as a direct numeric ID
+	if runID, err := strconv.ParseInt(input, 10, 64); err == nil {
+		return runID, nil
+	}
+
+	// Try to extract run ID from GitHub Actions URL
+	// Patterns:
+	// - https://github.com/owner/repo/actions/runs/12345678
+	// - https://github.com/owner/repo/actions/runs/12345678/job/98765432
+	// - https://github.com/owner/repo/actions/runs/12345678/attempts/2
+	runIDPattern := regexp.MustCompile(`/actions/runs/(\d+)`)
+	matches := runIDPattern.FindStringSubmatch(input)
+	
+	if len(matches) >= 2 {
+		runID, err := strconv.ParseInt(matches[1], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid run ID in URL '%s': %w", input, err)
+		}
+		return runID, nil
+	}
+
+	return 0, fmt.Errorf("invalid run ID or URL '%s': must be a numeric run ID or a GitHub Actions URL containing '/actions/runs/{run-id}'", input)
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report
