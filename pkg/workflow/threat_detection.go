@@ -231,6 +231,9 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	}
 
 	// Create minimal WorkflowData for threat detection
+	// Empty tools map and nil SafeOutputs ensures:
+	// 1. No MCP servers are configured
+	// 2. No --allow-tool arguments are generated (all tools denied)
 	threatDetectionData := &WorkflowData{
 		Tools:        map[string]any{},
 		SafeOutputs:  nil,
