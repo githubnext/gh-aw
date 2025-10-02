@@ -25,7 +25,7 @@ gh aw status                                                 # Check status
 gh aw run weekly-research                                    # Execute workflow
 gh aw run weekly-research daily-plan                        # Execute multiple workflows
 gh aw run weekly-research --repeat 3600                     # Execute workflow every hour
-gh aw logs weekly-research                                   # View execution logs
+gh aw logs ci-doctor                                   # View execution logs
 gh aw audit 12345678                                         # Audit a specific run
 ```
 
@@ -54,28 +54,28 @@ gh aw new issue-handler --force
 **Adding Workflows from Samples:**
 ```bash
 # Add a workflow from the official samples repository
-gh aw add samples/weekly-research.md -r githubnext/agentics
+gh aw add samples/ci-doctor.md -r githubnext/agentics
 
 # Add multiple workflows at once
 gh aw add samples/ci-doctor.md samples/daily-perf-improver.md -r githubnext/agentics
 
 # Add workflow with custom name
-gh aw add samples/weekly-research.md -r githubnext/agentics --name my-custom-research
+gh aw add samples/ci-doctor.md -r githubnext/agentics --name my-custom-research
 
 # Add workflow and create pull request for review
 gh aw add samples/issue-triage.md -r githubnext/agentics --pr
 
 # Overwrite existing workflow files
-gh aw add samples/weekly-research.md --force
+gh aw add samples/ci-doctor.md --force
 
 # Create multiple numbered copies of a workflow
-gh aw add samples/weekly-research.md --number 3
+gh aw add samples/ci-doctor.md --number 3
 
 # Override AI engine for the added workflow
-gh aw add samples/weekly-research.md --engine copilot
+gh aw add samples/ci-doctor.md --engine copilot
 
 # Add workflow from local repository (shortcut for install + add)
-gh aw add samples/weekly-research.md -r githubnext/agentics
+gh aw add samples/ci-doctor.md -r githubnext/agentics
 ```
 
 **Workflow Removal:**
@@ -97,8 +97,8 @@ The `compile` command transforms natural language workflow markdown files into e
 gh aw compile
 
 # Compile specific workflows by name or path
-gh aw compile weekly-research
-gh aw compile weekly-research daily-plan
+gh aw compile ci-doctor
+gh aw compile ci-doctor daily-plan
 gh aw compile workflow.md
 
 # Compile with detailed output for debugging

@@ -39,29 +39,15 @@ This creates a pull request that adds `.github/workflows/weekly-research.md` and
 
 **Step 3 — Add an AI secret**
 
-Agentic workflows use an AI engine. GitHub Copilot CLI is the default and recommended engine.
+Agentic workflows use a coding agent: GitHub Copilot CLI (default), Claude or Codex.
 
-For GitHub Copilot CLI (default), add this repository secret:
+For GitHub Copilot CLI please [create a GitHub Personal Access Token (PAT) for an account with a GitHub Copilot subscription](https://github.com/settings/tokens) and add this as a repository secret:
 
-```bash wrap
+```bash
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-personal-access-token>"
 ```
 
-> **Important**: Use a Personal Access Token (PAT), not the default `GITHUB_TOKEN`. The standard GitHub Actions token is not compatible with Copilot CLI.
-
-For Claude, add:
-
-```bash wrap
-gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
-```
-
-For Codex (experimental), add:
-
-```bash wrap
-gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
-```
-
-These secrets are used by Actions at runtime.
+For Claude and Codex, see the instructions in [AI Engines](/gh-aw/reference/engines/).
 
 **Step 4 — Trigger a run of the workflow in GitHub Actions**
 

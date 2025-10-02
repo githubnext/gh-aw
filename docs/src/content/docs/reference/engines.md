@@ -38,7 +38,11 @@ engine:
 
 - `COPILOT_CLI_TOKEN` secret is required for authentication.
 
-> **Important**: The standard GitHub Actions `GITHUB_TOKEN` is **not compatible** with GitHub Copilot CLI. You must use a Personal Access Token (PAT) with appropriate permissions.
+Please [create a GitHub Personal Access Token (PAT) for an account with a GitHub Copilot subscription](https://github.com/settings/tokens) and add this as a repository secret:
+
+```bash
+gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-github-pat>"
+```
 
 ### Anthropic Claude Code
 
@@ -64,7 +68,13 @@ engine:
 
 - `ANTHROPIC_API_KEY` secret is required for authentication.
 
-### OpenAI Codex (Experimental)
+Use this to set the secret for your repo:
+
+```bash
+gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
+```
+
+### OpenAI Codex
 
 OpenAI Codex CLI with MCP server support. Designed for code-focused tasks and integration scenarios.
 
@@ -104,6 +114,12 @@ engine:
 #### Secrets
 
 - `OPENAI_API_KEY` secret is required for authentication.
+
+Use this to set the secret for your repo:
+
+```bash
+gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
+```
 
 ### Custom Engine
 
