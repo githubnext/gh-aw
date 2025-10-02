@@ -2031,6 +2031,11 @@ jobs:
             fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+            await core.summary
+              .addHeading('Threat Detection Prompt', 2)
+              .addRaw('\n')
+              .addCodeBlock(promptContent, 'markdown')
+              .write();
             core.info('Threat detection setup completed');
       - name: Setup Node.js
         uses: actions/setup-node@v4
