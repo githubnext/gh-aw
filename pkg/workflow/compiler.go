@@ -862,6 +862,11 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		workflowData.Command = ""
 	}
 
+	// Auto-enable "eyes" reaction for command triggers if no explicit reaction was specified
+	if hasCommand && !hasReaction && workflowData.AIReaction == "" {
+		workflowData.AIReaction = "eyes"
+	}
+
 	// Store other events for merging in applyDefaults
 	if hasCommand && len(otherEvents) > 0 {
 		// We'll store this and handle it in applyDefaults

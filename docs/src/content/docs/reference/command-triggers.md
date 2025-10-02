@@ -123,17 +123,19 @@ Body: "${{ github.event.issue.body }}"
 
 ## Reactions
 
-Command workflows can provide immediate visual feedback by adding reactions to triggering comments and automatically editing them with workflow run links:
+Command workflows **automatically** provide immediate visual feedback by adding the "eyes" (👀) emoji reaction to triggering comments and automatically editing them with workflow run links.
+
+This default behavior can be customized by explicitly specifying a different reaction:
 
 ```yaml
 on:
   command:
     name: my-bot
-  reaction: "eyes"
+  reaction: "rocket"  # Override default "eyes" with custom reaction
 ```
 
 When someone mentions `/my-bot` in a comment, the workflow will:
-1. Add the specified emoji reaction (👀) to the comment
+1. Add the emoji reaction (👀 by default, or your custom choice) to the comment
 2. Automatically edit the comment to include a link to the workflow run
 
 This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution.
