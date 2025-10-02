@@ -339,6 +339,10 @@ safe-outputs:
   create-pull-request-review-comment:
     max: 3                          # Optional: maximum number of review comments (default: 1)
     side: "RIGHT"                   # Optional: side of the diff ("LEFT" or "RIGHT", default: "RIGHT")
+    target: "*"                     # Optional: target for review comments
+                                    # "triggering" (default) - only comment on triggering PR
+                                    # "*" - allow comments on any PR (requires pull_request_number in agent output)
+                                    # explicit number - comment on specific PR number
 ```
 
 The agentic part of your workflow should describe the review comment(s) it wants created with specific file paths and line numbers.
@@ -377,10 +381,13 @@ The compiled workflow will have additional prompting describing that, to create 
 - `line`: The line number where the comment should be placed
 - `start_line`: (Optional) The starting line number for multi-line comments
 - `side`: (Optional) The side of the diff ("LEFT" for old version, "RIGHT" for new version)
+- `pull_request_number`: (Optional) The PR number when using `target: "*"` to comment on any PR
 - `body`: The comment content
 
 **Key Features:**
-- Only works in pull request contexts for security
+- Only works in pull request contexts by default (when `target` is not specified)
+- With `target: "*"`, can comment on any PR by including `pull_request_number` in the output
+- With explicit `target` number, comments on that specific PR regardless of triggering event
 - Supports both single-line and multi-line code comments
 - Comments are automatically positioned on the correct side of the diff
 - Maximum comment limits prevent spam
