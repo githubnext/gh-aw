@@ -12,7 +12,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `permissions`: Required permissions for the workflow
 - `run-name`: Name of the workflow run
 - `runs-on`: Runner environment for the workflow
-- `timeout_minutes`: Workflow timeout00
+- `timeout_minutes`: Workflow timeout
 - `concurrency`: Concurrency settings for the workflow
 - `env`: Environment variables for the workflow
 - `environment`: Environment that the job references (for protected environments and deployments)
