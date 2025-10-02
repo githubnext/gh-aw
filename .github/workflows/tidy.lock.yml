@@ -153,14 +153,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Checkout PR branch if applicable
         if: |
-          (
-            github.event_name == 'issue_comment' &&
-            github.event.issue.pull_request != null
-          ) || (
-            github.event_name == 'pull_request_review_comment'
-          ) || (
-            github.event_name == 'pull_request_review'
-          )
+          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
         run: |
           set -e
           
@@ -959,14 +952,7 @@ jobs:
           EOF
       - name: Append PR context instructions to prompt
         if: |
-          (
-            github.event_name == 'issue_comment' &&
-            github.event.issue.pull_request != null
-          ) || (
-            github.event_name == 'pull_request_review_comment'
-          ) || (
-            github.event_name == 'pull_request_review'
-          )
+          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         run: |
