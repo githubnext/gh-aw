@@ -532,7 +532,20 @@ func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, t
 	}
 
 	// Compile the workflow with trial modifications
-	workflowDataList, err := CompileWorkflows([]string{}, verbose, "", true, false, "", false, false, false, true)
+	config := CompileConfig{
+		MarkdownFiles:    []string{},
+		Verbose:          verbose,
+		EngineOverride:   "",
+		Validate:         true,
+		Watch:            false,
+		WorkflowDir:      "",
+		SkipInstructions: false,
+		NoEmit:           false,
+		Purge:            false,
+		TrialMode:        true,
+		TrialTargetRepo:  targetRepo,
+	}
+	workflowDataList, err := CompileWorkflows(config)
 	if err != nil {
 		return fmt.Errorf("failed to compile workflow: %w", err)
 	}

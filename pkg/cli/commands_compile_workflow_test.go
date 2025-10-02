@@ -512,7 +512,20 @@ This is a test workflow for backward compatibility.
 			if tt.workflowID != "" {
 				args = []string{tt.workflowID}
 			}
-			_, err = CompileWorkflows(args, false, "", false, false, "", false, false, false, false)
+			config := CompileConfig{
+				MarkdownFiles:    args,
+				Verbose:          false,
+				EngineOverride:   "",
+				Validate:         false,
+				Watch:            false,
+				WorkflowDir:      "",
+				SkipInstructions: false,
+				NoEmit:           false,
+				Purge:            false,
+				TrialMode:        false,
+				TrialTargetRepo:  "",
+			}
+			_, err = CompileWorkflows(config)
 
 			if tt.expectError {
 				if err == nil {

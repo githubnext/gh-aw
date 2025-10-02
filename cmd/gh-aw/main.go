@@ -176,7 +176,20 @@ Examples:
 		// Invert noInstructions to get skipInstructions (by default, we want to write instructions)
 		// Also skip instructions when noEmit is true (validation-only mode)
 		skipInstructions := noInstructions || noEmit
-		if _, err := cli.CompileWorkflows(args, verbose, engineOverride, validate, watch, workflowDir, skipInstructions, noEmit, purge, false); err != nil {
+		config := cli.CompileConfig{
+			MarkdownFiles:    args,
+			Verbose:          verbose,
+			EngineOverride:   engineOverride,
+			Validate:         validate,
+			Watch:            watch,
+			WorkflowDir:      workflowDir,
+			SkipInstructions: skipInstructions,
+			NoEmit:           noEmit,
+			Purge:            purge,
+			TrialMode:        false,
+			TrialTargetRepo:  "",
+		}
+		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}

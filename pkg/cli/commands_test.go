@@ -108,7 +108,20 @@ func TestCompileWorkflows(t *testing.T) {
 			if tt.markdownFile != "" {
 				args = []string{tt.markdownFile}
 			}
-			_, err := CompileWorkflows(args, false, "", false, false, "", false, false, false, false)
+			config := CompileConfig{
+				MarkdownFiles:    args,
+				Verbose:          false,
+				EngineOverride:   "",
+				Validate:         false,
+				Watch:            false,
+				WorkflowDir:      "",
+				SkipInstructions: false,
+				NoEmit:           false,
+				Purge:            false,
+				TrialMode:        false,
+				TrialTargetRepo:  "",
+			}
+			_, err := CompileWorkflows(config)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -122,7 +135,20 @@ func TestCompileWorkflows(t *testing.T) {
 func TestCompileWorkflowsPurgeFlag(t *testing.T) {
 	t.Run("purge flag validation with specific files", func(t *testing.T) {
 		// Test that purge flag is rejected when specific files are provided
-		_, err := CompileWorkflows([]string{"test.md"}, false, "", false, false, "", false, false, true, false)
+		config := CompileConfig{
+			MarkdownFiles:    []string{"test.md"},
+			Verbose:          false,
+			EngineOverride:   "",
+			Validate:         false,
+			Watch:            false,
+			WorkflowDir:      "",
+			SkipInstructions: false,
+			NoEmit:           false,
+			Purge:            true,
+			TrialMode:        false,
+			TrialTargetRepo:  "",
+		}
+		_, err := CompileWorkflows(config)
 
 		if err == nil {
 			t.Error("Expected error when using --purge with specific files, got nil")
@@ -151,7 +177,20 @@ func TestCompileWorkflowsPurgeFlag(t *testing.T) {
 		// Test should not error when no specific files are provided with purge flag
 		// Note: This will still error because there are no .md files, but it shouldn't
 		// error specifically because of the purge flag validation
-		_, err := CompileWorkflows([]string{}, false, "", false, false, "", false, false, true, false)
+		config := CompileConfig{
+			MarkdownFiles:    []string{},
+			Verbose:          false,
+			EngineOverride:   "",
+			Validate:         false,
+			Watch:            false,
+			WorkflowDir:      "",
+			SkipInstructions: false,
+			NoEmit:           false,
+			Purge:            true,
+			TrialMode:        false,
+			TrialTargetRepo:  "",
+		}
+		_, err := CompileWorkflows(config)
 
 		if err != nil {
 			// The error should NOT be about purge flag validation
@@ -189,7 +228,20 @@ This is a test workflow to verify the --no-emit flag functionality.`
 	}
 
 	// Test compilation with noEmit = false (should create lock file)
-	_, err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, "", false, false, false, false)
+	config := CompileConfig{
+		MarkdownFiles:    []string{"no-emit-test"},
+		Verbose:          false,
+		EngineOverride:   "",
+		Validate:         false,
+		Watch:            false,
+		WorkflowDir:      "",
+		SkipInstructions: false,
+		NoEmit:           false,
+		Purge:            false,
+		TrialMode:        false,
+		TrialTargetRepo:  "",
+	}
+	_, err = CompileWorkflows(config)
 	if err != nil {
 		t.Errorf("CompileWorkflows with noEmit=false should not error, got: %v", err)
 	}
@@ -203,7 +255,20 @@ This is a test workflow to verify the --no-emit flag functionality.`
 	os.Remove(".github/workflows/no-emit-test.lock.yml")
 
 	// Test compilation with noEmit = true (should NOT create lock file)
-	_, err = CompileWorkflows([]string{"no-emit-test"}, false, "", false, false, "", false, true, false, false)
+	config2 := CompileConfig{
+		MarkdownFiles:    []string{"no-emit-test"},
+		Verbose:          false,
+		EngineOverride:   "",
+		Validate:         false,
+		Watch:            false,
+		WorkflowDir:      "",
+		SkipInstructions: false,
+		NoEmit:           true,
+		Purge:            false,
+		TrialMode:        false,
+		TrialTargetRepo:  "",
+	}
+	_, err = CompileWorkflows(config2)
 	if err != nil {
 		t.Errorf("CompileWorkflows with noEmit=true should not error, got: %v", err)
 	}
@@ -424,7 +489,20 @@ func TestAllCommandsExist(t *testing.T) {
 		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
 		{func() error { return AddWorkflowWithTracking("", 1, false, "", "", false, nil) }, false, "AddWorkflowWithTracking (empty name)"}, // Shows help when empty, doesn't error
 		{func() error {
-			_, err := CompileWorkflows([]string{}, false, "", false, false, "", false, false, false, false)
+			config := CompileConfig{
+				MarkdownFiles:    []string{},
+				Verbose:          false,
+				EngineOverride:   "",
+				Validate:         false,
+				Watch:            false,
+				WorkflowDir:      "",
+				SkipInstructions: false,
+				NoEmit:           false,
+				Purge:            false,
+				TrialMode:        false,
+				TrialTargetRepo:  "",
+			}
+			_, err := CompileWorkflows(config)
 			return err
 		}, false, "CompileWorkflows"}, // Should compile existing markdown files successfully
 		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                        // Should handle missing directory gracefully

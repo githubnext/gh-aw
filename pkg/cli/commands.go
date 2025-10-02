@@ -595,7 +595,34 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 	return nil
 }
-func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, workflowDir string, skipInstructions bool, noEmit bool, purge bool, trialMode bool) ([]*workflow.WorkflowData, error) {
+
+// CompileConfig holds configuration options for compiling workflows
+type CompileConfig struct {
+	MarkdownFiles    []string // Files to compile (empty for all files)
+	Verbose          bool     // Enable verbose output
+	EngineOverride   string   // Override AI engine setting
+	Validate         bool     // Enable schema validation
+	Watch            bool     // Enable watch mode
+	WorkflowDir      string   // Custom workflow directory
+	SkipInstructions bool     // Skip instruction validation
+	NoEmit           bool     // Validate without generating lock files
+	Purge            bool     // Remove orphaned lock files
+	TrialMode        bool     // Enable trial mode (suppress safe outputs)
+	TrialTargetRepo  string   // Target repository for trial mode
+}
+
+func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
+	markdownFiles := config.MarkdownFiles
+	verbose := config.Verbose
+	engineOverride := config.EngineOverride
+	validate := config.Validate
+	watch := config.Watch
+	workflowDir := config.WorkflowDir
+	skipInstructions := config.SkipInstructions
+	noEmit := config.NoEmit
+	purge := config.Purge
+	trialMode := config.TrialMode
+	trialTargetRepo := config.TrialTargetRepo
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
 		return nil, fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
@@ -625,6 +652,9 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	// Set trial mode if specified
 	if trialMode {
 		compiler.SetTrialMode(true)
+		if trialTargetRepo != "" {
+			compiler.SetTrialTargetRepo(trialTargetRepo)
+		}
 	}
 
 	if watch {
