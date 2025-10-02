@@ -525,6 +525,24 @@ func AddWorkflowWithTracking(workflow string, number int, verbose bool, engineOv
 			content = updateWorkflowTitle(content, i)
 		}
 
+		// Add source field to the frontmatter if the workflow is from a package
+		if sourceInfo.IsPackage {
+			sourceField, err := generateSourceField(sourceInfo, workflowPath, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate source field: %v", err)))
+				}
+			} else {
+				// Add source field to frontmatter
+				content, err = addSourceToWorkflow(content, sourceField, verbose)
+				if err != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
+					}
+				}
+			}
+		}
+
 		// Track the file based on whether it existed before (if tracker is available)
 		if tracker != nil {
 			if fileExists {
@@ -1482,6 +1500,97 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	}
 
 	return strings.Join(words, " "), nil
+}
+
+// generateSourceField generates the source field value for a workflow from a package
+// Format: org/repo <ref> path/to/workflow.md
+func generateSourceField(sourceInfo *WorkflowSourceInfo, workflowPath string, verbose bool) (string, error) {
+	if !sourceInfo.IsPackage {
+		return "", fmt.Errorf("workflow is not from a package")
+	}
+
+	// Extract org/repo from PackagePath
+	// PackagePath is typically: ~/.aw/packages/org/repo or .aw/packages/org/repo
+	packagesDir, err := getPackagesDir(false) // Try global first
+	if err != nil {
+		return "", err
+	}
+	
+	relPath, err := filepath.Rel(packagesDir, sourceInfo.PackagePath)
+	if err != nil {
+		// Try local packages directory
+		packagesDir, err = getPackagesDir(true)
+		if err != nil {
+			return "", err
+		}
+		relPath, err = filepath.Rel(packagesDir, sourceInfo.PackagePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to determine relative package path: %w", err)
+		}
+	}
+
+	// relPath should be org/repo
+	orgRepo := filepath.ToSlash(relPath)
+
+	// Get the commit SHA from metadata
+	commitSHA := readCommitSHAFromMetadata(sourceInfo.PackagePath)
+	if commitSHA == "" {
+		commitSHA = "main" // fallback to main if no commit SHA
+	}
+
+	// Get the relative path to the workflow file within the package
+	workflowRelPath, err := filepath.Rel(sourceInfo.PackagePath, sourceInfo.SourcePath)
+	if err != nil {
+		// Use just the filename as fallback
+		workflowRelPath = filepath.Base(workflowPath)
+	}
+	workflowRelPath = filepath.ToSlash(workflowRelPath)
+
+	// Format: org/repo <ref> path/to/workflow.md
+	source := fmt.Sprintf("%s %s %s", orgRepo, commitSHA, workflowRelPath)
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Generated source field: %s", source)))
+	}
+
+	return source, nil
+}
+
+// addSourceToWorkflow adds the source field to a workflow's frontmatter
+func addSourceToWorkflow(content, source string, verbose bool) (string, error) {
+	// Parse the frontmatter
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	// Ensure frontmatter map exists
+	if result.Frontmatter == nil {
+		result.Frontmatter = make(map[string]any)
+	}
+
+	// Add source field
+	result.Frontmatter["source"] = source
+
+	// Convert back to YAML
+	frontmatterYAML, err := yaml.Marshal(result.Frontmatter)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal frontmatter: %w", err)
+	}
+
+	// Reconstruct the workflow file
+	var lines []string
+	lines = append(lines, "---")
+	frontmatterStr := strings.TrimSuffix(string(frontmatterYAML), "\n")
+	if frontmatterStr != "" {
+		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
+	}
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, result.Markdown)
+	}
+
+	return strings.Join(lines, "\n"), nil
 }
 
 func updateWorkflowTitle(content string, number int) string {
