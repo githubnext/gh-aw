@@ -437,6 +437,18 @@ func BuildPRCommentCondition() ConditionNode {
 	}
 }
 
+// RenderConditionAsIf renders a ConditionNode as an 'if' condition with proper YAML indentation
+func RenderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent string) {
+	yaml.WriteString("        if: |\n")
+	conditionStr := condition.Render()
+
+	// Format the condition with proper indentation
+	lines := strings.Split(conditionStr, "\n")
+	for _, line := range lines {
+		yaml.WriteString(indent + line + "\n")
+	}
+}
+
 // ExpressionParser handles parsing of expression strings into ConditionNode trees
 type ExpressionParser struct {
 	tokens []token

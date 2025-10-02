@@ -9,6 +9,9 @@ import (
 //go:embed sh/checkout_pr.sh
 var checkoutPRScript string
 
+//go:embed sh/pr_context_prompt.md
+var prContextPromptText string
+
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
 	scriptLines := strings.Split(script, "\n")
@@ -17,5 +20,13 @@ func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string)
 		if strings.TrimSpace(line) != "" {
 			fmt.Fprintf(yaml, "%s%s\n", indent, line)
 		}
+	}
+}
+
+// WritePromptTextToYAML writes prompt text with proper indentation to a strings.Builder
+func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
+	textLines := strings.Split(text, "\n")
+	for _, line := range textLines {
+		fmt.Fprintf(yaml, "%s%s\n", indent, line)
 	}
 }

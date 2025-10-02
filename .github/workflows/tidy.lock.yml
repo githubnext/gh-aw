@@ -987,6 +987,7 @@ jobs:
           git log -1 --oneline
           ```
           
+          
           EOF
       - name: Print prompt to step summary
         env:

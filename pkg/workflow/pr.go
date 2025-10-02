@@ -2,18 +2,6 @@ package workflow
 
 import "strings"
 
-// renderConditionAsIf renders a ConditionNode as an 'if' condition with proper YAML indentation
-func renderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent string) {
-	yaml.WriteString("        if: |\n")
-	conditionStr := condition.Render()
-
-	// Format the condition with proper indentation
-	lines := strings.Split(conditionStr, "\n")
-	for _, line := range lines {
-		yaml.WriteString(indent + line + "\n")
-	}
-}
-
 // generatePRBranchCheckout generates a step to checkout the PR branch if the event is a comment on a PR
 func (c *Compiler) generatePRBranchCheckout(yaml *strings.Builder, data *WorkflowData) {
 	// Check if any of the workflow's event triggers are comment-related events
@@ -34,7 +22,7 @@ func (c *Compiler) generatePRBranchCheckout(yaml *strings.Builder, data *Workflo
 
 	// Use the helper function to render the condition
 	condition := BuildPRCommentCondition()
-	renderConditionAsIf(yaml, condition, "          ")
+	RenderConditionAsIf(yaml, condition, "          ")
 
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, checkoutPRScript, "          ")
@@ -67,43 +55,13 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 
 	// Use the helper function to render the condition
 	condition := BuildPRCommentCondition()
-	renderConditionAsIf(yaml, condition, "          ")
+	RenderConditionAsIf(yaml, condition, "          ")
 
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          ---\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          ## Current Branch Context\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          **IMPORTANT**: This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          ### What This Means\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          - The current working directory contains the code from the pull request branch\n")
-	yaml.WriteString("          - Any file operations you perform will be on the PR branch code\n")
-	yaml.WriteString("          - You can inspect, analyze, and work with the PR changes directly\n")
-	yaml.WriteString("          - The PR branch has been checked out using `gh pr checkout`\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          ### Available Actions\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          You can:\n")
-	yaml.WriteString("          - Review the changes in the PR by examining files\n")
-	yaml.WriteString("          - Run tests or linters on the PR code\n")
-	yaml.WriteString("          - Make additional changes to the PR branch if needed\n")
-	yaml.WriteString("          - Create commits on the PR branch (they will appear in the PR)\n")
-	yaml.WriteString("          - Switch to other branches using `git checkout` if needed\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          ### Current Branch Information\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          To see which branch you're currently on, you can run:\n")
-	yaml.WriteString("          ```bash\n")
-	yaml.WriteString("          git branch --show-current\n")
-	yaml.WriteString("          git log -1 --oneline\n")
-	yaml.WriteString("          ```\n")
-	yaml.WriteString("          \n")
+	WritePromptTextToYAML(yaml, prContextPromptText, "          ")
 	yaml.WriteString("          EOF\n")
 }
 
