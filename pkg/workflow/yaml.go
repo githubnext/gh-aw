@@ -12,7 +12,7 @@ func unquoteYAMLKey(yamlStr string, key string) string {
 	// Create a regex pattern that matches the quoted key at the start of a line
 	// Pattern: (start of line or newline) + (optional whitespace) + quoted key + colon
 	pattern := `(^|\n)([ \t]*)"` + regexp.QuoteMeta(key) + `":`
-	
+
 	// Replacement: keep the line start and whitespace, but remove quotes from the key
 	// Need to use ReplaceAllStringFunc to properly construct the replacement
 	re := regexp.MustCompile(pattern)

@@ -36,15 +36,15 @@ func TestUnquoteYAMLKey(t *testing.T) {
       - opened`,
 		},
 		{
-			name: "do not unquote 'on' in middle of line",
-			input: `key: "on":value`,
-			key: "on",
+			name:     "do not unquote 'on' in middle of line",
+			input:    `key: "on":value`,
+			key:      "on",
 			expected: `key: "on":value`,
 		},
 		{
-			name: "do not unquote 'on' in string value",
-			input: `description: "This is about on: something"`,
-			key: "on",
+			name:     "do not unquote 'on' in string value",
+			input:    `description: "This is about on: something"`,
+			key:      "on",
 			expected: `description: "This is about on: something"`,
 		},
 		{
@@ -104,13 +104,13 @@ on:
 		  issues:`,
 		},
 		{
-			name: "empty string",
+			name:     "empty string",
 			input:    "",
 			key:      "on",
 			expected: "",
 		},
 		{
-			name: "only newlines",
+			name:     "only newlines",
 			input:    "\n\n\n",
 			key:      "on",
 			expected: "\n\n\n",
