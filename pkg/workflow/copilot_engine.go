@@ -28,6 +28,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsHTTPTransport:  true,  // Copilot CLI supports HTTP transport via MCP
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
+			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
 		},
 	}
 }
