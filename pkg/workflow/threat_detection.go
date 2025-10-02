@@ -177,12 +177,6 @@ const promptContent = templateContent
 fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
 fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
 core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
-
-// Write the rendered prompt to step summary
-core.summary.addHeading('Threat Detection Prompt', 2);
-core.summary.addRaw(promptContent);
-core.summary.write();
-
 core.info('Threat detection setup completed');`,
 		c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
 }

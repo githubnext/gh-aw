@@ -2553,9 +2553,6 @@ jobs:
             fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
-            core.summary.addHeading('Threat Detection Prompt', 2);
-            core.summary.addRaw(promptContent);
-            core.summary.write();
             core.info('Threat detection setup completed');
       - name: Execute Claude Code CLI
         id: agentic_execution
