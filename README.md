@@ -27,16 +27,19 @@ GitHub Agentic Workflows transforms natural language markdown files into GitHub 
 on:
   issues:
     types: [opened]
+
 permissions: read-all 
+
 safe-outputs:
   add-comment:
 ---
+
 # Issue Clarifier
 
 Analyze the current issue and ask for additional details if the issue is unclear.
 ```
 
-The `gh aw` cli compiles this into a GitHub Actions Workflow (.yml) that runs an AI agent (Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository.
+The `gh aw` cli converts this into a GitHub Actions Workflow (.yml) that runs an AI agent (Copilot, Claude, Codex, ...) in a containerized environment whenever a new issue is opened in the repository.
 
 The AI agent reads your repository context, understands the issue content, and takes appropriate actions - all defined in natural language rather than complex code.
 

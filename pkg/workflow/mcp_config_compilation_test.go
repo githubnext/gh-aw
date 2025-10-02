@@ -48,7 +48,7 @@ Please use the markitdown MCP server to convert HTML to markdown.
 	compiler.SetSkipValidation(true) // Skip validation for test
 
 	// Parse the workflow file to get WorkflowData
-	workflowData, err := compiler.parseWorkflowFile(tmpFile.Name())
+	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to parse workflow file: %v", err)
 	}

@@ -595,10 +595,37 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 	return nil
 }
-func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride string, validate bool, watch bool, workflowDir string, skipInstructions bool, noEmit bool, purge bool) error {
+
+// CompileConfig holds configuration options for compiling workflows
+type CompileConfig struct {
+	MarkdownFiles    []string // Files to compile (empty for all files)
+	Verbose          bool     // Enable verbose output
+	EngineOverride   string   // Override AI engine setting
+	Validate         bool     // Enable schema validation
+	Watch            bool     // Enable watch mode
+	WorkflowDir      string   // Custom workflow directory
+	SkipInstructions bool     // Skip instruction validation
+	NoEmit           bool     // Validate without generating lock files
+	Purge            bool     // Remove orphaned lock files
+	TrialMode        bool     // Enable trial mode (suppress safe outputs)
+	TrialTargetRepo  string   // Target repository for trial mode
+}
+
+func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
+	markdownFiles := config.MarkdownFiles
+	verbose := config.Verbose
+	engineOverride := config.EngineOverride
+	validate := config.Validate
+	watch := config.Watch
+	workflowDir := config.WorkflowDir
+	skipInstructions := config.SkipInstructions
+	noEmit := config.NoEmit
+	purge := config.Purge
+	trialMode := config.TrialMode
+	trialTargetRepo := config.TrialTargetRepo
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
-		return fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
+		return nil, fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
 	}
 
 	// Validate and set default for workflow directory
@@ -607,7 +634,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	} else {
 		// Ensure the path is relative
 		if filepath.IsAbs(workflowDir) {
-			return fmt.Errorf("workflows-dir must be a relative path, got: %s", workflowDir)
+			return nil, fmt.Errorf("workflows-dir must be a relative path, got: %s", workflowDir)
 		}
 		// Clean the path to avoid issues with ".." or other problematic elements
 		workflowDir = filepath.Clean(workflowDir)
@@ -622,6 +649,14 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	// Set noEmit flag to validate without generating lock files
 	compiler.SetNoEmit(noEmit)
 
+	// Set trial mode if specified
+	if trialMode {
+		compiler.SetTrialMode(true)
+		if trialTargetRepo != "" {
+			compiler.SetTrialTargetRepo(trialTargetRepo)
+		}
+	}
+
 	if watch {
 		// Watch mode: watch for file changes and recompile automatically
 		// For watch mode, we only support a single file for now
@@ -633,12 +668,14 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			// Resolve the workflow file to get the full path
 			resolvedFile, err := resolveWorkflowFile(markdownFiles[0], verbose)
 			if err != nil {
-				return fmt.Errorf("failed to resolve workflow '%s': %w", markdownFiles[0], err)
+				return nil, fmt.Errorf("failed to resolve workflow '%s': %w", markdownFiles[0], err)
 			}
 			markdownFile = resolvedFile
 		}
-		return watchAndCompileWorkflows(markdownFile, compiler, verbose)
+		return nil, watchAndCompileWorkflows(markdownFile, compiler, verbose)
 	}
+
+	var workflowDataList []*workflow.WorkflowData
 
 	if len(markdownFiles) > 0 {
 		// Compile specific workflow files
@@ -647,8 +684,15 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			// Resolve workflow ID or file path to actual file path
 			resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
 			if err != nil {
-				return fmt.Errorf("failed to resolve workflow '%s': %w", markdownFile, err)
+				return nil, fmt.Errorf("failed to resolve workflow '%s': %w", markdownFile, err)
 			}
+
+			// Parse workflow file to get data
+			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse workflow file %s: %w", resolvedFile, err)
+			}
+			workflowDataList = append(workflowDataList, workflowData)
 
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Compiling %s", resolvedFile)))
@@ -656,7 +700,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				fmt.Fprintln(os.Stderr, err.Error())
-				return fmt.Errorf("compilation failed")
+				return nil, fmt.Errorf("compilation failed")
 			}
 			compiledCount++
 		}
@@ -681,19 +725,19 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 			}
 		}
 
-		return nil
+		return workflowDataList, nil
 	}
 
 	// Find git root for consistent behavior
 	gitRoot, err := findGitRoot()
 	if err != nil {
-		return fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
+		return nil, fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
 	}
 
 	// Compile all markdown files in the specified workflow directory relative to git root
 	workflowsDir := filepath.Join(gitRoot, workflowDir)
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
+		return nil, fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
 	}
 
 	if verbose {
@@ -703,11 +747,11 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 	// Find all markdown files
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
-		return fmt.Errorf("failed to find markdown files: %w", err)
+		return nil, fmt.Errorf("failed to find markdown files: %w", err)
 	}
 
 	if len(mdFiles) == 0 {
-		return fmt.Errorf("no markdown files found in %s", workflowsDir)
+		return nil, fmt.Errorf("no markdown files found in %s", workflowsDir)
 	}
 
 	if verbose {
@@ -721,7 +765,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		// Find all existing .lock.yml files
 		existingLockFiles, err = filepath.Glob(filepath.Join(workflowsDir, "*.lock.yml"))
 		if err != nil {
-			return fmt.Errorf("failed to find existing lock files: %w", err)
+			return nil, fmt.Errorf("failed to find existing lock files: %w", err)
 		}
 
 		// Create expected lock files list based on markdown files
@@ -737,8 +781,15 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 
 	// Compile each file
 	for _, file := range mdFiles {
+		// Parse workflow file to get data
+		workflowData, err := compiler.ParseWorkflowFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse workflow file %s: %w", file, err)
+		}
+		workflowDataList = append(workflowDataList, workflowData)
+
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -801,7 +852,7 @@ func CompileWorkflows(markdownFiles []string, verbose bool, engineOverride strin
 		}
 	}
 
-	return nil
+	return workflowDataList, nil
 }
 
 // watchAndCompileWorkflows watches for changes to workflow files and recompiles them automatically
