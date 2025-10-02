@@ -12,9 +12,10 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `permissions`: Required permissions for the workflow
 - `run-name`: Name of the workflow run
 - `runs-on`: Runner environment for the workflow
-- `timeout_minutes`: Workflow timeout
+- `timeout_minutes`: Workflow timeout00
 - `concurrency`: Concurrency settings for the workflow
 - `env`: Environment variables for the workflow
+- `environment`: Environment that the job references (for protected environments and deployments)
 - `if`: Conditional execution of the workflow
 - `steps`: Custom steps for the job
 - `cache`: Cache configuration for workflow dependencies
@@ -367,6 +368,37 @@ env:
   CUSTOM_VAR: "value"
   SECRET_VAR: ${{ secrets.MY_SECRET }}
 ```
+
+## Environment Protection (`environment:`)
+
+The `environment:` section specifies the environment that the job references, enabling deployment protection rules and environment-specific secrets and variables. This follows standard GitHub Actions syntax for job-level environment configuration.
+
+**Simple environment name:**
+```yaml
+environment: production
+```
+
+**Environment with URL:**
+```yaml
+environment:
+  name: production
+  url: https://example.com
+```
+
+**Environment with expressions:**
+```yaml
+environment:
+  name: ${{ github.event.inputs.environment }}
+  url: ${{ steps.deploy.outputs.url }}
+```
+
+**Use cases:**
+- **Protected environments**: Require approval before deployment
+- **Environment secrets**: Access environment-specific secrets and variables
+- **Deployment tracking**: Track deployments to specific environments
+- **Branch protection**: Restrict deployments based on branch rules
+
+For more information about environments, see [GitHub's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment).
 
 ## Conditional Execution (`if:`)
 
