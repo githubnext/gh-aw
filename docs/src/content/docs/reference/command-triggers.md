@@ -13,6 +13,13 @@ on:
     name: my-bot  # Optional: defaults to filename without .md extension
 ```
 
+You can also use the shorthand string format:
+
+```yaml wrap
+on:
+  command: "my-bot"  # Shorthand: string directly specifies command name
+```
+
 This automatically creates:
 - Issue and PR triggers (`opened`, `edited`, `reopened`)
 - Comment triggers (`created`, `edited`)
@@ -35,6 +42,8 @@ on:
 
 ### Example command workflow
 
+Using object format:
+
 ```aw wrap
 ---
 on:
@@ -53,6 +62,24 @@ When someone mentions /summarize-issue in an issue or comment,
 analyze and provide a helpful summary.
 
 The current context text is: "${{ needs.activation.outputs.text }}"
+```
+
+Or using the shorthand string format (same behavior, more concise):
+
+```aw wrap
+---
+on:
+  command: "summarize-issue"  # Shorthand: string directly specifies command name
+permissions:
+  issues: write
+tools:
+  github:
+    allowed: [add_issue_comment]
+---
+
+# Issue Summarizer
+
+Same workflow as above, just using the shorthand string syntax.
 ```
 
 ## Context Text (`needs.activation.outputs.text`)

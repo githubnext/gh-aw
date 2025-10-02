@@ -442,6 +442,20 @@ tools:
 			expectedIf:      "((contains(github.event.issue.body, '/default-name-bot')) || (contains(github.event.comment.body, '/default-name-bot'))) || (contains(github.event.pull_request.body, '/default-name-bot'))",
 			expectedCommand: "default-name-bot",
 		},
+		{
+			name: "string format command trigger",
+			frontmatter: `---
+on:
+  command: "customname"
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:        "test-string-format.md",
+			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedIf:      "((contains(github.event.issue.body, '/customname')) || (contains(github.event.comment.body, '/customname'))) || (contains(github.event.pull_request.body, '/customname'))",
+			expectedCommand: "customname",
+		},
 	}
 
 	for _, tt := range tests {
