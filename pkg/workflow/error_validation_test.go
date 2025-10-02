@@ -143,6 +143,30 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 	})
 
+	// Test CopilotEngine detects command not found and permission errors
+	t.Run("CopilotEngine_detects_command_not_found", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		patterns := engine.GetErrorPatterns()
+
+		// Test logs with command not found errors
+		testLogs := []string{
+			"vitest: command not found",
+			"sh: 1: vitest: not found",
+			"bash: npm: command not found",
+			"✗ Install dev dependencies",
+			"Permission denied and could not request permission from user",
+			"Error: Cannot find module 'vitest'",
+			"sh: 1: make: Permission denied",
+		}
+
+		for _, logLine := range testLogs {
+			counts := CountErrorsAndWarningsWithPatterns(logLine, patterns)
+			if counts.ErrorCount == 0 {
+				t.Errorf("Failed to detect error in log line: %q", logLine)
+			}
+		}
+	})
+
 	// Test CopilotEngine error validation support
 	t.Run("CopilotEngine_error_validation", func(t *testing.T) {
 		engine := NewCopilotEngine()
