@@ -16,10 +16,10 @@ type Job struct {
 	If             string
 	Permissions    string
 	TimeoutMinutes int
-	Environment    string                // Job environment configuration
-	Container      string                // Job container configuration
-	Services       string                // Job services configuration
-	Env            map[string]string     // Job-level environment variables
+	Environment    string            // Job environment configuration
+	Container      string            // Job container configuration
+	Services       string            // Job services configuration
+	Env            map[string]string // Job-level environment variables
 	Steps          []string
 	Needs          []string // Job dependencies (needs clause)
 	Outputs        map[string]string
