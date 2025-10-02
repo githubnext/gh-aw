@@ -255,15 +255,8 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	// Add engine execution steps
 	logFile := "/tmp/threat-detection/detection.log"
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
-
-	// Override XDG_CONFIG_HOME to prevent MCP configuration from being used
-	// This ensures the detection agent runs in isolation without access to MCPs
 	for _, step := range executionSteps {
 		for _, line := range step {
-			// Replace XDG_CONFIG_HOME to use a separate directory for threat detection
-			if strings.Contains(line, "XDG_CONFIG_HOME:") {
-				line = strings.Replace(line, "XDG_CONFIG_HOME: /home/runner", "XDG_CONFIG_HOME: /tmp/threat-detection-config", 1)
-			}
 			steps = append(steps, line+"\n")
 		}
 	}
