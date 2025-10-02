@@ -106,6 +106,12 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 		"        with:\n",
 		"          name: agent_output.json\n",
 		"          path: /tmp/threat-detection/\n",
+		"      - name: Download patch artifact\n",
+		"        continue-on-error: true\n",
+		"        uses: actions/download-artifact@v5\n",
+		"        with:\n",
+		"          name: aw.patch\n",
+		"          path: /tmp/threat-detection/\n",
 	}
 }
 
@@ -119,7 +125,6 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 		"        uses: actions/github-script@v8\n",
 		"        env:\n",
 		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
-		fmt.Sprintf("          AGENT_PATCH: ${{ needs.%s.outputs.patch }}\n", mainJobName),
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
 	steps = append(steps, []string{
@@ -145,6 +150,20 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 func (c *Compiler) buildSetupScript() string {
 	return fmt.Sprintf(`const fs = require('fs');
 
+// Read patch file if it exists
+let patchContent = '';
+const patchPath = '/tmp/threat-detection/aw.patch';
+if (fs.existsSync(patchPath)) {
+  try {
+    patchContent = fs.readFileSync(patchPath, 'utf8');
+    core.info('Patch file loaded: ' + patchPath);
+  } catch (error) {
+    core.warning('Failed to read patch file: ' + error.message);
+  }
+} else {
+  core.info('No patch file found at: ' + patchPath);
+}
+
 // Create threat detection prompt with embedded template
 const templateContent = %s;
 const promptContent = templateContent
@@ -152,7 +171,7 @@ const promptContent = templateContent
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
   .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
   .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
-  .replace(/{AGENT_PATCH}/g, process.env.AGENT_PATCH || '');
+  .replace(/{AGENT_PATCH}/g, patchContent);
 
 // Write prompt file
 fs.mkdirSync('/tmp/aw-prompts', { recursive: true });

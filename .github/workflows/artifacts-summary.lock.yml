@@ -1959,17 +1959,34 @@ jobs:
         with:
           name: agent_output.json
           path: /tmp/threat-detection/
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: aw.patch
+          path: /tmp/threat-detection/
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          AGENT_PATCH: ${{ needs.agent.outputs.patch }}
           WORKFLOW_NAME: "GitHub Actions Artifacts Usage Summary"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# GitHub Actions Artifacts Usage Summary\n\nGenerate a comprehensive summary table of GitHub Actions artifacts usage in the repository ${{ github.repository }}.\n\n## Task Requirements\n\n1. **Analyze all workflows** in the repository to identify which ones generate artifacts\n2. **Collect artifact data** for recent workflow runs (last 30 days recommended)\n3. **Generate a summary table** with the following columns:\n   - Workflow Name\n   - Total Artifacts Count\n   - Total Size (in MB/GB)\n   - Average Size per Artifact\n   - Latest Run Date\n   - Status (Active/Inactive)\n\n## Analysis Instructions\n\nPlease:\n\n1. **List all workflows** in the repository using the GitHub API\n2. **For each workflow**, get recent runs and their artifacts\n3. **Calculate statistics**:\n   - Total number of artifacts per workflow\n   - Total size of all artifacts per workflow\n   - Average artifact size\n   - Most recent run date\n4. **Create a markdown table** with the summary\n5. **Include insights** such as:\n   - Which workflows generate the most artifacts\n   - Which workflows use the most storage\n   - Trends in artifact usage\n   - Recommendations for optimization\n\n## Output Format\n\nCreate an issue with a markdown table like this:\n\n```markdown\n# GitHub Actions Artifacts Usage Report\n\nGenerated on: [DATE]\n\n## Summary Statistics\n- Total Workflows: X\n- Total Artifacts: X  \n- Total Storage Used: X GB\n- Active Workflows (with recent runs): X\n\n## Detailed Breakdown\n\n| Workflow Name | Artifacts Count | Total Size | Avg Size | Latest Run | Status |\n|---------------|-----------------|------------|----------|------------|--------|\n| workflow-1    | 45             | 2.3 GB     | 52 MB    | 2024-01-15 | Active |\n| workflow-2    | 12             | 456 MB     | 38 MB    | 2024-01-10 | Active |\n\n## Insights & Recommendations\n[Your analysis and recommendations here]\n```\n\n## Important Notes\n\n- Focus on workflows that actually generate artifacts (skip those without any)\n- Convert sizes to human-readable formats (MB, GB)\n- Consider artifact retention policies in your analysis\n- Include both successful and failed runs in the analysis\n- If a workflow has no recent runs, mark it as \"Inactive\"\n\nRepository: ${{ github.repository }}\nTriggered by: ${{ github.actor }}\n"
         with:
           script: |
             const fs = require('fs');
+            let patchContent = '';
+            const patchPath = '/tmp/threat-detection/aw.patch';
+            if (fs.existsSync(patchPath)) {
+              try {
+                patchContent = fs.readFileSync(patchPath, 'utf8');
+                core.info('Patch file loaded: ' + patchPath);
+              } catch (error) {
+                core.warning('Failed to read patch file: ' + error.message);
+              }
+            } else {
+              core.info('No patch file found at: ' + patchPath);
+            }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
@@ -2012,7 +2029,7 @@ jobs:
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
-              .replace(/{AGENT_PATCH}/g, process.env.AGENT_PATCH || '');
+              .replace(/{AGENT_PATCH}/g, patchContent);
             fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
