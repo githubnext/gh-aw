@@ -15,6 +15,9 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `timeout_minutes`: Workflow timeout
 - `concurrency`: Concurrency settings for the workflow
 - `env`: Environment variables for the workflow
+- `environment`: Environment that the job references (for protected environments and deployments)
+- `container`: Container to run the job steps in
+- `services`: Service containers for the job (databases, caches, etc.)
 - `if`: Conditional execution of the workflow
 - `steps`: Custom steps for the job
 - `cache`: Cache configuration for workflow dependencies
@@ -427,6 +430,45 @@ env:
   CUSTOM_VAR: "value"
   SECRET_VAR: ${{ secrets.MY_SECRET }}
 ```
+
+## Environment Protection (`environment:`)
+
+The `environment:` section specifies the environment that the job references, enabling deployment protection rules and environment-specific secrets and variables. This follows standard GitHub Actions syntax for job-level environment configuration.
+
+**Simple environment name:**
+```yaml
+environment: production
+```
+
+For more information about environments, see [GitHub Action's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment).
+
+## Container Configuration (`container:`)
+
+The `container:` section specifies a container to run the job steps in, useful for standardized execution environments or specific runtime requirements.
+
+**Simple container image:**
+```yaml
+container: node:18
+```
+
+For more information about environments, see [GitHub Action's container documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container).
+
+## Service Containers (`services:`)
+
+The `services:` section defines service containers that run alongside your job, commonly used for databases, caches, or other dependencies during testing and deployment.
+
+**Simple service:**
+```yaml
+services:
+  postgres:
+    image: postgres:13
+    env:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 5432:5432
+```
+
+For more information about containers and services, see [GitHub Action's container documentation](https://docs.github.com/en/actions/using-containerized-services).
 
 ## Conditional Execution (`if:`)
 

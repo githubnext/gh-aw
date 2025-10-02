@@ -16,6 +16,9 @@ type Job struct {
 	If             string
 	Permissions    string
 	TimeoutMinutes int
+	Environment    string            // Job environment configuration
+	Container      string            // Job container configuration
+	Services       string            // Job services configuration
 	Env            map[string]string // Job-level environment variables
 	Steps          []string
 	Needs          []string // Job dependencies (needs clause)
@@ -197,6 +200,21 @@ func (jm *JobManager) renderJob(job *Job) string {
 	// Add runs-on
 	if job.RunsOn != "" {
 		yaml.WriteString(fmt.Sprintf("    %s\n", job.RunsOn))
+	}
+
+	// Add environment section
+	if job.Environment != "" {
+		yaml.WriteString(fmt.Sprintf("    %s\n", job.Environment))
+	}
+
+	// Add container section
+	if job.Container != "" {
+		yaml.WriteString(fmt.Sprintf("    %s\n", job.Container))
+	}
+
+	// Add services section
+	if job.Services != "" {
+		yaml.WriteString(fmt.Sprintf("    %s\n", job.Services))
 	}
 
 	// Add permissions section
