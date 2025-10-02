@@ -118,20 +118,24 @@ The compiled workflow will have additional prompting describing that, to create 
 
 ### Add Issue Label (`add-labels:`)
 
-Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
+Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to issues or pull requests based on the coding agent's analysis. By default, labels are added to the triggering issue or pull request, but this can be configured using the `target` option.
 
+**Basic Configuration:**
 ```yaml
 safe-outputs:
   add-labels:
 ```
 
-or with further configuration:
-
+**With Configuration:**
 ```yaml
 safe-outputs:
   add-labels:
-    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition.
+    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition
     max: 3                              # Optional: maximum number of labels to add (default: 3)
+    target: "*"                         # Optional: target for labels
+                                        # "triggering" (default) - only add labels to triggering issue/PR
+                                        # "*" - allow labels on any issue (requires issue_number in agent output)
+                                        # Explicit number - add labels to specific issue/PR (e.g., "123")
 ```
 
 The agentic part of your workflow should analyze the issue content and determine appropriate labels. 
@@ -148,7 +152,7 @@ The agentic part of your workflow will have implicit additional prompting saying
 
 ### Issue Updates (`update-issue:`)
 
-Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. You can configure which fields are allowed to be updated.
+Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. By default, updates are applied to the triggering issue, but this can be configured using the `target` option. You can also configure which fields are allowed to be updated.
 
 **Basic Configuration:**
 ```yaml
@@ -706,14 +710,25 @@ safe-outputs:
 
 ### Custom GitHub Token (`github-token:`)
 
-By default, safe output jobs use the standard `GITHUB_TOKEN` provided by GitHub Actions. You can specify a custom GitHub token for all safe output jobs:
+GitHub Agentic Workflows uses a token precedence system for authentication:
+
+1. **`GH_AW_GITHUB_TOKEN`** - Override token (highest priority)
+2. **`GITHUB_TOKEN`** - Standard GitHub Actions token (fallback)
+
+By default, safe output jobs automatically use this precedence: `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`. You can override this by specifying a custom GitHub token for all safe output jobs:
 
 ```yaml
 safe-outputs:
-  github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+  github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of default precedence
   create-issue:
   add-comment:
 ```
+
+The token precedence system is useful when:
+- **Trial mode execution**: `GH_AW_GITHUB_TOKEN` can be set to test workflows safely
+- **Enhanced permissions**: Override with Personal Access Tokens that have broader scope
+- **Cross-repository operations**: Use tokens with access to multiple repositories
+- **Custom authentication flows**: Implement specialized token management strategies
 
 This is useful when:
 - You need additional permissions beyond what `GITHUB_TOKEN` provides

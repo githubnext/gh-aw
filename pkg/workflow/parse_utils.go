@@ -49,6 +49,8 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
 		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", data.SafeOutputs.GitHubToken))
+	} else {
+		*steps = append(*steps, "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 	}
 }
 

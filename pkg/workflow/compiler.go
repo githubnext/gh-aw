@@ -32,15 +32,17 @@ type FileTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
-	verbose        bool
-	engineOverride string
-	customOutput   string          // If set, output will be written to this path instead of default location
-	version        string          // Version of the extension
-	skipValidation bool            // If true, skip schema validation
-	noEmit         bool            // If true, validate without generating lock files
-	jobManager     *JobManager     // Manages jobs and dependencies
-	engineRegistry *EngineRegistry // Registry of available agentic engines
-	fileTracker    FileTracker     // Optional file tracker for tracking created files
+	verbose         bool
+	engineOverride  string
+	customOutput    string          // If set, output will be written to this path instead of default location
+	version         string          // Version of the extension
+	skipValidation  bool            // If true, skip schema validation
+	noEmit          bool            // If true, validate without generating lock files
+	trialMode       bool            // If true, suppress safe outputs for trial mode execution
+	trialTargetRepo string          // If set in trial mode, the target repository to checkout
+	jobManager      *JobManager     // Manages jobs and dependencies
+	engineRegistry  *EngineRegistry // Registry of available agentic engines
+	fileTracker     FileTracker     // Optional file tracker for tracking created files
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -70,6 +72,16 @@ func (c *Compiler) SetNoEmit(noEmit bool) {
 // SetFileTracker sets the file tracker for tracking created files
 func (c *Compiler) SetFileTracker(tracker FileTracker) {
 	c.fileTracker = tracker
+}
+
+// SetTrialMode configures whether to run in trial mode (suppresses safe outputs)
+func (c *Compiler) SetTrialMode(trialMode bool) {
+	c.trialMode = trialMode
+}
+
+// SetTrialTargetRepo configures the target repository for trial mode
+func (c *Compiler) SetTrialTargetRepo(targetRepo string) {
+	c.trialTargetRepo = targetRepo
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -165,7 +177,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage("Parsing workflow file..."))
 	}
-	workflowData, err := c.parseWorkflowFile(markdownPath)
+	workflowData, err := c.ParseWorkflowFile(markdownPath)
 	if err != nil {
 		// Check if this is already a formatted console error
 		if strings.Contains(err.Error(), ":") && (strings.Contains(err.Error(), "error:") || strings.Contains(err.Error(), "warning:")) {
@@ -361,8 +373,8 @@ func (c *Compiler) validateGitHubActionsSchema(yamlContent string) error {
 	return nil
 }
 
-// parseWorkflowFile parses a markdown workflow file and extracts all necessary data
-func (c *Compiler) parseWorkflowFile(markdownPath string) (*WorkflowData, error) {
+// ParseWorkflowFile parses a markdown workflow file and extracts all necessary data
+func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error) {
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Reading file: %s", console.ToRelativePath(markdownPath))))
 	}
@@ -1290,9 +1302,11 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
 
-	// Build safe outputs jobs if configured
-	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, activationJobCreated, frontmatter, markdownPath); err != nil {
-		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
+	// Build safe outputs jobs if configured (skip in trial mode)
+	if !c.trialMode {
+		if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, activationJobCreated, frontmatter, markdownPath); err != nil {
+			return fmt.Errorf("failed to build safe outputs jobs: %w", err)
+		}
 	}
 
 	// Build safe-jobs if configured
@@ -1300,6 +1314,12 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled
 	if err := c.buildSafeJobs(data, constants.AgentJobName, threatDetectionEnabledForSafeJobs); err != nil {
 		return fmt.Errorf("failed to build safe-jobs: %w", err)
+  }
+	// Build safe-jobs if configured (skip in trial mode)
+	if !c.trialMode {
+		if err := c.buildSafeJobs(data); err != nil {
+			return fmt.Errorf("failed to build safe-jobs: %w", err)
+		}
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
@@ -1670,6 +1690,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
 		yaml.WriteString("        uses: actions/checkout@v5\n")
+		if c.trialMode {
+			yaml.WriteString("        with:\n")
+			if c.trialTargetRepo != "" {
+				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialTargetRepo))
+			}
+			yaml.WriteString("          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+		}
 	}
 
 	// Add custom steps if present
@@ -1697,9 +1724,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	generateCacheMemorySteps(yaml, data, c.verbose)
 
 	// Configure git credentials if git operations will be needed
-	if needsGitCommands(data.SafeOutputs) {
-		c.generateGitConfiguration(yaml, data)
-	}
+	// Note: Git configuration is handled by token in checkout step when in trial mode
 
 	// Add Node.js setup if the engine requires it
 	engine, err := c.getAgenticEngine(data.AI)
@@ -2404,11 +2429,11 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
-			if data.SafeOutputs.AddLabels.MaxCount != nil && *data.SafeOutputs.AddLabels.MaxCount > 0 {
-				labelConfig["max"] = *data.SafeOutputs.AddLabels.MaxCount
+			if data.SafeOutputs.AddLabels.Max > 0 {
+				labelConfig["max"] = data.SafeOutputs.AddLabels.Max
 			}
-			if data.SafeOutputs.AddLabels.MinCount != nil && *data.SafeOutputs.AddLabels.MinCount > 0 {
-				labelConfig["min"] = *data.SafeOutputs.AddLabels.MinCount
+			if data.SafeOutputs.AddLabels.Min > 0 {
+				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
 			}
 			safeOutputsConfig["add-labels"] = labelConfig
 		}

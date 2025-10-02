@@ -2579,7 +2579,7 @@ Test workflow with reaction.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
@@ -2651,7 +2651,7 @@ Test workflow without explicit reaction (should not create reaction action).
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
@@ -2724,7 +2724,7 @@ Test workflow with reaction and comment editing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
@@ -2804,7 +2804,7 @@ Test command workflow with reaction and comment editing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
@@ -5543,7 +5543,7 @@ tools:
 			compiler := NewCompiler(false, "", "test")
 
 			// Parse the workflow
-			workflowData, err := compiler.parseWorkflowFile(testFile)
+			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)
 			}

@@ -372,7 +372,7 @@ This is a test workflow.`,
 			}
 
 			compiler := NewCompiler(false, "", "test")
-			workflowData, err := compiler.parseWorkflowFile(testFile)
+			workflowData, err := compiler.ParseWorkflowFile(testFile)
 			if err != nil {
 				t.Fatalf("Failed to parse workflow: %v", err)
 			}

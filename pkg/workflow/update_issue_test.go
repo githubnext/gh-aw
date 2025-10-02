@@ -40,7 +40,7 @@ This workflow tests the update-issue configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with update-issue config: %v", err)
 	}
@@ -115,7 +115,7 @@ This workflow tests the update-issue configuration with all options.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with full update-issue config: %v", err)
 	}
@@ -187,7 +187,7 @@ This workflow tests the update-issue target configuration parsing.
 	compiler := NewCompiler(false, "", "test")
 
 	// Parse the workflow data
-	workflowData, err := compiler.parseWorkflowFile(testFile)
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
 	if err != nil {
 		t.Fatalf("Unexpected error parsing workflow with target update-issue config: %v", err)
 	}

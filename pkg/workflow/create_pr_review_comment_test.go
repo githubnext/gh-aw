@@ -40,7 +40,7 @@ This workflow tests the create-pull-request-review-comment configuration parsing
 		compiler := NewCompiler(false, "", "test")
 
 		// Parse the workflow data
-		workflowData, err := compiler.parseWorkflowFile(testFile)
+		workflowData, err := compiler.ParseWorkflowFile(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error parsing workflow with PR review comment config: %v", err)
 		}
@@ -89,7 +89,7 @@ This workflow tests custom configuration values.
 		compiler := NewCompiler(false, "", "test")
 
 		// Parse the workflow data
-		workflowData, err := compiler.parseWorkflowFile(testFile)
+		workflowData, err := compiler.ParseWorkflowFile(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error parsing workflow with custom PR review comment config: %v", err)
 		}
@@ -131,7 +131,7 @@ This workflow tests null configuration.
 		compiler := NewCompiler(false, "", "test")
 
 		// Parse the workflow data
-		workflowData, err := compiler.parseWorkflowFile(testFile)
+		workflowData, err := compiler.ParseWorkflowFile(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error parsing workflow with null PR review comment config: %v", err)
 		}
@@ -175,7 +175,7 @@ This workflow tests invalid side value handling.
 		compiler := NewCompiler(false, "", "test")
 
 		// Parse the workflow data - this should fail due to schema validation
-		_, err := compiler.parseWorkflowFile(testFile)
+		_, err := compiler.ParseWorkflowFile(testFile)
 		if err == nil {
 			t.Fatal("Expected error parsing workflow with invalid side value, but got none")
 		}

@@ -58,7 +58,20 @@ This is a test workflow in a custom directory.
 	}
 
 	// Test 1: Compile with custom workflow directory should work
-	err = CompileWorkflows([]string{}, false, "", false, false, customDir, false, false, false)
+	config := CompileConfig{
+		MarkdownFiles:    []string{},
+		Verbose:          false,
+		EngineOverride:   "",
+		Validate:         false,
+		Watch:            false,
+		WorkflowDir:      customDir,
+		SkipInstructions: false,
+		NoEmit:           false,
+		Purge:            false,
+		TrialMode:        false,
+		TrialTargetRepo:  "",
+	}
+	_, err = CompileWorkflows(config)
 	if err != nil {
 		t.Errorf("CompileWorkflows with custom workflows-dir should succeed, got error: %v", err)
 	}
@@ -70,7 +83,20 @@ This is a test workflow in a custom directory.
 	}
 
 	// Test 2: Using absolute path should fail
-	err = CompileWorkflows([]string{}, false, "", false, false, "/absolute/path", false, false, false)
+	config = CompileConfig{
+		MarkdownFiles:    []string{},
+		Verbose:          false,
+		EngineOverride:   "",
+		Validate:         false,
+		Watch:            false,
+		WorkflowDir:      "/absolute/path",
+		SkipInstructions: false,
+		NoEmit:           false,
+		Purge:            false,
+		TrialMode:        false,
+		TrialTargetRepo:  "",
+	}
+	_, err = CompileWorkflows(config)
 	if err == nil {
 		t.Error("CompileWorkflows with absolute workflows-dir should fail")
 	}
@@ -89,7 +115,20 @@ This is a test workflow in a custom directory.
 		t.Fatalf("Failed to create default workflow file: %v", err)
 	}
 
-	err = CompileWorkflows([]string{}, false, "", false, false, "", false, false, false)
+	config = CompileConfig{
+		MarkdownFiles:    []string{},
+		Verbose:          false,
+		EngineOverride:   "",
+		Validate:         false,
+		Watch:            false,
+		WorkflowDir:      "",
+		SkipInstructions: false,
+		NoEmit:           false,
+		Purge:            false,
+		TrialMode:        false,
+		TrialTargetRepo:  "",
+	}
+	_, err = CompileWorkflows(config)
 	if err != nil {
 		t.Errorf("CompileWorkflows with default workflows-dir should succeed, got error: %v", err)
 	}
@@ -183,7 +222,20 @@ on: push
 			}
 
 			// Test the compilation
-			err = CompileWorkflows([]string{}, false, "", false, false, tt.workflowDir, false, false, false)
+			config := CompileConfig{
+				MarkdownFiles:    []string{},
+				Verbose:          false,
+				EngineOverride:   "",
+				Validate:         false,
+				Watch:            false,
+				WorkflowDir:      tt.workflowDir,
+				SkipInstructions: false,
+				NoEmit:           false,
+				Purge:            false,
+				TrialMode:        false,
+				TrialTargetRepo:  "",
+			}
+			_, err = CompileWorkflows(config)
 
 			if tt.expectError {
 				if err == nil {
