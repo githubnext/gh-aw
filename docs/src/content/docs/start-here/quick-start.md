@@ -13,7 +13,7 @@ This guide will get you from zero to a running agentic workflow in minutes. You'
 
 - A repository you are a maintainer of, can push to (or a fork) and have permission to add Actions secrets.
 
-- A Claude, GitHub, or OpenAI API key. 
+- A Personal Access Token for GitHub Copilot CLI (recommended), or an Anthropic Claude or OpenAI API key. 
 
 **Step 1 — Install the extension**
 
@@ -21,7 +21,7 @@ This guide will get you from zero to a running agentic workflow in minutes. You'
 
 - Install the GitHub Agentic Workflows extension:
 
-```bash
+```bash wrap
 gh extension install githubnext/gh-aw
 ```
 
@@ -31,7 +31,7 @@ If this step fails, you may need to use a personal access token or run the [inst
 
 The easiest way to get started is to add a sample from [The Agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
-```bash
+```bash wrap
 gh aw add weekly-research -r githubnext/agentics --pr
 ```
 
@@ -39,15 +39,25 @@ This creates a pull request that adds `.github/workflows/weekly-research.md` and
 
 **Step 3 — Add an AI secret**
 
-Agentic workflows use an AI engine. For Claude add this repository secret:
+Agentic workflows use an AI engine. GitHub Copilot CLI is the default and recommended engine.
 
-```bash
+For GitHub Copilot CLI (default), add this repository secret:
+
+```bash wrap
+gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-personal-access-token>"
+```
+
+> **Important**: Use a Personal Access Token (PAT), not the default `GITHUB_TOKEN`. The standard GitHub Actions token is not compatible with Copilot CLI.
+
+For Claude, add:
+
+```bash wrap
 gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
 ```
 
 For Codex (experimental), add:
 
-```bash
+```bash wrap
 gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
 ```
 
@@ -57,13 +67,13 @@ These secrets are used by Actions at runtime.
 
 Trigger the workflow immediately in GitHub Actions:
 
-```bash
+```bash wrap
 gh aw run weekly-research
 ```
 
 After a few moments, you can check the status of the run:
 
-```bash
+```bash wrap
 gh aw status
 ```
 
