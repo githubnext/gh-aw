@@ -440,27 +440,7 @@ The `environment:` section specifies the environment that the job references, en
 environment: production
 ```
 
-**Environment with URL:**
-```yaml
-environment:
-  name: production
-  url: https://example.com
-```
-
-**Environment with expressions:**
-```yaml
-environment:
-  name: ${{ github.event.inputs.environment }}
-  url: ${{ steps.deploy.outputs.url }}
-```
-
-**Use cases:**
-- **Protected environments**: Require approval before deployment
-- **Environment secrets**: Access environment-specific secrets and variables
-- **Deployment tracking**: Track deployments to specific environments
-- **Branch protection**: Restrict deployments based on branch rules
-
-For more information about environments, see [GitHub's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment).
+For more information about environments, see [GitHub Action's environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment).
 
 ## Container Configuration (`container:`)
 
@@ -471,34 +451,7 @@ The `container:` section specifies a container to run the job steps in, useful f
 container: node:18
 ```
 
-**Container with configuration:**
-```yaml
-container:
-  image: node:18
-  env:
-    NODE_ENV: production
-  ports:
-    - 3000
-  volumes:
-    - /tmp:/tmp
-```
-
-**Container with private registry credentials:**
-```yaml
-container:
-  image: myregistry.com/myapp:latest
-  credentials:
-    username: ${{ secrets.REGISTRY_USERNAME }}
-    password: ${{ secrets.REGISTRY_PASSWORD }}
-  env:
-    DATABASE_URL: ${{ secrets.DATABASE_URL }}
-```
-
-**Use cases:**
-- **Consistent environment**: Ensure identical runtime across different runners
-- **Specific runtime requirements**: Use containers with pre-installed dependencies
-- **Security isolation**: Run jobs in containerized environments
-- **Custom tooling**: Use containers with specialized tools pre-installed
+For more information about environments, see [GitHub Action's container documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/run-jobs-in-a-container).
 
 ## Service Containers (`services:`)
 
@@ -515,62 +468,7 @@ services:
       - 5432:5432
 ```
 
-**Multiple services:**
-```yaml
-services:
-  postgres:
-    image: postgres:13
-    env:
-      POSTGRES_DB: testdb
-      POSTGRES_USER: testuser
-      POSTGRES_PASSWORD: testpass
-    ports:
-      - 5432:5432
-    options: >-
-      --health-cmd pg_isready
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
-
-  redis:
-    image: redis:7
-    ports:
-      - 6379:6379
-    options: >-
-      --health-cmd "redis-cli ping"
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
-```
-
-**Service with private registry:**
-```yaml
-services:
-  api:
-    image: myregistry.com/test-api:latest
-    credentials:
-      username: ${{ secrets.REGISTRY_USERNAME }}
-      password: ${{ secrets.REGISTRY_PASSWORD }}
-    env:
-      API_KEY: ${{ secrets.API_KEY }}
-    ports:
-      - 8080:8080
-```
-
-**Use cases:**
-- **Database testing**: Run PostgreSQL, MySQL, or other databases for integration tests
-- **Cache services**: Use Redis or Memcached for caching-dependent tests
-- **Message queues**: Run RabbitMQ, Kafka, or other message brokers
-- **Mock services**: Run containerized mock APIs or services
-- **Full-stack testing**: Orchestrate multiple services for end-to-end testing
-
-**Service networking:**
-- Services are accessible via their service name as hostname
-- Example: `postgres` service accessible at `postgres:5432`
-- Use `localhost` and mapped ports when job runs on the host
-- Use service names directly when job runs in a container
-
-For more information about containers and services, see [GitHub's container documentation](https://docs.github.com/en/actions/using-containerized-services).
+For more information about containers and services, see [GitHub Action's container documentation](https://docs.github.com/en/actions/using-containerized-services).
 
 ## Conditional Execution (`if:`)
 
