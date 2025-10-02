@@ -2092,6 +2092,12 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 		return // No comment-related triggers, skip PR context instructions
 	}
 
+	// Also check if checkout step will be added - only show prompt if checkout happens
+	needsCheckout := c.shouldAddCheckoutStep(data)
+	if !needsCheckout {
+		return // No checkout, so no PR branch checkout will happen
+	}
+
 	yaml.WriteString("      - name: Append PR context instructions to prompt\n")
 	yaml.WriteString("        if: |\n")
 	yaml.WriteString("          (\n")
