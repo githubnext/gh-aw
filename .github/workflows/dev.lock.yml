@@ -1974,17 +1974,34 @@ jobs:
         with:
           name: agent_output.json
           path: /tmp/threat-detection/
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: aw.patch
+          path: /tmp/threat-detection/
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          AGENT_PATCH: ${{ needs.agent.outputs.patch }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "Write a poem and post it as an issue.\n"
         with:
           script: |
             const fs = require('fs');
+            let patchContent = '';
+            const patchPath = '/tmp/threat-detection/aw.patch';
+            if (fs.existsSync(patchPath)) {
+              try {
+                patchContent = fs.readFileSync(patchPath, 'utf8');
+                core.info('Patch file loaded: ' + patchPath);
+              } catch (error) {
+                core.warning('Failed to read patch file: ' + error.message);
+              }
+            } else {
+              core.info('No patch file found at: ' + patchPath);
+            }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
@@ -2027,10 +2044,13 @@ jobs:
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
-              .replace(/{AGENT_PATCH}/g, process.env.AGENT_PATCH || '');
+              .replace(/{AGENT_PATCH}/g, patchContent);
             fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+            core.summary.addHeading('Threat Detection Prompt', 2);
+            core.summary.addRaw(promptContent);
+            core.summary.write();
             core.info('Threat detection setup completed');
       - name: Setup Node.js
         uses: actions/setup-node@v4
