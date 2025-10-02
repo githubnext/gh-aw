@@ -28,6 +28,8 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
 			supportsMaxTurns:       true, // Claude supports max-turns feature
+			supportsWebFetch:       true, // Claude has built-in WebFetch support
+			supportsWebSearch:      true, // Claude has built-in WebSearch support
 		},
 	}
 }
@@ -605,6 +607,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		case "safe-outputs":
 			e.renderSafeOutputsMCPConfig(yaml, isLast)
+		case "web-fetch":
+			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := tools[toolName].(map[string]any); ok {

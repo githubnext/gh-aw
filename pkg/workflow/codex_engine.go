@@ -49,6 +49,8 @@ func NewCodexEngine() *CodexEngine {
 			supportsToolsAllowlist: true,
 			supportsHTTPTransport:  false, // Codex only supports stdio transport
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
+			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
+			supportsWebSearch:      true,  // Codex has built-in web-search support
 		},
 	}
 }
@@ -255,6 +257,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
 		case "safe-outputs":
 			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
+		case "web-fetch":
+			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
 		default:
 			// Handle custom MCP tools (those with MCP-compatible type)
 			if toolConfig, ok := expandedTools[toolName].(map[string]any); ok {

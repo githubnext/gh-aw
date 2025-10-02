@@ -35,6 +35,12 @@ type CodingAgentEngine interface {
 	// SupportsMaxTurns returns true if this engine supports the max-turns feature
 	SupportsMaxTurns() bool
 
+	// SupportsWebFetch returns true if this engine has built-in support for the web-fetch tool
+	SupportsWebFetch() bool
+
+	// SupportsWebSearch returns true if this engine has built-in support for the web-search tool
+	SupportsWebSearch() bool
+
 	// GetDeclaredOutputFiles returns a list of output files that this engine may produce
 	// These files will be automatically uploaded as artifacts if they exist
 	GetDeclaredOutputFiles() []string
@@ -85,6 +91,8 @@ type BaseEngine struct {
 	supportsToolsAllowlist bool
 	supportsHTTPTransport  bool
 	supportsMaxTurns       bool
+	supportsWebFetch       bool
+	supportsWebSearch      bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -113,6 +121,14 @@ func (e *BaseEngine) SupportsHTTPTransport() bool {
 
 func (e *BaseEngine) SupportsMaxTurns() bool {
 	return e.supportsMaxTurns
+}
+
+func (e *BaseEngine) SupportsWebFetch() bool {
+	return e.supportsWebFetch
+}
+
+func (e *BaseEngine) SupportsWebSearch() bool {
+	return e.supportsWebSearch
 }
 
 // GetDeclaredOutputFiles returns an empty list by default (engines can override)

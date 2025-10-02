@@ -10,6 +10,8 @@ if: ${{ github.event.workflow_run.conclusion == 'failure' }}
 
 permissions: read-all
 
+engine: claude
+
 network: defaults
 
 safe-outputs:

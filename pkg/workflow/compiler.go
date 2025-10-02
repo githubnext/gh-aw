@@ -38,6 +38,7 @@ type Compiler struct {
 	version         string          // Version of the extension
 	skipValidation  bool            // If true, skip schema validation
 	noEmit          bool            // If true, validate without generating lock files
+	strictMode      bool            // If true, enforce strict validation requirements
 	trialMode       bool            // If true, suppress safe outputs for trial mode execution
 	trialTargetRepo string          // If set in trial mode, the target repository to checkout
 	jobManager      *JobManager     // Manages jobs and dependencies
@@ -82,6 +83,11 @@ func (c *Compiler) SetTrialMode(trialMode bool) {
 // SetTrialTargetRepo configures the target repository for trial mode
 func (c *Compiler) SetTrialTargetRepo(targetRepo string) {
 	c.trialTargetRepo = targetRepo
+}
+
+// SetStrictMode configures whether to enable strict validation mode
+func (c *Compiler) SetStrictMode(strict bool) {
+	c.strictMode = strict
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -438,6 +444,24 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Check if strict mode is enabled in frontmatter
+	// If strict is true in frontmatter, enable strict mode for this workflow
+	// This allows declarative strict mode control per workflow
+	// Note: CLI --strict flag is already set in c.strictMode and takes precedence
+	// Frontmatter can enable strict mode, but cannot disable it if CLI flag is set
+	if !c.strictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				c.strictMode = true
+			}
+		}
+	}
+
+	// Perform strict mode validations
+	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
+		return nil, err
+	}
+
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting
@@ -514,6 +538,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
+	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
+	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
+
 	// Validate MCP configurations
 	if err := ValidateMCPConfigs(tools); err != nil {
 		return nil, fmt.Errorf("invalid MCP configuration: %w", err)
@@ -540,6 +567,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Validate max-turns support for the current engine
 	if err := c.validateMaxTurnsSupport(result.Frontmatter, agenticEngine); err != nil {
 		return nil, fmt.Errorf("max-turns not supported: %w", err)
+	}
+
+	// Validate web-search support for the current engine
+	if err := c.validateWebSearchSupport(tools, agenticEngine); err != nil {
+		return nil, fmt.Errorf("web-search not supported: %w", err)
 	}
 
 	// Process @include directives in markdown content
@@ -853,6 +885,11 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	// Clear command field if no command trigger was found
 	if !hasCommand {
 		workflowData.Command = ""
+	}
+
+	// Auto-enable "eyes" reaction for command triggers if no explicit reaction was specified
+	if hasCommand && !hasReaction && workflowData.AIReaction == "" {
+		workflowData.AIReaction = "eyes"
 	}
 
 	// Store other events for merging in applyDefaults
@@ -1697,6 +1734,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 			yaml.WriteString("          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
+
+		// Add step to checkout PR branch if the event is a comment on a PR
+		c.generatePRBranchCheckout(yaml, data)
 	}
 
 	// Add custom steps if present
@@ -2092,6 +2132,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add safe outputs prompt as separate step if enabled
 	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
+
+	// Add PR context prompt as separate step if enabled
+	c.generatePRContextPromptStep(yaml, data)
 
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")
@@ -2619,6 +2662,24 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 
 	// Engine supports max-turns - additional validation could be added here if needed
 	// For now, we rely on JSON schema validation for format checking
+
+	return nil
+}
+
+// validateWebSearchSupport validates that web-search tool is only used with engines that support this feature
+func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) error {
+	// Check if web-search tool is requested
+	_, hasWebSearch := tools["web-search"]
+
+	if !hasWebSearch {
+		// No web-search specified, no validation needed
+		return nil
+	}
+
+	// web-search is specified, check if the engine supports it
+	if !engine.SupportsWebSearch() {
+		return fmt.Errorf("engine '%s' does not support the web-search tool", engine.GetID())
+	}
 
 	return nil
 }

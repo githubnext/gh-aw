@@ -10,6 +10,7 @@ tools:
     allowed:
       - list_pull_requests
       - get_pull_request
+  web-fetch:
 safe-outputs:
     staged: true
     create-issue:

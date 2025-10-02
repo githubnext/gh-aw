@@ -405,6 +405,50 @@ func BuildMultilineDisjunction(terms ...ConditionNode) *DisjunctionNode {
 	}
 }
 
+// BuildPRCommentCondition creates a condition to check if the event is a comment on a pull request
+// This checks for:
+// - issue_comment on a PR (github.event.issue.pull_request != null)
+// - pull_request_review_comment
+// - pull_request_review
+func BuildPRCommentCondition() ConditionNode {
+	// issue_comment event on a PR
+	issueCommentOnPR := buildAnd(
+		BuildEventTypeEquals("issue_comment"),
+		BuildComparison(
+			BuildPropertyAccess("github.event.issue.pull_request"),
+			"!=",
+			&ExpressionNode{Expression: "null"},
+		),
+	)
+
+	// pull_request_review_comment event
+	prReviewComment := BuildEventTypeEquals("pull_request_review_comment")
+
+	// pull_request_review event
+	prReview := BuildEventTypeEquals("pull_request_review")
+
+	// Combine all conditions with OR
+	return &DisjunctionNode{
+		Terms: []ConditionNode{
+			issueCommentOnPR,
+			prReviewComment,
+			prReview,
+		},
+	}
+}
+
+// RenderConditionAsIf renders a ConditionNode as an 'if' condition with proper YAML indentation
+func RenderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent string) {
+	yaml.WriteString("        if: |\n")
+	conditionStr := condition.Render()
+
+	// Format the condition with proper indentation
+	lines := strings.Split(conditionStr, "\n")
+	for _, line := range lines {
+		yaml.WriteString(indent + line + "\n")
+	}
+}
+
 // ExpressionParser handles parsing of expression strings into ConditionNode trees
 type ExpressionParser struct {
 	tokens []token
