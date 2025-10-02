@@ -765,6 +765,57 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			MessageGroup: 0,
 			Description:  "Not authorized for Copilot CLI access",
 		},
+		// Command execution failures
+		{
+			Pattern:      `(?i)command not found:\s*(.+)`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell command not found error",
+		},
+		{
+			Pattern:      `(?i)(.+):\s*command not found`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell command not found error (alternate format)",
+		},
+		{
+			Pattern:      `(?i)sh:\s*\d+:\s*(.+):\s*not found`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell command not found error (sh format)",
+		},
+		{
+			Pattern:      `(?i)bash:\s*(.+):\s*command not found`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Bash command not found error",
+		},
+		// Copilot CLI specific errors
+		{
+			Pattern:      `(?i)permission denied and could not request permission`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Copilot CLI permission denied error",
+		},
+		{
+			Pattern:      `(?i)✗\s+(.+)`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Copilot CLI failed command indicator",
+		},
+		// Node.js and npm test failures
+		{
+			Pattern:      `(?i)Error:\s*Cannot find module\s*'(.+)'`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Node.js module not found error",
+		},
+		{
+			Pattern:      `(?i)sh:\s*\d+:\s*(.+):\s*Permission denied`,
+			LevelGroup:   0,
+			MessageGroup: 1,
+			Description:  "Shell permission denied error",
+		},
 	}
 }
 

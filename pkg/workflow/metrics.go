@@ -320,6 +320,13 @@ func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
 		} else if strings.Contains(fullMatch, "warn") || strings.Contains(fullMatch, "warning") {
 			return "warning"
 		}
+		// Additional error indicators
+		if strings.Contains(fullMatch, "denied") || strings.Contains(fullMatch, "forbidden") ||
+			strings.Contains(fullMatch, "unauthorized") || strings.Contains(fullMatch, "not found") ||
+			strings.Contains(fullMatch, "✗") || // Copilot CLI failure indicator
+			strings.Contains(fullMatch, "permission") && (strings.Contains(fullMatch, "denied") || strings.Contains(fullMatch, "restricted")) {
+			return "error"
+		}
 	}
 
 	return "unknown"
