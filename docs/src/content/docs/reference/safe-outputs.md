@@ -148,7 +148,7 @@ The agentic part of your workflow will have implicit additional prompting saying
 
 ### Issue Updates (`update-issue:`)
 
-Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. You can configure which fields are allowed to be updated.
+Adding `update-issue:` to the `safe-outputs:` section declares that the workflow should conclude with updating GitHub issues based on the coding agent's analysis. By default, updates are applied to the triggering issue, but this can be configured using the `target` option. You can also configure which fields are allowed to be updated.
 
 **Basic Configuration:**
 ```yaml
