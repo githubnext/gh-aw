@@ -56,5 +56,5 @@ gh-aw-test/
 
 pkg/cli/workflows/*.yml
 
-# Workflow imports (local cache and lock file)
-.aw/
+# Workflow imports (cached files only, not the lock file)
+.aw/imports/

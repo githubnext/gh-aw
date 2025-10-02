@@ -136,14 +136,14 @@ Result: GitHub tools will have both sets of allowed functions.
 
 ## Version Control
 
-Add `.aw/` to `.gitignore` to exclude cached imports:
+Add `.aw/imports/` to `.gitignore` to exclude cached imported files while keeping the lock file:
 
 ```gitignore
-# Workflow imports (local cache and lock file)
-.aw/
+# Workflow imports (cached files only, not the lock file)
+.aw/imports/
 ```
 
-The lock file ensures reproducible builds by pinning exact commit SHAs, similar to `go.sum` or `package-lock.json`.
+The lock file (`.aw/imports.lock`) should be committed to version control to ensure reproducible builds by pinning exact commit SHAs, similar to `go.sum` or `package-lock.json`.
 
 ## Best Practices
 
