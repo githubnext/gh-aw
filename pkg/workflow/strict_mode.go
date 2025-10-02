@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 )
 
 // validateStrictMode performs strict mode validations on the workflow
@@ -90,22 +89,14 @@ func (c *Compiler) validateStrictPermissions(frontmatter map[string]any) error {
 		return nil
 	}
 
-	// Handle permissions as a map
-	permissionsMap, ok := permissionsValue.(map[string]any)
-	if !ok {
-		// If it's not a map, it might be a string like "read-all" which is fine
-		return nil
-	}
+	// Parse permissions using the helper
+	perms := ParsePermissions(permissionsValue)
 
-	// Check for write permissions
+	// Check for write permissions on sensitive scopes
 	writePermissions := []string{"contents", "issues", "pull-requests"}
-	for _, perm := range writePermissions {
-		if value, exists := permissionsMap[perm]; exists {
-			if valueStr, ok := value.(string); ok {
-				if valueStr == "write" {
-					return fmt.Errorf("strict mode: write permission '%s: write' is not allowed", perm)
-				}
-			}
+	for _, scope := range writePermissions {
+		if perms.IsAllowed(scope, "write") {
+			return fmt.Errorf("strict mode: write permission '%s: write' is not allowed", scope)
 		}
 	}
 
@@ -135,105 +126,40 @@ func (c *Compiler) validateStrictNetwork(networkPermissions *NetworkPermissions)
 
 // validateStrictMCPNetwork requires network configuration on custom MCP servers
 func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
-	// Check tools section for MCP servers
-	toolsValue, exists := frontmatter["tools"]
+	// Check mcp-servers section (new format)
+	mcpServersValue, exists := frontmatter["mcp-servers"]
 	if !exists {
 		return nil
 	}
 
-	toolsMap, ok := toolsValue.(map[string]any)
+	mcpServersMap, ok := mcpServersValue.(map[string]any)
 	if !ok {
 		return nil
 	}
 
-	// Check each tool for custom MCP configuration
-	for toolName, toolValue := range toolsMap {
-		// Skip built-in tools
-		if isBuiltInTool(toolName) {
-			continue
-		}
-
-		toolConfig, ok := toolValue.(map[string]any)
+	// Check each MCP server for network configuration
+	for serverName, serverValue := range mcpServersMap {
+		serverConfig, ok := serverValue.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		// Check if it has MCP configuration
-		mcpConfig, hasMCP := toolConfig["mcp"]
+		// Use helper function to determine if this is an MCP config and its type
+		hasMCP, mcpType := hasMCPConfig(serverConfig)
 		if !hasMCP {
 			continue
 		}
 
-		mcpMap, ok := mcpConfig.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		// Check if it's a containerized MCP server (stdio with container)
-		mcpType := ""
-		if typeValue, hasType := mcpMap["type"]; hasType {
-			if typeStr, ok := typeValue.(string); ok {
-				mcpType = typeStr
-			}
-		} else {
-			// Infer type
-			if _, hasContainer := mcpMap["container"]; hasContainer {
-				mcpType = "stdio"
-			} else if _, hasCommand := mcpMap["command"]; hasCommand {
-				mcpType = "stdio"
-			} else if _, hasURL := mcpMap["url"]; hasURL {
-				mcpType = "http"
-			}
-		}
-
-		// Normalize "local" to "stdio"
-		if mcpType == "local" {
-			mcpType = "stdio"
-		}
-
 		// Only stdio servers with containers need network configuration
 		if mcpType == "stdio" {
-			if _, hasContainer := mcpMap["container"]; hasContainer {
+			if _, hasContainer := serverConfig["container"]; hasContainer {
 				// Check if network configuration is present
-				hasNetPerms := false
-
-				// Check in toolConfig
-				if _, hasNetwork := toolConfig["network"]; hasNetwork {
-					hasNetPerms = true
-				}
-
-				// Check in mcpMap
-				if _, hasNetwork := mcpMap["network"]; hasNetwork {
-					hasNetPerms = true
-				}
-
-				if !hasNetPerms {
-					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration", toolName)
+				if _, hasNetwork := serverConfig["network"]; !hasNetwork {
+					return fmt.Errorf("strict mode: custom MCP server '%s' with container must have network configuration", serverName)
 				}
 			}
 		}
 	}
 
 	return nil
-}
-
-// isBuiltInTool checks if a tool is a built-in tool
-func isBuiltInTool(toolName string) bool {
-	builtInTools := []string{
-		"github",
-		"edit",
-		"web-fetch",
-		"web-search",
-		"bash",
-		"playwright",
-		"cache-memory",
-	}
-
-	for _, builtIn := range builtInTools {
-		if strings.EqualFold(toolName, builtIn) {
-			return true
-		}
-	}
-
-	return false
 }

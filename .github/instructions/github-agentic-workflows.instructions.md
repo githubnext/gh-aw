@@ -107,26 +107,6 @@ The YAML frontmatter supports these fields:
         # Add your custom processing logic here
     ```
 
-- **`strict:`** - Enable strict mode validation (boolean, defaults to false)
-  - When `strict: true`, the compiler enforces enhanced security and reliability constraints:
-    - Requires `timeout_minutes` to be specified
-    - Refuses `contents:write`, `issues:write`, `pull-requests:write` permissions
-    - Requires explicit network configuration (cannot use defaults only)
-    - Refuses wildcard `*` in network allowed domains
-    - Requires network configuration on custom MCP servers with containers
-  - Can also be enabled via CLI flag: `gh aw compile --strict`
-  - CLI flag takes precedence over frontmatter setting
-  - Example:
-    ```yaml
-    strict: true
-    timeout_minutes: 10
-    permissions:
-      contents: read
-    network:
-      allowed:
-        - "api.example.com"
-    ```
-
 - **`network:`** - Network access control for Claude Code engine (top-level field)
   - String format: `"defaults"` (curated allow-list of development domains)  
   - Empty object format: `{}` (no network access)

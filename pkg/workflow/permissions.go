@@ -155,3 +155,76 @@ func ContainsCheckout(customSteps string) bool {
 
 	return false
 }
+
+// Permissions represents parsed GitHub Actions permissions
+type Permissions struct {
+	rawValue    any
+	permsMap    map[string]string
+	isShorthand bool
+	shorthand   string
+}
+
+// ParsePermissions parses permissions from frontmatter value
+func ParsePermissions(permissionsValue any) *Permissions {
+	p := &Permissions{
+		rawValue: permissionsValue,
+		permsMap: make(map[string]string),
+	}
+
+	if permissionsValue == nil {
+		return p
+	}
+
+	// Handle string shorthand (read-all, write-all, etc.)
+	if strValue, ok := permissionsValue.(string); ok {
+		p.isShorthand = true
+		p.shorthand = strValue
+		return p
+	}
+
+	// Handle map format
+	if mapValue, ok := permissionsValue.(map[string]any); ok {
+		for key, value := range mapValue {
+			if strValue, ok := value.(string); ok {
+				p.permsMap[key] = strValue
+			}
+		}
+	}
+
+	return p
+}
+
+// IsAllowed checks if a specific permission scope has the specified access level
+// scope: "contents", "issues", "pull-requests", etc.
+// level: "read", "write", "none"
+func (p *Permissions) IsAllowed(scope, level string) bool {
+	// Handle shorthand permissions
+	if p.isShorthand {
+		switch p.shorthand {
+		case "read-all":
+			return level == "read"
+		case "write-all":
+			return level == "read" || level == "write"
+		case "read":
+			return level == "read"
+		case "write":
+			return level == "read" || level == "write"
+		case "none":
+			return false
+		default:
+			return false
+		}
+	}
+
+	// Handle explicit permissions map
+	if permLevel, exists := p.permsMap[scope]; exists {
+		if level == "read" {
+			// Read access is allowed if permission is "read" or "write"
+			return permLevel == "read" || permLevel == "write"
+		}
+		return permLevel == level
+	}
+
+	// Default: permission not specified means no access
+	return false
+}
