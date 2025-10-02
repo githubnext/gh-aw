@@ -2841,6 +2841,148 @@ Test command workflow with reaction and comment editing.
 	}
 }
 
+// TestCommandTriggerDefaultReaction tests that command triggers automatically enable "eyes" reaction
+func TestCommandTriggerDefaultReaction(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "command-default-reaction-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test markdown file with command but NO explicit reaction
+	testContent := `---
+on:
+  command:
+    name: auto-bot
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+tools:
+  github:
+    allowed: [get_issue]
+---
+
+# Command Bot with Auto Reaction
+
+Test command workflow that should automatically get "eyes" reaction.
+`
+
+	testFile := filepath.Join(tmpDir, "test-auto-reaction.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify command is parsed correctly
+	if workflowData.Command != "auto-bot" {
+		t.Errorf("Expected Command to be 'auto-bot', got '%s'", workflowData.Command)
+	}
+
+	// Verify reaction is automatically set to "eyes"
+	if workflowData.AIReaction != "eyes" {
+		t.Errorf("Expected AIReaction to be auto-set to 'eyes', got '%s'", workflowData.AIReaction)
+	}
+
+	// Generate YAML and verify it contains reaction
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check for reaction environment variable in the generated YAML
+	if !strings.Contains(yamlContent, "GITHUB_AW_REACTION: eyes") {
+		t.Error("Generated YAML should contain default 'eyes' reaction for command workflow")
+	}
+
+	// Check for command environment variable
+	if !strings.Contains(yamlContent, "GITHUB_AW_COMMAND: auto-bot") {
+		t.Error("Generated YAML should contain command environment variable")
+	}
+
+	// Verify reaction job is created
+	if !strings.Contains(yamlContent, "add_reaction:") {
+		t.Error("Generated YAML should contain add_reaction job")
+	}
+}
+
+// TestCommandTriggerCustomReaction tests that command triggers allow custom reaction override
+func TestCommandTriggerCustomReaction(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "command-custom-reaction-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test markdown file with command and custom reaction
+	testContent := `---
+on:
+  command:
+    name: custom-bot
+  reaction: rocket
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+tools:
+  github:
+    allowed: [get_issue]
+---
+
+# Command Bot with Custom Reaction
+
+Test command workflow with custom reaction override.
+`
+
+	testFile := filepath.Join(tmpDir, "test-custom-reaction.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Verify command is parsed correctly
+	if workflowData.Command != "custom-bot" {
+		t.Errorf("Expected Command to be 'custom-bot', got '%s'", workflowData.Command)
+	}
+
+	// Verify custom reaction overrides the default
+	if workflowData.AIReaction != "rocket" {
+		t.Errorf("Expected AIReaction to be 'rocket', got '%s'", workflowData.AIReaction)
+	}
+
+	// Generate YAML and verify it contains custom reaction
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check for custom reaction in the generated YAML
+	if !strings.Contains(yamlContent, "GITHUB_AW_REACTION: rocket") {
+		t.Error("Generated YAML should contain custom 'rocket' reaction")
+	}
+
+	// Verify it doesn't contain default "eyes"
+	if strings.Contains(yamlContent, "GITHUB_AW_REACTION: eyes") {
+		t.Error("Generated YAML should not contain default 'eyes' when custom reaction is specified")
+	}
+}
+
 // TestPullRequestDraftFilter tests the pull_request draft: false filter functionality
 func TestPullRequestDraftFilter(t *testing.T) {
 	// Create temporary directory for test files
