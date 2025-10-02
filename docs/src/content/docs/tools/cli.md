@@ -110,6 +110,9 @@ gh aw compile --validate
 # Validate without generating lock files (dry-run)
 gh aw compile --no-emit
 
+# Enable strict mode validation for enhanced security checks
+gh aw compile --strict
+
 # Override the AI engine for specific compilation
 gh aw compile --engine copilot
 
@@ -144,6 +147,28 @@ gh aw compile --purge
 # With verbose output to see which files are removed
 gh aw compile --purge --verbose
 ```
+
+**Strict Mode Validation:**
+
+The `--strict` flag enables enhanced validation for production workflows, enforcing security and reliability constraints:
+
+```bash
+# Compile with strict mode validation
+gh aw compile --strict
+
+# Combine strict mode with other flags
+gh aw compile --strict --verbose
+gh aw compile --strict --no-emit  # Validate without generating files
+```
+
+Strict mode enforces the following requirements:
+- **Timeout Required**: Workflows must specify `timeout_minutes`
+- **Write Permissions Blocked**: Prevents `contents:write`, `issues:write`, `pull-requests:write`
+- **Network Configuration Required**: Must explicitly configure network access
+- **No Network Wildcards**: Cannot use wildcard `*` in allowed domains
+- **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
+
+Workflows can also enable strict mode declaratively using `strict: true` in their frontmatter. The CLI flag takes precedence over frontmatter settings.
 
 ## ⚙️ Workflow Operations on GitHub Actions
 
