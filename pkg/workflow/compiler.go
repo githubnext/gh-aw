@@ -424,6 +424,30 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	markdownDir := filepath.Dir(markdownPath)
 
+	// Process imports from frontmatter if present
+	if _, hasImports := result.Frontmatter["imports"]; hasImports {
+		if c.verbose {
+			fmt.Println(console.FormatInfoMessage("Processing imports..."))
+		}
+		
+		processedMarkdown, processedFrontmatter, err := parser.ProcessImportsInFrontmatter(
+			result.Markdown,
+			result.Frontmatter,
+			markdownDir,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process imports: %w", err)
+		}
+		
+		// Update result with processed content
+		result.Markdown = processedMarkdown
+		result.Frontmatter = processedFrontmatter
+		
+		if c.verbose {
+			fmt.Println(console.FormatSuccessMessage("Successfully processed imports"))
+		}
+	}
+
 	// Extract AI engine setting from frontmatter
 	engineSetting, engineConfig := c.extractEngineConfig(result.Frontmatter)
 

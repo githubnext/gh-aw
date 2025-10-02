@@ -14,6 +14,139 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// ProcessImportsInFrontmatter processes import directives from frontmatter by merging imported content
+func ProcessImportsInFrontmatter(content string, frontmatter map[string]any, baseDir string) (string, map[string]any, error) {
+	// Check if frontmatter has imports
+	importsValue, hasImports := frontmatter["imports"]
+	if !hasImports {
+		return content, frontmatter, nil
+	}
+
+	// Parse imports
+	imports, err := ParseImports(importsValue)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to parse imports: %w", err)
+	}
+
+	if len(imports) == 0 {
+		return content, frontmatter, nil
+	}
+
+	// Get imports directory
+	importsDir, err := GetImportsDir()
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get imports directory: %w", err)
+	}
+
+	// Get lock file
+	lockFilePath, err := GetImportLockFilePath()
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get lock file path: %w", err)
+	}
+
+	lock, err := ReadImportLockFile(lockFilePath)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to read lock file (run 'gh aw install' first): %w", err)
+	}
+
+	// Process each import
+	var mergedContent strings.Builder
+	mergedFrontmatter := make(map[string]any)
+	
+	// Copy existing frontmatter (except imports)
+	for k, v := range frontmatter {
+		if k != "imports" {
+			mergedFrontmatter[k] = v
+		}
+	}
+
+	for _, importSpec := range imports {
+		// Find in lock file
+		entry := lock.FindEntry(importSpec)
+		if entry == nil {
+			return "", nil, fmt.Errorf("import %s not found in lock file (run 'gh aw install')", importSpec.String())
+		}
+
+		// Get local path
+		localDir := importSpec.GetLocalCachePath(importsDir)
+		importedFilePath := filepath.Join(localDir, importSpec.Path)
+
+		// Check if file exists
+		if _, err := os.Stat(importedFilePath); os.IsNotExist(err) {
+			return "", nil, fmt.Errorf("imported file not found: %s (run 'gh aw install')", importedFilePath)
+		}
+
+		// Read imported file
+		importedContent, err := os.ReadFile(importedFilePath)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to read imported file %s: %w", importedFilePath, err)
+		}
+
+		// Parse imported file
+		importedResult, err := ExtractFrontmatterFromContent(string(importedContent))
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to parse imported file %s: %w", importedFilePath, err)
+		}
+
+		// Merge frontmatter (tools, etc.)
+		if err := mergeFrontmatterMaps(mergedFrontmatter, importedResult.Frontmatter); err != nil {
+			return "", nil, fmt.Errorf("failed to merge frontmatter from import %s: %w", importSpec.String(), err)
+		}
+
+		// Append markdown content
+		if importedResult.Markdown != "" {
+			mergedContent.WriteString(importedResult.Markdown)
+			mergedContent.WriteString("\n\n")
+		}
+	}
+
+	// Append original content
+	mergedContent.WriteString(content)
+
+	return mergedContent.String(), mergedFrontmatter, nil
+}
+
+// mergeFrontmatterMaps merges two frontmatter maps
+func mergeFrontmatterMaps(target, source map[string]any) error {
+	for key, sourceValue := range source {
+		// Skip imports field
+		if key == "imports" {
+			continue
+		}
+
+		targetValue, exists := target[key]
+		if !exists {
+			// Key doesn't exist in target, add it
+			target[key] = sourceValue
+			continue
+		}
+
+		// Key exists, need to merge
+		switch key {
+		case "tools":
+			// Merge tools
+			targetToolsMap, ok := targetValue.(map[string]any)
+			if !ok {
+				return fmt.Errorf("target tools is not a map")
+			}
+
+			sourceToolsMap, ok := sourceValue.(map[string]any)
+			if !ok {
+				return fmt.Errorf("source tools is not a map")
+			}
+
+			// Merge tool configurations
+			for toolName, sourceToolConfig := range sourceToolsMap {
+				targetToolsMap[toolName] = sourceToolConfig
+			}
+		default:
+			// For other keys, imported value takes precedence
+			target[key] = sourceValue
+		}
+	}
+	return nil
+}
+
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
 	switch typeStr {

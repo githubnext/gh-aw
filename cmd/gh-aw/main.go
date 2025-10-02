@@ -227,7 +227,34 @@ Examples:
 }
 
 var installCmd = &cobra.Command{
-	Use:   "install <org/repo>[@version]",
+	Use:   "install [workflow-name]",
+	Short: "Install workflow imports and dependencies",
+	Long: `Install imports for agentic workflows.
+
+If a workflow name is specified, only imports for that workflow are installed.
+Otherwise, all imports from all workflows are installed.
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` install              # Install all imports
+  ` + constants.CLIExtensionPrefix + ` install my-workflow  # Install imports for specific workflow`,
+	Args: cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		var workflowName string
+		if len(args) > 0 {
+			workflowName = args[0]
+		}
+		if err := cli.InstallImports(workflowName, verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
+				Type:    "error",
+				Message: fmt.Sprintf("installing imports: %v", err),
+			}))
+			os.Exit(1)
+		}
+	},
+}
+
+var installPackageCmd = &cobra.Command{
+	Use:   "install-package <org/repo>[@version]",
 	Short: "Install agentic workflows from a GitHub repository",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -309,8 +336,8 @@ func init() {
 	listCmd.Flags().BoolP("packages", "p", false, "List installed packages instead of available workflows")
 	listCmd.Flags().BoolP("local", "l", false, "List local packages instead of global packages (requires --packages)")
 
-	// Add local flag to install command
-	installCmd.Flags().BoolP("local", "l", false, "Install packages locally in .aw/packages instead of globally in ~/.aw/packages")
+	// Add local flag to install-package command
+	installPackageCmd.Flags().BoolP("local", "l", false, "Install packages locally in .aw/packages instead of globally in ~/.aw/packages")
 
 	// Add local flag to uninstall command
 	uninstallCmd.Flags().BoolP("local", "l", false, "Uninstall packages from local .aw/packages instead of global ~/.aw/packages")
@@ -338,6 +365,7 @@ func init() {
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(installCmd)
+	rootCmd.AddCommand(installPackageCmd)
 	rootCmd.AddCommand(uninstallCmd)
 	rootCmd.AddCommand(compileCmd)
 	rootCmd.AddCommand(runCmd)
