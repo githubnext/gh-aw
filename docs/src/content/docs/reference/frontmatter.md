@@ -381,7 +381,9 @@ network:
 
 ## Safe Outputs Configuration (`safe-outputs:`)
 
-See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/) for automatic issue creation, comment posting and other safe outputs.
+The `safe-outputs:` section configures automatic processing of agent output to create GitHub issues, comments, pull requests, and other outputs without giving the agentic portion write permissions. See [Safe Outputs Processing](/gh-aw/reference/safe-outputs/) for complete documentation.
+
+**Security Feature**: [Threat Detection](/gh-aw/reference/threat-detection/) is automatically enabled when safe-outputs are configured, analyzing agent output and code changes for security threats before any automated actions occur.
 
 ## Run Configuration (`run-name:`, `runs-on:`, `timeout_minutes:`)
 
