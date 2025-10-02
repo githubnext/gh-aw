@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -24,7 +25,7 @@ func generateCleanupStep(outputFiles []string) (string, bool) {
 	yaml.WriteString("      - name: Clean up engine output files\n")
 	yaml.WriteString("        run: |\n")
 	for _, file := range workspaceFiles {
-		yaml.WriteString("          rm -fr " + file + "\n")
+		fmt.Fprintf(&yaml, "          rm -fr %s\n", file)
 	}
 
 	return yaml.String(), true

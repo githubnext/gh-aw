@@ -12,6 +12,30 @@ var checkoutPRScript string
 //go:embed sh/pr_context_prompt.md
 var prContextPromptText string
 
+//go:embed sh/print_prompt_summary.sh
+var printPromptSummaryScript string
+
+//go:embed sh/print_safe_outputs_summary.sh
+var printSafeOutputsSummaryScript string
+
+//go:embed sh/create_prompt_first.sh
+var createPromptFirstScript string
+
+//go:embed sh/generate_git_patch.sh
+var generateGitPatchScript string
+
+//go:embed sh/capture_agent_version.sh
+var captureAgentVersionScript string
+
+//go:embed sh/extract_squid_logs_setup.sh
+var extractSquidLogsSetupScript string
+
+//go:embed sh/extract_squid_log_per_tool.sh
+var extractSquidLogPerToolScript string
+
+//go:embed sh/create_cache_memory_dir.sh
+var createCacheMemoryDirScript string
+
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
 	scriptLines := strings.Split(script, "\n")
