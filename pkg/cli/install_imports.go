@@ -268,7 +268,6 @@ func installSingleImport(importSpec *parser.ImportSpec, importsDir string, lock 
 
 // resolveImportVersion resolves a version string to a commit SHA
 func resolveImportVersion(importSpec *parser.ImportSpec, verbose bool) (string, error) {
-	// Use gh api to resolve the version to a commit SHA
 	repoSlug := importSpec.RepoSlug()
 	version := importSpec.Version
 
@@ -276,41 +275,74 @@ func resolveImportVersion(importSpec *parser.ImportSpec, verbose bool) (string, 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Resolving version %s for %s", version, repoSlug)))
 	}
 
-	// Try to resolve as a ref (branch, tag, or commit)
-	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/commits/%s", repoSlug, version))
-	output, err := cmd.Output()
-	if err == nil {
-		// Parse JSON to get SHA
-		// For simplicity, just extract the sha field
-		shaLine := ""
-		for _, line := range strings.Split(string(output), "\n") {
-			if strings.Contains(line, "\"sha\":") {
-				shaLine = line
-				break
+	// Use git ls-remote to resolve the version to a commit SHA
+	// This works without authentication and is more reliable
+	repoURL := fmt.Sprintf("https://github.com/%s.git", repoSlug)
+
+	// Try to resolve as a branch or tag
+	cmd := exec.Command("git", "ls-remote", repoURL, version)
+	output, err := cmd.CombinedOutput()
+	if verbose && err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("git ls-remote error: %v, output: %s", err, string(output))))
+	}
+	if err == nil && len(output) > 0 {
+		// Parse output: SHA \t refs/...
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) == "" {
+				continue
 			}
-		}
-		if shaLine != "" {
-			// Extract SHA value
-			sha := strings.TrimSpace(shaLine)
-			sha = strings.TrimPrefix(sha, "\"sha\":")
-			sha = strings.Trim(sha, "\", ")
-			if len(sha) >= 40 {
-				return sha[:40], nil
+			parts := strings.Fields(line)
+			if len(parts) >= 1 {
+				sha := parts[0]
+				if len(sha) >= 40 {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Resolved %s to %s", version, sha[:8])))
+					}
+					return sha[:40], nil
+				}
 			}
 		}
 	}
 
-	// If that didn't work, try as a tag
-	cmd = exec.Command("gh", "api", fmt.Sprintf("/repos/%s/git/ref/tags/%s", repoSlug, version))
+	// Try as a tag ref
+	cmd = exec.Command("git", "ls-remote", repoURL, fmt.Sprintf("refs/tags/%s", version))
 	output, err = cmd.Output()
-	if err == nil {
-		// Parse the ref to get object SHA
-		for _, line := range strings.Split(string(output), "\n") {
-			if strings.Contains(line, "\"sha\":") {
-				sha := strings.TrimSpace(line)
-				sha = strings.TrimPrefix(sha, "\"sha\":")
-				sha = strings.Trim(sha, "\", ")
+	if err == nil && len(output) > 0 {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			parts := strings.Fields(line)
+			if len(parts) >= 1 {
+				sha := parts[0]
 				if len(sha) >= 40 {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Resolved %s to %s", version, sha[:8])))
+					}
+					return sha[:40], nil
+				}
+			}
+		}
+	}
+
+	// Try as a branch ref
+	cmd = exec.Command("git", "ls-remote", repoURL, fmt.Sprintf("refs/heads/%s", version))
+	output, err = cmd.Output()
+	if err == nil && len(output) > 0 {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			parts := strings.Fields(line)
+			if len(parts) >= 1 {
+				sha := parts[0]
+				if len(sha) >= 40 {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Resolved %s to %s", version, sha[:8])))
+					}
 					return sha[:40], nil
 				}
 			}

@@ -1333,6 +1333,14 @@
         }
       ]
     },
+    "imports": {
+      "type": "array",
+      "description": "Import workflow components from external GitHub repositories. Format: 'org/repo version path' (e.g., 'microsoft/genaiscript v1.5 agentics/engine.md'). Run 'gh aw install' to download imported files before compilation.",
+      "items": {
+        "type": "string",
+        "description": "Import specification in format: 'org/repo version path'"
+      }
+    },
     "safe-outputs": {
       "type": "object",
       "description": "Safe output processing configuration that automatically creates GitHub issues, comments, and pull requests from AI workflow output without requiring write permissions in the main job",
