@@ -305,6 +305,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Checkout PR branch if applicable
+        if: |
+          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
+        run: |
+          set -e
+          # Determine PR number based on event type
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            PR_NUMBER="${{ github.event.issue.number }}"
+          elif [ "${{ github.event_name }}" = "pull_request_review_comment" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          elif [ "${{ github.event_name }}" = "pull_request_review" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          fi
+          echo "Fetching PR #$PR_NUMBER..."
+          gh pr checkout "$PR_NUMBER"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
@@ -1083,6 +1100,28 @@ jobs:
           **Reporting Missing Tools or Functionality**
           
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
+          
+          EOF
+      - name: Append PR context instructions to prompt
+        if: |
+          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          ---
+          
+          ## Current Branch Context
+          
+          **IMPORTANT**: This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.
+          
+          ### What This Means
+          
+          - The current working directory contains the code from the pull request branch
+          - Any file operations you perform will be on the PR branch code
+          - You can inspect, analyze, and work with the PR changes directly
+          - The PR branch has been checked out using `gh pr checkout`
           
           EOF
       - name: Print prompt to step summary

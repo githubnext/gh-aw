@@ -1677,6 +1677,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 			yaml.WriteString("          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
+
+		// Add step to checkout PR branch if the event is a comment on a PR
+		c.generatePRBranchCheckout(yaml, data)
 	}
 
 	// Add custom steps if present
@@ -2072,6 +2075,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add safe outputs prompt as separate step if enabled
 	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
+
+	// Add PR context prompt as separate step if enabled
+	c.generatePRContextPromptStep(yaml, data)
 
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")
