@@ -1305,8 +1305,21 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		}
 	}
 
+	// Build stop-time check job if stop-time is configured
+	var stopTimeCheckJobCreated bool
+	if data.StopTime != "" {
+		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
+		if err != nil {
+			return fmt.Errorf("failed to build stop_time_check job: %w", err)
+		}
+		if err := c.jobManager.AddJob(stopTimeCheckJob); err != nil {
+			return fmt.Errorf("failed to add stop_time_check job: %w", err)
+		}
+		stopTimeCheckJobCreated = true
+	}
+
 	// Build main workflow job
-	mainJob, err := c.buildMainJob(data, activationJobCreated)
+	mainJob, err := c.buildMainJob(data, activationJobCreated, stopTimeCheckJobCreated)
 	if err != nil {
 		return fmt.Errorf("failed to build main job: %w", err)
 	}
@@ -1562,7 +1575,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 }
 
 // buildMainJob creates the main workflow job
-func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
+func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool, stopTimeCheckJobCreated bool) (*Job, error) {
 	var steps []string
 
 	var jobCondition = data.If
@@ -1584,7 +1597,10 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	}
 
 	var depends []string
-	if activationJobCreated {
+	if stopTimeCheckJobCreated {
+		// If stop-time check job exists, main job must depend on it
+		depends = []string{"stop_time_check"}
+	} else if activationJobCreated {
 		depends = []string{"activation"} // Depend on the activation job only if it exists
 	}
 
@@ -1693,8 +1709,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
 
-	// Add safety checks before executing agentic tools
-	c.generateStopTimeChecks(yaml, data)
+	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
+	// No longer generated in the main job steps
 
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
