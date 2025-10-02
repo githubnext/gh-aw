@@ -2003,8 +2003,10 @@
                   "description": "Whether threat detection is enabled",
                   "default": true
                 },
-
-
+                "prompt": {
+                  "type": "string",
+                  "description": "Additional custom prompt instructions to append to the default threat detection prompt"
+                },
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run after detection",
