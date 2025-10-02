@@ -4,14 +4,7 @@ on:
   push:
     branches:
       - copilot*
-  stop-after: "2026-01-01 00:00:00"
-engine: copilot
-tools:
-  github:
-    allowed:
-      - list_pull_requests
-      - get_pull_request
-  web-fetch:
+      - detection
 safe-outputs:
     staged: true
     create-issue:
