@@ -2342,11 +2342,11 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
-			if data.SafeOutputs.AddLabels.MaxCount != nil && *data.SafeOutputs.AddLabels.MaxCount > 0 {
-				labelConfig["max"] = *data.SafeOutputs.AddLabels.MaxCount
+			if data.SafeOutputs.AddLabels.Max > 0 {
+				labelConfig["max"] = data.SafeOutputs.AddLabels.Max
 			}
-			if data.SafeOutputs.AddLabels.MinCount != nil && *data.SafeOutputs.AddLabels.MinCount > 0 {
-				labelConfig["min"] = *data.SafeOutputs.AddLabels.MinCount
+			if data.SafeOutputs.AddLabels.Min > 0 {
+				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
 			}
 			safeOutputsConfig["add-labels"] = labelConfig
 		}

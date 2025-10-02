@@ -295,7 +295,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 							validMaxCount = true
 						}
 						if validMaxCount {
-							labelConfig.MaxCount = &maxCountInt
+							labelConfig.Max = maxCountInt
 						}
 					}
 
@@ -319,7 +319,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 							validMinCount = true
 						}
 						if validMinCount {
-							labelConfig.MinCount = &minCountInt
+							labelConfig.Min = minCountInt
 						}
 					}
 
