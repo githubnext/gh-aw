@@ -3,6 +3,7 @@ name: Tidy
 on:
   workflow_dispatch:
   command:
+  reaction: "eyes"
   push:
     branches: [main]
     paths:

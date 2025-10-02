@@ -101,12 +101,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/cache-memory/")
 	}
 
-	copilotArgs = append(copilotArgs, "--prompt", "\"$INSTRUCTION\"")
+	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
 	command := fmt.Sprintf(`set -o pipefail
-
-INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-
-# Run copilot CLI with log capture
+COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
@@ -178,7 +175,7 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 	steps = append(steps, GitHubActionStep(stepLines))
 
 	// Add the log capture step using shared helper function
-	steps = append(steps, generateLogCaptureStep("Copilot", logFile))
+	steps = append(steps, generateLogCaptureStep(logFile))
 
 	return steps
 }
