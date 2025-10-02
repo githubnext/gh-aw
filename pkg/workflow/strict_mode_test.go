@@ -402,5 +402,3 @@ network:
 		t.Errorf("Non-strict mode should allow all configurations, but got error: %v", err)
 	}
 }
-
-

@@ -196,12 +196,12 @@ func (c *Compiler) validateStrictMCPNetwork(frontmatter map[string]any) error {
 			if _, hasContainer := mcpMap["container"]; hasContainer {
 				// Check if network configuration is present
 				hasNetPerms := false
-				
+
 				// Check in toolConfig
 				if _, hasNetwork := toolConfig["network"]; hasNetwork {
 					hasNetPerms = true
 				}
-				
+
 				// Check in mcpMap
 				if _, hasNetwork := mcpMap["network"]; hasNetwork {
 					hasNetPerms = true
