@@ -65,6 +65,11 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 
 // hasCommentRelatedTriggers checks if the workflow has any comment-related event triggers
 func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
+	// Check for command trigger (which expands to comment events)
+	if data.Command != "" {
+		return true
+	}
+
 	if data.On == "" {
 		return false
 	}
