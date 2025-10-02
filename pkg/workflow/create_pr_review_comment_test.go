@@ -175,7 +175,7 @@ This workflow tests target configuration.
 		compiler := NewCompiler(false, "", "test")
 
 		// Parse the workflow data
-		workflowData, err := compiler.parseWorkflowFile(testFile)
+		workflowData, err := compiler.ParseWorkflowFile(testFile)
 		if err != nil {
 			t.Fatalf("Unexpected error parsing workflow with target config: %v", err)
 		}
