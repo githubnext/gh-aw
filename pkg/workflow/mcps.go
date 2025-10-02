@@ -9,14 +9,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-// generateGitConfiguration generates standardized git credential setup
-func (c *Compiler) generateGitConfiguration(yaml *strings.Builder, data *WorkflowData) {
-	steps := c.generateGitConfigurationSteps()
-	for _, step := range steps {
-		yaml.WriteString(step)
-	}
-}
-
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration

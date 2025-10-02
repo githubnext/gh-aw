@@ -166,6 +166,27 @@ gh aw run weekly-research --enable-if-needed
 gh aw run weekly-research --input priority=high
 ```
 
+**Trial Mode Execution:**
+```bash
+# Test a workflow from a source repository against the current target repository
+gh aw trial weekly-research -r githubnext/agentics
+
+# Trial mode with custom timeout (default: 30 minutes)
+gh aw trial daily-backlog-burner -r dsyme/z3 --timeout 60
+
+# Keep the trial repository for inspection instead of auto-cleanup
+gh aw trial my-workflow -r organization/repository --keep-repo
+```
+
+Trial mode creates a temporary private repository, installs the specified workflow from the source repository, and runs it in a safe environment that captures outputs without affecting the target repository. This is particularly useful for:
+- Testing third-party workflows before installation
+- Validating workflow behavior against your repository structure
+- Safe experimentation with workflow modifications
+- Compliance and security reviews of agentic automation
+
+> [!TIP]
+> Trial mode automatically uses the `GH_AW_GITHUB_TOKEN` environment variable if set, allowing you to override authentication for testing purposes. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management) for token management best practices.
+
 **Workflow State Management:**
 ```bash
 # Show status of all agentic workflows

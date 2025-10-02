@@ -706,14 +706,25 @@ safe-outputs:
 
 ### Custom GitHub Token (`github-token:`)
 
-By default, safe output jobs use the standard `GITHUB_TOKEN` provided by GitHub Actions. You can specify a custom GitHub token for all safe output jobs:
+GitHub Agentic Workflows uses a token precedence system for authentication:
+
+1. **`GH_AW_GITHUB_TOKEN`** - Override token (highest priority)
+2. **`GITHUB_TOKEN`** - Standard GitHub Actions token (fallback)
+
+By default, safe output jobs automatically use this precedence: `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`. You can override this by specifying a custom GitHub token for all safe output jobs:
 
 ```yaml
 safe-outputs:
-  github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of GITHUB_TOKEN
+  github-token: ${{ secrets.CUSTOM_PAT }}  # Use custom PAT instead of default precedence
   create-issue:
   add-comment:
 ```
+
+The token precedence system is useful when:
+- **Trial mode execution**: `GH_AW_GITHUB_TOKEN` can be set to test workflows safely
+- **Enhanced permissions**: Override with Personal Access Tokens that have broader scope
+- **Cross-repository operations**: Use tokens with access to multiple repositories
+- **Custom authentication flows**: Implement specialized token management strategies
 
 This is useful when:
 - You need additional permissions beyond what `GITHUB_TOKEN` provides

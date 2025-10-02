@@ -224,7 +224,7 @@ func TestAddSafeOutputGitHubTokenFunction(t *testing.T) {
 		}
 	})
 
-	t.Run("Should not add github-token when not configured", func(t *testing.T) {
+	t.Run("Should add default github-token when not configured", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			SafeOutputs: &SafeOutputsConfig{
 				GitHubToken: "",
@@ -234,12 +234,17 @@ func TestAddSafeOutputGitHubTokenFunction(t *testing.T) {
 		var steps []string
 		compiler.addSafeOutputGitHubToken(&steps, workflowData)
 
-		if len(steps) != 0 {
-			t.Fatalf("Expected 0 steps to be added, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step to be added, got %d", len(steps))
+		}
+
+		expectedStep := "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
+		if steps[0] != expectedStep {
+			t.Errorf("Expected step '%s', got '%s'", expectedStep, steps[0])
 		}
 	})
 
-	t.Run("Should not add github-token when SafeOutputs is nil", func(t *testing.T) {
+	t.Run("Should add default github-token when SafeOutputs is nil", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			SafeOutputs: nil,
 		}
@@ -247,8 +252,13 @@ func TestAddSafeOutputGitHubTokenFunction(t *testing.T) {
 		var steps []string
 		compiler.addSafeOutputGitHubToken(&steps, workflowData)
 
-		if len(steps) != 0 {
-			t.Fatalf("Expected 0 steps to be added, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step to be added, got %d", len(steps))
+		}
+
+		expectedStep := "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
+		if steps[0] != expectedStep {
+			t.Errorf("Expected step '%s', got '%s'", expectedStep, steps[0])
 		}
 	})
 }

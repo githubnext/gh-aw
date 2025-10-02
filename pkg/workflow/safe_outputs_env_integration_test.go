@@ -199,7 +199,7 @@ Create an issue with test results.
 
 	// Parse the workflow data to get the structure (using the same approach as existing tests)
 	compiler := NewCompiler(false, "", "test")
-	workflowData, err := compiler.parseWorkflowFile(workflowFile)
+	workflowData, err := compiler.ParseWorkflowFile(workflowFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
@@ -282,7 +282,7 @@ This workflow tests that custom environment variables work with staged mode.
 
 	// Parse the workflow data
 	compiler := NewCompiler(false, "", "test")
-	workflowData, err := compiler.parseWorkflowFile(workflowFile)
+	workflowData, err := compiler.ParseWorkflowFile(workflowFile)
 	if err != nil {
 		t.Fatalf("Failed to parse workflow: %v", err)
 	}
