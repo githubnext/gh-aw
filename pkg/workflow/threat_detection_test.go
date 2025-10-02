@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestParseThreatDetectionConfig(t *testing.T) {
@@ -326,8 +324,8 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 		t.Errorf("Expected detection job to depend on agent job, got dependencies: %v", detectionJob.Needs)
 	}
 
-	// Check that create_issue job depends on detection job
-	if len(createIssueJob.Needs) != 1 || createIssueJob.Needs[0] != constants.DetectionJobName {
-		t.Errorf("Expected create_issue job to depend on detection job, got dependencies: %v", createIssueJob.Needs)
+	// Check that create_issue job depends on both agent and detection jobs
+	if len(createIssueJob.Needs) != 2 || createIssueJob.Needs[0] != constants.AgentJobName || createIssueJob.Needs[1] != constants.DetectionJobName {
+		t.Errorf("Expected create_issue job to depend on both agent and detection jobs, got dependencies: %v", createIssueJob.Needs)
 	}
 }

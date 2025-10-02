@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // buildAddReactionJob creates the add_reaction job
