@@ -2569,7 +2569,7 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) error {
 	// Check if web-search tool is requested
 	_, hasWebSearch := tools["web-search"]
-	
+
 	if !hasWebSearch {
 		// No web-search specified, no validation needed
 		return nil
