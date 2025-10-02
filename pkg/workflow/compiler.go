@@ -544,6 +544,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("max-turns not supported: %w", err)
 	}
 
+	// Validate web-search support for the current engine
+	if err := c.validateWebSearchSupport(tools, agenticEngine); err != nil {
+		return nil, fmt.Errorf("web-search not supported: %w", err)
+	}
+
 	// Process @include directives in markdown content
 	markdownContent, err := parser.ExpandIncludes(result.Markdown, markdownDir, false)
 	if err != nil {
@@ -2556,6 +2561,24 @@ func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine Co
 
 	// Engine supports max-turns - additional validation could be added here if needed
 	// For now, we rely on JSON schema validation for format checking
+
+	return nil
+}
+
+// validateWebSearchSupport validates that web-search tool is only used with engines that support this feature
+func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingAgentEngine) error {
+	// Check if web-search tool is requested
+	_, hasWebSearch := tools["web-search"]
+
+	if !hasWebSearch {
+		// No web-search specified, no validation needed
+		return nil
+	}
+
+	// web-search is specified, check if the engine supports it
+	if !engine.SupportsWebSearch() {
+		return fmt.Errorf("engine '%s' does not support the web-search tool", engine.GetID())
+	}
 
 	return nil
 }

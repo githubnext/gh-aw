@@ -233,3 +233,32 @@ func TestEngineSupportsWebFetch(t *testing.T) {
 		})
 	}
 }
+
+func TestEngineSupportsWebSearch(t *testing.T) {
+	registry := GetGlobalEngineRegistry()
+
+	tests := []struct {
+		engineID       string
+		expectsSupport bool
+	}{
+		{"claude", true},
+		{"codex", true},
+		{"copilot", false},
+		{"custom", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.engineID, func(t *testing.T) {
+			engine, err := registry.GetEngine(tt.engineID)
+			if err != nil {
+				t.Fatalf("Failed to get engine %s: %v", tt.engineID, err)
+			}
+
+			actualSupport := engine.SupportsWebSearch()
+			if actualSupport != tt.expectsSupport {
+				t.Errorf("Expected engine %s to have SupportsWebSearch()=%v, got %v",
+					tt.engineID, tt.expectsSupport, actualSupport)
+			}
+		})
+	}
+}

@@ -29,6 +29,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
 			supportsMaxTurns:       true, // Claude supports max-turns feature
 			supportsWebFetch:       true, // Claude has built-in WebFetch support
+			supportsWebSearch:      true, // Claude has built-in WebSearch support
 		},
 	}
 }
