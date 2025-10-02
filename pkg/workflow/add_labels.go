@@ -23,12 +23,14 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	// Handle case where AddLabels is nil (equivalent to empty configuration)
 	var allowedLabels []string
 	maxCount := 3
+	minValue := 0
 
 	if data.SafeOutputs.AddLabels != nil {
 		allowedLabels = data.SafeOutputs.AddLabels.Allowed
 		if data.SafeOutputs.AddLabels.Max > 0 {
 			maxCount = data.SafeOutputs.AddLabels.Max
 		}
+		minValue = data.SafeOutputs.AddLabels.Min
 	}
 
 	var steps []string
@@ -77,10 +79,6 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	minValue := 0
-	if data.SafeOutputs.AddLabels != nil {
-		minValue = data.SafeOutputs.AddLabels.Min
-	}
 	var jobCondition = BuildSafeOutputType("add-labels", minValue)
 	if data.SafeOutputs.AddLabels == nil || data.SafeOutputs.AddLabels.Target == "" {
 		eventCondition := buildOr(
