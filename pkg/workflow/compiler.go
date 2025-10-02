@@ -660,11 +660,9 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	// Remove the trailing newline
 	yamlStr = strings.TrimSuffix(yamlStr, "\n")
 
-	// Clean up quoted keys - replace "key": with key:
+	// Clean up quoted keys - replace "key": with key: at the start of a line
 	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-	quotedKeyPattern := `"` + key + `":`
-	unquotedKey := key + ":"
-	yamlStr = strings.Replace(yamlStr, quotedKeyPattern, unquotedKey, 1)
+	yamlStr = unquoteYAMLKey(yamlStr, key)
 
 	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
@@ -859,7 +857,13 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
-			workflowData.On = strings.TrimSuffix(string(onEventsYAML), "\n")
+			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
+
+			// Clean up quoted keys - replace "on": with on: at the start of a line
+			// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+			yamlStr = unquoteYAMLKey(yamlStr, "on")
+
+			workflowData.On = yamlStr
 		} else {
 			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)
 			workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")
@@ -2350,11 +2354,11 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
-			if data.SafeOutputs.AddLabels.MaxCount != nil && *data.SafeOutputs.AddLabels.MaxCount > 0 {
-				labelConfig["max"] = *data.SafeOutputs.AddLabels.MaxCount
+			if data.SafeOutputs.AddLabels.Max > 0 {
+				labelConfig["max"] = data.SafeOutputs.AddLabels.Max
 			}
-			if data.SafeOutputs.AddLabels.MinCount != nil && *data.SafeOutputs.AddLabels.MinCount > 0 {
-				labelConfig["min"] = *data.SafeOutputs.AddLabels.MinCount
+			if data.SafeOutputs.AddLabels.Min > 0 {
+				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
 			}
 			safeOutputsConfig["add-labels"] = labelConfig
 		}

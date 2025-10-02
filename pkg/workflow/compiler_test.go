@@ -537,7 +537,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-dispatch.md",
-			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
+			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
 			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
 			expectedCommand: "test-bot",
 			shouldError:     false,
@@ -555,7 +555,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-schedule.md",
-			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
+			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
 			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/schedule-bot')) || (contains(github.event.comment.body, '/schedule-bot'))) || (contains(github.event.pull_request.body, '/schedule-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
 			expectedCommand: "schedule-bot",
 			shouldError:     false,
@@ -574,7 +574,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-multiple.md",
-			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
+			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
 			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/multi-bot')) || (contains(github.event.comment.body, '/multi-bot'))) || (contains(github.event.pull_request.body, '/multi-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
 			expectedCommand: "multi-bot",
 			shouldError:     false,
@@ -5453,6 +5453,127 @@ This is a test workflow to verify description field rendering.
 
 			// Clean up generated lock file
 			os.Remove(lockFile)
+		})
+	}
+}
+
+// TestOnSectionWithoutQuotes tests that the "on" keyword is not quoted in the generated YAML
+// when using reaction or stop-after fields that trigger re-marshaling
+func TestOnSectionWithoutQuotes(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "on-quotes-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tests := []struct {
+		name        string
+		frontmatter string
+		description string
+	}{
+		{
+			name: "on section with reaction",
+			frontmatter: `---
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+  reaction: eyes
+permissions:
+  contents: read
+  issues: write
+tools:
+  github:
+    allowed: [get_issue]
+---`,
+			description: "Test that 'on' is not quoted when reaction is present",
+		},
+		{
+			name: "on section with stop-after",
+			frontmatter: `---
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  stop-after: +1h
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [list_commits]
+---`,
+			description: "Test that 'on' is not quoted when stop-after is present",
+		},
+		{
+			name: "on section with both reaction and stop-after",
+			frontmatter: `---
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened]
+  reaction: rocket
+  stop-after: +30m
+permissions:
+  contents: read
+  issues: write
+tools:
+  github:
+    allowed: [get_issue]
+---`,
+			description: "Test that 'on' is not quoted when both reaction and stop-after are present",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := tt.frontmatter + `
+
+# Test Workflow
+
+` + tt.description
+
+			testFile := filepath.Join(tmpDir, tt.name+".md")
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "test")
+
+			// Parse the workflow
+			workflowData, err := compiler.parseWorkflowFile(testFile)
+			if err != nil {
+				t.Fatalf("Failed to parse workflow: %v", err)
+			}
+
+			// Generate YAML
+			yamlContent, err := compiler.generateYAML(workflowData, testFile)
+			if err != nil {
+				t.Fatalf("Failed to generate YAML: %v", err)
+			}
+
+			// Check that "on": is NOT present (quoted form)
+			if strings.Contains(yamlContent, `"on":`) {
+				t.Errorf("Generated YAML contains quoted 'on' keyword:\n%s", yamlContent)
+			}
+
+			// Check that on: IS present (unquoted form)
+			if !strings.Contains(yamlContent, "on:") {
+				t.Errorf("Generated YAML does not contain unquoted 'on' keyword:\n%s", yamlContent)
+			}
+
+			// Additional verification: parse the generated YAML to ensure it's valid
+			var workflow map[string]any
+			if err := yaml.Unmarshal([]byte(yamlContent), &workflow); err != nil {
+				t.Fatalf("Failed to parse generated YAML: %v", err)
+			}
+
+			// Verify the on section exists and is valid
+			if _, hasOn := workflow["on"]; !hasOn {
+				t.Error("Generated workflow missing 'on' section")
+			}
 		})
 	}
 }

@@ -57,7 +57,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("add-comment")
+	var jobCondition = BuildSafeOutputType("add-comment", data.SafeOutputs.AddComments.Min)
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),
