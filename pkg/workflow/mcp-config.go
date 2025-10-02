@@ -37,11 +37,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
 		} else {
 			// JSON format - include copilot fields if required
-			if renderer.RequiresCopilotFields {
-				propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
-			} else {
-				propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
-			}
+			propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -53,7 +49,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			if renderer.RequiresCopilotFields {
 				propertyOrder = []string{"type", "url", "headers", "tools"}
 			} else {
-				propertyOrder = []string{"url", "headers"}
+				propertyOrder = []string{"type", "url", "headers"}
 			}
 		}
 	default:
@@ -126,7 +122,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 			// For copilot CLI, convert "stdio" to "local"
 			typeValue := mcpConfig.Type
-			if typeValue == "stdio" {
+			if typeValue == "stdio" && renderer.RequiresCopilotFields {
 				typeValue = "local"
 			}
 			fmt.Fprintf(yaml, "%s\"type\": \"%s\"%s\n", renderer.IndentLevel, typeValue, comma)

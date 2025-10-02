@@ -74,12 +74,12 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				RequiresCopilotFields: false,
 			},
 			expectedContent: []string{
+				`"type": "stdio"`,
 				`"command": "npx"`,
 				`"args": [`,
 				`"env": {`,
 			},
 			unexpectedContent: []string{
-				`"type":`,  // should NOT include type field
 				`"tools":`, // should NOT include tools field
 			},
 		},
@@ -98,11 +98,11 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				RequiresCopilotFields: false,
 			},
 			expectedContent: []string{
+				`"type": "http"`,
 				`"url": "https://api.example.com/mcp"`,
 				`"headers": {`,
 			},
 			unexpectedContent: []string{
-				`"type":`,  // should NOT include type field
 				`"tools":`, // should NOT include tools field
 			},
 		},
@@ -222,18 +222,18 @@ func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 			shouldHaveType: true,
 		},
 		{
-			name:           "stdio not included for claude",
+			name:           "stdio included for claude",
 			inputType:      "stdio",
 			copilotFields:  false,
 			expectedType:   `"type":`,
-			shouldHaveType: false,
+			shouldHaveType: true,
 		},
 		{
-			name:           "http not included for claude",
+			name:           "http included for claude",
 			inputType:      "http",
 			copilotFields:  false,
 			expectedType:   `"type":`,
-			shouldHaveType: false,
+			shouldHaveType: true,
 		},
 	}
 
