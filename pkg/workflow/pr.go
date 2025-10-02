@@ -2,6 +2,18 @@ package workflow
 
 import "strings"
 
+// renderConditionAsIf renders a ConditionNode as an 'if' condition with proper YAML indentation
+func renderConditionAsIf(yaml *strings.Builder, condition ConditionNode, indent string) {
+	yaml.WriteString("        if: |\n")
+	conditionStr := condition.Render()
+
+	// Format the condition with proper indentation
+	lines := strings.Split(conditionStr, "\n")
+	for _, line := range lines {
+		yaml.WriteString(indent + line + "\n")
+	}
+}
+
 // generatePRBranchCheckout generates a step to checkout the PR branch if the event is a comment on a PR
 func (c *Compiler) generatePRBranchCheckout(yaml *strings.Builder, data *WorkflowData) {
 	// Check if any of the workflow's event triggers are comment-related events
@@ -11,39 +23,21 @@ func (c *Compiler) generatePRBranchCheckout(yaml *strings.Builder, data *Workflo
 		return // No comment-related triggers, skip PR branch checkout
 	}
 
-	// Add a conditional step that checks out the PR branch if applicable
-	yaml.WriteString("      - name: Checkout PR branch if applicable\n")
-	yaml.WriteString("        if: |\n")
-
-	// Use the helper function to generate the condition expression
-	condition := BuildPRCommentCondition()
-	conditionStr := condition.Render()
-
-	// Format the condition with proper indentation
-	// The condition should be indented with "          " (10 spaces)
-	lines := strings.Split(conditionStr, "\n")
-	for i, line := range lines {
-		if i == 0 {
-			yaml.WriteString("          " + line + "\n")
-		} else {
-			yaml.WriteString("          " + line + "\n")
-		}
+	// Check that permissions allow contents read access
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return // No contents read access, cannot checkout
 	}
 
+	// Add a conditional step that checks out the PR branch if applicable
+	yaml.WriteString("      - name: Checkout PR branch if applicable\n")
+
+	// Use the helper function to render the condition
+	condition := BuildPRCommentCondition()
+	renderConditionAsIf(yaml, condition, "          ")
+
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          set -e\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          # Determine PR number based on event type\n")
-	yaml.WriteString("          if [ \"${{ github.event_name }}\" = \"issue_comment\" ]; then\n")
-	yaml.WriteString("            PR_NUMBER=\"${{ github.event.issue.number }}\"\n")
-	yaml.WriteString("          elif [ \"${{ github.event_name }}\" = \"pull_request_review_comment\" ]; then\n")
-	yaml.WriteString("            PR_NUMBER=\"${{ github.event.pull_request.number }}\"\n")
-	yaml.WriteString("          elif [ \"${{ github.event_name }}\" = \"pull_request_review\" ]; then\n")
-	yaml.WriteString("            PR_NUMBER=\"${{ github.event.pull_request.number }}\"\n")
-	yaml.WriteString("          fi\n")
-	yaml.WriteString("          \n")
-	yaml.WriteString("          echo \"Fetching PR #$PR_NUMBER...\"\n")
-	yaml.WriteString("          gh pr checkout \"$PR_NUMBER\"\n")
+	WriteShellScriptToYAML(yaml, checkoutPRScript, "          ")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 }
@@ -63,23 +57,17 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 		return // No checkout, so no PR branch checkout will happen
 	}
 
-	yaml.WriteString("      - name: Append PR context instructions to prompt\n")
-	yaml.WriteString("        if: |\n")
-
-	// Use the helper function to generate the condition expression
-	condition := BuildPRCommentCondition()
-	conditionStr := condition.Render()
-
-	// Format the condition with proper indentation
-	// The condition should be indented with "          " (10 spaces)
-	lines := strings.Split(conditionStr, "\n")
-	for i, line := range lines {
-		if i == 0 {
-			yaml.WriteString("          " + line + "\n")
-		} else {
-			yaml.WriteString("          " + line + "\n")
-		}
+	// Check that permissions allow contents read access
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return // No contents read access, cannot checkout
 	}
+
+	yaml.WriteString("      - name: Append PR context instructions to prompt\n")
+
+	// Use the helper function to render the condition
+	condition := BuildPRCommentCondition()
+	renderConditionAsIf(yaml, condition, "          ")
 
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
