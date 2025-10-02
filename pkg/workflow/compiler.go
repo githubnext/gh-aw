@@ -1329,6 +1329,17 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		}
 	}
 
+	// Build stop-time check job if stop-time is configured
+	if data.StopTime != "" {
+		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
+		if err != nil {
+			return fmt.Errorf("failed to build stop_time_check job: %w", err)
+		}
+		if err := c.jobManager.AddJob(stopTimeCheckJob); err != nil {
+			return fmt.Errorf("failed to add stop_time_check job: %w", err)
+		}
+	}
+
 	// Build main workflow job
 	mainJob, err := c.buildMainJob(data, activationJobCreated)
 	if err != nil {
@@ -1720,8 +1731,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
 
-	// Add safety checks before executing agentic tools
-	c.generateStopTimeChecks(yaml, data)
+	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
+	// No longer generated in the main job steps
 
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)

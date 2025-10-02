@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -91,48 +90,61 @@ func resolveStopTime(stopTime string, compilationTime time.Time) (string, error)
 	return parseAbsoluteDateTime(stopTime)
 }
 
-// generateStopTimeChecks generates safety checks for stop-time before executing agentic tools
-func (c *Compiler) generateStopTimeChecks(yaml *strings.Builder, data *WorkflowData) {
-	// If no safety settings, skip generating safety checks
+// buildStopTimeCheckJob creates the stop-time check job that validates workflow time limits
+func (c *Compiler) buildStopTimeCheckJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
 	if data.StopTime == "" {
-		return
+		return nil, fmt.Errorf("stop-time configuration is required")
 	}
 
-	yaml.WriteString("      - name: Safety checks\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          set -e\n")
-	yaml.WriteString("          echo \"Performing safety checks before executing agentic tools...\"\n")
+	var steps []string
+
+	steps = append(steps, "      - name: Safety checks\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          set -e\n")
+	steps = append(steps, "          echo \"Performing safety checks before executing agentic tools...\"\n")
 
 	// Extract workflow name for gh workflow commands
 	workflowName := data.Name
-	fmt.Fprintf(yaml, "          WORKFLOW_NAME=\"%s\"\n", workflowName)
+	steps = append(steps, fmt.Sprintf("          WORKFLOW_NAME=\"%s\"\n", workflowName))
 
 	// Add stop-time check
-	if data.StopTime != "" {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Check stop-time limit\n")
-		fmt.Fprintf(yaml, "          STOP_TIME=\"%s\"\n", data.StopTime)
-		yaml.WriteString("          echo \"Checking stop-time limit: $STOP_TIME\"\n")
-		yaml.WriteString("          \n")
-		yaml.WriteString("          # Convert stop time to epoch seconds\n")
-		yaml.WriteString("          STOP_EPOCH=$(date -d \"$STOP_TIME\" +%s 2>/dev/null || echo \"invalid\")\n")
-		yaml.WriteString("          if [ \"$STOP_EPOCH\" = \"invalid\" ]; then\n")
-		yaml.WriteString("            echo \"Warning: Invalid stop-time format: $STOP_TIME. Expected format: YYYY-MM-DD HH:MM:SS\"\n")
-		yaml.WriteString("          else\n")
-		yaml.WriteString("            CURRENT_EPOCH=$(date +%s)\n")
-		yaml.WriteString("            echo \"Current time: $(date)\"\n")
-		yaml.WriteString("            echo \"Stop time: $STOP_TIME\"\n")
-		yaml.WriteString("            \n")
-		yaml.WriteString("            if [ \"$CURRENT_EPOCH\" -ge \"$STOP_EPOCH\" ]; then\n")
-		yaml.WriteString("              echo \"Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting.\"\n")
-		yaml.WriteString("              gh workflow disable \"$WORKFLOW_NAME\"\n")
-		yaml.WriteString("              echo \"Workflow disabled. No future runs will be triggered.\"\n")
-		yaml.WriteString("              exit 1\n")
-		yaml.WriteString("            fi\n")
-		yaml.WriteString("          fi\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          # Check stop-time limit\n")
+	steps = append(steps, fmt.Sprintf("          STOP_TIME=\"%s\"\n", data.StopTime))
+	steps = append(steps, "          echo \"Checking stop-time limit: $STOP_TIME\"\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          # Convert stop time to epoch seconds\n")
+	steps = append(steps, "          STOP_EPOCH=$(date -d \"$STOP_TIME\" +%s 2>/dev/null || echo \"invalid\")\n")
+	steps = append(steps, "          if [ \"$STOP_EPOCH\" = \"invalid\" ]; then\n")
+	steps = append(steps, "            echo \"Warning: Invalid stop-time format: $STOP_TIME. Expected format: YYYY-MM-DD HH:MM:SS\"\n")
+	steps = append(steps, "          else\n")
+	steps = append(steps, "            CURRENT_EPOCH=$(date +%s)\n")
+	steps = append(steps, "            echo \"Current time: $(date)\"\n")
+	steps = append(steps, "            echo \"Stop time: $STOP_TIME\"\n")
+	steps = append(steps, "            \n")
+	steps = append(steps, "            if [ \"$CURRENT_EPOCH\" -ge \"$STOP_EPOCH\" ]; then\n")
+	steps = append(steps, "              echo \"Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting.\"\n")
+	steps = append(steps, "              gh workflow disable \"$WORKFLOW_NAME\"\n")
+	steps = append(steps, "              echo \"Workflow disabled. No future runs will be triggered.\"\n")
+	steps = append(steps, "              exit 1\n")
+	steps = append(steps, "            fi\n")
+	steps = append(steps, "          fi\n")
+	steps = append(steps, "          echo \"All safety checks passed. Proceeding with agentic tool execution.\"\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+
+	var depends []string
+	if activationJobCreated {
+		depends = []string{"activation"} // Depend on the activation job only if it exists
 	}
 
-	yaml.WriteString("          echo \"All safety checks passed. Proceeding with agentic tool execution.\"\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+	job := &Job{
+		Name:        "stop_time_check",
+		RunsOn:      "runs-on: ubuntu-latest",
+		Permissions: "permissions:\n      actions: write  # Required for gh workflow disable",
+		Steps:       steps,
+		Needs:       depends,
+	}
+
+	return job, nil
 }
