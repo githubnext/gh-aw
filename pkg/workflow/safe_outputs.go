@@ -427,6 +427,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 				config.MaximumPatchSize = 1024 // Default to 1MB = 1024 KB
 			}
 
+			// Handle threat-detection
+			threatDetectionConfig := c.parseThreatDetectionConfig(outputMap)
+			if threatDetectionConfig != nil {
+				config.ThreatDetection = threatDetectionConfig
+			}
+
 			// Handle runs-on configuration
 			if runsOn, exists := outputMap["runs-on"]; exists {
 				if runsOnStr, ok := runsOn.(string); ok {
@@ -442,6 +448,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					config.Jobs = c.parseSafeJobsConfig(jobsFrontmatter)
 				}
 			}
+		}
+	}
+
+	// Apply default threat detection if safe-outputs are configured but threat-detection is missing
+	if config != nil && HasSafeOutputsEnabled(config) && config.ThreatDetection == nil {
+		config.ThreatDetection = &ThreatDetectionConfig{
+			Enabled: true,
 		}
 	}
 
