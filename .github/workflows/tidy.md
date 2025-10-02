@@ -2,6 +2,7 @@
 name: Tidy
 on:
   workflow_dispatch:
+  command:
   push:
     branches: [main]
     paths:
