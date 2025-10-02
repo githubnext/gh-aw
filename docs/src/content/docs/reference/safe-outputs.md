@@ -118,20 +118,24 @@ The compiled workflow will have additional prompting describing that, to create 
 
 ### Add Issue Label (`add-labels:`)
 
-Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to the current issue or pull request based on the coding agent's analysis.
+Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to issues or pull requests based on the coding agent's analysis. By default, labels are added to the triggering issue or pull request, but this can be configured using the `target` option.
 
+**Basic Configuration:**
 ```yaml
 safe-outputs:
   add-labels:
 ```
 
-or with further configuration:
-
+**With Configuration:**
 ```yaml
 safe-outputs:
   add-labels:
-    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition.
+    allowed: [triage, bug, enhancement] # Optional: allowed labels for addition
     max: 3                              # Optional: maximum number of labels to add (default: 3)
+    target: "*"                         # Optional: target for labels
+                                        # "triggering" (default) - only add labels to triggering issue/PR
+                                        # "*" - allow labels on any issue (requires issue_number in agent output)
+                                        # Explicit number - add labels to specific issue/PR (e.g., "123")
 ```
 
 The agentic part of your workflow should analyze the issue content and determine appropriate labels. 

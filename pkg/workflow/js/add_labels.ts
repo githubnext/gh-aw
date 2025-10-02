@@ -114,6 +114,10 @@ async function main() {
 
   core.debug(`Max count: ${maxCount}`);
 
+  // Get the target configuration from environment variable
+  const labelsTarget = process.env.GITHUB_AW_LABELS_TARGET || "triggering";
+  core.info(`Labels target configuration: ${labelsTarget}`);
+
   // Check if we're in an issue or pull request context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
   const isPRContext =
@@ -121,30 +125,55 @@ async function main() {
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment";
 
-  if (!isIssueContext && !isPRContext) {
-    core.setFailed("Not running in issue or pull request context, skipping label addition");
+  // Validate context based on target configuration
+  if (labelsTarget === "triggering" && !isIssueContext && !isPRContext) {
+    core.info('Target is "triggering" but not running in issue or pull request context, skipping label addition');
     return;
   }
 
-  // Determine the issue/PR number
+  // Determine the issue/PR number based on target configuration
   let issueNumber;
   let contextType;
 
-  if (isIssueContext) {
-    if (context.payload.issue) {
-      issueNumber = context.payload.issue.number;
+  if (labelsTarget === "*") {
+    // For target "*", we need an explicit issue number from the labels item
+    if (labelsItem.issue_number) {
+      issueNumber = typeof labelsItem.issue_number === "number" ? labelsItem.issue_number : parseInt(String(labelsItem.issue_number), 10);
+      if (isNaN(issueNumber) || issueNumber <= 0) {
+        core.setFailed(`Invalid issue number specified: ${labelsItem.issue_number}`);
+        return;
+      }
       contextType = "issue";
     } else {
-      core.setFailed("Issue context detected but no issue found in payload");
+      core.setFailed('Target is "*" but no issue_number specified in labels item');
       return;
     }
-  } else if (isPRContext) {
-    if (context.payload.pull_request) {
-      issueNumber = context.payload.pull_request.number;
-      contextType = "pull request";
-    } else {
-      core.setFailed("Pull request context detected but no pull request found in payload");
+  } else if (labelsTarget && labelsTarget !== "triggering") {
+    // Explicit issue number specified in target
+    issueNumber = parseInt(labelsTarget, 10);
+    if (isNaN(issueNumber) || issueNumber <= 0) {
+      core.setFailed(`Invalid issue number in target configuration: ${labelsTarget}`);
       return;
+    }
+    contextType = "issue";
+  } else {
+    // Default behavior: use triggering issue/PR
+    if (isIssueContext) {
+      if (context.payload.issue) {
+        issueNumber = context.payload.issue.number;
+        contextType = "issue";
+      } else {
+        core.setFailed("Issue context detected but no issue found in payload");
+        return;
+      }
+    } else if (isPRContext) {
+      if (context.payload.pull_request) {
+        issueNumber = context.payload.pull_request.number;
+        contextType = "pull request";
+      } else {
+        core.setFailed("Pull request context detected but no pull request found in payload");
+        return;
+      }
     }
   }
 
