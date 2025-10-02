@@ -1165,14 +1165,14 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-      - name: Ensure log file exists
+      - name: Print agent log
         if: always()
         run: |
-          # Ensure log file exists
           touch /tmp/agent-stdio.log
-          # Show last few lines for debugging
-          echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/agent-stdio.log || echo "No log content available"
+          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -2556,7 +2556,7 @@ jobs:
             await core.summary
               .addHeading('Threat Detection Prompt', 2)
               .addRaw('\n')
-              .addCodeBlock(promptContent, 'markdown')
+              .addCodeBlock(promptContent, 'text')
               .write();
             core.info('Threat detection setup completed');
       - name: Execute Claude Code CLI
@@ -2583,14 +2583,14 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
-      - name: Ensure log file exists
+      - name: Print agent log
         if: always()
         run: |
-          # Ensure log file exists
           touch /tmp/threat-detection/detection.log
-          # Show last few lines for debugging
-          echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/threat-detection/detection.log || echo "No log content available"
+          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:

@@ -175,7 +175,7 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 	steps = append(steps, GitHubActionStep(stepLines))
 
 	// Add the log capture step using shared helper function
-	steps = append(steps, generateLogCaptureStep("Copilot", logFile))
+	steps = append(steps, generateLogCaptureStep(logFile))
 
 	return steps
 }

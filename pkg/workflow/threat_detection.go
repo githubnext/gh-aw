@@ -182,7 +182,7 @@ core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
 await core.summary
   .addHeading('Threat Detection Prompt', 2)
   .addRaw('\n')
-  .addCodeBlock(promptContent, 'markdown')
+  .addCodeBlock(promptContent, 'text')
   .write();
 
 core.info('Threat detection setup completed');`,
