@@ -1525,6 +1525,10 @@
                     "RIGHT"
                   ]
                 },
+                "target": {
+                  "type": "string",
+                  "description": "Target for review comments: 'triggering' (default, only on triggering PR), '*' (any PR, requires pull_request_number in agent output), or explicit PR number"
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
