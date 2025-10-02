@@ -13,23 +13,23 @@ import (
 func TestGenerateAuditReport(t *testing.T) {
 	// Create test data
 	run := WorkflowRun{
-		DatabaseID:   123456,
-		WorkflowName: "Test Workflow",
-		Status:       "completed",
-		Conclusion:   "success",
-		CreatedAt:    time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
-		StartedAt:    time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
-		UpdatedAt:    time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
-		Duration:     4*time.Minute + 30*time.Second,
-		Event:        "push",
-		HeadBranch:   "main",
-		URL:          "https://github.com/org/repo/actions/runs/123456",
-		TokenUsage:   1500,
+		DatabaseID:    123456,
+		WorkflowName:  "Test Workflow",
+		Status:        "completed",
+		Conclusion:    "success",
+		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		StartedAt:     time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
+		UpdatedAt:     time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
+		Duration:      4*time.Minute + 30*time.Second,
+		Event:         "push",
+		HeadBranch:    "main",
+		URL:           "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:    1500,
 		EstimatedCost: 0.025,
-		Turns:        5,
-		ErrorCount:   0,
-		WarningCount: 1,
-		LogsPath:     "/tmp/test-logs",
+		Turns:         5,
+		ErrorCount:    0,
+		WarningCount:  1,
+		LogsPath:      "/tmp/test-logs",
 	}
 
 	metrics := LogMetrics{
@@ -98,14 +98,14 @@ func TestGenerateAuditReport(t *testing.T) {
 
 	// Verify report contains specific data
 	expectedContent := []string{
-		"123456",                // Run ID
-		"Test Workflow",         // Workflow name
-		"success",               // Conclusion
-		"main",                  // Branch
-		"0.025",                 // Estimated cost
-		"5",                     // Turns
-		"missing_tool",          // Missing tool
-		"test-server",           // MCP failure
+		"123456",        // Run ID
+		"Test Workflow", // Workflow name
+		"success",       // Conclusion
+		"main",          // Branch
+		"0.025",         // Estimated cost
+		"5",             // Turns
+		"missing_tool",  // Missing tool
+		"test-server",   // MCP failure
 	}
 
 	for _, content := range expectedContent {
