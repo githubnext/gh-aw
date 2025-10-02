@@ -1252,6 +1252,7 @@ jobs:
         # --allow-tool shell(git commit:*)
         # --allow-tool shell(git merge:*)
         # --allow-tool shell(git rm:*)
+        # --allow-tool shell(git status)
         # --allow-tool shell(git switch:*)
         # --allow-tool shell(grep)
         # --allow-tool shell(head)

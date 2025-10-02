@@ -46,7 +46,7 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
-			expected: []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "make:*", "git checkout:*", "git branch:*", "git switch:*", "git add:*", "git rm:*", "git commit:*", "git merge:*"},
+			expected: []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "make:*", "git checkout:*", "git branch:*", "git switch:*", "git add:*", "git rm:*", "git commit:*", "git merge:*", "git status"},
 		},
 	}
 

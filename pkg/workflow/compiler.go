@@ -1087,6 +1087,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			"git rm:*",
 			"git commit:*",
 			"git merge:*",
+			"git status",
 		}
 
 		// Add bash tool with Git commands if not already present
@@ -1747,7 +1748,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			if c.trialTargetRepo != "" {
 				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialTargetRepo))
 			}
-			yaml.WriteString("          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
 
 		// Add step to checkout PR branch if the event is a comment on a PR

@@ -69,7 +69,7 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// Checkout should not include github-token in normal mode
-		if strings.Contains(lockContent, "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		if strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 			t.Error("Did not expect github-token in checkout step in normal mode")
 		}
 	})
@@ -101,7 +101,7 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// Checkout should include github-token in trial mode
-		if !strings.Contains(lockContent, "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		if !strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 			t.Error("Expected github-token in checkout step in trial mode")
 		}
 
@@ -213,7 +213,7 @@ This is a test workflow for trial mode compilation.
 
 			// In trial mode, checkout should always include github-token
 			if strings.Contains(lockContent, "uses: actions/checkout@v5") {
-				if !strings.Contains(lockContent, "github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+				if !strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 					t.Error("Expected github-token in checkout step in trial mode")
 				}
 			}
