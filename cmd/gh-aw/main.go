@@ -346,6 +346,7 @@ func init() {
 	rootCmd.AddCommand(enableCmd)
 	rootCmd.AddCommand(disableCmd)
 	rootCmd.AddCommand(cli.NewLogsCommand())
+	rootCmd.AddCommand(cli.NewAuditCommand())
 	rootCmd.AddCommand(cli.NewMCPCommand())
 	rootCmd.AddCommand(versionCmd)
 }
