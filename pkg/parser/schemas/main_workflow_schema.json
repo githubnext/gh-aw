@@ -763,7 +763,7 @@
               "description": "List of allowed domains or ecosystem identifiers (e.g., 'defaults', 'python', 'node', '*.example.com')",
               "items": {
                 "type": "string",
-              "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
+                "description": "Domain name or ecosystem identifier (supports wildcards like '*.example.com' and ecosystem names like 'python', 'node')"
               }
             }
           },
@@ -860,7 +860,6 @@
               "type": "integer",
               "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted."
             },
-
             "user-agent": {
               "type": "string",
               "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
@@ -897,7 +896,7 @@
                     "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
                   },
                   "message_group": {
-                    "type": "integer", 
+                    "type": "integer",
                     "minimum": 0,
                     "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
                   },
@@ -906,7 +905,9 @@
                     "description": "Human-readable description of what this pattern matches"
                   }
                 },
-                "required": ["pattern"],
+                "required": [
+                  "pattern"
+                ],
                 "additionalProperties": false
               }
             },
@@ -965,7 +966,7 @@
       }
     },
     "mcp-servers": {
-      "type": "object", 
+      "type": "object",
       "description": "MCP server definitions",
       "patternProperties": {
         "^[a-zA-Z0-9_-]+$": {
@@ -1483,7 +1484,11 @@
                 },
                 "if-no-changes": {
                   "type": "string",
-                  "enum": ["warn", "error", "ignore"],
+                  "enum": [
+                    "warn",
+                    "error",
+                    "ignore"
+                  ],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
                 "github-token": {
@@ -1695,7 +1700,11 @@
                 },
                 "if-no-changes": {
                   "type": "string",
-                  "enum": ["warn", "error", "ignore"],
+                  "enum": [
+                    "warn",
+                    "error",
+                    "ignore"
+                  ],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
                 "github-token": {
@@ -1830,8 +1839,15 @@
                 "runs-on": {
                   "description": "Runner specification for this job",
                   "oneOf": [
-                    {"type": "string"},
-                    {"type": "array", "items": {"type": "string"}}
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
                   ]
                 },
                 "if": {
@@ -1841,15 +1857,24 @@
                 "needs": {
                   "description": "Job dependencies beyond the main job",
                   "oneOf": [
-                    {"type": "string"},
-                    {"type": "array", "items": {"type": "string"}}
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
                   ]
                 },
                 "env": {
                   "type": "object",
                   "description": "Job-specific environment variables",
                   "patternProperties": {
-                    "^[A-Za-z_][A-Za-z0-9_]*$": {"type": "string"}
+                    "^[A-Za-z_][A-Za-z0-9_]*$": {
+                      "type": "string"
+                    }
                   },
                   "additionalProperties": false
                 },
@@ -1887,14 +1912,20 @@
                         },
                         "type": {
                           "type": "string",
-                          "enum": ["string", "boolean", "choice"],
+                          "enum": [
+                            "string",
+                            "boolean",
+                            "choice"
+                          ],
                           "description": "Input parameter type",
                           "default": "string"
                         },
                         "options": {
                           "type": "array",
                           "description": "Available options for choice type inputs",
-                          "items": {"type": "string"}
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
                       "additionalProperties": false
@@ -1922,13 +1953,14 @@
       },
       "additionalProperties": false
     },
-
     "roles": {
       "description": "Repository access roles required to trigger agentic workflows. Defaults to ['admin', 'maintainer'] for security. Use 'all' to allow any authenticated user (⚠️ security consideration).",
       "oneOf": [
         {
           "type": "string",
-          "enum": ["all"],
+          "enum": [
+            "all"
+          ],
           "description": "Allow any authenticated user to trigger the workflow (⚠️ disables permission checking entirely - use with caution)"
         },
         {
@@ -1936,7 +1968,13 @@
           "description": "List of repository permission levels that can trigger the workflow. Permission checks are automatically applied to potentially unsafe triggers.",
           "items": {
             "type": "string",
-            "enum": ["admin", "maintainer", "maintain", "write", "triage"],
+            "enum": [
+              "admin",
+              "maintainer",
+              "maintain",
+              "write",
+              "triage"
+            ],
             "description": "Repository permission level: 'admin' (full access), 'maintainer'/'maintain' (repository management), 'write' (push access), 'triage' (issue management)"
           },
           "minItems": 1
@@ -1976,7 +2014,9 @@
           "type": "object",
           "description": "Environment variables for the step",
           "patternProperties": {
-            "^[A-Za-z_][A-Za-z0-9_]*$": {"type": "string"}
+            "^[A-Za-z_][A-Za-z0-9_]*$": {
+              "type": "string"
+            }
           },
           "additionalProperties": false
         },
@@ -1999,9 +2039,21 @@
       },
       "additionalProperties": false,
       "anyOf": [
-        {"required": ["uses"]},
-        {"required": ["run"]}
+        {
+          "required": [
+            "uses"
+          ]
+        },
+        {
+          "required": [
+            "run"
+          ]
+        }
       ]
+    },
+    "strict": {
+      "type": "boolean",
+      "description": "Enable strict mode validation: require timeout, refuse write permissions, require network configuration. Defaults to false."
     }
   },
   "additionalProperties": false,
@@ -2012,7 +2064,10 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["stdio", "local"],
+          "enum": [
+            "stdio",
+            "local"
+          ],
           "description": "MCP connection type for stdio (local is an alias for stdio)"
         },
         "registry": {
@@ -2070,7 +2125,6 @@
           "additionalProperties": false,
           "description": "Network configuration for container-based MCP servers"
         },
-
         "allowed": {
           "type": "array",
           "description": "List of allowed tool functions",
@@ -2081,22 +2135,42 @@
       },
       "additionalProperties": false,
       "anyOf": [
-        {"required": ["command"]},
-        {"required": ["container"]}
+        {
+          "required": [
+            "command"
+          ]
+        },
+        {
+          "required": [
+            "container"
+          ]
+        }
       ],
       "not": {
         "allOf": [
-          {"required": ["command"]},
-          {"required": ["container"]}
+          {
+            "required": [
+              "command"
+            ]
+          },
+          {
+            "required": [
+              "container"
+            ]
+          }
         ]
       },
       "allOf": [
         {
           "if": {
-            "required": ["network"]
+            "required": [
+              "network"
+            ]
           },
           "then": {
-            "required": ["container"]
+            "required": [
+              "container"
+            ]
           }
         }
       ]
@@ -2136,7 +2210,9 @@
           }
         }
       },
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "additionalProperties": false
     }
   }

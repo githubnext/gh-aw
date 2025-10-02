@@ -402,3 +402,133 @@ network:
 		t.Errorf("Non-strict mode should allow all configurations, but got error: %v", err)
 	}
 }
+
+func TestStrictModeFromFrontmatter(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "strict: true in frontmatter enables strict mode",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: claude
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: 'timeout_minutes' is required",
+		},
+		{
+			name: "strict: false in frontmatter does not enable strict mode",
+			content: `---
+on: push
+strict: false
+permissions:
+  contents: write
+engine: claude
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+		{
+			name: "strict: true with valid configuration passes",
+			content: `---
+on: push
+strict: true
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+		{
+			name: "no strict field defaults to non-strict mode",
+			content: `---
+on: push
+permissions:
+  contents: write
+engine: claude
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir, err := os.MkdirTemp("", "frontmatter-strict-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "")
+			// Do NOT set strict mode via CLI - let frontmatter control it
+			err = compiler.CompileWorkflow(testFile)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected compilation to fail but it succeeded")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected compilation to succeed but it failed: %v", err)
+			} else if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
+	}
+}
+
+func TestCLIStrictFlagTakesPrecedence(t *testing.T) {
+	// CLI --strict flag should override frontmatter strict: false
+	content := `---
+on: push
+strict: false
+permissions:
+  contents: write
+engine: claude
+---
+
+# Test Workflow`
+
+	tmpDir, err := os.MkdirTemp("", "cli-precedence-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "")
+	compiler.SetStrictMode(true) // CLI flag sets strict mode
+	err = compiler.CompileWorkflow(testFile)
+
+	// Should fail because CLI flag enforces strict mode despite frontmatter saying false
+	if err == nil {
+		t.Error("Expected compilation to fail with CLI --strict flag, but it succeeded")
+	} else if !strings.Contains(err.Error(), "timeout_minutes") {
+		t.Errorf("Expected timeout error, got: %v", err)
+	}
+}

@@ -443,6 +443,19 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Check if strict mode is enabled in frontmatter
+	// If strict is true in frontmatter, enable strict mode for this workflow
+	// This allows declarative strict mode control per workflow
+	// Note: CLI --strict flag is already set in c.strictMode and takes precedence
+	// Frontmatter can enable strict mode, but cannot disable it if CLI flag is set
+	if !c.strictMode {
+		if strictValue, exists := result.Frontmatter["strict"]; exists {
+			if strictBool, ok := strictValue.(bool); ok && strictBool {
+				c.strictMode = true
+			}
+		}
+	}
+
 	// Perform strict mode validations
 	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
 		return nil, err
