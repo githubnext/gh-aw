@@ -1947,15 +1947,12 @@ func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[st
 	yaml.WriteString("      - name: Extract squid access logs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          mkdir -p /tmp/access-logs\n")
+	WriteShellScriptToYAML(yaml, extractSquidLogsSetupScript, "          ")
 
 	for _, toolName := range proxyTools {
-		fmt.Fprintf(yaml, "          echo 'Extracting access.log from squid-proxy-%s container'\n", toolName)
-		fmt.Fprintf(yaml, "          if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-%s$'; then\n", toolName)
-		fmt.Fprintf(yaml, "            docker cp squid-proxy-%s:/var/log/squid/access.log /tmp/access-logs/access-%s.log 2>/dev/null || echo 'No access.log found for %s'\n", toolName, toolName, toolName)
-		yaml.WriteString("          else\n")
-		fmt.Fprintf(yaml, "            echo 'Container squid-proxy-%s not found'\n", toolName)
-		yaml.WriteString("          fi\n")
+		// Use template and replace TOOLNAME with actual toolName
+		scriptForTool := strings.ReplaceAll(extractSquidLogPerToolScript, "TOOLNAME", toolName)
+		WriteShellScriptToYAML(yaml, scriptForTool, "          ")
 	}
 }
 

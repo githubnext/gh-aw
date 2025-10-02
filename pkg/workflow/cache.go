@@ -181,10 +181,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verb
 	// Add step to create cache-memory directory
 	builder.WriteString("      - name: Create cache-memory directory\n")
 	builder.WriteString("        run: |\n")
-	builder.WriteString("          mkdir -p /tmp/cache-memory\n")
-	builder.WriteString("          echo \"Cache memory directory created at /tmp/cache-memory\"\n")
-	builder.WriteString("          echo \"This folder provides persistent file storage across workflow runs\"\n")
-	builder.WriteString("          echo \"LLMs and agentic tools can freely read and write files in this directory\"\n")
+	WriteShellScriptToYAML(builder, createCacheMemoryDirScript, "          ")
 
 	// Use the parsed configuration
 	cacheKey := data.CacheMemoryConfig.Key
