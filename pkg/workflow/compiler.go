@@ -1086,6 +1086,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 			"git rm:*",
 			"git commit:*",
 			"git merge:*",
+			"git status",
 		}
 
 		// Add bash tool with Git commands if not already present
