@@ -203,8 +203,8 @@ Test workflow without contents read permission.
 				if !strings.Contains(lockStr, "automatically checked out to the PR's branch") {
 					t.Error("PR context prompt should explain the branch context")
 				}
-				if !strings.Contains(lockStr, "Available Actions") {
-					t.Error("PR context prompt should include available actions section")
+				if !strings.Contains(lockStr, "Current Branch Context") {
+					t.Error("PR context prompt should include branch context heading")
 				}
 			}
 		})

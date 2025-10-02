@@ -23,10 +23,12 @@ func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string)
 	}
 }
 
-// WritePromptTextToYAML writes prompt text with proper indentation to a strings.Builder
+// WritePromptTextToYAML writes prompt text to a YAML heredoc with proper indentation
 func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
+	yaml.WriteString(indent + "cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 	textLines := strings.Split(text, "\n")
 	for _, line := range textLines {
 		fmt.Fprintf(yaml, "%s%s\n", indent, line)
 	}
+	yaml.WriteString(indent + "EOF\n")
 }

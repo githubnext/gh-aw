@@ -1,4 +1,3 @@
-#!/bin/bash
 set -e
 
 # Determine PR number based on event type

@@ -60,9 +60,7 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 	WritePromptTextToYAML(yaml, prContextPromptText, "          ")
-	yaml.WriteString("          EOF\n")
 }
 
 // hasCommentRelatedTriggers checks if the workflow has any comment-related event triggers

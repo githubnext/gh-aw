@@ -155,7 +155,6 @@ jobs:
         if: |
           (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
         run: |
-          #!/bin/bash
           set -e
           # Determine PR number based on event type
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
@@ -969,24 +968,6 @@ jobs:
           - Any file operations you perform will be on the PR branch code
           - You can inspect, analyze, and work with the PR changes directly
           - The PR branch has been checked out using `gh pr checkout`
-          
-          ### Available Actions
-          
-          You can:
-          - Review the changes in the PR by examining files
-          - Run tests or linters on the PR code
-          - Make additional changes to the PR branch if needed
-          - Create commits on the PR branch (they will appear in the PR)
-          - Switch to other branches using `git checkout` if needed
-          
-          ### Current Branch Information
-          
-          To see which branch you're currently on, you can run:
-          ```bash
-          git branch --show-current
-          git log -1 --oneline
-          ```
-          
           
           EOF
       - name: Print prompt to step summary
