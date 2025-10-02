@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -16,39 +17,63 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// WorkflowTrialResult represents the result of running a single workflow trial
+type WorkflowTrialResult struct {
+	WorkflowName string                 `json:"workflow_name"`
+	RunID        string                 `json:"run_id"`
+	SafeOutputs  map[string]interface{} `json:"safe_outputs"`
+	Timestamp    time.Time              `json:"timestamp"`
+}
+
+// CombinedTrialResult represents the combined results of multiple workflow trials
+type CombinedTrialResult struct {
+	WorkflowNames []string              `json:"workflow_names"`
+	Results       []WorkflowTrialResult `json:"results"`
+	Timestamp     time.Time             `json:"timestamp"`
+}
+
 // NewTrialCommand creates the trial command
 func NewTrialCommand(verbose bool, validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "trial <workflow> -r <source-org/source-repo>",
-		Short: "Trial an agentic workflow from a source repository against the current target repository",
-		Long: `Trial an agentic workflow from a source repository against the current target repository.
+		Use:   "trial <workflow1> [workflow2...] -w <source-org/source-repo>",
+		Short: "Trial one or more agentic workflows from a source repository against the current target repository",
+		Long: `Trial one or more agentic workflows from a source repository against the current target repository.
 
 This command creates a temporary private repository in your GitHub space, installs the specified
-workflow from the source repository, and runs it in "trial mode" to capture safe outputs without
+workflow(s) from the source repository, and runs them in "trial mode" to capture safe outputs without
 making actual changes to the target repository.
 
-Examples:
-  ` + constants.CLIExtensionPrefix + ` trial weekly-research -r githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` trial daily-backlog-burner -r githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` trial my-workflow -r organization/repository --delete-repo
-  ` + constants.CLIExtensionPrefix + ` trial my-workflow -r organization/repository --quiet
+Single workflow:
+  ` + constants.CLIExtensionPrefix + ` trial weekly-research -w githubnext/agentics
+  Outputs: stdout + trials/weekly-research.DATETIME-ID.json
 
-The workflow must support workflow_dispatch trigger to be used in trial mode.
+Multiple workflows (for comparison):
+  ` + constants.CLIExtensionPrefix + ` trial daily-plan weekly-research -w githubnext/agentics
+  Outputs: stdout + trials/daily-plan.DATETIME-ID.json + trials/weekly-research.DATETIME-ID.json + trials/daily-plan-weekly-research.DATETIME-ID.json
+
+Other examples:
+  ` + constants.CLIExtensionPrefix + ` trial my-workflow -w organization/repository --delete-repo
+  ` + constants.CLIExtensionPrefix + ` trial my-workflow -w organization/repository --quiet --trial-repo my-custom-trial
+  ` + constants.CLIExtensionPrefix + ` trial my-workflow -w source/repo -t target/repo
+
+All workflows must support workflow_dispatch trigger to be used in trial mode.
 The trial repository will be created as private and kept by default unless --delete-repo is specified.`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			workflowName := args[0]
-			sourceRepo, _ := cmd.Flags().GetString("repository")
+			workflowNames := args
+			sourceRepo, _ := cmd.Flags().GetString("workflow-repo")
+			targetRepo, _ := cmd.Flags().GetString("target-repo")
+			trialRepo, _ := cmd.Flags().GetString("trial-repo")
 			deleteRepo, _ := cmd.Flags().GetBool("delete-repo")
 			quiet, _ := cmd.Flags().GetBool("quiet")
 			timeout, _ := cmd.Flags().GetInt("timeout")
 
 			if sourceRepo == "" {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("source repository is required (-r flag)"))
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage("source repository is required (-w flag)"))
 				os.Exit(1)
 			}
 
-			if err := RunWorkflowTrial(workflowName, sourceRepo, deleteRepo, quiet, timeout, verbose); err != nil {
+			if err := RunWorkflowTrials(workflowNames, sourceRepo, targetRepo, trialRepo, deleteRepo, quiet, timeout, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -56,59 +81,106 @@ The trial repository will be created as private and kept by default unless --del
 	}
 
 	// Add flags
-	cmd.Flags().StringP("repository", "r", "", "Source repository containing the workflow (required)")
+	cmd.Flags().StringP("workflow-repo", "w", "", "Source repository containing the workflow (required)")
+	cmd.Flags().StringP("target-repo", "t", "", "Target repository for the trial (defaults to current repository)")
+
+	// Get current username for default trial repo description
+	username, _ := getCurrentGitHubUsername()
+	defaultTrialRepo := "gh-aw-trial"
+	if username != "" {
+		defaultTrialRepo = fmt.Sprintf("%s/gh-aw-trial", username)
+	}
+
+	cmd.Flags().String("trial-repo", "", fmt.Sprintf("Custom trial repository slug (defaults to '%s')", defaultTrialRepo))
 	cmd.Flags().Bool("delete-repo", false, "Delete the trial repository after completion (default: keep)")
 	cmd.Flags().BoolP("quiet", "q", false, "Skip confirmation prompts")
 	cmd.Flags().Int("timeout", 30, "Timeout in minutes for workflow execution (default: 30)")
 
-	// Mark the repository flag as required
-	if err := cmd.MarkFlagRequired("repository"); err != nil {
+	// Mark the workflow-repo flag as required
+	if err := cmd.MarkFlagRequired("workflow-repo"); err != nil {
 		// This should never happen in practice, but we need to handle the error for linting
-		panic(fmt.Sprintf("Failed to mark repository flag as required: %v", err))
+		panic(fmt.Sprintf("Failed to mark workflow-repo flag as required: %v", err))
 	}
 
 	return cmd
 }
 
-// RunWorkflowTrial executes the main logic for trialing a workflow
-func RunWorkflowTrial(workflowName, sourceRepo string, deleteRepo, quiet bool, timeoutMinutes int, verbose bool) error {
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", workflowName, sourceRepo)))
-
-	// Step 0: Determine current target repository
-	targetRepo, err := getCurrentRepositoryInfo()
-	if err != nil {
-		return fmt.Errorf("failed to determine target repository: %w", err)
+// RunWorkflowTrials executes the main logic for trialing one or more workflows
+func RunWorkflowTrials(workflowNames []string, sourceRepo string, targetRepo string, trialRepo string, deleteRepo, quiet bool, timeoutMinutes int, verbose bool) error {
+	if len(workflowNames) == 1 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", workflowNames[0], sourceRepo)))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s) from '%s'", len(workflowNames), strings.Join(workflowNames, ", "), sourceRepo)))
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository: %s", targetRepo)))
+	// Generate a unique datetime-ID for this trial session
+	dateTimeID := fmt.Sprintf("%s-%d", time.Now().Format("20060102-150405"), time.Now().UnixNano()%1000000)
 
-	// Step 1: Use fixed trial repository name
-	trialRepoName := "gh-aw-trial"
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Trial repository: %s", trialRepoName)))
+	// Step 0: Determine target repository
+	var finalTargetRepo string
+	if targetRepo != "" {
+		// Use the provided target repository
+		finalTargetRepo = targetRepo
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", finalTargetRepo)))
+	} else {
+		// Fall back to current repository
+		var err error
+		finalTargetRepo, err = getCurrentRepositoryInfo()
+		if err != nil {
+			return fmt.Errorf("failed to determine target repository: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (current): %s", finalTargetRepo)))
+	}
+
+	// Step 1: Determine trial repository slug
+	var trialRepoSlug string
+	if trialRepo != "" {
+		// User provided a custom trial repo (could be just name or full slug)
+		if strings.Contains(trialRepo, "/") {
+			// Full slug provided (user/repo)
+			trialRepoSlug = trialRepo
+		} else {
+			// Just repo name provided, prepend current username
+			username, err := getCurrentGitHubUsername()
+			if err != nil {
+				return fmt.Errorf("failed to get GitHub username for trial repo: %w", err)
+			}
+			trialRepoSlug = fmt.Sprintf("%s/%s", username, trialRepo)
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Trial repository (custom): %s", trialRepoSlug)))
+	} else {
+		// Use default trial repo with current username
+		username, err := getCurrentGitHubUsername()
+		if err != nil {
+			return fmt.Errorf("failed to get GitHub username for default trial repo: %w", err)
+		}
+		trialRepoSlug = fmt.Sprintf("%s/gh-aw-trial", username)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Trial repository (default): %s", trialRepoSlug)))
+	}
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !quiet {
-		if err := showTrialConfirmation(workflowName, sourceRepo, targetRepo, trialRepoName, deleteRepo); err != nil {
+		if err := showTrialConfirmation(workflowNames, sourceRepo, finalTargetRepo, trialRepoSlug, deleteRepo); err != nil {
 			return err
 		}
 	}
 
 	// Step 2: Create or reuse trial repository
-	if err := ensureTrialRepository(trialRepoName, verbose); err != nil {
+	if err := ensureTrialRepository(trialRepoSlug, verbose); err != nil {
 		return fmt.Errorf("failed to ensure trial repository: %w", err)
 	}
 
 	// Set up cleanup if requested
 	if deleteRepo {
 		defer func() {
-			if err := cleanupTrialRepository(trialRepoName, verbose); err != nil {
+			if err := cleanupTrialRepository(trialRepoSlug, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup trial repository: %v", err)))
 			}
 		}()
 	}
 
 	// Step 3: Clone trial repository to local temp directory
-	tempDir, err := cloneTrialRepository(trialRepoName, verbose)
+	tempDir, err := cloneTrialRepository(trialRepoSlug, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to clone trial repository: %w", err)
 	}
@@ -118,62 +190,108 @@ func RunWorkflowTrial(workflowName, sourceRepo string, deleteRepo, quiet bool, t
 		}
 	}()
 
-	// Step 4: Install workflow with trial mode compilation
-	if err := installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, trialRepoName, verbose); err != nil {
-		return fmt.Errorf("failed to install workflow in trial mode: %w", err)
+	// Step 4: Create trials directory
+	if err := os.MkdirAll("trials", 0755); err != nil {
+		return fmt.Errorf("failed to create trials directory: %w", err)
 	}
 
-	// Step 5: Add user's PAT as repository secret
-	if err := addGitHubTokenSecret(trialRepoName, verbose); err != nil {
-		return fmt.Errorf("failed to add GitHub token secret: %w", err)
-	}
+	// Step 5: Run trials for each workflow
+	var workflowResults []WorkflowTrialResult
 
-	// Step 6: Run the workflow and wait for completion
-	runID, err := triggerWorkflowRun(trialRepoName, workflowName, verbose)
-	if err != nil {
-		return fmt.Errorf("failed to trigger workflow run: %w", err)
-	}
+	for _, workflowName := range workflowNames {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", workflowName)))
 
-	// Get username for workflow run URL
-	username, err := getCurrentGitHubUsername()
-	if err == nil {
-		workflowRunURL := fmt.Sprintf("https://github.com/%s/%s/actions/runs/%s", username, trialRepoName, runID)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s (%s)", runID, workflowRunURL)))
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s", runID)))
-	}
-
-	// Step 7: Wait for workflow completion
-	if err := waitForWorkflowCompletion(trialRepoName, runID, timeoutMinutes, verbose); err != nil {
-		// Clean up secrets even if workflow failed
-		if cleanupErr := cleanupTrialSecrets(trialRepoName, verbose); cleanupErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", cleanupErr)))
+		// Install workflow with trial mode compilation
+		if err := installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, finalTargetRepo, trialRepoSlug, verbose); err != nil {
+			return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", workflowName, err)
 		}
-		return fmt.Errorf("workflow execution failed or timed out: %w", err)
+
+		// Add user's PAT as repository secret (only once)
+		if workflowName == workflowNames[0] {
+			if err := addGitHubTokenSecret(trialRepoSlug, verbose); err != nil {
+				return fmt.Errorf("failed to add GitHub token secret: %w", err)
+			}
+		}
+
+		// Run the workflow and wait for completion
+		runID, err := triggerWorkflowRun(trialRepoSlug, workflowName, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to trigger workflow run for '%s': %w", workflowName, err)
+		}
+
+		// Generate workflow run URL
+		workflowRunURL := fmt.Sprintf("https://github.com/%s/actions/runs/%s", trialRepoSlug, runID)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s (%s)", runID, workflowRunURL)))
+
+		// Wait for workflow completion
+		if err := waitForWorkflowCompletion(trialRepoSlug, runID, timeoutMinutes, verbose); err != nil {
+			// Clean up secrets even if workflow failed
+			if cleanupErr := cleanupTrialSecrets(trialRepoSlug, verbose); cleanupErr != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", cleanupErr)))
+			}
+			return fmt.Errorf("workflow '%s' execution failed or timed out: %w", workflowName, err)
+		}
+
+		// Download and process safe outputs
+		safeOutputs, err := downloadSafeOutputs(trialRepoSlug, runID, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to download safe outputs for '%s': %w", workflowName, err)
+		}
+
+		// Save individual workflow results
+		result := WorkflowTrialResult{
+			WorkflowName: workflowName,
+			RunID:        runID,
+			SafeOutputs:  safeOutputs,
+			Timestamp:    time.Now(),
+		}
+		workflowResults = append(workflowResults, result)
+
+		// Save individual trial file
+		individualFilename := fmt.Sprintf("trials/%s.%s.json", workflowName, dateTimeID)
+		if err := saveTrialResult(individualFilename, result, verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
+		}
+
+		// Display safe outputs to stdout
+		if len(safeOutputs) > 0 {
+			outputBytes, _ := json.MarshalIndent(safeOutputs, "", "  ")
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("=== Safe Outputs from %s ===", workflowName)))
+			fmt.Println(string(outputBytes))
+			fmt.Println(console.FormatSuccessMessage("=== End of Safe Outputs ==="))
+		} else {
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== No Safe Outputs Generated by %s ===", workflowName)))
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Trial completed for workflow: %s", workflowName)))
 	}
 
-	// Step 8: Download and display safe outputs
-	if err := downloadAndDisplaySafeOutputs(trialRepoName, runID, verbose); err != nil {
-		return fmt.Errorf("failed to download and display safe outputs: %w", err)
+	// Step 6: Save combined results for multi-workflow trials
+	if len(workflowNames) > 1 {
+		workflowNamesStr := strings.Join(workflowNames, "-")
+		combinedFilename := fmt.Sprintf("trials/%s.%s.json", workflowNamesStr, dateTimeID)
+		combinedResult := CombinedTrialResult{
+			WorkflowNames: workflowNames,
+			Results:       workflowResults,
+			Timestamp:     time.Now(),
+		}
+		if err := saveTrialResult(combinedFilename, combinedResult, verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save combined trial result: %v", err)))
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Combined results saved to: %s", combinedFilename)))
 	}
 
-	// Step 9: Clean up secrets
-	if err := cleanupTrialSecrets(trialRepoName, verbose); err != nil {
+	// Step 7: Clean up secrets
+	if err := cleanupTrialSecrets(trialRepoSlug, verbose); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Trial completed successfully"))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All trials completed successfully"))
 
 	if deleteRepo {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Trial repository will be cleaned up"))
 	} else {
-		// Get username for display purposes
-		username, err := getCurrentGitHubUsername()
-		if err == nil {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Trial repository preserved: https://github.com/%s/%s", username, trialRepoName)))
-		} else {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Trial repository preserved: %s", trialRepoName)))
-		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Trial repository preserved: https://github.com/%s", trialRepoSlug)))
 	}
 
 	return nil
@@ -236,20 +354,18 @@ func getCurrentGitHubUsername() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user
-func showTrialConfirmation(workflowName, sourceRepo, targetRepo, trialRepoName string, deleteRepo bool) error {
-	// Get username for trial repo URL display
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
-	trialRepoURL := fmt.Sprintf("https://github.com/%s/%s", username, trialRepoName)
+func showTrialConfirmation(workflowNames []string, sourceRepo, targetRepo, trialRepoSlug string, deleteRepo bool) error {
+	trialRepoURL := fmt.Sprintf("https://github.com/%s", trialRepoSlug)
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Trial Execution Plan ==="))
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Workflow: %s\n"), workflowName)
+	if len(workflowNames) == 1 {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Workflow: %s\n"), workflowNames[0])
+	} else {
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Workflows: %s\n"), strings.Join(workflowNames, ", "))
+	}
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Source Repository: %s\n"), sourceRepo)
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Target Repository: %s\n"), targetRepo)
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Trial Repository: %s (%s)\n"), trialRepoName, trialRepoURL)
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Trial Repository: %s (%s)\n"), trialRepoSlug, trialRepoURL)
 
 	if deleteRepo {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Repository Cleanup: Trial repository will be deleted after completion"))
@@ -274,7 +390,7 @@ func showTrialConfirmation(workflowName, sourceRepo, targetRepo, trialRepoName s
 	fmt.Fprint(os.Stderr, console.FormatPromptMessage("Do you want to continue? [y/N]: "))
 
 	var response string
-	_, err = fmt.Scanln(&response)
+	_, err := fmt.Scanln(&response)
 	if err != nil {
 		// Handle EOF or other input errors as cancellation
 		response = "n"
@@ -289,31 +405,32 @@ func showTrialConfirmation(workflowName, sourceRepo, targetRepo, trialRepoName s
 }
 
 // ensureTrialRepository creates a trial repository if it doesn't exist, or reuses existing one
-func ensureTrialRepository(repoName string, verbose bool) error {
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
+func ensureTrialRepository(repoSlug string, verbose bool) error {
+	// repoSlug is always in user/repo format by the time it reaches this function
+	fullRepoName := repoSlug
+	parts := strings.Split(repoSlug, "/")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid repository slug format: %s (expected user/repo)", repoSlug)
 	}
+	repoName := parts[1]
 
 	// Check if repository already exists
-	fullRepoName := fmt.Sprintf("%s/%s", username, repoName)
 	cmd := exec.Command("gh", "repo", "view", fullRepoName)
 	if err := cmd.Run(); err == nil {
 		// Repository exists, reuse it
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing trial repository: %s", repoName)))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing trial repository: %s", fullRepoName)))
 		}
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Using existing trial repository: https://github.com/%s/%s", username, repoName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Using existing trial repository: https://github.com/%s", fullRepoName)))
 		return nil
 	}
 
 	// Repository doesn't exist, create it
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating private trial repository: %s", repoName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating private trial repository: %s", fullRepoName)))
 	}
 
-	// Use gh CLI to create private repo with initial README
+	// Use gh CLI to create private repo with initial README (gh repo create only accepts the repo name)
 	cmd = exec.Command("gh", "repo", "create", repoName, "--private", "--add-readme", "--description", "GitHub Agentic Workflows trial repository")
 	output, err := cmd.CombinedOutput()
 
@@ -322,7 +439,7 @@ func ensureTrialRepository(repoName string, verbose bool) error {
 	}
 
 	// Show trial repository creation message with URL
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Created trial repository: https://github.com/%s/%s", username, repoName)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Created trial repository: https://github.com/%s", fullRepoName)))
 
 	// Give GitHub a moment to fully initialize the repository
 	time.Sleep(2 * time.Second)
@@ -330,19 +447,15 @@ func ensureTrialRepository(repoName string, verbose bool) error {
 	return nil
 }
 
-func cleanupTrialRepository(repoName string, verbose bool) error {
+func cleanupTrialRepository(repoSlug string, verbose bool) error {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cleaning up trial repository: %s", repoName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cleaning up trial repository: %s", repoSlug)))
 	}
 
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username for cleanup: %w", err)
-	}
+	// repoSlug is always in user/repo format by the time it reaches this function
+	fullRepoName := repoSlug
 
 	// Use gh CLI to delete the repository with proper username/repo format
-	fullRepoName := fmt.Sprintf("%s/%s", username, repoName)
 	cmd := exec.Command("gh", "repo", "delete", fullRepoName, "--yes")
 	output, err := cmd.CombinedOutput()
 
@@ -351,19 +464,13 @@ func cleanupTrialRepository(repoName string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Deleted trial repository: %s", repoName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Deleted trial repository: %s", fullRepoName)))
 	}
 
 	return nil
 }
 
-func cloneTrialRepository(repoName string, verbose bool) (string, error) {
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return "", fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
+func cloneTrialRepository(repoSlug string, verbose bool) (string, error) {
 	// Create temporary directory
 	tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("gh-aw-trial-%x", time.Now().UnixNano()))
 
@@ -371,8 +478,8 @@ func cloneTrialRepository(repoName string, verbose bool) (string, error) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning trial repository to: %s", tempDir)))
 	}
 
-	// Clone the repository with proper username/repo format
-	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", username, repoName)
+	// Clone the repository using the full slug
+	repoURL := fmt.Sprintf("https://github.com/%s.git", repoSlug)
 	cmd := exec.Command("git", "clone", repoURL, tempDir)
 	output, err := cmd.CombinedOutput()
 
@@ -387,7 +494,7 @@ func cloneTrialRepository(repoName string, verbose bool) (string, error) {
 	return tempDir, nil
 }
 
-func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, trialRepoName string, verbose bool) error {
+func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, trialRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", workflowName, sourceRepo)))
 	}
@@ -425,7 +532,7 @@ func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, t
 	}
 
 	// Determine required engine secret from workflow data
-	if err := determineEngineSecret(workflowDataList, workflowName, trialRepoName, verbose); err != nil {
+	if err := determineEngineSecret(workflowDataList, workflowName, trialRepoSlug, verbose); err != nil {
 		return fmt.Errorf("failed to determine engine secret: %w", err)
 	}
 
@@ -437,7 +544,7 @@ func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, t
 	return nil
 }
 
-func addGitHubTokenSecret(repoName string, verbose bool) error {
+func addGitHubTokenSecret(repoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding GitHub token as repository secret"))
 	}
@@ -448,14 +555,8 @@ func addGitHubTokenSecret(repoName string, verbose bool) error {
 		return fmt.Errorf("failed to get GitHub auth token: %w", err)
 	}
 
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
-	// Construct full repository name
-	fullRepoName := fmt.Sprintf("%s/%s", username, repoName)
+	// Use the repository slug directly
+	fullRepoName := repoSlug
 
 	// Add the token as a repository secret
 	cmd := exec.Command("gh", "secret", "set", "GH_AW_GITHUB_TOKEN", "--repo", fullRepoName, "--body", token)
@@ -472,19 +573,13 @@ func addGitHubTokenSecret(repoName string, verbose bool) error {
 	return nil
 }
 
-func triggerWorkflowRun(repoName, workflowName string, verbose bool) (string, error) {
+func triggerWorkflowRun(repoSlug, workflowName string, verbose bool) (string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Triggering workflow run for: %s", workflowName)))
 	}
 
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return "", fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
-	// Construct full repository name
-	fullRepoName := fmt.Sprintf("%s/%s", username, repoName)
+	// Use the repository slug directly
+	fullRepoName := repoSlug
 
 	// Trigger workflow using gh CLI
 	lockFileName := fmt.Sprintf("%s.lock.yml", workflowName)
@@ -522,19 +617,13 @@ func triggerWorkflowRun(repoName, workflowName string, verbose bool) (string, er
 	return runID, nil
 }
 
-func waitForWorkflowCompletion(repoName, runID string, timeoutMinutes int, verbose bool) error {
+func waitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Waiting for workflow completion (timeout: %d minutes)", timeoutMinutes)))
 	}
 
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
-	// Construct full repository name
-	fullRepoName := fmt.Sprintf("%s/%s", username, repoName)
+	// Use the repository slug directly
+	fullRepoName := repoSlug
 
 	timeout := time.Duration(timeoutMinutes) * time.Minute
 	start := time.Now()
@@ -579,72 +668,8 @@ func waitForWorkflowCompletion(repoName, runID string, timeoutMinutes int, verbo
 	}
 }
 
-func downloadAndDisplaySafeOutputs(repoName, runID string, verbose bool) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Downloading and displaying safe outputs"))
-	}
-
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
-	// Construct full repository name
-	fullRepoName := fmt.Sprintf("%s/%s", username, repoName)
-
-	// Download artifacts using gh CLI
-	tempArtifactDir := filepath.Join(os.TempDir(), fmt.Sprintf("gh-aw-artifacts-%s", runID))
-	defer os.RemoveAll(tempArtifactDir)
-
-	cmd := exec.Command("gh", "run", "download", runID, "--repo", fullRepoName, "--dir", tempArtifactDir)
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		// Artifacts might not exist for some workflows - this is okay
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No artifacts found: %s", string(output))))
-		}
-		fmt.Println(console.FormatInfoMessage("No safe outputs artifacts were generated by this workflow"))
-		return nil
-	}
-
-	// Look for agent_output.json in the downloaded artifacts
-	var agentOutputPath string
-	err = filepath.Walk(tempArtifactDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.Name() == "agent_output.json" {
-			agentOutputPath = path
-		}
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to search for agent outputs: %w", err)
-	}
-
-	if agentOutputPath == "" {
-		fmt.Println(console.FormatInfoMessage("No safe outputs were generated by this workflow"))
-		return nil
-	}
-
-	// Read and display the safe outputs
-	content, err := os.ReadFile(agentOutputPath)
-	if err != nil {
-		return fmt.Errorf("failed to read agent outputs: %w", err)
-	}
-
-	fmt.Println(console.FormatSuccessMessage("=== Safe Outputs Generated by Workflow ==="))
-	fmt.Println(string(content))
-	fmt.Println(console.FormatSuccessMessage("=== End of Safe Outputs ==="))
-
-	return nil
-}
-
 // determineEngineSecret determines and sets the appropriate engine secret based on workflow configuration
-func determineEngineSecret(workflowDataList []*workflow.WorkflowData, workflowName, trialRepoName string, verbose bool) error {
+func determineEngineSecret(workflowDataList []*workflow.WorkflowData, workflowName, trialRepoSlug string, verbose bool) error {
 	var engineType string
 
 	// Generate the expected processed workflow name from the filename
@@ -695,27 +720,27 @@ func determineEngineSecret(workflowDataList []*workflow.WorkflowData, workflowNa
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting ANTHROPIC_API_KEY secret for Claude engine"))
 		}
-		return addEngineSecret("ANTHROPIC_API_KEY", "anthropic_api_key", trialRepoName, verbose)
+		return addEngineSecret("ANTHROPIC_API_KEY", "anthropic_api_key", trialRepoSlug, verbose)
 	case "codex", "openai":
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting OPENAI_API_KEY secret for OpenAI engine"))
 		}
-		return addEngineSecret("OPENAI_API_KEY", "openai_api_key", trialRepoName, verbose)
+		return addEngineSecret("OPENAI_API_KEY", "openai_api_key", trialRepoSlug, verbose)
 	case "copilot":
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting COPILOT_CLI_TOKEN secret for Copilot engine"))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", "copilot_cli_token", trialRepoName, verbose)
+		return addEngineSecret("COPILOT_CLI_TOKEN", "copilot_cli_token", trialRepoSlug, verbose)
 	default:
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Unknown engine type '%s', defaulting to Copilot", engineType)))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", "copilot_cli_token", trialRepoName, verbose)
+		return addEngineSecret("COPILOT_CLI_TOKEN", "copilot_cli_token", trialRepoSlug, verbose)
 	}
 }
 
 // addEngineSecret adds an engine-specific secret to the repository
-func addEngineSecret(secretName, userSecretName, trialRepoName string, verbose bool) error {
+func addEngineSecret(secretName, userSecretName, trialRepoSlug string, verbose bool) error {
 	// First try to get the secret from environment variables
 	secretValue := os.Getenv(secretName)
 	if secretValue == "" {
@@ -739,14 +764,8 @@ func addEngineSecret(secretName, userSecretName, trialRepoName string, verbose b
 		return fmt.Errorf("environment variable %s not found. Please set it before running the trial", secretName)
 	}
 
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
-	// Construct full repository name
-	fullRepoName := fmt.Sprintf("%s/%s", username, trialRepoName)
+	// Use the repository slug directly (should already be in user/repo format)
+	fullRepoName := trialRepoSlug
 
 	// Add the secret to the repository
 	addSecretCmd := exec.Command("gh", "secret", "set", secretName, "--repo", fullRepoName, "--body", secretValue)
@@ -852,19 +871,13 @@ func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 }
 
 // cleanupTrialSecrets removes API key secrets from the trial repository for security
-func cleanupTrialSecrets(repoName string, verbose bool) error {
+func cleanupTrialSecrets(repoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up API key secrets from trial repository"))
 	}
 
-	// Get current GitHub username
-	username, err := getCurrentGitHubUsername()
-	if err != nil {
-		return fmt.Errorf("failed to get GitHub username: %w", err)
-	}
-
-	// Construct full repository name
-	fullRepoName := fmt.Sprintf("%s/%s", username, repoName)
+	// Use the repository slug directly
+	fullRepoName := repoSlug
 
 	// List of API key secrets to remove (keep GH_AW_GITHUB_TOKEN as it's needed for repository operations)
 	secretsToRemove := []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "COPILOT_CLI_TOKEN"}
@@ -883,6 +896,74 @@ func cleanupTrialSecrets(repoName string, verbose bool) error {
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("API key secrets cleaned up from trial repository"))
+	}
+
+	return nil
+}
+
+// downloadSafeOutputs downloads and parses safe outputs from a workflow run
+func downloadSafeOutputs(trialRepoSlug, runID string, verbose bool) (map[string]interface{}, error) {
+	// Use the repository slug directly (should already be in user/repo format)
+	fullRepoName := trialRepoSlug
+
+	// Create temp directory for artifact download
+	tempDir, err := os.MkdirTemp("", "safe-outputs-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Try to download the agent_output.json artifact (processed safe outputs)
+	cmd := exec.Command("gh", "run", "download", runID, "--repo", fullRepoName, "--name", "agent_output.json", "--dir", tempDir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// If artifact doesn't exist or download fails, that's okay - some workflows don't generate safe outputs
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent_output.json artifact found: %s", string(output))))
+		}
+		return nil, nil
+	}
+
+	// Read and parse the processed JSON file
+	jsonFilePath := filepath.Join(tempDir, "agent_output.json")
+	jsonBytes, err := os.ReadFile(jsonFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read agent_output.json: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Safe outputs JSON content: %s", string(jsonBytes))))
+	}
+
+	var safeOutputs map[string]interface{}
+	if err := json.Unmarshal(jsonBytes, &safeOutputs); err != nil {
+		return nil, fmt.Errorf("failed to parse agent_output.json: %w", err)
+	}
+
+	// Check if the safe outputs is null or empty
+	if len(safeOutputs) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Safe outputs JSON is null or empty"))
+		}
+		return nil, nil
+	}
+
+	return safeOutputs, nil
+}
+
+// saveTrialResult saves a trial result to a JSON file
+func saveTrialResult(filename string, result interface{}, verbose bool) error {
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal result to JSON: %w", err)
+	}
+
+	if err := os.WriteFile(filename, jsonBytes, 0644); err != nil {
+		return fmt.Errorf("failed to write result file: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Saved trial result to: %s", filename)))
 	}
 
 	return nil
