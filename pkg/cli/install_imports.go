@@ -215,7 +215,7 @@ func installSingleImport(importSpec *parser.ImportSpec, importsDir string, lock 
 
 	// Clone repository (shallow clone at specific commit)
 	repoURL := fmt.Sprintf("https://github.com/%s/%s.git", importSpec.Org, importSpec.Repo)
-	
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning from %s", repoURL)))
 	}
@@ -228,7 +228,7 @@ func installSingleImport(importSpec *parser.ImportSpec, importsDir string, lock 
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Shallow clone failed, trying full clone..."))
 		}
-		
+
 		cmd = exec.Command("git", "clone", repoURL, targetDir)
 		output, err = cmd.CombinedOutput()
 		if err != nil {
@@ -377,7 +377,7 @@ func collectTransitiveFiles(filePath, baseDir string, verbose bool) ([]string, e
 
 		// Look for @include directives
 		lines := strings.Split(string(content), "\n")
-		
+
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if strings.HasPrefix(line, "@include") {
@@ -385,7 +385,7 @@ func collectTransitiveFiles(filePath, baseDir string, verbose bool) ([]string, e
 				parts := strings.Fields(line)
 				if len(parts) >= 2 {
 					includePath := parts[1]
-					
+
 					// Handle section references
 					if strings.Contains(includePath, "#") {
 						parts := strings.SplitN(includePath, "#", 2)

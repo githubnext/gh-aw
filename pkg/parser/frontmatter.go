@@ -52,7 +52,7 @@ func ProcessImportsInFrontmatter(content string, frontmatter map[string]any, bas
 	// Process each import
 	var mergedContent strings.Builder
 	mergedFrontmatter := make(map[string]any)
-	
+
 	// Copy existing frontmatter (except imports)
 	for k, v := range frontmatter {
 		if k != "imports" {

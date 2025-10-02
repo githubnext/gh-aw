@@ -429,7 +429,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if c.verbose {
 			fmt.Println(console.FormatInfoMessage("Processing imports..."))
 		}
-		
+
 		processedMarkdown, processedFrontmatter, err := parser.ProcessImportsInFrontmatter(
 			result.Markdown,
 			result.Frontmatter,
@@ -438,11 +438,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process imports: %w", err)
 		}
-		
+
 		// Update result with processed content
 		result.Markdown = processedMarkdown
 		result.Frontmatter = processedFrontmatter
-		
+
 		if c.verbose {
 			fmt.Println(console.FormatSuccessMessage("Successfully processed imports"))
 		}
