@@ -1315,7 +1315,8 @@ func (c *Compiler) isActivationJobNeeded(data *WorkflowData, needsPermissionChec
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
 	// 4. Permission checks are needed (consolidated team member validation)
-	return data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck
+	// 5. Discussions
+	return data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck || (data.DiscussionConfig != nil && data.DiscussionConfig.Enabled)
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
