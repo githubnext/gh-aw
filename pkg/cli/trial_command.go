@@ -220,7 +220,7 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 		}
 
 		// Run the workflow and wait for completion
-		runID, err := triggerWorkflowRun(trialRepoSlug, parsedSpec.WorkflowPath, verbose)
+		runID, err := triggerWorkflowRun(trialRepoSlug, parsedSpec.WorkflowName, verbose)
 		if err != nil {
 			return fmt.Errorf("failed to trigger workflow run for '%s': %w", parsedSpec.WorkflowName, err)
 		}
@@ -254,7 +254,7 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 		workflowResults = append(workflowResults, result)
 
 		// Save individual trial file
-		individualFilename := fmt.Sprintf("trials/%s.%s.json", parsedSpec.WorkflowPath, dateTimeID)
+		individualFilename := fmt.Sprintf("trials/%s.%s.json", parsedSpec.WorkflowName, dateTimeID)
 		if err := saveTrialResult(individualFilename, result, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
 		}
@@ -536,12 +536,12 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, target
 	}
 
 	// Add the workflow from the installed package
-	if err := AddWorkflows([]string{parsedSpec.WorkflowPath}, 1, verbose, "", parsedSpec.Repo, "", true, false); err != nil {
+	if err := AddWorkflows([]string{parsedSpec.Spec}, 1, verbose, "", "", true, false); err != nil {
 		return fmt.Errorf("failed to add workflow: %w", err)
 	}
 
 	// Now we need to modify the workflow for trial mode
-	if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowPath, targetRepoSlug, verbose); err != nil {
+	if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowName, targetRepoSlug, verbose); err != nil {
 		return fmt.Errorf("failed to modify workflow for trial mode: %w", err)
 	}
 
@@ -565,12 +565,12 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, target
 	}
 
 	// Determine required engine secret from workflow data
-	if err := determineEngineSecret(workflowDataList, parsedSpec.WorkflowPath, trialRepoSlug, verbose); err != nil {
+	if err := determineEngineSecret(workflowDataList, parsedSpec.WorkflowName, trialRepoSlug, verbose); err != nil {
 		return fmt.Errorf("failed to determine engine secret: %w", err)
 	}
 
 	// Commit and push the changes
-	if err := commitAndPushWorkflow(tempDir, parsedSpec.WorkflowPath, verbose); err != nil {
+	if err := commitAndPushWorkflow(tempDir, parsedSpec.WorkflowName, verbose); err != nil {
 		return fmt.Errorf("failed to commit and push workflow: %w", err)
 	}
 

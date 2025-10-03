@@ -70,12 +70,12 @@ The --force flag overwrites existing workflow files.`,
 
 			// Handle normal mode
 			if prFlag {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, true); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, true); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
 			} else {
-				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, repoFlag, nameFlag, forceFlag, false); err != nil {
+				if err := AddWorkflows(workflows, numberFlag, verbose, engineOverride, nameFlag, forceFlag, false); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 					os.Exit(1)
 				}
@@ -106,7 +106,7 @@ The --force flag overwrites existing workflow files.`,
 
 // AddWorkflows adds one or more workflows from components to .github/workflows
 // with optional repository installation and PR creation
-func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, repoSpec string, name string, force bool, createPR bool) error {
+func AddWorkflows(workflows []string, number int, verbose bool, engineOverride string, name string, force bool, createPR bool) error {
 	if len(workflows) == 0 {
 		return fmt.Errorf("at least one workflow name is required")
 	}
@@ -115,11 +115,6 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		if workflow == "" {
 			return fmt.Errorf("workflow name cannot be empty (workflow %d)", i+1)
 		}
-	}
-
-	// The -r flag is no longer supported
-	if repoSpec != "" {
-		return fmt.Errorf("-r flag is deprecated; use the new format: owner/repo/workflow-name[@version]")
 	}
 
 	// If creating a PR, check prerequisites
