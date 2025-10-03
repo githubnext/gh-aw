@@ -1242,6 +1242,10 @@
               "description": "Enable cache-memory with default settings"
             },
             {
+              "type": "null",
+              "description": "Enable cache-memory with default settings (same as true)"
+            },
+            {
               "type": "object",
               "description": "Cache-memory configuration object",
               "properties": {
