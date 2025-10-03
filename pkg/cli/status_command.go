@@ -49,7 +49,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	}
 
 	// Build table configuration
-	headers := []string{"Name", "Agent", "Status", "Time Remaining"}
+	headers := []string{"Workflow", "Agent", "Status", "Time Remaining"}
 	var rows [][]string
 
 	for _, file := range mdFiles {
@@ -92,7 +92,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 
 	// Render the table
 	tableConfig := console.TableConfig{
-		Title:   "Workflow Status",
+		Title:   "",
 		Headers: headers,
 		Rows:    rows,
 	}
