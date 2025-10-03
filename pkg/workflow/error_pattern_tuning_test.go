@@ -99,6 +99,15 @@ func TestErrorPatternsNotOverlyAggressive(t *testing.T) {
 }
 
 // hasErrorContext checks if a pattern requires explicit error context (like "error", "ERROR", etc.)
+// This helper function is used to distinguish between contextual patterns (that require error markers)
+// and overly broad patterns (that match any occurrence of keywords).
+//
+// Parameters:
+//   - pattern: The regex pattern string to analyze
+//
+// Returns:
+//   - true if the pattern contains explicit error context markers (error, failed, etc.)
+//   - false if the pattern is a generic keyword match without error context
 func hasErrorContext(pattern string) bool {
 	// Patterns that explicitly require "error" somewhere in the match
 	errorMarkers := []string{
