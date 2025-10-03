@@ -2003,8 +2003,57 @@
                   "description": "Whether threat detection is enabled",
                   "default": true
                 },
-
-
+                "prompt": {
+                  "type": "string",
+                  "description": "Additional custom prompt instructions to append to threat detection analysis"
+                },
+                "engine": {
+                  "description": "AI engine configuration specifically for threat detection (overrides main workflow engine). Supports same format as main engine field.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "claude",
+                        "codex",
+                        "copilot",
+                        "custom"
+                      ],
+                      "description": "Engine name for threat detection: 'claude' (default), 'codex', 'copilot', or 'custom'"
+                    },
+                    {
+                      "type": "object",
+                      "description": "Extended engine configuration for threat detection with advanced options",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "enum": [
+                            "claude",
+                            "codex",
+                            "custom",
+                            "copilot"
+                          ],
+                          "description": "AI engine identifier for threat detection"
+                        },
+                        "version": {
+                          "type": "string",
+                          "description": "Optional version of the AI engine action"
+                        },
+                        "model": {
+                          "type": "string",
+                          "description": "Optional specific LLM model to use"
+                        },
+                        "max-turns": {
+                          "type": "integer",
+                          "description": "Maximum number of chat iterations"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run after detection",
