@@ -579,6 +579,232 @@ describe("create_pull_request.cjs", () => {
     );
   });
 
+  it("should fallback to creating issue when git push fails", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "Push will fail",
+          body: "Git push will fail and fallback to an issue.",
+        },
+      ],
+    });
+    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "automation";
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Track exec.exec calls to fail on git push
+    let execCallCount = 0;
+    global.exec.exec = vi.fn().mockImplementation(async (cmd, args, options) => {
+      execCallCount++;
+
+      // Let git commands succeed except push
+      if (typeof cmd === "string" && cmd.includes("git push")) {
+        throw new Error("Permission denied (publickey)");
+      }
+
+      // For git ls-remote, return empty (no remote branch exists)
+      if (typeof cmd === "string" && cmd.includes("git ls-remote")) {
+        return 0;
+      }
+
+      return 0;
+    });
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 789,
+      html_url: "https://github.com/testowner/testrepo/issues/789",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify push was attempted (check if git push was called)
+    const pushCallsForTest = global.exec.exec.mock.calls.filter(call => call[0] && call[0].includes("git push"));
+    expect(pushCallsForTest.length).toBeGreaterThan(0);
+
+    // Verify fallback issue was created with push error details
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "Push will fail",
+      body: expect.stringMatching(/Git push will fail[\s\S]*Push Error.*Permission denied[\s\S]*Patch preview/),
+      labels: ["automation"],
+    });
+
+    // Verify push failure outputs were set
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_number", 789);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("branch_name", "test-workflow-1234567890abcdef");
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("fallback_used", "true");
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("push_failed", "true");
+
+    // Verify push failure summary was written
+    expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## Push Failure Fallback"));
+    expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("Permission denied"));
+
+    // Verify appropriate logging
+    expect(mockDependencies.core.error).toHaveBeenCalledWith(expect.stringContaining("Git push failed"));
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(expect.stringContaining("Git push operation failed"));
+  });
+
+  it("should fail when both git push and fallback issue creation fail", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "Push and issue will fail",
+          body: "Both git push and issue creation will fail.",
+        },
+      ],
+    });
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock git push to fail
+    global.exec.exec = vi.fn().mockImplementation(async (cmd, args, options) => {
+      if (typeof cmd === "string" && cmd.includes("git push")) {
+        throw new Error("Network error: Connection timeout");
+      }
+      if (typeof cmd === "string" && cmd.includes("git ls-remote")) {
+        return 0;
+      }
+      return 0;
+    });
+
+    // Mock issue creation to also fail
+    const issueError = new Error("GitHub API rate limit exceeded");
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockRejectedValue(issueError),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify push was attempted (check for git push calls)
+    const pushCallsInFailTest = global.exec.exec.mock.calls.filter(call => call[0] && call[0].includes("git push"));
+    expect(pushCallsInFailTest.length).toBeGreaterThan(0);
+
+    // Verify issue creation was attempted
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+
+    // Verify setFailed was called with combined error message
+    expect(mockDependencies.core.setFailed).toHaveBeenCalledWith(
+      expect.stringMatching(/Failed to push and failed to create fallback issue.*Network error.*GitHub API rate limit/)
+    );
+  });
+
+  it("should handle remote branch collision by appending random suffix", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "Test PR with branch collision",
+          body: "This will handle remote branch collision.",
+        },
+      ],
+    });
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock crypto to return predictable values
+    let randomBytesCallCount = 0;
+    mockDependencies.crypto.randomBytes = vi.fn().mockImplementation(size => {
+      randomBytesCallCount++;
+      if (randomBytesCallCount === 1) {
+        return Buffer.from("1234567890abcdef", "hex");
+      } else {
+        return Buffer.from("fedcba09", "hex");
+      }
+    });
+
+    // Mock git commands
+    global.exec.exec = vi.fn().mockImplementation(async (cmd, args, options) => {
+      // git ls-remote should indicate remote branch exists
+      if (typeof cmd === "string" && cmd.includes("git ls-remote")) {
+        if (options && options.listeners && options.listeners.stdout) {
+          options.listeners.stdout(Buffer.from("abc123 refs/heads/test-workflow-1234567890abcdef\n"));
+        }
+        return 0;
+      }
+
+      // git branch -m should succeed
+      if (typeof cmd === "string" && cmd.includes("git branch -m")) {
+        return 0;
+      }
+
+      // git push should succeed
+      if (typeof cmd === "string" && cmd.includes("git push")) {
+        return 0;
+      }
+
+      return 0;
+    });
+
+    // Mock PR creation to succeed
+    const mockPR = {
+      number: 123,
+      html_url: "https://github.com/testowner/testrepo/pull/123",
+    };
+    mockDependencies.github.rest.pulls.create.mockResolvedValue({ data: mockPR });
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify branch rename was called
+    const branchRenameCalls = global.exec.exec.mock.calls.filter(call => call[0] && call[0].includes("git branch -m"));
+    expect(branchRenameCalls.length).toBeGreaterThan(0);
+
+    // Verify warning about branch collision
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(expect.stringContaining("already exists"));
+
+    // Verify PR was created with renamed branch
+    expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        head: expect.stringMatching(/test-workflow-1234567890abcdef-fedcba09/),
+      })
+    );
+  });
+
   describe("if-no-changes configuration", () => {
     beforeEach(() => {
       mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
