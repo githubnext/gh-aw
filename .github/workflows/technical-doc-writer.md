@@ -1,9 +1,8 @@
 ---
 on:
-  issues:
-    types: [opened, edited]
   pull_request:
-    types: [opened, edited]
+    types: [labeled]
+  workflow_dispatch:
 
 permissions: read-all
 
@@ -17,18 +16,25 @@ network:
 safe-outputs:
   add-comment:
     max: 1
+  create-pull-request:
+    title-prefix: "[docs] "
+    labels: [documentation]
+    draft: false
 
 tools:
+  cache-memory: true
   github:
     allowed:
       - get_issue
       - get_pull_request
       - get_file_contents
       - list_commits
+      - add_reaction
   edit:
   bash:
     - "find .github/workflows -name '*.md'"
     - "ls -la docs"
+    - "make*"
 
 timeout_minutes: 10
 
@@ -154,10 +160,12 @@ jobs:
 
 ## Your Task
 
-When reviewing issues or pull requests about documentation, apply these principles to:
+This workflow is triggered when a pull request is labeled with "document" or manually via workflow_dispatch.
 
-1. **Review the proposed documentation changes** in the issue or PR: "${{ needs.activation.outputs.text }}"
-2. **Analyze against the persona principles** above
+When reviewing pull requests with documentation changes in the **docs/** folder, apply these principles to:
+
+1. **Review the documentation changes** in the PR: "${{ needs.activation.outputs.text }}"
+2. **Analyze files in the docs/ folder** against the persona principles above
 3. **Provide constructive feedback** as a comment addressing:
    - Clarity and conciseness
    - Tone and voice consistency with GitHub Docs
@@ -167,5 +175,8 @@ When reviewing issues or pull requests about documentation, apply these principl
    - Any missing prerequisites or setup steps
    - Appropriate use of admonitions
    - Link quality and accessibility
+4. **Optionally create a pull request** with suggested improvements if significant changes are needed
 
 Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements.
+
+You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
