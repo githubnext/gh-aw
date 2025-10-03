@@ -902,7 +902,7 @@ jobs:
           mkdir -p /tmp/aw-logs
           which codex
           codex --version
-          codex exec --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
@@ -2160,7 +2160,7 @@ jobs:
           mkdir -p /tmp/aw-logs
           which codex
           codex --version
-          codex exec --full-auto "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
         env:
           CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml

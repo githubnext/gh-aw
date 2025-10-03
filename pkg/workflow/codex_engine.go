@@ -110,7 +110,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// See https://github.com/githubnext/gh-aw/issues/892
-	fullAutoParam := " --full-auto " //"--dangerously-bypass-approvals-and-sandbox "
+	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
