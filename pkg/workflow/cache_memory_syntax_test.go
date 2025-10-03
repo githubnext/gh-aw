@@ -1,0 +1,93 @@
+package workflow
+
+import (
+	"testing"
+)
+
+func TestCacheMemorySyntaxVariations(t *testing.T) {
+	tests := []struct {
+		name        string
+		cacheValue  any
+		shouldWork  bool
+		description string
+	}{
+		{
+			name:        "cache-memory with nil (no value)",
+			cacheValue:  nil,
+			shouldWork:  true,
+			description: "Should enable cache-memory when field is present without value",
+		},
+		{
+			name:        "cache-memory with true",
+			cacheValue:  true,
+			shouldWork:  true,
+			description: "Should enable cache-memory with boolean true",
+		},
+		{
+			name:        "cache-memory with false",
+			cacheValue:  false,
+			shouldWork:  true, // Still valid, just disabled
+			description: "Should disable cache-memory with boolean false",
+		},
+		{
+			name: "cache-memory with object",
+			cacheValue: map[string]any{
+				"key": "custom-key",
+			},
+			shouldWork:  true,
+			description: "Should enable cache-memory with custom configuration",
+		},
+		{
+			name:        "cache-memory with empty object",
+			cacheValue:  map[string]any{},
+			shouldWork:  true,
+			description: "Should enable cache-memory with empty object using defaults",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler(false, "", "test")
+			tools := map[string]any{
+				"cache-memory": tt.cacheValue,
+			}
+
+			config := compiler.extractCacheMemoryConfig(tools)
+
+			if tt.cacheValue == nil || tt.cacheValue == true {
+				if config == nil {
+					t.Errorf("Expected non-nil config for %s", tt.description)
+					return
+				}
+				if !config.Enabled {
+					t.Errorf("Expected Enabled=true for %s", tt.description)
+				}
+				if config.Key == "" {
+					t.Errorf("Expected default Key to be set for %s", tt.description)
+				}
+			} else if tt.cacheValue == false {
+				if config == nil {
+					t.Errorf("Expected non-nil config for %s", tt.description)
+					return
+				}
+				if config.Enabled {
+					t.Errorf("Expected Enabled=false for %s", tt.description)
+				}
+			} else if configMap, ok := tt.cacheValue.(map[string]any); ok {
+				if config == nil {
+					t.Errorf("Expected non-nil config for %s", tt.description)
+					return
+				}
+				if !config.Enabled {
+					t.Errorf("Expected Enabled=true for object config: %s", tt.description)
+				}
+				if customKey, hasKey := configMap["key"]; hasKey {
+					expectedKey := customKey.(string) + "-${{ github.run_id }}"
+					if config.Key != expectedKey {
+						t.Errorf("Expected Key=%s, got %s", expectedKey, config.Key)
+					}
+				}
+			}
+		})
+	}
+}
