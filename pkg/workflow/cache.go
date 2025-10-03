@@ -23,6 +23,14 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 
 	config := &CacheMemoryConfig{}
 
+	// Handle nil value (simple enable with defaults) - same as true
+	// This handles the case where cache-memory: is specified without a value
+	if cacheMemoryValue == nil {
+		config.Enabled = true
+		config.Key = "memory-${{ github.workflow }}-${{ github.run_id }}"
+		return config
+	}
+
 	// Handle boolean value (simple enable/disable)
 	if boolValue, ok := cacheMemoryValue.(bool); ok {
 		config.Enabled = boolValue
