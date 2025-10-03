@@ -87,6 +87,13 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write(/tmp/cache-memory/*)",
 		},
 		{
+			name: "cache-memory with nil value (no value specified)",
+			tools: map[string]any{
+				"cache-memory": nil,
+			},
+			expected: "Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/cache-memory/*),NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write(/tmp/cache-memory/*)",
+		},
+		{
 			name: "cache-memory with github tools",
 			tools: map[string]any{
 				"cache-memory": true,
