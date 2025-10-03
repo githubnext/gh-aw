@@ -24,6 +24,24 @@ safe-outputs:
     labels: [documentation]
     draft: false
 
+steps:
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: '24'
+      cache: 'npm'
+      cache-dependency-path: 'docs/package-lock.json'
+
+  - name: Install dependencies
+    working-directory: ./docs
+    run: npm ci
+
+  - name: Build documentation
+    working-directory: ./docs
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: npm run build
+
 tools:
   cache-memory: true
   github:
@@ -169,11 +187,14 @@ This workflow is triggered manually via workflow_dispatch with a documentation t
 
 **Topic to review:** "${{ github.event.inputs.topic }}"
 
+The documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.
+
 When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
 
 1. **Analyze the topic** provided in the workflow input
 2. **Review relevant documentation files** in the docs/ folder related to: "${{ github.event.inputs.topic }}"
-3. **Provide constructive feedback** as a comment addressing:
+3. **Verify the built documentation** in docs/dist is properly generated
+4. **Provide constructive feedback** as a comment addressing:
    - Clarity and conciseness
    - Tone and voice consistency with GitHub Docs
    - Code block formatting and examples
@@ -182,7 +203,8 @@ When reviewing documentation for the specified topic in the **docs/** folder, ap
    - Any missing prerequisites or setup steps
    - Appropriate use of admonitions
    - Link quality and accessibility
-4. **Optionally create a pull request** with suggested improvements if significant changes are needed
+   - Build output quality and completeness
+5. **Optionally create a pull request** with suggested improvements if significant changes are needed
 
 Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
 
