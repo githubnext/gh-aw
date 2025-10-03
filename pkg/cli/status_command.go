@@ -10,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func StatusWorkflows(pattern string, verbose bool) error {
@@ -49,7 +50,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	}
 
 	// Build table configuration
-	headers := []string{"Workflow", "Agent", "Status", "Time Remaining"}
+	headers := []string{"Workflow", "Agent", "Compiled", "Status", "Time Remaining"}
 	var rows [][]string
 
 	for _, file := range mdFiles {
@@ -66,9 +67,19 @@ func StatusWorkflows(pattern string, verbose bool) error {
 
 		// Check if compiled (.lock.yml file is in .github/workflows)
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+		compiled := "N/A"
 		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
+			// Check if up to date
+			mdStat, _ := os.Stat(file)
+			lockStat, _ := os.Stat(lockFile)
+			if mdStat.ModTime().After(lockStat.ModTime()) {
+				compiled = "No"
+			} else {
+				compiled = "Yes"
+			}
+
 			// Extract stop-time from lock file
 			if stopTime := extractStopTimeFromLockFile(lockFile); stopTime != "" {
 				timeRemaining = calculateTimeRemaining(stopTime)
@@ -86,7 +97,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		}
 
 		// Build row data
-		row := []string{name, agent, status, timeRemaining}
+		row := []string{name, agent, compiled, status, timeRemaining}
 		rows = append(rows, row)
 	}
 
@@ -233,24 +244,18 @@ func extractEngineIDFromFile(filePath string) string {
 		return "claude" // Default engine
 	}
 
-	// Check if engine field exists
-	engine, exists := result.Frontmatter["engine"]
-	if !exists {
-		return "claude" // Default engine
+	// Use the workflow package's extractEngineConfig to handle both string and object formats
+	compiler := &workflow.Compiler{}
+	engineSetting, engineConfig := compiler.ExtractEngineConfig(result.Frontmatter)
+
+	// If engine is specified, return the ID from the config
+	if engineConfig != nil && engineConfig.ID != "" {
+		return engineConfig.ID
 	}
 
-	// Handle string format (e.g., "engine: copilot")
-	if engineStr, ok := engine.(string); ok {
-		return engineStr
-	}
-
-	// Handle object format (e.g., "engine: { id: copilot }")
-	if engineObj, ok := engine.(map[string]any); ok {
-		if id, hasID := engineObj["id"]; hasID {
-			if idStr, ok := id.(string); ok {
-				return idStr
-			}
-		}
+	// If we have an engine setting string, return it
+	if engineSetting != "" {
+		return engineSetting
 	}
 
 	return "claude" // Default engine

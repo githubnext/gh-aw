@@ -63,7 +63,7 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 					threatConfig.EngineConfig = &EngineConfig{ID: engineStr}
 				} else if engineObj, ok := engine.(map[string]any); ok {
 					// Handle object format - use extractEngineConfig logic
-					_, engineConfig := c.extractEngineConfig(map[string]any{"engine": engineObj})
+					_, engineConfig := c.ExtractEngineConfig(map[string]any{"engine": engineObj})
 					threatConfig.EngineConfig = engineConfig
 				}
 			}
