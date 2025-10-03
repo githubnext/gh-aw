@@ -140,6 +140,13 @@ type WorkflowData struct {
 	Roles              []string            // permission levels required to trigger workflow
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 	SafetyPrompt       bool                // whether to include XPIA safety prompt (default true)
+	DiscussionConfig   *DiscussionConfig   // discussion configuration for tracking workflow progress
+}
+
+// DiscussionConfig holds configuration for discussion creation in activation job
+type DiscussionConfig struct {
+	Enabled      bool   // whether discussion creation is enabled
+	CategoryName string // discussion category name (defaults to "Agentic Workflows")
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -640,6 +647,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Services = c.extractTopLevelYAMLSection(result.Frontmatter, "services")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
+	workflowData.DiscussionConfig = c.extractDiscussionConfig(result.Frontmatter)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
@@ -1642,6 +1650,26 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
+	// Add discussion creation step if enabled
+	if data.DiscussionConfig != nil && data.DiscussionConfig.Enabled {
+		steps = append(steps, "      - name: Create discussion to track workflow run\n")
+		steps = append(steps, "        id: create-discussion\n")
+		steps = append(steps, "        uses: actions/github-script@v8\n")
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY: %q\n", data.DiscussionConfig.CategoryName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Inline the JavaScript directly
+		steps = append(steps, FormatJavaScriptForYAML(createActivationDiscussionScript)...)
+
+		// Set up outputs for discussion
+		outputs["discussion-id"] = "${{ steps.create-discussion.outputs.discussion-id }}"
+		outputs["discussion-number"] = "${{ steps.create-discussion.outputs.discussion-number }}"
+		outputs["discussion-url"] = "${{ steps.create-discussion.outputs.discussion-url }}"
+	}
+
 	// If no steps have been added, add a dummy step to make the job valid
 	// This can happen when the activation job is created only for an if condition
 	if len(steps) == 0 {
@@ -1673,6 +1701,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 
 	// No special permissions needed since role checks are handled by separate job
 	var permissions string
+
+	// Add discussions: write permission if discussion creation is enabled
+	if data.DiscussionConfig != nil && data.DiscussionConfig.Enabled {
+		permissions = "permissions:\n      discussions: write"
+	}
 
 	job := &Job{
 		Name:        constants.ActivationJobName,
@@ -2728,4 +2761,46 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 			config.GitHubToken = githubTokenStr
 		}
 	}
+}
+
+// extractDiscussionConfig extracts discussion configuration from frontmatter
+func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *DiscussionConfig {
+	discussionValue, exists := frontmatter["discussion"]
+	if !exists {
+		// Default: enabled with default category
+		return &DiscussionConfig{
+			Enabled:      true,
+			CategoryName: "Agentic Workflows",
+		}
+	}
+
+	config := &DiscussionConfig{}
+
+	// Handle nil value (simple enable with defaults)
+	if discussionValue == nil {
+		config.Enabled = true
+		config.CategoryName = "Agentic Workflows"
+		return config
+	}
+
+	// Handle boolean value (explicit enable/disable)
+	if boolValue, ok := discussionValue.(bool); ok {
+		config.Enabled = boolValue
+		if config.Enabled {
+			config.CategoryName = "Agentic Workflows"
+		}
+		return config
+	}
+
+	// Handle string value (custom category name)
+	if categoryName, ok := discussionValue.(string); ok {
+		config.Enabled = true
+		config.CategoryName = categoryName
+		return config
+	}
+
+	// Invalid type, default to enabled with default category
+	config.Enabled = true
+	config.CategoryName = "Agentic Workflows"
+	return config
 }

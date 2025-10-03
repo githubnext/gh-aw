@@ -2086,6 +2086,23 @@
         }
       ]
     },
+    "discussion": {
+      "description": "Discussion configuration for tracking workflow progress. Enabled by default with 'Agentic Workflows' category. Can be disabled with false or customized with a category name.",
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "Enable (true) or disable (false) discussion creation. When true, uses default 'Agentic Workflows' category."
+        },
+        {
+          "type": "null",
+          "description": "Enable with default 'Agentic Workflows' category (same as true)"
+        },
+        {
+          "type": "string",
+          "description": "Enable with custom discussion category name"
+        }
+      ]
+    },
     "githubActionsStep": {
       "type": "object",
       "description": "GitHub Actions workflow step",

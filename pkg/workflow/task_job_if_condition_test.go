@@ -71,12 +71,15 @@ Check the failed workflow and provide analysis.`
 		t.Error("Activation job should contain steps section")
 	}
 
-	// Test 4: Verify the dummy step has the run command (no name field anymore)
-	if !strings.Contains(lockContentStr, "run: echo \"Activation success\"") {
-		t.Error("Activation job should contain the dummy step run command")
+	// Test 4: Verify the dummy step has the run command OR discussion creation step
+	hasDummyStep := strings.Contains(lockContentStr, "run: echo \"Activation success\"")
+	hasDiscussionStep := strings.Contains(lockContentStr, "Create discussion to track workflow run")
+
+	if !hasDummyStep && !hasDiscussionStep {
+		t.Error("Activation job should contain either the dummy step or discussion creation step")
 	}
 
-	// Test 5: Verify no name field is present for the step (we removed it)
+	// Test 5: Verify no name field is present for the old dummy step (we removed it)
 	if strings.Contains(lockContentStr, "name: Task job condition barrier") {
 		t.Error("Activation job should not contain the old step name")
 	}
