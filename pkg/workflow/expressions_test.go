@@ -936,11 +936,11 @@ func TestHelperFunctionsForMultiline(t *testing.T) {
 		}
 	})
 
-	t.Run("BuildMultilineDisjunction", func(t *testing.T) {
+	t.Run("BuildDisjunction with multiline", func(t *testing.T) {
 		term1 := BuildExpressionWithDescription("github.event_name == 'issues'", "Handle issue events")
 		term2 := BuildExpressionWithDescription("github.event_name == 'pull_request'", "Handle PR events")
 
-		disjunction := BuildMultilineDisjunction(term1, term2)
+		disjunction := BuildDisjunction(true, term1, term2)
 
 		if !disjunction.Multiline {
 			t.Error("Expected Multiline to be true")
@@ -948,6 +948,23 @@ func TestHelperFunctionsForMultiline(t *testing.T) {
 
 		expected := "# Handle issue events\ngithub.event_name == 'issues' ||\n# Handle PR events\ngithub.event_name == 'pull_request'"
 		if result := disjunction.Render(); result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("BuildDisjunction with single term", func(t *testing.T) {
+		term := BuildExpressionWithDescription("github.event_name == 'issues'", "Handle issue events")
+
+		// Test with multiline=false
+		disjunctionSingle := BuildDisjunction(false, term)
+		expected := "github.event_name == 'issues'"
+		if result := disjunctionSingle.Render(); result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+
+		// Test with multiline=true - should still render as single term without OR
+		disjunctionMulti := BuildDisjunction(true, term)
+		if result := disjunctionMulti.Render(); result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
 		}
 	})
