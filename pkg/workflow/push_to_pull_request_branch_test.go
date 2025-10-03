@@ -16,6 +16,7 @@ func TestPushToPullRequestBranchConfigParsing(t *testing.T) {
 on:
   pull_request:
     types: [opened, synchronize]
+discussion: false
 safe-outputs:
   push-to-pull-request-branch:
     target: "triggering"

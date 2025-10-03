@@ -218,6 +218,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+discussion: false
 safe-outputs:
   create-issue:
     title-prefix: "[genai] "
@@ -523,6 +524,7 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
+discussion: false
 safe-outputs:
   add-comment:
 ---
@@ -762,6 +764,7 @@ tools:
   github:
     allowed: [list_issues]
 engine: claude
+discussion: false
 safe-outputs:
   create-pull-request:
     title-prefix: "[agent] "
@@ -1091,6 +1094,7 @@ tools:
   github:
     allowed: [get_issue]
 engine: claude
+discussion: false
 safe-outputs:
   add-labels:
     allowed: [triage, bug, enhancement]

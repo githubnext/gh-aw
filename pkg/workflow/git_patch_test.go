@@ -29,6 +29,7 @@ func TestGitPatchGeneration(t *testing.T) {
 	testMarkdown := `---
 on:
   workflow_dispatch:
+discussion: false
 safe-outputs:
   create-pull-request:
 ---

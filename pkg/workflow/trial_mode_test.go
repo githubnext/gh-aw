@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
 engine: claude
+discussion: false
 safe-outputs:
   create-pull-request: {}
   create-issue: {}

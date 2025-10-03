@@ -33,10 +33,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Pass the workflow name for footer generation
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
 	// Pass the discussion ID if available (from activation job)
-	if data.DiscussionConfig != nil && data.DiscussionConfig.Enabled {
-		steps = append(steps, "          GITHUB_AW_DISCUSSION_NUMBER: ${{ needs.activation.outputs.discussion-number }}\n")
-		steps = append(steps, "          GITHUB_AW_DISCUSSION_URL: ${{ needs.activation.outputs.discussion-url }}\n")
-	}
+	c.addDiscussionEnvVars(&steps, data)
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
