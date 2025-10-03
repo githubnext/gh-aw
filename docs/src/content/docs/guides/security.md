@@ -377,6 +377,31 @@ Body: "${{ github.event.issue.body }}"
 - **Input sanitization**: Always use sanitized context text for user-controlled content
 - **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
 
+### Safe Outputs Security Model
+
+Safe outputs provide a security-first approach to GitHub API interactions by separating AI processing from write operations. The agentic portion of workflows runs with minimal read-only permissions, while separate jobs handle validated GitHub API operations like creating issues, comments, or pull requests.
+
+This architecture ensures the AI never has direct write access to your repository, preventing unauthorized changes while still enabling automated actions. All agent output is automatically sanitized and validated before processing.
+
+See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete configuration details and available output types.
+
+### Threat Detection
+
+GitHub Agentic Workflows includes automatic threat detection to analyze agent output and code changes for potential security issues before they are applied. When safe outputs are configured, a threat detection job automatically runs to identify prompt injection attempts, secret leaks, and malicious code patches.
+
+The system uses AI-powered analysis with workflow source context to distinguish between legitimate actions and threats, helping reduce false positives while maintaining strong security controls.
+
+See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for threat detection configuration options.
+
+### Network Isolation
+
+Network isolation in GitHub Agentic Workflows operates at two layers to prevent unauthorized network access:
+
+1. **MCP Tool Network Controls**: Containerized tools with network-level domain allowlisting
+2. **AI Engine Network Permissions**: Configurable network access controls for AI engines
+
+See the [Network Reference](/gh-aw/reference/network/) for detailed configuration options and the [Engine Network Permissions](#engine-network-permissions) section below for engine-specific controls.
+
 ## Engine Network Permissions
 
 ### Overview
@@ -471,6 +496,8 @@ Copilot and Claude expose richer default tools and optional Bash; Codex relies m
 
 ## See also
 
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
+- [Network Configuration](/gh-aw/reference/network/)
 - [Tools Configuration](/gh-aw/reference/tools/)
 - [MCPs](/gh-aw/guides/mcps/)
 - [Workflow Structure](/gh-aw/reference/workflow-structure/)

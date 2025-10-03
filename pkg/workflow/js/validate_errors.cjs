@@ -28,7 +28,7 @@ function main() {
     }
   } catch (error) {
     console.debug(error);
-    core.setFailed(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
+    core.error(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

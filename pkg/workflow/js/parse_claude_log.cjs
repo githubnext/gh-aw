@@ -13,6 +13,7 @@ function main() {
     }
     const logContent = fs.readFileSync(logFile, "utf8");
     const result = parseClaudeLog(logContent);
+    core.info(result.markdown);
     core.summary.addRaw(result.markdown).write();
     if (result.mcpFailures && result.mcpFailures.length > 0) {
       const failedServers = result.mcpFailures.join(", ");

@@ -324,6 +324,12 @@ npm warn exec The following package was not found
       const markdownCall = mockCore.summary.addRaw.mock.calls[0];
       expect(markdownCall[0]).toContain("🚀 Initialization");
       expect(markdownCall[0]).toContain("integration-test");
+
+      // Verify that core.info was also called with the same content (via write helper)
+      expect(mockCore.info).toHaveBeenCalled();
+      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🚀 Initialization"));
+      expect(infoCall).toBeDefined();
+      expect(infoCall[0]).toContain("integration-test");
     });
 
     it("should handle log with MCP failures", async () => {
