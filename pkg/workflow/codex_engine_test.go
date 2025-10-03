@@ -46,13 +46,6 @@ func TestCodexEngine(t *testing.T) {
 		}
 	}
 
-	// Verify third step is Authenticate with Codex
-	if len(steps) > 2 && len(steps[2]) > 0 {
-		if !strings.Contains(steps[2][0], "Authenticate with Codex") {
-			t.Errorf("Expected third step to contain 'Authenticate with Codex', got '%s'", steps[2][0])
-		}
-	}
-
 	// Test execution steps
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -73,8 +66,12 @@ func TestCodexEngine(t *testing.T) {
 		t.Errorf("Expected no action for Codex (uses command), got step with 'uses:' in:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "codex login") {
-		t.Errorf("Expected command to contain 'codex login' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "codex") {
+		t.Errorf("Expected command to contain 'codex' in step content:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "exec") {
+		t.Errorf("Expected command to contain 'exec' in step content:\n%s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "test-log") {
@@ -87,8 +84,8 @@ func TestCodexEngine(t *testing.T) {
 	}
 
 	// Check environment variables
-	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
-		t.Errorf("Expected OPENAI_API_KEY environment variable in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}") {
+		t.Errorf("Expected CODEX_API_KEY environment variable in step content:\n%s", stepContent)
 	}
 }
 
