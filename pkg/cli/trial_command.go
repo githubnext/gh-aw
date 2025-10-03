@@ -107,30 +107,30 @@ Trial results are saved both locally (in trials/ directory) and in the trial rep
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowNames []string, sourceRepo string, targetRepo string, trialRepo string, deleteRepo, quiet bool, timeoutMinutes int, verbose bool) error {
+func RunWorkflowTrials(workflowNames []string, sourceRepoSlug string, targetRepoSlug string, trialRepo string, deleteRepo, quiet bool, timeoutMinutes int, verbose bool) error {
 	if len(workflowNames) == 1 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", workflowNames[0], sourceRepo)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", workflowNames[0], sourceRepoSlug)))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s) from '%s'", len(workflowNames), strings.Join(workflowNames, ", "), sourceRepo)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s) from '%s'", len(workflowNames), strings.Join(workflowNames, ", "), sourceRepoSlug)))
 	}
 
 	// Generate a unique datetime-ID for this trial session
 	dateTimeID := fmt.Sprintf("%s-%d", time.Now().Format("20060102-150405"), time.Now().UnixNano()%1000000)
 
 	// Step 0: Determine target repository
-	var finalTargetRepo string
-	if targetRepo != "" {
+	var finalTargetRepoSlug string
+	if targetRepoSlug != "" {
 		// Use the provided target repository
-		finalTargetRepo = targetRepo
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", finalTargetRepo)))
+		finalTargetRepoSlug = targetRepoSlug
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", finalTargetRepoSlug)))
 	} else {
 		// Fall back to current repository
 		var err error
-		finalTargetRepo, err = getCurrentRepositoryInfo()
+		finalTargetRepoSlug, err = getCurrentRepositoryInfo()
 		if err != nil {
 			return fmt.Errorf("failed to determine target repository: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (current): %s", finalTargetRepo)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (current): %s", finalTargetRepoSlug)))
 	}
 
 	// Step 1: Determine trial repository slug
@@ -161,7 +161,7 @@ func RunWorkflowTrials(workflowNames []string, sourceRepo string, targetRepo str
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !quiet {
-		if err := showTrialConfirmation(workflowNames, sourceRepo, finalTargetRepo, trialRepoSlug, deleteRepo); err != nil {
+		if err := showTrialConfirmation(workflowNames, sourceRepoSlug, finalTargetRepoSlug, trialRepoSlug, deleteRepo); err != nil {
 			return err
 		}
 	}
@@ -203,7 +203,7 @@ func RunWorkflowTrials(workflowNames []string, sourceRepo string, targetRepo str
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", workflowName)))
 
 		// Install workflow with trial mode compilation
-		if err := installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, finalTargetRepo, trialRepoSlug, verbose); err != nil {
+		if err := installWorkflowInTrialMode(tempDir, workflowName, sourceRepoSlug, finalTargetRepoSlug, trialRepoSlug, verbose); err != nil {
 			return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", workflowName, err)
 		}
 
@@ -499,7 +499,7 @@ func cloneTrialRepository(repoSlug string, verbose bool) (string, error) {
 	return tempDir, nil
 }
 
-func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, trialRepoSlug string, verbose bool) error {
+func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepoSlug, trialRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", workflowName, sourceRepo)))
 	}
@@ -526,23 +526,23 @@ func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepo, t
 	}
 
 	// Now we need to modify the workflow for trial mode
-	if err := modifyWorkflowForTrialMode(tempDir, workflowName, targetRepo, verbose); err != nil {
+	if err := modifyWorkflowForTrialMode(tempDir, workflowName, targetRepoSlug, verbose); err != nil {
 		return fmt.Errorf("failed to modify workflow for trial mode: %w", err)
 	}
 
 	// Compile the workflow with trial modifications
 	config := CompileConfig{
-		MarkdownFiles:    []string{},
-		Verbose:          verbose,
-		EngineOverride:   "",
-		Validate:         true,
-		Watch:            false,
-		WorkflowDir:      "",
-		SkipInstructions: false,
-		NoEmit:           false,
-		Purge:            false,
-		TrialMode:        true,
-		TrialTargetRepo:  targetRepo,
+		MarkdownFiles:       []string{},
+		Verbose:             verbose,
+		EngineOverride:      "",
+		Validate:            true,
+		Watch:               false,
+		WorkflowDir:         "",
+		SkipInstructions:    false,
+		NoEmit:              false,
+		Purge:               false,
+		TrialMode:           true,
+		TrialTargetRepoSlug: targetRepoSlug,
 	}
 	workflowDataList, err := CompileWorkflows(config)
 	if err != nil {

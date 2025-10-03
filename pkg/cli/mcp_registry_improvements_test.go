@@ -225,11 +225,12 @@ func TestMCPRegistryClient_GitHubRegistryAccessibility(t *testing.T) {
 
 	// We expect either 200 (success) or 403 (firewall/network restriction)
 	// Both indicate the endpoint exists and is reachable
-	if resp.StatusCode == http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
 		t.Logf("✓ GitHub MCP registry is accessible and returned 200 OK")
-	} else if resp.StatusCode == http.StatusForbidden {
+	case http.StatusForbidden:
 		t.Logf("✓ GitHub MCP registry is reachable but returned 403 (expected due to network restrictions)")
-	} else {
+	default:
 		t.Errorf("GitHub MCP registry returned unexpected status: %d", resp.StatusCode)
 	}
 

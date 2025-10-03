@@ -103,17 +103,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	}
 
 	// Step 2: Checkout repository
-	steps = append(steps, "      - name: Checkout repository\n")
-	steps = append(steps, "        uses: actions/checkout@v5\n")
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          fetch-depth: 0\n")
-	if c.trialMode {
-		steps = append(steps, "        with:\n")
-		if c.trialTargetRepo != "" {
-			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialTargetRepo))
-		}
-		steps = append(steps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
-	}
+	steps = buildCheckoutRepository(steps, c)
 
 	// Step 3: Configure Git credentials
 	steps = append(steps, c.generateGitConfigurationSteps()...)
