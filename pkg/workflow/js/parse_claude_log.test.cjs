@@ -458,23 +458,4 @@ npm warn exec The following package was not found
       expect(result.markdown).toContain("github::create_pull_request");
     });
   });
-
-  describe("write helper function", () => {
-    it("should write to both core.info and core.summary", () => {
-      // Extract the write function from the script
-      const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testWrite = write;");
-      const scriptFunction = new Function(scriptWithExport);
-      scriptFunction();
-      const write = global.testWrite;
-
-      const testText = "Test output message";
-      write(testText);
-
-      // Verify core.info was called with the text
-      expect(mockCore.info).toHaveBeenCalledWith(testText);
-
-      // Verify core.summary.addRaw was called with the text
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(testText);
-    });
-  });
 });

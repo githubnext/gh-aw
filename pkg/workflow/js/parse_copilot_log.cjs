@@ -1,12 +1,3 @@
-/**
- * Helper function to write output to both terminal (core.info) and step summary (core.summary)
- * @param {string} text - The text to write
- */
-function write(text) {
-  core.info(text);
-  core.summary.addRaw(text);
-}
-
 function main() {
   const fs = require("fs");
 
@@ -26,8 +17,8 @@ function main() {
     const parsedLog = parseCopilotLog(content);
 
     if (parsedLog) {
-      write(parsedLog);
-      core.summary.write();
+      core.info(parsedLog);
+      core.summary.addRaw(parsedLog).write();
       console.log("Copilot log parsed successfully");
     } else {
       console.log("Failed to parse Copilot log");
@@ -135,7 +126,7 @@ function parseCopilotLog(logContent) {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseCopilotLog, write };
+  module.exports = { parseCopilotLog };
 }
 
 main();
