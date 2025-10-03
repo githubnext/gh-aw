@@ -49,7 +49,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	}
 
 	// Build table configuration
-	headers := []string{"Name", "Installed", "Up-to-date", "Status", "Time Remaining"}
+	headers := []string{"Name", "Agent", "Status", "Time Remaining"}
 	var rows [][]string
 
 	for _, file := range mdFiles {
@@ -61,24 +61,14 @@ func StatusWorkflows(pattern string, verbose bool) error {
 			continue
 		}
 
+		// Extract engine ID from workflow file
+		agent := extractEngineIDFromFile(file)
+
 		// Check if compiled (.lock.yml file is in .github/workflows)
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
-		compiled := "No"
-		upToDate := "N/A"
 		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
-			compiled = "Yes"
-
-			// Check if up to date
-			mdStat, _ := os.Stat(file)
-			lockStat, _ := os.Stat(lockFile)
-			if mdStat.ModTime().After(lockStat.ModTime()) {
-				upToDate = "No"
-			} else {
-				upToDate = "Yes"
-			}
-
 			// Extract stop-time from lock file
 			if stopTime := extractStopTimeFromLockFile(lockFile); stopTime != "" {
 				timeRemaining = calculateTimeRemaining(stopTime)
@@ -96,7 +86,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		}
 
 		// Build row data
-		row := []string{name, compiled, upToDate, status, timeRemaining}
+		row := []string{name, agent, status, timeRemaining}
 		rows = append(rows, row)
 	}
 
@@ -228,4 +218,40 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	}
 
 	return strings.Join(words, " "), nil
+}
+
+// extractEngineIDFromFile extracts the engine ID from a workflow file's frontmatter
+func extractEngineIDFromFile(filePath string) string {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "claude" // Default engine
+	}
+
+	// Parse frontmatter
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return "claude" // Default engine
+	}
+
+	// Check if engine field exists
+	engine, exists := result.Frontmatter["engine"]
+	if !exists {
+		return "claude" // Default engine
+	}
+
+	// Handle string format (e.g., "engine: copilot")
+	if engineStr, ok := engine.(string); ok {
+		return engineStr
+	}
+
+	// Handle object format (e.g., "engine: { id: copilot }")
+	if engineObj, ok := engine.(map[string]any); ok {
+		if id, hasID := engineObj["id"]; hasID {
+			if idStr, ok := id.(string); ok {
+				return idStr
+			}
+		}
+	}
+
+	return "claude" // Default engine
 }
