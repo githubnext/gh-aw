@@ -32,7 +32,7 @@ If this step fails, you may need to use a personal access token or run the [inst
 The easiest way to get started is to add a sample from [The Agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
 ```bash wrap
-gh aw add weekly-research -r githubnext/agentics --pr
+gh aw add githubnext/agentics/weekly-research --pr
 ```
 
 This creates a pull request that adds `.github/workflows/weekly-research.md` and the compiled `.lock.yml`. Review and merge the PR into your repo.

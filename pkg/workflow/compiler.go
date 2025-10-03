@@ -130,6 +130,7 @@ type WorkflowData struct {
 	EngineConfig       *EngineConfig // Extended engine configuration
 	StopTime           string
 	Command            string              // for /command trigger support
+	CommandEvents      []string            // events where command should be active (nil = all events)
 	CommandOtherEvents map[string]any      // for merging command with other events
 	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
 	Jobs               map[string]any      // custom job configurations with dependencies
@@ -647,7 +648,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
-	workflowData.Command = c.extractCommandName(result.Frontmatter)
+	workflowData.Command, workflowData.CommandEvents = c.extractCommandConfig(result.Frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(result.Frontmatter)
 	workflowData.Roles = c.extractRoles(result.Frontmatter)
 
@@ -1030,29 +1031,41 @@ func (c *Compiler) generateJobName(workflowName string) string {
 	}
 
 	return jobName
-} // extractCommandName extracts the command name from frontmatter using the new nested format
-func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
+}
+
+// extractCommandConfig extracts command configuration from frontmatter including name and events
+func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName string, commandEvents []string) {
 	// Check new format: on.command or on.command.name
 	if onValue, exists := frontmatter["on"]; exists {
 		if onMap, ok := onValue.(map[string]any); ok {
 			if commandValue, hasCommand := onMap["command"]; hasCommand {
 				// Check if command is a string (shorthand format)
 				if commandStr, ok := commandValue.(string); ok {
-					return commandStr
+					return commandStr, nil // nil means default (all events)
 				}
 				// Check if command is a map with a name key (object format)
 				if commandMap, ok := commandValue.(map[string]any); ok {
+					var name string
+					var events []string
+
 					if nameValue, hasName := commandMap["name"]; hasName {
 						if nameStr, ok := nameValue.(string); ok {
-							return nameStr
+							name = nameStr
 						}
 					}
+
+					// Extract events field
+					if eventsValue, hasEvents := commandMap["events"]; hasEvents {
+						events = ParseCommandEvents(eventsValue)
+					}
+
+					return name, events
 				}
 			}
 		}
 	}
 
-	return ""
+	return "", nil
 }
 
 // mergeTools merges two tools maps, combining allowed arrays when keys coincide

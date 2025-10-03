@@ -316,6 +316,23 @@ on:
 
 This automatically creates conditions to match `/my-bot` mentions in issue bodies and comments.
 
+You can restrict where commands are active using the `events:` field:
+
+```yaml
+on:
+  command:
+    name: my-bot
+    events: [issues, issue_comment]  # Only in issue bodies and issue comments
+```
+
+**Supported event identifiers:**
+- `issues` - Issue bodies (opened, edited, reopened)
+- `issue_comment` - Comments on issues only (excludes PR comments)
+- `pull_request_comment` - Comments on pull requests only (excludes issue comments)
+- `pull_request` - Pull request bodies (opened, edited, reopened)
+- `pull_request_review_comment` - Pull request review comments
+- `*` - All comment-related events (default)
+
 ### Semi-Active Agent Pattern
 ```yaml
 on:
