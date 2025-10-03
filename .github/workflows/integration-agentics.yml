@@ -47,7 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Installing workflows from githubnext/agentics..."
-          ./gh-aw add githubnext/agentics/weekly-researcher
+          ./gh-aw add githubnext/agentics/weekly-research
           ./gh-aw add githubnext/agentics/ci-doctor
           ./gh-aw add githubnext/agentics/issue-triage
           echo "Successfully installed agentics workflows"
