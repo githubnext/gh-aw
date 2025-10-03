@@ -23,6 +23,7 @@ safe-outputs:
     title-prefix: "[docs] "
     labels: [documentation]
     draft: false
+  upload-assets:
 
 steps:
   - name: Setup Node.js
@@ -209,7 +210,11 @@ When reviewing documentation for the specified topic in the **docs/** folder, ap
    - Appropriate use of admonitions
    - Link quality and accessibility
    - Build output quality and completeness
-5. **Optionally create a pull request** with suggested improvements if significant changes are needed
+5. **Create a pull request with improvements** if you identify any changes needed:
+   - Make the necessary edits to improve the documentation
+   - Create a pull request with your changes using the safe-outputs create-pull-request functionality
+   - Include a clear description of the improvements made
+   - Only create a pull request if you have made actual changes to the documentation files
 
 Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
 
