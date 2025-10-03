@@ -254,8 +254,8 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
     const config = {
       "add-labels": {
         allowed: ["bug", "enhancement", "documentation"],
-        max: 3
-      }
+        max: 3,
+      },
     };
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -271,7 +271,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl"
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
         },
       });
 
@@ -283,7 +283,10 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       });
 
       child.stdout.on("data", data => {
-        const lines = data.toString().split("\n").filter(l => l.trim());
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
         lines.forEach(line => {
           try {
             const msg = JSON.parse(line);
@@ -301,27 +304,29 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
 
       // Send initialization message
       setTimeout(() => {
-        const initMessage = JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "test-client", version: "1.0.0" }
-          }
-        }) + "\n";
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
         child.stdin.write(initMessage);
       }, 100);
 
       // Send tools/list request after initialization
       setTimeout(() => {
-        const listToolsMessage = JSON.stringify({
-          jsonrpc: "2.0",
-          id: 2,
-          method: "tools/list",
-          params: {}
-        }) + "\n";
+        const listToolsMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/list",
+            params: {},
+          }) + "\n";
         child.stdin.write(listToolsMessage);
       }, 200);
 
@@ -354,8 +359,8 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
   it("should not patch add_labels tool description when no allowed labels configured", async () => {
     const config = {
       "add-labels": {
-        max: 3
-      }
+        max: 3,
+      },
     };
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -371,7 +376,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl"
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
         },
       });
 
@@ -383,7 +388,10 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
       });
 
       child.stdout.on("data", data => {
-        const lines = data.toString().split("\n").filter(l => l.trim());
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
         lines.forEach(line => {
           try {
             const msg = JSON.parse(line);
@@ -401,27 +409,29 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
 
       // Send initialization message
       setTimeout(() => {
-        const initMessage = JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "test-client", version: "1.0.0" }
-          }
-        }) + "\n";
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
         child.stdin.write(initMessage);
       }, 100);
 
       // Send tools/list request after initialization
       setTimeout(() => {
-        const listToolsMessage = JSON.stringify({
-          jsonrpc: "2.0",
-          id: 2,
-          method: "tools/list",
-          params: {}
-        }) + "\n";
+        const listToolsMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/list",
+            params: {},
+          }) + "\n";
         child.stdin.write(listToolsMessage);
       }, 200);
 

@@ -642,7 +642,7 @@ function handleMessage(req) {
           description: tool.description,
           inputSchema: tool.inputSchema,
         };
-        
+
         // Patch add_labels tool description with allowed labels if configured
         if (tool.name === "add_labels" && safeOutputsConfig.add_labels?.allowed) {
           const allowedLabels = safeOutputsConfig.add_labels.allowed;
@@ -650,7 +650,7 @@ function handleMessage(req) {
             toolDef.description = `Add labels to a GitHub issue or pull request. Allowed labels: ${allowedLabels.join(", ")}`;
           }
         }
-        
+
         list.push(toolDef);
       });
       replyResult(id, { tools: list });
