@@ -376,7 +376,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			// Handle staged flag
 			if staged, exists := outputMap["staged"]; exists {
 				if stagedBool, ok := staged.(bool); ok {
-					config.Staged = &stagedBool
+					config.Staged = stagedBool
 				}
 			}
 

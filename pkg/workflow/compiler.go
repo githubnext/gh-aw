@@ -108,6 +108,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name               string
+	TrialMode          bool   // whether the workflow is running in trial mode
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	Description        string // optional description rendered as comment in lock file
 	On                 string
@@ -166,7 +167,7 @@ type SafeOutputsConfig struct {
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"` // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`             // Safe-jobs configuration (moved from top-level)
 	AllowedDomains                  []string                               `yaml:"allowed-domains,omitempty"`
-	Staged                          *bool                                  `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
+	Staged                          bool                                   `yaml:"staged,omitempty"`         // If true, emit step summary messages instead of making GitHub API calls
 	Env                             map[string]string                      `yaml:"env,omitempty"`            // Environment variables to pass to safe output jobs
 	GitHubToken                     string                                 `yaml:"github-token,omitempty"`   // GitHub token for safe output jobs
 	MaximumPatchSize                int                                    `yaml:"max-patch-size,omitempty"` // Maximum allowed patch size in KB (defaults to 1024)
@@ -1445,21 +1446,16 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		return fmt.Errorf("failed to add main job: %w", err)
 	}
 
-	// Build safe outputs jobs if configured (skip in trial mode)
-	if !c.trialMode {
-		if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, activationJobCreated, frontmatter, markdownPath); err != nil {
-			return fmt.Errorf("failed to build safe outputs jobs: %w", err)
-		}
+	// Build safe outputs jobs if configured
+	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, activationJobCreated, frontmatter, markdownPath); err != nil {
+		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 
-	// Build safe-jobs if configured (skip in trial mode)
-	if !c.trialMode {
-		// Build safe-jobs if configured
-		// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
-		threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled
-		if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
-			return fmt.Errorf("failed to build safe-jobs: %w", err)
-		}
+	// Build safe-jobs if configured
+	// Safe-jobs should depend on agent job (always) AND detection job (if threat detection is enabled)
+	threatDetectionEnabledForSafeJobs := data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled
+	if err := c.buildSafeJobs(data, threatDetectionEnabledForSafeJobs); err != nil {
+		return fmt.Errorf("failed to build safe-jobs: %w", err)
 	}
 
 	// Build additional custom jobs from frontmatter jobs section
@@ -2478,7 +2474,7 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 
 	// Add staged value from safe-outputs configuration
 	stagedValue := "false"
-	if data.SafeOutputs != nil && data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
+	if data.SafeOutputs != nil && data.SafeOutputs.Staged {
 		stagedValue = "true"
 	}
 	fmt.Fprintf(yaml, "              staged: %s,\n", stagedValue)
