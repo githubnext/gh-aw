@@ -13,9 +13,10 @@ var defaultThreatDetectionPrompt string
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
-	Enabled bool   `yaml:"enabled,omitempty"` // Whether threat detection is enabled
-	Prompt  string `yaml:"prompt,omitempty"`  // Additional custom prompt instructions to append
-	Steps   []any  `yaml:"steps,omitempty"`   // Array of extra job steps
+	Enabled      bool          `yaml:"enabled,omitempty"`       // Whether threat detection is enabled
+	Prompt       string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
+	Steps        []any         `yaml:"steps,omitempty"`         // Array of extra job steps
+	EngineConfig *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
 }
 
 // parseThreatDetectionConfig handles threat-detection configuration
@@ -52,6 +53,18 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 			if steps, exists := configMap["steps"]; exists {
 				if stepsArray, ok := steps.([]any); ok {
 					threatConfig.Steps = stepsArray
+				}
+			}
+
+			// Parse engine field (supports both string and object formats)
+			if engine, exists := configMap["engine"]; exists {
+				// Handle string format
+				if engineStr, ok := engine.(string); ok {
+					threatConfig.EngineConfig = &EngineConfig{ID: engineStr}
+				} else if engineObj, ok := engine.(map[string]any); ok {
+					// Handle object format - use extractEngineConfig logic
+					_, engineConfig := c.extractEngineConfig(map[string]any{"engine": engineObj})
+					threatConfig.EngineConfig = engineConfig
 				}
 			}
 
@@ -225,9 +238,20 @@ core.info('Threat detection setup completed');`,
 
 // buildEngineSteps creates the engine execution steps
 func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
+	// Determine which engine to use - threat detection engine if specified, otherwise main engine
 	engineSetting := data.AI
-	if data.EngineConfig != nil {
-		engineSetting = data.EngineConfig.ID
+	engineConfig := data.EngineConfig
+
+	// Check if threat detection has its own engine configuration
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		if data.SafeOutputs.ThreatDetection.EngineConfig != nil {
+			engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
+		}
+	}
+
+	// Use engine config ID if available
+	if engineConfig != nil {
+		engineSetting = engineConfig.ID
 	}
 	if engineSetting == "" {
 		engineSetting = "claude"
@@ -248,7 +272,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 		Tools:        map[string]any{},
 		SafeOutputs:  nil,
 		Network:      "",
-		EngineConfig: data.EngineConfig,
+		EngineConfig: engineConfig,
 		AI:           engineSetting,
 	}
 

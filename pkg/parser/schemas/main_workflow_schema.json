@@ -983,105 +983,7 @@
     },
     "engine": {
       "description": "AI engine configuration that specifies which AI processor interprets and executes the markdown content of the workflow. Defaults to 'claude'.",
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "claude",
-            "codex",
-            "copilot",
-            "custom"
-          ],
-          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
-        },
-        {
-          "type": "object",
-          "description": "Extended engine configuration object with advanced options for model selection, turn limiting, environment variables, and custom steps",
-          "properties": {
-            "id": {
-              "type": "string",
-              "enum": [
-                "claude",
-                "codex",
-                "custom",
-                "copilot"
-              ],
-              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
-            },
-            "version": {
-              "type": "string",
-              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable'). Has sensible defaults and can typically be omitted."
-            },
-            "model": {
-              "type": "string",
-              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
-            },
-            "max-turns": {
-              "type": "integer",
-              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted."
-            },
-            "user-agent": {
-              "type": "string",
-              "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
-            },
-            "env": {
-              "type": "object",
-              "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
-            "steps": {
-              "type": "array",
-              "description": "Custom GitHub Actions steps for 'custom' engine. Define your own deterministic workflow steps instead of using AI processing.",
-              "items": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            },
-            "error_patterns": {
-              "type": "array",
-              "description": "Custom error patterns for validating agent logs",
-              "items": {
-                "type": "object",
-                "description": "Error pattern definition",
-                "properties": {
-                  "pattern": {
-                    "type": "string",
-                    "description": "Ecma script regular expression pattern to match log lines"
-                  },
-                  "level_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
-                  },
-                  "message_group": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Human-readable description of what this pattern matches"
-                  }
-                },
-                "required": [
-                  "pattern"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "config": {
-              "type": "string",
-              "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
-            }
-          },
-          "required": [
-            "id"
-          ],
-          "additionalProperties": false
-        }
-      ]
+      "$ref": "#/$defs/engine_config"
     },
     "claude": {
       "description": "Claude-specific configuration",
@@ -2007,8 +1909,14 @@
                   "description": "Whether threat detection is enabled",
                   "default": true
                 },
-
-
+                "prompt": {
+                  "type": "string",
+                  "description": "Additional custom prompt instructions to append to threat detection analysis"
+                },
+                "engine": {
+                  "description": "AI engine configuration specifically for threat detection (overrides main workflow engine). Supports same format as main engine field.",
+                  "$ref": "#/$defs/engine_config"
+                },
                 "steps": {
                   "type": "array",
                   "description": "Array of extra job steps to run after detection",
@@ -2251,6 +2159,107 @@
   },
   "additionalProperties": false,
   "$defs": {
+    "engine_config": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "claude",
+            "codex",
+            "copilot",
+            "custom"
+          ],
+          "description": "Simple engine name: 'claude' (default, Claude Code), 'copilot' (GitHub Copilot CLI), 'codex' (OpenAI Codex CLI), or 'custom' (user-defined steps)"
+        },
+        {
+          "type": "object",
+          "description": "Extended engine configuration object with advanced options for model selection, turn limiting, environment variables, and custom steps",
+          "properties": {
+            "id": {
+              "type": "string",
+              "enum": [
+                "claude",
+                "codex",
+                "custom",
+                "copilot"
+              ],
+              "description": "AI engine identifier: 'claude' (Claude Code), 'codex' (OpenAI Codex CLI), 'copilot' (GitHub Copilot CLI), or 'custom' (user-defined GitHub Actions steps)"
+            },
+            "version": {
+              "type": "string",
+              "description": "Optional version of the AI engine action (e.g., 'beta', 'stable'). Has sensible defaults and can typically be omitted."
+            },
+            "model": {
+              "type": "string",
+              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
+            },
+            "max-turns": {
+              "type": "integer",
+              "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted."
+            },
+            "user-agent": {
+              "type": "string",
+              "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
+            },
+            "env": {
+              "type": "object",
+              "description": "Custom environment variables to pass to the AI engine, including secret overrides (e.g., OPENAI_API_KEY: ${{ secrets.CUSTOM_KEY }})",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "steps": {
+              "type": "array",
+              "description": "Custom GitHub Actions steps for 'custom' engine. Define your own deterministic workflow steps instead of using AI processing.",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "error_patterns": {
+              "type": "array",
+              "description": "Custom error patterns for validating agent logs",
+              "items": {
+                "type": "object",
+                "description": "Error pattern definition",
+                "properties": {
+                  "pattern": {
+                    "type": "string",
+                    "description": "Ecma script regular expression pattern to match log lines"
+                  },
+                  "level_group": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error level. Use 0 to infer from pattern content."
+                  },
+                  "message_group": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Capture group index (1-based) that contains the error message. Use 0 to use the entire match."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Human-readable description of what this pattern matches"
+                  }
+                },
+                "required": [
+                  "pattern"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "config": {
+              "type": "string",
+              "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
     "stdio_mcp_tool": {
       "type": "object",
       "description": "Stdio MCP tool configuration",
