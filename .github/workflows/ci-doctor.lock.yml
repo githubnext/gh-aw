@@ -2586,14 +2586,13 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@2.0.1 --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/threat-detection/detection.log
+          npx @anthropic-ai/claude-code@2.0.1 --print --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
       - name: Print agent log
         if: always()

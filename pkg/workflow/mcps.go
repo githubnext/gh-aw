@@ -9,6 +9,33 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
+// hasMCPServers checks if the workflow has any MCP servers configured
+func HasMCPServers(workflowData *WorkflowData) bool {
+	if workflowData == nil {
+		return false
+	}
+
+	// Check for standard MCP tools
+	for toolName, toolValue := range workflowData.Tools {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" {
+			return true
+		}
+		// Check for custom MCP tools
+		if mcpConfig, ok := toolValue.(map[string]any); ok {
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+				return true
+			}
+		}
+	}
+
+	// Check if safe-outputs is enabled (adds safe-outputs MCP server)
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		return true
+	}
+
+	return false
+}
+
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration

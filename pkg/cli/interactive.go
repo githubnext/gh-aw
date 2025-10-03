@@ -72,7 +72,7 @@ func CreateWorkflowInteractively(workflowName string, verbose bool, force bool) 
 	}
 
 	// Generate the workflow
-	if err := builder.generateWorkflow(verbose, force); err != nil {
+	if err := builder.generateWorkflow(force); err != nil {
 		return fmt.Errorf("failed to generate workflow: %w", err)
 	}
 
@@ -245,7 +245,7 @@ func (b *InteractiveWorkflowBuilder) promptForIntent() error {
 }
 
 // generateWorkflow creates the markdown workflow file based on user selections
-func (b *InteractiveWorkflowBuilder) generateWorkflow(verbose bool, force bool) error {
+func (b *InteractiveWorkflowBuilder) generateWorkflow(force bool) error {
 	// Get current working directory for .github/workflows
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -470,17 +470,17 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 
 	// Use the existing compile functionality
 	config := CompileConfig{
-		MarkdownFiles:    []string{b.WorkflowName},
-		Verbose:          verbose,
-		EngineOverride:   "",
-		Validate:         true,
-		Watch:            false,
-		WorkflowDir:      "",
-		SkipInstructions: false,
-		NoEmit:           false,
-		Purge:            false,
-		TrialMode:        false,
-		TrialTargetRepo:  "",
+		MarkdownFiles:       []string{b.WorkflowName},
+		Verbose:             verbose,
+		EngineOverride:      "",
+		Validate:            true,
+		Watch:               false,
+		WorkflowDir:         "",
+		SkipInstructions:    false,
+		NoEmit:              false,
+		Purge:               false,
+		TrialMode:           false,
+		TrialTargetRepoSlug: "",
 	}
 	_, err := CompileWorkflows(config)
 	return err

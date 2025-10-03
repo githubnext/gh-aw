@@ -99,8 +99,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Add MCP configuration
-	claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+	// Add MCP configuration only if there are MCP servers
+	if HasMCPServers(workflowData) {
+		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+	}
 
 	// Add allowed tools configuration
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
@@ -194,8 +196,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Always add GITHUB_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
 
-	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
-	stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
+	if HasMCPServers(workflowData) {
+		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+	}
 
 	// Set MCP_TIMEOUT to 60000ms for MCP server communication
 	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
