@@ -94,6 +94,7 @@ func ParseCommandEvents(eventsValue any) []string {
 // FilterCommentEvents returns only the comment events specified by the identifiers
 // If identifiers is nil or empty, returns all comment events
 func FilterCommentEvents(identifiers []string) []CommentEventMapping {
+	// len() for nil slices returns 0, so this handles both nil and empty slices
 	if len(identifiers) == 0 {
 		return GetAllCommentEvents()
 	}
