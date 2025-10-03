@@ -2515,6 +2515,9 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.AddLabels.Min > 0 {
 				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
 			}
+			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
+				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
+			}
 			safeOutputsConfig["add-labels"] = labelConfig
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
@@ -2524,6 +2527,15 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			if data.SafeOutputs.UpdateIssues.Min > 0 {
 				updateConfig["min"] = data.SafeOutputs.UpdateIssues.Min
+			}
+			if data.SafeOutputs.UpdateIssues.Status != nil {
+				updateConfig["status"] = *data.SafeOutputs.UpdateIssues.Status
+			}
+			if data.SafeOutputs.UpdateIssues.Title != nil {
+				updateConfig["title"] = *data.SafeOutputs.UpdateIssues.Title
+			}
+			if data.SafeOutputs.UpdateIssues.Body != nil {
+				updateConfig["body"] = *data.SafeOutputs.UpdateIssues.Body
 			}
 			safeOutputsConfig["update-issue"] = updateConfig
 		}
@@ -2538,6 +2550,12 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.PushToPullRequestBranch.Min > 0 {
 				pushToBranchConfig["min"] = data.SafeOutputs.PushToPullRequestBranch.Min
 			}
+			if len(data.SafeOutputs.PushToPullRequestBranch.Labels) > 0 {
+				pushToBranchConfig["labels"] = data.SafeOutputs.PushToPullRequestBranch.Labels
+			}
+			if data.SafeOutputs.PushToPullRequestBranch.TitlePrefix != "" {
+				pushToBranchConfig["title-prefix"] = data.SafeOutputs.PushToPullRequestBranch.TitlePrefix
+			}
 			safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
 		}
 		if data.SafeOutputs.UploadAssets != nil {
@@ -2547,6 +2565,12 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			if data.SafeOutputs.UploadAssets.Min > 0 {
 				uploadConfig["min"] = data.SafeOutputs.UploadAssets.Min
+			}
+			if len(data.SafeOutputs.UploadAssets.AllowedExts) > 0 {
+				uploadConfig["allowed-exts"] = data.SafeOutputs.UploadAssets.AllowedExts
+			}
+			if data.SafeOutputs.UploadAssets.MaxSizeKB > 0 {
+				uploadConfig["max-size"] = data.SafeOutputs.UploadAssets.MaxSizeKB
 			}
 			safeOutputsConfig["upload-asset"] = uploadConfig
 		}

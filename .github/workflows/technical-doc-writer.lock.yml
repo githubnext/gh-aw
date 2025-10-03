@@ -637,7 +637,43 @@ jobs:
             const TOOLS = {};
             ALL_TOOLS.forEach(tool => {
               if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-                TOOLS[tool.name] = tool;
+                const toolCopy = { ...tool, inputSchema: { ...tool.inputSchema } };
+                const configKey = Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name);
+                const toolConfig = configKey ? safeOutputsConfig[configKey] : null;
+                if (tool.name === "add_labels" && toolConfig && toolConfig.allowed && Array.isArray(toolConfig.allowed)) {
+                  toolCopy.description = `Add labels to a GitHub issue or pull request. Allowed labels: ${toolConfig.allowed.join(", ")}`;
+                } else if (tool.name === "update_issue" && toolConfig) {
+                  const updateableFields = [];
+                  if (toolConfig.status) updateableFields.push("status");
+                  if (toolConfig.title) updateableFields.push("title");
+                  if (toolConfig.body) updateableFields.push("body");
+                  if (updateableFields.length > 0) {
+                    toolCopy.description = `Update a GitHub issue. Updateable fields: ${updateableFields.join(", ")}`;
+                  }
+                } else if (tool.name === "upload_asset" && toolConfig) {
+                  let descriptionParts = ["Publish a file as a URL-addressable asset to an orphaned git branch"];
+                  if (toolConfig["allowed-exts"] && Array.isArray(toolConfig["allowed-exts"])) {
+                    descriptionParts.push(`Allowed extensions: ${toolConfig["allowed-exts"].join(", ")}`);
+                  }
+                  if (toolConfig["max-size"]) {
+                    descriptionParts.push(`Max size: ${toolConfig["max-size"]}KB`);
+                  }
+                  if (descriptionParts.length > 1) {
+                    toolCopy.description = descriptionParts.join(". ") + ".";
+                  }
+                } else if (tool.name === "push_to_pull_request_branch" && toolConfig) {
+                  let descriptionParts = ["Push changes to a pull request branch"];
+                  if (toolConfig.labels && Array.isArray(toolConfig.labels)) {
+                    descriptionParts.push(`Required labels: ${toolConfig.labels.join(", ")}`);
+                  }
+                  if (toolConfig["title-prefix"]) {
+                    descriptionParts.push(`Required title prefix: "${toolConfig["title-prefix"]}"`);
+                  }
+                  if (descriptionParts.length > 1) {
+                    toolCopy.description = descriptionParts.join(". ") + ".";
+                  }
+                }
+                TOOLS[tool.name] = toolCopy;
               }
             });
             Object.keys(safeOutputsConfig).forEach(configKey => {
