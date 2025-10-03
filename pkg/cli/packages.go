@@ -335,8 +335,8 @@ type WorkflowSourceInfo struct {
 	SourcePath  string
 }
 
-// findWorkflowInPackages searches for a workflow in installed packages
-func findWorkflowInPackages(workflow *WorkflowSpec, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
+// findWorkflowInPackageForRepo searches for a workflow in installed packages
+func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
 
 	packagesDir, err := getPackagesDir()
 	if err != nil {
@@ -346,35 +346,19 @@ func findWorkflowInPackages(workflow *WorkflowSpec, verbose bool) ([]byte, *Work
 		return nil, nil, fmt.Errorf("failed to get packages directory: %w", err)
 	}
 
-	locationName := "global"
-
 	if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
 		if verbose {
-			fmt.Printf("No %s packages directory found at %s\n", locationName, packagesDir)
+			fmt.Printf("No packages directory found at %s\n", packagesDir)
 		}
 		return nil, nil, fmt.Errorf("no packages directory found")
 	}
 
 	if verbose {
-		fmt.Printf("Searching %s packages in %s for workflow: %s\n", locationName, packagesDir, workflow.WorkflowPath)
+		fmt.Printf("Searching packages in %s for workflow: %s\n", packagesDir, workflow.WorkflowPath)
 	}
 
 	// Check if workflow name contains org/repo prefix
 	// Fully qualified name: org/repo/workflow_name
-	content, sourceInfo, err := findQualifiedWorkflowInPackages(workflow, packagesDir, verbose)
-	if err == nil {
-		return content, sourceInfo, nil
-	}
-	if verbose {
-		fmt.Printf("Qualified workflow not found in %s packages: %v\n", locationName, err)
-	}
-
-	return nil, nil, fmt.Errorf("workflow not found in components and no packages installed")
-}
-
-// findQualifiedWorkflowInPackages finds a workflow using fully qualified name
-func findQualifiedWorkflowInPackages(workflow *WorkflowSpec, packagesDir string, verbose bool) ([]byte, *WorkflowSourceInfo, error) {
-
 	packagePath := filepath.Join(packagesDir, workflow.Repo)
 	workflowFile := filepath.Join(packagePath, workflow.WorkflowPath)
 
@@ -387,18 +371,13 @@ func findQualifiedWorkflowInPackages(workflow *WorkflowSpec, packagesDir string,
 		return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.Repo)
 	}
 
-	return content, &WorkflowSourceInfo{
+	sourceInfo := &WorkflowSourceInfo{
 		PackagePath: packagePath,
 		SourcePath:  workflowFile,
-	}, nil
-}
+	}
 
-// WorkflowMatch represents a workflow match in package search
-type WorkflowMatch struct {
-	Path        string
-	PackageName string
-	Org         string
-	Repo        string
+	return content, sourceInfo, nil
+
 }
 
 // collectPackageIncludeDependencies collects dependencies for package-based workflows

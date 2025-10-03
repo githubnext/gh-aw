@@ -358,7 +358,7 @@ func AddWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 	}
 
 	// Try to read the workflow content from multiple sources
-	sourceContent, sourceInfo, err := findWorkflowInPackages(workflow, verbose)
+	sourceContent, sourceInfo, err := findWorkflowInPackageForRepo(workflow, verbose)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflowPath)))
 
