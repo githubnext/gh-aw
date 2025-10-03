@@ -94,16 +94,18 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected GITHUB_AW_PROMPT environment variable in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected GITHUB_AW_MCP_CONFIG environment variable in step: %s", stepContent)
+	// When no tools/MCP servers are configured, GITHUB_AW_MCP_CONFIG should NOT be present
+	if strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Did not expect GITHUB_AW_MCP_CONFIG environment variable in step (no MCP servers): %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "MCP_TIMEOUT: \"60000\"") {
 		t.Errorf("Expected MCP_TIMEOUT environment variable in step: %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "--mcp-config /tmp/mcp-config/mcp-servers.json") {
-		t.Errorf("Expected MCP config in CLI args: %s", stepContent)
+	// When no tools/MCP servers are configured, --mcp-config flag should NOT be present
+	if strings.Contains(stepContent, "--mcp-config /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Did not expect MCP config in CLI args (no MCP servers): %s", stepContent)
 	}
 
 	if !strings.Contains(stepContent, "--allowed-tools") {
@@ -176,11 +178,16 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 			}
 
 			// Verify all required CLI elements are present
-			requiredElements := []string{"--print", "ANTHROPIC_API_KEY", "--mcp-config", "--permission-mode", "--output-format"}
+			requiredElements := []string{"--print", "ANTHROPIC_API_KEY", "--permission-mode", "--output-format"}
 			for _, element := range requiredElements {
 				if !strings.Contains(stepContent, element) {
 					t.Errorf("Expected element '%s' to be present in step content", element)
 				}
+			}
+
+			// When no tools/MCP servers are configured, --mcp-config should NOT be present
+			if strings.Contains(stepContent, "--mcp-config") {
+				t.Errorf("Did not expect --mcp-config in step content (no MCP servers)")
 			}
 
 			// timeout should be at step level, not input level
@@ -331,5 +338,70 @@ func TestClaudeEngineConvertStepToYAMLWithSection(t *testing.T) {
 		if i >= len(withKeyOrder) || withKeyOrder[i] != key {
 			t.Errorf("Expected with key at position %d to be '%s', got '%s'. Full order: %v", i, key, withKeyOrder[i], withKeyOrder)
 		}
+	}
+}
+
+func TestClaudeEngineWithMCPServers(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test with GitHub MCP tool configured
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		Tools: map[string]any{
+			"github": map[string]any{},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the main execution step
+	executionStep := steps[0]
+	stepContent := strings.Join([]string(executionStep), "\n")
+
+	// When MCP servers are configured, --mcp-config flag SHOULD be present
+	if !strings.Contains(stepContent, "--mcp-config /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected --mcp-config in CLI args when MCP servers are configured: %s", stepContent)
+	}
+
+	// When MCP servers are configured, GITHUB_AW_MCP_CONFIG SHOULD be present
+	if !strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected GITHUB_AW_MCP_CONFIG environment variable when MCP servers are configured: %s", stepContent)
+	}
+}
+
+func TestClaudeEngineWithSafeOutputs(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test with safe-outputs configured (which adds safe-outputs MCP server)
+	workflowData := &WorkflowData{
+		Name:  "test-workflow",
+		Tools: map[string]any{},
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1},
+			},
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 2 {
+		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	}
+
+	// Check the main execution step
+	executionStep := steps[0]
+	stepContent := strings.Join([]string(executionStep), "\n")
+
+	// When safe-outputs is configured, --mcp-config flag SHOULD be present
+	if !strings.Contains(stepContent, "--mcp-config /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected --mcp-config in CLI args when safe-outputs are configured: %s", stepContent)
+	}
+
+	// When safe-outputs is configured, GITHUB_AW_MCP_CONFIG SHOULD be present
+	if !strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
+		t.Errorf("Expected GITHUB_AW_MCP_CONFIG environment variable when safe-outputs are configured: %s", stepContent)
 	}
 }
