@@ -280,19 +280,22 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	// Commit changes
 	var commitMessage, prTitle, prBody, joinedNames string
 	if len(workflows) == 1 {
-		joinedNames = workflows[0].WorkflowPath
+		joinedNames = workflows[0].WorkflowName
+		commitMessage = fmt.Sprintf("Add agentic workflow %s", joinedNames)
+		prTitle = fmt.Sprintf("Add agentic workflow %s", joinedNames)
+		prBody = fmt.Sprintf("Add agentic workflow %s", joinedNames)
 	} else {
 		// Get workflow.Workflo
 		workflowNames := make([]string, len(workflows))
 		for i, wf := range workflows {
-			workflowNames[i] = wf.WorkflowPath
+			workflowNames[i] = wf.WorkflowName
 		}
 		joinedNames = strings.Join(workflowNames, ", ")
+		commitMessage = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
+		prTitle = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
+		prBody = fmt.Sprintf("Add agentic workflows: %s", joinedNames)
 	}
 
-	commitMessage = fmt.Sprintf("Add workflows: %s", joinedNames)
-	prTitle = fmt.Sprintf("Add workflows: %s", joinedNames)
-	prBody = fmt.Sprintf("Automatically created PR to add workflows: %s", joinedNames)
 	if err := commitChanges(commitMessage, verbose); err != nil {
 		if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
@@ -324,7 +327,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 	}
 
 	if len(workflows) == 1 {
-		fmt.Printf("Successfully created PR for workflow: %s\n", workflows[0])
+		fmt.Printf("Successfully created PR for workflow: %s\n", workflows[0].WorkflowName)
 	} else {
 		fmt.Printf("Successfully created PR for workflows: %s\n", joinedNames)
 	}
@@ -361,8 +364,15 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflowPath)))
 
-		// Show available workflows using the same logic as ListEnginesAndOtherInformation
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run '"+constants.CLIExtensionPrefix+" list' to see available workflows."))
+		// Provide information about workflow repositories
+		fmt.Println("\nTo add workflows to your project:")
+		fmt.Println("=================================")
+		fmt.Println("Use the 'add' command with repository/workflow specifications:")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name@version")
+		fmt.Println("\nExample:")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/ci-doctor")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/daily-plan@main")
 
 		return fmt.Errorf("workflow not found: %s", workflowPath)
 	}
