@@ -58,7 +58,6 @@ The --force flag overwrites existing workflow files.`,
 			workflows := args
 			numberFlag, _ := cmd.Flags().GetInt("number")
 			engineOverride, _ := cmd.Flags().GetString("engine")
-			repoFlag, _ := cmd.Flags().GetString("repo")
 			nameFlag, _ := cmd.Flags().GetString("name")
 			prFlag, _ := cmd.Flags().GetBool("pr")
 			forceFlag, _ := cmd.Flags().GetBool("force")
