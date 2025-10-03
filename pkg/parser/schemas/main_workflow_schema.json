@@ -152,6 +152,22 @@
                       }
                     }
                   ]
+                },
+                "names": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single label name to filter labeled/unlabeled events (e.g., 'bug')"
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of label names to filter labeled/unlabeled events. Only applies when 'labeled' or 'unlabeled' is in the types array",
+                      "items": {
+                        "type": "string",
+                        "description": "Label name"
+                      }
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -185,6 +201,22 @@
                       "demilestoned"
                     ]
                   }
+                },
+                "names": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single label name to filter labeled/unlabeled events (e.g., 'bug')"
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of label names to filter labeled/unlabeled events. Only applies when 'labeled' or 'unlabeled' is in the types array",
+                      "items": {
+                        "type": "string",
+                        "description": "Label name"
+                      }
+                    }
+                  ]
                 }
               }
             },

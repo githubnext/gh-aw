@@ -155,3 +155,219 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	conditionTree := buildConditionTree(existingCondition, forkCondition.Render())
 	data.If = conditionTree.Render()
 }
+
+// applyLabelFilter applies label name filter conditions for labeled/unlabeled triggers
+// Supports "names: []string" to filter which label changes trigger the workflow
+func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]any) {
+	// Check if there's an "on" section in the frontmatter
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn {
+		return
+	}
+
+	// Check if "on" is an object (not a string)
+	onMap, isOnMap := onValue.(map[string]any)
+	if !isOnMap {
+		return
+	}
+
+	// Check both issues and pull_request sections for labeled/unlabeled with names
+	eventSections := []struct {
+		eventName    string
+		eventValue   any
+		eventNameStr string // For condition checks
+	}{
+		{"issues", onMap["issues"], "issues"},
+		{"pull_request", onMap["pull_request"], "pull_request"},
+	}
+
+	var labelConditions []ConditionNode
+
+	for _, section := range eventSections {
+		if section.eventValue == nil {
+			continue
+		}
+
+		// Check if the section is an object with types and names
+		sectionMap, isSectionMap := section.eventValue.(map[string]any)
+		if !isSectionMap {
+			continue
+		}
+
+		// Check for "types" field
+		typesValue, hasTypes := sectionMap["types"]
+		if !hasTypes {
+			continue
+		}
+
+		// Convert types to []string
+		var types []string
+		if typesArray, isTypesArray := typesValue.([]any); isTypesArray {
+			for _, t := range typesArray {
+				if tStr, isTStr := t.(string); isTStr {
+					types = append(types, tStr)
+				}
+			}
+		}
+
+		// Check if types includes "labeled" or "unlabeled"
+		hasLabeled := false
+		hasUnlabeled := false
+		for _, t := range types {
+			if t == "labeled" {
+				hasLabeled = true
+			}
+			if t == "unlabeled" {
+				hasUnlabeled = true
+			}
+		}
+
+		if !hasLabeled && !hasUnlabeled {
+			continue
+		}
+
+		// Check for "names" field
+		namesValue, hasNames := sectionMap["names"]
+		if !hasNames {
+			continue
+		}
+
+		// Convert names to []string, handling both string and array formats
+		var labelNames []string
+		if namesStr, isNamesStr := namesValue.(string); isNamesStr {
+			labelNames = []string{namesStr}
+		} else if namesArray, isNamesArray := namesValue.([]any); isNamesArray {
+			for _, name := range namesArray {
+				if nameStr, isNameStr := name.(string); isNameStr {
+					labelNames = append(labelNames, nameStr)
+				}
+			}
+		} else {
+			// Invalid names format, skip
+			continue
+		}
+
+		if len(labelNames) == 0 {
+			continue
+		}
+
+		// Build condition for this event section
+		// The condition should be:
+		// (event_name != 'issues' OR action != 'labeled' OR label.name in names) AND
+		// (event_name != 'issues' OR action != 'unlabeled' OR label.name in names)
+		
+		// For each label name, create a condition
+		var labelNameConditions []ConditionNode
+		for _, labelName := range labelNames {
+			labelNameConditions = append(labelNameConditions, BuildEquals(
+				BuildPropertyAccess("github.event.label.name"),
+				BuildStringLiteral(labelName),
+			))
+		}
+
+		// Combine label name conditions with OR
+		var labelNameMatch ConditionNode
+		if len(labelNameConditions) == 1 {
+			labelNameMatch = labelNameConditions[0]
+		} else {
+			labelNameMatch = &DisjunctionNode{Terms: labelNameConditions}
+		}
+
+		// Build conditions for labeled and unlabeled
+		var sectionCondition ConditionNode
+		
+		if hasLabeled && hasUnlabeled {
+			// Both labeled and unlabeled: check for either action
+			notThisEvent := BuildNotEquals(
+				BuildPropertyAccess("github.event_name"),
+				BuildStringLiteral(section.eventNameStr),
+			)
+			
+			notLabeledAction := BuildNotEquals(
+				BuildPropertyAccess("github.event.action"),
+				BuildStringLiteral("labeled"),
+			)
+			
+			notUnlabeledAction := BuildNotEquals(
+				BuildPropertyAccess("github.event.action"),
+				BuildStringLiteral("unlabeled"),
+			)
+			
+			// (event_name != 'issues') OR (action != 'labeled' AND action != 'unlabeled') OR (label.name matches)
+			notLabelAction := &AndNode{Left: notLabeledAction, Right: notUnlabeledAction}
+			sectionCondition = &OrNode{
+				Left: notThisEvent,
+				Right: &OrNode{
+					Left: notLabelAction,
+					Right: labelNameMatch,
+				},
+			}
+		} else if hasLabeled {
+			// Only labeled
+			notThisEvent := BuildNotEquals(
+				BuildPropertyAccess("github.event_name"),
+				BuildStringLiteral(section.eventNameStr),
+			)
+			
+			notLabeledAction := BuildNotEquals(
+				BuildPropertyAccess("github.event.action"),
+				BuildStringLiteral("labeled"),
+			)
+			
+			// (event_name != 'issues') OR (action != 'labeled') OR (label.name matches)
+			sectionCondition = &OrNode{
+				Left: notThisEvent,
+				Right: &OrNode{
+					Left: notLabeledAction,
+					Right: labelNameMatch,
+				},
+			}
+		} else if hasUnlabeled {
+			// Only unlabeled
+			notThisEvent := BuildNotEquals(
+				BuildPropertyAccess("github.event_name"),
+				BuildStringLiteral(section.eventNameStr),
+			)
+			
+			notUnlabeledAction := BuildNotEquals(
+				BuildPropertyAccess("github.event.action"),
+				BuildStringLiteral("unlabeled"),
+			)
+			
+			// (event_name != 'issues') OR (action != 'unlabeled') OR (label.name matches)
+			sectionCondition = &OrNode{
+				Left: notThisEvent,
+				Right: &OrNode{
+					Left: notUnlabeledAction,
+					Right: labelNameMatch,
+				},
+			}
+		}
+
+		if sectionCondition != nil {
+			labelConditions = append(labelConditions, sectionCondition)
+		}
+	}
+
+	// If we have label conditions, combine them and apply to the workflow
+	if len(labelConditions) > 0 {
+		var finalCondition ConditionNode
+		if len(labelConditions) == 1 {
+			finalCondition = labelConditions[0]
+		} else {
+			// Combine all conditions with AND
+			finalCondition = labelConditions[0]
+			for i := 1; i < len(labelConditions); i++ {
+				finalCondition = &AndNode{
+					Left:  finalCondition,
+					Right: labelConditions[i],
+				}
+			}
+		}
+
+		// Build condition tree and render
+		existingCondition := data.If
+		conditionTree := buildConditionTree(existingCondition, finalCondition.Render())
+		data.If = conditionTree.Render()
+	}
+}
