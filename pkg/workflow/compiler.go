@@ -863,12 +863,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 				for i := len(result) - 1; i >= 0; i-- {
 					prevLine := result[i]
 					prevTrimmed := strings.TrimSpace(prevLine)
-					
+
 					// Skip empty lines
 					if prevTrimmed == "" {
 						continue
 					}
-					
+
 					// If we find "names:", and current line is an array item, comment it
 					if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
 						if strings.HasPrefix(trimmedLine, "-") {
@@ -877,12 +877,12 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 						}
 						break
 					}
-					
+
 					// If we find a different field or commented names array item, break
 					if !strings.HasPrefix(prevTrimmed, "#") || !strings.Contains(prevTrimmed, "Label filtering") {
 						break
 					}
-					
+
 					// If it's a commented names array item, continue
 					if strings.HasPrefix(prevTrimmed, "# -") && strings.Contains(prevTrimmed, "Label filtering") {
 						if strings.HasPrefix(trimmedLine, "-") {
@@ -891,7 +891,7 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 						}
 						continue
 					}
-					
+
 					break
 				}
 			}

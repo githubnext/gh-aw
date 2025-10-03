@@ -255,7 +255,7 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 		// The condition should be:
 		// (event_name != 'issues' OR action != 'labeled' OR label.name in names) AND
 		// (event_name != 'issues' OR action != 'unlabeled' OR label.name in names)
-		
+
 		// For each label name, create a condition
 		var labelNameConditions []ConditionNode
 		for _, labelName := range labelNames {
@@ -275,30 +275,30 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 
 		// Build conditions for labeled and unlabeled
 		var sectionCondition ConditionNode
-		
+
 		if hasLabeled && hasUnlabeled {
 			// Both labeled and unlabeled: check for either action
 			notThisEvent := BuildNotEquals(
 				BuildPropertyAccess("github.event_name"),
 				BuildStringLiteral(section.eventNameStr),
 			)
-			
+
 			notLabeledAction := BuildNotEquals(
 				BuildPropertyAccess("github.event.action"),
 				BuildStringLiteral("labeled"),
 			)
-			
+
 			notUnlabeledAction := BuildNotEquals(
 				BuildPropertyAccess("github.event.action"),
 				BuildStringLiteral("unlabeled"),
 			)
-			
+
 			// (event_name != 'issues') OR (action != 'labeled' AND action != 'unlabeled') OR (label.name matches)
 			notLabelAction := &AndNode{Left: notLabeledAction, Right: notUnlabeledAction}
 			sectionCondition = &OrNode{
 				Left: notThisEvent,
 				Right: &OrNode{
-					Left: notLabelAction,
+					Left:  notLabelAction,
 					Right: labelNameMatch,
 				},
 			}
@@ -308,17 +308,17 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 				BuildPropertyAccess("github.event_name"),
 				BuildStringLiteral(section.eventNameStr),
 			)
-			
+
 			notLabeledAction := BuildNotEquals(
 				BuildPropertyAccess("github.event.action"),
 				BuildStringLiteral("labeled"),
 			)
-			
+
 			// (event_name != 'issues') OR (action != 'labeled') OR (label.name matches)
 			sectionCondition = &OrNode{
 				Left: notThisEvent,
 				Right: &OrNode{
-					Left: notLabeledAction,
+					Left:  notLabeledAction,
 					Right: labelNameMatch,
 				},
 			}
@@ -328,17 +328,17 @@ func (c *Compiler) applyLabelFilter(data *WorkflowData, frontmatter map[string]a
 				BuildPropertyAccess("github.event_name"),
 				BuildStringLiteral(section.eventNameStr),
 			)
-			
+
 			notUnlabeledAction := BuildNotEquals(
 				BuildPropertyAccess("github.event.action"),
 				BuildStringLiteral("unlabeled"),
 			)
-			
+
 			// (event_name != 'issues') OR (action != 'unlabeled') OR (label.name matches)
 			sectionCondition = &OrNode{
 				Left: notThisEvent,
 				Right: &OrNode{
-					Left: notUnlabeledAction,
+					Left:  notUnlabeledAction,
 					Right: labelNameMatch,
 				},
 			}
