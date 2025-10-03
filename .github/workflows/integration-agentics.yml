@@ -55,11 +55,6 @@ jobs:
           ./gh-aw add githubnext/agentics/issue-triage
           echo "Successfully installed agentics workflows"
 
-      - name: List installed workflows
-        run: |
-          echo "Listing installed workflows..."
-          ./gh-aw list
-
       - name: Test MCP server discovery
         run: |
           echo "Testing MCP server discovery..."

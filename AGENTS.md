@@ -48,7 +48,6 @@ make agent-finish # Complete validation
 ```bash
 ./gh-aw --help
 ./gh-aw compile
-./gh-aw list
 ./gh-aw mcp list      # MCP server management
 ./gh-aw logs          # Download and analyze workflow logs
 ./gh-aw audit 123456  # Audit a specific workflow run

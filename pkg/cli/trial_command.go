@@ -115,7 +115,8 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 		for i, spec := range parsedSpecs {
 			workflowNames[i] = spec.WorkflowName
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s)", len(parsedSpecs), strings.Join(workflowNames, ", "))))
+		joinedNames := strings.Join(workflowNames, ", ")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s)", len(parsedSpecs), joinedNames)))
 	}
 
 	// Generate a unique datetime-ID for this trial session
