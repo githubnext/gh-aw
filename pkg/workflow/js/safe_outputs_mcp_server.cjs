@@ -637,11 +637,21 @@ function handleMessage(req) {
     } else if (method === "tools/list") {
       const list = [];
       Object.values(TOOLS).forEach(tool => {
-        list.push({
+        const toolDef = {
           name: tool.name,
           description: tool.description,
           inputSchema: tool.inputSchema,
-        });
+        };
+        
+        // Patch add_labels tool description with allowed labels if configured
+        if (tool.name === "add_labels" && safeOutputsConfig.add_labels?.allowed) {
+          const allowedLabels = safeOutputsConfig.add_labels.allowed;
+          if (Array.isArray(allowedLabels) && allowedLabels.length > 0) {
+            toolDef.description = `Add labels to a GitHub issue or pull request. Allowed labels: ${allowedLabels.join(", ")}`;
+          }
+        }
+        
+        list.push(toolDef);
       });
       replyResult(id, { tools: list });
     } else if (method === "tools/call") {

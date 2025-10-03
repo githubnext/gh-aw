@@ -2569,6 +2569,9 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.AddLabels.Min > 0 {
 				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
 			}
+			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
+				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
+			}
 			safeOutputsConfig["add-labels"] = labelConfig
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
