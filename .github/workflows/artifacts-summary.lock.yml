@@ -1762,11 +1762,11 @@ jobs:
               try {
                 const logFile = process.env.AGENT_LOG_FILE;
                 if (!logFile) {
-                  console.log("No agent log file specified");
+                  core.info("No agent log file specified");
                   return;
                 }
                 if (!fs.existsSync(logFile)) {
-                  console.log(`Log file not found: ${logFile}`);
+                  core.info(`Log file not found: ${logFile}`);
                   return;
                 }
                 const content = fs.readFileSync(logFile, "utf8");
@@ -1774,9 +1774,9 @@ jobs:
                 if (parsedLog) {
                   core.info(parsedLog);
                   core.summary.addRaw(parsedLog).write();
-                  console.log("Copilot log parsed successfully");
+                  core.info("Copilot log parsed successfully");
                 } else {
-                  console.log("Failed to parse Copilot log");
+                  core.info("Failed to parse Copilot log");
                 }
               } catch (error) {
                 core.setFailed(error.message);
@@ -1854,8 +1854,8 @@ jobs:
                 }
                 return markdown;
               } catch (error) {
-                console.error("Error parsing Copilot log:", error);
-                return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${error.message}*\n`;
+                core.error(`Error parsing Copilot log: ${error instanceof Error ? error.message : String(error)}`);
+                return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${error instanceof Error ? error.message : String(error)}*\n`;
               }
             }
             if (typeof module !== "undefined" && module.exports) {
