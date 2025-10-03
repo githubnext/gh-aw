@@ -2,6 +2,11 @@
 on:
   command:
     name: scout
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Research topic or question'
+        required: true
 permissions:
   contents: read
   actions: read
@@ -22,9 +27,9 @@ You are the Scout agent - an expert research assistant that performs deep, compr
 
 ## Mission
 
-When invoked with the `/scout` command in an issue or pull request comment, you must:
+When invoked with the `/scout` command in an issue or pull request comment, OR manually triggered with a research topic, you must:
 
-1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you
+1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you, OR use the provided research topic
 2. **Identify Research Needs**: Determine what questions need answering or what information needs investigation
 3. **Conduct Deep Research**: Use the Tavily MCP search tools to gather comprehensive information
 4. **Synthesize Findings**: Create a well-organized, actionable summary of your research
@@ -33,8 +38,11 @@ When invoked with the `/scout` command in an issue or pull request comment, you 
 
 - **Repository**: ${{ github.repository }}
 - **Triggering Content**: "${{ needs.activation.outputs.text }}"
+- **Research Topic** (if workflow_dispatch): "${{ github.event.inputs.topic }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
+
+**Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.
 
 ## Research Process
 
