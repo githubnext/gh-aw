@@ -4,13 +4,14 @@ on:
     workflows: ["Daily Perf Improver", "Daily Test Coverage Improver"]  # Monitor the CI workflow specifically
     types:
       - completed
+    # This will trigger only when the CI workflow completes with failure
+    # The condition is handled in the workflow body
+  stop-after: +48h
 
 # Only trigger for failures - check in the workflow body
 if: ${{ github.event.workflow_run.conclusion == 'failure' }}
 
 permissions: read-all
-
-engine: claude
 
 network: defaults
 
@@ -20,18 +21,9 @@ safe-outputs:
   add-comment:
 
 tools:
+  cache-memory: true
   web-fetch:
   web-search:
-
-# Cache configuration for persistent storage between runs
-cache:
-  key: investigation-memory-${{ github.repository }}
-  path: 
-    - /tmp/memory
-    - /tmp/investigation
-  restore-keys:
-    - investigation-memory-${{ github.repository }}
-    - investigation-memory-
 
 timeout_minutes: 10
 
@@ -191,8 +183,3 @@ When creating an investigation issue, use this structure:
 - Build cumulative knowledge about failure patterns and solutions using structured JSON files
 - Use file-based indexing for fast pattern matching and similarity detection
 
-@include agentics/shared/tool-refused.md
-
-@include agentics/shared/include-link.md
-
-@include agentics/shared/xpia.md
