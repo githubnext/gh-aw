@@ -979,8 +979,6 @@ This workflow uses an include.
 	// previewOrphanedIncludes and the flag handling is straightforward.
 }
 
-
-
 // TestCalculateTimeRemaining tests the calculateTimeRemaining function
 func TestCalculateTimeRemaining(t *testing.T) {
 	tests := []struct {

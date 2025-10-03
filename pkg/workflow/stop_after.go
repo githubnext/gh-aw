@@ -186,5 +186,3 @@ func ExtractStopTimeFromLockFile(lockFilePath string) string {
 	}
 	return ""
 }
-
-

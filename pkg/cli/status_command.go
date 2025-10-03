@@ -112,8 +112,6 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	return nil
 }
 
-
-
 // calculateTimeRemaining calculates and formats the time remaining until stop-time
 func calculateTimeRemaining(stopTimeStr string) string {
 	if stopTimeStr == "" {
