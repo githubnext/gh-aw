@@ -33,14 +33,14 @@ func GetAllCommentEvents() []CommentEventMapping {
 func GetCommentEventByIdentifier(identifier string) *CommentEventMapping {
 	// Map short identifiers to full event names
 	identifierMap := map[string]string{
-		"issue":        "issues",
-		"issues":       "issues",
-		"comment":      "issue_comment",
-		"issue_comment": "issue_comment",
-		"pr":           "pull_request",
-		"pull_request": "pull_request",
-		"pr_review":    "pull_request_review_comment",
-		"pr_review_comment": "pull_request_review_comment",
+		"issue":                       "issues",
+		"issues":                      "issues",
+		"comment":                     "issue_comment",
+		"issue_comment":               "issue_comment",
+		"pr":                          "pull_request",
+		"pull_request":                "pull_request",
+		"pr_review":                   "pull_request_review_comment",
+		"pr_review_comment":           "pull_request_review_comment",
 		"pull_request_review_comment": "pull_request_review_comment",
 	}
 
@@ -94,7 +94,7 @@ func ParseCommandEvents(eventsValue any) []string {
 // FilterCommentEvents returns only the comment events specified by the identifiers
 // If identifiers is nil or empty, returns all comment events
 func FilterCommentEvents(identifiers []string) []CommentEventMapping {
-	if identifiers == nil || len(identifiers) == 0 {
+	if len(identifiers) == 0 {
 		return GetAllCommentEvents()
 	}
 

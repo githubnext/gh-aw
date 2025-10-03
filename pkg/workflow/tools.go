@@ -35,7 +35,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		if isCommandTrigger {
 			// Get the filtered command events based on CommandEvents field
 			filteredEvents := FilterCommentEvents(data.CommandEvents)
-			
+
 			// Build command events map from filtered events
 			commandEventsMap := make(map[string]any)
 			for _, event := range filteredEvents {

@@ -235,7 +235,7 @@ tools:
 ---`,
 			filename:       "command-all-events.md",
 			expectedEvents: []string{"issues:", "issue_comment:", "pull_request:", "pull_request_review_comment:"},
-			expectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body", 
+			expectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body",
 				"github.event.pull_request.body"},
 		},
 		{

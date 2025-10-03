@@ -14,13 +14,13 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 
 	// Build command checks for different content sources based on filtered events
 	var commandChecks []ConditionNode
-	
+
 	// Check which events are enabled and build appropriate checks
 	hasIssues := containsEventName(eventNames, "issues")
 	hasIssueComment := containsEventName(eventNames, "issue_comment")
 	hasPR := containsEventName(eventNames, "pull_request")
 	hasPRReview := containsEventName(eventNames, "pull_request_review_comment")
-	
+
 	if hasIssues {
 		issueBodyCheck := BuildContains(
 			BuildPropertyAccess("github.event.issue.body"),
@@ -28,7 +28,7 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 		)
 		commandChecks = append(commandChecks, issueBodyCheck)
 	}
-	
+
 	if hasIssueComment || hasPRReview {
 		// issue_comment and pull_request_review_comment both use github.event.comment.body
 		commentBodyCheck := BuildContains(
@@ -37,7 +37,7 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 		)
 		commandChecks = append(commandChecks, commentBodyCheck)
 	}
-	
+
 	if hasPR {
 		prBodyCheck := BuildContains(
 			BuildPropertyAccess("github.event.pull_request.body"),
@@ -79,7 +79,7 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	for _, eventName := range eventNames {
 		commentEventTerms = append(commentEventTerms, BuildEventTypeEquals(eventName))
 	}
-	
+
 	commentEventChecks := &DisjunctionNode{
 		Terms: commentEventTerms,
 	}

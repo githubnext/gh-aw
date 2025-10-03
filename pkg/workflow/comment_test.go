@@ -15,10 +15,10 @@ func TestGetAllCommentEvents(t *testing.T) {
 
 	// Check that all expected events are present
 	expectedEvents := map[string][]string{
-		"issues":                          {"opened", "edited", "reopened"},
-		"issue_comment":                   {"created", "edited"},
-		"pull_request":                    {"opened", "edited", "reopened"},
-		"pull_request_review_comment":     {"created", "edited"},
+		"issues":                      {"opened", "edited", "reopened"},
+		"issue_comment":               {"created", "edited"},
+		"pull_request":                {"opened", "edited", "reopened"},
+		"pull_request_review_comment": {"created", "edited"},
 	}
 
 	for _, event := range events {
@@ -113,40 +113,40 @@ func TestGetCommentEventByIdentifier(t *testing.T) {
 
 func TestParseCommandEvents(t *testing.T) {
 	tests := []struct {
-		name       string
+		name        string
 		eventsValue any
-		want       []string
-		wantNil    bool
+		want        []string
+		wantNil     bool
 	}{
 		{
-			name:       "nil value returns default",
+			name:        "nil value returns default",
 			eventsValue: nil,
-			wantNil:    true,
+			wantNil:     true,
 		},
 		{
-			name:       "wildcard string returns default",
+			name:        "wildcard string returns default",
 			eventsValue: "*",
-			wantNil:    true,
+			wantNil:     true,
 		},
 		{
-			name:       "single event string",
+			name:        "single event string",
 			eventsValue: "issue",
-			want:       []string{"issue"},
+			want:        []string{"issue"},
 		},
 		{
-			name:       "array of event strings",
+			name:        "array of event strings",
 			eventsValue: []any{"issue", "comment"},
-			want:       []string{"issue", "comment"},
+			want:        []string{"issue", "comment"},
 		},
 		{
-			name:       "empty array returns default",
+			name:        "empty array returns default",
 			eventsValue: []any{},
-			wantNil:    true,
+			wantNil:     true,
 		},
 		{
-			name:       "array with non-strings is filtered",
+			name:        "array with non-strings is filtered",
 			eventsValue: []any{"issue", 123, "comment"},
-			want:       []string{"issue", "comment"},
+			want:        []string{"issue", "comment"},
 		},
 	}
 

@@ -993,18 +993,18 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 				if commandMap, ok := commandValue.(map[string]any); ok {
 					var name string
 					var events []string
-					
+
 					if nameValue, hasName := commandMap["name"]; hasName {
 						if nameStr, ok := nameValue.(string); ok {
 							name = nameStr
 						}
 					}
-					
+
 					// Extract events field
 					if eventsValue, hasEvents := commandMap["events"]; hasEvents {
 						events = ParseCommandEvents(eventsValue)
 					}
-					
+
 					return name, events
 				}
 			}
@@ -1012,12 +1012,6 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 	}
 
 	return "", nil
-}
-
-// extractCommandName extracts the command name from frontmatter using the new nested format
-func (c *Compiler) extractCommandName(frontmatter map[string]any) string {
-	name, _ := c.extractCommandConfig(frontmatter)
-	return name
 }
 
 // mergeTools merges two tools maps, combining allowed arrays when keys coincide
