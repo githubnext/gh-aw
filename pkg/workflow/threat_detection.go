@@ -16,7 +16,6 @@ type ThreatDetectionConfig struct {
 	Enabled      bool          `yaml:"enabled,omitempty"`       // Whether threat detection is enabled
 	Prompt       string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
 	Steps        []any         `yaml:"steps,omitempty"`         // Array of extra job steps
-	Engine       string        `yaml:"engine,omitempty"`        // Engine ID for threat detection (overrides main engine)
 	EngineConfig *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
 }
 
@@ -61,12 +60,10 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 			if engine, exists := configMap["engine"]; exists {
 				// Handle string format
 				if engineStr, ok := engine.(string); ok {
-					threatConfig.Engine = engineStr
 					threatConfig.EngineConfig = &EngineConfig{ID: engineStr}
 				} else if engineObj, ok := engine.(map[string]any); ok {
 					// Handle object format - use extractEngineConfig logic
-					engineSetting, engineConfig := c.extractEngineConfig(map[string]any{"engine": engineObj})
-					threatConfig.Engine = engineSetting
+					_, engineConfig := c.extractEngineConfig(map[string]any{"engine": engineObj})
 					threatConfig.EngineConfig = engineConfig
 				}
 			}
@@ -247,13 +244,12 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 
 	// Check if threat detection has its own engine configuration
 	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
-		if data.SafeOutputs.ThreatDetection.Engine != "" {
-			engineSetting = data.SafeOutputs.ThreatDetection.Engine
+		if data.SafeOutputs.ThreatDetection.EngineConfig != nil {
 			engineConfig = data.SafeOutputs.ThreatDetection.EngineConfig
 		}
 	}
 
-	// Fall back to main engine config if no threat detection override
+	// Use engine config ID if available
 	if engineConfig != nil {
 		engineSetting = engineConfig.ID
 	}

@@ -437,8 +437,14 @@ func TestThreatDetectionWithCustomEngine(t *testing.T) {
 				t.Fatalf("Expected non-nil result")
 			}
 
-			if result.Engine != tt.expectedEngine {
-				t.Errorf("Expected Engine %q, got %q", tt.expectedEngine, result.Engine)
+			// Check EngineConfig.ID instead of Engine field
+			var actualEngine string
+			if result.EngineConfig != nil {
+				actualEngine = result.EngineConfig.ID
+			}
+
+			if actualEngine != tt.expectedEngine {
+				t.Errorf("Expected EngineConfig.ID %q, got %q", tt.expectedEngine, actualEngine)
 			}
 
 			// If engine is set, EngineConfig should also be set
@@ -480,7 +486,6 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
 						Enabled: true,
-						Engine:  "codex",
 						EngineConfig: &EngineConfig{
 							ID: "codex",
 						},
@@ -499,7 +504,6 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
 						Enabled: true,
-						Engine:  "copilot",
 						EngineConfig: &EngineConfig{
 							ID:    "copilot",
 							Model: "gpt-4",
