@@ -13,15 +13,41 @@ const runUrl = context.payload.repository
 
 // Create discussion title and body
 const title = `${workflowName} - Run ${runId}`;
-const body = `Agentic workflow \`${workflowName}\` started a run at ${new Date().toISOString()}.\n\n[View workflow run](${runUrl})`;
+
+// Build the body with context reference
+let bodyParts = [`Agentic workflow \`${workflowName}\` started a run at ${new Date().toISOString()}.`];
+
+// Add context reference based on event type
+const { owner, repo } = context.repo;
+const eventName = context.eventName;
+
+if (eventName === "issues" && context.payload.issue) {
+  const issueNumber = context.payload.issue.number;
+  bodyParts.push(`\nTriggered by issue #${issueNumber}`);
+} else if (eventName === "pull_request" && context.payload.pull_request) {
+  const prNumber = context.payload.pull_request.number;
+  bodyParts.push(`\nTriggered by pull request #${prNumber}`);
+} else if (eventName === "issue_comment" && context.payload.issue && context.payload.comment) {
+  const issueNumber = context.payload.issue.number;
+  const commentId = context.payload.comment.id;
+  bodyParts.push(`\nTriggered by comment on issue #${issueNumber}`);
+} else if (eventName === "pull_request_review_comment" && context.payload.pull_request && context.payload.comment) {
+  const prNumber = context.payload.pull_request.number;
+  bodyParts.push(`\nTriggered by review comment on pull request #${prNumber}`);
+} else if (eventName === "pull_request_review" && context.payload.pull_request && context.payload.review) {
+  const prNumber = context.payload.pull_request.number;
+  bodyParts.push(`\nTriggered by review on pull request #${prNumber}`);
+} else if (eventName) {
+  bodyParts.push(`\nTriggered by event: \`${eventName}\``);
+}
+
+bodyParts.push(`\n[View workflow run](${runUrl})`);
+const body = bodyParts.join("");
 
 core.info(`Creating discussion to track workflow run: ${title}`);
 core.info(`Category: ${categoryName}`);
 
 try {
-  // Get repository information
-  const { owner, repo } = context.repo;
-
   // First, get the repository ID and discussion categories
   const repoQuery = `
     query($owner: String!, $repo: String!) {
