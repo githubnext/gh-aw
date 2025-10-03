@@ -4,6 +4,10 @@
  */
 
 const discussionId = process.env.DISCUSSION_ID;
+if (!discussionId) {
+  throw new Error("DISCUSSION_ID environment variable is required");
+}
+
 const body =
   "⚠️ **Security Alert**: Threat detection found a potential issue. Please review the [detection logs](../actions/runs/${{ github.run_id }}) for details.";
 

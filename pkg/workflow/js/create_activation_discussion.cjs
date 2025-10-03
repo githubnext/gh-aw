@@ -40,6 +40,44 @@ if (eventName === "issues" && context.payload.issue) {
 } else if (eventName === "pull_request_review" && context.payload.pull_request && context.payload.review) {
   const prNumber = context.payload.pull_request.number;
   bodyParts.push(` for review on pull request #${prNumber}`);
+} else if (eventName === "workflow_dispatch") {
+  // For workflow_dispatch, try to find the associated PR to the branch
+  try {
+    const ref = context.ref; // e.g., refs/heads/my-branch
+    const branch = ref.replace("refs/heads/", "");
+
+    core.info(`Looking for PR associated with branch: ${branch}`);
+
+    const prsQuery = `
+      query($owner: String!, $repo: String!, $headRefName: String!) {
+        repository(owner: $owner, name: $repo) {
+          pullRequests(first: 1, headRefName: $headRefName, states: OPEN) {
+            nodes {
+              number
+            }
+          }
+        }
+      }
+    `;
+
+    const prsResult = await github.graphql(prsQuery, {
+      owner,
+      repo,
+      headRefName: branch,
+    });
+
+    if (prsResult?.repository?.pullRequests?.nodes?.length > 0) {
+      const prNumber = prsResult.repository.pullRequests.nodes[0].number;
+      core.info(`Found associated PR #${prNumber} for branch ${branch}`);
+      bodyParts.push(` for pull request #${prNumber}`);
+    } else {
+      core.info(`No open PR found for branch ${branch}`);
+      bodyParts.push(` on 'workflow_dispatch' event`);
+    }
+  } catch (error) {
+    core.warning(`Failed to lookup PR for branch: ${error.message}`);
+    bodyParts.push(` on 'workflow_dispatch' event`);
+  }
 } else if (eventName) {
   bodyParts.push(` on '${eventName}' event`);
 }
