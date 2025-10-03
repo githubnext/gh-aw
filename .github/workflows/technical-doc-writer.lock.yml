@@ -5,259 +5,22 @@
 
 name: "Technical Documentation Writer for GitHub Actions"
 on:
-  pull_request:
-    types:
-    - labeled
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: Documentation topic to review
+        required: true
+        type: string
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}"
 
 run-name: "Technical Documentation Writer for GitHub Actions"
 
 jobs:
-  check-membership:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'document' }}
-    runs-on: ubuntu-latest
-    outputs:
-      error_message: ${{ steps.check-membership.outputs.error_message }}
-      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
-      result: ${{ steps.check-membership.outputs.result }}
-      user_permission: ${{ steps.check-membership.outputs.user_permission }}
-    steps:
-      - name: Check team membership for workflow
-        id: check-membership
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
-        with:
-          script: |
-            async function main() {
-              const { eventName } = context;
-              // skip check for safe events
-              const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              // Check if the actor has the required repository permissions
-              try {
-                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.debug(`Repository permission level: ${permission}`);
-                // Check if user has one of the required permission levels
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
-                    core.setOutput("result", "authorized");
-                    core.setOutput("user_permission", permission);
-                    return;
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
-                return;
-              }
-            }
-            await main();
-
-  activation:
-    needs: check-membership
-    if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (${{ github.event_name == 'workflow_dispatch' ||
-      github.event.label.name == 'document' }})
-    runs-on: ubuntu-latest
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
-    steps:
-      - name: Compute current body text
-        id: compute-text
-        uses: actions/github-script@v8
-        with:
-          script: |
-            function sanitizeContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              let sanitized = content;
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = convertXmlTagsToParentheses(sanitized);
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const maxLength = 524288;
-              if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              if (lines.length > maxLines) {
-                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
-              }
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function convertXmlTagsToParentheses(s) {
-                if (!s || typeof s !== "string") {
-                  return s;
-                }
-                return (
-                  s
-                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
-                      const innerContent = match.slice(1, -1);
-                      return `(${innerContent})`;
-                    })
-                    .replace(/<!--[\s\S]*?-->/g, match => {
-                      const innerContent = match.slice(4, -3); 
-                      return `(!--${innerContent}--)`;
-                    })
-                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
-                      const innerContent = match.slice(9, -3); 
-                      return `(![CDATA[${innerContent}]])`;
-                    })
-                    .replace(/<\?[\s\S]*?\?>/g, match => {
-                      const innerContent = match.slice(2, -2); 
-                      return `(?${innerContent}?)`;
-                    })
-                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
-                      const innerContent = match.slice(9, -1); 
-                      return `(!DOCTYPE${innerContent})`;
-                    })
-                );
-              }
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  return isAllowed ? match : "(redacted)";
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                });
-              }
-              function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function main() {
-              let text = "";
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: owner,
-                repo: repo,
-                username: actor,
-              });
-              const permission = repoPermission.data.permission;
-              core.debug(`Repository permission level: ${permission}`);
-              if (permission !== "admin" && permission !== "maintain") {
-                core.setOutput("text", "");
-                return;
-              }
-              switch (context.eventName) {
-                case "issues":
-                  if (context.payload.issue) {
-                    const title = context.payload.issue.title || "";
-                    const body = context.payload.issue.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request_target":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "issue_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review":
-                  if (context.payload.review) {
-                    text = context.payload.review.body || "";
-                  }
-                  break;
-                default:
-                  text = "";
-                  break;
-              }
-              const sanitizedText = sanitizeContent(text);
-              core.debug(`text: ${sanitizedText}`);
-              core.setOutput("text", sanitizedText);
-            }
-            await main();
-
   agent:
-    needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
     env:
@@ -1168,12 +931,14 @@ jobs:
           
           ## Your Task
           
-          This workflow is triggered when a pull request is labeled with "document" or manually via workflow_dispatch.
+          This workflow is triggered manually via workflow_dispatch with a documentation topic.
           
-          When reviewing pull requests with documentation changes in the **docs/** folder, apply these principles to:
+          **Topic to review:** "${{ github.event.inputs.topic }}"
           
-          1. **Review the documentation changes** in the PR: "${{ needs.activation.outputs.text }}"
-          2. **Analyze files in the docs/ folder** against the persona principles above
+          When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
+          
+          1. **Analyze the topic** provided in the workflow input
+          2. **Review relevant documentation files** in the docs/ folder related to: "${{ github.event.inputs.topic }}"
           3. **Provide constructive feedback** as a comment addressing:
              - Clarity and conciseness
              - Tone and voice consistency with GitHub Docs
@@ -1185,7 +950,7 @@ jobs:
              - Link quality and accessibility
           4. **Optionally create a pull request** with suggested improvements if significant changes are needed
           
-          Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements.
+          Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
           
           You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
           
@@ -2866,7 +2631,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Technical Documentation Writer for GitHub Actions\n\nYou are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  \nYour docs use **Astro Starlight** and follow the **GitHub Docs voice**.  \nYou apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).\n\n## Core Principles\n\n### Framework\n- Output uses **Astro Starlight** features:\n  - Markdown/MDX with headings, sidebars, and TOC.\n  - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).\n  - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.\n  - Frontmatter metadata (`title`, `description`) for each page.\n\n### Style & Tone (GitHub Docs)\n- Clear, concise, approachable English.\n- Active voice; address reader as \"you\".\n- Friendly, empathetic, trustworthy tone.\n- Prioritize clarity over rigid grammar rules.\n- Consistent terminology across all docs.\n- Inclusive, globally understandable (avoid slang/idioms).\n\n### Structure (Diátaxis-inspired)\n- **Getting Started** → prerequisites, install, first example.\n- **How-to Guides** → task-based, step-by-step workflows.\n- **Reference** → full breakdown of inputs, outputs, options.\n- **Concepts/FAQs** → background explanations.\n\n### Developer Experience (DX)\n- Runnable, copy-paste–ready code blocks.\n- Prerequisites clearly listed.\n- Minimal setup friction.\n- Early \"Hello World\" example.\n- Optimized headings for search.\n\n## Navigation & Linking\n- Sidebar auto-generated by folder structure.\n- Per-page TOC built from headings.\n- Descriptive internal links (`See [Getting Started](/docs/getting-started)`).\n- Relative links within docs; clear labels for external references.\n\n## Code Guidelines\n- Use fenced code blocks with language tags:\n  ```yaml\n  name: CI\n  on: [push]\n  jobs:\n    build:\n      runs-on: ubuntu-latest\n      steps:\n        - uses: actions/checkout@v4\n        - uses: my-org/my-action@v1\n  ```\n- Do **not** include `$` prompts.\n- Use ALL_CAPS placeholders (e.g. `USERNAME`).\n- Keep lines ~60 chars wide.\n- Comment out command outputs.\n\n## Alerts & Callouts\nUse Starlight admonition syntax sparingly:\n\n:::note\nThis is optional context.\n:::\n\n:::tip\nThis is a recommended best practice.\n:::\n\n:::warning\nThis step may cause irreversible changes.\n:::\n\n:::caution\nThis action could result in data loss.\n:::\n\n## Behavior Rules\n- Optimize for clarity and user goals.\n- Check factual accuracy (syntax, versions).\n- Maintain voice and consistency.\n- Anticipate pitfalls and explain fixes empathetically.\n- Use alerts only when necessary.\n\n## Example Document Skeleton\n```md\n---\ntitle: Getting Started\ndescription: Quickstart for using the GitHub Actions library\n---\n\n# Getting Started\n\n## Prerequisites\n- Node.js ≥ 20\n- GitHub account\n\n## Installation\n```bash\npnpm add @my-org/github-action\n```\n\n## Quick Example\n```yaml\nname: CI\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: my-org/my-action@v1\n```\n\n---\n```\n\n## Your Task\n\nThis workflow is triggered when a pull request is labeled with \"document\" or manually via workflow_dispatch.\n\nWhen reviewing pull requests with documentation changes in the **docs/** folder, apply these principles to:\n\n1. **Review the documentation changes** in the PR: \"${{ needs.activation.outputs.text }}\"\n2. **Analyze files in the docs/ folder** against the persona principles above\n3. **Provide constructive feedback** as a comment addressing:\n   - Clarity and conciseness\n   - Tone and voice consistency with GitHub Docs\n   - Code block formatting and examples\n   - Structure and organization\n   - Developer experience considerations\n   - Any missing prerequisites or setup steps\n   - Appropriate use of admonitions\n   - Link quality and accessibility\n4. **Optionally create a pull request** with suggested improvements if significant changes are needed\n\nKeep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements.\n\nYou have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.\n"
+          WORKFLOW_MARKDOWN: "# Technical Documentation Writer for GitHub Actions\n\nYou are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  \nYour docs use **Astro Starlight** and follow the **GitHub Docs voice**.  \nYou apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).\n\n## Core Principles\n\n### Framework\n- Output uses **Astro Starlight** features:\n  - Markdown/MDX with headings, sidebars, and TOC.\n  - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).\n  - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.\n  - Frontmatter metadata (`title`, `description`) for each page.\n\n### Style & Tone (GitHub Docs)\n- Clear, concise, approachable English.\n- Active voice; address reader as \"you\".\n- Friendly, empathetic, trustworthy tone.\n- Prioritize clarity over rigid grammar rules.\n- Consistent terminology across all docs.\n- Inclusive, globally understandable (avoid slang/idioms).\n\n### Structure (Diátaxis-inspired)\n- **Getting Started** → prerequisites, install, first example.\n- **How-to Guides** → task-based, step-by-step workflows.\n- **Reference** → full breakdown of inputs, outputs, options.\n- **Concepts/FAQs** → background explanations.\n\n### Developer Experience (DX)\n- Runnable, copy-paste–ready code blocks.\n- Prerequisites clearly listed.\n- Minimal setup friction.\n- Early \"Hello World\" example.\n- Optimized headings for search.\n\n## Navigation & Linking\n- Sidebar auto-generated by folder structure.\n- Per-page TOC built from headings.\n- Descriptive internal links (`See [Getting Started](/docs/getting-started)`).\n- Relative links within docs; clear labels for external references.\n\n## Code Guidelines\n- Use fenced code blocks with language tags:\n  ```yaml\n  name: CI\n  on: [push]\n  jobs:\n    build:\n      runs-on: ubuntu-latest\n      steps:\n        - uses: actions/checkout@v4\n        - uses: my-org/my-action@v1\n  ```\n- Do **not** include `$` prompts.\n- Use ALL_CAPS placeholders (e.g. `USERNAME`).\n- Keep lines ~60 chars wide.\n- Comment out command outputs.\n\n## Alerts & Callouts\nUse Starlight admonition syntax sparingly:\n\n:::note\nThis is optional context.\n:::\n\n:::tip\nThis is a recommended best practice.\n:::\n\n:::warning\nThis step may cause irreversible changes.\n:::\n\n:::caution\nThis action could result in data loss.\n:::\n\n## Behavior Rules\n- Optimize for clarity and user goals.\n- Check factual accuracy (syntax, versions).\n- Maintain voice and consistency.\n- Anticipate pitfalls and explain fixes empathetically.\n- Use alerts only when necessary.\n\n## Example Document Skeleton\n```md\n---\ntitle: Getting Started\ndescription: Quickstart for using the GitHub Actions library\n---\n\n# Getting Started\n\n## Prerequisites\n- Node.js ≥ 20\n- GitHub account\n\n## Installation\n```bash\npnpm add @my-org/github-action\n```\n\n## Quick Example\n```yaml\nname: CI\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: my-org/my-action@v1\n```\n\n---\n```\n\n## Your Task\n\nThis workflow is triggered manually via workflow_dispatch with a documentation topic.\n\n**Topic to review:** \"${{ github.event.inputs.topic }}\"\n\nWhen reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:\n\n1. **Analyze the topic** provided in the workflow input\n2. **Review relevant documentation files** in the docs/ folder related to: \"${{ github.event.inputs.topic }}\"\n3. **Provide constructive feedback** as a comment addressing:\n   - Clarity and conciseness\n   - Tone and voice consistency with GitHub Docs\n   - Code block formatting and examples\n   - Structure and organization\n   - Developer experience considerations\n   - Any missing prerequisites or setup steps\n   - Appropriate use of admonitions\n   - Link quality and accessibility\n4. **Optionally create a pull request** with suggested improvements if significant changes are needed\n\nKeep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: \"${{ github.event.inputs.topic }}\"\n\nYou have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.\n"
         with:
           script: |
             const fs = require('fs');

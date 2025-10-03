@@ -1,10 +1,11 @@
 ---
 on:
-  pull_request:
-    types: [labeled]
   workflow_dispatch:
-
-if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'document' }}
+    inputs:
+      topic:
+        description: 'Documentation topic to review'
+        required: true
+        type: string
 
 permissions: read-all
 
@@ -164,12 +165,14 @@ jobs:
 
 ## Your Task
 
-This workflow is triggered when a pull request is labeled with "document" or manually via workflow_dispatch.
+This workflow is triggered manually via workflow_dispatch with a documentation topic.
 
-When reviewing pull requests with documentation changes in the **docs/** folder, apply these principles to:
+**Topic to review:** "${{ github.event.inputs.topic }}"
 
-1. **Review the documentation changes** in the PR: "${{ needs.activation.outputs.text }}"
-2. **Analyze files in the docs/ folder** against the persona principles above
+When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
+
+1. **Analyze the topic** provided in the workflow input
+2. **Review relevant documentation files** in the docs/ folder related to: "${{ github.event.inputs.topic }}"
 3. **Provide constructive feedback** as a comment addressing:
    - Clarity and conciseness
    - Tone and voice consistency with GitHub Docs
@@ -181,6 +184,6 @@ When reviewing pull requests with documentation changes in the **docs/** folder,
    - Link quality and accessibility
 4. **Optionally create a pull request** with suggested improvements if significant changes are needed
 
-Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements.
+Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
 
 You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
