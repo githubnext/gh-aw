@@ -119,8 +119,9 @@ function parseCopilotLog(logContent) {
 
     return markdown;
   } catch (error) {
-    core.error(`Error parsing Copilot log: ${error instanceof Error ? error.message : String(error)}`);
-    return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${error instanceof Error ? error.message : String(error)}*\n`;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    core.error(`Error parsing Copilot log: ${errorMessage}`);
+    return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${errorMessage}*\n`;
   }
 }
 
