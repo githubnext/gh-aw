@@ -102,9 +102,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
+	// Use --output-error=warn-nopipe to handle broken pipes gracefully (e.g., workflow cancellation)
 	command := fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
+copilot %s 2>&1 | tee --output-error=warn-nopipe %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",

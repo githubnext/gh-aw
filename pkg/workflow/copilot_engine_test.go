@@ -88,6 +88,11 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	if strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS") {
 		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
 	}
+
+	// Check that tee is used with --output-error=warn-nopipe for robust pipe handling
+	if !strings.Contains(stepContent, "| tee --output-error=warn-nopipe") {
+		t.Errorf("Expected tee with --output-error=warn-nopipe for robust pipe handling in step content:\n%s", stepContent)
+	}
 }
 
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {

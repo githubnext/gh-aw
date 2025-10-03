@@ -180,7 +180,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Add the command with proper indentation and tee output (preserves exit code with pipefail)
-	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee %s", command, logFile))
+	// Use --output-error=warn-nopipe to handle broken pipes gracefully (e.g., workflow cancellation)
+	stepLines = append(stepLines, fmt.Sprintf("          %s 2>&1 | tee --output-error=warn-nopipe %s", command, logFile))
 
 	// Add environment section - always include environment section for GITHUB_AW_PROMPT
 	stepLines = append(stepLines, "        env:")

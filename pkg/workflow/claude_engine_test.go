@@ -116,6 +116,11 @@ func TestClaudeEngine(t *testing.T) {
 	if !strings.Contains(stepContent, "timeout-minutes:") {
 		t.Errorf("Expected timeout-minutes at step level: %s", stepContent)
 	}
+
+	// Check that tee is used with --output-error=warn-nopipe for robust pipe handling
+	if !strings.Contains(stepContent, "| tee --output-error=warn-nopipe") {
+		t.Errorf("Expected tee with --output-error=warn-nopipe for robust pipe handling: %s", stepContent)
+	}
 }
 
 func TestClaudeEngineWithOutput(t *testing.T) {

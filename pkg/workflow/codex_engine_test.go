@@ -90,6 +90,11 @@ func TestCodexEngine(t *testing.T) {
 	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
 		t.Errorf("Expected OPENAI_API_KEY environment variable in step content:\n%s", stepContent)
 	}
+
+	// Check that tee is used with --output-error=warn-nopipe for robust pipe handling
+	if !strings.Contains(stepContent, "| tee --output-error=warn-nopipe") {
+		t.Errorf("Expected tee with --output-error=warn-nopipe for robust pipe handling in step content:\n%s", stepContent)
+	}
 }
 
 func TestCodexEngineWithVersion(t *testing.T) {
