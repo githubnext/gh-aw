@@ -59,6 +59,11 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
 	// Pass the workflow name for footer generation
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Pass the discussion ID if available (from activation job) - for tracking discussion references
+	if data.DiscussionConfig != nil && data.DiscussionConfig.Enabled {
+		steps = append(steps, "          GITHUB_AW_DISCUSSION_NUMBER: ${{ needs.activation.outputs.discussion-number }}\n")
+		steps = append(steps, "          GITHUB_AW_DISCUSSION_URL: ${{ needs.activation.outputs.discussion-url }}\n")
+	}
 	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
 	}
