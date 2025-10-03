@@ -208,7 +208,7 @@ func TestGenerateAuditReport(t *testing.T) {
 	}
 
 	// Generate report
-	report := generateAuditReport(processedRun, metrics, false)
+	report := generateAuditReport(processedRun, metrics)
 
 	// Verify report contains expected sections
 	expectedSections := []string{
@@ -271,7 +271,7 @@ func TestGenerateAuditReportMinimal(t *testing.T) {
 	}
 
 	// Generate report
-	report := generateAuditReport(processedRun, metrics, false)
+	report := generateAuditReport(processedRun, metrics)
 
 	// Verify report contains basic sections even with minimal data
 	expectedSections := []string{
@@ -327,7 +327,7 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 	}
 
 	// Generate report
-	report := generateAuditReport(processedRun, metrics, false)
+	report := generateAuditReport(processedRun, metrics)
 
 	// Verify issue summary is present
 	if !strings.Contains(report, "## Issue Summary") {
@@ -380,7 +380,7 @@ func TestGenerateAuditReportArtifacts(t *testing.T) {
 	}
 
 	// Generate report
-	report := generateAuditReport(processedRun, metrics, false)
+	report := generateAuditReport(processedRun, metrics)
 
 	// Verify all artifacts are listed
 	expectedArtifacts := []string{
