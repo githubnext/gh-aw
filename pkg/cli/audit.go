@@ -234,7 +234,7 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 	}
 
 	// Generate and display report
-	report := generateAuditReport(processedRun, metrics, verbose)
+	report := generateAuditReport(processedRun, metrics)
 	fmt.Println(report)
 
 	// Display logs location
@@ -275,7 +275,7 @@ func fetchWorkflowRunMetadata(runID int64, verbose bool) (WorkflowRun, error) {
 }
 
 // generateAuditReport generates a concise markdown report for AI agent consumption
-func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics, verbose bool) string {
+func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 	run := processedRun.Run
 	var report strings.Builder
 

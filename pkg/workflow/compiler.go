@@ -32,18 +32,18 @@ type FileTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
-	verbose         bool
-	engineOverride  string
-	customOutput    string          // If set, output will be written to this path instead of default location
-	version         string          // Version of the extension
-	skipValidation  bool            // If true, skip schema validation
-	noEmit          bool            // If true, validate without generating lock files
-	strictMode      bool            // If true, enforce strict validation requirements
-	trialMode       bool            // If true, suppress safe outputs for trial mode execution
-	trialTargetRepo string          // If set in trial mode, the target repository to checkout
-	jobManager      *JobManager     // Manages jobs and dependencies
-	engineRegistry  *EngineRegistry // Registry of available agentic engines
-	fileTracker     FileTracker     // Optional file tracker for tracking created files
+	verbose             bool
+	engineOverride      string
+	customOutput        string          // If set, output will be written to this path instead of default location
+	version             string          // Version of the extension
+	skipValidation      bool            // If true, skip schema validation
+	noEmit              bool            // If true, validate without generating lock files
+	strictMode          bool            // If true, enforce strict validation requirements
+	trialMode           bool            // If true, suppress safe outputs for trial mode execution
+	trialTargetRepoSlug string          // If set in trial mode, the target repository to checkout
+	jobManager          *JobManager     // Manages jobs and dependencies
+	engineRegistry      *EngineRegistry // Registry of available agentic engines
+	fileTracker         FileTracker     // Optional file tracker for tracking created files
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -81,8 +81,8 @@ func (c *Compiler) SetTrialMode(trialMode bool) {
 }
 
 // SetTrialTargetRepo configures the target repository for trial mode
-func (c *Compiler) SetTrialTargetRepo(targetRepo string) {
-	c.trialTargetRepo = targetRepo
+func (c *Compiler) SetTrialTargetRepo(targetRepoSlug string) {
+	c.trialTargetRepoSlug = targetRepoSlug
 }
 
 // SetStrictMode configures whether to enable strict validation mode
@@ -1745,8 +1745,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("        uses: actions/checkout@v5\n")
 		if c.trialMode {
 			yaml.WriteString("        with:\n")
-			if c.trialTargetRepo != "" {
-				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialTargetRepo))
+			if c.trialTargetRepoSlug != "" {
+				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialTargetRepoSlug))
+				trialTargetRepoName := strings.Split(c.trialTargetRepoSlug, "/")
+				if len(trialTargetRepoName) == 2 {
+					yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
+				}
 			}
 			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
