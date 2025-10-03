@@ -90,6 +90,98 @@ func TestCodexEngine(t *testing.T) {
 	if !strings.Contains(stepContent, "OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}") {
 		t.Errorf("Expected OPENAI_API_KEY environment variable in step content:\n%s", stepContent)
 	}
+
+	// Check that --dangerously-bypass-approvals-and-sandbox comes BEFORE exec subcommand
+	if !strings.Contains(stepContent, "--dangerously-bypass-approvals-and-sandbox --full-auto exec") {
+		t.Errorf("Expected '--dangerously-bypass-approvals-and-sandbox --full-auto exec' in correct order in step content:\n%s", stepContent)
+	}
+
+	// Verify the incorrect order is NOT present
+	if strings.Contains(stepContent, "--full-auto exec --dangerously-bypass-approvals-and-sandbox") {
+		t.Errorf("Found incorrect flag order '--full-auto exec --dangerously-bypass-approvals-and-sandbox' in step content:\n%s", stepContent)
+	}
+}
+
+func TestCodexEngineCommandFlagOrder(t *testing.T) {
+	engine := NewCodexEngine()
+
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		logFile      string
+		expectInCmd  string
+		rejectInCmd  string
+	}{
+		{
+			name: "basic codex command has correct flag order",
+			workflowData: &WorkflowData{
+				Name:  "test",
+				Tools: map[string]any{},
+			},
+			logFile:     "/tmp/test.log",
+			expectInCmd: "--dangerously-bypass-approvals-and-sandbox --full-auto exec",
+			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+		},
+		{
+			name: "codex with model flag has correct order",
+			workflowData: &WorkflowData{
+				Name: "test",
+				EngineConfig: &EngineConfig{
+					Model: "gpt-4",
+				},
+				Tools: map[string]any{},
+			},
+			logFile:     "/tmp/test.log",
+			expectInCmd: "-c model=gpt-4 --dangerously-bypass-approvals-and-sandbox --full-auto exec",
+			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+		},
+		{
+			name: "codex with web-search has correct order",
+			workflowData: &WorkflowData{
+				Name: "test",
+				Tools: map[string]any{
+					"web-search": true,
+				},
+			},
+			logFile:     "/tmp/test.log",
+			expectInCmd: "--search --dangerously-bypass-approvals-and-sandbox --full-auto exec",
+			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+		},
+		{
+			name: "codex with model and web-search has correct order",
+			workflowData: &WorkflowData{
+				Name: "test",
+				EngineConfig: &EngineConfig{
+					Model: "gpt-4",
+				},
+				Tools: map[string]any{
+					"web-search": true,
+				},
+			},
+			logFile:     "/tmp/test.log",
+			expectInCmd: "-c model=gpt-4 --search --dangerously-bypass-approvals-and-sandbox --full-auto exec",
+			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			steps := engine.GetExecutionSteps(tt.workflowData, tt.logFile)
+			if len(steps) < 1 {
+				t.Fatalf("Expected at least 1 execution step, got %d", len(steps))
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+
+			if !strings.Contains(stepContent, tt.expectInCmd) {
+				t.Errorf("Expected command to contain %q\nStep content:\n%s", tt.expectInCmd, stepContent)
+			}
+
+			if strings.Contains(stepContent, tt.rejectInCmd) {
+				t.Errorf("Expected command NOT to contain %q\nStep content:\n%s", tt.rejectInCmd, stepContent)
+			}
+		})
+	}
 }
 
 func TestCodexEngineWithVersion(t *testing.T) {
