@@ -29,30 +29,12 @@ func GetAllCommentEvents() []CommentEventMapping {
 }
 
 // GetCommentEventByIdentifier returns the event mapping for a given identifier
-// Supports both short identifiers (e.g., "issue") and full event names (e.g., "issues")
+// Uses GitHub Actions event names (e.g., "issues", "issue_comment", "pull_request", "pull_request_review_comment")
 func GetCommentEventByIdentifier(identifier string) *CommentEventMapping {
-	// Map short identifiers to full event names
-	identifierMap := map[string]string{
-		"issue":                       "issues",
-		"issues":                      "issues",
-		"comment":                     "issue_comment",
-		"issue_comment":               "issue_comment",
-		"pr":                          "pull_request",
-		"pull_request":                "pull_request",
-		"pr_review":                   "pull_request_review_comment",
-		"pr_review_comment":           "pull_request_review_comment",
-		"pull_request_review_comment": "pull_request_review_comment",
-	}
-
-	eventName, ok := identifierMap[identifier]
-	if !ok {
-		return nil
-	}
-
-	// Find and return the matching event mapping
+	// Find and return the matching event mapping using GitHub Actions event names
 	allEvents := GetAllCommentEvents()
 	for i := range allEvents {
-		if allEvents[i].EventName == eventName {
+		if allEvents[i].EventName == identifier {
 			return &allEvents[i]
 		}
 	}

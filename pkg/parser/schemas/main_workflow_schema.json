@@ -41,20 +41,20 @@
                       "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
                     },
                     "events": {
-                      "description": "Events where the command should be active. Default is all comment-related events ('*').",
+                      "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
                       "oneOf": [
                         {
                           "type": "string",
-                          "description": "Single event identifier or '*' for all events.",
-                          "enum": ["*", "issue", "issues", "comment", "issue_comment", "pr", "pull_request", "pr_review", "pr_review_comment", "pull_request_review_comment"]
+                          "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request', 'pull_request_review_comment'.",
+                          "enum": ["*", "issues", "issue_comment", "pull_request", "pull_request_review_comment"]
                         },
                         {
                           "type": "array",
-                          "description": "Array of event identifiers where the command should be active",
+                          "description": "Array of event names where the command should be active. Use GitHub Actions event names.",
                           "items": {
                             "type": "string",
-                            "description": "Event identifier.",
-                            "enum": ["*", "issue", "issues", "comment", "issue_comment", "pr", "pull_request", "pr_review", "pr_review_comment", "pull_request_review_comment"]
+                            "description": "GitHub Actions event name.",
+                            "enum": ["*", "issues", "issue_comment", "pull_request", "pull_request_review_comment"]
                           }
                         }
                       ]

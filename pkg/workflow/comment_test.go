@@ -42,48 +42,43 @@ func TestGetCommentEventByIdentifier(t *testing.T) {
 		wantNil    bool
 	}{
 		{
-			name:       "short identifier 'issue'",
-			identifier: "issue",
-			wantEvent:  "issues",
-		},
-		{
-			name:       "full identifier 'issues'",
+			name:       "GitHub Actions event name 'issues'",
 			identifier: "issues",
 			wantEvent:  "issues",
 		},
 		{
-			name:       "short identifier 'comment'",
-			identifier: "comment",
-			wantEvent:  "issue_comment",
-		},
-		{
-			name:       "full identifier 'issue_comment'",
+			name:       "GitHub Actions event name 'issue_comment'",
 			identifier: "issue_comment",
 			wantEvent:  "issue_comment",
 		},
 		{
-			name:       "short identifier 'pr'",
-			identifier: "pr",
-			wantEvent:  "pull_request",
-		},
-		{
-			name:       "full identifier 'pull_request'",
+			name:       "GitHub Actions event name 'pull_request'",
 			identifier: "pull_request",
 			wantEvent:  "pull_request",
 		},
 		{
-			name:       "short identifier 'pr_review'",
-			identifier: "pr_review",
-			wantEvent:  "pull_request_review_comment",
-		},
-		{
-			name:       "full identifier 'pull_request_review_comment'",
+			name:       "GitHub Actions event name 'pull_request_review_comment'",
 			identifier: "pull_request_review_comment",
 			wantEvent:  "pull_request_review_comment",
 		},
 		{
 			name:       "invalid identifier",
 			identifier: "invalid",
+			wantNil:    true,
+		},
+		{
+			name:       "short identifier 'issue' is not supported",
+			identifier: "issue",
+			wantNil:    true,
+		},
+		{
+			name:       "short identifier 'comment' is not supported",
+			identifier: "comment",
+			wantNil:    true,
+		},
+		{
+			name:       "short identifier 'pr' is not supported",
+			identifier: "pr",
 			wantNil:    true,
 		},
 	}
@@ -130,13 +125,13 @@ func TestParseCommandEvents(t *testing.T) {
 		},
 		{
 			name:        "single event string",
-			eventsValue: "issue",
-			want:        []string{"issue"},
+			eventsValue: "issues",
+			want:        []string{"issues"},
 		},
 		{
 			name:        "array of event strings",
-			eventsValue: []any{"issue", "comment"},
-			want:        []string{"issue", "comment"},
+			eventsValue: []any{"issues", "issue_comment"},
+			want:        []string{"issues", "issue_comment"},
 		},
 		{
 			name:        "empty array returns default",
@@ -145,8 +140,8 @@ func TestParseCommandEvents(t *testing.T) {
 		},
 		{
 			name:        "array with non-strings is filtered",
-			eventsValue: []any{"issue", 123, "comment"},
-			want:        []string{"issue", "comment"},
+			eventsValue: []any{"issues", 123, "issue_comment"},
+			want:        []string{"issues", "issue_comment"},
 		},
 	}
 
@@ -189,25 +184,25 @@ func TestFilterCommentEvents(t *testing.T) {
 		},
 		{
 			name:        "single identifier",
-			identifiers: []string{"issue"},
+			identifiers: []string{"issues"},
 			wantCount:   1,
 			wantEvents:  []string{"issues"},
 		},
 		{
 			name:        "multiple identifiers",
-			identifiers: []string{"issue", "comment"},
+			identifiers: []string{"issues", "issue_comment"},
 			wantCount:   2,
 			wantEvents:  []string{"issues", "issue_comment"},
 		},
 		{
 			name:        "invalid identifiers are filtered out",
-			identifiers: []string{"issue", "invalid", "comment"},
+			identifiers: []string{"issues", "invalid", "issue_comment"},
 			wantCount:   2,
 			wantEvents:  []string{"issues", "issue_comment"},
 		},
 		{
-			name:        "short and full identifiers",
-			identifiers: []string{"pr", "pull_request_review_comment"},
+			name:        "GitHub Actions event names",
+			identifiers: []string{"pull_request", "pull_request_review_comment"},
 			wantCount:   2,
 			wantEvents:  []string{"pull_request", "pull_request_review_comment"},
 		},

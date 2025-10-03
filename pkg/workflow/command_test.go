@@ -189,12 +189,12 @@ func TestCommandEventsFiltering(t *testing.T) {
 		unexpectedBodyChecks []string // Body properties that should NOT be checked
 	}{
 		{
-			name: "command with events: [issue]",
+			name: "command with events: [issues]",
 			frontmatter: `---
 on:
   command:
     name: issue-bot
-    events: [issue]
+    events: [issues]
 tools:
   github:
     allowed: [list_issues]
@@ -206,12 +206,12 @@ tools:
 			unexpectedBodyChecks: []string{"github.event.comment.body", "github.event.pull_request.body"},
 		},
 		{
-			name: "command with events: [issue, comment]",
+			name: "command with events: [issues, issue_comment]",
 			frontmatter: `---
 on:
   command:
     name: dual-bot
-    events: [issue, comment]
+    events: [issues, issue_comment]
 tools:
   github:
     allowed: [list_issues]
@@ -239,12 +239,12 @@ tools:
 				"github.event.pull_request.body"},
 		},
 		{
-			name: "command with events: [pr]",
+			name: "command with events: [pull_request]",
 			frontmatter: `---
 on:
   command:
     name: pr-bot
-    events: [pr]
+    events: [pull_request]
 tools:
   github:
     allowed: [list_pull_requests]
