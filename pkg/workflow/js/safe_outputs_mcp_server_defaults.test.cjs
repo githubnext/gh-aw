@@ -247,3 +247,215 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     });
   });
 });
+
+// Test that add_labels tool description is patched with allowed labels
+describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
+  it("should patch add_labels tool description with allowed labels from config", async () => {
+    const config = {
+      "add-labels": {
+        allowed: ["bug", "enhancement", "documentation"],
+        max: 3,
+      },
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+        },
+      });
+
+      let stderr = "";
+      let receivedMessages = [];
+
+      child.stderr.on("data", data => {
+        stderr += data.toString();
+      });
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/list request after initialization
+      setTimeout(() => {
+        const listToolsMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/list",
+            params: {},
+          }) + "\n";
+        child.stdin.write(listToolsMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/list response
+        const listResponse = receivedMessages.find(m => m.id === 2);
+        expect(listResponse).toBeDefined();
+        expect(listResponse.result).toBeDefined();
+        expect(listResponse.result.tools).toBeDefined();
+
+        // Find the add_labels tool
+        const addLabelsTool = listResponse.result.tools.find(t => t.name === "add_labels");
+        expect(addLabelsTool).toBeDefined();
+
+        // Check that the description includes the allowed labels
+        expect(addLabelsTool.description).toContain("bug");
+        expect(addLabelsTool.description).toContain("enhancement");
+        expect(addLabelsTool.description).toContain("documentation");
+        expect(addLabelsTool.description).toContain("Allowed labels:");
+
+        resolve();
+      }, 500);
+    });
+  });
+
+  it("should not patch add_labels tool description when no allowed labels configured", async () => {
+    const config = {
+      "add-labels": {
+        max: 3,
+      },
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+        },
+      });
+
+      let stderr = "";
+      let receivedMessages = [];
+
+      child.stderr.on("data", data => {
+        stderr += data.toString();
+      });
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/list request after initialization
+      setTimeout(() => {
+        const listToolsMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/list",
+            params: {},
+          }) + "\n";
+        child.stdin.write(listToolsMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/list response
+        const listResponse = receivedMessages.find(m => m.id === 2);
+        expect(listResponse).toBeDefined();
+        expect(listResponse.result).toBeDefined();
+        expect(listResponse.result.tools).toBeDefined();
+
+        // Find the add_labels tool
+        const addLabelsTool = listResponse.result.tools.find(t => t.name === "add_labels");
+        expect(addLabelsTool).toBeDefined();
+
+        // Check that the description is the default (no "Allowed labels:" text)
+        expect(addLabelsTool.description).toBe("Add labels to a GitHub issue or pull request");
+        expect(addLabelsTool.description).not.toContain("Allowed labels:");
+
+        resolve();
+      }, 500);
+    });
+  });
+});

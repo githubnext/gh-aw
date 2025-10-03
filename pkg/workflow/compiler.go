@@ -688,6 +688,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Apply pull request fork filter if specified
 	c.applyPullRequestForkFilter(workflowData, result.Frontmatter)
 
+	// Apply label filter if specified
+	c.applyLabelFilter(workflowData, result.Frontmatter)
+
 	return workflowData, nil
 }
 
@@ -786,27 +789,36 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 	return ifString
 }
 
-// commentOutProcessedFieldsInOnSection comments out draft, fork, and forks fields in pull_request sections within the YAML string
-// These fields are processed separately by applyPullRequestDraftFilter and applyPullRequestForkFilter and should be commented for documentation
+// commentOutProcessedFieldsInOnSection comments out draft, fork, forks, and names fields in pull_request/issues sections within the YAML string
+// These fields are processed separately by applyPullRequestDraftFilter, applyPullRequestForkFilter, and applyLabelFilter and should be commented for documentation
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 	lines := strings.Split(yamlStr, "\n")
 	var result []string
 	inPullRequest := false
+	inIssues := false
 	inForksArray := false
 
 	for _, line := range lines {
-		// Check if we're entering a pull_request section
+		// Check if we're entering a pull_request or issues section
 		if strings.Contains(line, "pull_request:") {
 			inPullRequest = true
+			inIssues = false
+			result = append(result, line)
+			continue
+		}
+		if strings.Contains(line, "issues:") {
+			inIssues = true
+			inPullRequest = false
 			result = append(result, line)
 			continue
 		}
 
-		// Check if we're leaving the pull_request section (new top-level key or end of indent)
-		if inPullRequest {
-			// If line is not indented or is a new top-level key, we're out of pull_request
+		// Check if we're leaving the pull_request or issues section (new top-level key or end of indent)
+		if inPullRequest || inIssues {
+			// If line is not indented or is a new top-level key, we're out of the section
 			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "\t") {
 				inPullRequest = false
+				inIssues = false
 				inForksArray = false
 			}
 		}
@@ -842,6 +854,48 @@ func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string) string {
 		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
 			shouldComment = true
 			commentReason = " # Fork filtering applied via job conditions"
+		} else if (inPullRequest || inIssues) && strings.HasPrefix(trimmedLine, "names:") {
+			shouldComment = true
+			commentReason = " # Label filtering applied via job conditions"
+		} else if (inPullRequest || inIssues) && line != "" {
+			// Check if we're in a names array (after "names:" line)
+			// Look back to see if the previous uncommented line was "names:"
+			if len(result) > 0 {
+				for i := len(result) - 1; i >= 0; i-- {
+					prevLine := result[i]
+					prevTrimmed := strings.TrimSpace(prevLine)
+
+					// Skip empty lines
+					if prevTrimmed == "" {
+						continue
+					}
+
+					// If we find "names:", and current line is an array item, comment it
+					if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
+						if strings.HasPrefix(trimmedLine, "-") {
+							shouldComment = true
+							commentReason = " # Label filtering applied via job conditions"
+						}
+						break
+					}
+
+					// If we find a different field or commented names array item, break
+					if !strings.HasPrefix(prevTrimmed, "#") || !strings.Contains(prevTrimmed, "Label filtering") {
+						break
+					}
+
+					// If it's a commented names array item, continue
+					if strings.HasPrefix(prevTrimmed, "# -") && strings.Contains(prevTrimmed, "Label filtering") {
+						if strings.HasPrefix(trimmedLine, "-") {
+							shouldComment = true
+							commentReason = " # Label filtering applied via job conditions"
+						}
+						continue
+					}
+
+					break
+				}
+			}
 		}
 
 		if shouldComment {
@@ -2527,6 +2581,9 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			if data.SafeOutputs.AddLabels.Min > 0 {
 				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
+			}
+			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
+				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
 			}
 			safeOutputsConfig["add-labels"] = labelConfig
 		}
