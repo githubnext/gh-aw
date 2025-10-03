@@ -270,7 +270,7 @@ describe("main function behavior", () => {
     vi.clearAllMocks();
   });
 
-  test("should not call core.setFailed when errors are detected", () => {
+  test("should call core.setFailed when errors are detected", () => {
     // Mock the imported functions since main isn't exported
     const originalProcessEnv = process.env;
 
@@ -292,7 +292,7 @@ describe("main function behavior", () => {
     };
 
     // Since we can't easily test main() directly, we can test the core logic
-    // The main function will call validateErrors and if it returns true, use core.error (not core.setFailed)
+    // The main function will call validateErrors and if it returns true, call core.setFailed
     const logContent = "ERROR: Test error message";
     const patterns = [
       {
@@ -306,16 +306,12 @@ describe("main function behavior", () => {
     const hasErrors = validateErrors(logContent, patterns);
     expect(hasErrors).toBe(true);
 
-    // Simulate what main() would do now - use core.error instead of core.setFailed
+    // Simulate what main() would do
     if (hasErrors) {
-      global.core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
+      global.core.setFailed("Errors detected in agent logs - failing workflow step");
     }
 
-    // Should NOT call core.setFailed anymore
-    expect(global.core.setFailed).not.toHaveBeenCalled();
-
-    // Should call core.error instead
-    expect(global.core.error).toHaveBeenCalled();
+    expect(global.core.setFailed).toHaveBeenCalledWith("Errors detected in agent logs - failing workflow step");
 
     // Restore
     process.env = originalProcessEnv;
@@ -337,7 +333,7 @@ describe("main function behavior", () => {
 
     // Simulate what main() would do
     if (hasErrors) {
-      global.core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
+      global.core.setFailed("Errors detected in agent logs - failing workflow step");
     }
 
     expect(global.core.setFailed).not.toHaveBeenCalled();

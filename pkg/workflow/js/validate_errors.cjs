@@ -4,20 +4,17 @@ function main() {
   try {
     const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!logFile) {
-      core.info("No agent log file specified");
-      return;
+      throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
     }
 
     if (!fs.existsSync(logFile)) {
-      core.info(`Log file not found: ${logFile}`);
-      return;
+      throw new Error(`Log file not found: ${logFile}`);
     }
 
     // Get error patterns from environment variables
     const patterns = getErrorPatternsFromEnv();
     if (patterns.length === 0) {
-      core.info("No error patterns configured");
-      return;
+      throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
     }
 
     const content = fs.readFileSync(logFile, "utf8");
@@ -25,6 +22,7 @@ function main() {
 
     if (hasErrors) {
       core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
+      //core.setFailed("Errors detected in agent logs - failing workflow step");
     } else {
       core.info("Error validation completed successfully");
     }
@@ -37,19 +35,17 @@ function main() {
 function getErrorPatternsFromEnv() {
   const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
   if (!patternsEnv) {
-    return [];
+    throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
   }
 
   try {
     const patterns = JSON.parse(patternsEnv);
     if (!Array.isArray(patterns)) {
-      core.error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
-      return [];
+      throw new Error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
     }
     return patterns;
   } catch (e) {
-    core.error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
-    return [];
+    throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 
