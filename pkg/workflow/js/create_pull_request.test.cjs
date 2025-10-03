@@ -644,7 +644,7 @@ describe("create_pull_request.cjs", () => {
       owner: "testowner",
       repo: "testrepo",
       title: "Push will fail",
-      body: expect.stringMatching(/Git push will fail[\s\S]*Push Error.*Permission denied[\s\S]*Patch preview/),
+      body: expect.stringMatching(/Git push will fail[\s\S]*Push Error.*Permission denied[\s\S]*aw\.patch/),
       labels: ["automation"],
     });
 

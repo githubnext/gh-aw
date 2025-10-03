@@ -306,14 +306,6 @@ async function main() {
       core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
       core.warning("Git push operation failed - creating fallback issue instead of pull request");
 
-      // Read patch content for preview (truncate to avoid bloat)
-      const patchPreview = patchContent.slice(0, 2000);
-      const patchTruncated = patchContent.length > 2000;
-
-      const branchUrl = context.payload.repository
-        ? `${context.payload.repository.html_url}/tree/${branchName}`
-        : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-
       const runId = context.runId;
       const runUrl = context.payload.repository
         ? `${context.payload.repository.html_url}/actions/runs/${runId}`
@@ -323,21 +315,13 @@ async function main() {
 
 ---
 
-**⚠️ Note:** This was originally intended as a pull request, but the git push operation failed. The changes are committed locally to branch \`${branchName}\` but could not be pushed to the remote repository.
+**⚠️ Note:** This was originally intended as a pull request, but the git push operation failed.
 
 **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
 
-**Workflow Run:** [${runUrl}](${runUrl})
+**Workflow Run:** [View run details and download patch artifact](${runUrl})
 
-<details><summary>Patch preview</summary>
-
-\`\`\`diff
-${patchPreview}${patchTruncated ? "\n... (truncated)" : ""}
-\`\`\`
-
-</details>
-
-You may need to manually push the branch or create a pull request if the push issue is resolved.`;
+The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.`;
 
       try {
         const { data: issue } = await github.rest.issues.create({
@@ -365,7 +349,7 @@ You may need to manually push the branch or create a pull request if the push is
 ## Push Failure Fallback
 - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
 - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-- **Branch (local only):** \`${branchName}\`
+- **Patch Artifact:** Available in workflow run artifacts
 - **Note:** Push failed, created issue as fallback
 `
           )
