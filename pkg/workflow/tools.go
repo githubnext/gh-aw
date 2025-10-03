@@ -33,62 +33,59 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 
 	if data.On == "" {
 		if isCommandTrigger {
-			// Generate command-specific GitHub Actions events (updated to include reopened and pull_request)
-			commandEvents := `on:
-  issues:
-    types: [opened, edited, reopened]
-  issue_comment:
-    types: [created, edited]
-  pull_request:
-    types: [opened, edited, reopened]
-  pull_request_review_comment:
-    types: [created, edited]`
+			// Get the filtered command events based on CommandEvents field
+			filteredEvents := FilterCommentEvents(data.CommandEvents)
+			
+			// Build command events map from filtered events
+			commandEventsMap := make(map[string]any)
+			for _, event := range filteredEvents {
+				commandEventsMap[event.EventName] = map[string]any{
+					"types": event.Types,
+				}
+			}
 
 			// Check if there are other events to merge
 			if len(data.CommandOtherEvents) > 0 {
-				// Merge command events with other events
-				commandEventsMap := map[string]any{
-					"issues": map[string]any{
-						"types": []string{"opened", "edited", "reopened"},
-					},
-					"issue_comment": map[string]any{
-						"types": []string{"created", "edited"},
-					},
-					"pull_request": map[string]any{
-						"types": []string{"opened", "edited", "reopened"},
-					},
-					"pull_request_review_comment": map[string]any{
-						"types": []string{"created", "edited"},
-					},
-				}
-
 				// Merge other events into command events
 				for key, value := range data.CommandOtherEvents {
 					commandEventsMap[key] = value
 				}
+			}
 
-				// Convert merged events to YAML
-				mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
-				if err == nil {
-					yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+			// Convert merged events to YAML
+			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
+			if err == nil {
+				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
 
-					// Clean up quoted keys - replace "on": with on: at the start of a line
-					// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-					yamlStr = unquoteYAMLKey(yamlStr, "on")
+				// Clean up quoted keys - replace "on": with on: at the start of a line
+				// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+				yamlStr = unquoteYAMLKey(yamlStr, "on")
 
-					data.On = yamlStr
-				} else {
-					// If conversion fails, just use command events
-					data.On = commandEvents
-				}
+				data.On = yamlStr
 			} else {
-				data.On = commandEvents
+				// If conversion fails, build a basic YAML string manually
+				var builder strings.Builder
+				builder.WriteString("on:")
+				for _, event := range filteredEvents {
+					builder.WriteString("\n  ")
+					builder.WriteString(event.EventName)
+					builder.WriteString(":\n    types: [")
+					for i, t := range event.Types {
+						if i > 0 {
+							builder.WriteString(", ")
+						}
+						builder.WriteString(t)
+					}
+					builder.WriteString("]")
+				}
+				data.On = builder.String()
 			}
 
 			// Add conditional logic to check for command in issue content
 			// Use event-aware condition that only applies command checks to comment-related events
+			// Pass the filtered events to buildEventAwareCommandCondition
 			hasOtherEvents := len(data.CommandOtherEvents) > 0
-			commandConditionTree := buildEventAwareCommandCondition(data.Command, hasOtherEvents)
+			commandConditionTree := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
 
 			if data.If == "" {
 				data.If = commandConditionTree.Render()

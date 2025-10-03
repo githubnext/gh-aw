@@ -167,3 +167,168 @@ This test validates that command conditions are applied correctly based on event
 		})
 	}
 }
+
+// TestCommandEventsFiltering tests that the events field filters which events the command is active on
+func TestCommandEventsFiltering(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "workflow-command-events-filtering-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name                 string
+		frontmatter          string
+		filename             string
+		expectedEvents       []string // Events that should be in the generated workflow
+		unexpectedEvents     []string // Events that should NOT be in the generated workflow
+		expectedBodyChecks   []string // Body properties that should be checked
+		unexpectedBodyChecks []string // Body properties that should NOT be checked
+	}{
+		{
+			name: "command with events: [issue]",
+			frontmatter: `---
+on:
+  command:
+    name: issue-bot
+    events: [issue]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:             "command-issue-only.md",
+			expectedEvents:       []string{"issues:"},
+			unexpectedEvents:     []string{"issue_comment:", "pull_request:", "pull_request_review_comment:"},
+			expectedBodyChecks:   []string{"github.event.issue.body"},
+			unexpectedBodyChecks: []string{"github.event.comment.body", "github.event.pull_request.body"},
+		},
+		{
+			name: "command with events: [issue, comment]",
+			frontmatter: `---
+on:
+  command:
+    name: dual-bot
+    events: [issue, comment]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:             "command-issue-comment.md",
+			expectedEvents:       []string{"issues:", "issue_comment:"},
+			unexpectedEvents:     []string{"pull_request:", "pull_request_review_comment:"},
+			expectedBodyChecks:   []string{"github.event.issue.body", "github.event.comment.body"},
+			unexpectedBodyChecks: []string{"github.event.pull_request.body"},
+		},
+		{
+			name: "command with events: '*' (all events)",
+			frontmatter: `---
+on:
+  command:
+    name: all-bot
+    events: "*"
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:       "command-all-events.md",
+			expectedEvents: []string{"issues:", "issue_comment:", "pull_request:", "pull_request_review_comment:"},
+			expectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body", 
+				"github.event.pull_request.body"},
+		},
+		{
+			name: "command with events: [pr]",
+			frontmatter: `---
+on:
+  command:
+    name: pr-bot
+    events: [pr]
+tools:
+  github:
+    allowed: [list_pull_requests]
+---`,
+			filename:             "command-pr-only.md",
+			expectedEvents:       []string{"pull_request:"},
+			unexpectedEvents:     []string{"issues:", "issue_comment:", "pull_request_review_comment:"},
+			expectedBodyChecks:   []string{"github.event.pull_request.body"},
+			unexpectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := tt.frontmatter + `
+
+# Test Command Events Filtering
+
+This test validates that command events filtering works correctly.
+`
+
+			testFile := filepath.Join(tmpDir, tt.filename)
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			err := compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Compilation failed: %v", err)
+			}
+
+			// Read the compiled workflow
+			lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContentStr := string(lockContent)
+
+			// Extract the "on:" section to check for events (not permissions)
+			onSectionStart := strings.Index(lockContentStr, "on:")
+			onSectionEnd := strings.Index(lockContentStr[onSectionStart:], "\npermissions:")
+			if onSectionEnd == -1 {
+				onSectionEnd = strings.Index(lockContentStr[onSectionStart:], "\nconcurrency:")
+			}
+			if onSectionEnd == -1 {
+				onSectionEnd = strings.Index(lockContentStr[onSectionStart:], "\njobs:")
+			}
+			onSection := ""
+			if onSectionEnd > 0 {
+				onSection = lockContentStr[onSectionStart : onSectionStart+onSectionEnd]
+			} else {
+				onSection = lockContentStr[onSectionStart:]
+			}
+
+			// Check for expected events in the "on:" section only
+			for _, expectedEvent := range tt.expectedEvents {
+				if !strings.Contains(onSection, expectedEvent) {
+					t.Errorf("Expected to find event '%s' in 'on:' section, but not found.\nOn section:\n%s", expectedEvent, onSection)
+				}
+			}
+
+			// Check for unexpected events in the "on:" section only
+			for _, unexpectedEvent := range tt.unexpectedEvents {
+				if strings.Contains(onSection, unexpectedEvent) {
+					t.Errorf("Did not expect to find event '%s' in 'on:' section, but found it.\nOn section:\n%s", unexpectedEvent, onSection)
+				}
+			}
+
+			// Check for expected body checks in the if condition
+			for _, expectedCheck := range tt.expectedBodyChecks {
+				if !strings.Contains(lockContentStr, expectedCheck) {
+					t.Errorf("Expected to find body check '%s' in generated workflow", expectedCheck)
+				}
+			}
+
+			// Check for unexpected body checks
+			for _, unexpectedCheck := range tt.unexpectedBodyChecks {
+				if strings.Contains(lockContentStr, unexpectedCheck) {
+					t.Errorf("Did not expect to find body check '%s' in generated workflow", unexpectedCheck)
+				}
+			}
+		})
+	}
+}

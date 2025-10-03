@@ -409,7 +409,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-bot.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
 			expectedIf:      "((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot'))",
 			expectedCommand: "test-bot",
 		},
@@ -424,7 +424,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-new-format.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
 			expectedIf:      "((contains(github.event.issue.body, '/new-bot')) || (contains(github.event.comment.body, '/new-bot'))) || (contains(github.event.pull_request.body, '/new-bot'))",
 			expectedCommand: "new-bot",
 		},
@@ -438,7 +438,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "default-name-bot.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
 			expectedIf:      "((contains(github.event.issue.body, '/default-name-bot')) || (contains(github.event.comment.body, '/default-name-bot'))) || (contains(github.event.pull_request.body, '/default-name-bot'))",
 			expectedCommand: "default-name-bot",
 		},
@@ -452,7 +452,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-string-format.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
 			expectedIf:      "((contains(github.event.issue.body, '/customname')) || (contains(github.event.comment.body, '/customname'))) || (contains(github.event.pull_request.body, '/customname'))",
 			expectedCommand: "customname",
 		},
