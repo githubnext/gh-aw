@@ -136,7 +136,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))
 
 	// Pass the staged flag if it's set to true
-	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
+	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 
