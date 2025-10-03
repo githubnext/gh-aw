@@ -38,6 +38,59 @@ on:
 
 **Note**: You cannot combine `command` with `issues`, `issue_comment`, or `pull_request` as they would conflict.
 
+## Filtering Command Events
+
+By default, command triggers respond to `/command-name` mentions in all comment-related contexts. Use the `events:` field to restrict where commands are active:
+
+```yaml wrap
+on:
+  command:
+    name: my-bot
+    events: [issues, issue_comment]  # Only in issue bodies and issue comments
+```
+
+**Supported event identifiers:**
+- `issues` - Issue bodies (opened, edited, reopened)
+- `issue_comment` - Comments on issues only (excludes PR comments)
+- `pull_request_comment` - Comments on pull requests only (excludes issue comments)
+- `pull_request` - Pull request bodies (opened, edited, reopened)
+- `pull_request_review_comment` - Pull request review comments
+- `*` - All comment-related events (default when omitted)
+
+**Examples:**
+
+Only respond in issue contexts:
+```yaml wrap
+on:
+  command:
+    name: triage
+    events: [issues, issue_comment]
+```
+
+Only respond in pull request contexts:
+```yaml wrap
+on:
+  command:
+    name: review
+    events: [pull_request, pull_request_comment, pull_request_review_comment]
+```
+
+Only respond in comments (not bodies):
+```yaml wrap
+on:
+  command:
+    name: help
+    events: [issue_comment, pull_request_comment]
+```
+
+**Implementation Details:**
+
+Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event. The compiler automatically generates appropriate filters:
+- `issue_comment`: Adds condition `github.event.issue.pull_request == null` (comments on issues)
+- `pull_request_comment`: Adds condition `github.event.issue.pull_request != null` (comments on PRs)
+
+This provides precise control over where your commands are active without needing manual condition writing.
+
 **Note**: Using this feature results in the addition of `.github/actions/check-team-member/action.yml` file to the repository when the workflow is compiled. This file is used to check if the user triggering the workflow has appropriate permissions to operate in the repository.
 
 ### Example command workflow

@@ -16,6 +16,7 @@ Command triggers make any GitHub repository responsive to automation commands. W
 on:
   command:
     name: review
+    events: [pull_request_comment]  # Only respond to /review in PR comments
 roles: [admin, maintainer]  # Default security restriction
 permissions:
   contents: read
@@ -28,14 +29,41 @@ safe-outputs:
 
 # Code Review Assistant
 
-When someone types /review in a pull request, perform a thorough analysis of the changes.
+When someone types /review in a pull request comment, perform a thorough analysis of the changes.
 
 Examine the diff for potential bugs, security vulnerabilities, performance implications, code style issues, and missing tests or documentation.
 
 Create specific review comments on relevant lines of code and add a summary comment with overall observations and recommendations.
 ```
 
-This workflow creates an AI code reviewer that activates when someone types `/review` in a pull request. The AI agent runs with minimal read permissions, while safe outputs handle comment creation through separate secured jobs.
+This workflow creates an AI code reviewer that activates when someone types `/review` in a pull request comment. The AI agent runs with minimal read permissions, while safe outputs handle comment creation through separate secured jobs.
+
+## Filtering Command Events
+
+By default, command triggers respond to mentions in all comment-related contexts: issue bodies, issue comments, pull request bodies, PR comments, and PR review comments. You can restrict where commands are active using the `events:` field:
+
+```aw wrap
+---
+on:
+  command:
+    name: triage
+    events: [issues, issue_comment]  # Only in issue bodies and issue comments
+---
+
+# Issue Triage Bot
+
+This command only responds when mentioned in issues, not in pull requests.
+```
+
+**Supported event identifiers:**
+- `issues` - Issue bodies (opened, edited, reopened)
+- `issue_comment` - Comments on issues only (excludes PR comments)
+- `pull_request_comment` - Comments on pull requests only (excludes issue comments)
+- `pull_request` - Pull request bodies (opened, edited, reopened)
+- `pull_request_review_comment` - Pull request review comments
+- `*` - All comment-related events (default when `events:` is omitted)
+
+**Note**: Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event but with automatic filtering to distinguish between issue comments and PR comments. This provides precise control over where your commands are active.
 
 ## Security and Access Control
 

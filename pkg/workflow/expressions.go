@@ -220,7 +220,6 @@ func buildReactionCondition() ConditionNode {
 
 	terms = append(terms, BuildEventTypeEquals("issues"))
 	terms = append(terms, BuildEventTypeEquals("issue_comment"))
-	terms = append(terms, BuildEventTypeEquals("pull_request_comment"))
 	terms = append(terms, BuildEventTypeEquals("pull_request_review_comment"))
 
 	// For pull_request events, we need to ensure it's not from a forked repository
@@ -255,6 +254,11 @@ func BuildBooleanLiteral(value bool) *BooleanLiteralNode {
 // BuildNumberLiteral creates a number literal node
 func BuildNumberLiteral(value string) *NumberLiteralNode {
 	return &NumberLiteralNode{Value: value}
+}
+
+// BuildNullLiteral creates a null literal node
+func BuildNullLiteral() *ExpressionNode {
+	return &ExpressionNode{Expression: "null"}
 }
 
 // BuildComparison creates a comparison node with the specified operator
@@ -397,11 +401,13 @@ func BuildExpressionWithDescription(expression, description string) *ExpressionN
 	}
 }
 
-// BuildMultilineDisjunction creates a disjunction node with multiline rendering enabled
-func BuildMultilineDisjunction(terms ...ConditionNode) *DisjunctionNode {
+// BuildDisjunction creates a disjunction node (OR operation) from the given terms
+// Handles arrays of size 0, 1, or more correctly
+// The multiline parameter controls whether to render each term on a separate line
+func BuildDisjunction(multiline bool, terms ...ConditionNode) *DisjunctionNode {
 	return &DisjunctionNode{
 		Terms:     terms,
-		Multiline: true,
+		Multiline: multiline,
 	}
 }
 

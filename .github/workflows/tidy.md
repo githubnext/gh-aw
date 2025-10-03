@@ -3,6 +3,7 @@ name: Tidy
 on:
   workflow_dispatch:
   command:
+    events: [pull_request_comment]
   reaction: "eyes"
   push:
     branches: [main]

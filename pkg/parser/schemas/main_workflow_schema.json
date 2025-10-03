@@ -39,6 +39,25 @@
                     "name": {
                       "type": "string",
                       "description": "Custom command name for slash commands (e.g., 'helper-bot' for '/helper-bot' triggers). Defaults to workflow filename without .md extension if not specified."
+                    },
+                    "events": {
+                      "description": "Events where the command should be active. Default is all comment-related events ('*'). Use GitHub Actions event names.",
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment'.",
+                          "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"]
+                        },
+                        {
+                          "type": "array",
+                          "description": "Array of event names where the command should be active. Use GitHub Actions event names.",
+                          "items": {
+                            "type": "string",
+                            "description": "GitHub Actions event name.",
+                            "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"]
+                          }
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
