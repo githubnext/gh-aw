@@ -9,20 +9,6 @@ on:
     types:
     - created
     - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request_review_comment:
-    types:
-    - created
-    - edited
   push:
     branches:
     - main
@@ -44,11 +30,8 @@ run-name: "Tidy"
 jobs:
   check-membership:
     if: >
-      ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/tidy')) ||
-      (contains(github.event.comment.body, '/tidy'))) || (contains(github.event.pull_request.body, '/tidy')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment'))
+      ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/tidy')) && (github.event.issue.pull_request != null))) ||
+      (!(github.event_name == 'issue_comment'))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -127,11 +110,8 @@ jobs:
   activation:
     needs: check-membership
     if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/tidy')) ||
-      (contains(github.event.comment.body, '/tidy'))) || (contains(github.event.pull_request.body, '/tidy')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment')))
+      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issue_comment') &&
+      ((contains(github.event.comment.body, '/tidy')) && (github.event.issue.pull_request != null))) || (!(github.event_name == 'issue_comment')))
     runs-on: ubuntu-latest
     permissions:
       discussions: write
@@ -305,9 +285,8 @@ jobs:
   add_reaction:
     needs: activation
     if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
-      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      (github.event.pull_request.head.repo.full_name == github.repository)
+      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' ||
+      (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       actions: write  # Required for github.rest.actions.cancelWorkflowRun()

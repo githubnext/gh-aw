@@ -7,6 +7,99 @@ import (
 	"testing"
 )
 
+// TestPullRequestCommentEvent tests the new pull_request_comment event identifier
+func TestPullRequestCommentEvent(t *testing.T) {
+	// Test that pull_request_comment is recognized
+	mapping := GetCommentEventByIdentifier("pull_request_comment")
+	if mapping == nil {
+		t.Fatal("pull_request_comment should be a valid event identifier")
+	}
+	if mapping.EventName != "pull_request_comment" {
+		t.Errorf("Expected EventName to be 'pull_request_comment', got '%s'", mapping.EventName)
+	}
+	if !mapping.IsPRComment {
+		t.Error("Expected IsPRComment to be true for pull_request_comment")
+	}
+}
+
+// TestIssueCommentRestriction tests that issue_comment is restricted to issues only
+func TestIssueCommentRestriction(t *testing.T) {
+	mapping := GetCommentEventByIdentifier("issue_comment")
+	if mapping == nil {
+		t.Fatal("issue_comment should be a valid event identifier")
+	}
+	if !mapping.IsIssueComment {
+		t.Error("Expected IsIssueComment to be true for issue_comment")
+	}
+	if mapping.IsPRComment {
+		t.Error("Expected IsPRComment to be false for issue_comment")
+	}
+}
+
+// TestMergeEventsForYAML tests the event merging logic for YAML generation
+func TestMergeEventsForYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []CommentEventMapping
+		expected int
+		hasEvent string
+	}{
+		{
+			name: "pull_request_comment only",
+			input: []CommentEventMapping{
+				{EventName: "pull_request_comment", Types: []string{"created", "edited"}, IsPRComment: true},
+			},
+			expected: 1,
+			hasEvent: "issue_comment",
+		},
+		{
+			name: "issue_comment only",
+			input: []CommentEventMapping{
+				{EventName: "issue_comment", Types: []string{"created", "edited"}, IsIssueComment: true},
+			},
+			expected: 1,
+			hasEvent: "issue_comment",
+		},
+		{
+			name: "both issue_comment and pull_request_comment",
+			input: []CommentEventMapping{
+				{EventName: "issue_comment", Types: []string{"created", "edited"}, IsIssueComment: true},
+				{EventName: "pull_request_comment", Types: []string{"created", "edited"}, IsPRComment: true},
+			},
+			expected: 1,
+			hasEvent: "issue_comment",
+		},
+		{
+			name: "mixed with other events",
+			input: []CommentEventMapping{
+				{EventName: "issues", Types: []string{"opened", "edited"}},
+				{EventName: "pull_request_comment", Types: []string{"created", "edited"}, IsPRComment: true},
+			},
+			expected: 2,
+			hasEvent: "issue_comment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MergeEventsForYAML(tt.input)
+			if len(result) != tt.expected {
+				t.Errorf("Expected %d events, got %d", tt.expected, len(result))
+			}
+			found := false
+			for _, event := range result {
+				if event.EventName == tt.hasEvent {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected to find event '%s' in merged results", tt.hasEvent)
+			}
+		})
+	}
+}
+
 // TestEventAwareCommandConditions tests that command conditions are properly applied only to comment-related events
 func TestEventAwareCommandConditions(t *testing.T) {
 	// Create temporary directory for test files
@@ -70,6 +163,21 @@ tools:
 			filename:                "command-with-schedule.md",
 			expectedSimpleCondition: false,
 			expectedEventAware:      true,
+		},
+		{
+			name: "command with pull_request_comment only should check PR comment filter",
+			frontmatter: `---
+on:
+  command:
+    name: pr-bot
+    events: [pull_request_comment]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:                "command-with-pr-comment.md",
+			expectedSimpleCondition: false, // Should contain PR filter logic
+			expectedEventAware:      false,
 		},
 	}
 
@@ -162,6 +270,171 @@ This test validates that command conditions are applied correctly based on event
 				expectedOrPattern := "!(github.event_name == 'issues'"
 				if !strings.Contains(lockContentStr, expectedOrPattern) {
 					t.Errorf("Expected event-aware condition with non-comment event clause containing '%s' but not found", expectedOrPattern)
+				}
+			}
+		})
+	}
+}
+
+// TestCommandEventsFiltering tests that the events field filters which events the command is active on
+func TestCommandEventsFiltering(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "workflow-command-events-filtering-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name                 string
+		frontmatter          string
+		filename             string
+		expectedEvents       []string // Events that should be in the generated workflow
+		unexpectedEvents     []string // Events that should NOT be in the generated workflow
+		expectedBodyChecks   []string // Body properties that should be checked
+		unexpectedBodyChecks []string // Body properties that should NOT be checked
+	}{
+		{
+			name: "command with events: [issues]",
+			frontmatter: `---
+on:
+  command:
+    name: issue-bot
+    events: [issues]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:             "command-issue-only.md",
+			expectedEvents:       []string{"issues:"},
+			unexpectedEvents:     []string{"issue_comment:", "pull_request:", "pull_request_review_comment:"},
+			expectedBodyChecks:   []string{"github.event.issue.body"},
+			unexpectedBodyChecks: []string{"github.event.comment.body", "github.event.pull_request.body"},
+		},
+		{
+			name: "command with events: [issues, issue_comment]",
+			frontmatter: `---
+on:
+  command:
+    name: dual-bot
+    events: [issues, issue_comment]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:             "command-issue-comment.md",
+			expectedEvents:       []string{"issues:", "issue_comment:"},
+			unexpectedEvents:     []string{"pull_request:", "pull_request_review_comment:"},
+			expectedBodyChecks:   []string{"github.event.issue.body", "github.event.comment.body"},
+			unexpectedBodyChecks: []string{"github.event.pull_request.body"},
+		},
+		{
+			name: "command with events: '*' (all events)",
+			frontmatter: `---
+on:
+  command:
+    name: all-bot
+    events: "*"
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:       "command-all-events.md",
+			expectedEvents: []string{"issues:", "issue_comment:", "pull_request:", "pull_request_review_comment:"},
+			expectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body",
+				"github.event.pull_request.body"},
+		},
+		{
+			name: "command with events: [pull_request]",
+			frontmatter: `---
+on:
+  command:
+    name: pr-bot
+    events: [pull_request]
+tools:
+  github:
+    allowed: [list_pull_requests]
+---`,
+			filename:             "command-pr-only.md",
+			expectedEvents:       []string{"pull_request:"},
+			unexpectedEvents:     []string{"issues:", "issue_comment:", "pull_request_review_comment:"},
+			expectedBodyChecks:   []string{"github.event.pull_request.body"},
+			unexpectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testContent := tt.frontmatter + `
+
+# Test Command Events Filtering
+
+This test validates that command events filtering works correctly.
+`
+
+			testFile := filepath.Join(tmpDir, tt.filename)
+			if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// Compile the workflow
+			err := compiler.CompileWorkflow(testFile)
+			if err != nil {
+				t.Fatalf("Compilation failed: %v", err)
+			}
+
+			// Read the compiled workflow
+			lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+			lockContent, err := os.ReadFile(lockFile)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+
+			lockContentStr := string(lockContent)
+
+			// Extract the "on:" section to check for events (not permissions)
+			onSectionStart := strings.Index(lockContentStr, "on:")
+			onSectionEnd := strings.Index(lockContentStr[onSectionStart:], "\npermissions:")
+			if onSectionEnd == -1 {
+				onSectionEnd = strings.Index(lockContentStr[onSectionStart:], "\nconcurrency:")
+			}
+			if onSectionEnd == -1 {
+				onSectionEnd = strings.Index(lockContentStr[onSectionStart:], "\njobs:")
+			}
+			onSection := ""
+			if onSectionEnd > 0 {
+				onSection = lockContentStr[onSectionStart : onSectionStart+onSectionEnd]
+			} else {
+				onSection = lockContentStr[onSectionStart:]
+			}
+
+			// Check for expected events in the "on:" section only
+			for _, expectedEvent := range tt.expectedEvents {
+				if !strings.Contains(onSection, expectedEvent) {
+					t.Errorf("Expected to find event '%s' in 'on:' section, but not found.\nOn section:\n%s", expectedEvent, onSection)
+				}
+			}
+
+			// Check for unexpected events in the "on:" section only
+			for _, unexpectedEvent := range tt.unexpectedEvents {
+				if strings.Contains(onSection, unexpectedEvent) {
+					t.Errorf("Did not expect to find event '%s' in 'on:' section, but found it.\nOn section:\n%s", unexpectedEvent, onSection)
+				}
+			}
+
+			// Check for expected body checks in the if condition
+			for _, expectedCheck := range tt.expectedBodyChecks {
+				if !strings.Contains(lockContentStr, expectedCheck) {
+					t.Errorf("Expected to find body check '%s' in generated workflow", expectedCheck)
+				}
+			}
+
+			// Check for unexpected body checks
+			for _, unexpectedCheck := range tt.unexpectedBodyChecks {
+				if strings.Contains(lockContentStr, unexpectedCheck) {
+					t.Errorf("Did not expect to find body check '%s' in generated workflow", unexpectedCheck)
 				}
 			}
 		})

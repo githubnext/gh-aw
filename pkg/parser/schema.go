@@ -467,7 +467,8 @@ func navigateToSchemaPath(schema map[string]any, jsonPath string) map[string]any
 	current := schema
 
 	for _, segment := range pathSegments {
-		if segment.Type == "key" {
+		switch segment.Type {
+		case "key":
 			// Navigate to properties -> key
 			if properties, ok := current["properties"].(map[string]any); ok {
 				if keySchema, ok := properties[segment.Value].(map[string]any); ok {
@@ -478,7 +479,7 @@ func navigateToSchemaPath(schema map[string]any, jsonPath string) map[string]any
 			} else {
 				return nil // No properties in current schema
 			}
-		} else if segment.Type == "index" {
+		case "index":
 			// For array indices, navigate to items schema
 			if items, ok := current["items"].(map[string]any); ok {
 				current = items

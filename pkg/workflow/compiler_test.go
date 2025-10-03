@@ -409,8 +409,8 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-bot.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:      "((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot'))",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedIf:      "contains(github.event.issue.body, '/test-bot')",
 			expectedCommand: "test-bot",
 		},
 		{
@@ -424,8 +424,8 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-new-format.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:      "((contains(github.event.issue.body, '/new-bot')) || (contains(github.event.comment.body, '/new-bot'))) || (contains(github.event.pull_request.body, '/new-bot'))",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedIf:      "contains(github.event.issue.body, '/new-bot')",
 			expectedCommand: "new-bot",
 		},
 		{
@@ -438,8 +438,8 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "default-name-bot.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:      "((contains(github.event.issue.body, '/default-name-bot')) || (contains(github.event.comment.body, '/default-name-bot'))) || (contains(github.event.pull_request.body, '/default-name-bot'))",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedIf:      "contains(github.event.issue.body, '/default-name-bot')",
 			expectedCommand: "default-name-bot",
 		},
 		{
@@ -452,8 +452,8 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "test-string-format.md",
-			expectedOn:      "on:\n  issues:\n    types: [opened, edited, reopened]\n  issue_comment:\n    types: [created, edited]\n  pull_request:\n    types: [opened, edited, reopened]",
-			expectedIf:      "((contains(github.event.issue.body, '/customname')) || (contains(github.event.comment.body, '/customname'))) || (contains(github.event.pull_request.body, '/customname'))",
+			expectedOn:      "pull_request_review_comment:\n    types:\n    - created\n    - edited",
+			expectedIf:      "contains(github.event.issue.body, '/customname')",
 			expectedCommand: "customname",
 		},
 	}
@@ -538,7 +538,7 @@ tools:
 ---`,
 			filename:        "command-with-dispatch.md",
 			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
-			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/test-bot')) || (contains(github.event.comment.body, '/test-bot'))) || (contains(github.event.pull_request.body, '/test-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "test-bot",
 			shouldError:     false,
 		},
@@ -556,7 +556,7 @@ tools:
 ---`,
 			filename:        "command-with-schedule.md",
 			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
-			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/schedule-bot')) || (contains(github.event.comment.body, '/schedule-bot'))) || (contains(github.event.pull_request.body, '/schedule-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "schedule-bot",
 			shouldError:     false,
 		},
@@ -575,7 +575,7 @@ tools:
 ---`,
 			filename:        "command-with-multiple.md",
 			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
-			expectedIf:      "((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (((contains(github.event.issue.body, '/multi-bot')) || (contains(github.event.comment.body, '/multi-bot'))) || (contains(github.event.pull_request.body, '/multi-bot')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))",
+			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "multi-bot",
 			shouldError:     false,
 		},
