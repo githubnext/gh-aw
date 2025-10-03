@@ -397,6 +397,14 @@ func BuildExpressionWithDescription(expression, description string) *ExpressionN
 	}
 }
 
+// BuildDisjunction creates a disjunction node (OR operation) from the given terms
+// Handles arrays of size 0, 1, or more correctly
+func BuildDisjunction(terms ...ConditionNode) *DisjunctionNode {
+	return &DisjunctionNode{
+		Terms: terms,
+	}
+}
+
 // BuildMultilineDisjunction creates a disjunction node with multiline rendering enabled
 func BuildMultilineDisjunction(terms ...ConditionNode) *DisjunctionNode {
 	return &DisjunctionNode{

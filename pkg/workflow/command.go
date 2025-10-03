@@ -49,14 +49,14 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 		commandChecks = append(commandChecks, prBodyCheck)
 	}
 
-	// Combine all command checks with OR using DisjunctionNode
+	// Combine all command checks with OR using BuildDisjunction helper
 	var commandCondition ConditionNode
 	if len(commandChecks) == 0 {
 		// No events enabled - this indicates a configuration error
 		panic(fmt.Sprintf("No valid comment events specified for command '%s'. At least one event must be enabled.", commandName))
 	} else {
-		// DisjunctionNode handles both single and multiple terms
-		commandCondition = &DisjunctionNode{Terms: commandChecks}
+		// BuildDisjunction handles arrays of size 1 or more correctly
+		commandCondition = BuildDisjunction(commandChecks...)
 	}
 
 	if !hasOtherEvents {
@@ -71,9 +71,7 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 		commentEventTerms = append(commentEventTerms, BuildEventTypeEquals(eventName))
 	}
 
-	commentEventChecks := &DisjunctionNode{
-		Terms: commentEventTerms,
-	}
+	commentEventChecks := BuildDisjunction(commentEventTerms...)
 
 	// For comment events: check command; for other events: allow unconditionally
 	commentEventCheck := &AndNode{
