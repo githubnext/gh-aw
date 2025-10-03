@@ -17,6 +17,7 @@ function main() {
     const parsedLog = parseCopilotLog(content);
 
     if (parsedLog) {
+      core.info(parsedLog);
       core.summary.addRaw(parsedLog).write();
       console.log("Copilot log parsed successfully");
     } else {
@@ -121,6 +122,11 @@ function parseCopilotLog(logContent) {
     console.error("Error parsing Copilot log:", error);
     return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${error.message}*\n`;
   }
+}
+
+// Export for testing
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { parseCopilotLog };
 }
 
 main();
