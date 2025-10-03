@@ -89,7 +89,7 @@ engine:
   model: gpt-4
   user-agent: custom-workflow-name
   env:
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_CI }}
+    CODEX_API_KEY: ${{ secrets.CODEX_API_KEY_CI }}
   config: |
     [custom_section]
     key1 = "value1"
@@ -105,7 +105,7 @@ engine:
 - Generates `config.toml` for MCP server configuration
 - Supports custom TOML configuration via `config` field
 - Configurable user agent for GitHub MCP server
-- Requires `OPENAI_API_KEY` secret
+- Requires `CODEX_API_KEY` or `OPENAI_API_KEY` secret
 
 **Codex-specific fields:**
 - **`user-agent`** (optional): Custom user agent string for GitHub MCP server configuration

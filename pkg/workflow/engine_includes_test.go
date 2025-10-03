@@ -71,8 +71,8 @@ This should inherit the engine from the included file.
 	if !strings.Contains(lockStr, "Install Codex") {
 		t.Error("Expected lock file to contain 'Install Codex' step")
 	}
-	if !strings.Contains(lockStr, "codex login") {
-		t.Error("Expected lock file to contain 'codex login' command")
+	if !strings.Contains(lockStr, "codex") || !strings.Contains(lockStr, "exec") {
+		t.Error("Expected lock file to contain 'codex exec' command")
 	}
 }
 
