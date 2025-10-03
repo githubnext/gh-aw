@@ -42,20 +42,11 @@ The workflow file is then executed by GitHub Actions in response to events in th
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List available engines, workflows and installed packages",
+	Short: "List available engines and other information",
 	Run: func(cmd *cobra.Command, args []string) {
-		packages, _ := cmd.Flags().GetBool("packages")
-		local, _ := cmd.Flags().GetBool("local")
-		if packages {
-			if err := cli.ListPackages(local, verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
-		} else {
-			if err := cli.ListWorkflows(verbose); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-				os.Exit(1)
-			}
+		if err := cli.ListEnginesAndOtherInformation(verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			os.Exit(1)
 		}
 	},
 }
@@ -227,40 +218,6 @@ Examples:
 	},
 }
 
-var installCmd = &cobra.Command{
-	Use:   "install <org/repo>[@version]",
-	Short: "Install agentic workflows from a GitHub repository",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		repoSpec := args[0]
-		local, _ := cmd.Flags().GetBool("local")
-		if err := cli.InstallPackage(repoSpec, local, verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-				Type:    "error",
-				Message: fmt.Sprintf("installing package: %v", err),
-			}))
-			os.Exit(1)
-		}
-	},
-}
-
-var uninstallCmd = &cobra.Command{
-	Use:   "uninstall <org/repo>",
-	Short: "Uninstall agentic workflows package",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		repoSpec := args[0]
-		local, _ := cmd.Flags().GetBool("local")
-		if err := cli.UninstallPackage(repoSpec, local, verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
-				Type:    "error",
-				Message: fmt.Sprintf("uninstalling package: %v", err),
-			}))
-			os.Exit(1)
-		}
-	},
-}
-
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
@@ -306,16 +263,6 @@ func init() {
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
 
-	// Add packages flag to list command
-	listCmd.Flags().BoolP("packages", "p", false, "List installed packages instead of available workflows")
-	listCmd.Flags().BoolP("local", "l", false, "List local packages instead of global packages (requires --packages)")
-
-	// Add local flag to install command
-	installCmd.Flags().BoolP("local", "l", false, "Install packages locally in .aw/packages instead of globally in ~/.aw/packages")
-
-	// Add local flag to uninstall command
-	uninstallCmd.Flags().BoolP("local", "l", false, "Uninstall packages from local .aw/packages instead of global ~/.aw/packages")
-
 	// Add AI flag to compile and add commands
 	compileCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot)")
 	compileCmd.Flags().Bool("validate", true, "Enable GitHub Actions workflow schema validation (default: true)")
@@ -339,8 +286,7 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
-	rootCmd.AddCommand(installCmd)
-	rootCmd.AddCommand(uninstallCmd)
+
 	rootCmd.AddCommand(compileCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(removeCmd)
