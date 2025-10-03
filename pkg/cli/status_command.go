@@ -235,13 +235,13 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 func extractEngineIDFromFile(filePath string) string {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return "claude" // Default engine
+		return "" // Return empty string if file cannot be read
 	}
 
 	// Parse frontmatter
 	result, err := parser.ExtractFrontmatterFromContent(string(content))
 	if err != nil {
-		return "claude" // Default engine
+		return "" // Return empty string if frontmatter cannot be parsed
 	}
 
 	// Use the workflow package's extractEngineConfig to handle both string and object formats
@@ -258,5 +258,5 @@ func extractEngineIDFromFile(filePath string) string {
 		return engineSetting
 	}
 
-	return "claude" // Default engine
+	return "copilot" // Default engine
 }
