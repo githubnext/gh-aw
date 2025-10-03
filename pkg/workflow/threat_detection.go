@@ -115,6 +115,9 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
+	// Step 4: Upload detection log artifact
+	steps = append(steps, c.buildUploadDetectionLogStep()...)
+
 	return steps
 }
 
@@ -400,4 +403,17 @@ func (c *Compiler) buildCustomThreatDetectionSteps(steps []any) []string {
 		}
 	}
 	return result
+}
+
+// buildUploadDetectionLogStep creates the step to upload the detection log
+func (c *Compiler) buildUploadDetectionLogStep() []string {
+	return []string{
+		"      - name: Upload threat detection log\n",
+		"        if: always()\n",
+		"        uses: actions/upload-artifact@v4\n",
+		"        with:\n",
+		"          name: threat-detection.log\n",
+		"          path: /tmp/threat-detection/detection.log\n",
+		"          if-no-files-found: ignore\n",
+	}
 }

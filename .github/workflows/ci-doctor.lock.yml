@@ -2637,6 +2637,13 @@ jobs:
             } else {
               core.info('✅ No security threats detected. Safe outputs may proceed.');
             }
+      - name: Upload threat detection log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: threat-detection.log
+          path: /tmp/threat-detection/detection.log
+          if-no-files-found: ignore
 
   create_issue:
     needs:
