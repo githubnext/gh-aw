@@ -438,7 +438,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	markdownDir := filepath.Dir(markdownPath)
 
 	// Extract AI engine setting from frontmatter
-	engineSetting, engineConfig := c.extractEngineConfig(result.Frontmatter)
+	engineSetting, engineConfig := c.ExtractEngineConfig(result.Frontmatter)
 
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
@@ -2735,7 +2735,7 @@ func (c *Compiler) validateHTTPTransportSupport(tools map[string]any, engine Cod
 // validateMaxTurnsSupport validates that max-turns is only used with engines that support this feature
 func (c *Compiler) validateMaxTurnsSupport(frontmatter map[string]any, engine CodingAgentEngine) error {
 	// Check if max-turns is specified in the engine config
-	engineSetting, engineConfig := c.extractEngineConfig(frontmatter)
+	engineSetting, engineConfig := c.ExtractEngineConfig(frontmatter)
 	_ = engineSetting // Suppress unused variable warning
 
 	hasMaxTurns := engineConfig != nil && engineConfig.MaxTurns != ""

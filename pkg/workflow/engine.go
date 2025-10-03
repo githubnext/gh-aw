@@ -30,8 +30,8 @@ type EngineNetworkConfig struct {
 	Network *NetworkPermissions
 }
 
-// extractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
-func (c *Compiler) extractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
+// ExtractEngineConfig extracts engine configuration from frontmatter, supporting both string and object formats
+func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *EngineConfig) {
 	if engine, exists := frontmatter["engine"]; exists {
 		// Handle string format (backwards compatibility)
 		if engineStr, ok := engine.(string); ok {

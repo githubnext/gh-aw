@@ -10,6 +10,7 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 func StatusWorkflows(pattern string, verbose bool) error {
@@ -49,7 +50,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	}
 
 	// Build table configuration
-	headers := []string{"Name", "Installed", "Up-to-date", "Status", "Time Remaining"}
+	headers := []string{"Workflow", "Agent", "Compiled", "Status", "Time Remaining"}
 	var rows [][]string
 
 	for _, file := range mdFiles {
@@ -61,22 +62,22 @@ func StatusWorkflows(pattern string, verbose bool) error {
 			continue
 		}
 
+		// Extract engine ID from workflow file
+		agent := extractEngineIDFromFile(file)
+
 		// Check if compiled (.lock.yml file is in .github/workflows)
 		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
-		compiled := "No"
-		upToDate := "N/A"
+		compiled := "N/A"
 		timeRemaining := "N/A"
 
 		if _, err := os.Stat(lockFile); err == nil {
-			compiled = "Yes"
-
 			// Check if up to date
 			mdStat, _ := os.Stat(file)
 			lockStat, _ := os.Stat(lockFile)
 			if mdStat.ModTime().After(lockStat.ModTime()) {
-				upToDate = "No"
+				compiled = "No"
 			} else {
-				upToDate = "Yes"
+				compiled = "Yes"
 			}
 
 			// Extract stop-time from lock file
@@ -96,13 +97,13 @@ func StatusWorkflows(pattern string, verbose bool) error {
 		}
 
 		// Build row data
-		row := []string{name, compiled, upToDate, status, timeRemaining}
+		row := []string{name, agent, compiled, status, timeRemaining}
 		rows = append(rows, row)
 	}
 
 	// Render the table
 	tableConfig := console.TableConfig{
-		Title:   "Workflow Status",
+		Title:   "",
 		Headers: headers,
 		Rows:    rows,
 	}
@@ -228,4 +229,34 @@ func extractWorkflowNameFromFile(filePath string) (string, error) {
 	}
 
 	return strings.Join(words, " "), nil
+}
+
+// extractEngineIDFromFile extracts the engine ID from a workflow file's frontmatter
+func extractEngineIDFromFile(filePath string) string {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "" // Return empty string if file cannot be read
+	}
+
+	// Parse frontmatter
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return "" // Return empty string if frontmatter cannot be parsed
+	}
+
+	// Use the workflow package's extractEngineConfig to handle both string and object formats
+	compiler := &workflow.Compiler{}
+	engineSetting, engineConfig := compiler.ExtractEngineConfig(result.Frontmatter)
+
+	// If engine is specified, return the ID from the config
+	if engineConfig != nil && engineConfig.ID != "" {
+		return engineConfig.ID
+	}
+
+	// If we have an engine setting string, return it
+	if engineSetting != "" {
+		return engineSetting
+	}
+
+	return "copilot" // Default engine
 }

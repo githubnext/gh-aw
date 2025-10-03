@@ -110,30 +110,19 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// See https://github.com/githubnext/gh-aw/issues/892
-	fullAutoParam := "--dangerously-bypass-approvals-and-sandbox "
+	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 export CODEX_HOME=/tmp/mcp-config
-# Ensure /tmp/mcp-config exists
 mkdir -p /tmp/mcp-config
-# Create log directory outside git repo
 mkdir -p /tmp/aw-logs
-
-# where is Codex
 which codex
-
-# Check Codex version
 codex --version
-
-# Authenticate with Codex
-codex login --api-key "$OPENAI_API_KEY"
-
-# Run codex with log capture - pipefail ensures codex exit code is preserved
-codex %s%s--full-auto exec %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
+codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
-		"OPENAI_API_KEY":       "${{ secrets.OPENAI_API_KEY }}",
+		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_AW_PROMPT":     "/tmp/aw-prompts/prompt.txt",
 		"GITHUB_AW_MCP_CONFIG": "/tmp/mcp-config/config.toml",

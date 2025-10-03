@@ -221,7 +221,7 @@ func TestExtractEngineConfig(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			engineSetting, config := compiler.extractEngineConfig(test.frontmatter)
+			engineSetting, config := compiler.ExtractEngineConfig(test.frontmatter)
 
 			if engineSetting != test.expectedEngineSetting {
 				t.Errorf("Expected engineSetting '%s', got '%s'", test.expectedEngineSetting, engineSetting)
