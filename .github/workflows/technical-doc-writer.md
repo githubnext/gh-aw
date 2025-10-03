@@ -4,6 +4,8 @@ on:
     types: [labeled]
   workflow_dispatch:
 
+if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'document' }}
+
 permissions: read-all
 
 engine: claude
@@ -35,6 +37,8 @@ tools:
     - "find .github/workflows -name '*.md'"
     - "ls -la docs"
     - "make*"
+    - "npm ci"
+    - "npm run*"
 
 timeout_minutes: 10
 
