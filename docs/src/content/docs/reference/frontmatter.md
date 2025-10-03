@@ -23,7 +23,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `cache`: Cache configuration for workflow dependencies
 
 **Properties specific to GitHub Agentic Workflows:**
-- `engine`: AI engine configuration (claude/copilot/codex) with optional max-turns setting
+- `engine`: AI engine configuration (copilot/claude/codex) with optional max-turns setting
 - `strict`: Enable strict mode validation (boolean, defaults to false)
 - `roles`: Permission restrictions based on repository access levels
 - `safe-outputs`: [Safe Output Processing](/gh-aw/reference/safe-outputs/)
@@ -280,7 +280,7 @@ engine:
 ```
 
 **Fields:**
-- **`id`** (required): Engine identifier (`claude`, `copilot`, `codex`)
+- **`id`** (required): Engine identifier (`copilot`, `claude`, `codex`)
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
