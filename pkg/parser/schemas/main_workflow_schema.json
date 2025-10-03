@@ -45,8 +45,8 @@
                       "oneOf": [
                         {
                           "type": "string",
-                          "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request', 'pull_request_review_comment'.",
-                          "enum": ["*", "issues", "issue_comment", "pull_request", "pull_request_review_comment"]
+                          "description": "Single event name or '*' for all events. Use GitHub Actions event names: 'issues', 'issue_comment', 'pull_request_comment', 'pull_request', 'pull_request_review_comment'.",
+                          "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"]
                         },
                         {
                           "type": "array",
@@ -54,7 +54,7 @@
                           "items": {
                             "type": "string",
                             "description": "GitHub Actions event name.",
-                            "enum": ["*", "issues", "issue_comment", "pull_request", "pull_request_review_comment"]
+                            "enum": ["*", "issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"]
                           }
                         }
                       ]

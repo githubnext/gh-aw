@@ -36,9 +36,12 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			// Get the filtered command events based on CommandEvents field
 			filteredEvents := FilterCommentEvents(data.CommandEvents)
 
-			// Build command events map from filtered events
+			// Merge events for YAML generation (combines pull_request_comment and issue_comment into issue_comment)
+			yamlEvents := MergeEventsForYAML(filteredEvents)
+
+			// Build command events map from merged events
 			commandEventsMap := make(map[string]any)
-			for _, event := range filteredEvents {
+			for _, event := range yamlEvents {
 				commandEventsMap[event.EventName] = map[string]any{
 					"types": event.Types,
 				}

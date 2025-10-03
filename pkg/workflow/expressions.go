@@ -220,7 +220,6 @@ func buildReactionCondition() ConditionNode {
 
 	terms = append(terms, BuildEventTypeEquals("issues"))
 	terms = append(terms, BuildEventTypeEquals("issue_comment"))
-	terms = append(terms, BuildEventTypeEquals("pull_request_comment"))
 	terms = append(terms, BuildEventTypeEquals("pull_request_review_comment"))
 
 	// For pull_request events, we need to ensure it's not from a forked repository
@@ -255,6 +254,11 @@ func BuildBooleanLiteral(value bool) *BooleanLiteralNode {
 // BuildNumberLiteral creates a number literal node
 func BuildNumberLiteral(value string) *NumberLiteralNode {
 	return &NumberLiteralNode{Value: value}
+}
+
+// BuildNullLiteral creates a null literal node
+func BuildNullLiteral() *ExpressionNode {
+	return &ExpressionNode{Expression: "null"}
 }
 
 // BuildComparison creates a comparison node with the specified operator

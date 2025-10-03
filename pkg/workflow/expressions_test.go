@@ -145,10 +145,10 @@ func TestBuildReactionCondition(t *testing.T) {
 	rendered := result.Render()
 
 	// The result should be a flat OR chain without deep nesting
+	// Note: pull_request_comment is NOT included because it maps to issue_comment in GitHub Actions
 	expectedSubstrings := []string{
 		"github.event_name == 'issues'",
 		"github.event_name == 'issue_comment'",
-		"github.event_name == 'pull_request_comment'",
 		"github.event_name == 'pull_request_review_comment'",
 		"github.event_name == 'pull_request'",
 		"github.event.pull_request.head.repo.full_name == github.repository",

@@ -21,6 +21,7 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	// Check which events are enabled and build appropriate checks
 	hasIssues := slices.Contains(eventNames, "issues")
 	hasIssueComment := slices.Contains(eventNames, "issue_comment")
+	hasPRComment := slices.Contains(eventNames, "pull_request_comment")
 	hasPR := slices.Contains(eventNames, "pull_request")
 	hasPRReview := slices.Contains(eventNames, "pull_request_review_comment")
 
@@ -32,13 +33,43 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 		commandChecks = append(commandChecks, issueBodyCheck)
 	}
 
-	if hasIssueComment || hasPRReview {
-		// issue_comment and pull_request_review_comment both use github.event.comment.body
-		commentBodyCheck := BuildContains(
+	if hasIssueComment {
+		// issue_comment event only on issues (not PRs) - check that github.event.issue.pull_request is null
+		commentBodyCheck := &AndNode{
+			Left: BuildContains(
+				BuildPropertyAccess("github.event.comment.body"),
+				BuildStringLiteral(commandText),
+			),
+			Right: BuildEquals(
+				BuildPropertyAccess("github.event.issue.pull_request"),
+				BuildNullLiteral(),
+			),
+		}
+		commandChecks = append(commandChecks, commentBodyCheck)
+	}
+
+	if hasPRComment {
+		// pull_request_comment event only on PRs - check that github.event.issue.pull_request is not null
+		prCommentBodyCheck := &AndNode{
+			Left: BuildContains(
+				BuildPropertyAccess("github.event.comment.body"),
+				BuildStringLiteral(commandText),
+			),
+			Right: BuildNotEquals(
+				BuildPropertyAccess("github.event.issue.pull_request"),
+				BuildNullLiteral(),
+			),
+		}
+		commandChecks = append(commandChecks, prCommentBodyCheck)
+	}
+
+	if hasPRReview {
+		// pull_request_review_comment uses github.event.comment.body
+		reviewCommentBodyCheck := BuildContains(
 			BuildPropertyAccess("github.event.comment.body"),
 			BuildStringLiteral(commandText),
 		)
-		commandChecks = append(commandChecks, commentBodyCheck)
+		commandChecks = append(commandChecks, reviewCommentBodyCheck)
 	}
 
 	if hasPR {
@@ -65,10 +96,15 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	}
 
 	// Define which events should be checked for command using expression nodes
-	// Only include the filtered events
+	// Map logical event names to actual GitHub event names
 	var commentEventTerms []ConditionNode
+	actualEventNames := make(map[string]bool) // Use map to deduplicate
 	for _, eventName := range eventNames {
-		commentEventTerms = append(commentEventTerms, BuildEventTypeEquals(eventName))
+		actualName := GetActualGitHubEventName(eventName)
+		if !actualEventNames[actualName] {
+			actualEventNames[actualName] = true
+			commentEventTerms = append(commentEventTerms, BuildEventTypeEquals(actualName))
+		}
 	}
 
 	commentEventChecks := BuildDisjunction(false, commentEventTerms...)

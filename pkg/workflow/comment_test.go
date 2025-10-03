@@ -8,15 +8,16 @@ import (
 func TestGetAllCommentEvents(t *testing.T) {
 	events := GetAllCommentEvents()
 
-	// Should have exactly 4 events
-	if len(events) != 4 {
-		t.Errorf("Expected 4 comment events, got %d", len(events))
+	// Should have exactly 5 events (added pull_request_comment)
+	if len(events) != 5 {
+		t.Errorf("Expected 5 comment events, got %d", len(events))
 	}
 
 	// Check that all expected events are present
 	expectedEvents := map[string][]string{
 		"issues":                      {"opened", "edited", "reopened"},
 		"issue_comment":               {"created", "edited"},
+		"pull_request_comment":        {"created", "edited"},
 		"pull_request":                {"opened", "edited", "reopened"},
 		"pull_request_review_comment": {"created", "edited"},
 	}
@@ -60,6 +61,11 @@ func TestGetCommentEventByIdentifier(t *testing.T) {
 			name:       "GitHub Actions event name 'pull_request_review_comment'",
 			identifier: "pull_request_review_comment",
 			wantEvent:  "pull_request_review_comment",
+		},
+		{
+			name:       "GitHub Actions event name 'pull_request_comment'",
+			identifier: "pull_request_comment",
+			wantEvent:  "pull_request_comment",
 		},
 		{
 			name:       "invalid identifier",
@@ -173,14 +179,14 @@ func TestFilterCommentEvents(t *testing.T) {
 		{
 			name:        "nil identifiers returns all events",
 			identifiers: nil,
-			wantCount:   4,
-			wantEvents:  []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"},
+			wantCount:   5,
+			wantEvents:  []string{"issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"},
 		},
 		{
 			name:        "empty identifiers returns all events",
 			identifiers: []string{},
-			wantCount:   4,
-			wantEvents:  []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"},
+			wantCount:   5,
+			wantEvents:  []string{"issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"},
 		},
 		{
 			name:        "single identifier",

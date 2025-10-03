@@ -7,6 +7,99 @@ import (
 	"testing"
 )
 
+// TestPullRequestCommentEvent tests the new pull_request_comment event identifier
+func TestPullRequestCommentEvent(t *testing.T) {
+	// Test that pull_request_comment is recognized
+	mapping := GetCommentEventByIdentifier("pull_request_comment")
+	if mapping == nil {
+		t.Fatal("pull_request_comment should be a valid event identifier")
+	}
+	if mapping.EventName != "pull_request_comment" {
+		t.Errorf("Expected EventName to be 'pull_request_comment', got '%s'", mapping.EventName)
+	}
+	if !mapping.IsPRComment {
+		t.Error("Expected IsPRComment to be true for pull_request_comment")
+	}
+}
+
+// TestIssueCommentRestriction tests that issue_comment is restricted to issues only
+func TestIssueCommentRestriction(t *testing.T) {
+	mapping := GetCommentEventByIdentifier("issue_comment")
+	if mapping == nil {
+		t.Fatal("issue_comment should be a valid event identifier")
+	}
+	if !mapping.IsIssueComment {
+		t.Error("Expected IsIssueComment to be true for issue_comment")
+	}
+	if mapping.IsPRComment {
+		t.Error("Expected IsPRComment to be false for issue_comment")
+	}
+}
+
+// TestMergeEventsForYAML tests the event merging logic for YAML generation
+func TestMergeEventsForYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []CommentEventMapping
+		expected int
+		hasEvent string
+	}{
+		{
+			name: "pull_request_comment only",
+			input: []CommentEventMapping{
+				{EventName: "pull_request_comment", Types: []string{"created", "edited"}, IsPRComment: true},
+			},
+			expected: 1,
+			hasEvent: "issue_comment",
+		},
+		{
+			name: "issue_comment only",
+			input: []CommentEventMapping{
+				{EventName: "issue_comment", Types: []string{"created", "edited"}, IsIssueComment: true},
+			},
+			expected: 1,
+			hasEvent: "issue_comment",
+		},
+		{
+			name: "both issue_comment and pull_request_comment",
+			input: []CommentEventMapping{
+				{EventName: "issue_comment", Types: []string{"created", "edited"}, IsIssueComment: true},
+				{EventName: "pull_request_comment", Types: []string{"created", "edited"}, IsPRComment: true},
+			},
+			expected: 1,
+			hasEvent: "issue_comment",
+		},
+		{
+			name: "mixed with other events",
+			input: []CommentEventMapping{
+				{EventName: "issues", Types: []string{"opened", "edited"}},
+				{EventName: "pull_request_comment", Types: []string{"created", "edited"}, IsPRComment: true},
+			},
+			expected: 2,
+			hasEvent: "issue_comment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MergeEventsForYAML(tt.input)
+			if len(result) != tt.expected {
+				t.Errorf("Expected %d events, got %d", tt.expected, len(result))
+			}
+			found := false
+			for _, event := range result {
+				if event.EventName == tt.hasEvent {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected to find event '%s' in merged results", tt.hasEvent)
+			}
+		})
+	}
+}
+
 // TestEventAwareCommandConditions tests that command conditions are properly applied only to comment-related events
 func TestEventAwareCommandConditions(t *testing.T) {
 	// Create temporary directory for test files
@@ -70,6 +163,21 @@ tools:
 			filename:                "command-with-schedule.md",
 			expectedSimpleCondition: false,
 			expectedEventAware:      true,
+		},
+		{
+			name: "command with pull_request_comment only should check PR comment filter",
+			frontmatter: `---
+on:
+  command:
+    name: pr-bot
+    events: [pull_request_comment]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:                "command-with-pr-comment.md",
+			expectedSimpleCondition: false, // Should contain PR filter logic
+			expectedEventAware:      false,
 		},
 	}
 

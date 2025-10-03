@@ -41,7 +41,10 @@ jobs:
     if: >
       ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
       github.event_name == 'pull_request_review_comment') && (contains(github.event.issue.body, '/scout') ||
-      contains(github.event.comment.body, '/scout') || contains(github.event.pull_request.body, '/scout'))) ||
+      (contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request == null) ||
+      (contains(github.event.comment.body, '/scout')) &&
+      (github.event.issue.pull_request != null) || contains(github.event.comment.body, '/scout') ||
+      contains(github.event.pull_request.body, '/scout'))) ||
       (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
       github.event_name == 'pull_request_review_comment'))
     runs-on: ubuntu-latest
@@ -124,7 +127,10 @@ jobs:
     if: >
       (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
       github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && (contains(github.event.issue.body, '/scout') ||
-      contains(github.event.comment.body, '/scout') || contains(github.event.pull_request.body, '/scout'))) ||
+      (contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request == null) ||
+      (contains(github.event.comment.body, '/scout')) &&
+      (github.event.issue.pull_request != null) || contains(github.event.comment.body, '/scout') ||
+      contains(github.event.pull_request.body, '/scout'))) ||
       (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
       github.event_name == 'pull_request_review_comment')))
     runs-on: ubuntu-latest
@@ -285,9 +291,8 @@ jobs:
   add_reaction:
     needs: activation
     if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_comment' ||
-      github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') &&
-      (github.event.pull_request.head.repo.full_name == github.repository)
+      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' ||
+      (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       actions: write  # Required for github.rest.actions.cancelWorkflowRun()
