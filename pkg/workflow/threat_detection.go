@@ -87,14 +87,32 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	// Build steps using a more structured approach
 	steps := c.buildThreatDetectionSteps(data, mainJobName)
 
+	// Determine job dependencies
+	needs := []string{}
+
+	// Add activation job dependency if discussion is enabled (it should come first in needs)
+	discussionEnabled := data.DiscussionConfig != nil && data.DiscussionConfig.Enabled
+	if discussionEnabled {
+		needs = append(needs, constants.ActivationJobName)
+	}
+
+	// Add main job dependency
+	needs = append(needs, mainJobName)
+
+	// Set permissions - add discussions: write if discussion is enabled
+	permissions := "permissions: read-all"
+	if discussionEnabled {
+		permissions = "permissions:\n      discussions: write\n      contents: read\n      actions: read"
+	}
+
 	job := &Job{
 		Name:           constants.DetectionJobName,
 		If:             "",
 		RunsOn:         "runs-on: ubuntu-latest",
-		Permissions:    "permissions: read-all",
+		Permissions:    permissions,
 		TimeoutMinutes: 10,
 		Steps:          steps,
-		Needs:          []string{mainJobName},
+		Needs:          needs,
 	}
 
 	return job, nil
@@ -117,6 +135,11 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 
 	// Step 4: Upload detection log artifact
 	steps = append(steps, c.buildUploadDetectionLogStep()...)
+
+	// Step 5: Post comment to discussion if discussion is enabled and detection found issues
+	if data.DiscussionConfig != nil && data.DiscussionConfig.Enabled {
+		steps = append(steps, c.buildDiscussionCommentStep()...)
+	}
 
 	return steps
 }
@@ -415,5 +438,43 @@ func (c *Compiler) buildUploadDetectionLogStep() []string {
 		"          name: threat-detection.log\n",
 		"          path: /tmp/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
+	}
+}
+
+// buildDiscussionCommentStep creates the step to post a comment to the discussion if threats are detected
+func (c *Compiler) buildDiscussionCommentStep() []string {
+	return []string{
+		"      - name: Post detection warning to discussion\n",
+		fmt.Sprintf("        if: failure() && needs.%s.outputs.discussion-id != ''\n", constants.ActivationJobName),
+		"        uses: actions/github-script@v8\n",
+		"        with:\n",
+		"          script: |\n",
+		"            const discussionId = process.env.DISCUSSION_ID;\n",
+		"            const body = '⚠️ **Security Alert**: Threat detection found a potential issue. Please review the [detection logs](../actions/runs/${{ github.run_id }}) for details.';\n",
+		"            \n",
+		"            const mutation = `\n",
+		"              mutation($discussionId: ID!, $body: String!) {\n",
+		"                addDiscussionComment(input: {\n",
+		"                  discussionId: $discussionId,\n",
+		"                  body: $body\n",
+		"                }) {\n",
+		"                  comment {\n",
+		"                    id\n",
+		"                  }\n",
+		"                }\n",
+		"              }\n",
+		"            `;\n",
+		"            \n",
+		"            try {\n",
+		"              await github.graphql(mutation, {\n",
+		"                discussionId,\n",
+		"                body\n",
+		"              });\n",
+		"              core.info('Posted warning comment to discussion');\n",
+		"            } catch (error) {\n",
+		"              core.warning(`Failed to post comment to discussion: ${error.message}`);\n",
+		"            }\n",
+		"        env:\n",
+		fmt.Sprintf("          DISCUSSION_ID: ${{ needs.%s.outputs.discussion-id }}\n", constants.ActivationJobName),
 	}
 }

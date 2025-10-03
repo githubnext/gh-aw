@@ -86,50 +86,11 @@ try {
     }
   }
 
-  // If category not found, create it
+  // If category not found, log error and give up
   if (!categoryId) {
-    core.info(`Category "${categoryName}" not found. Creating new discussion category...`);
-
-    const createCategoryMutation = `
-      mutation($repositoryId: ID!, $name: String!, $emoji: String!) {
-        createDiscussionCategory(input: {
-          repositoryId: $repositoryId
-          name: $name
-          emoji: $emoji
-          isAnswerable: false
-        }) {
-          discussionCategory {
-            id
-            name
-          }
-        }
-      }
-    `;
-
-    try {
-      const createCategoryResult = await github.graphql(createCategoryMutation, {
-        repositoryId,
-        name: categoryName,
-        emoji: "🤖",
-      });
-
-      if (
-        createCategoryResult &&
-        createCategoryResult.createDiscussionCategory &&
-        createCategoryResult.createDiscussionCategory.discussionCategory
-      ) {
-        categoryId = createCategoryResult.createDiscussionCategory.discussionCategory.id;
-        core.info(`✓ Created category "${categoryName}" with ID: ${categoryId}`);
-      } else {
-        core.warning("Failed to create discussion category. Cannot create discussion.");
-        return;
-      }
-    } catch (categoryError) {
-      const categoryErrorMessage = categoryError instanceof Error ? categoryError.message : String(categoryError);
-      core.warning(`Failed to create discussion category: ${categoryErrorMessage}`);
-      core.warning("Cannot create discussion without a category.");
-      return;
-    }
+    core.error(`Category "${categoryName}" not found. Cannot create discussion without a category.`);
+    core.error(`Available categories: ${discussionCategories.map(c => c.name).join(", ")}`);
+    return;
   }
 
   // Create the discussion using GraphQL API
