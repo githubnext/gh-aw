@@ -377,6 +377,448 @@ Body: "${{ github.event.issue.body }}"
 - **Input sanitization**: Always use sanitized context text for user-controlled content
 - **Action validation**: Implement a plan-validate-execute flow where policy layers check each tool call against risk thresholds
 
+### Safe Outputs Security Model
+
+Safe outputs provide a security-first approach to GitHub API interactions by separating AI processing from write operations. This architecture prevents the agentic portion of workflows from having direct write access while still enabling automated actions.
+
+#### Architecture Overview
+
+The safe outputs system implements a job separation pattern:
+
+1. **Agent Job** (read-only): Runs with minimal permissions (`contents: read`, `actions: read`) and generates structured output files
+2. **Output Processing Jobs** (write-only): Separate jobs that read the agent's output and perform specific, validated GitHub API operations
+
+This separation ensures the AI never has direct write access to your repository, issues, or pull requests.
+
+#### Security Benefits
+
+**Permission Isolation:**
+- Agent processing runs without write permissions to prevent unauthorized changes
+- Write operations are performed by dedicated jobs with explicit, scoped permissions
+- Each output type (issues, PRs, comments) has its own job with minimal required permissions
+
+**Output Validation:**
+- All agent output is sanitized before processing (XML escaping, URI filtering, length limits)
+- Structured output formats are validated against schemas before API calls
+- Maximum limits prevent spam and resource exhaustion (configurable per output type)
+
+**Audit Trail:**
+- Clear separation between AI generation and GitHub API execution
+- Each safe output job creates visible GitHub Actions logs
+- Failed validations and sanitization actions are logged for review
+
+#### Available Safe Output Types
+
+The system supports multiple output types, each with specific security controls:
+
+- **`create-issue:`** - Create GitHub issues (max: configurable, default: 1)
+- **`add-comment:`** - Post comments on issues/PRs (max: configurable, default: 1)
+- **`update-issue:`** - Update issue status, title, or body (max: configurable, default: 1)
+- **`add-labels:`** - Add labels to issues/PRs (max: configurable, default: 3)
+- **`create-pull-request:`** - Create PRs with code changes (max: 1, draft by default)
+- **`create-pull-request-review-comment:`** - Create line-specific code review comments (max: configurable, default: 1)
+- **`push-to-pull-request-branch:`** - Push changes to PR branches (max: 1)
+- **`create-code-scanning-alert:`** - Generate SARIF security advisories (max: unlimited)
+
+See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for complete configuration details.
+
+#### Content Sanitization
+
+All agent output undergoes automatic sanitization before processing:
+
+- **XML Character Escaping**: Prevents injection attacks by escaping special characters (`<`, `>`, `&`, `"`, `'`)
+- **URI Protocol Filtering**: Only HTTPS URIs allowed; other protocols (HTTP, FTP, file://, javascript:) replaced with "(redacted)"
+- **Domain Allowlisting**: HTTPS URIs validated against configured allowed-domains list
+- **Length and Line Limits**: Content truncated if exceeding safety thresholds (0.5MB, 65k lines)
+- **Control Character Removal**: ANSI sequences and non-printable characters stripped
+
+#### Configuration Example
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read      # Agent job needs only read access
+  actions: read
+engine: claude
+safe-outputs:
+  create-issue:
+    title-prefix: "[analysis] "
+    labels: [automated, security]
+    max: 3
+  add-comment:
+    target: "triggering"
+---
+
+# Code Analysis Workflow
+
+Analyze the issue and create a security analysis report.
+Create up to 3 issues with your findings and add a comment to the triggering issue.
+```
+
+In this example:
+- The agent job runs with read-only permissions
+- Two separate jobs are automatically generated for issue creation and comment posting
+- Each output job receives only the specific write permission it needs
+- Output is validated and sanitized before any GitHub API calls
+
+#### Best Practices
+
+1. **Use safe-outputs instead of write permissions**: Never grant `contents:write`, `issues:write`, or `pull-requests:write` to the agent job
+2. **Configure maximum limits**: Set appropriate `max` values to prevent spam and resource exhaustion
+3. **Enable strict mode**: Use `strict: true` to enforce safe-outputs usage and block write permissions
+4. **Validate target configuration**: Use `target: "triggering"` (default) unless you specifically need cross-issue/PR operations
+5. **Review generated jobs**: Examine `.lock.yml` files to understand the exact permissions granted to each job
+6. **Monitor output artifacts**: Check workflow artifacts to review what the agent generated before processing
+
+### Threat Detection
+
+GitHub Agentic Workflows includes automatic threat detection to identify potential security issues in agent output and code changes before they are applied. This system acts as an additional security layer when safe outputs are configured.
+
+#### How Threat Detection Works
+
+When safe outputs are enabled, the compiler automatically generates a threat detection job that:
+
+1. **Runs after the agent job completes**: Analyzes agent output and any code patches before safe output jobs execute
+2. **Uses AI-powered analysis**: Employs an AI model to examine content for security threats using context-aware analysis
+3. **Blocks unsafe outputs**: Prevents safe output jobs from executing if threats are detected
+4. **Creates audit logs**: Generates detailed logs and artifacts documenting the analysis
+
+The threat detection job is automatically enabled when any safe output configuration is present, unless explicitly disabled.
+
+#### Threat Categories
+
+The system analyzes for three primary threat types:
+
+**1. Prompt Injection**
+- Attempts to inject malicious instructions or commands
+- Efforts to manipulate the AI system or bypass security controls
+- Instructions that could override workflow intent
+
+**2. Secret Leaks**
+- Exposed API keys, passwords, tokens, or credentials
+- Sensitive information that should not be disclosed
+- Accidentally committed secrets or configuration data
+
+**3. Malicious Patches**
+- Code changes introducing security vulnerabilities or backdoors
+- Suspicious web service calls to unusual domains
+- Backdoor installation or unauthorized authentication bypass
+- Encoded strings hiding secrets or malicious payloads
+- Addition of unknown or vulnerable dependencies
+
+#### Context-Aware Analysis
+
+The threat detection system uses the workflow source context to distinguish between legitimate actions and threats:
+
+```markdown
+## Workflow Source Context
+
+<source>
+<name>{WORKFLOW_NAME}</name>
+<description>{WORKFLOW_DESCRIPTION}</description>
+<markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
+</source>
+```
+
+This context helps the AI analyzer:
+- Understand the workflow's intended purpose and legitimate use cases
+- Differentiate between expected behavior and suspicious activity
+- Reduce false positives by considering workflow design
+- Provide more accurate threat assessments
+
+#### Detection Response Format
+
+The threat detection job produces structured output:
+
+```json
+THREAT_DETECTION_RESULT:{
+  "prompt_injection": false,
+  "secret_leak": false,
+  "malicious_patch": false,
+  "reasons": []
+}
+```
+
+When threats are detected:
+- Boolean flags are set to `true` for detected threat types
+- The `reasons` array contains detailed explanations
+- Safe output jobs are blocked from executing
+- Logs and artifacts provide audit trail for review
+
+#### Configuration
+
+**Automatic Enablement (Default):**
+```yaml
+safe-outputs:
+  create-issue:    # Threat detection automatically enabled
+```
+
+**Explicit Configuration:**
+```yaml
+safe-outputs:
+  threat-detection:
+    enabled: true                    # Explicitly enable (default when safe-outputs present)
+    prompt: "Additional instructions" # Optional custom analysis instructions
+    steps: []                        # Optional additional validation steps
+    engine-config:                   # Optional custom engine configuration for detection
+      model: claude-3-5-sonnet-20241022
+```
+
+**Disabling Threat Detection:**
+```yaml
+safe-outputs:
+  create-issue:
+  threat-detection:
+    enabled: false    # Explicitly disable (not recommended)
+```
+
+#### Job Dependencies
+
+When threat detection is enabled, safe output jobs automatically depend on both the agent job and the detection job:
+
+```yaml
+jobs:
+  agentic-task:
+    # Agent processing with read-only permissions
+
+  threat-detection:
+    needs: [agentic-task]
+    # Analyzes agent output for threats
+
+  create-issue:
+    needs: [agentic-task, threat-detection]
+    # Only runs if detection passes
+```
+
+This ensures no GitHub API write operations occur until the agent output is verified as safe.
+
+#### Security Guidelines
+
+The threat detection system follows these principles:
+
+- **Thorough but not overly cautious**: Balances security with usability
+- **Context-aware**: Uses workflow source to understand intent
+- **Focus on actual risks**: Prioritizes real security threats over style issues
+- **Err on the side of caution**: When uncertain, treats potential threats seriously
+- **Clear, actionable feedback**: Provides specific reasons for detected threats
+
+#### Monitoring and Debugging
+
+**View Detection Logs:**
+```bash
+gh aw logs workflow-name
+```
+
+**Check Detection Artifacts:**
+- Threat detection results are uploaded as workflow artifacts
+- Review the detection log for detailed analysis
+- Examine flagged content in the context of the workflow source
+
+**Common False Positives:**
+- Legitimate security testing code may trigger malicious patch warnings
+- Expected API calls to unusual domains might be flagged
+- Base64-encoded content with legitimate purpose could trigger warnings
+
+When false positives occur, you can:
+1. Review the detection reasoning in the logs
+2. Adjust the workflow source description to clarify intent
+3. Add custom detection prompt instructions to provide context
+4. In rare cases, disable detection (not recommended for production)
+
+#### Best Practices
+
+1. **Keep threat detection enabled**: Don't disable unless absolutely necessary
+2. **Review detection logs**: Regularly check detection results even when passing
+3. **Provide clear workflow descriptions**: Help the AI understand workflow intent
+4. **Monitor for patterns**: Track recurring false positives for workflow improvements
+5. **Use in conjunction with code review**: Threat detection supplements, doesn't replace, human review
+6. **Test with sample inputs**: Verify detection works with your workflow's expected outputs
+
+### Network Isolation
+
+Network isolation in GitHub Agentic Workflows operates at two distinct layers to provide defense-in-depth security: MCP tool network controls and AI engine network permissions. Both layers work together to prevent unauthorized network access and data exfiltration.
+
+#### Two Layers of Network Control
+
+**1. MCP Tool Network Controls**
+
+MCP (Model Context Protocol) tools can be containerized and isolated with network restrictions. This provides the strongest isolation for tools that interact with external services.
+
+**How it works:**
+- Each MCP tool runs in its own Docker container with dedicated network isolation
+- Network access is controlled via Squid proxy with domain allowlisting
+- iptables rules force all egress traffic through the proxy
+- Only explicitly allowed domains are accessible; all others are blocked at the network layer
+
+**Configuration:**
+```yaml
+mcp-servers:
+  fetch:
+    container: mcp/fetch             # Containerized MCP server
+    network:
+      allowed:
+        - "api.github.com"           # Only specific domains allowed
+        - "example.com"
+    allowed: ["fetch"]
+```
+
+**Enforcement:**
+- Applies only to `mcp.container` stdio servers
+- Non-container stdio and `type: http` servers are not supported
+- Proxy and network rules are generated during compilation
+- Review `.lock.yml` to verify proxy setup and domain rules
+
+**2. AI Engine Network Permissions**
+
+AI engines (Claude, Codex, Copilot) have their own network access controls that restrict which domains the engine can access during execution. This is separate from MCP tool controls.
+
+**How it works:**
+- Uses Claude Code's hook system to intercept network requests
+- Domain checking happens at request time (runtime validation)
+- Blocked requests receive clear error messages with allowed domains
+- Minimal performance impact (~10ms per network request)
+
+**Configuration:**
+```yaml
+engine:
+  id: claude
+
+network:
+  allowed:
+    - defaults         # Basic infrastructure (certificates, JSON schema, Ubuntu, etc.)
+    - python          # Python/PyPI ecosystem
+    - node            # Node.js/NPM ecosystem
+    - "api.custom.com" # Specific custom domain
+```
+
+See the [Engine Network Permissions](#engine-network-permissions) section and [Network Reference](/gh-aw/reference/network/) for complete details.
+
+#### Defense-in-Depth Strategy
+
+Using both layers together provides comprehensive protection:
+
+```yaml
+# Example: Maximum isolation configuration
+engine:
+  id: claude
+
+network:
+  allowed:
+    - defaults                    # Engine can access basic infrastructure
+    - python                      # Engine can access Python ecosystem
+
+mcp-servers:
+  custom-api:
+    container: ghcr.io/org/custom-api@sha256:abc123
+    network:
+      allowed:
+        - "api.internal.company.com"  # Tool can only access specific API
+    allowed: ["fetch_data"]
+
+tools:
+  github:
+    allowed: [get_issue]          # Minimal GitHub API access
+```
+
+In this configuration:
+- The AI engine can access Python packages and basic infrastructure
+- The custom MCP tool can only reach `api.internal.company.com`
+- GitHub tool access is limited to reading issues
+- No other network access is possible from either layer
+
+#### Network Isolation vs. Network Permissions
+
+**Network Isolation (MCP Tools):**
+- **Scope**: Containerized MCP tools only
+- **Mechanism**: Docker networking + Squid proxy + iptables
+- **Granularity**: Domain-level allowlisting per tool
+- **Enforcement**: Network layer (strongest isolation)
+- **Configuration**: `mcp-servers.*.network.allowed`
+- **Best for**: Tools that need strict containment
+
+**Network Permissions (AI Engines):**
+- **Scope**: AI engine network access (WebFetch, WebSearch tools)
+- **Mechanism**: Hook-based interception in Claude Code
+- **Granularity**: Domain and ecosystem-level allowlisting
+- **Enforcement**: Application layer (hook system)
+- **Configuration**: Top-level `network.allowed`
+- **Best for**: Controlling engine access to development tools and APIs
+
+#### Security Best Practices
+
+1. **Apply both layers when possible**: Use MCP network controls for tools and engine permissions for the AI
+2. **Start with minimal access**: Begin with `network: defaults` and add only what's needed
+3. **Use ecosystem identifiers**: Prefer `python`, `node`, etc. over broad domain patterns
+4. **Pin container images**: Use SHA digests for MCP containers: `ghcr.io/org/tool@sha256:...`
+5. **Audit compiled workflows**: Review `.lock.yml` files to verify network configurations
+6. **Monitor network access**: Check workflow logs for blocked requests
+7. **Document requirements**: Comment why specific domains/ecosystems are allowed
+
+#### Common Patterns
+
+**Development workflow with package managers:**
+```yaml
+engine:
+  id: claude
+
+network:
+  allowed:
+    - defaults      # Basic infrastructure
+    - python        # Python/PyPI for dependencies
+    - node          # Node.js/NPM for JavaScript
+```
+
+**Strict isolation for production:**
+```yaml
+engine:
+  id: claude
+
+network: {}  # Deny all engine network access
+
+mcp-servers:
+  internal-api:
+    container: ghcr.io/company/api@sha256:abc123
+    network:
+      allowed:
+        - "api.internal.company.com"  # Only internal API
+```
+
+**Custom domain access:**
+```yaml
+engine:
+  id: claude
+
+network:
+  allowed:
+    - defaults
+    - "api.example.com"        # Specific API
+    - "*.internal.company.com" # Internal services (wildcard)
+```
+
+#### Troubleshooting
+
+**MCP Tool Network Issues:**
+- Ensure `container:` is specified (non-container servers don't support network controls)
+- Verify domain spelling in allowlist
+- Check `.lock.yml` for generated proxy configuration
+- Review iptables rules in compiled workflow
+
+**Engine Network Permission Issues:**
+- Verify ecosystem identifiers are spelled correctly
+- Check that required domains are in the `allowed` list
+- Review workflow logs for blocked network requests
+- Test with exact domain names before using wildcards
+
+**Common Errors:**
+- `Network access denied`: Add required domain/ecosystem to `allowed` list
+- `MCP server connection failed`: Check container image and network configuration
+- `Wildcard not matching`: Ensure wildcard pattern is correct (e.g., `*.example.com`)
+
+See the [Network Reference](/gh-aw/reference/network/) for complete network configuration documentation.
+
 ## Engine Network Permissions
 
 ### Overview
@@ -471,6 +913,8 @@ Copilot and Claude expose richer default tools and optional Bash; Codex relies m
 
 ## See also
 
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
+- [Network Configuration](/gh-aw/reference/network/)
 - [Tools Configuration](/gh-aw/reference/tools/)
 - [MCPs](/gh-aw/guides/mcps/)
 - [Workflow Structure](/gh-aw/reference/workflow-structure/)
