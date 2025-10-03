@@ -2767,10 +2767,10 @@ func (c *Compiler) parseBaseSafeOutputConfig(configMap map[string]any, config *B
 func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *DiscussionConfig {
 	discussionValue, exists := frontmatter["discussion"]
 	if !exists {
-		// Default: enabled with default category
+		// Default: enabled with empty category (let JavaScript resolve it)
 		return &DiscussionConfig{
 			Enabled:      true,
-			CategoryName: constants.DefaultDiscussionCategory,
+			CategoryName: "",
 		}
 	}
 
@@ -2779,7 +2779,7 @@ func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *Discussi
 	// Handle nil value (simple enable with defaults)
 	if discussionValue == nil {
 		config.Enabled = true
-		config.CategoryName = constants.DefaultDiscussionCategory
+		config.CategoryName = ""
 		return config
 	}
 
@@ -2787,7 +2787,7 @@ func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *Discussi
 	if boolValue, ok := discussionValue.(bool); ok {
 		config.Enabled = boolValue
 		if config.Enabled {
-			config.CategoryName = constants.DefaultDiscussionCategory
+			config.CategoryName = ""
 		}
 		return config
 	}
@@ -2799,8 +2799,8 @@ func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *Discussi
 		return config
 	}
 
-	// Invalid type, default to enabled with default category
+	// Invalid type, default to enabled with empty category (let JavaScript resolve it)
 	config.Enabled = true
-	config.CategoryName = constants.DefaultDiscussionCategory
+	config.CategoryName = ""
 	return config
 }

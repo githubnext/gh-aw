@@ -65,9 +65,9 @@ This workflow tests default discussion creation.`
 			t.Error("Expected discussions: write permission in activation job")
 		}
 
-		// Verify environment variables
-		if !strings.Contains(lockContentStr, "GITHUB_AW_DISCUSSION_CATEGORY: \"Agentic Workflows\"") {
-			t.Error("Expected default category 'Agentic Workflows'")
+		// Verify environment variables - category should be empty (let JavaScript resolve it)
+		if !strings.Contains(lockContentStr, "GITHUB_AW_DISCUSSION_CATEGORY: \"\"") {
+			t.Error("Expected empty category (JavaScript will resolve it)")
 		}
 	})
 
@@ -196,9 +196,9 @@ This workflow tests null discussion value.`
 			t.Error("Expected discussion creation step when discussion is null")
 		}
 
-		// Verify default category
-		if !strings.Contains(lockContentStr, "GITHUB_AW_DISCUSSION_CATEGORY: \"Agentic Workflows\"") {
-			t.Error("Expected default category 'Agentic Workflows' when discussion is null")
+		// Verify default category - should be empty (let JavaScript resolve it)
+		if !strings.Contains(lockContentStr, "GITHUB_AW_DISCUSSION_CATEGORY: \"\"") {
+			t.Error("Expected empty category (JavaScript will resolve it)")
 		}
 	})
 }
