@@ -252,6 +252,13 @@ async function main() {
   core.info(`Generated branch name: ${branchName}`);
   core.debug(`Base branch: ${baseBranch}`);
 
+  // Check if patch modifies workflow files under .github/workflows
+  const modifiesWorkflowFiles = !isEmpty && patchContent.match(/^diff --git a\/\.github\/workflows\//m);
+  if (modifiesWorkflowFiles) {
+    core.warning("Patch modifies workflow files under .github/workflows/ - GitHub may restrict PR creation");
+    core.info("Creating issue instead of pull request due to workflow file modifications");
+  }
+
   // Create a new branch using git CLI, ensuring it's based on the correct base branch
 
   // First, fetch latest changes and checkout the base branch
@@ -294,55 +301,69 @@ async function main() {
   }
 
   // Try to create the pull request, with fallback to issue creation
-  try {
-    const { data: pullRequest } = await github.rest.pulls.create({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      title: title,
-      body: body,
-      head: branchName,
-      base: baseBranch,
-      draft: draft,
-    });
-
-    core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-
-    // Add labels if specified
-    if (labels.length > 0) {
-      await github.rest.issues.addLabels({
+  // Skip PR creation if workflow files are modified (GitHub may reject it)
+  let prError = null;
+  if (modifiesWorkflowFiles) {
+    prError = new Error("Pull request modifies workflow files under .github/workflows/ - creating issue instead");
+  } else {
+    try {
+      const { data: pullRequest } = await github.rest.pulls.create({
         owner: context.repo.owner,
         repo: context.repo.repo,
-        issue_number: pullRequest.number,
-        labels: labels,
+        title: title,
+        body: body,
+        head: branchName,
+        base: baseBranch,
+        draft: draft,
       });
-      core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-    }
 
-    // Set output for other jobs to use
-    core.setOutput("pull_request_number", pullRequest.number);
-    core.setOutput("pull_request_url", pullRequest.html_url);
-    core.setOutput("branch_name", branchName);
+      core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
 
-    // Write summary to GitHub Actions summary
-    await core.summary
-      .addRaw(
-        `
+      // Add labels if specified
+      if (labels.length > 0) {
+        await github.rest.issues.addLabels({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issue_number: pullRequest.number,
+          labels: labels,
+        });
+        core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+      }
+
+      // Set output for other jobs to use
+      core.setOutput("pull_request_number", pullRequest.number);
+      core.setOutput("pull_request_url", pullRequest.html_url);
+      core.setOutput("branch_name", branchName);
+
+      // Write summary to GitHub Actions summary
+      await core.summary
+        .addRaw(
+          `
 
 ## Pull Request
 - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
 - **Branch**: \`${branchName}\`
 - **Base Branch**: \`${baseBranch}\`
 `
-      )
-      .write();
-  } catch (prError) {
-    core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-    core.info("Falling back to creating an issue instead");
+        )
+        .write();
+    } catch (error) {
+      prError = error;
+      core.warning(`Failed to create pull request: ${error instanceof Error ? error.message : String(error)}`);
+      core.info("Falling back to creating an issue instead");
+    }
+  }
 
+  if (prError) {
     // Create issue as fallback with enhanced body content
     const branchUrl = context.payload.repository
       ? `${context.payload.repository.html_url}/tree/${branchName}`
       : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+
+    let fallbackReason = "";
+    if (modifiesWorkflowFiles) {
+      fallbackReason = `**Reason:** Pull requests that modify workflow files under \`.github/workflows/\` may be restricted by GitHub for security reasons.\n\n`;
+    }
 
     const fallbackBody = `${body}
 
@@ -350,7 +371,7 @@ async function main() {
 
 **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
 
-**Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+${fallbackReason}**Original error:** ${prError instanceof Error ? prError.message : String(prError)}
 
 You can manually create a pull request from the branch if needed.`;
 

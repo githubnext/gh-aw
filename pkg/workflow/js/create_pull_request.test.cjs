@@ -579,6 +579,214 @@ describe("create_pull_request.cjs", () => {
     );
   });
 
+  it("should create issue instead of PR when patch modifies workflow files", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "Update workflow file",
+          body: "This PR modifies a workflow file.",
+        },
+      ],
+    });
+    mockDependencies.process.env.GITHUB_AW_PR_LABELS = "workflow, automated";
+
+    // Mock patch that modifies a workflow file
+    const workflowPatch = `diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml
+index abc123..def456 100644
+--- a/.github/workflows/test.yml
++++ b/.github/workflows/test.yml
+@@ -1,3 +1,4 @@
+ name: Test Workflow
+ on: push
++  branches: [main]
+`;
+    mockDependencies.fs.readFileSync.mockReturnValue(workflowPatch);
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 789,
+      html_url: "https://github.com/testowner/testrepo/issues/789",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify warning was logged about workflow files
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
+      "Patch modifies workflow files under .github/workflows/ - GitHub may restrict PR creation"
+    );
+    expect(mockDependencies.core.info).toHaveBeenCalledWith("Creating issue instead of pull request due to workflow file modifications");
+
+    // Verify PR creation was skipped
+    expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
+
+    // Verify issue was created with workflow file explanation
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      title: "Update workflow file",
+      body: expect.stringMatching(
+        /This PR modifies a workflow file\.[\s\S]*---[\s\S]*Note.*originally intended as a pull request[\s\S]*Reason.*Pull requests that modify workflow files[\s\S]*Original error.*creating issue instead[\s\S]*You can manually create a pull request from the branch if needed/
+      ),
+      labels: ["workflow", "automated"],
+    });
+
+    // Verify fallback outputs were set
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_number", 789);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("branch_name", "test-workflow-1234567890abcdef");
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("fallback_used", "true");
+
+    // Verify fallback summary was written
+    expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## Fallback Issue Created"));
+  });
+
+  it("should create PR normally when patch does not modify workflow files", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "Update regular file",
+          body: "This PR modifies a regular file.",
+        },
+      ],
+    });
+
+    // Mock patch that does NOT modify a workflow file
+    const regularPatch = `diff --git a/src/index.js b/src/index.js
+index abc123..def456 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -1,3 +1,4 @@
+ const app = require('./app');
++const config = require('./config');
+`;
+    mockDependencies.fs.readFileSync.mockReturnValue(regularPatch);
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    const mockPullRequest = {
+      number: 456,
+      html_url: "https://github.com/testowner/testrepo/pull/456",
+    };
+
+    mockDependencies.github.rest.pulls.create.mockResolvedValue({
+      data: mockPullRequest,
+    });
+
+    // Mock issue creation (even though we don't expect it to be called)
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn(),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify no warning about workflow files
+    expect(mockDependencies.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("workflow files"));
+
+    // Verify PR creation was attempted
+    expect(mockDependencies.github.rest.pulls.create).toHaveBeenCalled();
+
+    // Verify issue creation was NOT called
+    expect(mockDependencies.github.rest.issues.create).not.toHaveBeenCalled();
+
+    // Verify PR outputs were set
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_number", 456);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("pull_request_url", mockPullRequest.html_url);
+    expect(mockDependencies.core.setOutput).toHaveBeenCalledWith("branch_name", "test-workflow-1234567890abcdef");
+  });
+
+  it("should handle workflow files in subdirectories", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "Update workflow in subdirectory",
+          body: "This PR modifies a workflow file in a subdirectory.",
+        },
+      ],
+    });
+
+    // Mock patch that modifies a workflow file in a subdirectory
+    const workflowPatch = `diff --git a/.github/workflows/agentics/my-workflow.md b/.github/workflows/agentics/my-workflow.md
+index abc123..def456 100644
+--- a/.github/workflows/agentics/my-workflow.md
++++ b/.github/workflows/agentics/my-workflow.md
+@@ -1,2 +1,3 @@
+ # My Workflow
++Updated content
+`;
+    mockDependencies.fs.readFileSync.mockReturnValue(workflowPatch);
+
+    // Mock execSync to simulate git behavior with changes
+    mockDependencies.execSync.mockImplementation(command => {
+      if (command === "git diff --cached --exit-code") {
+        const error = new Error("Changes exist");
+        error.status = 1;
+        throw error;
+      }
+      return "";
+    });
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 999,
+      html_url: "https://github.com/testowner/testrepo/issues/999",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+
+    await mainFunction();
+
+    // Verify warning was logged
+    expect(mockDependencies.core.warning).toHaveBeenCalledWith(
+      "Patch modifies workflow files under .github/workflows/ - GitHub may restrict PR creation"
+    );
+
+    // Verify PR creation was skipped
+    expect(mockDependencies.github.rest.pulls.create).not.toHaveBeenCalled();
+
+    // Verify issue was created
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+  });
+
   describe("if-no-changes configuration", () => {
     beforeEach(() => {
       mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
