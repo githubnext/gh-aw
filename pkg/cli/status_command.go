@@ -81,7 +81,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 			}
 
 			// Extract stop-time from lock file
-			if stopTime := extractStopTimeFromLockFile(lockFile); stopTime != "" {
+			if stopTime := workflow.ExtractStopTimeFromLockFile(lockFile); stopTime != "" {
 				timeRemaining = calculateTimeRemaining(stopTime)
 			}
 		}
@@ -112,28 +112,7 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	return nil
 }
 
-// extractStopTimeFromLockFile extracts the STOP_TIME value from a compiled workflow lock file
-func extractStopTimeFromLockFile(lockFilePath string) string {
-	content, err := os.ReadFile(lockFilePath)
-	if err != nil {
-		return ""
-	}
 
-	// Look for the STOP_TIME line in the safety checks section
-	// Pattern: STOP_TIME="YYYY-MM-DD HH:MM:SS"
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "STOP_TIME=") {
-			// Extract the value between quotes
-			start := strings.Index(line, `"`) + 1
-			end := strings.LastIndex(line, `"`)
-			if start > 0 && end > start {
-				return line[start:end]
-			}
-		}
-	}
-	return ""
-}
 
 // calculateTimeRemaining calculates and formats the time remaining until stop-time
 func calculateTimeRemaining(stopTimeStr string) string {

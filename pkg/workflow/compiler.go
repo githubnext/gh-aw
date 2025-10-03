@@ -644,7 +644,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
 
 	// Process stop-after configuration from the on: section
-	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData)
+	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
 	if err != nil {
 		return nil, err
 	}
