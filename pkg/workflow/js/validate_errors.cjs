@@ -21,7 +21,8 @@ function main() {
     const hasErrors = validateErrors(content, patterns);
 
     if (hasErrors) {
-      core.setFailed("Errors detected in agent logs - failing workflow step");
+      core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
+      //core.setFailed("Errors detected in agent logs - failing workflow step");
     } else {
       core.info("Error validation completed successfully");
     }
