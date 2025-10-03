@@ -904,7 +904,7 @@ jobs:
           codex --version
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
-          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2162,7 +2162,7 @@ jobs:
           codex --version
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
         env:
-          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}

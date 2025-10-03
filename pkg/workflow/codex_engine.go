@@ -122,7 +122,7 @@ codex --version
 codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
-		"CODEX_API_KEY":        "${{ secrets.OPENAI_API_KEY }}",
+		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_AW_PROMPT":     "/tmp/aw-prompts/prompt.txt",
 		"GITHUB_AW_MCP_CONFIG": "/tmp/mcp-config/config.toml",
