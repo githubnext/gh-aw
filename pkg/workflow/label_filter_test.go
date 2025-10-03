@@ -190,9 +190,6 @@ tools:
 				if tt.expectedIf != "" && !strings.Contains(lockContent, tt.expectedIf) {
 					t.Errorf("Expected condition to contain '%s', got:\n%s", tt.expectedIf, lockContent)
 				}
-			} else {
-				// For cases where we don't expect an if condition from label filtering
-				// (but might have other conditions), we just verify compilation succeeded
 			}
 
 			// Clean up test file
