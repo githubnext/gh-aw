@@ -120,7 +120,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	claudeArgs = append(claudeArgs, "--permission-mode", "bypassPermissions")
 
 	// Add output format for structured output
-	claudeArgs = append(claudeArgs, "--output-format", "json")
+	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
 
 	// Add network settings if configured
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
