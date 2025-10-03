@@ -12,77 +12,22 @@ import (
 // Test the CLI functions that are exported from this package
 
 func TestListWorkflows(t *testing.T) {
-	// Test the ListWorkflows function (which includes listAgenticEngines)
-	err := ListWorkflows(false)
+	// Test the ListEnginesAndOtherInformation function (which includes listAgenticEngines)
+	err := ListEnginesAndOtherInformation(false)
 
 	// Should return nil (no error) and print table-formatted output
 	if err != nil {
-		t.Errorf("ListWorkflows should not return an error for valid input, got: %v", err)
+		t.Errorf("ListEnginesAndOtherInformation should not return an error for valid input, got: %v", err)
 	}
 }
 
 func TestListWorkflowsVerbose(t *testing.T) {
-	// Test the ListWorkflows function in verbose mode
-	err := ListWorkflows(true)
+	// Test the ListEnginesAndOtherInformation function in verbose mode
+	err := ListEnginesAndOtherInformation(true)
 
 	// Should return nil (no error) and print table-formatted output with descriptions
 	if err != nil {
-		t.Errorf("ListWorkflows verbose mode should not return an error for valid input, got: %v", err)
-	}
-}
-
-func TestAddWorkflow(t *testing.T) {
-	// Clean up any existing .github/workflows for this test
-	defer os.RemoveAll(".github")
-
-	tests := []struct {
-		name        string
-		workflow    string
-		number      int
-		expectError bool
-	}{
-		{
-			name:        "nonexistent workflow",
-			workflow:    "nonexistent-workflow",
-			number:      1,
-			expectError: true,
-		},
-		{
-			name:        "empty workflow name",
-			workflow:    "",
-			number:      1,
-			expectError: false, // AddWorkflow shows help when workflow is empty, doesn't error
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := AddWorkflowWithTracking(tt.workflow, tt.number, false, "", "", false, nil)
-
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error for test '%s', got nil", tt.name)
-			} else if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
-			}
-		})
-	}
-}
-
-func TestAddWorkflowForce(t *testing.T) {
-	// This test verifies that the force flag works correctly
-	// Note: This is a unit test to verify the function signature and basic logic
-	// It doesn't test the actual file system operations
-
-	// Test that force=false fails when a file "exists" (simulated by empty workflow name which triggers help)
-	err := AddWorkflowWithTracking("", 1, false, "", "", false, nil)
-	if err != nil {
-		t.Errorf("Expected no error for empty workflow (shows help), got: %v", err)
-	}
-
-	// Test that force=true works with same parameters
-	err = AddWorkflowWithTracking("", 1, false, "", "", true, nil)
-	if err != nil {
-		t.Errorf("Expected no error for empty workflow with force=true, got: %v", err)
+		t.Errorf("ListEnginesAndOtherInformation verbose mode should not return an error for valid input, got: %v", err)
 	}
 }
 
@@ -456,8 +401,7 @@ func TestAllCommandsExist(t *testing.T) {
 		expectError bool
 		name        string
 	}{
-		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
-		{func() error { return AddWorkflowWithTracking("", 1, false, "", "", false, nil) }, false, "AddWorkflowWithTracking (empty name)"}, // Shows help when empty, doesn't error
+		{func() error { return ListEnginesAndOtherInformation(false) }, false, "ListEnginesAndOtherInformation"},
 		{func() error {
 			config := CompileConfig{
 				MarkdownFiles:       []string{},
@@ -493,26 +437,6 @@ func TestAllCommandsExist(t *testing.T) {
 	}
 }
 
-func TestAddWorkflowWithPR(t *testing.T) {
-	// Clean up any existing .github/workflows for this test
-	defer os.RemoveAll(".github")
-
-	// Test with nonexistent workflow (should fail early due to workflow not found or repo access)
-	err := AddWorkflowWithRepoAndPR("nonexistent-workflow", 1, false, "", "", "", false)
-	if err == nil {
-		t.Error("AddWorkflowWithRepoAndPR should return an error for nonexistent workflow or missing git setup")
-	}
-
-	// The error could be either:
-	// 1. GitHub CLI not available
-	// 2. Not in a git repository
-	// 3. Repository access check failure
-	// 4. Working directory not clean
-	// 5. Workflow not found
-	// All of these are expected in the test environment
-	t.Logf("Expected error for PR creation: %v", err)
-}
-
 // TestInstallPackage tests the InstallPackage function
 func TestInstallPackage(t *testing.T) {
 	// Create a temporary directory for testing
@@ -529,7 +453,6 @@ func TestInstallPackage(t *testing.T) {
 	tests := []struct {
 		name        string
 		repoSpec    string
-		local       bool
 		verbose     bool
 		expectError bool
 		errorMsg    string
@@ -537,7 +460,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "invalid repo spec",
 			repoSpec:    "invalid",
-			local:       true,
 			verbose:     false,
 			expectError: true,
 			errorMsg:    "invalid repository specification",
@@ -545,7 +467,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "empty repo spec",
 			repoSpec:    "",
-			local:       true,
 			verbose:     false,
 			expectError: true,
 			errorMsg:    "invalid repository specification",
@@ -553,7 +474,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "valid repo spec but download will fail",
 			repoSpec:    "nonexistent/repo",
-			local:       true,
 			verbose:     true,
 			expectError: true,
 			errorMsg:    "failed to download workflows",
@@ -561,7 +481,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "valid repo spec with version but download will fail",
 			repoSpec:    "nonexistent/repo@v1.0.0",
-			local:       false,
 			verbose:     false,
 			expectError: true,
 			errorMsg:    "failed to download workflows",
@@ -570,7 +489,7 @@ func TestInstallPackage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InstallPackage(tt.repoSpec, tt.local, tt.verbose)
+			err := InstallPackage(tt.repoSpec, tt.verbose)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -582,102 +501,6 @@ func TestInstallPackage(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, err)
 				}
-			}
-		})
-	}
-}
-
-// TestUninstallPackage tests the UninstallPackage function
-func TestUninstallPackage(t *testing.T) {
-	tests := []struct {
-		name        string
-		repoSpec    string
-		local       bool
-		verbose     bool
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "invalid repo spec",
-			repoSpec:    "invalid",
-			local:       true,
-			verbose:     false,
-			expectError: true,
-			errorMsg:    "invalid repository specification",
-		},
-		{
-			name:        "empty repo spec",
-			repoSpec:    "",
-			local:       true,
-			verbose:     false,
-			expectError: true,
-			errorMsg:    "invalid repository specification",
-		},
-		{
-			name:        "valid repo spec - package not installed",
-			repoSpec:    "nonexistent/repo",
-			local:       true,
-			verbose:     true,
-			expectError: false,
-		},
-		{
-			name:        "valid repo spec with version - package not installed",
-			repoSpec:    "nonexistent/repo@v1.0.0",
-			local:       false,
-			verbose:     false,
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := UninstallPackage(tt.repoSpec, tt.local, tt.verbose)
-
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error for test '%s', got nil", tt.name)
-			} else if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
-			}
-
-			if tt.expectError && err != nil {
-				if !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, err)
-				}
-			}
-		})
-	}
-}
-
-// TestListPackages tests the ListPackages function
-func TestListPackages(t *testing.T) {
-	tests := []struct {
-		name        string
-		local       bool
-		verbose     bool
-		expectError bool
-	}{
-		{
-			name:        "list local packages",
-			local:       true,
-			verbose:     false,
-			expectError: false, // Should not error even if directory doesn't exist
-		},
-		{
-			name:        "list global packages",
-			local:       false,
-			verbose:     true,
-			expectError: false, // Should not error even if directory doesn't exist
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ListPackages(tt.local, tt.verbose)
-
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error for test '%s', got nil", tt.name)
-			} else if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
 			}
 		})
 	}
@@ -836,384 +659,6 @@ func TestSetVersionInfo(t *testing.T) {
 				t.Errorf("SetVersionInfo(%q) -> GetVersion() = %q, want %q", tt.version, got, tt.version)
 			}
 		})
-	}
-}
-
-// Test AddWorkflowWithRepo function
-func TestAddWorkflowWithRepo(t *testing.T) {
-	// Clean up any existing .github/workflows for this test
-	defer os.RemoveAll(".github")
-
-	tests := []struct {
-		name        string
-		workflow    string
-		repo        string
-		expectError bool
-		description string
-	}{
-		{
-			name:        "empty workflow and repo",
-			workflow:    "",
-			repo:        "",
-			expectError: false, // Should show help message, not error
-			description: "empty workflow shows help",
-		},
-		{
-			name:        "nonexistent workflow without repo",
-			workflow:    "nonexistent-workflow",
-			repo:        "",
-			expectError: true,
-			description: "nonexistent workflow should fail",
-		},
-		{
-			name:        "workflow with invalid repo format",
-			workflow:    "test-workflow",
-			repo:        "invalid-repo-format",
-			expectError: true,
-			description: "invalid repo format should fail during installation",
-		},
-		{
-			name:        "workflow with nonexistent repo",
-			workflow:    "test-workflow",
-			repo:        "nonexistent/nonexistent-repo",
-			expectError: true,
-			description: "nonexistent repo should fail during installation",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := AddWorkflowWithRepo(tt.workflow, 1, false, "", tt.repo, "", false)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("AddWorkflowWithRepo(%q, %q) expected error (%s), but got none", tt.workflow, tt.repo, tt.description)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("AddWorkflowWithRepo(%q, %q) unexpected error (%s): %v", tt.workflow, tt.repo, tt.description, err)
-				}
-			}
-		})
-	}
-}
-
-func TestCollectIncludeDependencies(t *testing.T) {
-	// Create a temporary directory for testing
-	tempDir := t.TempDir()
-	workflowsDir := tempDir + "/workflows"
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		t.Fatalf("Failed to create workflows directory: %v", err)
-	}
-
-	// Create test files
-	sharedDir := workflowsDir + "/shared"
-	if err := os.MkdirAll(sharedDir, 0755); err != nil {
-		t.Fatalf("Failed to create shared directory: %v", err)
-	}
-
-	// Create a shared file
-	sharedFile := sharedDir + "/common.md"
-	sharedContent := `# Common Content
-This is shared content.
-`
-	if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
-		t.Fatalf("Failed to create shared file: %v", err)
-	}
-
-	// Create another shared file for recursive testing
-	recursiveFile := sharedDir + "/recursive.md"
-	recursiveContent := `# Recursive Content
-@include shared/common.md
-More content here.
-`
-	if err := os.WriteFile(recursiveFile, []byte(recursiveContent), 0644); err != nil {
-		t.Fatalf("Failed to create recursive file: %v", err)
-	}
-
-	tests := []struct {
-		name              string
-		content           string
-		workflowPath      string
-		expectedDepsCount int
-		expectError       bool
-		description       string
-	}{
-		{
-			name:              "no_includes",
-			content:           "# Simple Workflow\nNo includes here.",
-			workflowPath:      workflowsDir + "/simple.md",
-			expectedDepsCount: 0,
-			expectError:       false,
-			description:       "Content without includes should return no dependencies",
-		},
-		{
-			name:              "single_include",
-			content:           "# Workflow with Include\n@include shared/common.md\nMore content.",
-			workflowPath:      workflowsDir + "/with-include.md",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Content with one include should return one dependency",
-		},
-		{
-			name:              "multiple_includes",
-			content:           "# Multiple Includes\n@include shared/common.md\n@include shared/recursive.md",
-			workflowPath:      workflowsDir + "/multi-include.md",
-			expectedDepsCount: 3,
-			expectError:       false,
-			description:       "Content with multiple includes should return multiple dependencies (including recursive ones)",
-		},
-		{
-			name:              "recursive_includes",
-			content:           "# Recursive Test\n@include shared/recursive.md",
-			workflowPath:      workflowsDir + "/recursive-test.md",
-			expectedDepsCount: 2,
-			expectError:       false,
-			description:       "Recursive includes should collect all dependencies",
-		},
-		{
-			name:              "section_reference",
-			content:           "# Section Reference\n@include shared/common.md#Section",
-			workflowPath:      workflowsDir + "/section-ref.md",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Include with section reference should work",
-		},
-		{
-			name:              "nonexistent_file",
-			content:           "# Missing File\n@include shared/missing.md",
-			workflowPath:      workflowsDir + "/missing.md",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Include of nonexistent file should still add dependency but not recurse",
-		},
-		{
-			name:              "optional_include_existing",
-			content:           "# Optional Include Existing\n@include? shared/common.md\nMore content.",
-			workflowPath:      workflowsDir + "/optional-existing.md",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Optional include of existing file should work like regular include",
-		},
-		{
-			name:              "optional_include_missing",
-			content:           "# Optional Include Missing\n@include? shared/optional.md\nMore content.",
-			workflowPath:      workflowsDir + "/optional-missing.md",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Optional include of missing file should still add dependency",
-		},
-		{
-			name:              "mixed_includes",
-			content:           "# Mixed\n@include shared/common.md\n@include? shared/optional.md\n@include shared/recursive.md",
-			workflowPath:      workflowsDir + "/mixed.md",
-			expectedDepsCount: 4, // common.md + optional.md + recursive.md + recursive.md->common.md
-			expectError:       false,
-			description:       "Mixed regular and optional includes should collect all dependencies",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			deps, err := collectIncludeDependencies(tt.content, tt.workflowPath, workflowsDir)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("collectIncludeDependencies expected error (%s), but got none", tt.description)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("collectIncludeDependencies unexpected error (%s): %v", tt.description, err)
-				return
-			}
-
-			if len(deps) != tt.expectedDepsCount {
-				t.Errorf("collectIncludeDependencies expected %d dependencies (%s), got %d", tt.expectedDepsCount, tt.description, len(deps))
-			}
-
-			// Verify dependency structure
-			for i, dep := range deps {
-				if dep.SourcePath == "" {
-					t.Errorf("Dependency %d has empty SourcePath", i)
-				}
-				if dep.TargetPath == "" {
-					t.Errorf("Dependency %d has empty TargetPath", i)
-				}
-			}
-
-			// Verify optional flag for specific test cases
-			if tt.name == "optional_include_existing" || tt.name == "optional_include_missing" {
-				if len(deps) > 0 && !deps[0].IsOptional {
-					t.Errorf("Optional include dependency should have IsOptional=true")
-				}
-			}
-			if tt.name == "mixed_includes" {
-				optionalFound := false
-				regularFound := false
-				for _, dep := range deps {
-					if strings.Contains(dep.TargetPath, "optional") && dep.IsOptional {
-						optionalFound = true
-					}
-					if (strings.Contains(dep.TargetPath, "common") || strings.Contains(dep.TargetPath, "recursive")) && !dep.IsOptional {
-						regularFound = true
-					}
-				}
-				if !optionalFound {
-					t.Errorf("Mixed includes should have at least one optional dependency")
-				}
-				if !regularFound {
-					t.Errorf("Mixed includes should have at least one regular dependency")
-				}
-			}
-		})
-	}
-}
-
-func TestCollectIncludesRecursive(t *testing.T) {
-	// Create temporary test environment
-	tempDir := t.TempDir()
-	baseDir := tempDir
-	workflowsDir := tempDir
-
-	// Create test files
-	file1 := tempDir + "/file1.md"
-	file1Content := `# File 1
-Content of file 1
-`
-	if err := os.WriteFile(file1, []byte(file1Content), 0644); err != nil {
-		t.Fatalf("Failed to create file1: %v", err)
-	}
-
-	file2 := tempDir + "/file2.md"
-	file2Content := `# File 2
-@include file1.md
-Content of file 2
-`
-	if err := os.WriteFile(file2, []byte(file2Content), 0644); err != nil {
-		t.Fatalf("Failed to create file2: %v", err)
-	}
-
-	tests := []struct {
-		name              string
-		content           string
-		expectedDepsCount int
-		expectError       bool
-		description       string
-	}{
-		{
-			name:              "no_includes",
-			content:           "# No Includes\nJust regular content.",
-			expectedDepsCount: 0,
-			expectError:       false,
-			description:       "Content without includes should not add dependencies",
-		},
-		{
-			name:              "single_include",
-			content:           "# Single Include\n@include file1.md",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Single include should add one dependency",
-		},
-		{
-			name:              "recursive_include",
-			content:           "# Recursive\n@include file2.md",
-			expectedDepsCount: 2,
-			expectError:       false,
-			description:       "Recursive include should collect all dependencies",
-		},
-		{
-			name:              "whitespace_handling",
-			content:           "# Whitespace\n@include    file1.md   \n",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Include with extra whitespace should work",
-		},
-		{
-			name:              "section_reference",
-			content:           "# Section\n@include file1.md#Header",
-			expectedDepsCount: 1,
-			expectError:       false,
-			description:       "Section references should work",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var dependencies []IncludeDependency
-			seen := make(map[string]bool)
-
-			err := collectIncludesRecursive(tt.content, baseDir, workflowsDir, &dependencies, seen)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("collectIncludesRecursive expected error (%s), but got none", tt.description)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("collectIncludesRecursive unexpected error (%s): %v", tt.description, err)
-				return
-			}
-
-			if len(dependencies) != tt.expectedDepsCount {
-				t.Errorf("collectIncludesRecursive expected %d dependencies (%s), got %d", tt.expectedDepsCount, tt.description, len(dependencies))
-			}
-
-			// Verify all dependencies have proper paths
-			for i, dep := range dependencies {
-				if dep.SourcePath == "" {
-					t.Errorf("Dependency %d has empty SourcePath", i)
-				}
-				if dep.TargetPath == "" {
-					t.Errorf("Dependency %d has empty TargetPath", i)
-				}
-			}
-		})
-	}
-}
-
-func TestCollectIncludesRecursiveCircularReference(t *testing.T) {
-	// Test circular reference detection
-	tempDir := t.TempDir()
-	baseDir := tempDir
-	workflowsDir := tempDir
-
-	// Create files with circular references
-	file1 := tempDir + "/circular1.md"
-	file1Content := `# Circular 1
-@include circular2.md
-`
-	if err := os.WriteFile(file1, []byte(file1Content), 0644); err != nil {
-		t.Fatalf("Failed to create circular1: %v", err)
-	}
-
-	file2 := tempDir + "/circular2.md"
-	file2Content := `# Circular 2  
-@include circular1.md
-`
-	if err := os.WriteFile(file2, []byte(file2Content), 0644); err != nil {
-		t.Fatalf("Failed to create circular2: %v", err)
-	}
-
-	var dependencies []IncludeDependency
-	seen := make(map[string]bool)
-
-	content := "@include circular1.md"
-
-	// This should not infinite loop due to the seen map
-	err := collectIncludesRecursive(content, baseDir, workflowsDir, &dependencies, seen)
-
-	// Should complete without error (circular references are prevented by seen map)
-	if err != nil {
-		t.Errorf("collectIncludesRecursive should handle circular references gracefully, got error: %v", err)
-	}
-
-	// Should have collected some dependencies but not infinite
-	if len(dependencies) > 10 {
-		t.Errorf("collectIncludesRecursive collected too many dependencies (%d), possible infinite loop", len(dependencies))
 	}
 }
 
