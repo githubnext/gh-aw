@@ -34,6 +34,33 @@ func NewClaudeEngine() *ClaudeEngine {
 	}
 }
 
+// hasMCPServers checks if the workflow has any MCP servers configured
+func hasMCPServers(workflowData *WorkflowData) bool {
+	if workflowData == nil {
+		return false
+	}
+
+	// Check for standard MCP tools
+	for toolName, toolValue := range workflowData.Tools {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" {
+			return true
+		}
+		// Check for custom MCP tools
+		if mcpConfig, ok := toolValue.(map[string]any); ok {
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+				return true
+			}
+		}
+	}
+
+	// Check if safe-outputs is enabled (adds safe-outputs MCP server)
+	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+		return true
+	}
+
+	return false
+}
+
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
@@ -99,8 +126,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Add MCP configuration
-	claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+	// Add MCP configuration only if there are MCP servers
+	if hasMCPServers(workflowData) {
+		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+	}
 
 	// Add allowed tools configuration
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
@@ -194,8 +223,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Always add GITHUB_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
 
-	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
-	stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
+	if hasMCPServers(workflowData) {
+		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+	}
 
 	// Set MCP_TIMEOUT to 60000ms for MCP server communication
 	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
