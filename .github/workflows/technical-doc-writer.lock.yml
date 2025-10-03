@@ -2047,6 +2047,10 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
         with:
           script: |
+            function write(text) {
+              core.info(text);
+              core.summary.addRaw(text);
+            }
             function main() {
               const fs = require("fs");
               try {
@@ -2061,7 +2065,8 @@ jobs:
                 }
                 const logContent = fs.readFileSync(logFile, "utf8");
                 const result = parseClaudeLog(logContent);
-                core.summary.addRaw(result.markdown).write();
+                write(result.markdown);
+                core.summary.write();
                 if (result.mcpFailures && result.mcpFailures.length > 0) {
                   const failedServers = result.mcpFailures.join(", ");
                   core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
@@ -2418,6 +2423,7 @@ jobs:
                 formatInitializationSummary,
                 formatBashCommand,
                 truncateString,
+                write,
               };
             }
             main();

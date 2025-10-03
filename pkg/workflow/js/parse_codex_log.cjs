@@ -1,3 +1,12 @@
+/**
+ * Helper function to write output to both terminal (core.info) and step summary (core.summary)
+ * @param {string} text - The text to write
+ */
+function write(text) {
+  core.info(text);
+  core.summary.addRaw(text);
+}
+
 function main() {
   const fs = require("fs");
 
@@ -17,7 +26,8 @@ function main() {
     const parsedLog = parseCodexLog(content);
 
     if (parsedLog) {
-      core.summary.addRaw(parsedLog).write();
+      write(parsedLog);
+      core.summary.write();
       core.info("Codex log parsed successfully");
     } else {
       core.error("Failed to parse Codex log");
@@ -283,7 +293,7 @@ function truncateString(str, maxLength) {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseCodexLog, formatBashCommand, truncateString };
+  module.exports = { parseCodexLog, formatBashCommand, truncateString, write };
 }
 
 main();

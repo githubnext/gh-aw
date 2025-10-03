@@ -1,3 +1,12 @@
+/**
+ * Helper function to write output to both terminal (core.info) and step summary (core.summary)
+ * @param {string} text - The text to write
+ */
+function write(text) {
+  core.info(text);
+  core.summary.addRaw(text);
+}
+
 function main() {
   const fs = require("fs");
 
@@ -13,7 +22,8 @@ function main() {
     }
     const logContent = fs.readFileSync(logFile, "utf8");
     const result = parseClaudeLog(logContent);
-    core.summary.addRaw(result.markdown).write();
+    write(result.markdown);
+    core.summary.write();
     if (result.mcpFailures && result.mcpFailures.length > 0) {
       const failedServers = result.mcpFailures.join(", ");
       core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
@@ -517,6 +527,7 @@ if (typeof module !== "undefined" && module.exports) {
     formatInitializationSummary,
     formatBashCommand,
     truncateString,
+    write,
   };
 }
 

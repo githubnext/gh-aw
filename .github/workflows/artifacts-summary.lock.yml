@@ -1757,6 +1757,10 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
         with:
           script: |
+            function write(text) {
+              core.info(text);
+              core.summary.addRaw(text);
+            }
             function main() {
               const fs = require("fs");
               try {
@@ -1772,7 +1776,8 @@ jobs:
                 const content = fs.readFileSync(logFile, "utf8");
                 const parsedLog = parseCopilotLog(content);
                 if (parsedLog) {
-                  core.summary.addRaw(parsedLog).write();
+                  write(parsedLog);
+                  core.summary.write();
                   console.log("Copilot log parsed successfully");
                 } else {
                   console.log("Failed to parse Copilot log");
@@ -1856,6 +1861,9 @@ jobs:
                 console.error("Error parsing Copilot log:", error);
                 return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${error.message}*\n`;
               }
+            }
+            if (typeof module !== "undefined" && module.exports) {
+              module.exports = { parseCopilotLog, write };
             }
             main();
       - name: Upload Agent Stdio

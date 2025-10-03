@@ -324,6 +324,12 @@ npm warn exec The following package was not found
       const markdownCall = mockCore.summary.addRaw.mock.calls[0];
       expect(markdownCall[0]).toContain("🚀 Initialization");
       expect(markdownCall[0]).toContain("integration-test");
+
+      // Verify that core.info was also called with the same content (via write helper)
+      expect(mockCore.info).toHaveBeenCalled();
+      const infoCall = mockCore.info.mock.calls.find(call => call[0].includes("🚀 Initialization"));
+      expect(infoCall).toBeDefined();
+      expect(infoCall[0]).toContain("integration-test");
     });
 
     it("should handle log with MCP failures", async () => {
@@ -450,6 +456,25 @@ npm warn exec The following package was not found
       const result = parseClaudeLog(logWithMcpTool);
 
       expect(result.markdown).toContain("github::create_pull_request");
+    });
+  });
+
+  describe("write helper function", () => {
+    it("should write to both core.info and core.summary", () => {
+      // Extract the write function from the script
+      const scriptWithExport = parseClaudeLogScript.replace("main();", "global.testWrite = write;");
+      const scriptFunction = new Function(scriptWithExport);
+      scriptFunction();
+      const write = global.testWrite;
+
+      const testText = "Test output message";
+      write(testText);
+
+      // Verify core.info was called with the text
+      expect(mockCore.info).toHaveBeenCalledWith(testText);
+
+      // Verify core.summary.addRaw was called with the text
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(testText);
     });
   });
 });
