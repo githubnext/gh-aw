@@ -5,7 +5,7 @@ on:
 permissions:
   contents: read
   actions: read
-engine: claude
+engine: copilot
 mcp-servers:
   tavily:
     url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
