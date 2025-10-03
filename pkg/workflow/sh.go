@@ -36,6 +36,9 @@ var extractSquidLogPerToolScript string
 //go:embed sh/create_cache_memory_dir.sh
 var createCacheMemoryDirScript string
 
+//go:embed sh/xpia_prompt.md
+var xpiaPromptText string
+
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
 	scriptLines := strings.Split(script, "\n")

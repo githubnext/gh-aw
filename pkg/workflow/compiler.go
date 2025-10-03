@@ -139,6 +139,7 @@ type WorkflowData struct {
 	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
 	Roles              []string            // permission levels required to trigger workflow
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
+	SafetyPrompt       bool                // whether to include XPIA safety prompt (default true)
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -541,6 +542,9 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
+	// Extract safety-prompt setting from tools (defaults to true)
+	safetyPrompt := c.extractSafetyPromptSetting(topTools)
+
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 
@@ -615,6 +619,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		EngineConfig:       engineConfig,
 		NetworkPermissions: networkPermissions,
 		NeedsTextOutput:    needsTextOutput,
+		SafetyPrompt:       safetyPrompt,
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -744,6 +749,24 @@ func (c *Compiler) extractDescription(frontmatter map[string]any) string {
 	}
 
 	return ""
+}
+
+// extractSafetyPromptSetting extracts the safety-prompt setting from tools
+// Returns true by default (safety prompt is enabled by default)
+func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
+	if tools == nil {
+		return true // Default is enabled
+	}
+
+	// Check if safety-prompt is explicitly set in tools
+	if safetyPromptValue, exists := tools["safety-prompt"]; exists {
+		if boolValue, ok := safetyPromptValue.(bool); ok {
+			return boolValue
+		}
+	}
+
+	// Default to true (enabled)
+	return true
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might
@@ -2139,6 +2162,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		}
 		yaml.WriteString("          EOF\n")
 	}
+
+	// Add XPIA security prompt as separate step if enabled (before other prompts)
+	c.generateXPIAPromptStep(yaml, data)
 
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
