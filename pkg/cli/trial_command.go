@@ -96,39 +96,26 @@ Trial results are saved both locally (in trials/ directory) and in the trial rep
 	return cmd
 }
 
-// ParsedWorkflowSpec represents a parsed workflow specification for trials
-type ParsedWorkflowSpec struct {
-	Spec         string // Original spec (e.g., "owner/repo/workflow")
-	Repo         string // Repository (e.g., "owner/repo")
-	WorkflowPath string // Workflow path (e.g., "workflow-name")
-	Version      string // Version/branch/tag
-}
-
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
 func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo string, deleteRepo, quiet bool, timeoutMinutes int, verbose bool) error {
 	// Parse all workflow specifications
-	var parsedSpecs []ParsedWorkflowSpec
+	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
-		parsed, err := parseWorkflowSpec(spec)
+		parsedSpec, err := parseWorkflowSpec(spec)
 		if err != nil {
 			return fmt.Errorf("invalid workflow specification '%s': %w", spec, err)
 		}
-		parsedSpecs = append(parsedSpecs, ParsedWorkflowSpec{
-			Spec:         spec,
-			Repo:         parsed.Repo,
-			WorkflowPath: parsed.WorkflowPath,
-			Version:      parsed.Version,
-		})
+		parsedSpecs = append(parsedSpecs, parsedSpec)
 	}
 
 	if len(parsedSpecs) == 1 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", parsedSpecs[0].Spec, parsedSpecs[0].Repo)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of workflow '%s' from '%s'", parsedSpecs[0].WorkflowName, parsedSpecs[0].Repo)))
 	} else {
-		specNames := make([]string, len(parsedSpecs))
+		workflowNames := make([]string, len(parsedSpecs))
 		for i, spec := range parsedSpecs {
-			specNames[i] = spec.Spec
+			workflowNames[i] = spec.WorkflowName
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s)", len(parsedSpecs), strings.Join(specNames, ", "))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting trial of %d workflows (%s)", len(parsedSpecs), strings.Join(workflowNames, ", "))))
 	}
 
 	// Generate a unique datetime-ID for this trial session
@@ -217,11 +204,11 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 	var workflowResults []WorkflowTrialResult
 
 	for i, parsedSpec := range parsedSpecs {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.Spec)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 		// Install workflow with trial mode compilation
 		if err := installWorkflowInTrialMode(tempDir, parsedSpec, finalTargetRepoSlug, trialRepoSlug, verbose); err != nil {
-			return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.Spec, err)
+			return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 		}
 
 		// Add user's PAT as repository secret (only once)
@@ -234,7 +221,7 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 		// Run the workflow and wait for completion
 		runID, err := triggerWorkflowRun(trialRepoSlug, parsedSpec.WorkflowPath, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to trigger workflow run for '%s': %w", parsedSpec.Spec, err)
+			return fmt.Errorf("failed to trigger workflow run for '%s': %w", parsedSpec.WorkflowName, err)
 		}
 
 		// Generate workflow run URL
@@ -247,18 +234,18 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 			if cleanupErr := cleanupTrialSecrets(trialRepoSlug, verbose); cleanupErr != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", cleanupErr)))
 			}
-			return fmt.Errorf("workflow '%s' execution failed or timed out: %w", parsedSpec.Spec, err)
+			return fmt.Errorf("workflow '%s' execution failed or timed out: %w", parsedSpec.WorkflowName, err)
 		}
 
 		// Download and process safe outputs
 		safeOutputs, err := downloadSafeOutputs(trialRepoSlug, runID, verbose)
 		if err != nil {
-			return fmt.Errorf("failed to download safe outputs for '%s': %w", parsedSpec.Spec, err)
+			return fmt.Errorf("failed to download safe outputs for '%s': %w", parsedSpec.WorkflowName, err)
 		}
 
 		// Save individual workflow results
 		result := WorkflowTrialResult{
-			WorkflowName: parsedSpec.Spec,
+			WorkflowName: parsedSpec.WorkflowName,
 			RunID:        runID,
 			SafeOutputs:  safeOutputs,
 			Timestamp:    time.Now(),
@@ -274,26 +261,26 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 		// Display safe outputs to stdout
 		if len(safeOutputs) > 0 {
 			outputBytes, _ := json.MarshalIndent(safeOutputs, "", "  ")
-			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("=== Safe Outputs from %s ===", parsedSpec.Spec)))
+			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("=== Safe Outputs from %s ===", parsedSpec.WorkflowName)))
 			fmt.Println(string(outputBytes))
 			fmt.Println(console.FormatSuccessMessage("=== End of Safe Outputs ==="))
 		} else {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== No Safe Outputs Generated by %s ===", parsedSpec.Spec)))
+			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("=== No Safe Outputs Generated by %s ===", parsedSpec.WorkflowName)))
 		}
 
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Trial completed for workflow: %s", parsedSpec.Spec)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Trial completed for workflow: %s", parsedSpec.WorkflowName)))
 	}
 
 	// Step 6: Save combined results for multi-workflow trials
 	if len(parsedSpecs) > 1 {
-		specNames := make([]string, len(parsedSpecs))
+		workflowNames := make([]string, len(parsedSpecs))
 		for i, spec := range parsedSpecs {
-			specNames[i] = spec.WorkflowPath
+			workflowNames[i] = spec.WorkflowName
 		}
-		workflowNamesStr := strings.Join(specNames, "-")
+		workflowNamesStr := strings.Join(workflowNames, "-")
 		combinedFilename := fmt.Sprintf("trials/%s.%s.json", workflowNamesStr, dateTimeID)
 		combinedResult := CombinedTrialResult{
-			WorkflowNames: specNames,
+			WorkflowNames: workflowNames,
 			Results:       workflowResults,
 			Timestamp:     time.Now(),
 		}
@@ -304,11 +291,11 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 	}
 
 	// Step 6.5: Copy trial results to trial repository and commit them
-	specNames := make([]string, len(parsedSpecs))
+	workflowNames := make([]string, len(parsedSpecs))
 	for i, spec := range parsedSpecs {
-		specNames[i] = spec.WorkflowPath
+		workflowNames[i] = spec.WorkflowName
 	}
-	if err := copyTrialResultsToRepo(tempDir, dateTimeID, specNames, verbose); err != nil {
+	if err := copyTrialResultsToRepo(tempDir, dateTimeID, workflowNames, verbose); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy trial results to repository: %v", err)))
 	}
 
@@ -385,16 +372,16 @@ func getCurrentGitHubUsername() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []ParsedWorkflowSpec, targetRepo, trialRepoSlug string, deleteRepo bool) error {
+func showTrialConfirmation(parsedSpecs []*WorkflowSpec, targetRepo, trialRepoSlug string, deleteRepo bool) error {
 	trialRepoURL := fmt.Sprintf("https://github.com/%s", trialRepoSlug)
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Trial Execution Plan ==="))
 	if len(parsedSpecs) == 1 {
-		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Workflow: %s (from %s)\n"), parsedSpecs[0].Spec, parsedSpecs[0].Repo)
+		fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Workflow: %s (from %s)\n"), parsedSpecs[0].WorkflowName, parsedSpecs[0].Repo)
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Workflows:"))
 		for _, spec := range parsedSpecs {
-			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  - %s (from %s)\n"), spec.Spec, spec.Repo)
+			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  - %s (from %s)\n"), spec.WorkflowName, spec.Repo)
 		}
 	}
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Target Repository: %s\n"), targetRepo)
@@ -526,9 +513,9 @@ func cloneTrialRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec ParsedWorkflowSpec, targetRepoSlug, trialRepoSlug string, verbose bool) error {
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, targetRepoSlug, trialRepoSlug string, verbose bool) error {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.Spec, parsedSpec.Repo)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.Repo)))
 	}
 
 	// Change to temp directory

@@ -290,6 +290,7 @@ func TestParseWorkflowSpec(t *testing.T) {
 		spec                 string
 		expectedRepo         string
 		expectedWorkflowPath string
+		expectedWorkflowName string
 		expectedVersion      string
 		expectError          bool
 	}{
@@ -298,15 +299,17 @@ func TestParseWorkflowSpec(t *testing.T) {
 			name:                 "owner/repo/workflow (implicit workflows dir)",
 			spec:                 "githubnext/agentics/weekly-research",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "weekly-research",
+			expectedWorkflowPath: "workflows/weekly-research.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "",
 			expectError:          false,
 		},
 		{
-			name:                 "owner/repo/workflow.md (implicit workflows dir)",
+			name:                 "owner/repo/workflow.md (explicit file)",
 			spec:                 "githubnext/agentics/weekly-research.md",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "weekly-research",
+			expectedWorkflowPath: "weekly-research.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "",
 			expectError:          false,
 		},
@@ -314,15 +317,17 @@ func TestParseWorkflowSpec(t *testing.T) {
 			name:                 "three parts with version",
 			spec:                 "githubnext/agentics/weekly-research@v1.0.0",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "weekly-research",
+			expectedWorkflowPath: "workflows/weekly-research.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "v1.0.0",
 			expectError:          false,
 		},
 		{
 			name:                 "three parts with .md and version",
-			spec:                 "githubnext/agentics/weekly-research.md@v1.0.0",
+			spec:                 "githubnext/agentics/workflows/weekly-research.md@v1.0.0",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "weekly-research",
+			expectedWorkflowPath: "workflows/weekly-research.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "v1.0.0",
 			expectError:          false,
 		},
@@ -330,7 +335,8 @@ func TestParseWorkflowSpec(t *testing.T) {
 			name:                 "three parts with SHA",
 			spec:                 "githubnext/agentics/weekly-research@abc1234567890abcdef1234567890abcdef123456",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "weekly-research",
+			expectedWorkflowPath: "workflows/weekly-research.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "abc1234567890abcdef1234567890abcdef123456",
 			expectError:          false,
 		},
@@ -339,7 +345,8 @@ func TestParseWorkflowSpec(t *testing.T) {
 			name:                 "owner/repo/workflows/workflow.md",
 			spec:                 "githubnext/agentics/workflows/weekly-research.md",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "workflows/weekly-research",
+			expectedWorkflowPath: "workflows/weekly-research.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "",
 			expectError:          false,
 		},
@@ -347,7 +354,8 @@ func TestParseWorkflowSpec(t *testing.T) {
 			name:                 "owner/repo/workflows/workflow.md with version",
 			spec:                 "githubnext/agentics/workflows/weekly-research.md@main",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "workflows/weekly-research",
+			expectedWorkflowPath: "workflows/weekly-research.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "main",
 			expectError:          false,
 		},
@@ -355,7 +363,8 @@ func TestParseWorkflowSpec(t *testing.T) {
 			name:                 "nested workflow path with .md",
 			spec:                 "githubnext/agentics/workflows/ci/docker-build.md",
 			expectedRepo:         "githubnext/agentics",
-			expectedWorkflowPath: "workflows/ci/docker-build",
+			expectedWorkflowPath: "workflows/ci/docker-build.md",
+			expectedWorkflowName: "weekly-research",
 			expectedVersion:      "",
 			expectError:          false,
 		},
@@ -1065,121 +1074,6 @@ func TestIsRunnable_FileErrors(t *testing.T) {
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}
-			}
-		})
-	}
-}
-
-func TestFindMatchingLockFile(t *testing.T) {
-	// Change to a temporary directory and create .github/workflows structure
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-
-	tmpDir := t.TempDir()
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
-	defer func() {
-		os.Chdir(originalDir)
-	}()
-
-	// Create .github/workflows directory
-	workflowsDir := ".github/workflows"
-	err = os.MkdirAll(workflowsDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create workflows directory: %v", err)
-	}
-
-	// Set up test lock files
-	lockFiles := []string{
-		"daily-test-coverage.lock.yml",
-		"weekly-research.lock.yml",
-		"monthly-report.lock.yml",
-		"my_custom_daily.lock.yml",
-		"complex-workflow-name.lock.yml",
-		"simple.lock.yml",
-		"another-test.lock.yml",
-		"test-integration.lock.yml",
-	}
-
-	for _, fileName := range lockFiles {
-		filePath := filepath.Join(workflowsDir, fileName)
-		err := os.WriteFile(filePath, []byte("# Mock lock file content"), 0644)
-		if err != nil {
-			t.Fatalf("Failed to create lock file %s: %v", fileName, err)
-		}
-	}
-
-	tests := []struct {
-		name         string
-		workflowName string
-		verbose      bool
-		expected     string
-	}{
-		{
-			name:         "exact suffix match with underscore",
-			workflowName: "daily",
-			verbose:      false,
-			expected:     "my_custom_daily.lock.yml",
-		},
-		{
-			name:         "contains match when no suffix match",
-			workflowName: "test",
-			verbose:      false,
-			expected:     "another-test.lock.yml", // First match found (alphabetical order)
-		},
-		{
-			name:         "no match found",
-			workflowName: "nonexistent",
-			verbose:      false,
-			expected:     "",
-		},
-		{
-			name:         "exact filename match",
-			workflowName: "simple",
-			verbose:      false,
-			expected:     "simple.lock.yml",
-		},
-		{
-			name:         "complex workflow name match",
-			workflowName: "complex-workflow-name",
-			verbose:      false,
-			expected:     "complex-workflow-name.lock.yml",
-		},
-		{
-			name:         "partial match at beginning",
-			workflowName: "daily",
-			verbose:      true,                       // Test verbose mode
-			expected:     "my_custom_daily.lock.yml", // Suffix match takes priority
-		},
-		{
-			name:         "multiple possible matches - suffix priority",
-			workflowName: "test",
-			verbose:      false,
-			expected:     "another-test.lock.yml", // Contains match (suffix match not found, alphabetical order)
-		},
-		{
-			name:         "case sensitive matching",
-			workflowName: "Daily",
-			verbose:      false,
-			expected:     "", // Should not match "daily"
-		},
-		{
-			name:         "empty workflow name",
-			workflowName: "",
-			verbose:      false,
-			expected:     "another-test.lock.yml", // First file that contains empty string (alphabetical order)
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := findMatchingLockFile(tt.workflowName, tt.verbose)
-			if result != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, result)
 			}
 		})
 	}
