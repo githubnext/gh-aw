@@ -2770,7 +2770,7 @@ func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *Discussi
 		// Default: enabled with default category
 		return &DiscussionConfig{
 			Enabled:      true,
-			CategoryName: "Agentic Workflows",
+			CategoryName: constants.DefaultDiscussionCategory,
 		}
 	}
 
@@ -2779,7 +2779,7 @@ func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *Discussi
 	// Handle nil value (simple enable with defaults)
 	if discussionValue == nil {
 		config.Enabled = true
-		config.CategoryName = "Agentic Workflows"
+		config.CategoryName = constants.DefaultDiscussionCategory
 		return config
 	}
 
@@ -2787,7 +2787,7 @@ func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *Discussi
 	if boolValue, ok := discussionValue.(bool); ok {
 		config.Enabled = boolValue
 		if config.Enabled {
-			config.CategoryName = "Agentic Workflows"
+			config.CategoryName = constants.DefaultDiscussionCategory
 		}
 		return config
 	}
@@ -2801,6 +2801,6 @@ func (c *Compiler) extractDiscussionConfig(frontmatter map[string]any) *Discussi
 
 	// Invalid type, default to enabled with default category
 	config.Enabled = true
-	config.CategoryName = "Agentic Workflows"
+	config.CategoryName = constants.DefaultDiscussionCategory
 	return config
 }

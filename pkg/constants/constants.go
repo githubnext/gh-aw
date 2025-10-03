@@ -73,6 +73,7 @@ const ActivationJobName = "activation"
 const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
+const DefaultDiscussionCategory = "Agentic Workflows"
 
 var AgenticEngines = []string{"claude", "codex", "copilot"}
 

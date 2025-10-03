@@ -51,10 +51,10 @@ try {
   const repositoryId = repoResult.repository.id;
   const discussionCategories = repoResult.repository.discussionCategories.nodes;
 
-  // Find the category by name
+  // Find the category by name or ID
   let categoryId = null;
   for (const category of discussionCategories) {
-    if (category.name === categoryName) {
+    if (category.name === categoryName || category.id === categoryName) {
       categoryId = category.id;
       break;
     }
@@ -98,7 +98,7 @@ try {
   });
 
   if (!createResult || !createResult.createDiscussion || !createResult.createDiscussion.discussion) {
-    core.setFailed("Failed to create discussion - no discussion returned");
+    core.error("Failed to create discussion - no discussion returned");
     return;
   }
 
@@ -127,5 +127,4 @@ try {
   }
 
   core.error(`Failed to create discussion: ${errorMessage}`);
-  throw error;
 }

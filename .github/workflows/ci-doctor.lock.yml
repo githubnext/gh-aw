@@ -78,7 +78,7 @@ jobs:
               const discussionCategories = repoResult.repository.discussionCategories.nodes;
               let categoryId = null;
               for (const category of discussionCategories) {
-                if (category.name === categoryName) {
+                if (category.name === categoryName || category.id === categoryName) {
                   categoryId = category.id;
                   break;
                 }
@@ -115,7 +115,7 @@ jobs:
                 body,
               });
               if (!createResult || !createResult.createDiscussion || !createResult.createDiscussion.discussion) {
-                core.setFailed("Failed to create discussion - no discussion returned");
+                core.error("Failed to create discussion - no discussion returned");
                 return;
               }
               const discussion = createResult.createDiscussion.discussion;
@@ -137,7 +137,6 @@ jobs:
                 return;
               }
               core.error(`Failed to create discussion: ${errorMessage}`);
-              throw error;
             }
 
   agent:
