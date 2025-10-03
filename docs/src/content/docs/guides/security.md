@@ -395,13 +395,10 @@ See the [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) for threat dete
 
 ### Network Isolation
 
-Network isolation in GitHub Agentic Workflows operates at two layers to prevent unauthorized network access and data exfiltration:
+Network isolation in GitHub Agentic Workflows operates at two layers to prevent unauthorized network access:
 
-1. **MCP Tool Network Controls**: Containerized MCP tools run in isolated Docker containers with domain-level allowlisting enforced at the network layer via proxy and iptables rules.
-
-2. **AI Engine Network Permissions**: AI engines have configurable network access controls using ecosystem identifiers (like `python`, `node`) and domain allowlists to restrict which external services they can reach.
-
-Using both layers together provides defense-in-depth security, ensuring that both tools and AI engines have only the network access they need.
+1. **MCP Tool Network Controls**: Containerized tools with network-level domain allowlisting
+2. **AI Engine Network Permissions**: Configurable network access controls for AI engines
 
 See the [Network Reference](/gh-aw/reference/network/) for detailed configuration options and the [Engine Network Permissions](#engine-network-permissions) section below for engine-specific controls.
 
