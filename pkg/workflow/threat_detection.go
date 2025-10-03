@@ -443,38 +443,19 @@ func (c *Compiler) buildUploadDetectionLogStep() []string {
 
 // buildDiscussionCommentStep creates the step to post a comment to the discussion if threats are detected
 func (c *Compiler) buildDiscussionCommentStep() []string {
-	return []string{
-		"      - name: Post detection warning to discussion\n",
-		fmt.Sprintf("        if: failure() && needs.%s.outputs.discussion-id != ''\n", constants.ActivationJobName),
-		"        uses: actions/github-script@v8\n",
-		"        with:\n",
-		"          script: |\n",
-		"            const discussionId = process.env.DISCUSSION_ID;\n",
-		"            const body = '⚠️ **Security Alert**: Threat detection found a potential issue. Please review the [detection logs](../actions/runs/${{ github.run_id }}) for details.';\n",
-		"            \n",
-		"            const mutation = `\n",
-		"              mutation($discussionId: ID!, $body: String!) {\n",
-		"                addDiscussionComment(input: {\n",
-		"                  discussionId: $discussionId,\n",
-		"                  body: $body\n",
-		"                }) {\n",
-		"                  comment {\n",
-		"                    id\n",
-		"                  }\n",
-		"                }\n",
-		"              }\n",
-		"            `;\n",
-		"            \n",
-		"            try {\n",
-		"              await github.graphql(mutation, {\n",
-		"                discussionId,\n",
-		"                body\n",
-		"              });\n",
-		"              core.info('Posted warning comment to discussion');\n",
-		"            } catch (error) {\n",
-		"              core.warning(`Failed to post comment to discussion: ${error.message}`);\n",
-		"            }\n",
-		"        env:\n",
-		fmt.Sprintf("          DISCUSSION_ID: ${{ needs.%s.outputs.discussion-id }}\n", constants.ActivationJobName),
-	}
+	var steps []string
+	
+	steps = append(steps, "      - name: Post detection warning to discussion\n")
+	steps = append(steps, fmt.Sprintf("        if: failure() && needs.%s.outputs.discussion-id != ''\n", constants.ActivationJobName))
+	steps = append(steps, "        uses: actions/github-script@v8\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          DISCUSSION_ID: ${{ needs.%s.outputs.discussion-id }}\n", constants.ActivationJobName))
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+	
+	// Add the script from embedded resource
+	formattedScript := FormatJavaScriptForYAML(postDetectionWarningToDiscussionScript)
+	steps = append(steps, formattedScript...)
+	
+	return steps
 }
