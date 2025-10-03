@@ -115,7 +115,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 export CODEX_HOME=/tmp/mcp-config
-
+# Ensure /tmp/mcp-config exists
+mkdir -p /tmp/mcp-config
 # Create log directory outside git repo
 mkdir -p /tmp/aw-logs
 
