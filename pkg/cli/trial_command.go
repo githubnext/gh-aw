@@ -254,7 +254,8 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 		workflowResults = append(workflowResults, result)
 
 		// Save individual trial file
-		individualFilename := fmt.Sprintf("trials/%s.%s.json", parsedSpec.WorkflowName, dateTimeID)
+		sanitizedTargetRepo := sanitizeRepoSlugForFilename(finalTargetRepoSlug)
+		individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", parsedSpec.WorkflowName, sanitizedTargetRepo, dateTimeID)
 		if err := saveTrialResult(individualFilename, result, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
 		}
@@ -279,7 +280,8 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 			workflowNames[i] = spec.WorkflowName
 		}
 		workflowNamesStr := strings.Join(workflowNames, "-")
-		combinedFilename := fmt.Sprintf("trials/%s.%s.json", workflowNamesStr, dateTimeID)
+		sanitizedTargetRepo := sanitizeRepoSlugForFilename(finalTargetRepoSlug)
+		combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
 		combinedResult := CombinedTrialResult{
 			WorkflowNames: workflowNames,
 			Results:       workflowResults,
@@ -296,7 +298,7 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 	for i, spec := range parsedSpecs {
 		workflowNames[i] = spec.WorkflowName
 	}
-	if err := copyTrialResultsToRepo(tempDir, dateTimeID, workflowNames, verbose); err != nil {
+	if err := copyTrialResultsToRepo(tempDir, dateTimeID, workflowNames, finalTargetRepoSlug, verbose); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy trial results to repository: %v", err)))
 	}
 
@@ -988,7 +990,7 @@ func saveTrialResult(filename string, result interface{}, verbose bool) error {
 }
 
 // copyTrialResultsToRepo copies trial result files to the trial repository and commits them
-func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, verbose bool) error {
+func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, targetRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Copying trial results to trial repository"))
 	}
@@ -1000,9 +1002,10 @@ func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, 
 	}
 
 	// Copy individual workflow result files
+	sanitizedTargetRepo := sanitizeRepoSlugForFilename(targetRepoSlug)
 	for _, workflowName := range workflowNames {
-		sourceFile := fmt.Sprintf("trials/%s.%s.json", workflowName, dateTimeID)
-		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s.%s.json", workflowName, dateTimeID))
+		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
+		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))
 
 		if err := copyFile(sourceFile, destFile); err != nil {
 			if verbose {
@@ -1019,8 +1022,8 @@ func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, 
 	// Copy combined results file if it exists (for multi-workflow trials)
 	if len(workflowNames) > 1 {
 		workflowNamesStr := strings.Join(workflowNames, "-")
-		combinedSourceFile := fmt.Sprintf("trials/%s.%s.json", workflowNamesStr, dateTimeID)
-		combinedDestFile := filepath.Join(trialsDir, fmt.Sprintf("%s.%s.json", workflowNamesStr, dateTimeID))
+		combinedSourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
+		combinedDestFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID))
 
 		if err := copyFile(combinedSourceFile, combinedDestFile); err != nil {
 			if verbose {
@@ -1070,6 +1073,15 @@ func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, 
 		return fmt.Errorf("failed to commit trial results: %w (output: %s)", err, string(output))
 	}
 
+	// Pull latest changes from main before pushing to avoid conflicts
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pulling latest changes from main branch"))
+	}
+	cmd = exec.Command("git", "pull", "origin", "main")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to pull latest changes: %w (output: %s)", err, string(output))
+	}
+
 	// Push to main
 	cmd = exec.Command("git", "push", "origin", "main")
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -1079,6 +1091,11 @@ func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Trial results copied to repository and pushed"))
 
 	return nil
+}
+
+// sanitizeRepoSlugForFilename converts a repository slug (owner/repo) to a filename-safe string
+func sanitizeRepoSlugForFilename(repoSlug string) string {
+	return strings.ReplaceAll(repoSlug, "/", "-")
 }
 
 // copyFile copies a file from source to destination
