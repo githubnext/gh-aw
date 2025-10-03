@@ -211,7 +211,7 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			job, err := compiler.buildThreatDetectionJob(tt.data, tt.mainJobName)
+			job, err := compiler.buildThreatDetectionJob(tt.data, tt.mainJobName, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error, got nil")
@@ -365,7 +365,7 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 		},
 	}
 
-	job, err := compiler.buildThreatDetectionJob(data, "agent")
+	job, err := compiler.buildThreatDetectionJob(data, "agent", false)
 	if err != nil {
 		t.Fatalf("Failed to build threat detection job: %v", err)
 	}

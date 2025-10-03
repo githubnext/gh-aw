@@ -1315,8 +1315,9 @@ func (c *Compiler) isActivationJobNeeded(data *WorkflowData, needsPermissionChec
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
 	// 4. Permission checks are needed (consolidated team member validation)
-	// 5. Discussions
-	return data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck || (data.DiscussionConfig != nil && data.DiscussionConfig.Enabled)
+	// Note: Discussion tracking does not force activation job creation - it's only added when
+	// an activation job is already needed for other reasons (command, text output, if condition, or permission checks)
+	return data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
@@ -1420,7 +1421,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 }
 
 // buildSafeOutputsJobs creates all safe outputs jobs if configured
-func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, taskJobCreated bool, frontmatter map[string]any, markdownPath string) error {
+func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, activationJobCreated bool, frontmatter map[string]any, markdownPath string) error {
 	if data.SafeOutputs == nil {
 		return nil
 	}
@@ -1430,7 +1431,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build threat detection job if enabled
 	if data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Enabled {
-		detectionJob, err := c.buildThreatDetectionJob(data, jobName)
+		detectionJob, err := c.buildThreatDetectionJob(data, jobName, activationJobCreated)
 		if err != nil {
 			return fmt.Errorf("failed to build detection job: %w", err)
 		}
@@ -1442,7 +1443,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build create_issue job if output.create_issue is configured
 	if data.SafeOutputs.CreateIssues != nil {
-		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName, taskJobCreated, frontmatter)
+		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName, activationJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue job: %w", err)
 		}
@@ -1594,7 +1595,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build upload_assets job if output.upload-asset is configured
 	if data.SafeOutputs.UploadAssets != nil {
-		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName, taskJobCreated, frontmatter)
+		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName, activationJobCreated, frontmatter)
 		if err != nil {
 			return fmt.Errorf("failed to build upload_assets job: %w", err)
 		}

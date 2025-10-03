@@ -79,7 +79,7 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 }
 
 // buildThreatDetectionJob creates the detection job
-func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName string) (*Job, error) {
+func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName string, activationJobCreated bool) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil || !data.SafeOutputs.ThreatDetection.Enabled {
 		return nil, fmt.Errorf("threat detection is not enabled")
 	}
@@ -90,9 +90,9 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	// Determine job dependencies
 	needs := []string{}
 
-	// Add activation job dependency if discussion is enabled (it should come first in needs)
+	// Add activation job dependency if discussion is enabled AND activation job was actually created
 	discussionEnabled := data.DiscussionConfig != nil && data.DiscussionConfig.Enabled
-	if discussionEnabled {
+	if discussionEnabled && activationJobCreated {
 		needs = append(needs, constants.ActivationJobName)
 	}
 
