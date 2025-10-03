@@ -1323,7 +1323,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
 
 	if needsPermissionCheck {
-		checkMembershipJob, err := c.buildCheckMembershipJob(data, frontmatter)
+		checkMembershipJob, err := c.buildCheckMembershipJob(data)
 		if err != nil {
 			return fmt.Errorf("failed to build check-membership job: %w", err)
 		}
@@ -1595,7 +1595,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 }
 
 // buildCheckMembershipJob creates the check-membership job that validates team membership levels
-func (c *Compiler) buildCheckMembershipJob(data *WorkflowData, frontmatter map[string]any) (*Job, error) {
+func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{
 		"is_team_member":  "${{ steps.check-membership.outputs.is_team_member }}",
 		"result":          "${{ steps.check-membership.outputs.result }}",
@@ -1804,7 +1804,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	generateCacheSteps(yaml, data, c.verbose)
 
 	// Add cache-memory steps if cache-memory configuration is present
-	generateCacheMemorySteps(yaml, data, c.verbose)
+	generateCacheMemorySteps(yaml, data)
 
 	// Configure git credentials if git operations will be needed
 	// Note: Git configuration is handled by token in checkout step when in trial mode
@@ -1865,13 +1865,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadAccessLogs(yaml, data.Tools)
 
 	// upload MCP logs (if any MCP tools were used)
-	c.generateUploadMCPLogs(yaml, data.Tools)
+	c.generateUploadMCPLogs(yaml)
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine, logFileFull)
 
 	// upload agent logs
-	c.generateUploadAgentLogs(yaml, logFile, logFileFull)
+	var _ string = logFile
+	c.generateUploadAgentLogs(yaml, logFileFull)
 
 	// upload assets if upload-asset is configured
 	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
@@ -1890,7 +1891,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generatePostSteps(yaml, data)
 }
 
-func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFile string, logFileFull string) {
+func (c *Compiler) generateUploadAgentLogs(yaml *strings.Builder, logFileFull string) {
 	yaml.WriteString("      - name: Upload Agent Stdio\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
@@ -2080,7 +2081,7 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
-func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder, tools map[string]any) {
+func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Upload MCP logs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")

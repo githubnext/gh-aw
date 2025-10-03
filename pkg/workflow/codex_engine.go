@@ -255,7 +255,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			e.renderGitHubCodexMCPConfig(yaml, githubTool, workflowData)
 		case "playwright":
 			playwrightTool := expandedTools["playwright"]
-			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool, workflowData.NetworkPermissions)
+			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
 		case "safe-outputs":
 			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
 		case "web-fetch":
@@ -525,8 +525,8 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
-func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	yaml.WriteString("          \n")

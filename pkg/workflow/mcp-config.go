@@ -487,7 +487,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 	for toolName, toolConfig := range tools {
 		if config, ok := toolConfig.(map[string]any); ok {
 			// Extract raw MCP configuration (without transformation)
-			mcpConfig, err := getRawMCPConfig(config, toolName)
+			mcpConfig, err := getRawMCPConfig(config)
 			if err != nil {
 				return fmt.Errorf("tool '%s' has invalid MCP configuration: %w", toolName, err)
 			}
@@ -507,7 +507,7 @@ func ValidateMCPConfigs(tools map[string]any) error {
 }
 
 // getRawMCPConfig extracts MCP configuration without any transformations for validation
-func getRawMCPConfig(toolConfig map[string]any, toolName string) (map[string]any, error) {
+func getRawMCPConfig(toolConfig map[string]any) (map[string]any, error) {
 	result := make(map[string]any)
 
 	// List of MCP fields that can be direct children of the tool config

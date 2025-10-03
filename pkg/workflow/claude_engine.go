@@ -603,10 +603,10 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast, workflowData)
+			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
+			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
 		case "cache-memory":
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		case "safe-outputs":
@@ -632,7 +632,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration
 // Always uses Docker MCP as the default
-func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
@@ -671,8 +671,8 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
-func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	yaml.WriteString("              \"playwright\": {\n")

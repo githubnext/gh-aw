@@ -551,7 +551,8 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
 			workflowData := &WorkflowData{}
-			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, tt.isLast, workflowData)
+			var _ *WorkflowData = workflowData
+			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, tt.isLast)
 			output := yaml.String()
 
 			for _, expected := range tt.expectedStrs {
