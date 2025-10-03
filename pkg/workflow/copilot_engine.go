@@ -216,10 +216,10 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast, workflowData)
+			e.renderGitHubCopilotMCPConfig(yaml, githubTool, isLast)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
+			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast)
 		case "safe-outputs":
 			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
 		case "web-fetch":
@@ -253,7 +253,7 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
 // Uses Docker-based GitHub MCP server (similar to Claude engine)
-func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
+func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
@@ -291,8 +291,8 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 }
 
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
-func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	// Use the version from docker args (which handles version configuration)

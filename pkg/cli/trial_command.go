@@ -723,27 +723,27 @@ func determineEngineSecret(workflowDataList []*workflow.WorkflowData, workflowNa
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting ANTHROPIC_API_KEY secret for Claude engine"))
 		}
-		return addEngineSecret("ANTHROPIC_API_KEY", "anthropic_api_key", trialRepoSlug, verbose)
+		return addEngineSecret("ANTHROPIC_API_KEY", trialRepoSlug, verbose)
 	case "codex", "openai":
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting OPENAI_API_KEY secret for OpenAI engine"))
 		}
-		return addEngineSecret("OPENAI_API_KEY", "openai_api_key", trialRepoSlug, verbose)
+		return addEngineSecret("OPENAI_API_KEY", trialRepoSlug, verbose)
 	case "copilot":
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting COPILOT_CLI_TOKEN secret for Copilot engine"))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", "copilot_cli_token", trialRepoSlug, verbose)
+		return addEngineSecret("COPILOT_CLI_TOKEN", trialRepoSlug, verbose)
 	default:
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Unknown engine type '%s', defaulting to Copilot", engineType)))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", "copilot_cli_token", trialRepoSlug, verbose)
+		return addEngineSecret("COPILOT_CLI_TOKEN", trialRepoSlug, verbose)
 	}
 }
 
 // addEngineSecret adds an engine-specific secret to the repository
-func addEngineSecret(secretName, userSecretName, trialRepoSlug string, verbose bool) error {
+func addEngineSecret(secretName, trialRepoSlug string, verbose bool) error {
 	// First try to get the secret from environment variables
 	secretValue := os.Getenv(secretName)
 	if secretValue == "" {

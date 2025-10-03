@@ -830,9 +830,10 @@ func BreakAtParentheses(expression string) []string {
 		char := expression[i]
 		current += string(char)
 
-		if char == '(' {
+		switch char {
+		case '(':
 			parenDepth++
-		} else if char == ')' {
+		case ')':
 			parenDepth--
 
 			// If we're back to zero depth and the line is getting long, consider a break

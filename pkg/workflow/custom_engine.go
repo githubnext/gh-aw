@@ -159,7 +159,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderGitHubMCPConfig(yaml, githubTool, isLast)
 		case "playwright":
 			playwrightTool := tools["playwright"]
-			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast, workflowData.NetworkPermissions)
+			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
 		case "cache-memory":
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
 		case "safe-outputs":
@@ -223,8 +223,8 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration using shared logic
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
-func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool, networkPermissions *NetworkPermissions) {
-	args := generatePlaywrightDockerArgs(playwrightTool, networkPermissions)
+func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
 	customArgs := getPlaywrightCustomArgs(playwrightTool)
 
 	yaml.WriteString("              \"playwright\": {\n")

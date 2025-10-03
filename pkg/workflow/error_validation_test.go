@@ -184,27 +184,28 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		foundNpmError := false
 
 		for _, pattern := range patterns {
-			if pattern.Description == "Copilot CLI timestamped ERROR messages" {
+			switch pattern.Description {
+			case "Copilot CLI timestamped ERROR messages":
 				foundTimestampedError = true
 				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
 					t.Errorf("Copilot timestamped error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
 				}
-			} else if pattern.Description == "Copilot CLI timestamped WARNING messages" {
+			case "Copilot CLI timestamped WARNING messages":
 				foundTimestampedWarning = true
 				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
 					t.Errorf("Copilot timestamped warning pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
 				}
-			} else if pattern.Description == "Copilot CLI bracketed critical/error messages with timestamp" {
+			case "Copilot CLI bracketed critical/error messages with timestamp":
 				foundBracketedError = true
 				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
 					t.Errorf("Copilot bracketed error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
 				}
-			} else if pattern.Description == "Generic error messages from Copilot CLI or Node.js" {
+			case "Generic error messages from Copilot CLI or Node.js":
 				foundGenericError = true
 				if pattern.LevelGroup != 1 || pattern.MessageGroup != 2 {
 					t.Errorf("Copilot generic error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
 				}
-			} else if pattern.Description == "NPM error messages during Copilot CLI installation or execution" {
+			case "NPM error messages during Copilot CLI installation or execution":
 				foundNpmError = true
 				if pattern.LevelGroup != 0 || pattern.MessageGroup != 1 {
 					t.Errorf("Copilot npm error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
@@ -235,7 +236,6 @@ func TestErrorPatternSerialization(t *testing.T) {
 		Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)`,
 		LevelGroup:   2,
 		MessageGroup: 3,
-		Description:  "Test pattern",
 	}
 
 	// Test JSON serialization - this would be used in the workflow compiler

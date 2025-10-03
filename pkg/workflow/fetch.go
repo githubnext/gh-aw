@@ -45,7 +45,8 @@ func AddMCPFetchServerIfNeeded(tools map[string]any, engine CodingAgentEngine) (
 // This is a shared function that can be used by all engines
 // includeTools parameter adds "tools": ["*"] field for engines that require it (e.g., Copilot)
 func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent string, isLast bool, includeTools bool) {
-	if format == "json" {
+	switch format {
+	case "json":
 		// JSON format (for Claude, Copilot, Custom engines)
 		yaml.WriteString(indent + "\"web-fetch\": {\n")
 		yaml.WriteString(indent + "  \"command\": \"docker\",\n")
@@ -66,7 +67,7 @@ func renderMCPFetchServerConfig(yaml *strings.Builder, format string, indent str
 		} else {
 			yaml.WriteString(indent + "},\n")
 		}
-	} else if format == "toml" {
+	case "toml":
 		// TOML format (for Codex engine)
 		yaml.WriteString(indent + "\n")
 		yaml.WriteString(indent + "[mcp_servers.\"web-fetch\"]\n")

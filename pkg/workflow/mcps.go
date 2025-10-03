@@ -219,7 +219,7 @@ func getPlaywrightDockerImageVersion(playwrightTool any) string {
 
 // generatePlaywrightAllowedDomains extracts domain list from Playwright tool configuration with bundle resolution
 // Uses the same domain bundle resolution as top-level network configuration, defaulting to localhost only
-func generatePlaywrightAllowedDomains(playwrightTool any, networkPermissions *NetworkPermissions) []string {
+func generatePlaywrightAllowedDomains(playwrightTool any) []string {
 	// Default to localhost with all port variations (same as Copilot agent default)
 	allowedDomains := constants.DefaultAllowedDomains
 
@@ -264,9 +264,9 @@ type PlaywrightDockerArgs struct {
 }
 
 // generatePlaywrightDockerArgs creates the common Docker arguments for Playwright MCP server
-func generatePlaywrightDockerArgs(playwrightTool any, networkPermissions *NetworkPermissions) PlaywrightDockerArgs {
+func generatePlaywrightDockerArgs(playwrightTool any) PlaywrightDockerArgs {
 	return PlaywrightDockerArgs{
 		ImageVersion:   getPlaywrightDockerImageVersion(playwrightTool),
-		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool, networkPermissions),
+		AllowedDomains: generatePlaywrightAllowedDomains(playwrightTool),
 	}
 }

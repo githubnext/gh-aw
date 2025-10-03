@@ -178,7 +178,7 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 
 // generateCacheMemorySteps generates cache steps for the cache-memory configuration
 // Cache-memory provides a simple file share that LLMs can read/write freely
-func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData, verbose bool) {
+func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	if data.CacheMemoryConfig == nil || !data.CacheMemoryConfig.Enabled {
 		return
 	}

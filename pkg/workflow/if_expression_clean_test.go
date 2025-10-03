@@ -138,10 +138,7 @@ func TestJobStructStoreSeparatesExpression(t *testing.T) {
 	expression := "github.event_name == 'push'"
 
 	job := &Job{
-		Name:   "test-job",
-		If:     expression, // Should be just the expression
-		RunsOn: "runs-on: ubuntu-latest",
-		Steps:  []string{"      - name: Test\n        run: echo test\n"},
+		If: expression, // Should be just the expression
 	}
 
 	// The job struct should store just the expression
