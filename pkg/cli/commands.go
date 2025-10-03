@@ -1896,15 +1896,12 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	// Handle different cases based on the number of path parts
 	if len(slashParts) == 3 {
 		// Three-part spec: owner/repo/workflow-name
-		// Implicitly look in workflows directory and allow omitting .md extension
+		// Files are stored at root level in packages (workflows/ prefix is only in the source repo)
 		if strings.HasSuffix(workflowPath, ".md") {
 			// Remove .md extension for internal processing
-			workflowName := strings.TrimSuffix(workflowPath, ".md")
-			workflowPath = fmt.Sprintf("workflows/%s", workflowName)
-		} else {
-			// No .md extension, add it implicitly and put in workflows directory
-			workflowPath = fmt.Sprintf("workflows/%s", workflowPath)
+			workflowPath = strings.TrimSuffix(workflowPath, ".md")
 		}
+		// No .md extension, use as-is - files are at root level in packages
 	} else {
 		// Four or more parts: owner/repo/workflows/workflow-name or owner/repo/path/to/workflow-name
 		// Require .md extension to be explicit

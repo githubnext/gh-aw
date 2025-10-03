@@ -54,28 +54,22 @@ gh aw new issue-handler --force
 **Adding Workflows from Samples:**
 ```bash
 # Add a workflow from the official samples repository
-gh aw add samples/ci-doctor.md -r githubnext/agentics
-
-# Add multiple workflows at once
-gh aw add samples/ci-doctor.md samples/daily-perf-improver.md -r githubnext/agentics
+gh aw add githubnext/agentics/ci-doctor
 
 # Add workflow with custom name
-gh aw add samples/ci-doctor.md -r githubnext/agentics --name my-custom-research
+gh aw add githubnext/agentics/ci-doctor --name my-custom-doctor
 
 # Add workflow and create pull request for review
-gh aw add samples/issue-triage.md -r githubnext/agentics --pr
+gh aw add githubnext/agentics/issue-triage --pr
 
 # Overwrite existing workflow files
-gh aw add samples/ci-doctor.md --force
+gh aw add githubnext/agentics/ci-doctor --force
 
 # Create multiple numbered copies of a workflow
-gh aw add samples/ci-doctor.md --number 3
+gh aw add githubnext/agentics/ci-doctor --number 3
 
 # Override AI engine for the added workflow
-gh aw add samples/ci-doctor.md --engine copilot
-
-# Add workflow from remote repository
-gh aw add samples/ci-doctor.md -r githubnext/agentics
+gh aw add githubnext/agentics/ci-doctor --engine copilot
 ```
 
 **Workflow Removal:**
@@ -195,13 +189,10 @@ gh aw run weekly-research --input priority=high
 **Trial Mode Execution:**
 ```bash
 # Test a workflow from a source repository against the current target repository
-gh aw trial weekly-research -r githubnext/agentics
+gh aw trial githubnext/agentics/weekly-research
 
-# Trial mode with custom timeout (default: 30 minutes)
-gh aw trial daily-backlog-burner -r dsyme/z3 --timeout 60
-
-# Keep the trial repository for inspection instead of auto-cleanup
-gh aw trial my-workflow -r organization/repository --keep-repo
+# Test a workflow from a source repository against a different target repository
+gh aw trial githubnext/agentics/weekly-research --target-repo myorg/myrepo
 ```
 
 Trial mode creates a temporary private repository, installs the specified workflow from the source repository, and runs it in a safe environment that captures outputs without affecting the target repository. This is particularly useful for:
