@@ -103,6 +103,43 @@ An additional kind of trigger called `command:` is supported, see [Command Trigg
 > [!NOTE]
 > Command workflows automatically enable the "eyes" (👀) reaction by default. This can be customized by explicitly specifying a different reaction in the `reaction:` field.
 
+### Label Filtering (`names:`)
+
+When using `labeled` or `unlabeled` event types for `issues` or `pull_request` triggers, you can filter to specific label names using the `names:` field:
+
+```yaml
+on:
+  issues:
+    types: [labeled, unlabeled]
+    names: [bug, critical, security]
+```
+
+**How it works:**
+- The `names:` field is removed from the final workflow YAML and commented out for documentation
+- A conditional `if` expression is automatically generated to check if the label name matches
+- The workflow only runs when one of the specified labels triggers the event
+
+**Syntax options:**
+
+```yaml
+# Single label name
+names: bug
+
+# Multiple label names (array)
+names: [bug, enhancement, feature]
+```
+
+**Example for pull requests:**
+
+```yaml
+on:
+  pull_request:
+    types: [labeled]
+    names: ready-for-review
+```
+
+This filtering is especially useful for [LabelOps workflows](/gh-aw/guides/labelops/) where specific labels trigger different automation behaviors.
+
 ## Permissions (`permissions:`)
 
 The `permissions:` section uses standard GitHub Actions permissions syntax to specify the permissions relevant to the agentic (natural language) part of the execution of the workflow. See [GitHub Actions permissions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#permissions).
