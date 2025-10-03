@@ -12,12 +12,8 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 )
 
-// getPackagesDir returns the packages directory path based on local flag
-func getPackagesDir(local bool) (string, error) {
-	if local {
-		return ".aw/packages", nil
-	}
-
+// getPackagesDir returns the global packages directory path
+func getPackagesDir() (string, error) {
 	// Use global directory under user's home
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

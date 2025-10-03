@@ -12,22 +12,22 @@ import (
 // Test the CLI functions that are exported from this package
 
 func TestListWorkflows(t *testing.T) {
-	// Test the ListWorkflows function (which includes listAgenticEngines)
-	err := ListWorkflows(false)
+	// Test the ListEnginesAndOtherInformation function (which includes listAgenticEngines)
+	err := ListEnginesAndOtherInformation(false)
 
 	// Should return nil (no error) and print table-formatted output
 	if err != nil {
-		t.Errorf("ListWorkflows should not return an error for valid input, got: %v", err)
+		t.Errorf("ListEnginesAndOtherInformation should not return an error for valid input, got: %v", err)
 	}
 }
 
 func TestListWorkflowsVerbose(t *testing.T) {
-	// Test the ListWorkflows function in verbose mode
-	err := ListWorkflows(true)
+	// Test the ListEnginesAndOtherInformation function in verbose mode
+	err := ListEnginesAndOtherInformation(true)
 
 	// Should return nil (no error) and print table-formatted output with descriptions
 	if err != nil {
-		t.Errorf("ListWorkflows verbose mode should not return an error for valid input, got: %v", err)
+		t.Errorf("ListEnginesAndOtherInformation verbose mode should not return an error for valid input, got: %v", err)
 	}
 }
 
@@ -456,7 +456,7 @@ func TestAllCommandsExist(t *testing.T) {
 		expectError bool
 		name        string
 	}{
-		{func() error { return ListWorkflows(false) }, false, "ListWorkflows"},
+		{func() error { return ListEnginesAndOtherInformation(false) }, false, "ListEnginesAndOtherInformation"},
 		{func() error { return AddWorkflowWithTracking("", 1, false, "", "", false, nil) }, false, "AddWorkflowWithTracking (empty name)"}, // Shows help when empty, doesn't error
 		{func() error {
 			config := CompileConfig{
@@ -529,7 +529,6 @@ func TestInstallPackage(t *testing.T) {
 	tests := []struct {
 		name        string
 		repoSpec    string
-		local       bool
 		verbose     bool
 		expectError bool
 		errorMsg    string
@@ -537,7 +536,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "invalid repo spec",
 			repoSpec:    "invalid",
-			local:       true,
 			verbose:     false,
 			expectError: true,
 			errorMsg:    "invalid repository specification",
@@ -545,7 +543,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "empty repo spec",
 			repoSpec:    "",
-			local:       true,
 			verbose:     false,
 			expectError: true,
 			errorMsg:    "invalid repository specification",
@@ -553,7 +550,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "valid repo spec but download will fail",
 			repoSpec:    "nonexistent/repo",
-			local:       true,
 			verbose:     true,
 			expectError: true,
 			errorMsg:    "failed to download workflows",
@@ -561,7 +557,6 @@ func TestInstallPackage(t *testing.T) {
 		{
 			name:        "valid repo spec with version but download will fail",
 			repoSpec:    "nonexistent/repo@v1.0.0",
-			local:       false,
 			verbose:     false,
 			expectError: true,
 			errorMsg:    "failed to download workflows",
@@ -570,7 +565,7 @@ func TestInstallPackage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InstallPackage(tt.repoSpec, tt.local, tt.verbose)
+			err := InstallPackage(tt.repoSpec, tt.verbose)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error for test '%s', got nil", tt.name)
@@ -582,102 +577,6 @@ func TestInstallPackage(t *testing.T) {
 				if !strings.Contains(err.Error(), tt.errorMsg) {
 					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, err)
 				}
-			}
-		})
-	}
-}
-
-// TestUninstallPackage tests the UninstallPackage function
-func TestUninstallPackage(t *testing.T) {
-	tests := []struct {
-		name        string
-		repoSpec    string
-		local       bool
-		verbose     bool
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "invalid repo spec",
-			repoSpec:    "invalid",
-			local:       true,
-			verbose:     false,
-			expectError: true,
-			errorMsg:    "invalid repository specification",
-		},
-		{
-			name:        "empty repo spec",
-			repoSpec:    "",
-			local:       true,
-			verbose:     false,
-			expectError: true,
-			errorMsg:    "invalid repository specification",
-		},
-		{
-			name:        "valid repo spec - package not installed",
-			repoSpec:    "nonexistent/repo",
-			local:       true,
-			verbose:     true,
-			expectError: false,
-		},
-		{
-			name:        "valid repo spec with version - package not installed",
-			repoSpec:    "nonexistent/repo@v1.0.0",
-			local:       false,
-			verbose:     false,
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := UninstallPackage(tt.repoSpec, tt.local, tt.verbose)
-
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error for test '%s', got nil", tt.name)
-			} else if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
-			}
-
-			if tt.expectError && err != nil {
-				if !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("Expected error containing '%s', got: %v", tt.errorMsg, err)
-				}
-			}
-		})
-	}
-}
-
-// TestListPackages tests the ListPackages function
-func TestListPackages(t *testing.T) {
-	tests := []struct {
-		name        string
-		local       bool
-		verbose     bool
-		expectError bool
-	}{
-		{
-			name:        "list local packages",
-			local:       true,
-			verbose:     false,
-			expectError: false, // Should not error even if directory doesn't exist
-		},
-		{
-			name:        "list global packages",
-			local:       false,
-			verbose:     true,
-			expectError: false, // Should not error even if directory doesn't exist
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ListPackages(tt.local, tt.verbose)
-
-			if tt.expectError && err == nil {
-				t.Errorf("Expected error for test '%s', got nil", tt.name)
-			} else if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error for test '%s': %v", tt.name, err)
 			}
 		})
 	}

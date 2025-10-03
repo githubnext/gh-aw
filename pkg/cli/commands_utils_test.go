@@ -284,6 +284,153 @@ func TestParseRepoSpec(t *testing.T) {
 	}
 }
 
+func TestParseWorkflowSpec(t *testing.T) {
+	tests := []struct {
+		name                 string
+		spec                 string
+		expectedRepo         string
+		expectedWorkflowPath string
+		expectedVersion      string
+		expectError          bool
+	}{
+		// Valid format tests - three parts (implicit workflows directory)
+		{
+			name:                 "owner/repo/workflow (implicit workflows dir)",
+			spec:                 "githubnext/agentics/weekly-research",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/weekly-research",
+			expectedVersion:      "",
+			expectError:          false,
+		},
+		{
+			name:                 "owner/repo/workflow.md (implicit workflows dir)",
+			spec:                 "githubnext/agentics/weekly-research.md",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/weekly-research",
+			expectedVersion:      "",
+			expectError:          false,
+		},
+		{
+			name:                 "three parts with version",
+			spec:                 "githubnext/agentics/weekly-research@v1.0.0",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/weekly-research",
+			expectedVersion:      "v1.0.0",
+			expectError:          false,
+		},
+		{
+			name:                 "three parts with .md and version",
+			spec:                 "githubnext/agentics/weekly-research.md@v1.0.0",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/weekly-research",
+			expectedVersion:      "v1.0.0",
+			expectError:          false,
+		},
+		{
+			name:                 "three parts with SHA",
+			spec:                 "githubnext/agentics/weekly-research@abc1234567890abcdef1234567890abcdef123456",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/weekly-research",
+			expectedVersion:      "abc1234567890abcdef1234567890abcdef123456",
+			expectError:          false,
+		},
+		// Valid format tests - four or more parts (explicit path, requires .md)
+		{
+			name:                 "owner/repo/workflows/workflow.md",
+			spec:                 "githubnext/agentics/workflows/weekly-research.md",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/weekly-research",
+			expectedVersion:      "",
+			expectError:          false,
+		},
+		{
+			name:                 "owner/repo/workflows/workflow.md with version",
+			spec:                 "githubnext/agentics/workflows/weekly-research.md@main",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/weekly-research",
+			expectedVersion:      "main",
+			expectError:          false,
+		},
+		{
+			name:                 "nested workflow path with .md",
+			spec:                 "githubnext/agentics/workflows/ci/docker-build.md",
+			expectedRepo:         "githubnext/agentics",
+			expectedWorkflowPath: "workflows/ci/docker-build",
+			expectedVersion:      "",
+			expectError:          false,
+		},
+		// Error cases
+		{
+			name:        "too few parts",
+			spec:        "weekly-research",
+			expectError: true,
+		},
+		{
+			name:        "two parts only",
+			spec:        "owner/repo",
+			expectError: true,
+		},
+		{
+			name:        "empty owner",
+			spec:        "/repo/workflow",
+			expectError: true,
+		},
+		{
+			name:        "empty repo",
+			spec:        "owner//workflow",
+			expectError: true,
+		},
+		{
+			name:        "invalid owner with special chars",
+			spec:        "own@er/repo/workflow",
+			expectError: true,
+		},
+		{
+			name:        "invalid repo with special chars",
+			spec:        "owner/rep@o/workflow",
+			expectError: true,
+		},
+		{
+			name:        "four parts without .md extension",
+			spec:        "githubnext/agentics/workflows/weekly-research",
+			expectError: true,
+		},
+		{
+			name:        "nested path without .md extension",
+			spec:        "githubnext/agentics/workflows/ci/docker-build",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec, err := parseWorkflowSpec(tt.spec)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if spec.Repo != tt.expectedRepo {
+				t.Errorf("Expected repo %q, got %q", tt.expectedRepo, spec.Repo)
+			}
+			if spec.WorkflowPath != tt.expectedWorkflowPath {
+				t.Errorf("Expected workflow path %q, got %q", tt.expectedWorkflowPath, spec.WorkflowPath)
+			}
+			if spec.Version != tt.expectedVersion {
+				t.Errorf("Expected version %q, got %q", tt.expectedVersion, spec.Version)
+			}
+		})
+	}
+}
+
 func TestExtractWorkflowNameFromPath(t *testing.T) {
 	tests := []struct {
 		name     string

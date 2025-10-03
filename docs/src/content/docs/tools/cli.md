@@ -19,14 +19,14 @@ gh aw version
 gh aw --help
 
 # Basic workflow lifecycle
-gh aw add samples/weekly-research.md -r githubnext/agentics  # Add workflow and compile to GitHub Actions
-gh aw compile                                                # Recompile to GitHub Actions
-gh aw status                                                 # Check status
-gh aw run weekly-research                                    # Execute workflow
-gh aw run weekly-research daily-plan                        # Execute multiple workflows
-gh aw run weekly-research --repeat 3600                     # Execute workflow every hour
-gh aw logs ci-doctor                                   # View execution logs
-gh aw audit 12345678                                         # Audit a specific run
+gh aw add githubnext/agentics/ci-doctor    # Add workflow and compile to GitHub Actions
+gh aw compile                                    # Recompile to GitHub Actions
+gh aw status                                     # Check status
+gh aw run ci-doctor                        # Execute workflow
+gh aw run ci-doctor daily-plan             # Execute multiple workflows
+gh aw run ci-doctor --repeat 3600          # Execute workflow every hour
+gh aw logs ci-doctor                             # View execution logs
+gh aw audit 12345678                             # Audit a specific run
 ```
 
 ## Global Flags
@@ -74,7 +74,7 @@ gh aw add samples/ci-doctor.md --number 3
 # Override AI engine for the added workflow
 gh aw add samples/ci-doctor.md --engine copilot
 
-# Add workflow from local repository (shortcut for install + add)
+# Add workflow from remote repository
 gh aw add samples/ci-doctor.md -r githubnext/agentics
 ```
 
@@ -260,7 +260,7 @@ The `logs` command provides comprehensive analysis of workflow execution history
 gh aw logs
 
 # Download logs for a specific workflow
-gh aw logs weekly-research
+gh aw logs ci-doctor
 
 # Download logs to custom directory for organization
 gh aw logs -o ./workflow-analysis
@@ -297,7 +297,7 @@ gh aw logs --no-staged               # Filter out staged runs
 gh aw logs --tool-graph              # Generate Mermaid tool sequence graph
 
 # Analyze recent performance with verbose output
-gh aw logs weekly-research -c 5 --verbose
+gh aw logs ci-doctor -c 5 --verbose
 ```
 
 **Metrics Included:**
@@ -426,7 +426,7 @@ gh aw mcp inspect workflow-name --inspector
 gh aw mcp list-tools github
 
 # List tools available from a specific MCP server in a workflow
-gh aw mcp list-tools github weekly-research
+gh aw mcp list-tools github ci-doctor
 
 # List tools with detailed descriptions and allowance status
 gh aw mcp list-tools safe-outputs issue-triage --verbose
@@ -447,16 +447,16 @@ The MCP commands help you discover, add, and manage MCP servers from the GitHub 
 gh aw mcp add
 
 # Add an MCP server to a workflow from the registry
-gh aw mcp add weekly-research makenotion/notion-mcp-server
+gh aw mcp add ci-doctor makenotion/notion-mcp-server
 
 # Add MCP server with specific transport preference
-gh aw mcp add weekly-research makenotion/notion-mcp-server --transport stdio
+gh aw mcp add ci-doctor makenotion/notion-mcp-server --transport stdio
 
 # Add MCP server with custom tool ID
-gh aw mcp add weekly-research makenotion/notion-mcp-server --tool-id my-notion
+gh aw mcp add ci-doctor makenotion/notion-mcp-server --tool-id my-notion
 
 # Use custom MCP registry
-gh aw mcp add weekly-research server-name --registry https://custom.registry.com/v1
+gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
 ```
 
 **Key Features:**
@@ -494,65 +494,6 @@ gh aw compile --watch
 
 # Watch with verbose output for detailed compilation feedback
 gh aw compile --watch --verbose
-```
-
-## 📦 Package Management
-
-```bash
-# Install workflow packages globally (default)
-gh aw install org/repo
-
-# Install packages locally in current project
-gh aw install org/repo --local
-
-# Install a specific version, branch, or commit
-gh aw install org/repo@v1.0.0
-gh aw install org/repo@main --local
-gh aw install org/repo@commit-sha
-
-# Uninstall a workflow package globally
-gh aw uninstall org/repo
-
-# Uninstall a workflow package locally
-gh aw uninstall org/repo --local
-
-# List all installed packages (global and local)
-gh aw list --packages
-
-# List only local packages
-gh aw list --packages --local
-
-# Uninstall a workflow package globally
-gh aw uninstall org/repo
-
-# Uninstall a workflow package locally
-gh aw uninstall org/repo --local
-
-# Show version information
-gh aw version
-```
-
-**Package Management Features:**
-
-- **Install from GitHub**: Download workflow packages from any GitHub repository's `workflows/` directory
-- **Version Control**: Specify exact versions, branches, or commits using `@version` syntax
-- **Global Storage**: Global packages are stored in `~/.aw/packages/org/repo/` directory structure
-- **Local Storage**: Local packages are stored in `.aw/packages/org/repo/` directory structure
-- **Flexible Installation**: Choose between global (shared across projects) or local (project-specific) installations
-
-**Package Installation Requirements:**
-
-- GitHub CLI (`gh`) to be installed and authenticated with access to the target repository
-- Network access to download from GitHub repositories
-- Target repository must have a `workflows/` directory containing `.md` files
-
-**Package Removal:**
-```bash
-# Uninstall workflow packages globally (default)
-gh aw uninstall org/repo
-
-# Uninstall packages locally from current project
-gh aw uninstall org/repo --local
 ```
 
 ## Related Documentation

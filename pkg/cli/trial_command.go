@@ -516,7 +516,7 @@ func installWorkflowInTrialMode(tempDir, workflowName, sourceRepo, targetRepoSlu
 	}
 
 	// Install the source repository as a package
-	if err := InstallPackage(sourceRepo, true, verbose); err != nil {
+	if err := InstallPackage(sourceRepo, verbose); err != nil {
 		return fmt.Errorf("failed to install source repository: %w", err)
 	}
 

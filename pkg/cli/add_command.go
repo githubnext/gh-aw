@@ -14,23 +14,22 @@ func NewAddCommand(verbose bool, validateEngine func(string) error) *cobra.Comma
 	cmd := &cobra.Command{
 		Use:   "add <workflow>...",
 		Short: "Add one or more workflows from the components to .github/workflows",
-		Long: `Add one or more workflows from the components to .github/workflows.
+		Long: `Add one or more workflows from repositories to .github/workflows.
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` add weekly-research
-  ` + constants.CLIExtensionPrefix + ` add ci-doctor daily-perf-improver
-  ` + constants.CLIExtensionPrefix + ` add weekly-research -n my-custom-name
-  ` + constants.CLIExtensionPrefix + ` add weekly-research -r githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` add weekly-research --pr
-  ` + constants.CLIExtensionPrefix + ` add weekly-research daily-plan --force
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor@v1.0.0
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --pr --force
 
-The -r flag allows you to install and use workflows from a specific repository.
+Workflow specifications:
+  - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
+  - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
+  - Version can be tag, branch, or SHA
+
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --pr flag automatically creates a pull request with the workflow changes.
-The --force flag overwrites existing workflow files.
-It's a shortcut for:
-  ` + constants.CLIExtensionPrefix + ` install githubnext/agentics
-  ` + constants.CLIExtensionPrefix + ` add weekly-research`,
+The --force flag overwrites existing workflow files.`,
 		Args: func(cmd *cobra.Command, args []string) error {
 			// If no arguments provided and not in CI, automatically use interactive mode
 			if len(args) == 0 && !IsRunningInCI() {
