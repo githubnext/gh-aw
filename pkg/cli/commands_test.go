@@ -11,26 +11,6 @@ import (
 
 // Test the CLI functions that are exported from this package
 
-func TestListWorkflows(t *testing.T) {
-	// Test the ListEnginesAndOtherInformation function (which includes listAgenticEngines)
-	err := ListEnginesAndOtherInformation(false)
-
-	// Should return nil (no error) and print table-formatted output
-	if err != nil {
-		t.Errorf("ListEnginesAndOtherInformation should not return an error for valid input, got: %v", err)
-	}
-}
-
-func TestListWorkflowsVerbose(t *testing.T) {
-	// Test the ListEnginesAndOtherInformation function in verbose mode
-	err := ListEnginesAndOtherInformation(true)
-
-	// Should return nil (no error) and print table-formatted output with descriptions
-	if err != nil {
-		t.Errorf("ListEnginesAndOtherInformation verbose mode should not return an error for valid input, got: %v", err)
-	}
-}
-
 func TestCompileWorkflows(t *testing.T) {
 	// Clean up any existing .github/workflows for this test
 	defer os.RemoveAll(".github")
@@ -401,7 +381,6 @@ func TestAllCommandsExist(t *testing.T) {
 		expectError bool
 		name        string
 	}{
-		{func() error { return ListEnginesAndOtherInformation(false) }, false, "ListEnginesAndOtherInformation"},
 		{func() error {
 			config := CompileConfig{
 				MarkdownFiles:       []string{},

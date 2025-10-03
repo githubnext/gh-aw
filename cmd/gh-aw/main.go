@@ -40,17 +40,6 @@ The workflow file is then executed by GitHub Actions in response to events in th
 	},
 }
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List available engines and other information",
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := cli.ListEnginesAndOtherInformation(verbose); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
-	},
-}
-
 var newCmd = &cobra.Command{
 	Use:   "new <workflow-base-name>",
 	Short: "Create a new workflow markdown file with example configuration",
@@ -283,7 +272,6 @@ func init() {
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(trialCmd)
-	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
 
