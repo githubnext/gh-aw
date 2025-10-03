@@ -45,14 +45,16 @@
                       "oneOf": [
                         {
                           "type": "string",
-                          "description": "Single event identifier or '*' for all events. Supported identifiers: 'issue', 'comment', 'pr', 'pr_review' (and their full forms: 'issues', 'issue_comment', 'pull_request', 'pull_request_review_comment')."
+                          "description": "Single event identifier or '*' for all events.",
+                          "enum": ["*", "issue", "issues", "comment", "issue_comment", "pr", "pull_request", "pr_review", "pr_review_comment", "pull_request_review_comment"]
                         },
                         {
                           "type": "array",
                           "description": "Array of event identifiers where the command should be active",
                           "items": {
                             "type": "string",
-                            "description": "Event identifier. Supported: 'issue', 'comment', 'pr', 'pr_review' (and full forms)."
+                            "description": "Event identifier.",
+                            "enum": ["*", "issue", "issues", "comment", "issue_comment", "pr", "pull_request", "pr_review", "pr_review_comment", "pull_request_review_comment"]
                           }
                         }
                       ]

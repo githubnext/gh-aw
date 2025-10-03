@@ -1,6 +1,9 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // buildEventAwareCommandCondition creates a condition that only applies command checks to comment-related events
 // commandEvents: list of event identifiers where command should be active (nil = all events)
@@ -16,10 +19,10 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	var commandChecks []ConditionNode
 
 	// Check which events are enabled and build appropriate checks
-	hasIssues := containsEventName(eventNames, "issues")
-	hasIssueComment := containsEventName(eventNames, "issue_comment")
-	hasPR := containsEventName(eventNames, "pull_request")
-	hasPRReview := containsEventName(eventNames, "pull_request_review_comment")
+	hasIssues := slices.Contains(eventNames, "issues")
+	hasIssueComment := slices.Contains(eventNames, "issue_comment")
+	hasPR := slices.Contains(eventNames, "pull_request")
+	hasPRReview := slices.Contains(eventNames, "pull_request_review_comment")
 
 	if hasIssues {
 		issueBodyCheck := BuildContains(
@@ -46,26 +49,14 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 		commandChecks = append(commandChecks, prBodyCheck)
 	}
 
-	// Combine all command checks with OR
+	// Combine all command checks with OR using DisjunctionNode
 	var commandCondition ConditionNode
 	if len(commandChecks) == 0 {
-		// No events enabled, this should not happen but handle gracefully
-		// Return a false condition
-		commandCondition = BuildEquals(
-			BuildStringLiteral("true"),
-			BuildStringLiteral("false"),
-		)
-	} else if len(commandChecks) == 1 {
-		commandCondition = commandChecks[0]
+		// No events enabled - this indicates a configuration error
+		panic(fmt.Sprintf("No valid comment events specified for command '%s'. At least one event must be enabled.", commandName))
 	} else {
-		// Build OR chain for multiple checks
-		commandCondition = commandChecks[0]
-		for i := 1; i < len(commandChecks); i++ {
-			commandCondition = &OrNode{
-				Left:  commandCondition,
-				Right: commandChecks[i],
-			}
-		}
+		// DisjunctionNode handles both single and multiple terms
+		commandCondition = &DisjunctionNode{Terms: commandChecks}
 	}
 
 	if !hasOtherEvents {
@@ -98,14 +89,4 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 		Left:  commentEventCheck,
 		Right: nonCommentEvents,
 	}
-}
-
-// containsEventName checks if a slice of event names contains a specific event name
-func containsEventName(eventNames []string, eventName string) bool {
-	for _, name := range eventNames {
-		if name == eventName {
-			return true
-		}
-	}
-	return false
 }
