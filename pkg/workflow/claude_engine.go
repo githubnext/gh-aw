@@ -99,8 +99,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Add MCP configuration
-	claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+	// Add MCP configuration only if there are MCP servers
+	if HasMCPServers(workflowData) {
+		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+	}
 
 	// Add allowed tools configuration
 	allowedTools := e.computeAllowedClaudeToolsString(workflowData.Tools, workflowData.SafeOutputs)
@@ -194,8 +196,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Always add GITHUB_AW_PROMPT for agentic workflows
 	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
 
-	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
-	stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
+	if HasMCPServers(workflowData) {
+		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+	}
 
 	// Set MCP_TIMEOUT to 60000ms for MCP server communication
 	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
@@ -1279,6 +1283,7 @@ func (e *ClaudeEngine) GetLogParserScriptId() string {
 // including permission-related errors that should be captured as missing tools
 func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{
+		// Specific, contextual error patterns - these are precise and unlikely to match informational text
 		{
 			Pattern:      `(?i)access denied.*only authorized.*can trigger.*workflow`,
 			LevelGroup:   0,
@@ -1304,34 +1309,34 @@ func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Configuration error - missing permissions",
 		},
 		{
-			Pattern:      `(?i)permission.*denied`,
+			Pattern:      `(?i)error.*permission.*denied`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Generic permission denied error",
+			Description:  "Permission denied error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)unauthorized`,
+			Pattern:      `(?i)error.*unauthorized`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Unauthorized access error",
+			Description:  "Unauthorized error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)forbidden`,
+			Pattern:      `(?i)error.*forbidden`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Forbidden access error",
+			Description:  "Forbidden error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)access.*restricted`,
+			Pattern:      `(?i)error.*access.*restricted`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Access restricted error",
+			Description:  "Access restricted error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)insufficient.*permission`,
+			Pattern:      `(?i)error.*insufficient.*permission`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Insufficient permissions error",
+			Description:  "Insufficient permissions error (requires error context)",
 		},
 	}
 }

@@ -115,7 +115,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
 export CODEX_HOME=/tmp/mcp-config
-
+# Ensure /tmp/mcp-config exists
+mkdir -p /tmp/mcp-config
 # Create log directory outside git repo
 mkdir -p /tmp/aw-logs
 
@@ -608,7 +609,7 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			MessageGroup: 3, // warning message is in the third capture group
 			Description:  "Codex warning messages with timestamp",
 		},
-		// Permission error patterns for missing tools
+		// Specific, contextual permission error patterns - these are precise and unlikely to match informational text
 		{
 			Pattern:      `(?i)access denied.*only authorized.*can trigger.*workflow`,
 			LevelGroup:   0,
@@ -634,34 +635,34 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Configuration error - missing permissions",
 		},
 		{
-			Pattern:      `(?i)permission.*denied`,
+			Pattern:      `(?i)error.*permission.*denied`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Generic permission denied error",
+			Description:  "Permission denied error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)unauthorized`,
+			Pattern:      `(?i)error.*unauthorized`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Unauthorized access error",
+			Description:  "Unauthorized error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)forbidden`,
+			Pattern:      `(?i)error.*forbidden`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Forbidden access error",
+			Description:  "Forbidden error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)access.*restricted`,
+			Pattern:      `(?i)error.*access.*restricted`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Access restricted error",
+			Description:  "Access restricted error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)insufficient.*permission`,
+			Pattern:      `(?i)error.*insufficient.*permission`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Insufficient permissions error",
+			Description:  "Insufficient permissions error (requires error context)",
 		},
 		{
 			Pattern:      `(?i)failed in.*permission`,
