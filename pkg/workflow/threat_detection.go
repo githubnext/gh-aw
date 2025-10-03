@@ -444,7 +444,7 @@ func (c *Compiler) buildUploadDetectionLogStep() []string {
 // buildDiscussionCommentStep creates the step to post a comment to the discussion if threats are detected
 func (c *Compiler) buildDiscussionCommentStep() []string {
 	var steps []string
-	
+
 	steps = append(steps, "      - name: Post detection warning to discussion\n")
 	steps = append(steps, fmt.Sprintf("        if: failure() && needs.%s.outputs.discussion-id != ''\n", constants.ActivationJobName))
 	steps = append(steps, "        uses: actions/github-script@v8\n")
@@ -452,10 +452,10 @@ func (c *Compiler) buildDiscussionCommentStep() []string {
 	steps = append(steps, fmt.Sprintf("          DISCUSSION_ID: ${{ needs.%s.outputs.discussion-id }}\n", constants.ActivationJobName))
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")
-	
+
 	// Add the script from embedded resource
 	formattedScript := FormatJavaScriptForYAML(postDetectionWarningToDiscussionScript)
 	steps = append(steps, formattedScript...)
-	
+
 	return steps
 }

@@ -4,8 +4,12 @@
  */
 
 // Get workflow information from environment
-const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-const categoryName = process.env.GITHUB_AW_DISCUSSION_CATEGORY || "Agentic Workflows";
+const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME;
+if (!workflowName) {
+  throw new Error("GITHUB_AW_WORKFLOW_NAME environment variable is required");
+}
+
+const categoryName = process.env.GITHUB_AW_DISCUSSION_CATEGORY || "";
 const runId = context.runId;
 const runUrl = context.payload.repository
   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
@@ -14,8 +18,8 @@ const runUrl = context.payload.repository
 // Create discussion title and body
 const title = `${workflowName} - Run ${runId}`;
 
-// Build the body with context reference
-let bodyParts = [`Agentic workflow \`${workflowName}\` started a run at ${new Date().toISOString()}.`];
+// Build the body with context reference in Copilot Chat style
+let bodyParts = [`**${workflowName}** [started work](${runUrl})`];
 
 // Add context reference based on event type
 const { owner, repo } = context.repo;
@@ -23,29 +27,28 @@ const eventName = context.eventName;
 
 if (eventName === "issues" && context.payload.issue) {
   const issueNumber = context.payload.issue.number;
-  bodyParts.push(`\nTriggered by issue #${issueNumber}`);
+  bodyParts.push(` for issue #${issueNumber}`);
 } else if (eventName === "pull_request" && context.payload.pull_request) {
   const prNumber = context.payload.pull_request.number;
-  bodyParts.push(`\nTriggered by pull request #${prNumber}`);
+  bodyParts.push(` for pull request #${prNumber}`);
 } else if (eventName === "issue_comment" && context.payload.issue && context.payload.comment) {
   const issueNumber = context.payload.issue.number;
-  const commentId = context.payload.comment.id;
-  bodyParts.push(`\nTriggered by comment on issue #${issueNumber}`);
+  bodyParts.push(` for comment on issue #${issueNumber}`);
 } else if (eventName === "pull_request_review_comment" && context.payload.pull_request && context.payload.comment) {
   const prNumber = context.payload.pull_request.number;
-  bodyParts.push(`\nTriggered by review comment on pull request #${prNumber}`);
+  bodyParts.push(` for review comment on pull request #${prNumber}`);
 } else if (eventName === "pull_request_review" && context.payload.pull_request && context.payload.review) {
   const prNumber = context.payload.pull_request.number;
-  bodyParts.push(`\nTriggered by review on pull request #${prNumber}`);
+  bodyParts.push(` for review on pull request #${prNumber}`);
 } else if (eventName) {
-  bodyParts.push(`\nTriggered by event: \`${eventName}\``);
+  bodyParts.push(` on '${eventName}' event`);
 }
 
-bodyParts.push(`\n[View workflow run](${runUrl})`);
+bodyParts.push(`.`);
 const body = bodyParts.join("");
 
 core.info(`Creating discussion to track workflow run: ${title}`);
-core.info(`Category: ${categoryName}`);
+core.info(`Category: ${categoryName || "(auto-resolve)"}`);
 
 try {
   // First, get the repository ID and discussion categories
@@ -77,21 +80,44 @@ try {
   const repositoryId = repoResult.repository.id;
   const discussionCategories = repoResult.repository.discussionCategories.nodes;
 
-  // Find the category by name or ID
+  // Resolve category: try categoryName, then workflow name, then "Agentic Workflows"
   let categoryId = null;
+  let resolvedCategoryName = categoryName;
+
+  // If categoryName is empty, try workflow name first, then default
+  if (!resolvedCategoryName) {
+    resolvedCategoryName = workflowName;
+    core.info(`Category name not specified, trying workflow name: ${resolvedCategoryName}`);
+  }
+
+  // Try to find category by name or ID
   for (const category of discussionCategories) {
-    if (category.name === categoryName || category.id === categoryName) {
+    if (category.name === resolvedCategoryName || category.id === resolvedCategoryName) {
       categoryId = category.id;
       break;
     }
   }
 
+  // If not found and we were using workflow name, fall back to "Agentic Workflows"
+  if (!categoryId && resolvedCategoryName === workflowName) {
+    core.info(`Category "${resolvedCategoryName}" not found, trying default: "Agentic Workflows"`);
+    resolvedCategoryName = "Agentic Workflows";
+    for (const category of discussionCategories) {
+      if (category.name === resolvedCategoryName || category.id === resolvedCategoryName) {
+        categoryId = category.id;
+        break;
+      }
+    }
+  }
+
   // If category not found, log error and give up
   if (!categoryId) {
-    core.error(`Category "${categoryName}" not found. Cannot create discussion without a category.`);
+    core.error(`Category "${resolvedCategoryName}" not found. Cannot create discussion without a category.`);
     core.error(`Available categories: ${discussionCategories.map(c => c.name).join(", ")}`);
     return;
   }
+
+  core.info(`Using category: ${resolvedCategoryName} (ID: ${categoryId})`);
 
   // Create the discussion using GraphQL API
   const createDiscussionMutation = `
