@@ -92,13 +92,18 @@ func TestCodexEngine(t *testing.T) {
 	}
 
 	// Check that --dangerously-bypass-approvals-and-sandbox comes BEFORE exec subcommand
-	if !strings.Contains(stepContent, "--dangerously-bypass-approvals-and-sandbox --full-auto exec") {
-		t.Errorf("Expected '--dangerously-bypass-approvals-and-sandbox --full-auto exec' in correct order in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "--dangerously-bypass-approvals-and-sandbox exec") {
+		t.Errorf("Expected '--dangerously-bypass-approvals-and-sandbox exec' in step content:\n%s", stepContent)
 	}
 
 	// Verify the incorrect order is NOT present
-	if strings.Contains(stepContent, "--full-auto exec --dangerously-bypass-approvals-and-sandbox") {
-		t.Errorf("Found incorrect flag order '--full-auto exec --dangerously-bypass-approvals-and-sandbox' in step content:\n%s", stepContent)
+	if strings.Contains(stepContent, "exec --dangerously-bypass-approvals-and-sandbox") {
+		t.Errorf("Found incorrect flag order 'exec --dangerously-bypass-approvals-and-sandbox' in step content:\n%s", stepContent)
+	}
+
+	// Verify --full-auto is NOT present
+	if strings.Contains(stepContent, "--full-auto") {
+		t.Errorf("Found --full-auto flag which should not be present in step content:\n%s", stepContent)
 	}
 }
 
@@ -119,8 +124,8 @@ func TestCodexEngineCommandFlagOrder(t *testing.T) {
 				Tools: map[string]any{},
 			},
 			logFile:     "/tmp/test.log",
-			expectInCmd: "--dangerously-bypass-approvals-and-sandbox --full-auto exec",
-			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+			expectInCmd: "--dangerously-bypass-approvals-and-sandbox exec",
+			rejectInCmd: "exec --dangerously-bypass-approvals-and-sandbox",
 		},
 		{
 			name: "codex with model flag has correct order",
@@ -132,8 +137,8 @@ func TestCodexEngineCommandFlagOrder(t *testing.T) {
 				Tools: map[string]any{},
 			},
 			logFile:     "/tmp/test.log",
-			expectInCmd: "-c model=gpt-4 --dangerously-bypass-approvals-and-sandbox --full-auto exec",
-			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+			expectInCmd: "-c model=gpt-4 --dangerously-bypass-approvals-and-sandbox exec",
+			rejectInCmd: "exec --dangerously-bypass-approvals-and-sandbox",
 		},
 		{
 			name: "codex with web-search has correct order",
@@ -144,8 +149,8 @@ func TestCodexEngineCommandFlagOrder(t *testing.T) {
 				},
 			},
 			logFile:     "/tmp/test.log",
-			expectInCmd: "--search --dangerously-bypass-approvals-and-sandbox --full-auto exec",
-			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+			expectInCmd: "--search --dangerously-bypass-approvals-and-sandbox exec",
+			rejectInCmd: "exec --dangerously-bypass-approvals-and-sandbox",
 		},
 		{
 			name: "codex with model and web-search has correct order",
@@ -159,8 +164,8 @@ func TestCodexEngineCommandFlagOrder(t *testing.T) {
 				},
 			},
 			logFile:     "/tmp/test.log",
-			expectInCmd: "-c model=gpt-4 --search --dangerously-bypass-approvals-and-sandbox --full-auto exec",
-			rejectInCmd: "--full-auto exec --dangerously-bypass-approvals-and-sandbox",
+			expectInCmd: "-c model=gpt-4 --search --dangerously-bypass-approvals-and-sandbox exec",
+			rejectInCmd: "exec --dangerously-bypass-approvals-and-sandbox",
 		},
 	}
 
@@ -179,6 +184,11 @@ func TestCodexEngineCommandFlagOrder(t *testing.T) {
 
 			if strings.Contains(stepContent, tt.rejectInCmd) {
 				t.Errorf("Expected command NOT to contain %q\nStep content:\n%s", tt.rejectInCmd, stepContent)
+			}
+
+			// Verify --full-auto is NOT present
+			if strings.Contains(stepContent, "--full-auto") {
+				t.Errorf("Found --full-auto flag which should not be present\nStep content:\n%s", stepContent)
 			}
 		})
 	}

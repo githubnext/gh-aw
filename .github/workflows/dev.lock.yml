@@ -905,7 +905,7 @@ jobs:
           codex login --api-key "$OPENAI_API_KEY"
           
           # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex --dangerously-bypass-approvals-and-sandbox --full-auto exec "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          codex --dangerously-bypass-approvals-and-sandbox exec "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -2174,7 +2174,7 @@ jobs:
           codex login --api-key "$OPENAI_API_KEY"
           
           # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex --dangerously-bypass-approvals-and-sandbox --full-auto exec "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+          codex --dangerously-bypass-approvals-and-sandbox exec "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
