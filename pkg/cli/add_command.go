@@ -236,8 +236,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 
 	// Create temporary branch with random 4-digit number
 	randomNum := rand.Intn(9000) + 1000 // Generate number between 1000-9999
-	var branchName string
-	branchName = fmt.Sprintf("add-workflow-%s-%04d", strings.ReplaceAll(workflows[0].WorkflowPath, "/", "-"), randomNum)
+	branchName := fmt.Sprintf("add-workflow-%s-%04d", strings.ReplaceAll(workflows[0].WorkflowPath, "/", "-"), randomNum)
 
 	if err := createAndSwitchBranch(branchName, verbose); err != nil {
 		return fmt.Errorf("failed to create branch %s: %w", branchName, err)
