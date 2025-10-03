@@ -140,10 +140,12 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
+safe-outputs:
+  add-comment:
+    max: 1
 tools:
   github:
-    allowed: [get_issue, list_issue_labels, add_issue_comment]
+    allowed: [get_issue, list_issue_labels]
 ---
 
 # Intelligent Triage Assistant
@@ -235,10 +237,13 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
+safe-outputs:
+  add-labels:
+    allowed: [bug, enhancement, documentation, question, P0, P1, P2, P3, frontend, backend, infrastructure, api, security, performance, accessibility]
+    max: 5
 tools:
   github:
-    allowed: [get_issue, add_labels_to_issue]
+    allowed: [get_issue]
 ---
 
 # Smart Label Suggester
@@ -254,39 +259,6 @@ Based on the issue title and description, recommend labels for:
 Apply the most appropriate labels automatically.
 ```
 
-### Duplicate Detection with Labels
-
-Use AI to detect duplicates and apply duplicate labels:
-
-```aw
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  actions: read
-  issues: write
-tools:
-  github:
-    allowed: [get_issue, search_issues, add_labels_to_issue, add_issue_comment]
----
-
-# Duplicate Detector
-
-When a new issue is created, search for similar existing issues.
-
-Search for:
-- Similar titles or descriptions
-- Matching error messages or stack traces
-- Related functionality or components
-
-If potential duplicates are found:
-1. Add the "duplicate" label
-2. Comment with links to similar issues
-3. Ask the reporter to verify if it's the same issue
-```
-
 ### Component-Based Auto-Labeling
 
 Automatically label issues based on affected components:
@@ -299,10 +271,13 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
+safe-outputs:
+  add-labels:
+    allowed: [component:frontend, component:backend, component:api, component:database, component:infrastructure]
+    max: 3
 tools:
   github:
-    allowed: [get_issue, add_labels_to_issue]
+    allowed: [get_issue]
 ---
 
 # Component Auto-Labeler
