@@ -234,12 +234,6 @@ The `cache-memory:` field enables persistent memory storage for agentic workflow
 **Simple Enable:**
 ```yaml
 tools:
-  cache-memory:     # same as cache-memory: true
-```
-
-Or with explicit boolean:
-```yaml
-tools:
   cache-memory: true
 ```
 

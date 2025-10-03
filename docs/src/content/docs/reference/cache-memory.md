@@ -27,19 +27,7 @@ When `cache-memory` is enabled, the workflow compiler automatically:
 
 ## Enabling Cache Memory
 
-Enable cache-memory with default settings using a simple field declaration:
-
-```aw wrap
----
-engine: claude
-tools:
-  cache-memory:     # same as cache-memory: true
-  github:
-    allowed: [get_repository]
----
-```
-
-Or with an explicit boolean value:
+Enable cache-memory with default settings:
 
 ```aw wrap
 ---
