@@ -651,6 +651,30 @@ function handleMessage(req) {
           }
         }
 
+        // Patch update_issue tool description with allowed operations if configured
+        if (tool.name === "update_issue" && safeOutputsConfig.update_issue) {
+          const config = safeOutputsConfig.update_issue;
+          const allowedOps = [];
+          if (config.status !== false) allowedOps.push("status");
+          if (config.title !== false) allowedOps.push("title");
+          if (config.body !== false) allowedOps.push("body");
+
+          if (allowedOps.length > 0 && allowedOps.length < 3) {
+            // Only patch if some operations are restricted (not all 3 allowed)
+            toolDef.description = `Update a GitHub issue. Allowed updates: ${allowedOps.join(", ")}`;
+          }
+        }
+
+        // Patch upload_asset tool description with constraints from environment
+        if (tool.name === "upload_asset") {
+          const maxSizeKB = process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB ? parseInt(process.env.GITHUB_AW_ASSETS_MAX_SIZE_KB, 10) : 10240;
+          const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
+            ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
+            : [".png", ".jpg", ".jpeg"];
+
+          toolDef.description = `Publish a file as a URL-addressable asset to an orphaned git branch. Maximum file size: ${maxSizeKB} KB. Allowed extensions: ${allowedExts.join(", ")}`;
+        }
+
         list.push(toolDef);
       });
       replyResult(id, { tools: list });
