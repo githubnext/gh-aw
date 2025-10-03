@@ -364,8 +364,15 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Workflow '%s' not found.", workflowPath)))
 
-		// Show available workflows using the same logic as ListEnginesAndOtherInformation
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run '"+constants.CLIExtensionPrefix+" list' to see available workflows."))
+		// Provide information about workflow repositories
+		fmt.Println("\nTo add workflows to your project:")
+		fmt.Println("=================================")
+		fmt.Println("Use the 'add' command with repository/workflow specifications:")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add owner/repo/workflow-name@version")
+		fmt.Println("\nExample:")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/ci-doctor")
+		fmt.Println("  " + constants.CLIExtensionPrefix + " add githubnext/agentics/daily-plan@main")
 
 		return fmt.Errorf("workflow not found: %s", workflowPath)
 	}
