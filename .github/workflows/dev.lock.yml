@@ -118,9 +118,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+          node-version: '24'
+      - name: Install Codex
+        run: npm install -g @openai/codex
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
@@ -734,43 +734,30 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << 'EOF'
-          {
-            "mcpServers": {
-              "github": {
-                "type": "local",
-                "command": "docker",
-                "args": [
-                  "run",
-                  "-i",
-                  "--rm",
-                  "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
-                ],
-                "tools": ["*"]
-              },
-              "safe_outputs": {
-                "type": "local",
-                "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
-                "tools": ["*"],
-                "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
-                }
-              }
-            }
-          }
+          cat > /tmp/mcp-config/config.toml << EOF
+          [history]
+          persistence = "none"
+          
+          [mcp_servers.github]
+          user_agent = "dev"
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "ghcr.io/github/github-mcp-server:sha-09deac4"
+          ]
+          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}" }
+          
+          [mcp_servers.safe_outputs]
+          command = "node"
+          args = [
+            "/tmp/safe-outputs/mcp-server.cjs",
+          ]
+          env = { "GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", "GITHUB_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_AW_ASSETS_BRANCH" = "${{ env.GITHUB_AW_ASSETS_BRANCH }}", "GITHUB_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}", "GITHUB_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}" }
           EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -845,7 +832,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
+          VERSION_OUTPUT=$(codex --version 2>&1 || echo "unknown")
           # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
           CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
           echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
@@ -857,15 +844,15 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
+              engine_id: "codex",
+              engine_name: "Codex",
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
               workflow_name: "Dev",
-              experimental: false,
+              experimental: true,
               supports_tools_allowlist: true,
-              supports_http_transport: true,
+              supports_http_transport: false,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
@@ -898,72 +885,34 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool github(download_workflow_run_artifact)
-        # --allow-tool github(get_code_scanning_alert)
-        # --allow-tool github(get_commit)
-        # --allow-tool github(get_dependabot_alert)
-        # --allow-tool github(get_discussion)
-        # --allow-tool github(get_discussion_comments)
-        # --allow-tool github(get_file_contents)
-        # --allow-tool github(get_issue)
-        # --allow-tool github(get_issue_comments)
-        # --allow-tool github(get_job_logs)
-        # --allow-tool github(get_latest_release)
-        # --allow-tool github(get_me)
-        # --allow-tool github(get_notification_details)
-        # --allow-tool github(get_pull_request)
-        # --allow-tool github(get_pull_request_comments)
-        # --allow-tool github(get_pull_request_diff)
-        # --allow-tool github(get_pull_request_files)
-        # --allow-tool github(get_pull_request_review_comments)
-        # --allow-tool github(get_pull_request_reviews)
-        # --allow-tool github(get_pull_request_status)
-        # --allow-tool github(get_release_by_tag)
-        # --allow-tool github(get_secret_scanning_alert)
-        # --allow-tool github(get_tag)
-        # --allow-tool github(get_workflow_run)
-        # --allow-tool github(get_workflow_run_logs)
-        # --allow-tool github(get_workflow_run_usage)
-        # --allow-tool github(list_branches)
-        # --allow-tool github(list_code_scanning_alerts)
-        # --allow-tool github(list_commits)
-        # --allow-tool github(list_dependabot_alerts)
-        # --allow-tool github(list_discussion_categories)
-        # --allow-tool github(list_discussions)
-        # --allow-tool github(list_issue_types)
-        # --allow-tool github(list_issues)
-        # --allow-tool github(list_notifications)
-        # --allow-tool github(list_pull_requests)
-        # --allow-tool github(list_releases)
-        # --allow-tool github(list_secret_scanning_alerts)
-        # --allow-tool github(list_starred_repositories)
-        # --allow-tool github(list_sub_issues)
-        # --allow-tool github(list_tags)
-        # --allow-tool github(list_workflow_jobs)
-        # --allow-tool github(list_workflow_run_artifacts)
-        # --allow-tool github(list_workflow_runs)
-        # --allow-tool github(list_workflows)
-        # --allow-tool github(search_code)
-        # --allow-tool github(search_issues)
-        # --allow-tool github(search_orgs)
-        # --allow-tool github(search_pull_requests)
-        # --allow-tool github(search_repositories)
-        # --allow-tool github(search_users)
-        # --allow-tool safe_outputs
-        timeout-minutes: 5
+      - name: Run Codex
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/mcp-config
+          # Ensure /tmp/mcp-config exists
+          mkdir -p /tmp/mcp-config
+          # Create log directory outside git repo
+          mkdir -p /tmp/aw-logs
+          
+          # where is Codex
+          which codex
+          
+          # Check Codex version
+          codex --version
+          
+          # Authenticate with Codex
+          codex login --api-key "$OPENAI_API_KEY"
+          
+          # Run codex with log capture - pipefail ensures codex exit code is preserved
+          codex --full-auto exec --dangerously-bypass-approvals-and-sandbox "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /home/runner
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Print agent log
         if: always()
         run: |
@@ -1751,13 +1700,6 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Upload engine output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/.copilot/logs/
-          if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -1775,106 +1717,210 @@ jobs:
             function main() {
               const fs = require("fs");
               try {
-                const logFile = process.env.AGENT_LOG_FILE;
+                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logFile) {
-                  console.log("No agent log file specified");
+                  core.info("No agent log file specified");
                   return;
                 }
                 if (!fs.existsSync(logFile)) {
-                  console.log(`Log file not found: ${logFile}`);
+                  core.info(`Log file not found: ${logFile}`);
                   return;
                 }
                 const content = fs.readFileSync(logFile, "utf8");
-                const parsedLog = parseCopilotLog(content);
+                const parsedLog = parseCodexLog(content);
                 if (parsedLog) {
                   core.info(parsedLog);
                   core.summary.addRaw(parsedLog).write();
-                  console.log("Copilot log parsed successfully");
+                  core.info("Codex log parsed successfully");
                 } else {
-                  console.log("Failed to parse Copilot log");
+                  core.error("Failed to parse Codex log");
                 }
               } catch (error) {
-                core.setFailed(error.message);
+                core.setFailed(error instanceof Error ? error : String(error));
               }
             }
-            function parseCopilotLog(logContent) {
+            function parseCodexLog(logContent) {
               try {
                 const lines = logContent.split("\n");
-                let markdown = "## 🤖 GitHub Copilot CLI Execution\n\n";
-                let hasOutput = false;
-                let inCodeBlock = false;
-                let currentCodeBlock = "";
-                let currentLanguage = "";
-                for (const line of lines) {
-                  if (line.trim().startsWith("```")) {
-                    if (!inCodeBlock) {
-                      inCodeBlock = true;
-                      currentLanguage = line.trim().substring(3);
-                      currentCodeBlock = "";
-                    } else {
-                      inCodeBlock = false;
-                      if (currentCodeBlock.trim()) {
-                        markdown += `\`\`\`${currentLanguage}\n${currentCodeBlock}\`\`\`\n\n`;
-                        hasOutput = true;
+                let markdown = "## 🤖 Commands and Tools\n\n";
+                const commandSummary = [];
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  if (line.includes("] tool ") && line.includes("(")) {
+                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
+                    if (toolMatch) {
+                      const toolName = toolMatch[1];
+                      let statusIcon = "❓"; 
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes("success in")) {
+                          statusIcon = "✅";
+                          break;
+                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
+                          statusIcon = "❌";
+                          break;
+                        }
                       }
-                      currentCodeBlock = "";
-                      currentLanguage = "";
+                      if (toolName.includes(".")) {
+                        const parts = toolName.split(".");
+                        const provider = parts[0];
+                        const method = parts.slice(1).join("_");
+                        commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
+                      } else {
+                        commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
+                      }
                     }
-                    continue;
+                  } else if (line.includes("] exec ")) {
+                    const execMatch = line.match(/exec (.+?) in/);
+                    if (execMatch) {
+                      const formattedCommand = formatBashCommand(execMatch[1]);
+                      let statusIcon = "❓"; 
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes("succeeded in")) {
+                          statusIcon = "✅";
+                          break;
+                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
+                          statusIcon = "❌";
+                          break;
+                        }
+                      }
+                      commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
+                    }
                   }
-                  if (inCodeBlock) {
-                    currentCodeBlock += line + "\n";
-                    continue;
+                }
+                if (commandSummary.length > 0) {
+                  for (const cmd of commandSummary) {
+                    markdown += `${cmd}\n`;
                   }
-                  if (line.includes("copilot -p") || line.includes("github copilot")) {
-                    markdown += `**Command:** \`${line.trim()}\`\n\n`;
-                    hasOutput = true;
+                } else {
+                  markdown += "No commands or tools used.\n";
+                }
+                markdown += "\n## 📊 Information\n\n";
+                let totalTokens = 0;
+                const tokenMatches = logContent.match(/tokens used: (\d+)/g);
+                if (tokenMatches) {
+                  for (const match of tokenMatches) {
+                    const numberMatch = match.match(/(\d+)/);
+                    if (numberMatch) {
+                      const tokens = parseInt(numberMatch[1]);
+                      totalTokens += tokens;
+                    }
                   }
-                  if (line.includes("Suggestion:") || line.includes("Response:")) {
-                    markdown += `**${line.trim()}**\n\n`;
-                    hasOutput = true;
-                  }
-                  if (line.toLowerCase().includes("error:")) {
-                    markdown += `❌ **Error:** ${line.trim()}\n\n`;
-                    hasOutput = true;
-                  } else if (line.toLowerCase().includes("warning:")) {
-                    markdown += `⚠️ **Warning:** ${line.trim()}\n\n`;
-                    hasOutput = true;
-                  }
-                  const trimmedLine = line.trim();
+                }
+                if (totalTokens > 0) {
+                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
+                }
+                const toolCalls = (logContent.match(/\] tool /g) || []).length;
+                const execCommands = (logContent.match(/\] exec /g) || []).length;
+                if (toolCalls > 0) {
+                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+                }
+                if (execCommands > 0) {
+                  markdown += `**Commands Executed:** ${execCommands}\n\n`;
+                }
+                markdown += "\n## 🤖 Reasoning\n\n";
+                let inThinkingSection = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
                   if (
-                    trimmedLine &&
-                    !trimmedLine.startsWith("$") &&
-                    !trimmedLine.startsWith("#") &&
-                    !trimmedLine.match(/^\d{4}-\d{2}-\d{2}/) && 
-                    trimmedLine.length > 10
+                    line.includes("OpenAI Codex") ||
+                    line.startsWith("--------") ||
+                    line.includes("workdir:") ||
+                    line.includes("model:") ||
+                    line.includes("provider:") ||
+                    line.includes("approval:") ||
+                    line.includes("sandbox:") ||
+                    line.includes("reasoning effort:") ||
+                    line.includes("reasoning summaries:") ||
+                    line.includes("tokens used:")
                   ) {
-                    if (
-                      trimmedLine.includes("copilot") ||
-                      trimmedLine.includes("suggestion") ||
-                      trimmedLine.includes("generate") ||
-                      trimmedLine.includes("explain")
-                    ) {
-                      markdown += `${trimmedLine}\n\n`;
-                      hasOutput = true;
-                    }
+                    continue;
                   }
-                }
-                if (inCodeBlock && currentCodeBlock.trim()) {
-                  markdown += `\`\`\`${currentLanguage}\n${currentCodeBlock}\`\`\`\n\n`;
-                  hasOutput = true;
-                }
-                if (!hasOutput) {
-                  markdown += "*No significant output captured from Copilot CLI execution.*\n";
+                  if (line.includes("] thinking")) {
+                    inThinkingSection = true;
+                    continue;
+                  }
+                  if (line.includes("] tool ") && line.includes("(")) {
+                    inThinkingSection = false;
+                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
+                    if (toolMatch) {
+                      const toolName = toolMatch[1];
+                      let statusIcon = "❓"; 
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes("success in")) {
+                          statusIcon = "✅";
+                          break;
+                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
+                          statusIcon = "❌";
+                          break;
+                        }
+                      }
+                      if (toolName.includes(".")) {
+                        const parts = toolName.split(".");
+                        const provider = parts[0];
+                        const method = parts.slice(1).join("_");
+                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
+                      } else {
+                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
+                      }
+                    }
+                    continue;
+                  }
+                  if (line.includes("] exec ")) {
+                    inThinkingSection = false;
+                    const execMatch = line.match(/exec (.+?) in/);
+                    if (execMatch) {
+                      const formattedCommand = formatBashCommand(execMatch[1]);
+                      let statusIcon = "❓"; 
+                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.includes("succeeded in")) {
+                          statusIcon = "✅";
+                          break;
+                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
+                          statusIcon = "❌";
+                          break;
+                        }
+                      }
+                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
+                    }
+                    continue;
+                  }
+                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
+                    const trimmed = line.trim();
+                    markdown += `${trimmed}\n\n`;
+                  }
                 }
                 return markdown;
               } catch (error) {
-                console.error("Error parsing Copilot log:", error);
-                return `## 🤖 GitHub Copilot CLI Execution\n\n*Error parsing log: ${error.message}*\n`;
+                core.error(`Error parsing Codex log: ${error}`);
+                return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
+            function formatBashCommand(command) {
+              if (!command) return "";
+              let formatted = command
+                .replace(/\n/g, " ") 
+                .replace(/\r/g, " ") 
+                .replace(/\t/g, " ") 
+                .replace(/\s+/g, " ") 
+                .trim(); 
+              formatted = formatted.replace(/`/g, "\\`");
+              const maxLength = 80;
+              if (formatted.length > maxLength) {
+                formatted = formatted.substring(0, maxLength) + "...";
+              }
+              return formatted;
+            }
+            function truncateString(str, maxLength) {
+              if (!str) return "";
+              if (str.length <= maxLength) return str;
+              return str.substring(0, maxLength) + "...";
+            }
             if (typeof module !== "undefined" && module.exports) {
-              module.exports = { parseCopilotLog };
+              module.exports = { parseCodexLog, formatBashCommand, truncateString };
             }
             main();
       - name: Upload Agent Stdio
@@ -1889,7 +1935,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"authentication failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Authentication failure with Copilot CLI\"},{\"pattern\":\"error.*token.*invalid\",\"level_group\":0,\"message_group\":0,\"description\":\"Invalid token error with Copilot CLI (requires error context)\"},{\"pattern\":\"not authorized.*copilot\",\"level_group\":0,\"message_group\":0,\"description\":\"Not authorized for Copilot CLI access\"},{\"pattern\":\"command not found:\\\\s*(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error\"},{\"pattern\":\"(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (alternate format)\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (sh format)\"},{\"pattern\":\"bash:\\\\s*(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Bash command not found error\"},{\"pattern\":\"permission denied and could not request permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied error\"},{\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"pattern\":\"Error:\\\\s*Cannot find module\\\\s*'(.+)'\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*Permission denied\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell permission denied error\"}]"
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"failed in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool failed due to permission error\"},{\"pattern\":\"error in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool error due to permission issue\"}]"
         with:
           script: |
             function main() {
@@ -2105,21 +2151,35 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        timeout-minutes: 5
+          node-version: '24'
+      - name: Install Codex
+        run: npm install -g @openai/codex
+      - name: Run Codex
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/mcp-config
+          # Ensure /tmp/mcp-config exists
+          mkdir -p /tmp/mcp-config
+          # Create log directory outside git repo
+          mkdir -p /tmp/aw-logs
+          
+          # where is Codex
+          which codex
+          
+          # Check Codex version
+          codex --version
+          
+          # Authenticate with Codex
+          codex login --api-key "$OPENAI_API_KEY"
+          
+          # Run codex with log capture - pipefail ensures codex exit code is preserved
+          codex --full-auto exec --dangerously-bypass-approvals-and-sandbox "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /home/runner
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Print agent log
         if: always()
         run: |
