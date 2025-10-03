@@ -9,6 +9,7 @@ on:
     branches:
     - copilot*
     - detection
+    - codex*
   workflow_dispatch: null
 
 permissions: {}
@@ -890,29 +891,18 @@ jobs:
           set -o pipefail
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           export CODEX_HOME=/tmp/mcp-config
-          # Ensure /tmp/mcp-config exists
           mkdir -p /tmp/mcp-config
-          # Create log directory outside git repo
           mkdir -p /tmp/aw-logs
-          
-          # where is Codex
           which codex
-          
-          # Check Codex version
           codex --version
-          
-          # Authenticate with Codex
-          codex login --api-key "$OPENAI_API_KEY"
-          
-          # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex --full-auto exec --dangerously-bypass-approvals-and-sandbox "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          codex  exec  --dangerously-bypass-approvals-and-sandbox "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
+          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Print agent log
         if: always()
         run: |
@@ -2159,27 +2149,16 @@ jobs:
           set -o pipefail
           INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
           export CODEX_HOME=/tmp/mcp-config
-          # Ensure /tmp/mcp-config exists
           mkdir -p /tmp/mcp-config
-          # Create log directory outside git repo
           mkdir -p /tmp/aw-logs
-          
-          # where is Codex
           which codex
-          
-          # Check Codex version
           codex --version
-          
-          # Authenticate with Codex
-          codex login --api-key "$OPENAI_API_KEY"
-          
-          # Run codex with log capture - pipefail ensures codex exit code is preserved
-          codex --full-auto exec --dangerously-bypass-approvals-and-sandbox "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+          codex  exec  --dangerously-bypass-approvals-and-sandbox "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
         env:
+          CODEX_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Print agent log
         if: always()
         run: |

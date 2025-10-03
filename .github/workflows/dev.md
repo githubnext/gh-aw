@@ -5,6 +5,7 @@ on:
     branches:
       - copilot*
       - detection
+      - codex*
 engine: codex
 safe-outputs:
     staged: true
