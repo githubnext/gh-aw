@@ -536,3 +536,73 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildUploadDetectionLogStep(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test that upload detection log step is created with correct properties
+	steps := compiler.buildUploadDetectionLogStep()
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty steps for upload detection log")
+	}
+
+	// Join all steps into a single string for easier verification
+	stepsString := strings.Join(steps, "")
+
+	// Verify key components of the upload step
+	expectedComponents := []string{
+		"name: Upload threat detection log",
+		"if: always()",
+		"uses: actions/upload-artifact@v4",
+		"name: threat-detection.log",
+		"path: /tmp/threat-detection/detection.log",
+		"if-no-files-found: ignore",
+	}
+
+	for _, expected := range expectedComponents {
+		if !strings.Contains(stepsString, expected) {
+			t.Errorf("Expected upload detection log step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
+		}
+	}
+}
+
+func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	steps := compiler.buildThreatDetectionSteps(data, "agent")
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty steps")
+	}
+
+	// Join all steps into a single string for easier verification
+	stepsString := strings.Join(steps, "")
+
+	// Verify that the upload detection log step is included
+	if !strings.Contains(stepsString, "Upload threat detection log") {
+		t.Error("Expected threat detection steps to include upload detection log step")
+	}
+
+	if !strings.Contains(stepsString, "threat-detection.log") {
+		t.Error("Expected threat detection steps to include threat-detection.log artifact name")
+	}
+
+	// Verify it uses the always() condition
+	if !strings.Contains(stepsString, "if: always()") {
+		t.Error("Expected upload step to have 'if: always()' condition")
+	}
+
+	// Verify it ignores missing files
+	if !strings.Contains(stepsString, "if-no-files-found: ignore") {
+		t.Error("Expected upload step to have 'if-no-files-found: ignore'")
+	}
+}
