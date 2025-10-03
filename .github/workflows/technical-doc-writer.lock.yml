@@ -3268,8 +3268,87 @@ jobs:
                 core.info("Applying patch...");
                 await exec.exec("git am /tmp/aw.patch");
                 core.info("Patch applied successfully");
-                await exec.exec(`git push origin ${branchName}`);
-                core.info("Changes pushed to branch");
+                try {
+                  let remoteBranchExists = false;
+                  try {
+                    await exec.exec(`git ls-remote --heads origin ${branchName}`, [], {
+                      listeners: {
+                        stdout: data => {
+                          if (data.toString().trim()) {
+                            remoteBranchExists = true;
+                          }
+                        },
+                      },
+                    });
+                  } catch (checkError) {
+                    core.debug(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                  }
+                  if (remoteBranchExists) {
+                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                    const extraHex = crypto.randomBytes(4).toString("hex");
+                    const oldBranch = branchName;
+                    branchName = `${branchName}-${extraHex}`;
+                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                    core.info(`Renamed branch to ${branchName}`);
+                  }
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info("Changes pushed to branch");
+                } catch (pushError) {
+                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
+                  const patchPreview = patchContent.slice(0, 2000);
+                  const patchTruncated = patchContent.length > 2000;
+                  const branchUrl = context.payload.repository
+                    ? `${context.payload.repository.html_url}/tree/${branchName}`
+                    : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                  const runId = context.runId;
+                  const runUrl = context.payload.repository
+                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                    : `https://github.com/actions/runs/${runId}`;
+                  const fallbackBody = `${body}
+            ---
+            **⚠️ Note:** This was originally intended as a pull request, but the git push operation failed. The changes are committed locally to branch \`${branchName}\` but could not be pushed to the remote repository.
+            **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+            **Workflow Run:** [${runUrl}](${runUrl})
+            <details><summary>Patch preview</summary>
+            \`\`\`diff
+            ${patchPreview}${patchTruncated ? "\n... (truncated)" : ""}
+            \`\`\`
+            </details>
+            You may need to manually push the branch or create a pull request if the push issue is resolved.`;
+                  try {
+                    const { data: issue } = await github.rest.issues.create({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      title: title,
+                      body: fallbackBody,
+                      labels: labels,
+                    });
+                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                    core.setOutput("branch_name", branchName);
+                    core.setOutput("fallback_used", "true");
+                    core.setOutput("push_failed", "true");
+                    await core.summary
+                      .addRaw(
+                        `
+            ## Push Failure Fallback
+            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
+            - **Branch (local only):** \`${branchName}\`
+            - **Note:** Push failed, created issue as fallback
+            `
+                      )
+                      .write();
+                    return;
+                  } catch (issueError) {
+                    core.setFailed(
+                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    );
+                    return;
+                  }
+                }
               } else {
                 core.info("Skipping patch application (empty patch)");
                 const message = "No changes to apply - noop operation completed successfully";
