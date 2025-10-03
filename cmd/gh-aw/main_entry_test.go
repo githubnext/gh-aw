@@ -147,19 +147,6 @@ func TestMainFunction(t *testing.T) {
 		}
 	})
 
-	t.Run("list command is available", func(t *testing.T) {
-		found := false
-		for _, cmd := range rootCmd.Commands() {
-			if cmd.Name() == "list" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Error("list command should be available")
-		}
-	})
-
 	t.Run("root command help", func(t *testing.T) {
 		// Capture output
 		oldStderr := os.Stderr
@@ -282,7 +269,7 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 
 	t.Run("main function basic execution flow", func(t *testing.T) {
 		// Test that main function sets up CLI properly and exits cleanly for valid commands
-		cmd := exec.Command("go", "run", ".", "list")
+		cmd := exec.Command("go", "run", ".", "version")
 		cmd.Dir = "."
 
 		// This should run successfully (exit code 0) even if no workflows found
@@ -293,13 +280,13 @@ func TestMainFunctionExecutionPath(t *testing.T) {
 				// Some commands might return non-zero but still function properly
 				t.Logf("Command returned exit code %d, output: %s", exitError.ExitCode(), string(output))
 			} else {
-				t.Fatalf("Failed to run main with list command: %v", err)
+				t.Fatalf("Failed to run main with version command: %v", err)
 			}
 		}
 
 		// Should produce some output
 		if len(output) == 0 {
-			t.Error("list command should produce some output")
+			t.Error("version command should produce some output")
 		}
 	})
 }
@@ -365,7 +352,7 @@ func TestCommandLineIntegration(t *testing.T) {
 
 	t.Run("command structure validation", func(t *testing.T) {
 		// Test that essential commands are present
-		expectedCommands := []string{"add", "compile", "list", "remove", "status", "run", "version", "mcp"}
+		expectedCommands := []string{"add", "compile", "remove", "status", "run", "version", "mcp"}
 
 		cmdMap := make(map[string]bool)
 		for _, cmd := range rootCmd.Commands() {
