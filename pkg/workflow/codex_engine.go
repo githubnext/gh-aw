@@ -110,7 +110,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	}
 
 	// See https://github.com/githubnext/gh-aw/issues/892
-	fullAutoParam := "--dangerously-bypass-approvals-and-sandbox "
+	fullAutoParam := " --full-auto " //"--dangerously-bypass-approvals-and-sandbox "
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
@@ -119,7 +119,7 @@ mkdir -p /tmp/mcp-config
 mkdir -p /tmp/aw-logs
 which codex
 codex --version
-codex %s exec %s %s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
+codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
 		"CODEX_API_KEY":        "${{ secrets.OPENAI_API_KEY }}",
