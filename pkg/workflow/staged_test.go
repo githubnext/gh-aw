@@ -23,12 +23,7 @@ func TestStagedFlag(t *testing.T) {
 		t.Fatal("Expected config to be parsed")
 	}
 
-	// Verify staged flag is correctly parsed
-	if config.Staged == nil {
-		t.Fatal("Expected staged flag to be parsed")
-	}
-
-	if !*config.Staged {
+	if !config.Staged {
 		t.Fatal("Expected staged flag to be true")
 	}
 
@@ -55,9 +50,9 @@ func TestStagedFlagDefault(t *testing.T) {
 		t.Fatal("Expected config to be parsed")
 	}
 
-	// Verify staged flag is nil (not specified)
-	if config.Staged != nil {
-		t.Fatal("Expected staged flag to be nil when not specified")
+	// Verify staged flag is false
+	if config.Staged {
+		t.Fatal("Expected staged flag to be false when not specified")
 	}
 }
 
@@ -79,12 +74,7 @@ func TestStagedFlagFalse(t *testing.T) {
 		t.Fatal("Expected config to be parsed")
 	}
 
-	// Verify staged flag is correctly parsed as false
-	if config.Staged == nil {
-		t.Fatal("Expected staged flag to be parsed")
-	}
-
-	if *config.Staged {
+	if config.Staged {
 		t.Fatal("Expected staged flag to be false")
 	}
 }
@@ -97,7 +87,7 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-			Staged:       &[]bool{true}[0], // pointer to true
+			Staged:       true, // pointer to true
 		},
 	}
 
@@ -115,7 +105,7 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 	}
 
 	// Test with staged flag false
-	workflowData.SafeOutputs.Staged = &[]bool{false}[0] // pointer to false
+	workflowData.SafeOutputs.Staged = false // pointer to false
 
 	steps = engine.GetExecutionSteps(workflowData, "test-log")
 	stepContent = strings.Join([]string(steps[0]), "\n")
@@ -125,16 +115,6 @@ func TestClaudeEngineWithStagedFlag(t *testing.T) {
 		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is false")
 	}
 
-	// Test with staged flag nil (not specified)
-	workflowData.SafeOutputs.Staged = nil
-
-	steps = engine.GetExecutionSteps(workflowData, "test-log")
-	stepContent = strings.Join([]string(steps[0]), "\n")
-
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is not included when nil
-	if strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS_STAGED") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is nil")
-	}
 }
 
 func TestCodexEngineWithStagedFlag(t *testing.T) {
@@ -145,7 +125,7 @@ func TestCodexEngineWithStagedFlag(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-			Staged:       &[]bool{true}[0], // pointer to true
+			Staged:       true, // pointer to true
 		},
 	}
 

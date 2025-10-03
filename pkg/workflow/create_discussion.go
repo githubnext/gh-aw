@@ -67,7 +67,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	}
 
 	// Pass the staged flag if it's set to true
-	if data.SafeOutputs.Staged != nil && *data.SafeOutputs.Staged {
+	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 

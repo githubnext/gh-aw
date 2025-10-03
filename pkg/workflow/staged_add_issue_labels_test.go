@@ -14,7 +14,7 @@ func TestAddLabelsJobWithStagedFlag(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			AddLabels: &AddLabelsConfig{},
-			Staged:    &[]bool{true}[0], // pointer to true
+			Staged:    true,
 		},
 	}
 
@@ -32,7 +32,7 @@ func TestAddLabelsJobWithStagedFlag(t *testing.T) {
 	}
 
 	// Test with staged: false
-	workflowData.SafeOutputs.Staged = &[]bool{false}[0] // pointer to false
+	workflowData.SafeOutputs.Staged = false
 
 	job, err = c.buildCreateOutputLabelJob(workflowData, "main_job")
 	if err != nil {
@@ -47,21 +47,6 @@ func TestAddLabelsJobWithStagedFlag(t *testing.T) {
 		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is false")
 	}
 
-	// Test with staged: nil (not specified)
-	workflowData.SafeOutputs.Staged = nil
-
-	job, err = c.buildCreateOutputLabelJob(workflowData, "main_job")
-	if err != nil {
-		t.Fatalf("Unexpected error building add labels job: %v", err)
-	}
-
-	stepsContent = strings.Join(job.Steps, "")
-
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is not included in the env section when nil
-	// We need to be specific to avoid matching the JavaScript code that references the variable
-	if strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED:") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable not to be set when staged is nil")
-	}
 }
 
 func TestAddLabelsJobWithNilSafeOutputs(t *testing.T) {
@@ -94,7 +79,7 @@ func TestAddLabelsJobWithNilAddLabelsConfig(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			AddLabels: nil, // This is valid - means empty configuration
-			Staged:    &[]bool{true}[0],
+			Staged:    true,
 		},
 	}
 

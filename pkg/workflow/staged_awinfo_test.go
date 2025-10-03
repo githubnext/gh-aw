@@ -14,7 +14,7 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			CreateIssues: &CreateIssuesConfig{BaseSafeOutputConfig: BaseSafeOutputConfig{Max: 1}},
-			Staged:       &[]bool{true}[0], // pointer to true
+			Staged:       true, // pointer to true
 		},
 	}
 
@@ -32,7 +32,7 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 	}
 
 	// Test with staged: false
-	workflowData.SafeOutputs.Staged = &[]bool{false}[0] // pointer to false
+	workflowData.SafeOutputs.Staged = false
 
 	yaml.Reset()
 	c.generateCreateAwInfo(&yaml, workflowData, engine)
@@ -42,19 +42,6 @@ func TestGenerateCreateAwInfoWithStaged(t *testing.T) {
 	// Check that staged: false is included in the aw_info.json
 	if !strings.Contains(result, "staged: false") {
 		t.Error("Expected 'staged: false' to be included in aw_info.json when staged is false")
-	}
-
-	// Test with staged: nil (not specified)
-	workflowData.SafeOutputs.Staged = nil
-
-	yaml.Reset()
-	c.generateCreateAwInfo(&yaml, workflowData, engine)
-
-	result = yaml.String()
-
-	// Check that staged: false is included in the aw_info.json when nil
-	if !strings.Contains(result, "staged: false") {
-		t.Error("Expected 'staged: false' to be included in aw_info.json when staged is nil")
 	}
 
 	// Test with no SafeOutputs config

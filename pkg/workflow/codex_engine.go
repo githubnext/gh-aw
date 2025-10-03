@@ -134,7 +134,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 
 		// Add staged flag if specified
-		if workflowData.SafeOutputs.Staged != nil && *workflowData.SafeOutputs.Staged {
+		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 		}
 

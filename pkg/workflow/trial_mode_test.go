@@ -93,11 +93,11 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// In trial mode, safe output jobs should be suppressed
-		if strings.Contains(lockContent, "create_pull_request:") {
-			t.Error("Did not expect create_pull_request job in trial mode")
+		if !strings.Contains(lockContent, "create_pull_request:") {
+			t.Error("Expected create_pull_request job in trial mode")
 		}
-		if strings.Contains(lockContent, "create_issue:") {
-			t.Error("Did not expect create_issue job in trial mode")
+		if !strings.Contains(lockContent, "create_issue:") {
+			t.Error("Expected create_issue job in trial mode")
 		}
 
 		// Checkout should include github-token in trial mode
@@ -115,29 +115,29 @@ This is a test workflow for trial mode compilation.
 func TestTrialModeWithDifferentSafeOutputs(t *testing.T) {
 	// Test different combinations of safe outputs
 	testCases := []struct {
-		name           string
-		safeOutputs    string
-		shouldSuppress []string
+		name          string
+		safeOutputs   string
+		shouldContain []string
 	}{
 		{
-			name:           "CreatePullRequest only",
-			safeOutputs:    "create-pull-request",
-			shouldSuppress: []string{"create_pull_request:"},
+			name:          "CreatePullRequest only",
+			safeOutputs:   "create-pull-request",
+			shouldContain: []string{"create_pull_request:"},
 		},
 		{
-			name:           "CreateIssue only",
-			safeOutputs:    "create-issue",
-			shouldSuppress: []string{"create_issue:"},
+			name:          "CreateIssue only",
+			safeOutputs:   "create-issue",
+			shouldContain: []string{"create_issue:"},
 		},
 		{
-			name:           "Both safe outputs",
-			safeOutputs:    "create-pull-request, create-issue",
-			shouldSuppress: []string{"create_pull_request:", "create_issue:"},
+			name:          "Both safe outputs",
+			safeOutputs:   "create-pull-request, create-issue",
+			shouldContain: []string{"create_pull_request:", "create_issue:"},
 		},
 		{
-			name:           "No safe outputs",
-			safeOutputs:    "",
-			shouldSuppress: []string{}, // Nothing should be suppressed
+			name:          "No safe outputs",
+			safeOutputs:   "",
+			shouldContain: []string{},
 		},
 	}
 
@@ -199,10 +199,10 @@ This is a test workflow for trial mode compilation.
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			// Check that specified jobs are suppressed
-			for _, suppressedJob := range tc.shouldSuppress {
-				if strings.Contains(lockContent, suppressedJob) {
-					t.Errorf("Expected job %s to be suppressed in trial mode", suppressedJob)
+			// Check that specified jobs are present
+			for _, presentJob := range tc.shouldContain {
+				if !strings.Contains(lockContent, presentJob) {
+					t.Errorf("Expected job %s to be suppressed in trial mode", presentJob)
 				}
 			}
 
