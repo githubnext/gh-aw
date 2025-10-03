@@ -392,6 +392,6 @@ on:
 
 ## Additional Resources
 
-- [IssueOps Guide](/guides/issueops/) - Learn about issue-triggered workflows
-- [Safe Outputs Reference](/reference/safe-outputs/) - Secure output handling
-- [Frontmatter Reference](/reference/frontmatter/) - Complete workflow configuration options
+- [IssueOps Guide](/gh-aw/guides/issueops) - Learn about issue-triggered workflows
+- [Safe Outputs Reference](/gh-aw/reference/safe-outputs) - Secure output handling
+- [Frontmatter Reference](/gh-aw/reference/frontmatter) - Complete workflow configuration options
