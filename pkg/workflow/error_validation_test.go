@@ -442,7 +442,7 @@ func TestExtractErrorPatternsFromEngineConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, engineConfig := compiler.extractEngineConfig(tt.frontmatter)
+			_, engineConfig := compiler.ExtractEngineConfig(tt.frontmatter)
 
 			var patterns []ErrorPattern
 			if engineConfig != nil {
