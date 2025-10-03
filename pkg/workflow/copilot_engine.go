@@ -85,7 +85,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs = []string{"--add-dir", "/tmp/", "--log-level", "all", "--log-dir", logsFolder}
+	var copilotArgs = []string{"--add-dir", "/tmp/", "--add-dir", "\"$GITHUB_WORKSPACE\"", "--log-level", "all", "--log-dir", logsFolder}
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {

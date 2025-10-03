@@ -104,21 +104,32 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName string) []string {
 	var steps []string
 
-	// Step 1: Download agent artifacts
+	// Step 1: Checkout repository to access workspace
+	steps = append(steps, c.buildCheckoutStep()...)
+
+	// Step 2: Download agent artifacts
 	steps = append(steps, c.buildDownloadArtifactStep()...)
 
-	// Step 2: Setup and run threat detection
+	// Step 3: Setup and run threat detection
 	steps = append(steps, c.buildThreatDetectionAnalysisStep(data, mainJobName)...)
 
-	// Step 3: Add custom steps if configured
+	// Step 4: Add custom steps if configured
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 4: Upload detection log artifact
+	// Step 5: Upload detection log artifact
 	steps = append(steps, c.buildUploadDetectionLogStep()...)
 
 	return steps
+}
+
+// buildCheckoutStep creates the checkout repository step
+func (c *Compiler) buildCheckoutStep() []string {
+	return []string{
+		"      - name: Checkout repository\n",
+		"        uses: actions/checkout@v5\n",
+	}
 }
 
 // buildDownloadArtifactStep creates the artifact download step

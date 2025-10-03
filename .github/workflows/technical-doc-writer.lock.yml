@@ -2637,6 +2637,8 @@ jobs:
     permissions: read-all
     timeout-minutes: 10
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
