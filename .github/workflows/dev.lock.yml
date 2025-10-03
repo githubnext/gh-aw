@@ -157,13 +157,46 @@ jobs:
                   break;
                 }
               }
-              if (!categoryId && discussionCategories.length > 0) {
-                core.warning(`Category "${categoryName}" not found. Using first available category: ${discussionCategories[0].name}`);
-                categoryId = discussionCategories[0].id;
-              }
               if (!categoryId) {
-                core.warning("No discussion categories available. Cannot create discussion.");
-                return;
+                core.info(`Category "${categoryName}" not found. Creating new discussion category...`);
+                const createCategoryMutation = `
+                  mutation($repositoryId: ID!, $name: String!, $emoji: String!) {
+                    createDiscussionCategory(input: {
+                      repositoryId: $repositoryId
+                      name: $name
+                      emoji: $emoji
+                      isAnswerable: false
+                    }) {
+                      discussionCategory {
+                        id
+                        name
+                      }
+                    }
+                  }
+                `;
+                try {
+                  const createCategoryResult = await github.graphql(createCategoryMutation, {
+                    repositoryId,
+                    name: categoryName,
+                    emoji: "🤖",
+                  });
+                  if (
+                    createCategoryResult &&
+                    createCategoryResult.createDiscussionCategory &&
+                    createCategoryResult.createDiscussionCategory.discussionCategory
+                  ) {
+                    categoryId = createCategoryResult.createDiscussionCategory.discussionCategory.id;
+                    core.info(`✓ Created category "${categoryName}" with ID: ${categoryId}`);
+                  } else {
+                    core.warning("Failed to create discussion category. Cannot create discussion.");
+                    return;
+                  }
+                } catch (categoryError) {
+                  const categoryErrorMessage = categoryError instanceof Error ? categoryError.message : String(categoryError);
+                  core.warning(`Failed to create discussion category: ${categoryErrorMessage}`);
+                  core.warning("Cannot create discussion without a category.");
+                  return;
+                }
               }
               const createDiscussionMutation = `
                 mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
