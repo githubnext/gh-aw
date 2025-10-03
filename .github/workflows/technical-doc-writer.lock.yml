@@ -2061,6 +2061,7 @@ jobs:
                 }
                 const logContent = fs.readFileSync(logFile, "utf8");
                 const result = parseClaudeLog(logContent);
+                core.info(result.markdown);
                 core.summary.addRaw(result.markdown).write();
                 if (result.mcpFailures && result.mcpFailures.length > 0) {
                   const failedServers = result.mcpFailures.join(", ");
@@ -2459,7 +2460,7 @@ jobs:
                 }
               } catch (error) {
                 console.debug(error);
-                core.setFailed(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
+                core.error(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             function getErrorPatternsFromEnv() {

@@ -17,6 +17,7 @@ function main() {
     const parsedLog = parseCodexLog(content);
 
     if (parsedLog) {
+      core.info(parsedLog);
       core.summary.addRaw(parsedLog).write();
       core.info("Codex log parsed successfully");
     } else {
