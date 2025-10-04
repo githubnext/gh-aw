@@ -134,8 +134,8 @@ jobs:
         id: react
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_REACTION: eyes
           GITHUB_AW_COMMAND: tidy
+          GITHUB_AW_REACTION: eyes
         with:
           script: |
             async function main() {

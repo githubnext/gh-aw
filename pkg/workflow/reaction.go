@@ -10,21 +10,21 @@ import (
 func (c *Compiler) buildAddReactionJob(data *WorkflowData, activationJobCreated bool, frontmatter map[string]any) (*Job, error) {
 	reactionCondition := buildReactionCondition()
 
-	var steps []string
-
-	steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
-	steps = append(steps, "        id: react\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_REACTION: %s\n", data.AIReaction))
+	// Prepare environment variables for the step
+	env := make(map[string]string)
+	env["GITHUB_AW_REACTION"] = data.AIReaction
 	if data.Command != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMAND: %s\n", data.Command))
+		env["GITHUB_AW_COMMAND"] = data.Command
 	}
 
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          script: |\n")
+	// Build the github-script step using the helper
+	steps := BuildGitHubScriptStepLines(
+		fmt.Sprintf("Add %s reaction to the triggering item", data.AIReaction),
+		"react",
+		"", // script will be appended below
+		env,
+		nil, // no with parameters other than script
+	)
 
 	// Add each line of the script with proper indentation
 	formattedScript := FormatJavaScriptForYAML(addReactionAndEditCommentScript)
