@@ -365,3 +365,72 @@ func AppendScriptLines(lines []string, script string) []string {
 	scriptLines := FormatJavaScriptForYAML(script)
 	return append(lines, scriptLines...)
 }
+
+// BuildGitHubScriptStepLinesWithEnvCallback creates a GitHub Actions step that uses actions/github-script@v8
+// and returns it as []string lines. This version accepts a callback function to add additional environment
+// variables before the 'with' section, which is useful for integrating with existing helper functions
+// like addCustomSafeOutputEnvVars and addSafeOutputGitHubTokenForConfig.
+//
+// The envCallback is called with the steps slice after env vars are added but before the 'with' section.
+// The withCallback is called with the steps slice after 'with:' is added but before 'script: |'.
+//
+// If script is empty, only the "script: |" line is added and additional script lines
+// must be appended by the caller. If script is provided, it will be formatted and included automatically.
+func BuildGitHubScriptStepLinesWithCallbacks(
+	name, id string,
+	env map[string]string,
+	envCallback func(*[]string),
+	withCallback func(*[]string),
+	script string,
+) []string {
+	var lines []string
+
+	// Add step header
+	lines = append(lines, fmt.Sprintf("      - name: %s\n", name))
+	if id != "" {
+		lines = append(lines, fmt.Sprintf("        id: %s\n", id))
+	}
+	lines = append(lines, "        uses: actions/github-script@v8\n")
+
+	// Add environment variables if provided
+	if len(env) > 0 || envCallback != nil {
+		lines = append(lines, "        env:\n")
+
+		if len(env) > 0 {
+			// Sort environment keys for consistent output
+			envKeys := make([]string, 0, len(env))
+			for key := range env {
+				envKeys = append(envKeys, key)
+			}
+			sort.Strings(envKeys)
+
+			for _, key := range envKeys {
+				value := env[key]
+				lines = append(lines, fmt.Sprintf("          %s: %s\n", key, value))
+			}
+		}
+
+		// Call the env callback to add additional env vars
+		if envCallback != nil {
+			envCallback(&lines)
+		}
+	}
+
+	// Add with parameters
+	lines = append(lines, "        with:\n")
+
+	// Call the with callback to add custom with parameters (e.g., github-token)
+	if withCallback != nil {
+		withCallback(&lines)
+	}
+
+	// Add the script
+	lines = append(lines, "          script: |\n")
+
+	// If script is provided, format and add it
+	if script != "" {
+		lines = AppendScriptLines(lines, script)
+	}
+
+	return lines
+}

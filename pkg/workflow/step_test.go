@@ -473,3 +473,89 @@ return true;`
 		t.Errorf("Expected appended script to have proper indentation")
 	}
 }
+
+func TestBuildGitHubScriptStepLinesWithCallbacks(t *testing.T) {
+	// Test with callbacks for additional env vars and with params
+	env := map[string]string{
+		"FOO": "bar",
+	}
+
+	envCallbackCalled := false
+	withCallbackCalled := false
+
+	lines := BuildGitHubScriptStepLinesWithCallbacks(
+		"Test With Callbacks",
+		"test-id",
+		env,
+		func(lines *[]string) {
+			// Add an additional env var
+			*lines = append(*lines, "          CUSTOM_VAR: custom_value\n")
+			envCallbackCalled = true
+		},
+		func(lines *[]string) {
+			// Add github-token
+			*lines = append(*lines, "          github-token: ${{ secrets.TOKEN }}\n")
+			withCallbackCalled = true
+		},
+		"console.log('test');",
+	)
+
+	yaml := strings.Join(lines, "")
+
+	if !envCallbackCalled {
+		t.Errorf("Expected env callback to be called")
+	}
+
+	if !withCallbackCalled {
+		t.Errorf("Expected with callback to be called")
+	}
+
+	if !strings.Contains(yaml, "- name: Test With Callbacks") {
+		t.Errorf("Expected step name in output")
+	}
+
+	if !strings.Contains(yaml, "id: test-id") {
+		t.Errorf("Expected step id in output")
+	}
+
+	if !strings.Contains(yaml, "FOO: bar") {
+		t.Errorf("Expected base env var in output")
+	}
+
+	if !strings.Contains(yaml, "CUSTOM_VAR: custom_value") {
+		t.Errorf("Expected custom env var from callback in output")
+	}
+
+	if !strings.Contains(yaml, "github-token:") {
+		t.Errorf("Expected github-token from callback in output")
+	}
+
+	if !strings.Contains(yaml, "console.log('test')") {
+		t.Errorf("Expected script content in output")
+	}
+}
+
+func TestBuildGitHubScriptStepLinesWithCallbacksNoEnv(t *testing.T) {
+	// Test with callbacks but no initial env vars
+	lines := BuildGitHubScriptStepLinesWithCallbacks(
+		"Test Callbacks Only",
+		"test-id",
+		nil,
+		func(lines *[]string) {
+			*lines = append(*lines, "          CALLBACK_VAR: value\n")
+		},
+		nil,
+		"console.log('test');",
+	)
+
+	yaml := strings.Join(lines, "")
+
+	// Should still have env section because of callback
+	if !strings.Contains(yaml, "env:") {
+		t.Errorf("Expected env section due to callback")
+	}
+
+	if !strings.Contains(yaml, "CALLBACK_VAR: value") {
+		t.Errorf("Expected callback env var in output")
+	}
+}

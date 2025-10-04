@@ -21,37 +21,34 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		return nil, fmt.Errorf("safe-outputs.add-comment configuration is required")
 	}
 
-	var steps []string
-	steps = append(steps, "      - name: Add Issue Comment\n")
-	steps = append(steps, "        id: add_comment\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	// Pass the workflow name for footer generation
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Prepare base environment variables
+	env := make(map[string]string)
+	env["GITHUB_AW_AGENT_OUTPUT"] = fmt.Sprintf("${{ needs.%s.outputs.output }}", mainJobName)
+	env["GITHUB_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
+		env["GITHUB_AW_COMMENT_TARGET"] = fmt.Sprintf("%q", data.SafeOutputs.AddComments.Target)
 	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
-	var token string
-	if data.SafeOutputs.AddComments != nil {
-		token = data.SafeOutputs.AddComments.GitHubToken
-	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
-
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createCommentScript)
-	steps = append(steps, formattedScript...)
+	// Build the github-script step using the helper with callbacks
+	steps := BuildGitHubScriptStepLinesWithCallbacks(
+		"Add Issue Comment",
+		"add_comment",
+		env,
+		func(lines *[]string) {
+			// Add custom environment variables from safe-outputs.env
+			c.addCustomSafeOutputEnvVars(lines, data)
+		},
+		func(lines *[]string) {
+			// Add github-token if specified
+			var token string
+			if data.SafeOutputs.AddComments != nil {
+				token = data.SafeOutputs.AddComments.GitHubToken
+			}
+			c.addSafeOutputGitHubTokenForConfig(lines, data, token)
+		},
+		createCommentScript,
+	)
 
 	// Create outputs for the job
 	outputs := map[string]string{
