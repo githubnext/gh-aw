@@ -76,7 +76,7 @@ func UpdateWorkflows(workflowNames []string, allowMajor, force, verbose bool, en
 		return fmt.Errorf("no workflows found with source field")
 	}
 
-	fmt.Fprintf(os.Stderr, "Found %d workflow(s) to update\n", len(workflows))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d workflow(s) to update", len(workflows))))
 
 	// Update each workflow
 	updatedCount := 0
@@ -146,7 +146,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 		content, err := os.ReadFile(workflowPath)
 		if err != nil {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Warning: Failed to read %s: %v\n", workflowPath, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", workflowPath, err)))
 			}
 			continue
 		}
@@ -155,7 +155,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 		result, err := parser.ExtractFrontmatterFromContent(string(content))
 		if err != nil {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Warning: Failed to parse frontmatter in %s: %v\n", workflowPath, err)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse frontmatter in %s: %v", workflowPath, err)))
 			}
 			continue
 		}
@@ -164,7 +164,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 		sourceRaw, ok := result.Frontmatter["source"]
 		if !ok {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Skipping %s: no source field\n", workflowName)
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Skipping %s: no source field", workflowName)))
 			}
 			continue
 		}
@@ -172,7 +172,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 		source, ok := sourceRaw.(string)
 		if !ok || source == "" {
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Skipping %s: invalid source field\n", workflowName)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: invalid source field", workflowName)))
 			}
 			continue
 		}
@@ -190,7 +190,7 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 // resolveLatestRef resolves the latest ref for a workflow source
 func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Resolving latest ref for %s (current: %s)\n", repo, currentRef)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Resolving latest ref for %s (current: %s)", repo, currentRef)))
 	}
 
 	// Check if current ref is a tag (looks like a semantic version)
@@ -202,7 +202,7 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 	isBranch, err := isBranchRef(repo, currentRef, verbose)
 	if err != nil {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Warning: Failed to check if ref is branch: %v\n", err)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check if ref is branch: %v", err)))
 		}
 		// If we can't determine, treat as default branch case
 		return resolveDefaultBranchHead(repo, verbose)
@@ -226,7 +226,7 @@ func isSemanticVersionTag(ref string) bool {
 // resolveLatestRelease finds the latest release, respecting semantic versioning
 func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Fetching latest release for %s (current: %s, allow major: %v)\n", repo, currentRef, allowMajor)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s (current: %s, allow major: %v)", repo, currentRef, allowMajor)))
 	}
 
 	// Use gh CLI to get releases
@@ -246,7 +246,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	if currentVersion == nil {
 		// If current ref is not a valid version, just return the latest release
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Current ref is not a valid version, using latest release: %s\n", releases[0])
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current ref is not a valid version, using latest release: %s", releases[0])))
 		}
 		return releases[0], nil
 	}
@@ -278,7 +278,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Latest compatible release: %s\n", latestCompatible)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest compatible release: %s", latestCompatible)))
 	}
 
 	return latestCompatible, nil
@@ -306,7 +306,7 @@ func isBranchRef(repo, ref string, verbose bool) (bool, error) {
 // resolveBranchHead gets the latest commit SHA for a branch
 func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Fetching latest commit for branch %s in %s\n", branch, repo)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest commit for branch %s in %s", branch, repo)))
 	}
 
 	// Use gh CLI to get branch info
@@ -318,7 +318,7 @@ func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 
 	sha := strings.TrimSpace(string(output))
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Latest commit on %s: %s\n", branch, sha)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest commit on %s: %s", branch, sha)))
 	}
 
 	return sha, nil
@@ -327,7 +327,7 @@ func resolveBranchHead(repo, branch string, verbose bool) (string, error) {
 // resolveDefaultBranchHead gets the latest commit SHA for the default branch
 func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Fetching default branch for %s\n", repo)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching default branch for %s", repo)))
 	}
 
 	// First get the default branch name
@@ -339,7 +339,7 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 
 	defaultBranch := strings.TrimSpace(string(output))
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Default branch: %s\n", defaultBranch)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Default branch: %s", defaultBranch)))
 	}
 
 	return resolveBranchHead(repo, defaultBranch, verbose)
@@ -409,8 +409,8 @@ func (v *semanticVersion) isNewer(other *semanticVersion) bool {
 // updateWorkflow updates a single workflow from its source
 func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string) error {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "\nUpdating workflow: %s\n", wf.Name)
-		fmt.Fprintf(os.Stderr, "Source: %s\n", wf.SourceSpec)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("\nUpdating workflow: %s", wf.Name)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Source: %s", wf.SourceSpec)))
 	}
 
 	// Parse source spec
@@ -432,8 +432,8 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Current ref: %s\n", currentRef)
-		fmt.Fprintf(os.Stderr, "Latest ref: %s\n", latestRef)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current ref: %s", currentRef)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest ref: %s", latestRef)))
 	}
 
 	// Check if update is needed
@@ -444,7 +444,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	// Download the latest version
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Downloading latest version from %s/%s@%s\n", sourceSpec.Repo, sourceSpec.Path, latestRef)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading latest version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, latestRef)))
 	}
 
 	newContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, latestRef, verbose)
@@ -482,7 +482,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 // downloadWorkflowContent downloads the content of a workflow file from GitHub
 func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, error) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Fetching %s/%s@%s\n", repo, path, ref)
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s", repo, path, ref)))
 	}
 
 	// Use gh CLI to download the file
@@ -508,7 +508,7 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 // It removes the source field from the new content and updates it with the new ref
 func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bool) (string, error) {
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Merging workflow content\n")
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Merging workflow content"))
 	}
 
 	// Parse both contents
