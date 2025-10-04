@@ -45,6 +45,18 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 	}
 }
 
+// getCustomSafeOutputEnvVars returns custom environment variables from safe-outputs.env as a map
+// This is the non-callback version of addCustomSafeOutputEnvVars
+func (c *Compiler) getCustomSafeOutputEnvVars(data *WorkflowData) map[string]string {
+	env := make(map[string]string)
+	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
+		for key, value := range data.SafeOutputs.Env {
+			env[key] = value
+		}
+	}
+	return env
+}
+
 // addSafeOutputGitHubToken adds github-token to the with section of github-script actions
 func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
@@ -63,6 +75,16 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 	if token != "" {
 		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", token))
 	}
+}
+
+// getSafeOutputGitHubTokenForConfig returns the github-token value, preferring per-config token over global
+// This is the non-callback version of addSafeOutputGitHubTokenForConfig
+func (c *Compiler) getSafeOutputGitHubTokenForConfig(data *WorkflowData, configToken string) string {
+	token := configToken
+	if token == "" && data.SafeOutputs != nil {
+		token = data.SafeOutputs.GitHubToken
+	}
+	return token
 }
 
 // filterMapKeys creates a new map excluding the specified keys

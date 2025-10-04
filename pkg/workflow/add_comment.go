@@ -30,24 +30,29 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		env["GITHUB_AW_COMMENT_TARGET"] = fmt.Sprintf("%q", data.SafeOutputs.AddComments.Target)
 	}
 
-	// Build the github-script step using the helper with callbacks
-	steps := BuildGitHubScriptStepLinesWithCallbacks(
+	// Add custom environment variables from safe-outputs.env
+	for key, value := range c.getCustomSafeOutputEnvVars(data) {
+		env[key] = value
+	}
+
+	// Prepare with parameters
+	withParams := make(map[string]string)
+	// Get github-token if specified
+	var token string
+	if data.SafeOutputs.AddComments != nil {
+		token = data.SafeOutputs.AddComments.GitHubToken
+	}
+	if githubToken := c.getSafeOutputGitHubTokenForConfig(data, token); githubToken != "" {
+		withParams["github-token"] = githubToken
+	}
+
+	// Build the github-script step using the simpler helper
+	steps := BuildGitHubScriptStepLines(
 		"Add Issue Comment",
 		"add_comment",
-		env,
-		func(lines *[]string) {
-			// Add custom environment variables from safe-outputs.env
-			c.addCustomSafeOutputEnvVars(lines, data)
-		},
-		func(lines *[]string) {
-			// Add github-token if specified
-			var token string
-			if data.SafeOutputs.AddComments != nil {
-				token = data.SafeOutputs.AddComments.GitHubToken
-			}
-			c.addSafeOutputGitHubTokenForConfig(lines, data, token)
-		},
 		createCommentScript,
+		env,
+		withParams,
 	)
 
 	// Create outputs for the job
