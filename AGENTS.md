@@ -153,7 +153,7 @@ gh aw mcp inspect --inspector     # Web-based inspector
 ### AI Engine Support
 ```aw
 ---
-engine: claude  # Options: claude, codex, custom
+engine: copilot  # Options: copilot, claude, codex, custom
 tools:
   playwright:
     version: "v1.41.0"
