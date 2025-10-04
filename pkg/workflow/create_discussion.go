@@ -52,9 +52,7 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	env := make(map[string]string)
 
 	// Add all safe-output environment variables (standard, custom, staged)
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{
-		IncludeStaged: true,
-	})
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, nil)
 
 	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
 		env["GITHUB_AW_DISCUSSION_TITLE_PREFIX"] = fmt.Sprintf("%q", data.SafeOutputs.CreateDiscussions.TitlePrefix)

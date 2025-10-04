@@ -49,7 +49,6 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 type SafeOutputEnvConfig struct {
 	TargetValue   string // The target value (e.g., "*" or specific issue number)
 	TargetEnvName string // The environment variable name for target (e.g., "GITHUB_AW_COMMENT_TARGET")
-	IncludeStaged bool   // Whether to include the staged flag
 }
 
 // getCustomSafeOutputEnvVars adds all safe-output environment variables to the provided env map
@@ -57,7 +56,7 @@ type SafeOutputEnvConfig struct {
 // - Standard vars: GITHUB_AW_AGENT_OUTPUT, GITHUB_AW_WORKFLOW_NAME
 // - Custom vars from safe-outputs.env
 // - Optional target env var (if config.TargetValue and config.TargetEnvName are provided)
-// - Optional staged flag (if config.IncludeStaged is true)
+// - Staged flag (if trial mode is enabled or SafeOutputs.Staged is true)
 func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *WorkflowData, mainJobName string, config *SafeOutputEnvConfig) {
 	// Add standard safe-output environment variables
 	env["GITHUB_AW_AGENT_OUTPUT"] = fmt.Sprintf("${{ needs.%s.outputs.output }}", mainJobName)
@@ -76,11 +75,11 @@ func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *Workf
 		if config.TargetValue != "" && config.TargetEnvName != "" {
 			env[config.TargetEnvName] = fmt.Sprintf("%q", config.TargetValue)
 		}
+	}
 
-		// Add staged flag if needed
-		if config.IncludeStaged && (c.trialMode || (data.SafeOutputs != nil && data.SafeOutputs.Staged)) {
-			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
-		}
+	// Add staged flag if needed (always check, not conditional on config)
+	if c.trialMode || (data.SafeOutputs != nil && data.SafeOutputs.Staged) {
+		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
 	}
 }
 
