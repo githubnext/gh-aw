@@ -37,6 +37,22 @@ func NewClaudeEngine() *ClaudeEngine {
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := constants.DefaultClaudeCodeVersion
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	// Add npm package installation steps (includes Node.js setup)
+	npmSteps := GenerateNpmInstallSteps(
+		"@anthropic-ai/claude-code",
+		version,
+		"Install Claude Code CLI",
+		"claude",
+		true, // Include Node.js setup
+	)
+	steps = append(steps, npmSteps...)
+
 	// Check if network permissions are configured (only for Claude engine)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		// Generate network hook generator and settings generator
@@ -155,13 +171,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
 	// Build the command string with proper argument formatting
-	// Use version from engine config if provided, otherwise default to pinned version
-	version := constants.DefaultClaudeCodeVersion
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		version = workflowData.EngineConfig.Version
-	}
-
-	commandParts := []string{"npx", fmt.Sprintf("@anthropic-ai/claude-code@%s", version)}
+	// Use claude command directly (installed via npm install -g)
+	commandParts := []string{"claude"}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, "$(cat /tmp/aw-prompts/prompt.txt)")
 

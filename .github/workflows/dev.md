@@ -1,4 +1,5 @@
 ---
+name: Dev
 on: 
   workflow_dispatch:
     inputs:
@@ -11,7 +12,7 @@ on:
       - copilot*
       - detection
       - codex*
-engine: copilot
+engine: claude
 safe-outputs:
     staged: true
     create-issue:

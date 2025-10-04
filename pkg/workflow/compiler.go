@@ -1895,14 +1895,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Configure git credentials if git operations will be needed
 	// Note: Git configuration is handled by token in checkout step when in trial mode
 
-	// Add Node.js setup if the engine requires it
+	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
 
 	if err != nil {
 		return
 	}
 
-	// Add engine-specific installation steps
+	// Add engine-specific installation steps (includes Node.js setup for npm-based engines)
 	installSteps := engine.GetInstallationSteps(data)
 	for _, step := range installSteps {
 		for _, line := range step {

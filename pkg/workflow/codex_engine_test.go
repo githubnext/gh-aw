@@ -27,12 +27,12 @@ func TestCodexEngine(t *testing.T) {
 
 	// Test installation steps
 	steps := engine.GetInstallationSteps(&WorkflowData{})
-	expectedStepCount := 2 // Setup Node.js, Install Codex
+	expectedStepCount := 2 // Node.js setup + Install Codex
 	if len(steps) != expectedStepCount {
 		t.Errorf("Expected %d installation steps, got %d", expectedStepCount, len(steps))
 	}
 
-	// Verify first step is Setup Node.js
+	// Verify first step is Node.js setup
 	if len(steps) > 0 && len(steps[0]) > 0 {
 		if !strings.Contains(steps[0][0], "Setup Node.js") {
 			t.Errorf("Expected first step to contain 'Setup Node.js', got '%s'", steps[0][0])
@@ -92,19 +92,19 @@ func TestCodexEngine(t *testing.T) {
 func TestCodexEngineWithVersion(t *testing.T) {
 	engine := NewCodexEngine()
 
-	// Test installation steps without version
+	// Test installation steps without version (should use 'latest')
 	stepsNoVersion := engine.GetInstallationSteps(&WorkflowData{})
 	foundNoVersionInstall := false
 	for _, step := range stepsNoVersion {
 		for _, line := range step {
-			if strings.Contains(line, "npm install -g @openai/codex") && !strings.Contains(line, "@openai/codex@") {
+			if strings.Contains(line, "npm install -g @openai/codex@latest") {
 				foundNoVersionInstall = true
 				break
 			}
 		}
 	}
 	if !foundNoVersionInstall {
-		t.Error("Expected default npm install command without version")
+		t.Error("Expected npm install command with @latest when no version specified")
 	}
 
 	// Test installation steps with version
