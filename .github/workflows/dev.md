@@ -6,7 +6,7 @@ on:
       - copilot*
       - detection
       - codex*
-engine: codex
+engine: claude
 safe-outputs:
     staged: true
     create-issue:
