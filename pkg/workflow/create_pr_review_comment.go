@@ -38,9 +38,7 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 		token = data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken
 	}
-	if githubToken := c.getSafeOutputGitHubTokenForConfig(data, token); githubToken != "" {
-		withParams["github-token"] = githubToken
-	}
+	c.populateGitHubTokenForSafeOutput(withParams, data, token)
 
 	// Build the github-script step using the simpler helper
 	steps := BuildGitHubScriptStepLines(

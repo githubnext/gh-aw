@@ -14,6 +14,14 @@ func (c *Compiler) formatSafeOutputsRunsOn(safeOutputs *SafeOutputsConfig) strin
 	return fmt.Sprintf("runs-on: %s", safeOutputs.RunsOn)
 }
 
+// populateGitHubTokenForSafeOutput populates the "with" map with github-token if specified
+// Prefers per-config token over global safe-outputs token
+func (c *Compiler) populateGitHubTokenForSafeOutput(withParams map[string]string, data *WorkflowData, configToken string) {
+	if githubToken := c.getSafeOutputGitHubTokenForConfig(data, configToken); githubToken != "" {
+		withParams["github-token"] = githubToken
+	}
+}
+
 // HasSafeOutputsEnabled checks if any safe-outputs are enabled
 func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 	if safeOutputs == nil {
