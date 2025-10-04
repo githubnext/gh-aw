@@ -4,11 +4,11 @@ import (
 	"regexp"
 )
 
-// unquoteYAMLKey removes quotes from a YAML key at the start of a line.
+// UnquoteYAMLKey removes quotes from a YAML key at the start of a line.
 // This is necessary because yaml.Marshal adds quotes around reserved words like "on".
 // The function only replaces the quoted key if it appears at the start of a line
 // (optionally preceded by whitespace) to avoid replacing quoted strings in values.
-func unquoteYAMLKey(yamlStr string, key string) string {
+func UnquoteYAMLKey(yamlStr string, key string) string {
 	// Create a regex pattern that matches the quoted key at the start of a line
 	// Pattern: (start of line or newline) + (optional whitespace) + quoted key + colon
 	pattern := `(^|\n)([ \t]*)"` + regexp.QuoteMeta(key) + `":`
