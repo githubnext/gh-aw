@@ -200,6 +200,57 @@ func TestParseWorkflowSpec(t *testing.T) {
 	}
 }
 
+func TestWorkflowSpecString(t *testing.T) {
+	tests := []struct {
+		name     string
+		spec     *WorkflowSpec
+		expected string
+	}{
+		{
+			name: "with version",
+			spec: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "v1.0.0",
+				},
+				WorkflowPath: "workflows/ci-doctor.md",
+			},
+			expected: "owner/repo/workflows/ci-doctor.md@v1.0.0",
+		},
+		{
+			name: "without version",
+			spec: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "",
+				},
+				WorkflowPath: "workflows/helper.md",
+			},
+			expected: "owner/repo/workflows/helper.md",
+		},
+		{
+			name: "with branch",
+			spec: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "githubnext/agentics",
+					Version: "main",
+				},
+				WorkflowPath: "workflows/weekly-research.md",
+			},
+			expected: "githubnext/agentics/workflows/weekly-research.md@main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.spec.String()
+			if got != tt.expected {
+				t.Errorf("WorkflowSpec.String() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestParseSourceSpec(t *testing.T) {
 	tests := []struct {
 		name        string

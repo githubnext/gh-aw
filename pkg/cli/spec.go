@@ -22,9 +22,18 @@ type SourceSpec struct {
 // WorkflowSpec represents a parsed workflow specification
 type WorkflowSpec struct {
 	RepoSpec            // embedded RepoSpec for Repo and Version fields
-	Spec         string // e.g., "owner/repo/workflow@v1"
 	WorkflowPath string // e.g., "workflows/workflow-name.md"
 	WorkflowName string // e.g., "workflow-name"
+}
+
+// String returns the canonical string representation of the workflow spec
+// in the format "owner/repo/path[@version]"
+func (w *WorkflowSpec) String() string {
+	spec := w.Repo + "/" + w.WorkflowPath
+	if w.Version != "" {
+		spec += "@" + w.Version
+	}
+	return spec
 }
 
 // parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
@@ -100,7 +109,6 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 			Repo:    fmt.Sprintf("%s/%s", owner, repo),
 			Version: version,
 		},
-		Spec:         spec,
 		WorkflowPath: workflowPath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(workflowPath), ".md"),
 	}, nil

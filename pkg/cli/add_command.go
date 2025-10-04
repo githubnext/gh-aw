@@ -211,7 +211,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 		}
 
 		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, tracker); err != nil {
-			return fmt.Errorf("failed to add workflow '%s': %w", workflow.Spec, err)
+			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
 
@@ -333,7 +333,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
 func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, tracker *FileTracker) error {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.Spec)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
 		if force {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
