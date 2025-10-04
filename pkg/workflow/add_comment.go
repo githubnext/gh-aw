@@ -31,9 +31,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	}
 
 	// Add custom environment variables from safe-outputs.env
-	for key, value := range c.getCustomSafeOutputEnvVars(data) {
-		env[key] = value
-	}
+	c.getCustomSafeOutputEnvVars(env, data)
 
 	// Prepare with parameters
 	withParams := make(map[string]string)

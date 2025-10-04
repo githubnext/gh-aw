@@ -45,16 +45,14 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 	}
 }
 
-// getCustomSafeOutputEnvVars returns custom environment variables from safe-outputs.env as a map
+// getCustomSafeOutputEnvVars adds custom environment variables from safe-outputs.env to the provided env map
 // This is the non-callback version of addCustomSafeOutputEnvVars
-func (c *Compiler) getCustomSafeOutputEnvVars(data *WorkflowData) map[string]string {
-	env := make(map[string]string)
+func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *WorkflowData) {
 	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
 		for key, value := range data.SafeOutputs.Env {
 			env[key] = value
 		}
 	}
-	return env
 }
 
 // addSafeOutputGitHubToken adds github-token to the with section of github-script actions
