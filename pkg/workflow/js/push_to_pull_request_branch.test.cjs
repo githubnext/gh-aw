@@ -95,30 +95,40 @@ describe("push_to_pull_request_branch.cjs", () => {
     // Create fresh mock for exec
     mockExec = {
       exec: vi.fn().mockImplementation((command, args, options) => {
+        // For other commands, just return success
+        return Promise.resolve(0);
+      }),
+      getExecOutput: vi.fn().mockImplementation((command, args) => {
         // Handle the gh pr view command specifically
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           // Check if this is the JSON query for PR details
           if (args.includes("--json") && args.includes("headRefName,title,labels")) {
-            // Simulate the stdout listener being called with JSON PR data
-            if (options && options.listeners && options.listeners.stdout) {
-              const prData = JSON.stringify({
-                headRefName: "feature-branch",
-                title: "Test PR Title",
-                labels: ["bug", "enhancement"],
-              });
-              options.listeners.stdout(Buffer.from(prData + "\n"));
-            }
-            return Promise.resolve(0); // Return exit code directly, not an object
-          } else {
-            // For non-JSON gh pr view commands, return simple branch name
-            if (options && options.listeners && options.listeners.stdout) {
-              options.listeners.stdout(Buffer.from("feature-branch\n"));
-            }
-            return Promise.resolve(0);
+            const prData = JSON.stringify({
+              headRefName: "feature-branch",
+              title: "Test PR Title",
+              labels: ["bug", "enhancement"],
+            });
+            return Promise.resolve({
+              exitCode: 0,
+              stdout: prData + "\n",
+              stderr: "",
+            });
           }
         }
-        // For other commands, just return success
-        return Promise.resolve(0);
+        // Handle git rev-parse HEAD
+        if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+        // For other commands, return empty success
+        return Promise.resolve({
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
       }),
     };
 
@@ -479,19 +489,27 @@ const exec = global.exec;`
       mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data with matching title prefix
-      mockExec.exec.mockImplementation((command, args, options) => {
+      mockExec.getExecOutput.mockImplementation((command, args) => {
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           const prData = {
             headRefName: "feature-branch",
             title: "[bot] Add new feature",
             labels: [],
           };
-          if (options && options.listeners && options.listeners.stdout) {
-            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
-          }
-          return Promise.resolve(0);
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData),
+            stderr: "",
+          });
         }
-        return Promise.resolve(0);
+        if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       });
 
       // Execute the script
@@ -518,19 +536,27 @@ const exec = global.exec;`
       mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data without matching title prefix
-      mockExec.exec.mockImplementation((command, args, options) => {
+      mockExec.getExecOutput.mockImplementation((command, args) => {
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           const prData = {
             headRefName: "feature-branch",
             title: "Add new feature",
             labels: [],
           };
-          if (options && options.listeners && options.listeners.stdout) {
-            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
-          }
-          return Promise.resolve(0);
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData),
+            stderr: "",
+          });
         }
-        return Promise.resolve(0);
+        if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       });
 
       // Execute the script
@@ -556,19 +582,27 @@ const exec = global.exec;`
       mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data with required labels
-      mockExec.exec.mockImplementation((command, args, options) => {
+      mockExec.getExecOutput.mockImplementation((command, args) => {
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           const prData = {
             headRefName: "feature-branch",
             title: "Add new feature",
             labels: ["automation", "enhancement", "feature"],
           };
-          if (options && options.listeners && options.listeners.stdout) {
-            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
-          }
-          return Promise.resolve(0);
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData),
+            stderr: "",
+          });
         }
-        return Promise.resolve(0);
+        if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       });
 
       // Execute the script
@@ -595,19 +629,27 @@ const exec = global.exec;`
       mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data missing required labels
-      mockExec.exec.mockImplementation((command, args, options) => {
+      mockExec.getExecOutput.mockImplementation((command, args) => {
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           const prData = {
             headRefName: "feature-branch",
             title: "Add new feature",
             labels: ["feature"], // Missing "automation" and "enhancement"
           };
-          if (options && options.listeners && options.listeners.stdout) {
-            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
-          }
-          return Promise.resolve(0);
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData),
+            stderr: "",
+          });
         }
-        return Promise.resolve(0);
+        if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       });
 
       // Execute the script
@@ -636,19 +678,27 @@ const exec = global.exec;`
       mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data with both valid title and labels
-      mockExec.exec.mockImplementation((command, args, options) => {
+      mockExec.getExecOutput.mockImplementation((command, args) => {
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
           const prData = {
             headRefName: "feature-branch",
             title: "[automated] Add new feature",
             labels: ["bot", "feature", "enhancement"],
           };
-          if (options && options.listeners && options.listeners.stdout) {
-            options.listeners.stdout(Buffer.from(JSON.stringify(prData)));
-          }
-          return Promise.resolve(0);
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: JSON.stringify(prData),
+            stderr: "",
+          });
         }
-        return Promise.resolve(0);
+        if (command === "git" && args && args[0] === "rev-parse" && args[1] === "HEAD") {
+          return Promise.resolve({
+            exitCode: 0,
+            stdout: "abc123def456\n",
+            stderr: "",
+          });
+        }
+        return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
       });
 
       // Execute the script

@@ -176,24 +176,17 @@ async function main() {
 
   // Fetch the specific PR to get its head branch, title, and labels
   try {
-    let prInfo = "";
-    const prInfoRes = await exec.exec(
-      `gh`,
-      [
-        `pr`,
-        `view`,
-        `${pullNumber}`,
-        `--json`,
-        `headRefName,title,labels`,
-        `--jq`,
-        `{headRefName, title, labels: (.labels // [] | map(.name))}`,
-      ],
-      {
-        listeners: { stdout: data => (prInfo += data.toString()) },
-      }
-    );
-    if (!prInfoRes) {
-      const prData = JSON.parse(prInfo.trim());
+    const prInfoRes = await exec.getExecOutput(`gh`, [
+      `pr`,
+      `view`,
+      `${pullNumber}`,
+      `--json`,
+      `headRefName,title,labels`,
+      `--jq`,
+      `{headRefName, title, labels: (.labels // [] | map(.name))}`,
+    ]);
+    if (prInfoRes.exitCode === 0) {
+      const prData = JSON.parse(prInfoRes.stdout.trim());
       branchName = prData.headRefName;
       prTitle = prData.title || "";
       prLabels = prData.labels || [];
@@ -299,12 +292,9 @@ async function main() {
   }
 
   // Get commit SHA and push URL
-  let commitSha = "";
-  const commitShaRes = await exec.exec("git", ["rev-parse", "HEAD"], {
-    listeners: { stdout: data => (commitSha += data.toString()) },
-  });
-  if (commitShaRes) throw new Error("Failed to get commit SHA");
-  commitSha = commitSha.trim();
+  const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+  if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
+  const commitSha = commitShaRes.stdout.trim();
 
   // Get commit SHA and push URL
   const pushUrl = context.payload.repository
