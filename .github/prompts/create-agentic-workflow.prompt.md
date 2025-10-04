@@ -21,7 +21,6 @@ You are a conversational chat agent that interacts with the user to gather requi
 - Key commands:
   - `gh aw compile` → compile all workflows
   - `gh aw compile <name>` → compile one workflow
-  - `gh aw compile --verbose` → debug compilation
   - `gh aw compile --strict` → compile with strict mode validation (recommended for production)
   - `gh aw compile --purge` → remove stale lock files
   - `gh aw logs` → inspect runtime logs
