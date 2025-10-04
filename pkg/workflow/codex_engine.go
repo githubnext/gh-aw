@@ -62,12 +62,13 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 		version = workflowData.EngineConfig.Version
 	}
 
-	// Add npm package installation steps (cache + install)
+	// Add npm package installation steps (includes Node.js setup)
 	return GenerateNpmInstallSteps(
 		"@openai/codex",
 		version,
 		"Install Codex",
 		"codex",
+		true, // Include Node.js setup
 	)
 }
 

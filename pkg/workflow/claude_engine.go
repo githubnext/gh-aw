@@ -43,12 +43,13 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		version = workflowData.EngineConfig.Version
 	}
 
-	// Add npm package installation steps (cache + install)
+	// Add npm package installation steps (includes Node.js setup)
 	npmSteps := GenerateNpmInstallSteps(
 		"@anthropic-ai/claude-code",
 		version,
 		"Install Claude Code CLI",
 		"claude",
+		true, // Include Node.js setup
 	)
 	steps = append(steps, npmSteps...)
 

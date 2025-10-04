@@ -5,12 +5,24 @@ import (
 	"strings"
 )
 
+// GenerateNodeJsSetupStep creates a GitHub Actions step for setting up Node.js
+// Returns a step that installs Node.js v24
+func GenerateNodeJsSetupStep() GitHubActionStep {
+	return GitHubActionStep{
+		"      - name: Setup Node.js",
+		"        uses: actions/setup-node@v4",
+		"        with:",
+		"          node-version: '24'",
+	}
+}
+
 // addNodeJsSetupIfNeeded adds Node.js setup step if it's not already present in custom steps
 // and if the engine requires it (npm-based engines like claude, codex, copilot)
-func addNodeJsSetupIfNeeded(yaml *strings.Builder, data *WorkflowData) {
-	// Check if Node.js is already set up in custom steps
+// skipCustomStepsCheck: if true, always add Node.js setup (used for detection job)
+func addNodeJsSetupIfNeeded(yaml *strings.Builder, data *WorkflowData, skipCustomStepsCheck bool) {
+	// Check if Node.js is already set up in custom steps (unless we're skipping the check)
 	nodeJsAlreadySetup := false
-	if data.CustomSteps != "" {
+	if !skipCustomStepsCheck && data.CustomSteps != "" {
 		if strings.Contains(data.CustomSteps, "actions/setup-node") || strings.Contains(data.CustomSteps, "Setup Node.js") {
 			nodeJsAlreadySetup = true
 		}
@@ -31,15 +43,23 @@ func addNodeJsSetupIfNeeded(yaml *strings.Builder, data *WorkflowData) {
 //   - version: The package version to install
 //   - stepName: The name to display for the install step (e.g., "Install Claude Code CLI")
 //   - cacheKeyPrefix: The prefix for the cache key (unused, kept for API compatibility)
+//   - includeNodeSetup: If true, includes Node.js setup step before npm install
 //
-// Returns steps for installing the npm package (does NOT include Node.js setup or caching)
-func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string) []GitHubActionStep {
-	installCmd := fmt.Sprintf("npm install -g %s@%s", packageName, version)
+// Returns steps for installing the npm package (optionally with Node.js setup)
+func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string, includeNodeSetup bool) []GitHubActionStep {
+	var steps []GitHubActionStep
 
-	return []GitHubActionStep{
-		{
-			fmt.Sprintf("      - name: %s", stepName),
-			fmt.Sprintf("        run: %s", installCmd),
-		},
+	// Add Node.js setup if requested
+	if includeNodeSetup {
+		steps = append(steps, GenerateNodeJsSetupStep())
 	}
+
+	// Add npm install step
+	installCmd := fmt.Sprintf("npm install -g %s@%s", packageName, version)
+	steps = append(steps, GitHubActionStep{
+		fmt.Sprintf("      - name: %s", stepName),
+		fmt.Sprintf("        run: %s", installCmd),
+	})
+
+	return steps
 }

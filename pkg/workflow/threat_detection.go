@@ -3,7 +3,6 @@ package workflow
 import (
 	_ "embed"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -282,18 +281,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 
 	var steps []string
 
-	// Add Node.js setup step for npm-based engines (Claude, Copilot, Codex)
-	// Detection job doesn't have custom steps, so we always add Node.js setup
-	if slices.Contains(constants.AgenticEngines, engineSetting) {
-		steps = append(steps,
-			"      - name: Setup Node.js\n",
-			"        uses: actions/setup-node@v4\n",
-			"        with:\n",
-			"          node-version: '24'\n",
-		)
-	}
-
-	// Add engine installation steps
+	// Add engine installation steps (includes Node.js setup for npm-based engines)
 	installSteps := engine.GetInstallationSteps(threatDetectionData)
 	for _, step := range installSteps {
 		for _, line := range step {

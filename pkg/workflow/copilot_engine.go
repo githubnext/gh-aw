@@ -40,12 +40,13 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		version = workflowData.EngineConfig.Version
 	}
 
-	// Add npm package installation steps (cache + install)
+	// Add npm package installation steps (includes Node.js setup)
 	steps := GenerateNpmInstallSteps(
 		"@github/copilot",
 		version,
 		"Install GitHub Copilot CLI",
 		"copilot",
+		true, // Include Node.js setup
 	)
 
 	return steps

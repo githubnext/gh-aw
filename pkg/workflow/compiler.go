@@ -1902,10 +1902,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		return
 	}
 
-	// Add Node.js setup if needed
-	addNodeJsSetupIfNeeded(yaml, data)
-
-	// Add engine-specific installation steps
+	// Add engine-specific installation steps (includes Node.js setup for npm-based engines)
 	installSteps := engine.GetInstallationSteps(data)
 	for _, step := range installSteps {
 		for _, line := range step {
