@@ -640,12 +640,12 @@ describe("create_pull_request.cjs", () => {
     const pushCallsForTest = global.exec.exec.mock.calls.filter(call => call[0] && call[0].includes("git push"));
     expect(pushCallsForTest.length).toBeGreaterThan(0);
 
-    // Verify fallback issue was created with push error details
+    // Verify fallback issue was created with artifact link
     expect(mockDependencies.github.rest.issues.create).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",
       title: "Push will fail",
-      body: expect.stringMatching(/Git push will fail[\s\S]*Push Error.*Permission denied[\s\S]*aw\.patch/),
+      body: expect.stringMatching(/Git push will fail[\s\S]*git push operation failed[\s\S]*aw\.patch/),
       labels: ["automation"],
     });
 

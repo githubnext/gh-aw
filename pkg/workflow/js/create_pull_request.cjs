@@ -312,8 +312,6 @@ async function main() {
 
 **⚠️ Note:** This was originally intended as a pull request, but the git push operation failed.
 
-**Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-
 **Workflow Run:** [View run details and download patch artifact](${runUrl})
 
 The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.`;
