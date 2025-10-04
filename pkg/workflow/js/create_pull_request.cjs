@@ -276,15 +276,10 @@ async function main() {
       // Check if remote branch already exists (optional precheck)
       let remoteBranchExists = false;
       try {
-        await exec.exec(`git ls-remote --heads origin ${branchName}`, [], {
-          listeners: {
-            stdout: data => {
-              if (data.toString().trim()) {
-                remoteBranchExists = true;
-              }
-            },
-          },
-        });
+        const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+        if (stdout.trim()) {
+          remoteBranchExists = true;
+        }
       } catch (checkError) {
         core.debug(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
       }

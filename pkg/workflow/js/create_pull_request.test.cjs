@@ -37,6 +37,7 @@ describe("create_pull_request.cjs", () => {
     // Set up global exec mock
     global.exec = {
       exec: vi.fn().mockResolvedValue(0), // Return exit code directly
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
     };
 
     // Set up mock dependencies
@@ -757,15 +758,19 @@ describe("create_pull_request.cjs", () => {
     });
 
     // Mock git commands
-    global.exec.exec = vi.fn().mockImplementation(async (cmd, args, options) => {
+    global.exec.getExecOutput = vi.fn().mockImplementation(async cmd => {
       // git ls-remote should indicate remote branch exists
       if (typeof cmd === "string" && cmd.includes("git ls-remote")) {
-        if (options && options.listeners && options.listeners.stdout) {
-          options.listeners.stdout(Buffer.from("abc123 refs/heads/test-workflow-1234567890abcdef\n"));
-        }
-        return 0;
+        return {
+          exitCode: 0,
+          stdout: "abc123 refs/heads/test-workflow-1234567890abcdef\n",
+          stderr: "",
+        };
       }
+      return { exitCode: 0, stdout: "", stderr: "" };
+    });
 
+    global.exec.exec = vi.fn().mockImplementation(async (cmd, args, options) => {
       // git branch -m should succeed
       if (typeof cmd === "string" && cmd.includes("git branch -m")) {
         return 0;
