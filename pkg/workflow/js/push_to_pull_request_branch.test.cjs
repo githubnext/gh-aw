@@ -94,10 +94,7 @@ describe("push_to_pull_request_branch.cjs", () => {
 
     // Create fresh mock for exec
     mockExec = {
-      exec: vi.fn().mockImplementation((command, args, options) => {
-        // For other commands, just return success
-        return Promise.resolve(0);
-      }),
+      exec: vi.fn().mockResolvedValue(0), // For commands that don't read output
       getExecOutput: vi.fn().mockImplementation((command, args) => {
         // Handle the gh pr view command specifically
         if (command === "gh" && args && args[0] === "pr" && args[1] === "view") {
