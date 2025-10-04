@@ -414,18 +414,19 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	// Parse source spec
-	repo, path, currentRef, err := parseSourceSpec(wf.SourceSpec)
+	sourceSpec, err := parseSourceSpec(wf.SourceSpec)
 	if err != nil {
 		return fmt.Errorf("failed to parse source spec: %w", err)
 	}
 
 	// If no ref specified, use default branch
+	currentRef := sourceSpec.Ref
 	if currentRef == "" {
 		currentRef = "main"
 	}
 
 	// Resolve latest ref
-	latestRef, err := resolveLatestRef(repo, currentRef, allowMajor, verbose)
+	latestRef, err := resolveLatestRef(sourceSpec.Repo, currentRef, allowMajor, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to resolve latest ref: %w", err)
 	}
@@ -443,10 +444,10 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 
 	// Download the latest version
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Downloading latest version from %s/%s@%s\n", repo, path, latestRef)
+		fmt.Fprintf(os.Stderr, "Downloading latest version from %s/%s@%s\n", sourceSpec.Repo, sourceSpec.Path, latestRef)
 	}
 
-	newContent, err := downloadWorkflowContent(repo, path, latestRef, verbose)
+	newContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, latestRef, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to download workflow: %w", err)
 	}
@@ -529,12 +530,12 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 	}
 
 	// Update source field with new ref
-	repo, path, _, err := parseSourceSpec(oldSourceSpec)
+	sourceSpec, err := parseSourceSpec(oldSourceSpec)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse source spec: %w", err)
 	}
 
-	newSourceSpec := fmt.Sprintf("%s/%s@%s", repo, path, newRef)
+	newSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRef)
 	newResult.Frontmatter["source"] = newSourceSpec
 
 	// Reconstruct the workflow file

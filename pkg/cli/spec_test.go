@@ -63,7 +63,7 @@ func TestParseRepoSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, version, err := parseRepoSpec(tt.repoSpec)
+			spec, err := parseRepoSpec(tt.repoSpec)
 
 			if tt.wantErr {
 				if err == nil {
@@ -78,11 +78,11 @@ func TestParseRepoSpec(t *testing.T) {
 				return
 			}
 
-			if repo != tt.wantRepo {
-				t.Errorf("parseRepoSpec() repo = %q, want %q", repo, tt.wantRepo)
+			if spec.Repo != tt.wantRepo {
+				t.Errorf("parseRepoSpec() repo = %q, want %q", spec.Repo, tt.wantRepo)
 			}
-			if version != tt.wantVersion {
-				t.Errorf("parseRepoSpec() version = %q, want %q", version, tt.wantVersion)
+			if spec.Version != tt.wantVersion {
+				t.Errorf("parseRepoSpec() version = %q, want %q", spec.Version, tt.wantVersion)
 			}
 		})
 	}
@@ -258,7 +258,7 @@ func TestParseSourceSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, path, ref, err := parseSourceSpec(tt.source)
+			spec, err := parseSourceSpec(tt.source)
 
 			if tt.wantErr {
 				if err == nil {
@@ -273,14 +273,14 @@ func TestParseSourceSpec(t *testing.T) {
 				return
 			}
 
-			if repo != tt.wantRepo {
-				t.Errorf("parseSourceSpec() repo = %q, want %q", repo, tt.wantRepo)
+			if spec.Repo != tt.wantRepo {
+				t.Errorf("parseSourceSpec() repo = %q, want %q", spec.Repo, tt.wantRepo)
 			}
-			if path != tt.wantPath {
-				t.Errorf("parseSourceSpec() path = %q, want %q", path, tt.wantPath)
+			if spec.Path != tt.wantPath {
+				t.Errorf("parseSourceSpec() path = %q, want %q", spec.Path, tt.wantPath)
 			}
-			if ref != tt.wantRef {
-				t.Errorf("parseSourceSpec() ref = %q, want %q", ref, tt.wantRef)
+			if spec.Ref != tt.wantRef {
+				t.Errorf("parseSourceSpec() ref = %q, want %q", spec.Ref, tt.wantRef)
 			}
 		})
 	}

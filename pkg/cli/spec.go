@@ -6,6 +6,19 @@ import (
 	"strings"
 )
 
+// RepoSpec represents a parsed repository specification
+type RepoSpec struct {
+	Repo    string // e.g., "owner/repo"
+	Version string // optional version/tag/SHA/branch
+}
+
+// SourceSpec represents a parsed source specification from workflow frontmatter
+type SourceSpec struct {
+	Repo string // e.g., "owner/repo"
+	Path string // e.g., "workflows/workflow-name.md"
+	Ref  string // optional ref (version/tag/SHA/branch)
+}
+
 // WorkflowSpec represents a parsed workflow specification
 type WorkflowSpec struct {
 	Spec         string // e.g., "owner/repo/workflow@v1"
@@ -16,21 +29,25 @@ type WorkflowSpec struct {
 }
 
 // parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
-func parseRepoSpec(repoSpec string) (repo, version string, err error) {
+func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 	parts := strings.SplitN(repoSpec, "@", 2)
-	repo = parts[0]
+	repo := parts[0]
 
 	// Validate repository format (org/repo)
 	repoParts := strings.Split(repo, "/")
 	if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
-		return "", "", fmt.Errorf("repository must be in format 'org/repo'")
+		return nil, fmt.Errorf("repository must be in format 'org/repo'")
+	}
+
+	spec := &RepoSpec{
+		Repo: repo,
 	}
 
 	if len(parts) == 2 {
-		version = parts[1]
+		spec.Version = parts[1]
 	}
 
-	return repo, version, nil
+	return spec, nil
 }
 
 // parseWorkflowSpec parses a workflow specification in the new format
@@ -90,24 +107,27 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 // parseSourceSpec parses a source specification like "owner/repo/path@ref"
 // This is used for parsing the source field from workflow frontmatter
-func parseSourceSpec(source string) (repo, path, ref string, err error) {
+func parseSourceSpec(source string) (*SourceSpec, error) {
 	// Split on @ to separate ref
 	parts := strings.SplitN(source, "@", 2)
 	pathPart := parts[0]
-	if len(parts) == 2 {
-		ref = parts[1]
-	}
 
 	// Parse path: owner/repo/path/to/workflow.md
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
-		return "", "", "", fmt.Errorf("invalid source format: must be owner/repo/path[@ref]")
+		return nil, fmt.Errorf("invalid source format: must be owner/repo/path[@ref]")
 	}
 
-	repo = fmt.Sprintf("%s/%s", slashParts[0], slashParts[1])
-	path = strings.Join(slashParts[2:], "/")
+	spec := &SourceSpec{
+		Repo: fmt.Sprintf("%s/%s", slashParts[0], slashParts[1]),
+		Path: strings.Join(slashParts[2:], "/"),
+	}
 
-	return repo, path, ref, nil
+	if len(parts) == 2 {
+		spec.Ref = parts[1]
+	}
+
+	return spec, nil
 }
 
 // buildSourceString builds the source string in the format owner/repo/path@ref
