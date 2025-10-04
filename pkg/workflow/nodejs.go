@@ -35,7 +35,7 @@ func addNodeJsSetupIfNeeded(yaml *strings.Builder, data *WorkflowData) {
 // Returns steps for installing the npm package (does NOT include Node.js setup or caching)
 func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string) []GitHubActionStep {
 	installCmd := fmt.Sprintf("npm install -g %s@%s", packageName, version)
-	
+
 	return []GitHubActionStep{
 		{
 			fmt.Sprintf("      - name: %s", stepName),
