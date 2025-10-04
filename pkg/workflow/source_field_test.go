@@ -172,9 +172,9 @@ func TestSourceFieldExtraction(t *testing.T) {
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name       string
+		name        string
 		frontmatter map[string]any
-		expected   string
+		expected    string
 	}{
 		{
 			name: "source_field_present",
