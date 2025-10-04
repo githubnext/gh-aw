@@ -310,11 +310,23 @@ async function main() {
 
 ---
 
-**⚠️ Note:** This was originally intended as a pull request, but the git push operation failed.
+> [!NOTE]
+> This was originally intended as a pull request, but the git push operation failed.
+>
+> **Workflow Run:** [View run details and download patch artifact](${runUrl})
+>
+> The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
 
-**Workflow Run:** [View run details and download patch artifact](${runUrl})
+To apply the patch locally:
 
-The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.`;
+\`\`\`sh
+# Download the artifact from the workflow run
+gh run download ${runId} -n aw.patch
+
+# Apply the patch
+git am aw.patch
+\`\`\`
+`;
 
       try {
         const { data: issue } = await github.rest.issues.create({
