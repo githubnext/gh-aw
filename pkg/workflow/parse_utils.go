@@ -45,10 +45,20 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 	}
 }
 
-// getCustomSafeOutputEnvVars adds custom environment variables from safe-outputs.env to the provided env map
-// This is the non-callback version of addCustomSafeOutputEnvVars
-// It also adds the standard GITHUB_AW_AGENT_OUTPUT and GITHUB_AW_WORKFLOW_NAME variables
-func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *WorkflowData, mainJobName string) {
+// SafeOutputEnvConfig contains configuration for safe-output environment variables
+type SafeOutputEnvConfig struct {
+	TargetValue   string // The target value (e.g., "*" or specific issue number)
+	TargetEnvName string // The environment variable name for target (e.g., "GITHUB_AW_COMMENT_TARGET")
+	IncludeStaged bool   // Whether to include the staged flag
+}
+
+// getCustomSafeOutputEnvVars adds all safe-output environment variables to the provided env map
+// This includes:
+// - Standard vars: GITHUB_AW_AGENT_OUTPUT, GITHUB_AW_WORKFLOW_NAME
+// - Custom vars from safe-outputs.env
+// - Optional target env var (if config.TargetValue and config.TargetEnvName are provided)
+// - Optional staged flag (if config.IncludeStaged is true)
+func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *WorkflowData, mainJobName string, config *SafeOutputEnvConfig) {
 	// Add standard safe-output environment variables
 	env["GITHUB_AW_AGENT_OUTPUT"] = fmt.Sprintf("${{ needs.%s.outputs.output }}", mainJobName)
 	env["GITHUB_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
@@ -57,6 +67,19 @@ func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *Workf
 	if data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0 {
 		for key, value := range data.SafeOutputs.Env {
 			env[key] = value
+		}
+	}
+
+	// Add optional configuration
+	if config != nil {
+		// Add target environment variable if configured
+		if config.TargetValue != "" && config.TargetEnvName != "" {
+			env[config.TargetEnvName] = fmt.Sprintf("%q", config.TargetValue)
+		}
+
+		// Add staged flag if needed
+		if config.IncludeStaged && (c.trialMode || (data.SafeOutputs != nil && data.SafeOutputs.Staged)) {
+			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
 		}
 	}
 }
@@ -89,20 +112,6 @@ func (c *Compiler) getSafeOutputGitHubTokenForConfig(data *WorkflowData, configT
 		token = data.SafeOutputs.GitHubToken
 	}
 	return token
-}
-
-// addTargetEnvIfConfigured adds the target environment variable if configured
-func (c *Compiler) addTargetEnvIfConfigured(env map[string]string, target string, envVarName string) {
-	if target != "" {
-		env[envVarName] = fmt.Sprintf("%q", target)
-	}
-}
-
-// addStagedEnvIfNeeded adds the staged flag environment variable if needed
-func (c *Compiler) addStagedEnvIfNeeded(env map[string]string, data *WorkflowData) {
-	if c.trialMode || data.SafeOutputs.Staged {
-		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
-	}
 }
 
 // filterMapKeys creates a new map excluding the specified keys

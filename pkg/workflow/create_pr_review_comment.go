@@ -20,14 +20,15 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Prepare base environment variables
 	env := make(map[string]string)
 
-	// Add standard environment variables and custom environment variables from safe-outputs.env
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName)
+	// Add all safe-output environment variables (standard, custom, target)
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{
+		TargetValue:   data.SafeOutputs.CreatePullRequestReviewComments.Target,
+		TargetEnvName: "GITHUB_AW_PR_REVIEW_COMMENT_TARGET",
+	})
 
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
 		env["GITHUB_AW_PR_REVIEW_COMMENT_SIDE"] = fmt.Sprintf("%q", data.SafeOutputs.CreatePullRequestReviewComments.Side)
 	}
-
-	c.addTargetEnvIfConfigured(env, data.SafeOutputs.CreatePullRequestReviewComments.Target, "GITHUB_AW_PR_REVIEW_COMMENT_TARGET")
 
 	// Prepare with parameters
 	withParams := make(map[string]string)

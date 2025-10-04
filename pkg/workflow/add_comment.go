@@ -24,11 +24,11 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Prepare base environment variables
 	env := make(map[string]string)
 
-	// Add standard environment variables and custom environment variables from safe-outputs.env
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName)
-
-	// Pass the comment target configuration
-	c.addTargetEnvIfConfigured(env, data.SafeOutputs.AddComments.Target, "GITHUB_AW_COMMENT_TARGET")
+	// Add all safe-output environment variables (standard, custom, target)
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{
+		TargetValue:   data.SafeOutputs.AddComments.Target,
+		TargetEnvName: "GITHUB_AW_COMMENT_TARGET",
+	})
 
 	// Prepare with parameters
 	withParams := make(map[string]string)
