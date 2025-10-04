@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Optional workflow description that is rendered as a comment in the generated GitHub Actions YAML file (.lock.yml)"
     },
+    "source": {
+      "type": "string",
+      "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo@ref/path (e.g., githubnext/agentics@v1.0.0/workflows/ci-doctor.md). Rendered as a comment in the generated lock file."
+    },
     "on": {
       "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "oneOf": [

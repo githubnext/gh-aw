@@ -111,6 +111,7 @@ type WorkflowData struct {
 	TrialMode          bool   // whether the workflow is running in trial mode
 	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
 	Description        string // optional description rendered as comment in lock file
+	Source             string // optional source field (owner/repo@ref/path) rendered as comment in lock file
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
@@ -615,6 +616,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		Name:               workflowName,
 		FrontmatterName:    frontmatterName,
 		Description:        c.extractDescription(result.Frontmatter),
+		Source:             c.extractSource(result.Frontmatter),
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
@@ -744,6 +746,21 @@ func (c *Compiler) extractIfCondition(frontmatter map[string]any) string {
 // extractDescription extracts the description field from frontmatter
 func (c *Compiler) extractDescription(frontmatter map[string]any) string {
 	value, exists := frontmatter["description"]
+	if !exists {
+		return ""
+	}
+
+	// Convert the value to string
+	if strValue, ok := value.(string); ok {
+		return strings.TrimSpace(strValue)
+	}
+
+	return ""
+}
+
+// extractSource extracts the source field from frontmatter
+func (c *Compiler) extractSource(frontmatter map[string]any) string {
+	value, exists := frontmatter["source"]
 	if !exists {
 		return ""
 	}
@@ -1328,6 +1345,12 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		for _, line := range descriptionLines {
 			yaml.WriteString(fmt.Sprintf("# %s\n", strings.TrimSpace(line)))
 		}
+	}
+
+	// Add source comment if provided
+	if data.Source != "" {
+		yaml.WriteString("#\n")
+		yaml.WriteString(fmt.Sprintf("# Source: %s\n", data.Source))
 	}
 
 	// Add stop-time comment if configured
