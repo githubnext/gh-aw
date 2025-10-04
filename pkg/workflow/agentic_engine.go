@@ -146,32 +146,6 @@ func (e *BaseEngine) GetVersionCommand() string {
 	return ""
 }
 
-// GenerateNpmInstallSteps creates GitHub Actions steps for installing an npm package globally with caching
-// Parameters:
-//   - packageName: The npm package name (e.g., "@anthropic-ai/claude-code")
-//   - version: The package version to install
-//   - stepName: The name to display for the install step (e.g., "Install Claude Code CLI")
-//   - cacheKeyPrefix: The prefix for the cache key (e.g., "claude")
-//
-// Returns steps for caching and installing the npm package (does NOT include Node.js setup)
-func GenerateNpmInstallSteps(packageName, version, stepName, cacheKeyPrefix string) []GitHubActionStep {
-	installCmd := fmt.Sprintf("npm install -g %s@%s", packageName, version)
-	
-	return []GitHubActionStep{
-		{
-			"      - name: Cache npm global packages",
-			"        uses: actions/cache@v4",
-			"        with:",
-			"          path: /usr/local/lib/node_modules",
-			fmt.Sprintf("          key: ${{ runner.os }}-npm-%s-%s", cacheKeyPrefix, version),
-		},
-		{
-			fmt.Sprintf("      - name: %s", stepName),
-			fmt.Sprintf("        run: %s", installCmd),
-		},
-	}
-}
-
 // EngineRegistry manages available agentic engines
 type EngineRegistry struct {
 	engines map[string]CodingAgentEngine
