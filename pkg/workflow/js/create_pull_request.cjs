@@ -321,7 +321,7 @@ To apply the patch locally:
 
 \`\`\`sh
 # Download the artifact from the workflow run
-gh run download ${context.runId} -n aw.patch
+gh run download ${runId} -n aw.patch
 
 # Apply the patch
 git am aw.patch
