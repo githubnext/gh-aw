@@ -19,17 +19,15 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 
 	// Prepare base environment variables
 	env := make(map[string]string)
-	env["GITHUB_AW_AGENT_OUTPUT"] = fmt.Sprintf("${{ needs.%s.outputs.output }}", mainJobName)
-	env["GITHUB_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
+
+	// Add standard environment variables and custom environment variables from safe-outputs.env
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName)
+
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
 		env["GITHUB_AW_PR_REVIEW_COMMENT_SIDE"] = fmt.Sprintf("%q", data.SafeOutputs.CreatePullRequestReviewComments.Side)
 	}
-	if data.SafeOutputs.CreatePullRequestReviewComments.Target != "" {
-		env["GITHUB_AW_PR_REVIEW_COMMENT_TARGET"] = fmt.Sprintf("%q", data.SafeOutputs.CreatePullRequestReviewComments.Target)
-	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.getCustomSafeOutputEnvVars(env, data)
+	c.addTargetEnvIfConfigured(env, data.SafeOutputs.CreatePullRequestReviewComments.Target, "GITHUB_AW_PR_REVIEW_COMMENT_TARGET")
 
 	// Prepare with parameters
 	withParams := make(map[string]string)

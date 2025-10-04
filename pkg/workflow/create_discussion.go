@@ -50,21 +50,19 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 
 	// Prepare base environment variables
 	env := make(map[string]string)
-	env["GITHUB_AW_AGENT_OUTPUT"] = fmt.Sprintf("${{ needs.%s.outputs.output }}", mainJobName)
-	env["GITHUB_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
+
+	// Add standard environment variables and custom environment variables from safe-outputs.env
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName)
+
 	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
 		env["GITHUB_AW_DISCUSSION_TITLE_PREFIX"] = fmt.Sprintf("%q", data.SafeOutputs.CreateDiscussions.TitlePrefix)
 	}
 	if data.SafeOutputs.CreateDiscussions.CategoryId != "" {
 		env["GITHUB_AW_DISCUSSION_CATEGORY_ID"] = fmt.Sprintf("%q", data.SafeOutputs.CreateDiscussions.CategoryId)
 	}
-	// Pass the staged flag if it's set to true
-	if c.trialMode || data.SafeOutputs.Staged {
-		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
-	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.getCustomSafeOutputEnvVars(env, data)
+	// Pass the staged flag if it's set to true
+	c.addStagedEnvIfNeeded(env, data)
 
 	// Prepare with parameters
 	withParams := make(map[string]string)
