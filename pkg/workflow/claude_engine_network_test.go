@@ -17,8 +17,8 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		}
 
 		steps := engine.GetInstallationSteps(workflowData)
-		if len(steps) != 2 {
-			t.Errorf("Expected 2 installation steps without network permissions (cache, install), got %d", len(steps))
+		if len(steps) != 1 {
+			t.Errorf("Expected 1 installation step without network permissions (install), got %d", len(steps))
 		}
 	})
 
@@ -34,26 +34,26 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		}
 
 		steps := engine.GetInstallationSteps(workflowData)
-		if len(steps) != 4 {
-			t.Errorf("Expected 4 installation steps with network permissions (cache, install, settings, hook), got %d", len(steps))
+		if len(steps) != 3 {
+			t.Errorf("Expected 3 installation steps with network permissions (install, settings, hook), got %d", len(steps))
 		}
 
-		// Check settings step (3rd step, index 2)
-		settingsStepStr := strings.Join(steps[2], "\n")
+		// Check settings step (2nd step, index 1)
+		settingsStepStr := strings.Join(steps[1], "\n")
 		if !strings.Contains(settingsStepStr, "Generate Claude Settings") {
-			t.Error("Third step should generate Claude settings")
+			t.Error("Second step should generate Claude settings")
 		}
 		if !strings.Contains(settingsStepStr, "/tmp/.claude/settings.json") {
-			t.Error("Third step should create settings file")
+			t.Error("Second step should create settings file")
 		}
 
-		// Check hook step (4th step, index 3)
-		hookStepStr := strings.Join(steps[3], "\n")
+		// Check hook step (3rd step, index 2)
+		hookStepStr := strings.Join(steps[2], "\n")
 		if !strings.Contains(hookStepStr, "Generate Network Permissions Hook") {
-			t.Error("Fourth step should generate network permissions hook")
+			t.Error("Third step should generate network permissions hook")
 		}
 		if !strings.Contains(hookStepStr, ".claude/hooks/network_permissions.py") {
-			t.Error("Fourth step should create hook file")
+			t.Error("Third step should create hook file")
 		}
 		if !strings.Contains(hookStepStr, "example.com") {
 			t.Error("Hook should contain allowed domain example.com")
@@ -186,12 +186,12 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 
 		// Get installation steps
 		steps := engine.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})
-		if len(steps) != 4 {
-			t.Fatalf("Expected 4 installation steps (cache, install, settings, hook), got %d", len(steps))
+		if len(steps) != 3 {
+			t.Fatalf("Expected 3 installation steps (install, settings, hook), got %d", len(steps))
 		}
 
-		// Verify hook generation step (fourth step, index 3)
-		hookStep := strings.Join(steps[3], "\n")
+		// Verify hook generation step (third step, index 2)
+		hookStep := strings.Join(steps[2], "\n")
 		expectedDomains := []string{"api.github.com", "*.example.com", "trusted.org"}
 		for _, domain := range expectedDomains {
 			if !strings.Contains(hookStep, domain) {

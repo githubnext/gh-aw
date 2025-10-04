@@ -314,11 +314,6 @@ jobs:
           go-version-file: go.mod
       - name: Dev dependencies
         run: make deps-dev
-      - name: Cache npm global packages
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/lib/node_modules
-          key: ${{ runner.os }}-npm-copilot-latest
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@latest
       - name: Setup Safe Outputs Collector MCP
@@ -2540,11 +2535,6 @@ jobs:
         run: |
           mkdir -p /tmp/threat-detection
           touch /tmp/threat-detection/detection.log
-      - name: Cache npm global packages
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/lib/node_modules
-          key: ${{ runner.os }}-npm-copilot-latest
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@latest
       - name: Execute GitHub Copilot CLI

@@ -27,22 +27,15 @@ func TestCodexEngine(t *testing.T) {
 
 	// Test installation steps
 	steps := engine.GetInstallationSteps(&WorkflowData{})
-	expectedStepCount := 2 // Cache, Install Codex
+	expectedStepCount := 1 // Install Codex
 	if len(steps) != expectedStepCount {
-		t.Errorf("Expected %d installation steps, got %d", expectedStepCount, len(steps))
+		t.Errorf("Expected %d installation step, got %d", expectedStepCount, len(steps))
 	}
 
-	// Verify first step is Cache npm global packages
+	// Verify first step is Install Codex
 	if len(steps) > 0 && len(steps[0]) > 0 {
-		if !strings.Contains(steps[0][0], "Cache npm global packages") {
-			t.Errorf("Expected first step to contain 'Cache npm global packages', got '%s'", steps[0][0])
-		}
-	}
-
-	// Verify second step is Install Codex
-	if len(steps) > 1 && len(steps[1]) > 0 {
-		if !strings.Contains(steps[1][0], "Install Codex") {
-			t.Errorf("Expected second step to contain 'Install Codex', got '%s'", steps[1][0])
+		if !strings.Contains(steps[0][0], "Install Codex") {
+			t.Errorf("Expected first step to contain 'Install Codex', got '%s'", steps[0][0])
 		}
 	}
 

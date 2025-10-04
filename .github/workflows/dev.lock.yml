@@ -120,11 +120,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Cache npm global packages
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/lib/node_modules
-          key: ${{ runner.os }}-npm-claude-2.0.1
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@2.0.1
       - name: Generate Claude Settings
@@ -2515,11 +2510,6 @@ jobs:
         run: |
           mkdir -p /tmp/threat-detection
           touch /tmp/threat-detection/detection.log
-      - name: Cache npm global packages
-        uses: actions/cache@v4
-        with:
-          path: /usr/local/lib/node_modules
-          key: ${{ runner.os }}-npm-claude-2.0.1
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@2.0.1
       - name: Execute Claude Code CLI
