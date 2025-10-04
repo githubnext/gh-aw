@@ -20,40 +20,31 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	}
 
 	var steps []string
-	steps = append(steps, "      - name: Update Issue\n")
-	steps = append(steps, "        id: update_issue\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
 
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Build environment variables
+	env := make(map[string]string)
+	envConfig := &SafeOutputEnvConfig{
+		TargetValue:   data.SafeOutputs.UpdateIssues.Target,
+		TargetEnvName: "GITHUB_AW_UPDATE_TARGET",
+	}
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, envConfig)
 
 	// Pass the configuration flags
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil))
+	env["GITHUB_AW_UPDATE_STATUS"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Status != nil)
+	env["GITHUB_AW_UPDATE_TITLE"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Title != nil)
+	env["GITHUB_AW_UPDATE_BODY"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Body != nil)
 
-	// Pass the target configuration
-	if data.SafeOutputs.UpdateIssues.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
-	}
-
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
-	var token string
+	// Build with parameters
+	withParams := make(map[string]string)
+	token := ""
 	if data.SafeOutputs.UpdateIssues != nil {
 		token = data.SafeOutputs.UpdateIssues.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
+	c.populateGitHubTokenForSafeOutput(withParams, data, token)
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(updateIssueScript)
-	steps = append(steps, formattedScript...)
+	// Build github-script step
+	stepLines := BuildGitHubScriptStepLines("Update Issue", "update_issue", updateIssueScript, env, withParams)
+	steps = append(steps, stepLines...)
 
 	// Create outputs for the job
 	outputs := map[string]string{

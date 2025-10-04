@@ -34,45 +34,37 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	}
 
 	var steps []string
-	steps = append(steps, "      - name: Add Labels\n")
-	steps = append(steps, "        id: add_labels\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
 
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Build environment variables
+	env := make(map[string]string)
+	targetValue := ""
+	targetEnvName := "GITHUB_AW_LABELS_TARGET"
+	if data.SafeOutputs.AddLabels != nil {
+		targetValue = data.SafeOutputs.AddLabels.Target
+	}
+	envConfig := &SafeOutputEnvConfig{
+		TargetValue:   targetValue,
+		TargetEnvName: targetEnvName,
+	}
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, envConfig)
+
 	// Pass the allowed labels list (empty string if no restrictions)
 	allowedLabelsStr := strings.Join(allowedLabels, ",")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_ALLOWED: %q\n", allowedLabelsStr))
+	env["GITHUB_AW_LABELS_ALLOWED"] = fmt.Sprintf("%q", allowedLabelsStr)
 	// Pass the max limit
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
+	env["GITHUB_AW_LABELS_MAX_COUNT"] = fmt.Sprintf("%d", maxCount)
 
-	// Pass the target configuration
-	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
-	}
-
-	// Pass the staged flag if it's set to true
-	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
-
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
-	var token string
+	// Build with parameters
+	withParams := make(map[string]string)
+	token := ""
 	if data.SafeOutputs.AddLabels != nil {
 		token = data.SafeOutputs.AddLabels.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
+	c.populateGitHubTokenForSafeOutput(withParams, data, token)
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(addLabelsScript)
-	steps = append(steps, formattedScript...)
+	// Build github-script step
+	stepLines := BuildGitHubScriptStepLines("Add Labels", "add_labels", addLabelsScript, env, withParams)
+	steps = append(steps, stepLines...)
 
 	// Create outputs for the job
 	outputs := map[string]string{

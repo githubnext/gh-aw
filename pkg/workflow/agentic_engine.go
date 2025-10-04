@@ -2,11 +2,8 @@ package workflow
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
-
-	"github.com/goccy/go-yaml"
 )
 
 // GitHubActionStep represents the YAML lines for a single step in a GitHub Actions workflow
@@ -272,68 +269,7 @@ func GetCopilotAgentPlaywrightTools() []any {
 // ConvertStepToYAML converts a step map to YAML string with proper indentation
 // This is a shared utility function used by all engines and the compiler
 func ConvertStepToYAML(stepMap map[string]any) (string, error) {
-	// Define the priority field order: name, id, if, run, uses, env, with, ...
-	priorityFields := []string{"name", "id", "if", "run", "uses", "env", "with"}
-
-	// Create an ordered map using yaml.MapSlice to maintain field order
-	var step yaml.MapSlice
-
-	// First, add priority fields in the specified order
-	for _, fieldName := range priorityFields {
-		if value, exists := stepMap[fieldName]; exists {
-			step = append(step, yaml.MapItem{Key: fieldName, Value: value})
-		}
-	}
-
-	// Then add remaining fields in alphabetical order
-	var remainingKeys []string
-	for key := range stepMap {
-		// Skip if it's already been added as a priority field
-		isPriority := false
-		for _, priorityField := range priorityFields {
-			if key == priorityField {
-				isPriority = true
-				break
-			}
-		}
-		if !isPriority {
-			remainingKeys = append(remainingKeys, key)
-		}
-	}
-
-	// Sort remaining keys alphabetically
-	sort.Strings(remainingKeys)
-
-	// Add remaining fields to the ordered map
-	for _, key := range remainingKeys {
-		step = append(step, yaml.MapItem{Key: key, Value: stepMap[key]})
-	}
-
-	// Serialize the step using YAML package with proper options for multiline strings
-	yamlBytes, err := yaml.MarshalWithOptions([]yaml.MapSlice{step},
-		yaml.Indent(2),                        // Use 2-space indentation
-		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
-	}
-
-	// Convert to string and adjust base indentation to match GitHub Actions format
-	yamlStr := string(yamlBytes)
-
-	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
-	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
-	var result strings.Builder
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			result.WriteString("\n")
-		} else {
-			result.WriteString("      " + line + "\n")
-		}
-	}
-
-	return result.String(), nil
+	return convertStepMapToYAML(stepMap)
 }
 
 // generateLogCaptureStep creates a shared log capture step for any engine

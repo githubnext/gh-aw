@@ -37,64 +37,49 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	steps = append(steps, c.generateGitConfigurationSteps()...)
 
 	// Step 4: Create pull request
-	steps = append(steps, "      - name: Create Pull Request\n")
-	steps = append(steps, "        id: create_pull_request\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
+	// Build environment variables
+	env := make(map[string]string)
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, nil)
 
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	// Pass the workflow ID for branch naming
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_ID: %q\n", mainJobName))
-	// Pass the workflow name for footer generation
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
-	// Pass the base branch from GitHub context
-	steps = append(steps, "          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}\n")
+	env["GITHUB_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", mainJobName)
+	env["GITHUB_AW_BASE_BRANCH"] = "${{ github.ref_name }}"
+
 	if data.SafeOutputs.CreatePullRequests.TitlePrefix != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.CreatePullRequests.TitlePrefix))
+		env["GITHUB_AW_PR_TITLE_PREFIX"] = fmt.Sprintf("%q", data.SafeOutputs.CreatePullRequests.TitlePrefix)
 	}
 	if len(data.SafeOutputs.CreatePullRequests.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.CreatePullRequests.Labels, ",")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
+		env["GITHUB_AW_PR_LABELS"] = fmt.Sprintf("%q", labelsStr)
 	}
+
 	// Pass draft setting - default to true for backwards compatibility
-	draftValue := true // Default value
+	draftValue := true
 	if data.SafeOutputs.CreatePullRequests.Draft != nil {
 		draftValue = *data.SafeOutputs.CreatePullRequests.Draft
 	}
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_DRAFT: %q\n", fmt.Sprintf("%t", draftValue)))
+	env["GITHUB_AW_PR_DRAFT"] = fmt.Sprintf("%q", fmt.Sprintf("%t", draftValue))
 
 	// Pass the if-no-changes configuration
 	ifNoChanges := data.SafeOutputs.CreatePullRequests.IfNoChanges
 	if ifNoChanges == "" {
-		ifNoChanges = "warn" // Default value
+		ifNoChanges = "warn"
 	}
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_IF_NO_CHANGES: %q\n", ifNoChanges))
+	env["GITHUB_AW_PR_IF_NO_CHANGES"] = fmt.Sprintf("%q", ifNoChanges)
 
 	// Pass the maximum patch size configuration
-	maxPatchSize := 1024 // Default value
+	maxPatchSize := 1024
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+	env["GITHUB_AW_MAX_PATCH_SIZE"] = fmt.Sprintf("%d", maxPatchSize)
 
-	// Pass the staged flag if it's set to true
-	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
+	// Build with parameters
+	withParams := make(map[string]string)
+	c.populateGitHubTokenForSafeOutput(withParams, data, data.SafeOutputs.CreatePullRequests.GitHubToken)
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, data.SafeOutputs.CreatePullRequests.GitHubToken)
-	steps = append(steps, "          script: |\n")
-
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createPullRequestScript)
-	steps = append(steps, formattedScript...)
+	// Build github-script step
+	stepLines := BuildGitHubScriptStepLines("Create Pull Request", "create_pull_request", createPullRequestScript, env, withParams)
+	steps = append(steps, stepLines...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
