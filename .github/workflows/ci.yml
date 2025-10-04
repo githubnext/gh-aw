@@ -33,12 +33,12 @@ jobs:
   build:
     name: Build Code and Recompile
     runs-on: ${{ matrix.os }}
-    concurrency:
-      group: ci-${{ github.workflow }}-${{ github.ref }}-build-${{ matrix.os }}
-      cancel-in-progress: true
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+    concurrency:
+      group: ci-${{ github.workflow }}-${{ github.ref }}-build-${{ matrix.os }}
+      cancel-in-progress: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
