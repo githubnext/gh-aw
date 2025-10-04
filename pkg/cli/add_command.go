@@ -820,18 +820,17 @@ func createPR(branchName, title, body string, verbose bool) error {
 	return nil
 }
 
-// buildSourceString builds the source string in the format owner/repo@ref/path
+// buildSourceString builds the source string in the format owner/repo/path@ref
 func buildSourceString(workflow *WorkflowSpec) string {
 	if workflow.Repo == "" || workflow.WorkflowPath == "" {
 		return ""
 	}
 
-	// Format: owner/repo@ref/path
-	source := workflow.Repo
+	// Format: owner/repo/path@ref (consistent with add command syntax)
+	source := workflow.Repo + "/" + workflow.WorkflowPath
 	if workflow.Version != "" {
 		source += "@" + workflow.Version
 	}
-	source += "/" + workflow.WorkflowPath
 
 	return source
 }

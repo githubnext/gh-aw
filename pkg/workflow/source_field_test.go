@@ -27,7 +27,7 @@ func TestSourceFieldRendering(t *testing.T) {
 		{
 			name: "source_field_present",
 			frontmatter: `---
-source: "githubnext/agentics@v1.0.0/workflows/ci-doctor.md"
+source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 on:
   push:
     branches: [main]
@@ -38,13 +38,13 @@ tools:
   github:
     allowed: [list_commits]
 ---`,
-			expectedSource: "# Source: githubnext/agentics@v1.0.0/workflows/ci-doctor.md",
+			expectedSource: "# Source: githubnext/agentics/workflows/ci-doctor.md@v1.0.0",
 			description:    "Should render source field as comment",
 		},
 		{
 			name: "source_field_with_branch",
 			frontmatter: `---
-source: "githubnext/agentics@main/workflows/ci-doctor.md"
+source: "githubnext/agentics/workflows/ci-doctor.md@main"
 on:
   push:
     branches: [main]
@@ -55,7 +55,7 @@ tools:
   github:
     allowed: [list_commits]
 ---`,
-			expectedSource: "# Source: githubnext/agentics@main/workflows/ci-doctor.md",
+			expectedSource: "# Source: githubnext/agentics/workflows/ci-doctor.md@main",
 			description:    "Should render source field with branch ref",
 		},
 		{
@@ -78,7 +78,7 @@ tools:
 			name: "source_and_description",
 			frontmatter: `---
 description: "This is a test workflow"
-source: "githubnext/agentics@v1.0.0/workflows/test.md"
+source: "githubnext/agentics/workflows/test.md@v1.0.0"
 on:
   push:
     branches: [main]
@@ -89,7 +89,7 @@ tools:
   github:
     allowed: [list_commits]
 ---`,
-			expectedSource: "# Source: githubnext/agentics@v1.0.0/workflows/test.md",
+			expectedSource: "# Source: githubnext/agentics/workflows/test.md@v1.0.0",
 			description:    "Should render both description and source",
 		},
 	}
@@ -179,16 +179,16 @@ func TestSourceFieldExtraction(t *testing.T) {
 		{
 			name: "source_field_present",
 			frontmatter: map[string]any{
-				"source": "githubnext/agentics@v1.0.0/workflows/ci-doctor.md",
+				"source": "githubnext/agentics/workflows/ci-doctor.md@v1.0.0",
 			},
-			expected: "githubnext/agentics@v1.0.0/workflows/ci-doctor.md",
+			expected: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0",
 		},
 		{
 			name: "source_field_with_spaces",
 			frontmatter: map[string]any{
-				"source": "  githubnext/agentics@main/workflows/test.md  ",
+				"source": "  githubnext/agentics/workflows/test.md@main  ",
 			},
-			expected: "githubnext/agentics@main/workflows/test.md",
+			expected: "githubnext/agentics/workflows/test.md@main",
 		},
 		{
 			name:        "source_field_missing",

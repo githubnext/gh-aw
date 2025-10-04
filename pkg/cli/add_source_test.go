@@ -19,7 +19,7 @@ func TestBuildSourceString(t *testing.T) {
 				WorkflowPath: "workflows/ci-doctor.md",
 				Version:      "v1.0.0",
 			},
-			expected: "githubnext/agentics@v1.0.0/workflows/ci-doctor.md",
+			expected: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0",
 		},
 		{
 			name: "spec_without_version",
@@ -37,7 +37,7 @@ func TestBuildSourceString(t *testing.T) {
 				WorkflowPath: "workflows/daily-plan.md",
 				Version:      "main",
 			},
-			expected: "githubnext/agentics@main/workflows/daily-plan.md",
+			expected: "githubnext/agentics/workflows/daily-plan.md@main",
 		},
 		{
 			name: "empty_repo",
@@ -90,7 +90,7 @@ engine: claude
 # Test Workflow
 
 This is a test workflow.`,
-			source:      "githubnext/agentics@v1.0.0/workflows/ci-doctor.md",
+			source:      "githubnext/agentics/workflows/ci-doctor.md@v1.0.0",
 			expectError: false,
 			checkSource: true,
 		},
@@ -99,7 +99,7 @@ This is a test workflow.`,
 			content: `# Test Workflow
 
 This is a test workflow without frontmatter.`,
-			source:      "githubnext/agentics@main/workflows/test.md",
+			source:      "githubnext/agentics/workflows/test.md@main",
 			expectError: false,
 			checkSource: true,
 		},
@@ -119,7 +119,7 @@ tools:
 # Test Workflow
 
 This is a test workflow.`,
-			source:      "githubnext/agentics@v1.0.0/workflows/complex.md",
+			source:      "githubnext/agentics/workflows/complex.md@v1.0.0",
 			expectError: false,
 			checkSource: true,
 		},
