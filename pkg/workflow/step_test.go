@@ -438,3 +438,75 @@ func TestBuildGitHubScriptStepLinesMinimal(t *testing.T) {
 		t.Errorf("Expected 'script: |' in with section")
 	}
 }
+
+func TestBuildGitHubScriptStepLinesWithScript(t *testing.T) {
+	// Test with script content included
+	script := `const issue = context.issue;
+console.log('Issue:', issue.number);
+return 'done';`
+
+	env := map[string]string{
+		"ISSUE_NUM": "${{ github.event.issue.number }}",
+	}
+
+	lines := BuildGitHubScriptStepLines("Script With Content", "test-id", script, env, nil)
+
+	yaml := strings.Join(lines, "")
+
+	if !strings.Contains(yaml, "- name: Script With Content") {
+		t.Errorf("Expected 'name: Script With Content' in output")
+	}
+
+	if !strings.Contains(yaml, "id: test-id") {
+		t.Errorf("Expected 'id: test-id' in output")
+	}
+
+	if !strings.Contains(yaml, "script: |") {
+		t.Errorf("Expected 'script: |' in with section")
+	}
+
+	// Check that script content is included and properly indented
+	if !strings.Contains(yaml, "const issue = context.issue") {
+		t.Errorf("Expected script content to be included")
+	}
+
+	if !strings.Contains(yaml, "console.log") {
+		t.Errorf("Expected script content with console.log")
+	}
+
+	// Verify the script lines have proper indentation (12 spaces)
+	if !strings.Contains(yaml, "            const issue") {
+		t.Errorf("Expected script lines to have 12-space indentation")
+	}
+}
+
+func TestAppendScriptLines(t *testing.T) {
+	// Create initial step lines
+	lines := []string{
+		"      - name: Test\n",
+		"        uses: actions/github-script@v8\n",
+		"        with:\n",
+		"          script: |\n",
+	}
+
+	script := `console.log('test');
+return true;`
+
+	// Append script lines
+	lines = AppendScriptLines(lines, script)
+
+	yaml := strings.Join(lines, "")
+
+	if !strings.Contains(yaml, "console.log('test')") {
+		t.Errorf("Expected script content to be appended")
+	}
+
+	if !strings.Contains(yaml, "return true") {
+		t.Errorf("Expected script content with return statement")
+	}
+
+	// Verify indentation
+	if !strings.Contains(yaml, "            console.log") {
+		t.Errorf("Expected appended script to have proper indentation")
+	}
+}

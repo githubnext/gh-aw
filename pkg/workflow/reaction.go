@@ -17,18 +17,14 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, activationJobCreated 
 		env["GITHUB_AW_COMMAND"] = data.Command
 	}
 
-	// Build the github-script step using the helper
+	// Build the github-script step using the helper with script included
 	steps := BuildGitHubScriptStepLines(
 		fmt.Sprintf("Add %s reaction to the triggering item", data.AIReaction),
 		"react",
-		"", // script will be appended below
+		addReactionAndEditCommentScript, // script is now included directly
 		env,
 		nil, // no with parameters other than script
 	)
-
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(addReactionAndEditCommentScript)
-	steps = append(steps, formattedScript...)
 
 	outputs := map[string]string{
 		"reaction_id": "${{ steps.react.outputs.reaction-id }}",

@@ -284,6 +284,10 @@ func convertStepMapToYAML(stepMap map[string]any) (string, error) {
 // BuildGitHubScriptStepLines creates a GitHub Actions step that uses actions/github-script@v8
 // and returns it as []string lines for compatibility with existing code.
 // This helper simplifies the common pattern of creating github-script steps.
+//
+// If script is empty, only the "script: |" line is added and additional script lines
+// must be appended by the caller (for backward compatibility).
+// If script is provided, it will be formatted and included automatically.
 func BuildGitHubScriptStepLines(name, id string, script string, env map[string]string, withParams map[string]string) []string {
 	var lines []string
 
@@ -339,5 +343,18 @@ func BuildGitHubScriptStepLines(name, id string, script string, env map[string]s
 	// Add the script
 	lines = append(lines, "          script: |\n")
 
+	// If script is provided, format and add it
+	if script != "" {
+		lines = AppendScriptLines(lines, script)
+	}
+
 	return lines
+}
+
+// AppendScriptLines appends formatted JavaScript lines to an existing step lines slice.
+// This is useful when you need to add script content to a step that was created with BuildGitHubScriptStepLines.
+// The script is cleaned of comments and properly indented for YAML embedding.
+func AppendScriptLines(lines []string, script string) []string {
+	scriptLines := FormatJavaScriptForYAML(script)
+	return append(lines, scriptLines...)
 }
