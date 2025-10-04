@@ -10,7 +10,12 @@ on:
     - copilot*
     - detection
     - codex*
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      funny:
+        description: Make the poem funny
+        required: false
+        type: boolean
 
 permissions: {}
 
@@ -905,6 +910,12 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          # Poem Generator
+          
+          {{#if ${{ github.event.inputs.funny }}}}
+          Be funny and creative! Make the poem humorous and entertaining.
+          {{/if}}
+          
           Write a poem and post it as an issue.
           
           EOF
@@ -961,6 +972,42 @@ jobs:
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
+      - name: Render template conditionals
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+        with:
+          script: |
+            const fs = require("fs");
+            function isTruthy(expr) {
+              const v = expr.trim().toLowerCase();
+              return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
+            }
+            function renderMarkdownTemplate(markdown) {
+              return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
+            }
+            function main() {
+              try {
+                const promptPath = process.env.GITHUB_AW_PROMPT;
+                if (!promptPath) {
+                  core.setFailed("GITHUB_AW_PROMPT environment variable is not set");
+                  process.exit(1);
+                }
+                const markdown = fs.readFileSync(promptPath, "utf8");
+                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
+                if (!hasConditionals) {
+                  core.info("No conditional blocks found in prompt, skipping template rendering");
+                  process.exit(0);
+                }
+                const rendered = renderMarkdownTemplate(markdown);
+                fs.writeFileSync(promptPath, rendered, "utf8");
+                core.info("Template rendered successfully");
+                core.summary.addHeading("Template Rendering", 3).addRaw("\n").addRaw("Processed conditional blocks in prompt\n").write();
+              } catch (error) {
+                core.setFailed(error instanceof Error ? error.message : String(error));
+              }
+            }
+            main();
       - name: Print prompt to step summary
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -2430,7 +2477,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Write a poem and post it as an issue.\n"
+          WORKFLOW_MARKDOWN: "# Poem Generator\n\n{{#if ${{ github.event.inputs.funny }}}}\nBe funny and creative! Make the poem humorous and entertaining.\n{{/if}}\n\nWrite a poem and post it as an issue.\n"
         with:
           script: |
             const fs = require('fs');
