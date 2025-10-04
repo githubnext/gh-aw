@@ -52,42 +52,6 @@ The template rendering process:
 
 ## Examples
 
-### Basic Conditional
-
-```aw
----
-on: issues
-engine: copilot
----
-
-# Issue Triage
-
-{{#if true}}
-## Active Features
-These features are currently enabled and ready to use.
-{{/if}}
-
-{{#if false}}
-## Deprecated Features
-This section is hidden from the prompt.
-{{/if}}
-
-## Standard Triage Steps
-This content is always visible.
-```
-
-After rendering, the prompt contains:
-
-```markdown
-# Issue Triage
-
-## Active Features
-These features are currently enabled and ready to use.
-
-## Standard Triage Steps
-This content is always visible.
-```
-
 ### Dynamic Content with GitHub Expressions
 
 Combine GitHub Actions expressions with template conditionals:
@@ -117,11 +81,23 @@ Evaluate scope, complexity, and alignment with project goals.
 
 In this example, GitHub Actions first evaluates the `${{ }}` expressions to `true` or `false`, then the template renderer processes the conditional blocks.
 
-### Multiple Conditionals
+### Multiple Conditionals with Workflow Inputs
+
+Use workflow_dispatch inputs to control conditional content:
 
 ```aw
 ---
-on: pull_request
+on: 
+  workflow_dispatch:
+    inputs:
+      security_review:
+        description: 'Include security review'
+        required: false
+        type: boolean
+      code_quality:
+        description: 'Include code quality checks'
+        required: false
+        type: boolean
 engine: copilot
 tools:
   github:
@@ -130,24 +106,22 @@ tools:
 
 # PR Review
 
-{{#if true}}
+{{#if ${{ github.event.inputs.security_review }}}}
 ## Security Checks
 - Verify no secrets are committed
 - Check for SQL injection vulnerabilities
 - Review authentication logic
 {{/if}}
 
-{{#if true}}
+{{#if ${{ github.event.inputs.code_quality }}}}
 ## Code Quality
 - Check for code style consistency
 - Verify test coverage
 - Review documentation updates
 {{/if}}
 
-{{#if false}}
-## Legacy Compatibility (Deprecated)
-This section is no longer needed.
-{{/if}}
+## Standard Review
+Always perform these basic checks regardless of inputs.
 ```
 
 ### Environment-Based Conditionals
