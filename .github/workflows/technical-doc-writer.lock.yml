@@ -3067,14 +3067,14 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "agent"
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GITHUB_AW_PR_TITLE_PREFIX: "[docs] "
-          GITHUB_AW_PR_LABELS: "documentation"
+          GITHUB_AW_MAX_PATCH_SIZE: 1024
           GITHUB_AW_PR_DRAFT: "false"
           GITHUB_AW_PR_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1024
+          GITHUB_AW_PR_LABELS: "documentation"
+          GITHUB_AW_PR_TITLE_PREFIX: "[docs] "
+          GITHUB_AW_WORKFLOW_ID: "agent"
+          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
         with:
           script: |
             const fs = require("fs");

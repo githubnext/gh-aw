@@ -17,17 +17,14 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	}
 
 	var steps []string
-	steps = append(steps, "      - name: Create Code Scanning Alert\n")
-	steps = append(steps, "        id: create_code_scanning_alert\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
 
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Build environment variables
+	env := make(map[string]string)
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, nil)
+
 	// Pass the max configuration
 	if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_MAX: %d\n", data.SafeOutputs.CreateCodeScanningAlerts.Max))
+		env["GITHUB_AW_SECURITY_REPORT_MAX"] = fmt.Sprintf("%d", data.SafeOutputs.CreateCodeScanningAlerts.Max)
 	}
 	// Pass the driver configuration, defaulting to frontmatter name
 	driverName := data.SafeOutputs.CreateCodeScanningAlerts.Driver
@@ -35,28 +32,24 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 		if data.FrontmatterName != "" {
 			driverName = data.FrontmatterName
 		} else {
-			driverName = data.Name // fallback to H1 header name
+			driverName = data.Name
 		}
 	}
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_SECURITY_REPORT_DRIVER: %s\n", driverName))
+	env["GITHUB_AW_SECURITY_REPORT_DRIVER"] = driverName
 	// Pass the workflow filename for rule ID prefix
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_FILENAME: %s\n", workflowFilename))
+	env["GITHUB_AW_WORKFLOW_FILENAME"] = workflowFilename
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
-	var token string
+	// Build with parameters
+	withParams := make(map[string]string)
+	token := ""
 	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 		token = data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
+	c.populateGitHubTokenForSafeOutput(withParams, data, token)
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createCodeScanningAlertScript)
-	steps = append(steps, formattedScript...)
+	// Build github-script step
+	stepLines := BuildGitHubScriptStepLines("Create Code Scanning Alert", "create_code_scanning_alert", createCodeScanningAlertScript, env, withParams)
+	steps = append(steps, stepLines...)
 
 	// Add step to upload SARIF artifact
 	steps = append(steps, "      - name: Upload SARIF artifact\n")

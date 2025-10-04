@@ -2253,8 +2253,8 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Dev"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GITHUB_AW_WORKFLOW_NAME: "Dev"
         with:
           script: |
             function sanitizeLabelContent(content) {
