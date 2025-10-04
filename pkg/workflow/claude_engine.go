@@ -43,31 +43,14 @@ func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		version = workflowData.EngineConfig.Version
 	}
 
-	// Build the npm install command
-	installCmd := fmt.Sprintf("npm install -g @anthropic-ai/claude-code@%s", version)
-
-	// Add Node.js setup and npm cache
-	installationSteps := []GitHubActionStep{
-		{
-			"      - name: Setup Node.js",
-			"        uses: actions/setup-node@v4",
-			"        with:",
-			"          node-version: '24'",
-		},
-		{
-			"      - name: Cache npm global packages",
-			"        uses: actions/cache@v4",
-			"        with:",
-			"          path: /usr/local/lib/node_modules",
-			fmt.Sprintf("          key: ${{ runner.os }}-npm-claude-%s", version),
-		},
-		{
-			"      - name: Install Claude Code CLI",
-			fmt.Sprintf("        run: %s", installCmd),
-		},
-	}
-
-	steps = append(steps, installationSteps...)
+	// Add npm package installation steps (cache + install)
+	npmSteps := GenerateNpmInstallSteps(
+		"@anthropic-ai/claude-code",
+		version,
+		"Install Claude Code CLI",
+		"claude",
+	)
+	steps = append(steps, npmSteps...)
 
 	// Check if network permissions are configured (only for Claude engine)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {

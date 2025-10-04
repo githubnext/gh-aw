@@ -314,12 +314,13 @@ jobs:
           go-version-file: go.mod
       - name: Dev dependencies
         run: make deps-dev
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cache npm global packages
+        uses: actions/cache@v4
         with:
-          node-version: '22'
+          path: /usr/local/lib/node_modules
+          key: ${{ runner.os }}-npm-copilot-latest
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+        run: npm install -g @github/copilot@latest
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
@@ -2539,12 +2540,13 @@ jobs:
         run: |
           mkdir -p /tmp/threat-detection
           touch /tmp/threat-detection/detection.log
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cache npm global packages
+        uses: actions/cache@v4
         with:
-          node-version: '22'
+          path: /usr/local/lib/node_modules
+          key: ${{ runner.os }}-npm-copilot-latest
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+        run: npm install -g @github/copilot@latest
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         timeout-minutes: 5

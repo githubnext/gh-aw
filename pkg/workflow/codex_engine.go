@@ -56,24 +56,19 @@ func NewCodexEngine() *CodexEngine {
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	// Build the npm install command, optionally with version
-	installCmd := "npm install -g @openai/codex"
+	// Determine version
+	version := "latest"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		installCmd = fmt.Sprintf("npm install -g @openai/codex@%s", workflowData.EngineConfig.Version)
+		version = workflowData.EngineConfig.Version
 	}
 
-	return []GitHubActionStep{
-		{
-			"      - name: Setup Node.js",
-			"        uses: actions/setup-node@v4",
-			"        with:",
-			"          node-version: '24'",
-		},
-		{
-			"      - name: Install Codex",
-			fmt.Sprintf("        run: %s", installCmd),
-		},
-	}
+	// Add npm package installation steps (cache + install)
+	return GenerateNpmInstallSteps(
+		"@openai/codex",
+		version,
+		"Install Codex",
+		"codex",
+	)
 }
 
 // GetVersionCommand returns the command to get Codex's version
