@@ -2243,6 +2243,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add PR context prompt as separate step if enabled
 	c.generatePRContextPromptStep(yaml, data)
 
+	// Add template rendering step if conditional patterns are detected
+	c.generateTemplateRenderingStep(yaml, data)
+
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        env:\n")
@@ -2279,6 +2282,23 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 	generateSafeOutputsPromptSection(yaml, safeOutputs)
 	yaml.WriteString("          EOF\n")
+}
+
+// generateTemplateRenderingStep generates a step that processes conditional template blocks
+func (c *Compiler) generateTemplateRenderingStep(yaml *strings.Builder, data *WorkflowData) {
+	// Check if the markdown content contains any template patterns
+	hasTemplatePattern := strings.Contains(data.MarkdownContent, "{{#if ")
+	if !hasTemplatePattern {
+		return
+	}
+
+	yaml.WriteString("      - name: Render template conditionals\n")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+	WriteJavaScriptToYAML(yaml, renderTemplateScript)
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution
