@@ -390,13 +390,13 @@ func parseVersion(v string) *semanticVersion {
 	ver := &semanticVersion{raw: v}
 
 	if matches[1] != "" {
-		fmt.Sscanf(matches[1], "%d", &ver.major)
+		_, _ = fmt.Sscanf(matches[1], "%d", &ver.major)
 	}
 	if matches[2] != "" {
-		fmt.Sscanf(matches[2], "%d", &ver.minor)
+		_, _ = fmt.Sscanf(matches[2], "%d", &ver.minor)
 	}
 	if matches[3] != "" {
-		fmt.Sscanf(matches[3], "%d", &ver.patch)
+		_, _ = fmt.Sscanf(matches[3], "%d", &ver.patch)
 	}
 	if matches[4] != "" {
 		ver.pre = matches[4]
