@@ -187,27 +187,6 @@ func findWorkflowsWithSource(workflowsDir string, filterNames []string, verbose 
 	return workflows, nil
 }
 
-// parseSourceSpec parses a source specification like "owner/repo/path@ref"
-func parseSourceSpec(source string) (repo, path, ref string, err error) {
-	// Split on @ to separate ref
-	parts := strings.SplitN(source, "@", 2)
-	pathPart := parts[0]
-	if len(parts) == 2 {
-		ref = parts[1]
-	}
-
-	// Parse path: owner/repo/path/to/workflow.md
-	slashParts := strings.Split(pathPart, "/")
-	if len(slashParts) < 3 {
-		return "", "", "", fmt.Errorf("invalid source format: must be owner/repo/path[@ref]")
-	}
-
-	repo = fmt.Sprintf("%s/%s", slashParts[0], slashParts[1])
-	path = strings.Join(slashParts[2:], "/")
-
-	return repo, path, ref, nil
-}
-
 // resolveLatestRef resolves the latest ref for a workflow source
 func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	if verbose {
