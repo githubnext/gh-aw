@@ -55,11 +55,6 @@ This workflow compiles the documentation, launches the development server, takes
 
 Please follow these steps:
 
-{{#if true}}
-## Step 1: Environment Check
-Before starting, verify that all required tools and dependencies are available.
-{{/if}}
-
 ## Step 2: Build and Launch Documentation Server
 0. Go to the `docs` directory
 1. Start the documentation development server using `npm run dev`
@@ -84,11 +79,6 @@ Before starting, verify that all required tools and dependencies are available.
    - Button and link contrast
    - Code block readability
    - Overall visual hierarchy and accessibility
-
-{{#if false}}
-## Step 7: Optional Advanced Analysis (Skipped)
-This section is hidden and won't appear in the final prompt.
-{{/if}}
 
 ## Step 6: Create Issue with Results
 1. Use the `safe-outputs create-issue` functionality to create a GitHub issue

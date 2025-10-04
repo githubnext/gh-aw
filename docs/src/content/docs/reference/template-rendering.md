@@ -187,47 +187,6 @@ The template rendering step is only added when conditional patterns are detected
 
 These limitations are intentional to keep the template system simple, safe, and predictable.
 
-## Best Practices
-
-### Use for Environment-Specific Instructions
-
-```aw
-{{#if ${{ github.ref == 'refs/heads/main' }}}}
-## Production Deployment
-Use production database and enable monitoring.
-{{/if}}
-
-{{#if ${{ github.ref != 'refs/heads/main' }}}}
-## Development Deployment  
-Use staging database and verbose logging.
-{{/if}}
-```
-
-### Feature Flags
-
-```aw
-{{#if true}}
-## New Feature: Advanced Analytics
-This feature is enabled. Include analytics collection in your analysis.
-{{/if}}
-
-{{#if false}}
-## Experimental: AI-Powered Summaries
-This feature is disabled. Use standard summaries only.
-{{/if}}
-```
-
-### Development vs Production Content
-
-```aw
-{{#if false}}
-## DEBUG MODE
-Print all intermediate steps and variable values.
-{{/if}}
-
-Standard instructions for production use.
-```
-
 ## Related Documentation
 
 - [Markdown Content](/gh-aw/reference/markdown/) - Writing effective agentic markdown
