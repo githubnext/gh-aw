@@ -18,7 +18,7 @@ Analyze issue #${{ github.event.issue.number }} in repository ${{ github.reposit
 
 Created by: ${{ github.actor }}
 
-{{#if true}}
+{{#if ${{ github.event.issue.number }}}}
 ## Standard Analysis
 
 Always perform this basic analysis:

@@ -13,6 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       funny:
+        default: "false"
         description: Make the poem funny
         required: false
         type: boolean
