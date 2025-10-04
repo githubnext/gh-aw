@@ -18,15 +18,6 @@ type Step struct {
 	Uses string            `yaml:"uses,omitempty"`
 	Env  map[string]string `yaml:"env,omitempty"`
 	With map[string]any    `yaml:"with,omitempty"`
-	// Additional fields can be stored in the Extra map
-	Extra map[string]any `yaml:",inline"`
-}
-
-// NewStep creates a new Step with the given name
-func NewStep(name string) *Step {
-	return &Step{
-		Name: name,
-	}
 }
 
 // NewStepWithRun creates a new Step with name and run command
@@ -109,43 +100,59 @@ func (s *Step) SetGitHubToken(token string) *Step {
 	return s
 }
 
-// ToMap converts the Step to a map[string]any for serialization
-func (s *Step) ToMap() map[string]any {
-	result := make(map[string]any)
-
-	if s.Name != "" {
-		result["name"] = s.Name
-	}
-	if s.ID != "" {
-		result["id"] = s.ID
-	}
-	if s.If != "" {
-		result["if"] = s.If
-	}
-	if s.Run != "" {
-		result["run"] = s.Run
-	}
-	if s.Uses != "" {
-		result["uses"] = s.Uses
-	}
-	if len(s.Env) > 0 {
-		result["env"] = s.Env
-	}
-	if len(s.With) > 0 {
-		result["with"] = s.With
-	}
-
-	// Add any extra fields
-	for k, v := range s.Extra {
-		result[k] = v
-	}
-
-	return result
-}
-
 // ToYAML converts the Step to YAML string with proper indentation for GitHub Actions (6-space indent)
 func (s *Step) ToYAML() (string, error) {
-	return ConvertStepToYAML(s.ToMap())
+	// Create an ordered map using yaml.MapSlice to maintain field order
+	var step yaml.MapSlice
+
+	// Add fields in priority order if they have values
+	if s.Name != "" {
+		step = append(step, yaml.MapItem{Key: "name", Value: s.Name})
+	}
+	if s.ID != "" {
+		step = append(step, yaml.MapItem{Key: "id", Value: s.ID})
+	}
+	if s.If != "" {
+		step = append(step, yaml.MapItem{Key: "if", Value: s.If})
+	}
+	if s.Run != "" {
+		step = append(step, yaml.MapItem{Key: "run", Value: s.Run})
+	}
+	if s.Uses != "" {
+		step = append(step, yaml.MapItem{Key: "uses", Value: s.Uses})
+	}
+	if len(s.Env) > 0 {
+		step = append(step, yaml.MapItem{Key: "env", Value: s.Env})
+	}
+	if len(s.With) > 0 {
+		step = append(step, yaml.MapItem{Key: "with", Value: s.With})
+	}
+
+	// Serialize the step using YAML package with proper options for multiline strings
+	yamlBytes, err := yaml.MarshalWithOptions([]yaml.MapSlice{step},
+		yaml.Indent(2),                        // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal step to YAML: %w", err)
+	}
+
+	// Convert to string and adjust base indentation to match GitHub Actions format
+	yamlStr := string(yamlBytes)
+
+	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
+	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
+	var result strings.Builder
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			result.WriteString("\n")
+		} else {
+			result.WriteString("      " + line + "\n")
+		}
+	}
+
+	return result.String(), nil
 }
 
 // WriteStepsToYAML writes one or more steps to a writer with proper indentation

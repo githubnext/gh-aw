@@ -5,18 +5,6 @@ import (
 	"testing"
 )
 
-func TestNewStep(t *testing.T) {
-	step := NewStep("Test Step")
-
-	if step.Name != "Test Step" {
-		t.Errorf("Expected Name 'Test Step', got '%s'", step.Name)
-	}
-
-	if step.ID != "" {
-		t.Errorf("Expected empty ID, got '%s'", step.ID)
-	}
-}
-
 func TestNewStepWithRun(t *testing.T) {
 	step := NewStepWithRun("Run Test", "echo hello")
 
@@ -67,7 +55,7 @@ func TestNewGitHubScriptStep(t *testing.T) {
 }
 
 func TestStepSetters(t *testing.T) {
-	step := NewStep("Test")
+	step := NewStepWithRun("Test", "echo test")
 
 	step.SetID("test-id")
 	if step.ID != "test-id" {
@@ -104,31 +92,6 @@ func TestStepSetters(t *testing.T) {
 	}
 }
 
-func TestStepToMap(t *testing.T) {
-	step := NewStepWithRun("Test", "echo test")
-	step.SetID("test-id")
-	step.AddEnv("VAR", "value")
-
-	stepMap := step.ToMap()
-
-	if stepMap["name"] != "Test" {
-		t.Errorf("Expected name 'Test' in map")
-	}
-
-	if stepMap["id"] != "test-id" {
-		t.Errorf("Expected id 'test-id' in map")
-	}
-
-	if stepMap["run"] != "echo test" {
-		t.Errorf("Expected run 'echo test' in map")
-	}
-
-	env, ok := stepMap["env"].(map[string]string)
-	if !ok || env["VAR"] != "value" {
-		t.Errorf("Expected env with VAR=value in map")
-	}
-}
-
 func TestStepToYAML(t *testing.T) {
 	step := NewStepWithRun("Test Step", "echo hello")
 	step.SetID("test-id")
@@ -159,11 +122,9 @@ func TestStepToYAML(t *testing.T) {
 
 func TestStepToYAMLFieldOrdering(t *testing.T) {
 	// Create a step with all major fields to test ordering
-	step := NewStep("Complex Step")
+	step := NewStepWithRun("Complex Step", "echo test")
 	step.SetID("step-id")
 	step.SetIf("success()")
-	step.Run = "echo test"
-	step.Uses = "" // Don't set uses when run is set
 	step.AddEnv("KEY", "value")
 	step.AddWith("param", "value")
 
@@ -298,46 +259,48 @@ return 'done';`
 }
 
 func TestStepWithEmptyFields(t *testing.T) {
-	// Test that empty fields are omitted from output
-	step := NewStep("Simple Step")
-	step.Run = "echo test"
+	// Test that empty fields are omitted from YAML output
+	step := NewStepWithRun("Simple Step", "echo test")
 
-	stepMap := step.ToMap()
-
-	// These fields should not be in the map
-	if _, exists := stepMap["id"]; exists {
-		t.Errorf("Expected 'id' to be omitted from map")
+	yaml, err := step.ToYAML()
+	if err != nil {
+		t.Fatalf("ToYAML failed: %v", err)
 	}
 
-	if _, exists := stepMap["if"]; exists {
-		t.Errorf("Expected 'if' to be omitted from map")
+	// These fields should not be in the YAML
+	if strings.Contains(yaml, "id:") {
+		t.Errorf("Expected 'id' to be omitted from YAML")
 	}
 
-	if _, exists := stepMap["uses"]; exists {
-		t.Errorf("Expected 'uses' to be omitted from map")
+	if strings.Contains(yaml, "if:") {
+		t.Errorf("Expected 'if' to be omitted from YAML")
 	}
 
-	if _, exists := stepMap["env"]; exists {
-		t.Errorf("Expected 'env' to be omitted from map")
+	if strings.Contains(yaml, "uses:") {
+		t.Errorf("Expected 'uses' to be omitted from YAML")
 	}
 
-	if _, exists := stepMap["with"]; exists {
-		t.Errorf("Expected 'with' to be omitted from map")
+	if strings.Contains(yaml, "env:") {
+		t.Errorf("Expected 'env' to be omitted from YAML")
+	}
+
+	if strings.Contains(yaml, "with:") {
+		t.Errorf("Expected 'with' to be omitted from YAML")
 	}
 
 	// These fields should be present
-	if stepMap["name"] != "Simple Step" {
-		t.Errorf("Expected 'name' to be in map")
+	if !strings.Contains(yaml, "name: Simple Step") {
+		t.Errorf("Expected 'name' to be in YAML")
 	}
 
-	if stepMap["run"] != "echo test" {
-		t.Errorf("Expected 'run' to be in map")
+	if !strings.Contains(yaml, "run: echo test") {
+		t.Errorf("Expected 'run' to be in YAML")
 	}
 }
 
 func TestStepChaining(t *testing.T) {
 	// Test that setter methods can be chained
-	step := NewStep("Chained Step").
+	step := NewStepWithRun("Chained Step", "echo test").
 		SetID("chain-id").
 		SetIf("success()").
 		AddEnv("KEY1", "value1").
