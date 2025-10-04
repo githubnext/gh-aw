@@ -295,54 +295,66 @@ func TestBuildSourceString(t *testing.T) {
 		{
 			name: "workflow with version",
 			workflow: &WorkflowSpec{
-				Repo:         "owner/repo",
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "v1.0.0",
+				},
 				WorkflowPath: "workflows/ci-doctor.md",
-				Version:      "v1.0.0",
 			},
 			expected: "owner/repo/workflows/ci-doctor.md@v1.0.0",
 		},
 		{
 			name: "workflow with branch",
 			workflow: &WorkflowSpec{
-				Repo:         "owner/repo",
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "main",
+				},
 				WorkflowPath: "workflows/helper.md",
-				Version:      "main",
 			},
 			expected: "owner/repo/workflows/helper.md@main",
 		},
 		{
 			name: "workflow without version",
 			workflow: &WorkflowSpec{
-				Repo:         "owner/repo",
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "",
+				},
 				WorkflowPath: "workflows/test.md",
-				Version:      "",
 			},
 			expected: "owner/repo/workflows/test.md",
 		},
 		{
 			name: "workflow with nested path",
 			workflow: &WorkflowSpec{
-				Repo:         "owner/repo",
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "v2.0.0",
+				},
 				WorkflowPath: "path/to/workflow.md",
-				Version:      "v2.0.0",
 			},
 			expected: "owner/repo/path/to/workflow.md@v2.0.0",
 		},
 		{
 			name: "empty repo",
 			workflow: &WorkflowSpec{
-				Repo:         "",
+				RepoSpec: RepoSpec{
+					Repo:    "",
+					Version: "v1.0.0",
+				},
 				WorkflowPath: "workflows/test.md",
-				Version:      "v1.0.0",
 			},
 			expected: "",
 		},
 		{
 			name: "empty workflow path",
 			workflow: &WorkflowSpec{
-				Repo:         "owner/repo",
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "v1.0.0",
+				},
 				WorkflowPath: "",
-				Version:      "v1.0.0",
 			},
 			expected: "",
 		},
