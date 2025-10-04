@@ -11,13 +11,13 @@ import (
 
 // Step represents a GitHub Actions workflow step with YAML serialization support
 type Step struct {
-	Name string `yaml:"name,omitempty"`
-	ID   string `yaml:"id,omitempty"`
-	If   string `yaml:"if,omitempty"`
-	Run  string `yaml:"run,omitempty"`
-	Uses string `yaml:"uses,omitempty"`
+	Name string            `yaml:"name,omitempty"`
+	ID   string            `yaml:"id,omitempty"`
+	If   string            `yaml:"if,omitempty"`
+	Run  string            `yaml:"run,omitempty"`
+	Uses string            `yaml:"uses,omitempty"`
 	Env  map[string]string `yaml:"env,omitempty"`
-	With map[string]any `yaml:"with,omitempty"`
+	With map[string]any    `yaml:"with,omitempty"`
 	// Additional fields can be stored in the Extra map
 	Extra map[string]any `yaml:",inline"`
 }
@@ -112,7 +112,7 @@ func (s *Step) SetGitHubToken(token string) *Step {
 // ToMap converts the Step to a map[string]any for serialization
 func (s *Step) ToMap() map[string]any {
 	result := make(map[string]any)
-	
+
 	if s.Name != "" {
 		result["name"] = s.Name
 	}
@@ -134,12 +134,12 @@ func (s *Step) ToMap() map[string]any {
 	if len(s.With) > 0 {
 		result["with"] = s.With
 	}
-	
+
 	// Add any extra fields
 	for k, v := range s.Extra {
 		result[k] = v
 	}
-	
+
 	return result
 }
 
@@ -175,24 +175,24 @@ func WriteStepsToString(steps ...*Step) (string, error) {
 // This is useful for compatibility with existing code
 func StepsToYAMLLines(steps ...*Step) ([]GitHubActionStep, error) {
 	var result []GitHubActionStep
-	
+
 	for _, step := range steps {
 		yaml, err := step.ToYAML()
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert step to YAML: %w", err)
 		}
-		
+
 		// Split YAML into lines for GitHubActionStep format
 		lines := strings.Split(strings.TrimRight(yaml, "\n"), "\n")
-		
+
 		// Remove empty lines at the end
 		for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 			lines = lines[:len(lines)-1]
 		}
-		
+
 		result = append(result, GitHubActionStep(lines))
 	}
-	
+
 	return result, nil
 }
 
@@ -202,15 +202,15 @@ func StepToYAMLLines(step *Step) (GitHubActionStep, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert step to YAML: %w", err)
 	}
-	
+
 	// Split YAML into lines for GitHubActionStep format
 	lines := strings.Split(strings.TrimRight(yaml, "\n"), "\n")
-	
+
 	// Remove empty lines at the end
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 		lines = lines[:len(lines)-1]
 	}
-	
+
 	return GitHubActionStep(lines), nil
 }
 
@@ -286,40 +286,40 @@ func convertStepMapToYAML(stepMap map[string]any) (string, error) {
 // This helper simplifies the common pattern of creating github-script steps.
 func BuildGitHubScriptStepLines(name, id string, script string, env map[string]string, withParams map[string]string) []string {
 	var lines []string
-	
+
 	// Add step header
 	lines = append(lines, fmt.Sprintf("      - name: %s\n", name))
 	if id != "" {
 		lines = append(lines, fmt.Sprintf("        id: %s\n", id))
 	}
 	lines = append(lines, "        uses: actions/github-script@v8\n")
-	
+
 	// Add environment variables if provided
 	if len(env) > 0 {
 		lines = append(lines, "        env:\n")
-		
+
 		// Sort environment keys for consistent output
 		envKeys := make([]string, 0, len(env))
 		for key := range env {
 			envKeys = append(envKeys, key)
 		}
 		sort.Strings(envKeys)
-		
+
 		for _, key := range envKeys {
 			value := env[key]
 			// Properly quote values that need it
 			lines = append(lines, fmt.Sprintf("          %s: %s\n", key, value))
 		}
 	}
-	
+
 	// Add with parameters
 	lines = append(lines, "        with:\n")
-	
+
 	// Add github-token first if present
 	if token, hasToken := withParams["github-token"]; hasToken {
 		lines = append(lines, fmt.Sprintf("          github-token: %s\n", token))
 	}
-	
+
 	// Add other with parameters (sorted, excluding github-token)
 	if len(withParams) > 0 {
 		withKeys := make([]string, 0, len(withParams))
@@ -329,16 +329,15 @@ func BuildGitHubScriptStepLines(name, id string, script string, env map[string]s
 			}
 		}
 		sort.Strings(withKeys)
-		
+
 		for _, key := range withKeys {
 			value := withParams[key]
 			lines = append(lines, fmt.Sprintf("          %s: %s\n", key, value))
 		}
 	}
-	
+
 	// Add the script
 	lines = append(lines, "          script: |\n")
-	
+
 	return lines
 }
-
