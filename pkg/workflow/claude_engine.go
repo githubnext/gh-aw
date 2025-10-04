@@ -37,6 +37,38 @@ func NewClaudeEngine() *ClaudeEngine {
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := constants.DefaultClaudeCodeVersion
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
+		version = workflowData.EngineConfig.Version
+	}
+
+	// Build the npm install command
+	installCmd := fmt.Sprintf("npm install -g @anthropic-ai/claude-code@%s", version)
+
+	// Add Node.js setup and npm cache
+	installationSteps := []GitHubActionStep{
+		{
+			"      - name: Setup Node.js",
+			"        uses: actions/setup-node@v4",
+			"        with:",
+			"          node-version: '22'",
+		},
+		{
+			"      - name: Cache npm global packages",
+			"        uses: actions/cache@v4",
+			"        with:",
+			"          path: /usr/local/lib/node_modules",
+			fmt.Sprintf("          key: ${{ runner.os }}-npm-claude-%s", version),
+		},
+		{
+			"      - name: Install Claude Code CLI",
+			fmt.Sprintf("        run: %s", installCmd),
+		},
+	}
+
+	steps = append(steps, installationSteps...)
+
 	// Check if network permissions are configured (only for Claude engine)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		// Generate network hook generator and settings generator
@@ -155,13 +187,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          # Execute Claude Code CLI with prompt from file")
 
 	// Build the command string with proper argument formatting
-	// Use version from engine config if provided, otherwise default to pinned version
-	version := constants.DefaultClaudeCodeVersion
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		version = workflowData.EngineConfig.Version
-	}
-
-	commandParts := []string{"npx", fmt.Sprintf("@anthropic-ai/claude-code@%s", version)}
+	// Use claude command directly (installed via npm install -g)
+	commandParts := []string{"claude"}
 	commandParts = append(commandParts, claudeArgs...)
 	commandParts = append(commandParts, "$(cat /tmp/aw-prompts/prompt.txt)")
 

@@ -29,10 +29,40 @@ func TestClaudeEngine(t *testing.T) {
 		t.Error("Claude engine should support MCP tools")
 	}
 
-	// Test installation steps (should be empty for Claude)
+	// Test installation steps (should have 3 steps: Node.js setup, cache, install)
 	installSteps := engine.GetInstallationSteps(&WorkflowData{})
-	if len(installSteps) != 0 {
-		t.Errorf("Expected no installation steps for Claude, got %v", installSteps)
+	if len(installSteps) != 3 {
+		t.Errorf("Expected 3 installation steps for Claude (Node.js setup, cache, install), got %d", len(installSteps))
+	}
+
+	// Check for Node.js setup step
+	nodeSetupStep := strings.Join([]string(installSteps[0]), "\n")
+	if !strings.Contains(nodeSetupStep, "Setup Node.js") {
+		t.Errorf("Expected 'Setup Node.js' in first installation step, got: %s", nodeSetupStep)
+	}
+	if !strings.Contains(nodeSetupStep, "actions/setup-node@v4") {
+		t.Errorf("Expected 'actions/setup-node@v4' in first installation step, got: %s", nodeSetupStep)
+	}
+
+	// Check for cache step
+	cacheStep := strings.Join([]string(installSteps[1]), "\n")
+	if !strings.Contains(cacheStep, "Cache npm global packages") {
+		t.Errorf("Expected 'Cache npm global packages' in second installation step, got: %s", cacheStep)
+	}
+	if !strings.Contains(cacheStep, "actions/cache@v4") {
+		t.Errorf("Expected 'actions/cache@v4' in second installation step, got: %s", cacheStep)
+	}
+	if !strings.Contains(cacheStep, "/usr/local/lib/node_modules") {
+		t.Errorf("Expected npm global modules path in cache step, got: %s", cacheStep)
+	}
+
+	// Check for install step
+	installStep := strings.Join([]string(installSteps[2]), "\n")
+	if !strings.Contains(installStep, "Install Claude Code CLI") {
+		t.Errorf("Expected 'Install Claude Code CLI' in third installation step, got: %s", installStep)
+	}
+	if !strings.Contains(installStep, "npm install -g @anthropic-ai/claude-code@2.0.1") {
+		t.Errorf("Expected 'npm install -g @anthropic-ai/claude-code@2.0.1' in install step, got: %s", installStep)
 	}
 
 	// Test execution steps
@@ -60,16 +90,16 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Expected step name 'Execute Claude Code CLI' in step lines: %v", stepLines)
 	}
 
-	// Check npx usage with pinned version instead of GitHub Action
+	// Check claude usage with direct command instead of npx
 	found = false
 	for _, line := range stepLines {
-		if strings.Contains(line, "npx @anthropic-ai/claude-code@2.0.1") {
+		if strings.Contains(line, "claude --print") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 in step lines: %v", stepLines)
+		t.Errorf("Expected claude command in step lines: %v", stepLines)
 	}
 
 	// Check that required CLI arguments are present
@@ -173,8 +203,8 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 				t.Errorf("Expected step name 'Execute Claude Code CLI' in step content")
 			}
 
-			if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@2.0.1") {
-				t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 in step content")
+			if !strings.Contains(stepContent, "claude --print") {
+				t.Errorf("Expected claude command in step content")
 			}
 
 			// Verify all required CLI elements are present
@@ -213,6 +243,18 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
+	// Check installation steps for custom version
+	installSteps := engine.GetInstallationSteps(workflowData)
+	if len(installSteps) != 3 {
+		t.Fatalf("Expected 3 installation steps, got %d", len(installSteps))
+	}
+
+	// Check that install step uses the custom version
+	installStep := strings.Join([]string(installSteps[2]), "\n")
+	if !strings.Contains(installStep, "npm install -g @anthropic-ai/claude-code@v1.2.3") {
+		t.Errorf("Expected npm install with custom version v1.2.3 in install step:\n%s", installStep)
+	}
+
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
 	if len(steps) != 2 {
 		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
@@ -222,9 +264,9 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that npx uses the custom version specified in engine config
-	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@v1.2.3") {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@v1.2.3 in step content:\n%s", stepContent)
+	// Check that claude command is used directly (not npx)
+	if !strings.Contains(stepContent, "claude --print") {
+		t.Errorf("Expected claude command in step content:\n%s", stepContent)
 	}
 
 	// Check that model is set in CLI args
@@ -256,9 +298,9 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that npx uses the default pinned version when no version specified
-	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@2.0.1") {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 when no version specified in step content:\n%s", stepContent)
+	// Check that claude command is used directly (not npx) with default version
+	if !strings.Contains(stepContent, "claude --print") {
+		t.Errorf("Expected claude command in step content:\n%s", stepContent)
 	}
 }
 
@@ -280,9 +322,9 @@ func TestClaudeEngineWithNilConfig(t *testing.T) {
 	executionStep := steps[0]
 	stepContent := strings.Join([]string(executionStep), "\n")
 
-	// Check that npx uses the default pinned version when no engine config
-	if !strings.Contains(stepContent, "npx @anthropic-ai/claude-code@2.0.1") {
-		t.Errorf("Expected npx @anthropic-ai/claude-code@2.0.1 when no engine config in step content:\n%s", stepContent)
+	// Check that claude command is used directly (not npx) when no engine config
+	if !strings.Contains(stepContent, "claude --print") {
+		t.Errorf("Expected claude command when no engine config in step content:\n%s", stepContent)
 	}
 }
 

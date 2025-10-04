@@ -288,9 +288,12 @@ This workflow specifies claude engine directly without any includes.
 	}
 	lockStr := string(lockContent)
 
-	// Should contain references to claude CLI
-	if !strings.Contains(lockStr, "npx @anthropic-ai/claude-code") {
-		t.Error("Expected lock file to contain claude CLI reference")
+	// Should contain references to claude command and npm install
+	if !strings.Contains(lockStr, "claude --print") {
+		t.Error("Expected lock file to contain claude command reference")
+	}
+	if !strings.Contains(lockStr, "npm install -g @anthropic-ai/claude-code") {
+		t.Error("Expected lock file to contain npm install command")
 	}
 }
 
