@@ -21,6 +21,7 @@ gh aw --help
 # Basic workflow lifecycle
 gh aw add githubnext/agentics/ci-doctor    # Add workflow and compile to GitHub Actions
 gh aw compile                                    # Recompile to GitHub Actions
+gh aw update                                     # Update all workflows with source field
 gh aw status                                     # Check status
 gh aw run ci-doctor                        # Execute workflow
 gh aw run ci-doctor daily-plan             # Execute multiple workflows
@@ -80,6 +81,71 @@ gh aw remove WorkflowName
 # Remove workflow but keep shared include files
 gh aw remove WorkflowName --keep-orphans
 ```
+
+**Workflow Updates:**
+
+The `update` command allows you to update workflows that were added from external repositories. It uses the `source` field in the workflow frontmatter to determine the source repository and intelligently updates to the latest version.
+
+```bash
+# Update all workflows that have a source field
+gh aw update
+
+# Update specific workflow by name
+gh aw update ci-doctor
+
+# Update multiple workflows
+gh aw update ci-doctor issue-triage
+
+# Allow major version updates (when updating tagged releases)
+gh aw update ci-doctor --major
+
+# Force update even if no changes detected
+gh aw update --force
+
+# Update with verbose output to see detailed resolution steps
+gh aw update --verbose
+
+# Override AI engine for the updated workflow compilation
+gh aw update ci-doctor --engine copilot
+```
+
+**Update Logic:**
+
+The update command intelligently determines how to update based on the current ref in the source field:
+
+- **Semantic Version Tags** (e.g., `v1.2.3`):
+  - Fetches the latest compatible release from the repository
+  - By default, only updates within the same major version
+  - Use `--major` flag to allow major version updates
+  - Example: `v1.0.0` → `v1.2.5` (same major), or `v2.0.0` with `--major`
+
+- **Branch References** (e.g., `main`, `develop`):
+  - Fetches the latest commit SHA from that specific branch
+  - Keeps the branch name in the source field but updates content
+  - Example: `main` → latest commit on `main` branch
+
+- **No Reference or Other**:
+  - Fetches the latest commit from the repository's default branch
+  - Automatically determines the default branch (usually `main` or `master`)
+
+The update process:
+1. Parses the source field to extract repository, path, and current ref
+2. Resolves the latest compatible version/commit based on the ref type
+3. Downloads the updated workflow content from GitHub
+4. Performs a 3-way merge, preserving the source field with the new ref
+5. Automatically recompiles the updated workflow
+
+**Source Field Format:**
+
+The source field in workflow frontmatter follows this format:
+```yaml
+source: "owner/repo/path/to/workflow.md@ref"
+```
+
+Examples:
+- `githubnext/agentics/workflows/ci-doctor.md@v1.0.0` (tag)
+- `githubnext/agentics/workflows/ci-doctor.md@main` (branch)
+- `githubnext/agentics/workflows/ci-doctor.md` (no ref, uses default branch)
 
 ## 🔧 Workflow Recompilation
 

@@ -243,6 +243,9 @@ func init() {
 	// Create and setup add command
 	addCmd := cli.NewAddCommand(verbose, validateEngine)
 
+	// Create and setup update command
+	updateCmd := cli.NewUpdateCommand(verbose, validateEngine)
+
 	// Create and setup trial command
 	trialCmd := cli.NewTrialCommand(verbose, validateEngine)
 
@@ -271,6 +274,7 @@ func init() {
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(updateCmd)
 	rootCmd.AddCommand(trialCmd)
 	rootCmd.AddCommand(newCmd)
 	rootCmd.AddCommand(initCmd)
