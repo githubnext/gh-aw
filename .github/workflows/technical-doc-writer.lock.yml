@@ -2786,6 +2786,10 @@ jobs:
         run: |
           mkdir -p /tmp/threat-detection
           touch /tmp/threat-detection/detection.log
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code@2.0.1
       - name: Execute Claude Code CLI

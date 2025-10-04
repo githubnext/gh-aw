@@ -2630,6 +2630,10 @@ jobs:
         run: |
           mkdir -p /tmp/threat-detection
           touch /tmp/threat-detection/detection.log
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@latest
       - name: Execute GitHub Copilot CLI
