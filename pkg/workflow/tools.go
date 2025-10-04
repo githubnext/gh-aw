@@ -62,7 +62,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 
 				// Clean up quoted keys - replace "on": with on: at the start of a line
 				// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-				yamlStr = unquoteYAMLKey(yamlStr, "on")
+				yamlStr = UnquoteYAMLKey(yamlStr, "on")
 
 				data.On = yamlStr
 			} else {

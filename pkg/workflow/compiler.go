@@ -717,7 +717,7 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 
 	// Clean up quoted keys - replace "key": with key: at the start of a line
 	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-	yamlStr = unquoteYAMLKey(yamlStr, key)
+	yamlStr = UnquoteYAMLKey(yamlStr, key)
 
 	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
@@ -1005,7 +1005,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 
 			// Clean up quoted keys - replace "on": with on: at the start of a line
 			// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-			yamlStr = unquoteYAMLKey(yamlStr, "on")
+			yamlStr = UnquoteYAMLKey(yamlStr, "on")
 
 			workflowData.On = yamlStr
 		} else {

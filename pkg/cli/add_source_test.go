@@ -123,6 +123,26 @@ This is a test workflow.`,
 			expectError: false,
 			checkSource: true,
 		},
+		{
+			name: "verify_on_keyword_not_quoted",
+			content: `---
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+engine: claude
+---
+
+# Test Workflow
+
+This workflow has complex 'on' triggers.`,
+			source:      "githubnext/agentics/workflows/test.md@v1.0.0",
+			expectError: false,
+			checkSource: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -156,6 +176,11 @@ This is a test workflow.`,
 				// Verify that markdown content is preserved
 				if strings.Contains(tt.content, "# Test Workflow") && !strings.Contains(result, "# Test Workflow") {
 					t.Errorf("addSourceToWorkflow() result does not preserve markdown content")
+				}
+
+				// Verify that "on" keyword is not quoted
+				if strings.Contains(result, `"on":`) {
+					t.Errorf("addSourceToWorkflow() result contains quoted 'on' keyword, should be unquoted. Result:\n%s", result)
 				}
 			}
 		})

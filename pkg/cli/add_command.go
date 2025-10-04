@@ -857,10 +857,14 @@ func addSourceToWorkflow(content, source string, verbose bool) (string, error) {
 		return "", fmt.Errorf("failed to marshal updated frontmatter: %w", err)
 	}
 
+	// Clean up quoted keys - replace "on": with on: at the start of a line
+	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
+	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
+
 	// Reconstruct the file
 	var lines []string
 	lines = append(lines, "---")
-	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
 	if frontmatterStr != "" {
 		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
 	}
