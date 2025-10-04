@@ -2266,6 +2266,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add PR context prompt as separate step if enabled
 	c.generatePRContextPromptStep(yaml, data)
 
+	// Add template rendering step if conditional patterns are detected
+	c.generateTemplateRenderingStep(yaml, data)
+
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        env:\n")

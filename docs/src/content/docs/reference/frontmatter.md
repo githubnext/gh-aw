@@ -280,7 +280,7 @@ engine:
 ```
 
 **Fields:**
-- **`id`** (required): Engine identifier (`copilot`, `claude`, `codex`)
+- **`id`** (required): Engine identifier (`copilot`, `claude`, `codex`, `custom`)
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)

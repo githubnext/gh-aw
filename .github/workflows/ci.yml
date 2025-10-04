@@ -1,13 +1,13 @@
 name: CI
 
 on: [push, pull_request]
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
+    concurrency:
+      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-test
+      cancel-in-progress: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -36,6 +36,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+    concurrency:
+      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-build-${{ matrix.os }}
+      cancel-in-progress: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -72,6 +75,9 @@ jobs:
   js:
     name: Build JavaScript
     runs-on: ubuntu-latest
+    concurrency:
+      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-js
+      cancel-in-progress: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -88,6 +94,9 @@ jobs:
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
+    concurrency:
+      group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-lint
+      cancel-in-progress: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
