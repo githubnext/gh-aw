@@ -1,4 +1,5 @@
 ---
+name: Dev
 on: 
   workflow_dispatch:
   push:
