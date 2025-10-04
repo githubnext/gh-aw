@@ -2,6 +2,8 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -34,7 +36,7 @@ func (c *Compiler) extractStopAfterFromOn(frontmatter map[string]any) (string, e
 }
 
 // processStopAfterConfiguration extracts and processes stop-after configuration from frontmatter
-func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, workflowData *WorkflowData) error {
+func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
 	// Extract stop-after from the on: section
 	stopAfter, err := c.extractStopAfterFromOn(frontmatter)
 	if err != nil {
@@ -44,17 +46,30 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 
 	// Resolve relative stop-after to absolute time if needed
 	if workflowData.StopTime != "" {
-		resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
-		if err != nil {
-			return fmt.Errorf("invalid stop-after format: %w", err)
-		}
-		originalStopTime := stopAfter
-		workflowData.StopTime = resolvedStopTime
+		// Check if there's already a lock file with a stop time (recompilation case)
+		lockFile := strings.TrimSuffix(markdownPath, ".md") + ".lock.yml"
+		existingStopTime := ExtractStopTimeFromLockFile(lockFile)
 
-		if c.verbose && isRelativeStopTime(originalStopTime) {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
-		} else if c.verbose && originalStopTime != resolvedStopTime {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
+		if existingStopTime != "" {
+			// Preserve existing stop time during recompilation
+			workflowData.StopTime = existingStopTime
+			if c.verbose {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
+			}
+		} else {
+			// First compilation or no existing stop time, generate new one
+			resolvedStopTime, err := resolveStopTime(workflowData.StopTime, time.Now().UTC())
+			if err != nil {
+				return fmt.Errorf("invalid stop-after format: %w", err)
+			}
+			originalStopTime := stopAfter
+			workflowData.StopTime = resolvedStopTime
+
+			if c.verbose && isRelativeStopTime(originalStopTime) {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
+			} else if c.verbose && originalStopTime != resolvedStopTime {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
+			}
 		}
 	}
 
@@ -147,4 +162,27 @@ func (c *Compiler) buildStopTimeCheckJob(data *WorkflowData, activationJobCreate
 	}
 
 	return job, nil
+}
+
+// ExtractStopTimeFromLockFile extracts the STOP_TIME value from a compiled workflow lock file
+func ExtractStopTimeFromLockFile(lockFilePath string) string {
+	content, err := os.ReadFile(lockFilePath)
+	if err != nil {
+		return ""
+	}
+
+	// Look for the STOP_TIME line in the safety checks section
+	// Pattern: STOP_TIME="YYYY-MM-DD HH:MM:SS"
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "STOP_TIME=") {
+			// Extract the value between quotes
+			start := strings.Index(line, `"`) + 1
+			end := strings.LastIndex(line, `"`)
+			if start > 0 && end > start {
+				return line[start:end]
+			}
+		}
+	}
+	return ""
 }
