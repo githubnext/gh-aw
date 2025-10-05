@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -517,8 +516,6 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 
 // processIncludesInContent processes @include directives in workflow content for update command
 func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
-	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
-
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result strings.Builder
 
@@ -526,7 +523,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 		line := scanner.Text()
 
 		// Check if this line is an @include or @import directive
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+		if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
 

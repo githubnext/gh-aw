@@ -15,6 +15,9 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+// IncludeDirectivePattern matches @include or @import directives
+var IncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
+
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
 	switch typeStr {
@@ -296,13 +299,12 @@ func ProcessIncludes(content, baseDir string, extractTools bool) (string, error)
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		// Check if this line is an @include or @import directive
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
 
@@ -720,13 +722,12 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
 	var engines []string
-	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		// Check if this line is an @include or @import directive
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
 

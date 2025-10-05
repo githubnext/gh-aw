@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -883,13 +882,13 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 	// Track visited includes to prevent cycles
 	visited := make(map[string]bool)
 
-	return processIncludesRecursive(content, workflow, commitSHA, packagePath, visited, verbose)
-}
+	// Use a queue to process files iteratively instead of recursion
+	type fileToProcess struct {
+		path string
+	}
+	queue := []fileToProcess{}
 
-// processIncludesRecursive recursively processes @include directives with cycle detection
-func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA, packagePath string, visited map[string]bool, verbose bool) (string, error) {
-	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
-
+	// Process the main content first
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result strings.Builder
 
@@ -897,7 +896,7 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 		line := scanner.Text()
 
 		// Check if this line is an @include or @import directive
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+		if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
 
@@ -943,37 +942,77 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 				result.WriteString("@include " + workflowSpec + "\n")
 			}
 
-			// Read the included file and process its includes recursively
-			fullSourcePath := filepath.Join(packagePath, filePath)
-			if _, err := os.Stat(fullSourcePath); err == nil {
-				includedContent, err := os.ReadFile(fullSourcePath)
-				if err != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read include file %s: %v", fullSourcePath, err)))
-					}
-					continue
-				}
-
-				// Extract markdown content from the included file
-				markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
-				if err != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract markdown from %s: %v", fullSourcePath, err)))
-					}
-					continue
-				}
-
-				// Recursively process includes in the included file
-				_, err = processIncludesRecursive(markdownContent, workflow, commitSHA, packagePath, visited, verbose)
-				if err != nil && verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error processing includes in %s: %v", fullSourcePath, err)))
-				}
-			}
+			// Add file to queue for processing nested includes
+			queue = append(queue, fileToProcess{path: filePath})
 		} else {
 			// Regular line, pass through
 			result.WriteString(line + "\n")
 		}
 	}
 
-	return result.String(), scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	// Process queue of files to check for nested includes
+	for len(queue) > 0 {
+		// Dequeue the first file
+		fileItem := queue[0]
+		queue = queue[1:]
+
+		fullSourcePath := filepath.Join(packagePath, fileItem.path)
+		if _, err := os.Stat(fullSourcePath); err != nil {
+			continue // File doesn't exist, skip
+		}
+
+		includedContent, err := os.ReadFile(fullSourcePath)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read include file %s: %v", fullSourcePath, err)))
+			}
+			continue
+		}
+
+		// Extract markdown content from the included file
+		markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract markdown from %s: %v", fullSourcePath, err)))
+			}
+			continue
+		}
+
+		// Scan for nested includes
+		nestedScanner := bufio.NewScanner(strings.NewReader(markdownContent))
+		for nestedScanner.Scan() {
+			line := nestedScanner.Text()
+
+			if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
+				includePath := strings.TrimSpace(matches[2])
+
+				// Handle section references
+				var nestedFilePath string
+				if strings.Contains(includePath, "#") {
+					parts := strings.SplitN(includePath, "#", 2)
+					nestedFilePath = parts[0]
+				} else {
+					nestedFilePath = includePath
+				}
+
+				// Check for cycle detection
+				if visited[nestedFilePath] {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", nestedFilePath)))
+					}
+					continue
+				}
+
+				// Mark as visited and add to queue
+				visited[nestedFilePath] = true
+				queue = append(queue, fileToProcess{path: nestedFilePath})
+			}
+		}
+	}
+
+	return result.String(), nil
 }
