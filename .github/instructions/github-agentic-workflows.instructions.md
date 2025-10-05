@@ -456,6 +456,103 @@ Deploy to environment: "${{ github.event.inputs.environment }}"
 # Complex: ${{ toJson(github.workflow) }}
 ```
 
+## Template Conditionals
+
+Agentic workflows support conditional rendering of prompt content using template regions. This allows you to dynamically include or exclude sections based on GitHub Actions context values.
+
+### Syntax
+
+Template conditionals use `{{#if}}` blocks with GitHub Actions expressions:
+
+```markdown
+{{#if ${{ expression }}}}
+Content to include when expression is truthy
+{{/if}}
+```
+
+**Important**: The expression inside `{{#if}}` must be a complete GitHub Actions expression with `${{ }}` syntax. The workflow engine evaluates the `${{ }}` expression first, then processes the `{{#if}}` conditional based on the result.
+
+### How It Works
+
+1. GitHub Actions evaluates all `${{ }}` expressions in the workflow
+2. The template renderer processes `{{#if}}` blocks based on the evaluated values
+3. Content inside `{{#if}}` blocks is included if the expression is truthy, otherwise removed
+
+### Truthy Values
+
+The following values are considered **truthy**:
+- Non-empty strings (e.g., `"hello"`, `"123"`)
+- The string `"true"`
+- Any value that is not: `""`, `"false"`, `"0"`, `"null"`, or `"undefined"`
+
+The following values are considered **falsy**:
+- Empty string `""`
+- The string `"false"`
+- The string `"0"`
+- The string `"null"`
+- The string `"undefined"`
+
+### Example: Conditional Content Based on Workflow Inputs
+
+```markdown
+---
+on:
+  workflow_dispatch:
+    inputs:
+      debug_mode:
+        description: 'Enable debug output'
+        required: false
+        type: boolean
+      custom_message:
+        description: 'Optional custom message'
+        required: false
+---
+
+# Your Task
+
+Process the following request.
+
+{{#if ${{ github.event.inputs.debug_mode }}}}
+**Debug Mode Enabled**: Provide detailed step-by-step analysis and reasoning.
+{{/if}}
+
+{{#if ${{ github.event.inputs.custom_message }}}}
+**Custom Instructions**: ${{ github.event.inputs.custom_message }}
+{{/if}}
+```
+
+### Example: Conditional Content Based on Event Type
+
+```markdown
+## Context
+
+- **Repository**: ${{ github.repository }}
+- **Actor**: ${{ github.actor }}
+
+{{#if ${{ github.event.issue.number }}}}
+- **Issue**: #${{ github.event.issue.number }}
+{{/if}}
+
+{{#if ${{ github.event.pull_request.number }}}}
+- **Pull Request**: #${{ github.event.pull_request.number }}
+{{/if}}
+```
+
+### Common Use Cases
+
+1. **Optional workflow inputs**: Include instructions only when specific inputs are provided
+2. **Event-specific context**: Show different context based on the triggering event
+3. **Feature flags**: Enable/disable prompt sections based on workflow configuration
+4. **Dynamic prompts**: Adapt AI instructions based on runtime conditions
+
+### Best Practices
+
+- Keep conditional blocks simple and focused
+- Use clear, descriptive expressions
+- Test with both truthy and falsy values
+- Avoid deeply nested conditionals
+- Remember to use `${{ }}` around the entire expression
+
 ## Tool Configuration
 
 ### GitHub Tools
