@@ -491,7 +491,7 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Process @include directives in the new content and replace with workflowspec
 	// Build a WorkflowSpec from the sourceSpec to use for processing includes
 	workflow := &WorkflowSpec{
@@ -501,7 +501,7 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 		},
 		WorkflowPath: sourceSpec.Path,
 	}
-	
+
 	// We don't have access to the package path here, so we'll just process the markdown
 	// The compile step will handle downloading the includes when needed
 	processedContent, err := processIncludesInContent(content, workflow, newRef, verbose)
@@ -511,31 +511,31 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 		}
 		return content, nil // Return unprocessed content on error
 	}
-	
+
 	return processedContent, nil
 }
 
 // processIncludesInContent processes @include directives in workflow content for update command
 func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
 	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result strings.Builder
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		// Check if this line is an @include or @import directive
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
-			
+
 			// Skip if it's already a workflowspec (contains repo/path format)
 			if isWorkflowSpecFormat(includePath) {
 				result.WriteString(line + "\n")
 				continue
 			}
-			
+
 			// Handle section references (file.md#Section)
 			var filePath, sectionName string
 			if strings.Contains(includePath, "#") {
@@ -545,7 +545,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			} else {
 				filePath = includePath
 			}
-			
+
 			// Build workflowspec for this include
 			// Format: owner/repo/path@sha
 			workflowSpec := workflow.Repo + "/" + filePath
@@ -554,12 +554,12 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			} else if workflow.Version != "" {
 				workflowSpec += "@" + workflow.Version
 			}
-			
+
 			// Add section if present
 			if sectionName != "" {
 				workflowSpec += "#" + sectionName
 			}
-			
+
 			// Write the updated @include directive
 			if isOptional {
 				result.WriteString("@include? " + workflowSpec + "\n")
@@ -571,7 +571,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 			result.WriteString(line + "\n")
 		}
 	}
-	
+
 	return result.String(), scanner.Err()
 }
 
@@ -581,19 +581,19 @@ func isWorkflowSpecFormat(path string) bool {
 	if strings.Contains(path, "@") {
 		return true
 	}
-	
+
 	// Remove section reference if present
 	cleanPath := path
 	if idx := strings.Index(path, "#"); idx != -1 {
 		cleanPath = path[:idx]
 	}
-	
+
 	// Check if it has at least 3 parts and doesn't start with . or /
 	parts := strings.Split(cleanPath, "/")
 	if len(parts) >= 3 && !strings.HasPrefix(cleanPath, ".") && !strings.HasPrefix(cleanPath, "/") {
 		return true
 	}
-	
+
 	return false
 }
 

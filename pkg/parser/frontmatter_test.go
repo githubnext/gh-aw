@@ -1867,7 +1867,7 @@ func TestIsWorkflowSpec(t *testing.T) {
 			want: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isWorkflowSpec(tt.path)
@@ -1885,27 +1885,27 @@ func TestProcessIncludesWithCycleDetection(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
-	
+
 	// Create file A that includes file B
 	fileA := filepath.Join(tempDir, "fileA.md")
 	if err := os.WriteFile(fileA, []byte("# File A\n@include fileB.md\n"), 0644); err != nil {
 		t.Fatalf("Failed to write fileA: %v", err)
 	}
-	
+
 	// Create file B that includes file A (creating a cycle)
 	fileB := filepath.Join(tempDir, "fileB.md")
 	if err := os.WriteFile(fileB, []byte("# File B\n@include fileA.md\n"), 0644); err != nil {
 		t.Fatalf("Failed to write fileB: %v", err)
 	}
-	
+
 	// Process includes from file A - should not hang due to cycle detection
 	content := "# Main\n@include fileA.md\n"
 	result, err := ProcessIncludes(content, tempDir, false)
-	
+
 	if err != nil {
 		t.Errorf("ProcessIncludes with cycle should not error: %v", err)
 	}
-	
+
 	// Result should contain content from fileA and fileB, but cycle should be prevented
 	if !strings.Contains(result, "File A") {
 		t.Errorf("ProcessIncludes result should contain File A content")

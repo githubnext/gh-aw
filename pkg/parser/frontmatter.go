@@ -315,7 +315,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			} else {
 				filePath = includePath
 			}
-			
+
 			// Check for cycles
 			if visited[filePath] {
 				if !extractTools {
@@ -337,7 +337,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 				// For required includes, fail compilation with an error
 				return "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
-			
+
 			// Mark as visited
 			visited[filePath] = true
 
@@ -382,7 +382,7 @@ func resolveIncludePath(filePath, baseDir string) (string, error) {
 		// Download from GitHub using workflowspec
 		return downloadIncludeFromWorkflowSpec(filePath)
 	}
-	
+
 	// Regular path, resolve relative to base directory
 	fullPath := filepath.Join(baseDir, filePath)
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -398,28 +398,28 @@ func isWorkflowSpec(path string) bool {
 	if idx := strings.Index(path, "#"); idx != -1 {
 		cleanPath = path[:idx]
 	}
-	
+
 	// Remove ref if present
 	if idx := strings.Index(cleanPath, "@"); idx != -1 {
 		cleanPath = cleanPath[:idx]
 	}
-	
+
 	// Check if it has at least 3 parts (owner/repo/path)
 	parts := strings.Split(cleanPath, "/")
 	if len(parts) < 3 {
 		return false
 	}
-	
+
 	// Reject paths that start with "." (local paths like .github/workflows/...)
 	if strings.HasPrefix(cleanPath, ".") {
 		return false
 	}
-	
+
 	// Reject absolute paths
 	if strings.HasPrefix(cleanPath, "/") {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -427,13 +427,13 @@ func isWorkflowSpec(path string) bool {
 func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 	// Parse the workflowspec
 	// Format: owner/repo/path@ref or owner/repo/path@ref#section
-	
+
 	// Remove section reference if present
 	cleanSpec := spec
 	if idx := strings.Index(spec, "#"); idx != -1 {
 		cleanSpec = spec[:idx]
 	}
-	
+
 	// Split on @ to get path and ref
 	parts := strings.SplitN(cleanSpec, "@", 2)
 	pathPart := parts[0]
@@ -443,40 +443,40 @@ func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
 	} else {
 		ref = "main" // default to main branch
 	}
-	
+
 	// Parse path: owner/repo/path/to/file.md
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
 		return "", fmt.Errorf("invalid workflowspec: must be owner/repo/path[@ref]")
 	}
-	
+
 	owner := slashParts[0]
 	repo := slashParts[1]
 	filePath := strings.Join(slashParts[2:], "/")
-	
+
 	// Download the file content from GitHub
 	content, err := downloadFileFromGitHub(owner, repo, filePath, ref)
 	if err != nil {
 		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
 	}
-	
+
 	// Create a temporary file to store the downloaded content
 	tempFile, err := os.CreateTemp("", "gh-aw-include-*.md")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	
+
 	if _, err := tempFile.Write(content); err != nil {
 		tempFile.Close()
 		os.Remove(tempFile.Name())
 		return "", fmt.Errorf("failed to write temp file: %w", err)
 	}
-	
+
 	if err := tempFile.Close(); err != nil {
 		os.Remove(tempFile.Name())
 		return "", fmt.Errorf("failed to close temp file: %w", err)
 	}
-	
+
 	return tempFile.Name(), nil
 }
 
@@ -488,7 +488,7 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch file content: %w", err)
 	}
-	
+
 	// The content is base64 encoded, decode it
 	contentBase64 := strings.TrimSpace(string(output))
 	cmd = exec.Command("base64", "-d")
@@ -497,105 +497,11 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode file content: %w", err)
 	}
-	
+
 	return content, nil
 }
 
 // processIncludedFile processes a single included file, optionally extracting a section
-func processIncludedFile(filePath, sectionName string, extractTools bool) (string, error) {
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)
-	}
-
-	// Validate included file frontmatter based on file location
-	result, err := ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return "", fmt.Errorf("failed to extract frontmatter from included file %s: %w", filePath, err)
-	}
-
-	// Check if file is under .github/workflows/ for strict validation
-	isWorkflowFile := isUnderWorkflowsDirectory(filePath)
-
-	// Always try strict validation first
-	validationErr := ValidateIncludedFileFrontmatterWithSchemaAndLocation(result.Frontmatter, filePath)
-
-	if validationErr != nil {
-		if isWorkflowFile {
-			// For workflow files, strict validation must pass
-			return "", fmt.Errorf("invalid frontmatter in included file %s: %w", filePath, validationErr)
-		} else {
-			// For non-workflow files, fall back to relaxed validation with warnings
-			if len(result.Frontmatter) > 0 {
-				// Check for unexpected frontmatter fields (anything other than tools and engine)
-				unexpectedFields := make([]string, 0)
-				for key := range result.Frontmatter {
-					if key != "tools" && key != "engine" {
-						unexpectedFields = append(unexpectedFields, key)
-					}
-				}
-
-				if len(unexpectedFields) > 0 {
-					// Show warning for unexpected frontmatter fields
-					fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
-						fmt.Sprintf("Ignoring unexpected frontmatter fields in %s: %s",
-							filePath, strings.Join(unexpectedFields, ", "))))
-				}
-
-				// Validate the tools and engine sections if present
-				filteredFrontmatter := map[string]any{}
-				if tools, hasTools := result.Frontmatter["tools"]; hasTools {
-					filteredFrontmatter["tools"] = tools
-				}
-				if engine, hasEngine := result.Frontmatter["engine"]; hasEngine {
-					filteredFrontmatter["engine"] = engine
-				}
-				if len(filteredFrontmatter) > 0 {
-					if err := ValidateIncludedFileFrontmatterWithSchemaAndLocation(filteredFrontmatter, filePath); err != nil {
-						fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage(
-							fmt.Sprintf("Invalid configuration in %s: %v", filePath, err)))
-					}
-				}
-			}
-		}
-	}
-
-	if extractTools {
-		// Extract tools from frontmatter, using filtered frontmatter for non-workflow files with validation errors
-		if validationErr == nil || isWorkflowFile {
-			// If validation passed or it's a workflow file (which must have valid frontmatter), use original extraction
-			return extractToolsFromContent(string(content))
-		} else {
-			// For non-workflow files with validation errors, only extract tools section
-			if tools, hasTools := result.Frontmatter["tools"]; hasTools {
-				toolsJSON, err := json.Marshal(tools)
-				if err != nil {
-					return "{}", nil
-				}
-				return strings.TrimSpace(string(toolsJSON)), nil
-			}
-			return "{}", nil
-		}
-	}
-
-	// Extract markdown content
-	markdownContent, err := ExtractMarkdownContent(string(content))
-	if err != nil {
-		return "", fmt.Errorf("failed to extract markdown from %s: %w", filePath, err)
-	}
-
-	// If section specified, extract only that section
-	if sectionName != "" {
-		sectionContent, err := ExtractMarkdownSection(markdownContent, sectionName)
-		if err != nil {
-			return "", fmt.Errorf("failed to extract section '%s' from %s: %w", sectionName, filePath, err)
-		}
-		return strings.Trim(sectionContent, "\n") + "\n", nil
-	}
-
-	return strings.Trim(markdownContent, "\n") + "\n", nil
-}
-
 // processIncludedFileWithVisited processes a single included file with cycle detection for nested includes
 func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, baseDir string, visited map[string]bool) (string, error) {
 	content, err := os.ReadFile(filePath)
@@ -678,7 +584,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	if err != nil {
 		return "", fmt.Errorf("failed to extract markdown from %s: %w", filePath, err)
 	}
-	
+
 	// Process nested includes recursively
 	includedDir := filepath.Dir(filePath)
 	markdownContent, err = processIncludesWithVisited(markdownContent, includedDir, extractTools, visited)

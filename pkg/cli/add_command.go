@@ -457,7 +457,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			} else {
 				content = updatedContent
 			}
-			
+
 			// Process @include directives and replace with workflowspec
 			processedContent, err := processIncludesWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, sourceInfo.PackagePath, verbose)
 			if err != nil {
@@ -882,25 +882,25 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 
 	// Track visited includes to prevent cycles
 	visited := make(map[string]bool)
-	
+
 	return processIncludesRecursive(content, workflow, commitSHA, packagePath, visited, verbose)
 }
 
 // processIncludesRecursive recursively processes @include directives with cycle detection
 func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA, packagePath string, visited map[string]bool, verbose bool) (string, error) {
 	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result strings.Builder
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		// Check if this line is an @include or @import directive
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
-			
+
 			// Handle section references (file.md#Section)
 			var filePath, sectionName string
 			if strings.Contains(includePath, "#") {
@@ -910,7 +910,7 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 			} else {
 				filePath = includePath
 			}
-			
+
 			// Check for cycle detection
 			if visited[filePath] {
 				if verbose {
@@ -918,10 +918,10 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 				}
 				continue
 			}
-			
+
 			// Mark as visited
 			visited[filePath] = true
-			
+
 			// Build workflowspec for this include
 			// Format: owner/repo/path@sha
 			workflowSpec := workflow.Repo + "/" + filePath
@@ -930,19 +930,19 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 			} else if workflow.Version != "" {
 				workflowSpec += "@" + workflow.Version
 			}
-			
+
 			// Add section if present
 			if sectionName != "" {
 				workflowSpec += "#" + sectionName
 			}
-			
+
 			// Write the updated @include directive
 			if isOptional {
 				result.WriteString("@include? " + workflowSpec + "\n")
 			} else {
 				result.WriteString("@include " + workflowSpec + "\n")
 			}
-			
+
 			// Read the included file and process its includes recursively
 			fullSourcePath := filepath.Join(packagePath, filePath)
 			if _, err := os.Stat(fullSourcePath); err == nil {
@@ -953,7 +953,7 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 					}
 					continue
 				}
-				
+
 				// Extract markdown content from the included file
 				markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
 				if err != nil {
@@ -962,7 +962,7 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 					}
 					continue
 				}
-				
+
 				// Recursively process includes in the included file
 				_, err = processIncludesRecursive(markdownContent, workflow, commitSHA, packagePath, visited, verbose)
 				if err != nil && verbose {
@@ -974,6 +974,6 @@ func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA,
 			result.WriteString(line + "\n")
 		}
 	}
-	
+
 	return result.String(), scanner.Err()
 }
