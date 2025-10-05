@@ -2,6 +2,9 @@ package workflow
 
 import (
 	"regexp"
+	"sort"
+
+	"github.com/goccy/go-yaml"
 )
 
 // UnquoteYAMLKey removes quotes from a YAML key at the start of a line.
@@ -27,4 +30,56 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 		}
 		return match
 	})
+}
+
+// MarshalWithFieldOrder marshals a map to YAML with fields in a specific order.
+// Priority fields are emitted first in the order specified, then remaining fields alphabetically.
+// This is used to ensure GitHub Actions workflow fields appear in a conventional order.
+func MarshalWithFieldOrder(data map[string]any, priorityFields []string) ([]byte, error) {
+	orderedData := OrderMapFields(data, priorityFields)
+	// Marshal the ordered data with proper options for GitHub Actions
+	return yaml.MarshalWithOptions(orderedData,
+		yaml.Indent(2),                        // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
+	)
+}
+
+// OrderMapFields converts a map to yaml.MapSlice with fields in a specific order.
+// Priority fields are emitted first in the order specified, then remaining fields alphabetically.
+// This is a helper function that can be used when you need the MapSlice directly.
+func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice {
+	var orderedData yaml.MapSlice
+
+	// First, add priority fields in the specified order
+	for _, fieldName := range priorityFields {
+		if value, exists := data[fieldName]; exists {
+			orderedData = append(orderedData, yaml.MapItem{Key: fieldName, Value: value})
+		}
+	}
+
+	// Then add remaining fields in alphabetical order
+	var remainingKeys []string
+	for key := range data {
+		// Skip if it's already been added as a priority field
+		isPriority := false
+		for _, priorityField := range priorityFields {
+			if key == priorityField {
+				isPriority = true
+				break
+			}
+		}
+		if !isPriority {
+			remainingKeys = append(remainingKeys, key)
+		}
+	}
+
+	// Sort remaining keys alphabetically
+	sort.Strings(remainingKeys)
+
+	// Add remaining fields to the ordered map
+	for _, key := range remainingKeys {
+		orderedData = append(orderedData, yaml.MapItem{Key: key, Value: data[key]})
+	}
+
+	return orderedData
 }

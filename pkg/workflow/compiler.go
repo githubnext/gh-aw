@@ -705,10 +705,29 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 		return ""
 	}
 
-	// Convert the value back to YAML format
-	yamlBytes, err := yaml.Marshal(map[string]any{key: value})
-	if err != nil {
-		return ""
+	// Convert the value back to YAML format with field ordering
+	var yamlBytes []byte
+	var err error
+
+	// Check if value is a map that we should order alphabetically
+	if valueMap, ok := value.(map[string]any); ok {
+		// Use OrderMapFields for alphabetical sorting (empty priority list = all alphabetical)
+		orderedValue := OrderMapFields(valueMap, []string{})
+		// Wrap the ordered value with the key using MapSlice
+		wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
+		yamlBytes, err = yaml.MarshalWithOptions(wrappedData,
+			yaml.Indent(2),                        // Use 2-space indentation
+			yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
+		)
+		if err != nil {
+			return ""
+		}
+	} else {
+		// Use standard marshaling for non-map types
+		yamlBytes, err = yaml.Marshal(map[string]any{key: value})
+		if err != nil {
+			return ""
+		}
 	}
 
 	yamlStr := string(yamlBytes)

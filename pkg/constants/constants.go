@@ -158,3 +158,15 @@ var DefaultBashTools = []string{
 	"uniq",
 	"date",
 }
+
+// PriorityStepFields defines the conventional field order for GitHub Actions workflow steps
+// Fields appear in this order first, followed by remaining fields alphabetically
+var PriorityStepFields = []string{"name", "id", "if", "run", "uses", "env", "with"}
+
+// PriorityJobFields defines the conventional field order for GitHub Actions workflow jobs
+// Fields appear in this order first, followed by remaining fields alphabetically
+var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions", "environment", "concurrency", "outputs", "env", "defaults", "steps"}
+
+// PriorityWorkflowFields defines the conventional field order for top-level GitHub Actions workflow frontmatter
+// Fields appear in this order first, followed by remaining fields alphabetically
+var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "safe-outputs", "steps"}
