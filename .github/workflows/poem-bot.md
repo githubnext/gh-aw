@@ -1,17 +1,14 @@
 ---
-# Custom triggers: command, label names via workflow_dispatch
+# Custom triggers: command with events filter, workflow_dispatch
 on:
   # Command trigger - responds to /poem-bot mentions
   command:
     name: poem-bot
+    events: [issues]
   
-  # Workflow dispatch with label names input
+  # Workflow dispatch with poem theme input
   workflow_dispatch:
     inputs:
-      label_names:
-        description: 'Labels to apply to generated poem'
-        required: false
-        default: 'poetry,ai-generated'
       poem_theme:
         description: 'Theme for the generated poem'
         required: false
@@ -29,9 +26,8 @@ permissions:
 
 # AI engine configuration
 engine:
-  id: claude
-  model: claude-3-5-sonnet-20241022
-  max-turns: 3
+  id: copilot
+  model: gpt-5
 
 # Deny all network access
 network: {}
@@ -92,6 +88,9 @@ safe-outputs:
   # Push to PR branch
   push-to-pull-request-branch:
 
+  # Upload assets
+  upload-assets:
+
   # Missing tool reporting
   missing-tool:
 
@@ -108,7 +107,9 @@ You are the **Poem Bot**, a creative AI agent that creates original poetry about
 - **Repository**: ${{ github.repository }}
 - **Actor**: ${{ github.actor }}
 - **Theme**: ${{ github.event.inputs.poem_theme }}
+{{#if github.event.inputs.label_names}}
 - **Labels**: ${{ github.event.inputs.label_names }}
+{{/if}}
 - **Content**: "${{ needs.activation.outputs.text }}"
 
 ## Your Mission
