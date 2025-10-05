@@ -319,7 +319,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+        run: npm install -g @github/copilot@latest
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
@@ -2544,7 +2544,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+        run: npm install -g @github/copilot@latest
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         timeout-minutes: 5
@@ -2878,9 +2878,20 @@ jobs:
                     : `https://github.com/actions/runs/${runId}`;
                   const fallbackBody = `${body}
             ---
-            **⚠️ Note:** This was originally intended as a pull request, but the git push operation failed.
-            **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.`;
+            > [!NOTE]
+            > This was originally intended as a pull request, but the git push operation failed.
+            >
+            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
+            >
+            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+            To apply the patch locally:
+            \`\`\`sh
+            # Download the artifact from the workflow run
+            gh run download ${runId} -n aw.patch
+            # Apply the patch
+            git am aw.patch
+            \`\`\`
+            `;
                   try {
                     const { data: issue } = await github.rest.issues.create({
                       owner: context.repo.owner,

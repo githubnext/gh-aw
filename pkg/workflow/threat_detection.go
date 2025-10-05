@@ -281,7 +281,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 
 	var steps []string
 
-	// Add engine installation steps
+	// Add engine installation steps (includes Node.js setup for npm-based engines)
 	installSteps := engine.GetInstallationSteps(threatDetectionData)
 	for _, step := range installSteps {
 		for _, line := range step {

@@ -34,28 +34,21 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	// Build the npm install command, optionally with version
-	installCmd := "npm install -g @github/copilot"
+	// Determine version
+	version := "latest"
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		installCmd = fmt.Sprintf("npm install -g @github/copilot@%s", workflowData.EngineConfig.Version)
+		version = workflowData.EngineConfig.Version
 	}
 
-	var steps []GitHubActionStep
+	// Add npm package installation steps (includes Node.js setup)
+	steps := GenerateNpmInstallSteps(
+		"@github/copilot",
+		version,
+		"Install GitHub Copilot CLI",
+		"copilot",
+		true, // Include Node.js setup
+	)
 
-	installationSteps := []GitHubActionStep{
-		{
-			"      - name: Setup Node.js",
-			"        uses: actions/setup-node@v4",
-			"        with:",
-			"          node-version: '24'",
-		},
-		{
-			"      - name: Install GitHub Copilot CLI",
-			fmt.Sprintf("        run: %s", installCmd),
-		},
-	}
-
-	steps = append(steps, installationSteps...)
 	return steps
 }
 

@@ -162,8 +162,13 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Execute Claude Code CLI") {
 					t.Errorf("Expected lock file to contain 'Execute Claude Code CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code@2.0.1") {
-					t.Errorf("Expected lock file to contain Claude Code npx command but it didn't.\nContent:\n%s", lockContent)
+				// Check for installation step (npm install)
+				if !strings.Contains(lockContent, "npm install -g @anthropic-ai/claude-code@2.0.1") {
+					t.Errorf("Expected lock file to contain npm install command but it didn't.\nContent:\n%s", lockContent)
+				}
+				// Check for direct claude command (not npx)
+				if !strings.Contains(lockContent, "claude --print") {
+					t.Errorf("Expected lock file to contain claude command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that prompt printing step is present
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
@@ -462,8 +467,13 @@ This is a test workflow for MCP configuration with different AI engines.
 					t.Errorf("Expected NO claude CLI but found it in:\n%s", lockContent)
 				}
 			} else {
-				if !strings.Contains(lockContent, "npx @anthropic-ai/claude-code") {
-					t.Errorf("Expected claude CLI but didn't find it in:\n%s", lockContent)
+				// Check for direct claude command (not npx)
+				if !strings.Contains(lockContent, "claude --print") {
+					t.Errorf("Expected claude command but didn't find it in:\n%s", lockContent)
+				}
+				// Check for npm install
+				if !strings.Contains(lockContent, "npm install -g @anthropic-ai/claude-code") {
+					t.Errorf("Expected npm install command but didn't find it in:\n%s", lockContent)
 				}
 			}
 		})
