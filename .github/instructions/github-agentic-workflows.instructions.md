@@ -29,7 +29,7 @@ Natural language description of what the AI should do.
 
 Use GitHub context expressions like ${{ github.event.issue.number }}.
 
-@import shared/common-behaviors.md
+@include shared/common-behaviors.md
 ```
 
 ## Complete Frontmatter Schema
@@ -558,23 +558,23 @@ network: {}
 - `rust`: Rust and Cargo ecosystem
 - `swift`: Swift and CocoaPods ecosystem
 
-## @import Directive System
+## @include Directive System
 
-Import shared components using `@import` directives (or `@include` as an alias):
+Include shared components using `@include` directives:
 
 ```markdown
-@import shared/security-notice.md
-@import shared/tool-setup.md
-@import shared/footer-link.md
+@include shared/security-notice.md
+@include shared/tool-setup.md
+@include shared/footer-link.md
 ```
 
-### Import File Structure
-Import files are in `.github/workflows/shared/` and can contain:
+### Include File Structure
+Include files are in `.github/workflows/shared/` and can contain:
 - Tool configurations (frontmatter only)
 - Text content 
 - Mixed frontmatter + content
 
-Example import file with tools:
+Example include file with tools:
 ```markdown
 ---
 tools:
@@ -956,7 +956,7 @@ Agentic workflows compile to GitHub Actions YAML:
 1. **Use descriptive workflow names** that clearly indicate purpose
 2. **Set appropriate timeouts** to prevent runaway costs
 3. **Include security notices** for workflows processing user content  
-4. **Use @import directives** for common patterns and security boilerplate
+4. **Use @include directives** for common patterns and security boilerplate
 5. **ALWAYS run `gh aw compile` after every change** to generate the GitHub Actions workflow (or `gh aw compile <workflow-id>` for specific workflows)
 6. **Review generated `.lock.yml`** files before deploying
 7. **Set `stop-after`** in the `on:` section for cost-sensitive workflows
