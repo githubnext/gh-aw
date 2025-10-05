@@ -711,39 +711,20 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 
 	// Check if value is a map that we should order alphabetically
 	if valueMap, ok := value.(map[string]any); ok {
-		// Use ordered marshaling with alphabetical sorting (empty priority list = all alphabetical)
-		orderedValueBytes, err := MarshalWithFieldOrder(valueMap, []string{})
+		// Use OrderMapFields for alphabetical sorting (empty priority list = all alphabetical)
+		orderedValue := OrderMapFields(valueMap, []string{})
+		// Wrap the ordered value with the key using MapSlice
+		wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
+		yamlBytes, err = yaml.Marshal(wrappedData)
 		if err != nil {
-			// Fallback to standard marshaling if ordering fails
-			yamlBytes, err = yaml.Marshal(map[string]any{key: value})
-			if err != nil {
-				return ""
-			}
-		} else {
-			// Parse the ordered YAML back into a structure we can use
-			var orderedValue yaml.MapSlice
-			if err := yaml.Unmarshal(orderedValueBytes, &orderedValue); err != nil {
-				// Fallback to standard marshaling if parsing fails
-				yamlBytes, err = yaml.Marshal(map[string]any{key: value})
-				if err != nil {
-					return ""
-				}
-			} else {
-				// Wrap the ordered value with the key using MapSlice
-				wrappedData := yaml.MapSlice{{Key: key, Value: orderedValue}}
-				yamlBytes, err = yaml.Marshal(wrappedData)
-				if err != nil {
-					return ""
-				}
-			}
+			return ""
 		}
 	} else {
 		// Use standard marshaling for non-map types
 		yamlBytes, err = yaml.Marshal(map[string]any{key: value})
-	}
-
-	if err != nil {
-		return ""
+		if err != nil {
+			return ""
+		}
 	}
 
 	yamlStr := string(yamlBytes)

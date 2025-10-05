@@ -36,7 +36,18 @@ func UnquoteYAMLKey(yamlStr string, key string) string {
 // Priority fields are emitted first in the order specified, then remaining fields alphabetically.
 // This is used to ensure GitHub Actions workflow fields appear in a conventional order.
 func MarshalWithFieldOrder(data map[string]any, priorityFields []string) ([]byte, error) {
-	// Convert the map to yaml.MapSlice to maintain field order
+	orderedData := OrderMapFields(data, priorityFields)
+	// Marshal the ordered data with proper options for GitHub Actions
+	return yaml.MarshalWithOptions(orderedData,
+		yaml.Indent(2),                        // Use 2-space indentation
+		yaml.UseLiteralStyleIfMultiline(true), // Use literal block scalars for multiline strings
+	)
+}
+
+// OrderMapFields converts a map to yaml.MapSlice with fields in a specific order.
+// Priority fields are emitted first in the order specified, then remaining fields alphabetically.
+// This is a helper function that can be used when you need the MapSlice directly.
+func OrderMapFields(data map[string]any, priorityFields []string) yaml.MapSlice {
 	var orderedData yaml.MapSlice
 
 	// First, add priority fields in the specified order
@@ -70,6 +81,5 @@ func MarshalWithFieldOrder(data map[string]any, priorityFields []string) ([]byte
 		orderedData = append(orderedData, yaml.MapItem{Key: key, Value: data[key]})
 	}
 
-	// Marshal the ordered data
-	return yaml.Marshal(orderedData)
+	return orderedData
 }
