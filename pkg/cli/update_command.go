@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -217,12 +216,6 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 }
 
 // isSemanticVersionTag checks if a ref looks like a semantic version tag
-func isSemanticVersionTag(ref string) bool {
-	// Match v1.0.0, v1.0, 1.0.0, etc.
-	semverPattern := regexp.MustCompile(`^v?\d+(\.\d+)*(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$`)
-	return semverPattern.MatchString(ref)
-}
-
 // resolveLatestRelease finds the latest release, respecting semantic versioning
 func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (string, error) {
 	if verbose {
@@ -345,67 +338,6 @@ func resolveDefaultBranchHead(repo string, verbose bool) (string, error) {
 	return resolveBranchHead(repo, defaultBranch, verbose)
 }
 
-// semanticVersion represents a parsed semantic version
-type semanticVersion struct {
-	major int
-	minor int
-	patch int
-	pre   string
-	raw   string
-}
-
-// parseVersion parses a semantic version string
-func parseVersion(v string) *semanticVersion {
-	// Remove leading 'v' if present
-	v = strings.TrimPrefix(v, "v")
-
-	// Match semantic version pattern
-	re := regexp.MustCompile(`^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([a-zA-Z0-9.]+))?`)
-	matches := re.FindStringSubmatch(v)
-	if matches == nil {
-		return nil
-	}
-
-	ver := &semanticVersion{raw: v}
-
-	if matches[1] != "" {
-		_, _ = fmt.Sscanf(matches[1], "%d", &ver.major)
-	}
-	if matches[2] != "" {
-		_, _ = fmt.Sscanf(matches[2], "%d", &ver.minor)
-	}
-	if matches[3] != "" {
-		_, _ = fmt.Sscanf(matches[3], "%d", &ver.patch)
-	}
-	if matches[4] != "" {
-		ver.pre = matches[4]
-	}
-
-	return ver
-}
-
-// isNewer returns true if this version is newer than the other
-func (v *semanticVersion) isNewer(other *semanticVersion) bool {
-	if v.major != other.major {
-		return v.major > other.major
-	}
-	if v.minor != other.minor {
-		return v.minor > other.minor
-	}
-	if v.patch != other.patch {
-		return v.patch > other.patch
-	}
-	// If versions are equal but one has a prerelease tag, prefer the one without
-	if v.pre == "" && other.pre != "" {
-		return true
-	}
-	if v.pre != "" && other.pre == "" {
-		return false
-	}
-	// Both have prerelease or both don't - consider equal
-	return false
-}
-
 // updateWorkflow updates a single workflow from its source
 func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, engineOverride string) error {
 	if verbose {
@@ -512,7 +444,7 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 	}
 
 	// Parse both contents
-	_, err := parser.ExtractFrontmatterFromContent(current)
+	currentResult, err := parser.ExtractFrontmatterFromContent(current)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse current frontmatter: %w", err)
 	}
@@ -522,12 +454,26 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 		return "", fmt.Errorf("failed to parse new frontmatter: %w", err)
 	}
 
-	// Use the new content but preserve local modifications to frontmatter if needed
-	// For now, we'll use the new content's frontmatter and markdown
-	// Remove the source field from the new content (we'll re-add it with updated ref)
+	// Merge strategy: Keep local changes, but allow new fields from upstream
+	// Start with the new frontmatter as base
 	if newResult.Frontmatter == nil {
 		newResult.Frontmatter = make(map[string]any)
 	}
+	if currentResult.Frontmatter == nil {
+		currentResult.Frontmatter = make(map[string]any)
+	}
+
+	// Merge: new fields from upstream, but preserve local modifications
+	// This means we overlay current frontmatter on top of new frontmatter
+	for key, value := range currentResult.Frontmatter {
+		// Skip the source field as we'll update it separately
+		if key != "source" {
+			newResult.Frontmatter[key] = value
+		}
+	}
+
+	// Use the new markdown content (assume upstream knows best for documentation)
+	// But if you want to preserve local markdown changes, you could use currentResult.Markdown
 
 	// Update source field with new ref
 	sourceSpec, err := parseSourceSpec(oldSourceSpec)
