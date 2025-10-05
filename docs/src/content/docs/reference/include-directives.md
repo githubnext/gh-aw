@@ -1,40 +1,44 @@
 ---
 title: Include Directives
-description: Learn how to modularize and reuse workflow components across multiple workflows using include directives for better organization and maintainability.
+description: Learn how to modularize and reuse workflow components across multiple workflows using import directives for better organization and maintainability.
 sidebar:
   order: 4
 ---
 
-Include directives allow you to modularize and reuse workflow components across multiple workflows.
+Import directives allow you to modularize and reuse workflow components across multiple workflows.
 
-## Basic Include Syntax
-
-```aw wrap
-@include relative/path/to/file.md
-```
-
-Includes files relative to the current markdown file's location.
-
-## Optional Include Syntax
+## Basic Import Syntax
 
 ```aw wrap
-@include? relative/path/to/file.md
+@import relative/path/to/file.md
 ```
 
-Includes files optionally - if the file doesn't exist, no error occurs and a friendly informational comment is added to the workflow. The optional file will be watched for changes in `gh aw compile --watch` mode, so creating the file later will automatically include it.
+Imports files relative to the current markdown file's location.
 
-## Section-Specific Includes
+:::note
+`@import` and `@include` are aliases - you can use either keyword interchangeably.
+:::
+
+## Optional Import Syntax
 
 ```aw wrap
-@include filename.md#Section
+@import? relative/path/to/file.md
 ```
 
-Includes only a specific section from a markdown file using the section header.
+Imports files optionally - if the file doesn't exist, no error occurs and a friendly informational comment is added to the workflow. The optional file will be watched for changes in `gh aw compile --watch` mode, so creating the file later will automatically import it.
+
+## Section-Specific Imports
+
+```aw wrap
+@import filename.md#Section
+```
+
+Imports only a specific section from a markdown file using the section header.
 
 ## Frontmatter Merging
 
-- **Only `tools:` frontmatter** is allowed in included files, other entries give a warning.
-- **Tool merging**: `allowed:` tools are merged across all included files
+- **Only `tools:` frontmatter** is allowed in imported files, other entries give a warning.
+- **Tool merging**: `allowed:` tools are merged across all imported files
 
 ### Example Tool Merging
 ```aw wrap
@@ -45,7 +49,7 @@ tools:
     allowed: [get_issue]
 ---
 
-@include shared/extra-tools.md  # Adds more GitHub tools
+@import shared/extra-tools.md  # Adds more GitHub tools
 ```
 
 ```aw wrap
@@ -60,11 +64,11 @@ tools:
 
 **Result**: Final workflow has `github.allowed: [get_issue, add_issue_comment, update_issue]` and Claude Edit tool.
 
-## Include Path Resolution
+## Import Path Resolution
 
-- **Relative paths**: Resolved relative to the including file
-- **Nested includes**: Included files can include other files
-- **Circular protection**: System prevents infinite include loops
+- **Relative paths**: Resolved relative to the importing file
+- **Nested imports**: Imported files can import other files
+- **Circular protection**: System prevents infinite import loops
 
 ## Related Documentation
 
