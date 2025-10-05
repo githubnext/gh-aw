@@ -87,13 +87,13 @@ Normal content here.
 		t.Error("Compiled workflow should contain wrapped github.actor expression")
 	}
 
-	// Verify that literal values are NOT wrapped
-	if !strings.Contains(compiledStr, "{{#if true}}") {
-		t.Error("Compiled workflow should contain literal true (unwrapped)")
+	// Verify that literal values are also wrapped (simplified behavior)
+	if !strings.Contains(compiledStr, "{{#if ${{ true }} }}") {
+		t.Error("Compiled workflow should contain wrapped literal true")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if false}}") {
-		t.Error("Compiled workflow should contain literal false (unwrapped)")
+	if !strings.Contains(compiledStr, "{{#if ${{ false }} }}") {
+		t.Error("Compiled workflow should contain wrapped literal false")
 	}
 
 	// Verify the render function is present

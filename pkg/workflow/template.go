@@ -3,12 +3,10 @@ package workflow
 import (
 	"regexp"
 	"strings"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // wrapExpressionsInTemplateConditionals transforms template conditionals by wrapping
-// GitHub Actions expressions in ${{ }}. For example:
+// expressions in ${{ }}. For example:
 // {{#if github.event.issue.number}} becomes {{#if ${{ github.event.issue.number }} }}
 func wrapExpressionsInTemplateConditionals(markdown string) string {
 	// Pattern to match {{#if expression}} where expression is not already wrapped in ${{ }}
@@ -24,49 +22,17 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 
 		expr := strings.TrimSpace(submatches[1])
 
-		// Check if expression is already wrapped in ${{ }}
-		if strings.HasPrefix(expr, "${{") && strings.HasSuffix(expr, "}}") {
+		// Check if expression is already wrapped in ${{ ... }}
+		// Look for the pattern starting with "${{" 
+		if strings.HasPrefix(expr, "${{") {
 			return match // Already wrapped, return as-is
 		}
 
-		// Check if this looks like a GitHub Actions expression that should be wrapped
-		if shouldWrapExpression(expr) {
-			return "{{#if ${{ " + expr + " }} }}"
-		}
-
-		// Not a GitHub expression, return as-is
-		return match
+		// Always wrap expressions that don't start with ${{
+		return "{{#if ${{ " + expr + " }} }}"
 	})
 
 	return result
-}
-
-// shouldWrapExpression determines if an expression should be wrapped in ${{ }}
-func shouldWrapExpression(expr string) bool {
-	expr = strings.TrimSpace(expr)
-
-	// Check if it starts with allowed prefixes
-	allowedPrefixes := []string{
-		"github.",
-		"needs.",
-		"steps.",
-		"env.",
-	}
-
-	for _, prefix := range allowedPrefixes {
-		if strings.HasPrefix(expr, prefix) {
-			return true
-		}
-	}
-
-	// Check if it's an exact match for allowed expressions
-	for _, allowed := range constants.AllowedExpressions {
-		if expr == allowed {
-			return true
-		}
-	}
-
-	return false
 }
 
 // generateTemplateRenderingStep generates a step that processes conditional template blocks

@@ -198,23 +198,23 @@ engine: claude
 # Mixed Template Test
 
 {{#if github.event.issue.number}}
-GitHub expression - should be wrapped.
+GitHub expression - will be wrapped.
 {{/if}}
 
 {{#if true}}
-Literal true - should NOT be wrapped.
+Literal true - will also be wrapped.
 {{/if}}
 
 {{#if false}}
-Literal false - should NOT be wrapped.
+Literal false - will also be wrapped.
 {{/if}}
 
 {{#if some_variable}}
-Unknown variable - should NOT be wrapped.
+Unknown variable - will also be wrapped.
 {{/if}}
 
 {{#if steps.my_step.outputs.value}}
-Steps expression - should be wrapped.
+Steps expression - will be wrapped.
 {{/if}}
 `
 
@@ -238,7 +238,7 @@ Steps expression - should be wrapped.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify GitHub expressions are wrapped
+	// Verify all expressions are wrapped (simplified behavior)
 	if !strings.Contains(compiledStr, "{{#if ${{ github.event.issue.number }} }}") {
 		t.Error("GitHub expression should be wrapped")
 	}
@@ -247,25 +247,20 @@ Steps expression - should be wrapped.
 		t.Error("Steps expression should be wrapped")
 	}
 
-	// Verify literals are NOT wrapped
-	if !strings.Contains(compiledStr, "{{#if true}}") {
-		t.Error("Literal 'true' should not be wrapped")
+	if !strings.Contains(compiledStr, "{{#if ${{ true }} }}") {
+		t.Error("Literal 'true' should be wrapped")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if false}}") {
-		t.Error("Literal 'false' should not be wrapped")
+	if !strings.Contains(compiledStr, "{{#if ${{ false }} }}") {
+		t.Error("Literal 'false' should be wrapped")
 	}
 
-	if !strings.Contains(compiledStr, "{{#if some_variable}}") {
-		t.Error("Unknown variable should not be wrapped")
+	if !strings.Contains(compiledStr, "{{#if ${{ some_variable }} }}") {
+		t.Error("Unknown variable should be wrapped")
 	}
 
 	// Make sure we didn't create invalid double-wrapping
-	if strings.Contains(compiledStr, "{{#if ${{ true }}") {
-		t.Error("Literal 'true' should not be wrapped")
-	}
-
-	if strings.Contains(compiledStr, "{{#if ${{ false }}") {
-		t.Error("Literal 'false' should not be wrapped")
+	if strings.Contains(compiledStr, "${{ ${{") {
+		t.Error("Should not double-wrap expressions")
 	}
 }
