@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
 )
 
@@ -272,8 +273,8 @@ func GetCopilotAgentPlaywrightTools() []any {
 // ConvertStepToYAML converts a step map to YAML string with proper indentation
 // This is a shared utility function used by all engines and the compiler
 func ConvertStepToYAML(stepMap map[string]any) (string, error) {
-	// Define the priority field order: name, id, if, run, uses, env, with, ...
-	priorityFields := []string{"name", "id", "if", "run", "uses", "env", "with"}
+	// Use the conventional field order from constants
+	priorityFields := constants.PriorityStepFields
 
 	// Create an ordered map using yaml.MapSlice to maintain field order
 	var step yaml.MapSlice
