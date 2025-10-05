@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -13,6 +14,9 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/goccy/go-yaml"
 )
+
+// IncludeDirectivePattern matches @include or @import directives
+var IncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
@@ -287,15 +291,20 @@ func ExtractMarkdown(filePath string) (string, error) {
 // ProcessIncludes processes @include and @import directives in markdown content
 // This matches the bash process_includes function behavior
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
+	visited := make(map[string]bool)
+	return processIncludesWithVisited(content, baseDir, extractTools, visited)
+}
+
+// processIncludesWithVisited processes @include and @import directives with cycle detection
+func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		// Check if this line is an @include or @import directive
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
 
@@ -309,7 +318,7 @@ func ProcessIncludes(content, baseDir string, extractTools bool) (string, error)
 				filePath = includePath
 			}
 
-			// Resolve file path
+			// Resolve file path first to get the canonical path
 			fullPath, err := resolveIncludePath(filePath, baseDir)
 			if err != nil {
 				if isOptional {
@@ -323,8 +332,19 @@ func ProcessIncludes(content, baseDir string, extractTools bool) (string, error)
 				return "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
 
+			// Check for repeated imports using the resolved full path
+			if visited[fullPath] {
+				if !extractTools {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Already included: %s, skipping", filePath)))
+				}
+				continue
+			}
+
+			// Mark as visited using the resolved full path
+			visited[fullPath] = true
+
 			// Process the included file
-			includedContent, err := processIncludedFile(fullPath, sectionName, extractTools)
+			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, baseDir, visited)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return "", fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
@@ -356,8 +376,15 @@ func isUnderWorkflowsDirectory(filePath string) bool {
 	return strings.Contains(normalizedPath, ".github/workflows/")
 }
 
-// resolveIncludePath resolves include path based on @ prefix or relative path
+// resolveIncludePath resolves include path based on workflowspec format or relative path
 func resolveIncludePath(filePath, baseDir string) (string, error) {
+	// Check if this is a workflowspec (contains owner/repo/path format)
+	// Format: owner/repo/path@ref or owner/repo/path@ref#section
+	if isWorkflowSpec(filePath) {
+		// Download from GitHub using workflowspec
+		return downloadIncludeFromWorkflowSpec(filePath)
+	}
+
 	// Regular path, resolve relative to base directory
 	fullPath := filepath.Join(baseDir, filePath)
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -366,8 +393,119 @@ func resolveIncludePath(filePath, baseDir string) (string, error) {
 	return fullPath, nil
 }
 
+// isWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref])
+func isWorkflowSpec(path string) bool {
+	// Remove section reference if present
+	cleanPath := path
+	if idx := strings.Index(path, "#"); idx != -1 {
+		cleanPath = path[:idx]
+	}
+
+	// Remove ref if present
+	if idx := strings.Index(cleanPath, "@"); idx != -1 {
+		cleanPath = cleanPath[:idx]
+	}
+
+	// Check if it has at least 3 parts (owner/repo/path)
+	parts := strings.Split(cleanPath, "/")
+	if len(parts) < 3 {
+		return false
+	}
+
+	// Reject paths that start with "." (local paths like .github/workflows/...)
+	if strings.HasPrefix(cleanPath, ".") {
+		return false
+	}
+
+	// Reject absolute paths
+	if strings.HasPrefix(cleanPath, "/") {
+		return false
+	}
+
+	return true
+}
+
+// downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec
+func downloadIncludeFromWorkflowSpec(spec string) (string, error) {
+	// Parse the workflowspec
+	// Format: owner/repo/path@ref or owner/repo/path@ref#section
+
+	// Remove section reference if present
+	cleanSpec := spec
+	if idx := strings.Index(spec, "#"); idx != -1 {
+		cleanSpec = spec[:idx]
+	}
+
+	// Split on @ to get path and ref
+	parts := strings.SplitN(cleanSpec, "@", 2)
+	pathPart := parts[0]
+	var ref string
+	if len(parts) == 2 {
+		ref = parts[1]
+	} else {
+		ref = "main" // default to main branch
+	}
+
+	// Parse path: owner/repo/path/to/file.md
+	slashParts := strings.Split(pathPart, "/")
+	if len(slashParts) < 3 {
+		return "", fmt.Errorf("invalid workflowspec: must be owner/repo/path[@ref]")
+	}
+
+	owner := slashParts[0]
+	repo := slashParts[1]
+	filePath := strings.Join(slashParts[2:], "/")
+
+	// Download the file content from GitHub
+	content, err := downloadFileFromGitHub(owner, repo, filePath, ref)
+	if err != nil {
+		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
+	}
+
+	// Create a temporary file to store the downloaded content
+	tempFile, err := os.CreateTemp("", "gh-aw-include-*.md")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+
+	if _, err := tempFile.Write(content); err != nil {
+		tempFile.Close()
+		os.Remove(tempFile.Name())
+		return "", fmt.Errorf("failed to write temp file: %w", err)
+	}
+
+	if err := tempFile.Close(); err != nil {
+		os.Remove(tempFile.Name())
+		return "", fmt.Errorf("failed to close temp file: %w", err)
+	}
+
+	return tempFile.Name(), nil
+}
+
+// downloadFileFromGitHub downloads a file from GitHub using gh CLI
+func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
+	// Use gh CLI to download the file
+	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/contents/%s?ref=%s", owner, repo, path, ref), "--jq", ".content")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch file content: %w", err)
+	}
+
+	// The content is base64 encoded, decode it
+	contentBase64 := strings.TrimSpace(string(output))
+	cmd = exec.Command("base64", "-d")
+	cmd.Stdin = strings.NewReader(contentBase64)
+	content, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode file content: %w", err)
+	}
+
+	return content, nil
+}
+
 // processIncludedFile processes a single included file, optionally extracting a section
-func processIncludedFile(filePath, sectionName string, extractTools bool) (string, error) {
+// processIncludedFileWithVisited processes a single included file with cycle detection for nested includes
+func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, baseDir string, visited map[string]bool) (string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)
@@ -447,6 +585,13 @@ func processIncludedFile(filePath, sectionName string, extractTools bool) (strin
 	markdownContent, err := ExtractMarkdownContent(string(content))
 	if err != nil {
 		return "", fmt.Errorf("failed to extract markdown from %s: %w", filePath, err)
+	}
+
+	// Process nested includes recursively
+	includedDir := filepath.Dir(filePath)
+	markdownContent, err = processIncludesWithVisited(markdownContent, includedDir, extractTools, visited)
+	if err != nil {
+		return "", fmt.Errorf("failed to process nested includes in %s: %w", filePath, err)
 	}
 
 	// If section specified, extract only that section
@@ -577,13 +722,12 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
 	var engines []string
-	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		// Check if this line is an @include or @import directive
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
 

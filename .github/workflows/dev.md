@@ -20,6 +20,8 @@ safe-outputs:
 
 # Poem Generator
 
+@include shared/use-emojis.md
+
 {{#if ${{ github.event.inputs.funny }}}}
 Be funny and creative! Make the poem humorous and entertaining.
 {{/if}}
