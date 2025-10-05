@@ -211,7 +211,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 		}
 
 		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, tracker); err != nil {
-			return fmt.Errorf("failed to add workflow '%s': %w", workflow.Spec, err)
+			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
 
@@ -333,7 +333,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
 func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, tracker *FileTracker) error {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.Spec)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
 		if force {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
@@ -445,7 +445,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		}
 
 		// Add source field to frontmatter
-		sourceString := buildSourceString(workflow)
+		sourceString := buildSourceStringWithCommitSHA(workflow, sourceInfo.CommitSHA)
 		if sourceString != "" {
 			updatedContent, err := addSourceToWorkflow(content, sourceString, verbose)
 			if err != nil {
@@ -818,21 +818,6 @@ func createPR(branchName, title, body string, verbose bool) error {
 	fmt.Printf("📢 Pull Request created: %s\n", prURL)
 
 	return nil
-}
-
-// buildSourceString builds the source string in the format owner/repo/path@ref
-func buildSourceString(workflow *WorkflowSpec) string {
-	if workflow.Repo == "" || workflow.WorkflowPath == "" {
-		return ""
-	}
-
-	// Format: owner/repo/path@ref (consistent with add command syntax)
-	source := workflow.Repo + "/" + workflow.WorkflowPath
-	if workflow.Version != "" {
-		source += "@" + workflow.Version
-	}
-
-	return source
 }
 
 // addSourceToWorkflow adds the source field to the workflow's frontmatter
