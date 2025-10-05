@@ -318,15 +318,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 				filePath = includePath
 			}
 
-			// Check for cycles
-			if visited[filePath] {
-				if !extractTools {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", filePath)))
-				}
-				continue
-			}
-
-			// Resolve file path
+			// Resolve file path first to get the canonical path
 			fullPath, err := resolveIncludePath(filePath, baseDir)
 			if err != nil {
 				if isOptional {
@@ -340,8 +332,16 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 				return "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
 
-			// Mark as visited
-			visited[filePath] = true
+			// Check for cycles using the resolved full path
+			if visited[fullPath] {
+				if !extractTools {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", filePath)))
+				}
+				continue
+			}
+
+			// Mark as visited using the resolved full path
+			visited[fullPath] = true
 
 			// Process the included file
 			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, baseDir, visited)

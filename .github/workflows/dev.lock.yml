@@ -920,10 +920,6 @@ jobs:
           
           Keep your responses concise and to the point. Avoid unnecessary elaboration.
           
-          ## Use Emojis
-          
-          Use emojis to make your responses more engaging and easier to read. 😊
-          
           {{#if ${{ github.event.inputs.funny }}}}
           Be funny and creative! Make the poem humorous and entertaining.
           {{/if}}
@@ -2489,7 +2485,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Poem Generator\n\n## Use Emojis\n\nUse emojis to make your responses more engaging and easier to read. 😊\n\n## Keep It Short\n\nKeep your responses concise and to the point. Avoid unnecessary elaboration.\n\n## Use Emojis\n\nUse emojis to make your responses more engaging and easier to read. 😊\n\n{{#if ${{ github.event.inputs.funny }}}}\nBe funny and creative! Make the poem humorous and entertaining.\n{{/if}}\n\nWrite a poem and post it as an issue.\n"
+          WORKFLOW_MARKDOWN: "# Poem Generator\n\n## Use Emojis\n\nUse emojis to make your responses more engaging and easier to read. 😊\n\n## Keep It Short\n\nKeep your responses concise and to the point. Avoid unnecessary elaboration.\n\n{{#if ${{ github.event.inputs.funny }}}}\nBe funny and creative! Make the poem humorous and entertaining.\n{{/if}}\n\nWrite a poem and post it as an issue.\n"
         with:
           script: |
             const fs = require('fs');
