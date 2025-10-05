@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -455,6 +457,16 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			} else {
 				content = updatedContent
 			}
+			
+			// Process @include directives and replace with workflowspec
+			processedContent, err := processIncludesWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, sourceInfo.PackagePath, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+				}
+			} else {
+				content = processedContent
+			}
 		}
 
 		// Track the file based on whether it existed before (if tracker is available)
@@ -859,4 +871,109 @@ func addSourceToWorkflow(content, source string, verbose bool) (string, error) {
 	}
 
 	return strings.Join(lines, "\n"), nil
+}
+
+// processIncludesWithWorkflowSpec processes @include directives in content and replaces local file references
+// with workflowspec format (owner/repo/path@sha) for all includes found in the package
+func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA, packagePath string, verbose bool) (string, error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Processing @include directives to replace with workflowspec"))
+	}
+
+	// Track visited includes to prevent cycles
+	visited := make(map[string]bool)
+	
+	return processIncludesRecursive(content, workflow, commitSHA, packagePath, visited, verbose)
+}
+
+// processIncludesRecursive recursively processes @include directives with cycle detection
+func processIncludesRecursive(content string, workflow *WorkflowSpec, commitSHA, packagePath string, visited map[string]bool, verbose bool) (string, error) {
+	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
+	
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	var result strings.Builder
+	
+	for scanner.Scan() {
+		line := scanner.Text()
+		
+		// Check if this line is an @include or @import directive
+		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+			isOptional := matches[1] == "?"
+			includePath := strings.TrimSpace(matches[2])
+			
+			// Handle section references (file.md#Section)
+			var filePath, sectionName string
+			if strings.Contains(includePath, "#") {
+				parts := strings.SplitN(includePath, "#", 2)
+				filePath = parts[0]
+				sectionName = parts[1]
+			} else {
+				filePath = includePath
+			}
+			
+			// Check for cycle detection
+			if visited[filePath] {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", filePath)))
+				}
+				continue
+			}
+			
+			// Mark as visited
+			visited[filePath] = true
+			
+			// Build workflowspec for this include
+			// Format: owner/repo/path@sha
+			workflowSpec := workflow.Repo + "/" + filePath
+			if commitSHA != "" {
+				workflowSpec += "@" + commitSHA
+			} else if workflow.Version != "" {
+				workflowSpec += "@" + workflow.Version
+			}
+			
+			// Add section if present
+			if sectionName != "" {
+				workflowSpec += "#" + sectionName
+			}
+			
+			// Write the updated @include directive
+			if isOptional {
+				result.WriteString("@include? " + workflowSpec + "\n")
+			} else {
+				result.WriteString("@include " + workflowSpec + "\n")
+			}
+			
+			// Read the included file and process its includes recursively
+			fullSourcePath := filepath.Join(packagePath, filePath)
+			if _, err := os.Stat(fullSourcePath); err == nil {
+				includedContent, err := os.ReadFile(fullSourcePath)
+				if err != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not read include file %s: %v", fullSourcePath, err)))
+					}
+					continue
+				}
+				
+				// Extract markdown content from the included file
+				markdownContent, err := parser.ExtractMarkdownContent(string(includedContent))
+				if err != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not extract markdown from %s: %v", fullSourcePath, err)))
+					}
+					continue
+				}
+				
+				// Recursively process includes in the included file
+				_, err = processIncludesRecursive(markdownContent, workflow, commitSHA, packagePath, visited, verbose)
+				if err != nil && verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error processing includes in %s: %v", fullSourcePath, err)))
+				}
+			}
+		} else {
+			// Regular line, pass through
+			result.WriteString(line + "\n")
+		}
+	}
+	
+	return result.String(), scanner.Err()
 }
