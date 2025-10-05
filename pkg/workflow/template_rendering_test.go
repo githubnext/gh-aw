@@ -15,7 +15,7 @@ func TestTemplateRenderingStep(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case with conditional blocks
+	// Test case with conditional blocks that use GitHub expressions
 	testContent := `---
 on: issues
 permissions:
@@ -28,12 +28,20 @@ engine: claude
 
 # Test Template Rendering
 
+{{#if github.event.issue.number}}
+This section should be shown if there's an issue number.
+{{/if}}
+
+{{#if github.actor}}
+This section should be shown if there's an actor.
+{{/if}}
+
 {{#if true}}
-This section should be kept.
+This section should be kept (literal true).
 {{/if}}
 
 {{#if false}}
-This section should be removed.
+This section should be removed (literal false).
 {{/if}}
 
 Normal content here.
@@ -70,13 +78,22 @@ Normal content here.
 		t.Error("Template rendering step should use github-script action")
 	}
 
-	// Verify the conditional blocks are in the prompt
+	// Verify that GitHub expressions are wrapped in ${{ }}
+	if !strings.Contains(compiledStr, "{{#if ${{ github.event.issue.number }} }}") {
+		t.Error("Compiled workflow should contain wrapped github.event.issue.number expression")
+	}
+
+	if !strings.Contains(compiledStr, "{{#if ${{ github.actor }} }}") {
+		t.Error("Compiled workflow should contain wrapped github.actor expression")
+	}
+
+	// Verify that literal values are NOT wrapped
 	if !strings.Contains(compiledStr, "{{#if true}}") {
-		t.Error("Compiled workflow should contain {{#if true}} in prompt")
+		t.Error("Compiled workflow should contain literal true (unwrapped)")
 	}
 
 	if !strings.Contains(compiledStr, "{{#if false}}") {
-		t.Error("Compiled workflow should contain {{#if false}} in prompt")
+		t.Error("Compiled workflow should contain literal false (unwrapped)")
 	}
 
 	// Verify the render function is present

@@ -2236,6 +2236,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Clean the markdown content
 	cleanedMarkdownContent := removeXMLComments(data.MarkdownContent)
 
+	// Wrap GitHub expressions in template conditionals
+	cleanedMarkdownContent = wrapExpressionsInTemplateConditionals(cleanedMarkdownContent)
+
 	// Split content into manageable chunks
 	chunks := splitContentIntoChunks(cleanedMarkdownContent)
 
