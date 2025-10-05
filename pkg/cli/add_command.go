@@ -13,7 +13,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
-	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
@@ -836,8 +835,9 @@ func addSourceToWorkflow(content, source string, verbose bool) (string, error) {
 	// Add source field (will be last in YAML output due to alphabetical sorting)
 	result.Frontmatter["source"] = source
 
-	// Convert back to YAML
-	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
+	// Convert back to YAML with proper field ordering
+	// Use PriorityWorkflowFields to ensure consistent ordering of top-level fields
+	updatedFrontmatter, err := workflow.MarshalWithFieldOrder(result.Frontmatter, constants.PriorityWorkflowFields)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated frontmatter: %w", err)
 	}

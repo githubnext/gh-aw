@@ -11,7 +11,6 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
-	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
@@ -490,8 +489,9 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 
 // reconstructWorkflowFile reconstructs a workflow file from frontmatter and markdown
 func reconstructWorkflowFile(frontmatter map[string]any, markdown string) (string, error) {
-	// Convert frontmatter to YAML using the same logic as add_command.go
-	updatedFrontmatter, err := yaml.Marshal(frontmatter)
+	// Convert frontmatter to YAML with proper field ordering
+	// Use PriorityWorkflowFields to ensure consistent ordering of top-level fields
+	updatedFrontmatter, err := workflow.MarshalWithFieldOrder(frontmatter, constants.PriorityWorkflowFields)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal frontmatter: %w", err)
 	}
