@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -512,86 +511,6 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 	}
 
 	return processedContent, nil
-}
-
-// processIncludesInContent processes @include directives in workflow content for update command
-func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	var result strings.Builder
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Check if this line is an @include or @import directive
-		if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
-
-			// Skip if it's already a workflowspec (contains repo/path format)
-			if isWorkflowSpecFormat(includePath) {
-				result.WriteString(line + "\n")
-				continue
-			}
-
-			// Handle section references (file.md#Section)
-			var filePath, sectionName string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-				sectionName = parts[1]
-			} else {
-				filePath = includePath
-			}
-
-			// Build workflowspec for this include
-			// Format: owner/repo/path@sha
-			workflowSpec := workflow.Repo + "/" + filePath
-			if commitSHA != "" {
-				workflowSpec += "@" + commitSHA
-			} else if workflow.Version != "" {
-				workflowSpec += "@" + workflow.Version
-			}
-
-			// Add section if present
-			if sectionName != "" {
-				workflowSpec += "#" + sectionName
-			}
-
-			// Write the updated @include directive
-			if isOptional {
-				result.WriteString("@include? " + workflowSpec + "\n")
-			} else {
-				result.WriteString("@include " + workflowSpec + "\n")
-			}
-		} else {
-			// Regular line, pass through
-			result.WriteString(line + "\n")
-		}
-	}
-
-	return result.String(), scanner.Err()
-}
-
-// isWorkflowSpecFormat checks if a path already looks like a workflowspec
-func isWorkflowSpecFormat(path string) bool {
-	// Check if it contains @ (ref separator) or looks like owner/repo/path
-	if strings.Contains(path, "@") {
-		return true
-	}
-
-	// Remove section reference if present
-	cleanPath := path
-	if idx := strings.Index(path, "#"); idx != -1 {
-		cleanPath = path[:idx]
-	}
-
-	// Check if it has at least 3 parts and doesn't start with . or /
-	parts := strings.Split(cleanPath, "/")
-	if len(parts) >= 3 && !strings.HasPrefix(cleanPath, ".") && !strings.HasPrefix(cleanPath, "/") {
-		return true
-	}
-
-	return false
 }
 
 // reconstructWorkflowFile reconstructs a workflow file from frontmatter and markdown
