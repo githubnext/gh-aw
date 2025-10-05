@@ -497,6 +497,34 @@ Some content here.
 			extractTools: false,
 			expected:     "# Content with Extra Newlines\nSome content here.\n# After include\n",
 		},
+		{
+			name:         "simple import (alias for include)",
+			content:      "@import test.md\n# After import",
+			baseDir:      tempDir,
+			extractTools: false,
+			expected:     "# Test Content\nThis is a test file content.\n# After import\n",
+		},
+		{
+			name:         "extract tools with import",
+			content:      "@import test.md",
+			baseDir:      tempDir,
+			extractTools: true,
+			expected:     `{"bash":{"allowed":["ls","cat"]}}` + "\n",
+		},
+		{
+			name:         "import file not found",
+			content:      "@import nonexistent.md",
+			baseDir:      tempDir,
+			extractTools: false,
+			wantErr:      true,
+		},
+		{
+			name:         "optional import missing file",
+			content:      "@import? missing.md\n",
+			baseDir:      tempDir,
+			extractTools: false,
+			expected:     "",
+		},
 	}
 
 	// Create test file with invalid frontmatter for testing validation
@@ -1055,6 +1083,20 @@ This is test content.
 		{
 			name:         "expand tools",
 			content:      "@include test.md",
+			baseDir:      tempDir,
+			extractTools: true,
+			wantContains: `"bash"`,
+		},
+		{
+			name:         "expand markdown content with import",
+			content:      "# Start\n@import test.md\n# End",
+			baseDir:      tempDir,
+			extractTools: false,
+			wantContains: "# Test Content\nThis is test content.",
+		},
+		{
+			name:         "expand tools with import",
+			content:      "@import test.md",
 			baseDir:      tempDir,
 			extractTools: true,
 			wantContains: `"bash"`,
