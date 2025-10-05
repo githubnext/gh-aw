@@ -23,7 +23,7 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 		expr := strings.TrimSpace(submatches[1])
 
 		// Check if expression is already wrapped in ${{ ... }}
-		// Look for the pattern starting with "${{" 
+		// Look for the pattern starting with "${{"
 		if strings.HasPrefix(expr, "${{") {
 			return match // Already wrapped, return as-is
 		}
