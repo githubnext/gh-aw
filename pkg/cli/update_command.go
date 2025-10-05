@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -484,8 +486,115 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 	newSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRef)
 	newResult.Frontmatter["source"] = newSourceSpec
 
-	// Reconstruct the workflow file
-	return reconstructWorkflowFile(newResult.Frontmatter, newResult.Markdown)
+	// Reconstruct the workflow file with updated source
+	content, err := reconstructWorkflowFile(newResult.Frontmatter, newResult.Markdown)
+	if err != nil {
+		return "", err
+	}
+	
+	// Process @include directives in the new content and replace with workflowspec
+	// Build a WorkflowSpec from the sourceSpec to use for processing includes
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			Repo:    sourceSpec.Repo,
+			Version: newRef,
+		},
+		WorkflowPath: sourceSpec.Path,
+	}
+	
+	// We don't have access to the package path here, so we'll just process the markdown
+	// The compile step will handle downloading the includes when needed
+	processedContent, err := processIncludesInContent(content, workflow, newRef, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+		}
+		return content, nil // Return unprocessed content on error
+	}
+	
+	return processedContent, nil
+}
+
+// processIncludesInContent processes @include directives in workflow content for update command
+func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
+	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
+	
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	var result strings.Builder
+	
+	for scanner.Scan() {
+		line := scanner.Text()
+		
+		// Check if this line is an @include or @import directive
+		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+			isOptional := matches[1] == "?"
+			includePath := strings.TrimSpace(matches[2])
+			
+			// Skip if it's already a workflowspec (contains repo/path format)
+			if isWorkflowSpecFormat(includePath) {
+				result.WriteString(line + "\n")
+				continue
+			}
+			
+			// Handle section references (file.md#Section)
+			var filePath, sectionName string
+			if strings.Contains(includePath, "#") {
+				parts := strings.SplitN(includePath, "#", 2)
+				filePath = parts[0]
+				sectionName = parts[1]
+			} else {
+				filePath = includePath
+			}
+			
+			// Build workflowspec for this include
+			// Format: owner/repo/path@sha
+			workflowSpec := workflow.Repo + "/" + filePath
+			if commitSHA != "" {
+				workflowSpec += "@" + commitSHA
+			} else if workflow.Version != "" {
+				workflowSpec += "@" + workflow.Version
+			}
+			
+			// Add section if present
+			if sectionName != "" {
+				workflowSpec += "#" + sectionName
+			}
+			
+			// Write the updated @include directive
+			if isOptional {
+				result.WriteString("@include? " + workflowSpec + "\n")
+			} else {
+				result.WriteString("@include " + workflowSpec + "\n")
+			}
+		} else {
+			// Regular line, pass through
+			result.WriteString(line + "\n")
+		}
+	}
+	
+	return result.String(), scanner.Err()
+}
+
+// isWorkflowSpecFormat checks if a path already looks like a workflowspec
+func isWorkflowSpecFormat(path string) bool {
+	// Check if it contains @ (ref separator) or looks like owner/repo/path
+	if strings.Contains(path, "@") {
+		return true
+	}
+	
+	// Remove section reference if present
+	cleanPath := path
+	if idx := strings.Index(path, "#"); idx != -1 {
+		cleanPath = path[:idx]
+	}
+	
+	// Check if it has at least 3 parts and doesn't start with . or /
+	parts := strings.Split(cleanPath, "/")
+	if len(parts) >= 3 && !strings.HasPrefix(cleanPath, ".") && !strings.HasPrefix(cleanPath, "/") {
+		return true
+	}
+	
+	return false
 }
 
 // reconstructWorkflowFile reconstructs a workflow file from frontmatter and markdown
