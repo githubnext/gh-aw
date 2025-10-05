@@ -445,7 +445,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		}
 
 		// Add source field to frontmatter
-		sourceString := buildSourceString(workflow)
+		sourceString := buildSourceStringWithCommitSHA(workflow, sourceInfo.CommitSHA)
 		if sourceString != "" {
 			updatedContent, err := addSourceToWorkflow(content, sourceString, verbose)
 			if err != nil {

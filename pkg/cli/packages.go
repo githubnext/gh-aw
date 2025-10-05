@@ -152,6 +152,14 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 		return err
 	}
 
+	// Store the commit SHA in a metadata file for later retrieval
+	metadataPath := filepath.Join(targetDir, ".commit-sha")
+	if err := os.WriteFile(metadataPath, []byte(commitSHA), 0644); err != nil {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to write commit SHA metadata: %v\n", err)
+		}
+	}
+
 	return nil
 }
 
@@ -212,6 +220,7 @@ type Package struct {
 type WorkflowSourceInfo struct {
 	PackagePath string
 	SourcePath  string
+	CommitSHA   string // The actual commit SHA used when the package was installed
 }
 
 // findWorkflowInPackageForRepo searches for a workflow in installed packages
@@ -250,9 +259,22 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 		return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.Repo)
 	}
 
+	// Try to read the commit SHA from metadata file
+	var commitSHA string
+	metadataPath := filepath.Join(packagePath, ".commit-sha")
+	if shaBytes, err := os.ReadFile(metadataPath); err == nil {
+		commitSHA = strings.TrimSpace(string(shaBytes))
+		if verbose {
+			fmt.Printf("Found commit SHA from metadata: %s\n", commitSHA)
+		}
+	} else if verbose {
+		fmt.Printf("Warning: Could not read commit SHA metadata: %v\n", err)
+	}
+
 	sourceInfo := &WorkflowSourceInfo{
 		PackagePath: packagePath,
 		SourcePath:  workflowFile,
+		CommitSHA:   commitSHA,
 	}
 
 	return content, sourceInfo, nil

@@ -421,6 +421,85 @@ func TestBuildSourceString(t *testing.T) {
 	}
 }
 
+func TestBuildSourceStringWithCommitSHA(t *testing.T) {
+	tests := []struct {
+		name      string
+		workflow  *WorkflowSpec
+		commitSHA string
+		expected  string
+	}{
+		{
+			name: "with commit SHA",
+			workflow: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "v1.0.0",
+				},
+				WorkflowPath: "workflows/ci-doctor.md",
+			},
+			commitSHA: "abc123def456789012345678901234567890abcd",
+			expected:  "owner/repo/workflows/ci-doctor.md@abc123def456789012345678901234567890abcd",
+		},
+		{
+			name: "with commit SHA overrides version",
+			workflow: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "main",
+				},
+				WorkflowPath: "workflows/helper.md",
+			},
+			commitSHA: "1234567890abcdef1234567890abcdef12345678",
+			expected:  "owner/repo/workflows/helper.md@1234567890abcdef1234567890abcdef12345678",
+		},
+		{
+			name: "without commit SHA falls back to version",
+			workflow: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "v2.0.0",
+				},
+				WorkflowPath: "workflows/test.md",
+			},
+			commitSHA: "",
+			expected:  "owner/repo/workflows/test.md@v2.0.0",
+		},
+		{
+			name: "without commit SHA or version",
+			workflow: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "owner/repo",
+					Version: "",
+				},
+				WorkflowPath: "workflows/test.md",
+			},
+			commitSHA: "",
+			expected:  "owner/repo/workflows/test.md",
+		},
+		{
+			name: "empty repo with commit SHA",
+			workflow: &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    "",
+					Version: "v1.0.0",
+				},
+				WorkflowPath: "workflows/test.md",
+			},
+			commitSHA: "abc123",
+			expected:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildSourceStringWithCommitSHA(tt.workflow, tt.commitSHA)
+			if result != tt.expected {
+				t.Errorf("buildSourceStringWithCommitSHA() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIsValidGitHubIdentifier(t *testing.T) {
 	tests := []struct {
 		name       string

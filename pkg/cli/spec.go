@@ -154,6 +154,25 @@ func buildSourceString(workflow *WorkflowSpec) string {
 	return source
 }
 
+// buildSourceStringWithCommitSHA builds the source string with the actual commit SHA
+// This is used when adding workflows to include the precise commit that was installed
+func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) string {
+	if workflow.Repo == "" || workflow.WorkflowPath == "" {
+		return ""
+	}
+
+	// Format: owner/repo/path@commitSHA
+	source := workflow.Repo + "/" + workflow.WorkflowPath
+	if commitSHA != "" {
+		source += "@" + commitSHA
+	} else if workflow.Version != "" {
+		// Fallback to the version if no commit SHA is available
+		source += "@" + workflow.Version
+	}
+
+	return source
+}
+
 // isValidGitHubIdentifier checks if a string looks like a valid GitHub username or repository name
 // GitHub allows alphanumeric characters, hyphens, and underscores, but cannot start or end with hyphen
 func isValidGitHubIdentifier(identifier string) bool {
