@@ -41,7 +41,7 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	workflowData := &WorkflowData{}
 	steps := engine.GetInstallationSteps(workflowData)
 	if len(steps) != 2 {
-		t.Errorf("Expected 2 installation steps, got %d", len(steps))
+		t.Errorf("Expected 2 installation steps (Node.js setup + install), got %d", len(steps))
 	}
 
 	// Test with version
@@ -50,7 +50,7 @@ func TestCopilotEngineInstallationSteps(t *testing.T) {
 	}
 	stepsWithVersion := engine.GetInstallationSteps(workflowDataWithVersion)
 	if len(stepsWithVersion) != 2 {
-		t.Errorf("Expected 2 installation steps with version, got %d", len(stepsWithVersion))
+		t.Errorf("Expected 2 installation steps with version (Node.js setup + install), got %d", len(stepsWithVersion))
 	}
 }
 

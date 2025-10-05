@@ -20,15 +20,15 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	// Parse repository specification (org/repo[@version])
-	repo, version, err := parseRepoSpec(repoSpec)
+	spec, err := parseRepoSpec(repoSpec)
 	if err != nil {
 		return fmt.Errorf("invalid repository specification: %w", err)
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Repository: %s\n", repo)
-		if version != "" {
-			fmt.Fprintf(os.Stderr, "Version: %s\n", version)
+		fmt.Fprintf(os.Stderr, "Repository: %s\n", spec.Repo)
+		if spec.Version != "" {
+			fmt.Fprintf(os.Stderr, "Version: %s\n", spec.Version)
 		} else {
 			fmt.Fprintf(os.Stderr, "Version: main (default)\n")
 		}
@@ -50,7 +50,7 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	// Create target directory for this repository
-	targetDir := filepath.Join(packagesDir, repo)
+	targetDir := filepath.Join(packagesDir, spec.Repo)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return fmt.Errorf("failed to create package directory: %w", err)
 	}
@@ -59,7 +59,7 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	if _, err := os.Stat(targetDir); err == nil {
 		entries, err := os.ReadDir(targetDir)
 		if err == nil && len(entries) > 0 {
-			fmt.Fprintf(os.Stderr, "Package %s already exists. Updating...\n", repo)
+			fmt.Fprintf(os.Stderr, "Package %s already exists. Updating...\n", spec.Repo)
 			// Remove existing content
 			if err := os.RemoveAll(targetDir); err != nil {
 				return fmt.Errorf("failed to remove existing package: %w", err)
@@ -71,11 +71,11 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	// Download workflows from the repository
-	if err := downloadWorkflows(repo, version, targetDir, verbose); err != nil {
+	if err := downloadWorkflows(spec.Repo, spec.Version, targetDir, verbose); err != nil {
 		return fmt.Errorf("failed to download workflows: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Successfully installed package: %s\n", repo)
+	fmt.Fprintf(os.Stderr, "Successfully installed package: %s\n", spec.Repo)
 	return nil
 }
 
@@ -152,6 +152,14 @@ func downloadWorkflows(repo, version, targetDir string, verbose bool) error {
 		return err
 	}
 
+	// Store the commit SHA in a metadata file for later retrieval
+	metadataPath := filepath.Join(targetDir, ".commit-sha")
+	if err := os.WriteFile(metadataPath, []byte(commitSHA), 0644); err != nil {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to write commit SHA metadata: %v\n", err)
+		}
+	}
+
 	return nil
 }
 
@@ -200,118 +208,6 @@ func copyMarkdownFiles(sourceDir, targetDir string, verbose bool) error {
 	})
 }
 
-// parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
-func parseRepoSpec(repoSpec string) (repo, version string, err error) {
-	parts := strings.SplitN(repoSpec, "@", 2)
-	repo = parts[0]
-
-	// Validate repository format (org/repo)
-	repoParts := strings.Split(repo, "/")
-	if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
-		return "", "", fmt.Errorf("repository must be in format 'org/repo'")
-	}
-
-	if len(parts) == 2 {
-		version = parts[1]
-	}
-
-	return repo, version, nil
-}
-
-// isCommitSHA checks if a version string looks like a commit SHA (40-character hex string)
-func isCommitSHA(version string) bool {
-	if len(version) != 40 {
-		return false
-	}
-	// Check if all characters are hexadecimal
-	for _, char := range version {
-		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
-			return false
-		}
-	}
-	return true
-}
-
-// parseWorkflowSpec parses a workflow specification in the new format
-// Format: owner/repo/workflows/workflow-name[@version] or owner/repo/workflow-name[@version]
-func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
-	// Handle version first (anything after @)
-	parts := strings.SplitN(spec, "@", 2)
-	specWithoutVersion := parts[0]
-	var version string
-	if len(parts) == 2 {
-		version = parts[1]
-	}
-
-	// Split by slashes
-	slashParts := strings.Split(specWithoutVersion, "/")
-
-	// Must have at least 3 parts: owner/repo/workflow-path
-	if len(slashParts) < 3 {
-		return nil, fmt.Errorf("workflow specification must be in format 'owner/repo/workflow-name[@version]'")
-	}
-
-	owner := slashParts[0]
-	repo := slashParts[1]
-	workflowPath := strings.Join(slashParts[2:], "/")
-
-	// Validate owner and repo parts are not empty
-	if owner == "" || repo == "" {
-		return nil, fmt.Errorf("invalid workflow specification: owner and repo cannot be empty")
-	}
-
-	// Basic validation that owner and repo look like GitHub identifiers
-	if !isValidGitHubIdentifier(owner) || !isValidGitHubIdentifier(repo) {
-		return nil, fmt.Errorf("invalid workflow specification: '%s/%s' does not look like a valid GitHub repository", owner, repo)
-	}
-
-	// Handle different cases based on the number of path parts
-	if len(slashParts) == 3 && !strings.HasSuffix(workflowPath, ".md") {
-		// Three-part spec: owner/repo/workflow-name
-		// Add "workflows/" prefix
-		workflowPath = "workflows/" + workflowPath + ".md"
-	} else {
-		// Four or more parts: owner/repo/workflows/workflow-name or owner/repo/path/to/workflow-name
-		// Require .md extension to be explicit
-		if !strings.HasSuffix(workflowPath, ".md") {
-			return nil, fmt.Errorf("workflow specification with path must end with '.md' extension: %s", workflowPath)
-		}
-	}
-
-	return &WorkflowSpec{
-		Spec:         spec,
-		Repo:         fmt.Sprintf("%s/%s", owner, repo),
-		WorkflowPath: workflowPath,
-		WorkflowName: strings.TrimSuffix(filepath.Base(workflowPath), ".md"),
-		Version:      version,
-	}, nil
-}
-
-// isValidGitHubIdentifier checks if a string looks like a valid GitHub username or repository name
-// GitHub allows alphanumeric characters, hyphens, and underscores, but cannot start or end with hyphen
-func isValidGitHubIdentifier(identifier string) bool {
-	if len(identifier) == 0 {
-		return false
-	}
-
-	// Cannot start or end with hyphen
-	if identifier[0] == '-' || identifier[len(identifier)-1] == '-' {
-		return false
-	}
-
-	// Must contain only alphanumeric chars, hyphens, and underscores
-	for _, char := range identifier {
-		if !((char >= 'a' && char <= 'z') ||
-			(char >= 'A' && char <= 'Z') ||
-			(char >= '0' && char <= '9') ||
-			char == '-' || char == '_') {
-			return false
-		}
-	}
-
-	return true
-}
-
 // Package represents an installed package
 type Package struct {
 	Name      string
@@ -320,19 +216,11 @@ type Package struct {
 	CommitSHA string
 }
 
-// WorkflowSpec represents a parsed workflow specification
-type WorkflowSpec struct {
-	Spec         string // e.g., "owner/repo/workflow@v1"
-	Repo         string // e.g., "owner/repo"
-	WorkflowPath string // e.g., "workflows/workflow-name.md"
-	WorkflowName string // e.g., "workflow-name"
-	Version      string // optional version/tag/SHA
-}
-
 // WorkflowSourceInfo contains information about where a workflow was found
 type WorkflowSourceInfo struct {
 	PackagePath string
 	SourcePath  string
+	CommitSHA   string // The actual commit SHA used when the package was installed
 }
 
 // findWorkflowInPackageForRepo searches for a workflow in installed packages
@@ -371,9 +259,22 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 		return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.Repo)
 	}
 
+	// Try to read the commit SHA from metadata file
+	var commitSHA string
+	metadataPath := filepath.Join(packagePath, ".commit-sha")
+	if shaBytes, err := os.ReadFile(metadataPath); err == nil {
+		commitSHA = strings.TrimSpace(string(shaBytes))
+		if verbose {
+			fmt.Printf("Found commit SHA from metadata: %s\n", commitSHA)
+		}
+	} else if verbose {
+		fmt.Printf("Warning: Could not read commit SHA metadata: %v\n", err)
+	}
+
 	sourceInfo := &WorkflowSourceInfo{
 		PackagePath: packagePath,
 		SourcePath:  workflowFile,
+		CommitSHA:   commitSHA,
 	}
 
 	return content, sourceInfo, nil

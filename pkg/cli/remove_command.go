@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
 // RemoveWorkflows removes workflows matching a pattern
@@ -367,17 +367,16 @@ func cleanupAllIncludes(verbose bool) error {
 	return err
 }
 
-// findIncludesInContent finds all @include references in content
+// findIncludesInContent finds all @include and @import references in content
 func findIncludesInContent(content, baseDir string, verbose bool) ([]string, error) {
 	_ = baseDir // unused parameter for now, keeping for potential future use
 	_ = verbose // unused parameter for now, keeping for potential future use
 	var includes []string
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if matches := includePattern.FindStringSubmatch(line); matches != nil {
+		if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
 			includePath := strings.TrimSpace(matches[2])
 
 			// Handle section references (file.md#Section)

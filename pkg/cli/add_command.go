@@ -11,7 +11,9 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
+	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
@@ -209,7 +211,7 @@ func addWorkflowsNormal(workflows []*WorkflowSpec, number int, verbose bool, eng
 		}
 
 		if err := addWorkflowWithTracking(workflow, number, verbose, engineOverride, currentName, force, tracker); err != nil {
-			return fmt.Errorf("failed to add workflow '%s': %w", workflow.Spec, err)
+			return fmt.Errorf("failed to add workflow '%s': %w", workflow.String(), err)
 		}
 	}
 
@@ -331,7 +333,7 @@ func addWorkflowsWithPR(workflows []*WorkflowSpec, number int, verbose bool, eng
 // addWorkflowWithTracking adds a workflow from components to .github/workflows with file tracking
 func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, engineOverride string, name string, force bool, tracker *FileTracker) error {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.Spec)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding workflow: %s", workflow.String())))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Number of copies: %d", number)))
 		if force {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Force flag enabled: will overwrite existing files"))
@@ -440,6 +442,29 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		if number > 1 {
 			// Update H1 title to include number
 			content = updateWorkflowTitle(content, i)
+		}
+
+		// Add source field to frontmatter
+		sourceString := buildSourceStringWithCommitSHA(workflow, sourceInfo.CommitSHA)
+		if sourceString != "" {
+			updatedContent, err := addSourceToWorkflow(content, sourceString, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
+				}
+			} else {
+				content = updatedContent
+			}
+
+			// Process @include directives and replace with workflowspec
+			processedContent, err := processIncludesWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, sourceInfo.PackagePath, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+				}
+			} else {
+				content = processedContent
+			}
 		}
 
 		// Track the file based on whether it existed before (if tracker is available)
@@ -803,4 +828,45 @@ func createPR(branchName, title, body string, verbose bool) error {
 	fmt.Printf("📢 Pull Request created: %s\n", prURL)
 
 	return nil
+}
+
+// addSourceToWorkflow adds the source field to the workflow's frontmatter
+func addSourceToWorkflow(content, source string, verbose bool) (string, error) {
+	// Parse frontmatter using parser package
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	// Initialize frontmatter if it doesn't exist
+	if result.Frontmatter == nil {
+		result.Frontmatter = make(map[string]any)
+	}
+
+	// Add source field (will be last in YAML output due to alphabetical sorting)
+	result.Frontmatter["source"] = source
+
+	// Convert back to YAML
+	updatedFrontmatter, err := yaml.Marshal(result.Frontmatter)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal updated frontmatter: %w", err)
+	}
+
+	// Clean up quoted keys - replace "on": with on: at the start of a line
+	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
+	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
+	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
+
+	// Reconstruct the file
+	var lines []string
+	lines = append(lines, "---")
+	if frontmatterStr != "" {
+		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
+	}
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, result.Markdown)
+	}
+
+	return strings.Join(lines, "\n"), nil
 }

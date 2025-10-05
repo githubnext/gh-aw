@@ -121,8 +121,8 @@ This workflow tests max-turns with timeout.`,
 				}
 
 				// Verify it's in the correct context (under the Claude CLI execution)
-				if !strings.Contains(lockContentStr, "npx @anthropic-ai/claude-code") {
-					t.Error("Expected to find Claude CLI in generated workflow")
+				if !strings.Contains(lockContentStr, "claude --print") {
+					t.Error("Expected to find claude command in generated workflow")
 				}
 
 				// Look for max_turns in the claude_args section (v1.0 format)
@@ -130,7 +130,7 @@ This workflow tests max-turns with timeout.`,
 				foundAction := false
 				foundMaxTurns := false
 				for _, line := range lines {
-					if strings.Contains(line, "npx @anthropic-ai/claude-code") {
+					if strings.Contains(line, "claude --print") {
 						foundAction = true
 						// Check if --max-turns is in the same line or subsequent run lines
 						if strings.Contains(line, "--max-turns") {

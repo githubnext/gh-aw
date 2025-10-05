@@ -478,7 +478,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+        run: npm install -g @github/copilot@latest
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
@@ -2635,7 +2635,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot
+        run: npm install -g @github/copilot@latest
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         timeout-minutes: 5

@@ -119,9 +119,9 @@ on:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := unquoteYAMLKey(tt.input, tt.key)
+			result := UnquoteYAMLKey(tt.input, tt.key)
 			if result != tt.expected {
-				t.Errorf("unquoteYAMLKey() failed\nInput:\n%s\n\nExpected:\n%s\n\nGot:\n%s",
+				t.Errorf("UnquoteYAMLKey() failed\nInput:\n%s\n\nExpected:\n%s\n\nGot:\n%s",
 					tt.input, tt.expected, result)
 			}
 		})
