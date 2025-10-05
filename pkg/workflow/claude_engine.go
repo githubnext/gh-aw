@@ -232,18 +232,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
-	// Add the log capture step
-	logCaptureLines := []string{
-		"      - name: Print agent log",
-		"        if: always()",
-		"        run: |",
-		"          touch " + logFile,
-		"          echo \"## Agent Log\" >> $GITHUB_STEP_SUMMARY",
-		"          echo '```markdown' >> $GITHUB_STEP_SUMMARY",
-		fmt.Sprintf("          cat %s >> $GITHUB_STEP_SUMMARY", logFile),
-		"          echo '```' >> $GITHUB_STEP_SUMMARY",
-	}
-	steps = append(steps, GitHubActionStep(logCaptureLines))
+	// Add the log capture step using shared helper function
+	steps = append(steps, generateLogCaptureStep(logFile))
 
 	// Add cleanup step for network proxy hook files (if proxy was enabled)
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
@@ -263,7 +253,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *ClaudeEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return convertStepMapToYAML(stepMap)
+	return ConvertStepToYAML(stepMap)
 }
 
 // expandNeutralToolsToClaudeTools converts neutral tools to Claude-specific tools format
