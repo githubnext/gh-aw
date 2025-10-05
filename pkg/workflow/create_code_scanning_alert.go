@@ -20,7 +20,15 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 
 	// Build environment variables
 	env := make(map[string]string)
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, nil)
+
+	// Build with parameters
+	withParams := make(map[string]string)
+	token := ""
+	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+		token = data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken
+	}
+
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{GitHubToken: token}, withParams)
 
 	// Pass the max configuration
 	if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
@@ -38,14 +46,6 @@ func (c *Compiler) buildCreateOutputCodeScanningAlertJob(data *WorkflowData, mai
 	env["GITHUB_AW_SECURITY_REPORT_DRIVER"] = driverName
 	// Pass the workflow filename for rule ID prefix
 	env["GITHUB_AW_WORKFLOW_FILENAME"] = workflowFilename
-
-	// Build with parameters
-	withParams := make(map[string]string)
-	token := ""
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil {
-		token = data.SafeOutputs.CreateCodeScanningAlerts.GitHubToken
-	}
-	c.populateGitHubTokenForSafeOutput(withParams, data, token)
 
 	// Build github-script step
 	stepLines := BuildGitHubScriptStepLines("Create Code Scanning Alert", "create_code_scanning_alert", createCodeScanningAlertScript, env, withParams)

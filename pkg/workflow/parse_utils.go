@@ -45,19 +45,22 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 	}
 }
 
-// SafeOutputEnvConfig contains configuration for safe-output environment variables
+// SafeOutputEnvConfig contains configuration for safe-output environment variables and "with" parameters
 type SafeOutputEnvConfig struct {
 	TargetValue   string // The target value (e.g., "*" or specific issue number)
 	TargetEnvName string // The environment variable name for target (e.g., "GITHUB_AW_COMMENT_TARGET")
+	GitHubToken   string // The github-token value for this specific configuration
 }
 
 // getCustomSafeOutputEnvVars adds all safe-output environment variables to the provided env map
+// and optionally populates github-token in the withParams map
 // This includes:
 // - Standard vars: GITHUB_AW_AGENT_OUTPUT, GITHUB_AW_WORKFLOW_NAME
 // - Custom vars from safe-outputs.env
 // - Optional target env var (if config.TargetValue and config.TargetEnvName are provided)
 // - Staged flag (if trial mode is enabled or SafeOutputs.Staged is true)
-func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *WorkflowData, mainJobName string, config *SafeOutputEnvConfig) {
+// - Optional github-token in withParams (if withParams is not nil and github-token is configured)
+func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *WorkflowData, mainJobName string, config *SafeOutputEnvConfig, withParams map[string]string) {
 	// Add standard safe-output environment variables
 	env["GITHUB_AW_AGENT_OUTPUT"] = fmt.Sprintf("${{ needs.%s.outputs.output }}", mainJobName)
 	env["GITHUB_AW_WORKFLOW_NAME"] = fmt.Sprintf("%q", data.Name)
@@ -80,6 +83,20 @@ func (c *Compiler) getCustomSafeOutputEnvVars(env map[string]string, data *Workf
 	// Add staged flag if needed (always check, not conditional on config)
 	if c.trialMode || (data.SafeOutputs != nil && data.SafeOutputs.Staged) {
 		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "\"true\""
+	}
+
+	// Handle github-token in withParams if provided
+	if withParams != nil {
+		var token string
+		if config != nil && config.GitHubToken != "" {
+			token = config.GitHubToken
+		} else if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
+			token = data.SafeOutputs.GitHubToken
+		}
+
+		if token != "" {
+			withParams["github-token"] = token
+		}
 	}
 }
 

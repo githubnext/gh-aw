@@ -198,15 +198,25 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
-	// Add the log capture step using shared helper function
-	steps = append(steps, generateLogCaptureStep(logFile))
+	// Add the log capture step
+	logCaptureLines := []string{
+		"      - name: Print agent log",
+		"        if: always()",
+		"        run: |",
+		"          touch " + logFile,
+		"          echo \"## Agent Log\" >> $GITHUB_STEP_SUMMARY",
+		"          echo '```markdown' >> $GITHUB_STEP_SUMMARY",
+		fmt.Sprintf("          cat %s >> $GITHUB_STEP_SUMMARY", logFile),
+		"          echo '```' >> $GITHUB_STEP_SUMMARY",
+	}
+	steps = append(steps, GitHubActionStep(logCaptureLines))
 
 	return steps
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization
 func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
+	return convertStepMapToYAML(stepMap)
 }
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {

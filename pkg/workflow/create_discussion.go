@@ -51,16 +51,6 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	// Prepare base environment variables
 	env := make(map[string]string)
 
-	// Add all safe-output environment variables (standard, custom, staged)
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, nil)
-
-	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
-		env["GITHUB_AW_DISCUSSION_TITLE_PREFIX"] = fmt.Sprintf("%q", data.SafeOutputs.CreateDiscussions.TitlePrefix)
-	}
-	if data.SafeOutputs.CreateDiscussions.CategoryId != "" {
-		env["GITHUB_AW_DISCUSSION_CATEGORY_ID"] = fmt.Sprintf("%q", data.SafeOutputs.CreateDiscussions.CategoryId)
-	}
-
 	// Prepare with parameters
 	withParams := make(map[string]string)
 	// Get github-token if specified
@@ -68,7 +58,16 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	if data.SafeOutputs.CreateDiscussions != nil {
 		token = data.SafeOutputs.CreateDiscussions.GitHubToken
 	}
-	c.populateGitHubTokenForSafeOutput(withParams, data, token)
+
+	// Add all safe-output environment variables (standard, custom, staged)
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{GitHubToken: token}, withParams)
+
+	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
+		env["GITHUB_AW_DISCUSSION_TITLE_PREFIX"] = fmt.Sprintf("%q", data.SafeOutputs.CreateDiscussions.TitlePrefix)
+	}
+	if data.SafeOutputs.CreateDiscussions.CategoryId != "" {
+		env["GITHUB_AW_DISCUSSION_CATEGORY_ID"] = fmt.Sprintf("%q", data.SafeOutputs.CreateDiscussions.CategoryId)
+	}
 
 	// Build the github-script step using the simpler helper
 	steps := BuildGitHubScriptStepLines(

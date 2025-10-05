@@ -83,7 +83,15 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Build environment variables
 	env := make(map[string]string)
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, nil)
+
+	// Build with parameters
+	withParams := make(map[string]string)
+	token := ""
+	if data.SafeOutputs.CreateIssues != nil {
+		token = data.SafeOutputs.CreateIssues.GitHubToken
+	}
+
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{GitHubToken: token}, withParams)
 
 	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
 		env["GITHUB_AW_ISSUE_TITLE_PREFIX"] = fmt.Sprintf("%q", data.SafeOutputs.CreateIssues.TitlePrefix)
@@ -92,14 +100,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		labelsStr := strings.Join(data.SafeOutputs.CreateIssues.Labels, ",")
 		env["GITHUB_AW_ISSUE_LABELS"] = fmt.Sprintf("%q", labelsStr)
 	}
-
-	// Build with parameters
-	withParams := make(map[string]string)
-	token := ""
-	if data.SafeOutputs.CreateIssues != nil {
-		token = data.SafeOutputs.CreateIssues.GitHubToken
-	}
-	c.populateGitHubTokenForSafeOutput(withParams, data, token)
 
 	// Build github-script step
 	stepLines := BuildGitHubScriptStepLines("Create Output Issue", "create_issue", createIssueScript, env, withParams)

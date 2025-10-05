@@ -42,17 +42,6 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	if data.SafeOutputs.AddLabels != nil {
 		targetValue = data.SafeOutputs.AddLabels.Target
 	}
-	envConfig := &SafeOutputEnvConfig{
-		TargetValue:   targetValue,
-		TargetEnvName: targetEnvName,
-	}
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, envConfig)
-
-	// Pass the allowed labels list (empty string if no restrictions)
-	allowedLabelsStr := strings.Join(allowedLabels, ",")
-	env["GITHUB_AW_LABELS_ALLOWED"] = fmt.Sprintf("%q", allowedLabelsStr)
-	// Pass the max limit
-	env["GITHUB_AW_LABELS_MAX_COUNT"] = fmt.Sprintf("%d", maxCount)
 
 	// Build with parameters
 	withParams := make(map[string]string)
@@ -60,7 +49,19 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	if data.SafeOutputs.AddLabels != nil {
 		token = data.SafeOutputs.AddLabels.GitHubToken
 	}
-	c.populateGitHubTokenForSafeOutput(withParams, data, token)
+
+	envConfig := &SafeOutputEnvConfig{
+		TargetValue:   targetValue,
+		TargetEnvName: targetEnvName,
+		GitHubToken:   token,
+	}
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, envConfig, withParams)
+
+	// Pass the allowed labels list (empty string if no restrictions)
+	allowedLabelsStr := strings.Join(allowedLabels, ",")
+	env["GITHUB_AW_LABELS_ALLOWED"] = fmt.Sprintf("%q", allowedLabelsStr)
+	// Pass the max limit
+	env["GITHUB_AW_LABELS_MAX_COUNT"] = fmt.Sprintf("%d", maxCount)
 
 	// Build github-script step
 	stepLines := BuildGitHubScriptStepLines("Add Labels", "add_labels", addLabelsScript, env, withParams)

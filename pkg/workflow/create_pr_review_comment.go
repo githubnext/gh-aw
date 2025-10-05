@@ -20,16 +20,6 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Prepare base environment variables
 	env := make(map[string]string)
 
-	// Add all safe-output environment variables (standard, custom, target)
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{
-		TargetValue:   data.SafeOutputs.CreatePullRequestReviewComments.Target,
-		TargetEnvName: "GITHUB_AW_PR_REVIEW_COMMENT_TARGET",
-	})
-
-	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
-		env["GITHUB_AW_PR_REVIEW_COMMENT_SIDE"] = fmt.Sprintf("%q", data.SafeOutputs.CreatePullRequestReviewComments.Side)
-	}
-
 	// Prepare with parameters
 	withParams := make(map[string]string)
 	// Get github-token if specified
@@ -37,7 +27,17 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 		token = data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken
 	}
-	c.populateGitHubTokenForSafeOutput(withParams, data, token)
+
+	// Add all safe-output environment variables (standard, custom, target)
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{
+		TargetValue:   data.SafeOutputs.CreatePullRequestReviewComments.Target,
+		TargetEnvName: "GITHUB_AW_PR_REVIEW_COMMENT_TARGET",
+		GitHubToken:   token,
+	}, withParams)
+
+	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
+		env["GITHUB_AW_PR_REVIEW_COMMENT_SIDE"] = fmt.Sprintf("%q", data.SafeOutputs.CreatePullRequestReviewComments.Side)
+	}
 
 	// Build the github-script step using the simpler helper
 	steps := BuildGitHubScriptStepLines(

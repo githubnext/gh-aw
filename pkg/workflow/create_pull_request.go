@@ -39,7 +39,11 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Step 4: Create pull request
 	// Build environment variables
 	env := make(map[string]string)
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, nil)
+
+	// Build with parameters
+	withParams := make(map[string]string)
+
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{GitHubToken: data.SafeOutputs.CreatePullRequests.GitHubToken}, withParams)
 
 	env["GITHUB_AW_WORKFLOW_ID"] = fmt.Sprintf("%q", mainJobName)
 	env["GITHUB_AW_BASE_BRANCH"] = "${{ github.ref_name }}"
@@ -72,10 +76,6 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
 	env["GITHUB_AW_MAX_PATCH_SIZE"] = fmt.Sprintf("%d", maxPatchSize)
-
-	// Build with parameters
-	withParams := make(map[string]string)
-	c.populateGitHubTokenForSafeOutput(withParams, data, data.SafeOutputs.CreatePullRequests.GitHubToken)
 
 	// Build github-script step
 	stepLines := BuildGitHubScriptStepLines("Create Pull Request", "create_pull_request", createPullRequestScript, env, withParams)

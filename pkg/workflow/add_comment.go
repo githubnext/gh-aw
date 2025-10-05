@@ -24,12 +24,6 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Prepare base environment variables
 	env := make(map[string]string)
 
-	// Add all safe-output environment variables (standard, custom, target)
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{
-		TargetValue:   data.SafeOutputs.AddComments.Target,
-		TargetEnvName: "GITHUB_AW_COMMENT_TARGET",
-	})
-
 	// Prepare with parameters
 	withParams := make(map[string]string)
 	// Get github-token if specified
@@ -37,7 +31,13 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	if data.SafeOutputs.AddComments != nil {
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
-	c.populateGitHubTokenForSafeOutput(withParams, data, token)
+
+	// Add all safe-output environment variables (standard, custom, target)
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, &SafeOutputEnvConfig{
+		TargetValue:   data.SafeOutputs.AddComments.Target,
+		TargetEnvName: "GITHUB_AW_COMMENT_TARGET",
+		GitHubToken:   token,
+	}, withParams)
 
 	// Build the github-script step using the simpler helper
 	steps := BuildGitHubScriptStepLines(

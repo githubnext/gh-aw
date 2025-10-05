@@ -23,16 +23,6 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 
 	// Build environment variables
 	env := make(map[string]string)
-	envConfig := &SafeOutputEnvConfig{
-		TargetValue:   data.SafeOutputs.UpdateIssues.Target,
-		TargetEnvName: "GITHUB_AW_UPDATE_TARGET",
-	}
-	c.getCustomSafeOutputEnvVars(env, data, mainJobName, envConfig)
-
-	// Pass the configuration flags
-	env["GITHUB_AW_UPDATE_STATUS"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Status != nil)
-	env["GITHUB_AW_UPDATE_TITLE"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Title != nil)
-	env["GITHUB_AW_UPDATE_BODY"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Body != nil)
 
 	// Build with parameters
 	withParams := make(map[string]string)
@@ -40,7 +30,18 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs.UpdateIssues != nil {
 		token = data.SafeOutputs.UpdateIssues.GitHubToken
 	}
-	c.populateGitHubTokenForSafeOutput(withParams, data, token)
+
+	envConfig := &SafeOutputEnvConfig{
+		TargetValue:   data.SafeOutputs.UpdateIssues.Target,
+		TargetEnvName: "GITHUB_AW_UPDATE_TARGET",
+		GitHubToken:   token,
+	}
+	c.getCustomSafeOutputEnvVars(env, data, mainJobName, envConfig, withParams)
+
+	// Pass the configuration flags
+	env["GITHUB_AW_UPDATE_STATUS"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Status != nil)
+	env["GITHUB_AW_UPDATE_TITLE"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Title != nil)
+	env["GITHUB_AW_UPDATE_BODY"] = fmt.Sprintf("%t", data.SafeOutputs.UpdateIssues.Body != nil)
 
 	// Build github-script step
 	stepLines := BuildGitHubScriptStepLines("Update Issue", "update_issue", updateIssueScript, env, withParams)

@@ -2387,7 +2387,7 @@ func (c *Compiler) shouldAddCheckoutStep(data *WorkflowData) bool {
 
 // convertStepToYAML converts a step map to YAML string with proper indentation
 func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
-	return ConvertStepToYAML(stepMap)
+	return convertStepMapToYAML(stepMap)
 }
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method
