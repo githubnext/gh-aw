@@ -332,10 +332,10 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 				return "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
 
-			// Check for cycles using the resolved full path
+			// Check for repeated imports using the resolved full path
 			if visited[fullPath] {
 				if !extractTools {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", filePath)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Already included: %s, skipping", filePath)))
 				}
 				continue
 			}
