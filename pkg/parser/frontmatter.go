@@ -284,17 +284,17 @@ func ExtractMarkdown(filePath string) (string, error) {
 	return ExtractMarkdownContent(string(content))
 }
 
-// ProcessIncludes processes @include directives in markdown content
+// ProcessIncludes processes @include and @import directives in markdown content
 // This matches the bash process_includes function behavior
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
+	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include directive
+		// Check if this line is an @include or @import directive
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])
@@ -505,7 +505,7 @@ func extractEngineFromContent(content string) (string, error) {
 	return strings.TrimSpace(string(engineJSON)), nil
 }
 
-// ExpandIncludes recursively expands @include directives until no more remain
+// ExpandIncludes recursively expands @include and @import directives until no more remain
 // This matches the bash expand_includes function behavior
 func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) {
 	const maxDepth = 10
@@ -518,9 +518,9 @@ func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) 
 			return "", err
 		}
 
-		// For tools mode, check if we still have @include directives
+		// For tools mode, check if we still have @include or @import directives
 		if extractTools {
-			if !strings.Contains(processedContent, "@include") {
+			if !strings.Contains(processedContent, "@include") && !strings.Contains(processedContent, "@import") {
 				// No more includes to process for tools mode
 				currentContent = processedContent
 				break
@@ -544,7 +544,7 @@ func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) 
 	return currentContent, nil
 }
 
-// ExpandIncludesForEngines recursively expands @include directives to extract engine configurations
+// ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 	const maxDepth = 10
 	var engines []string
@@ -572,17 +572,17 @@ func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 	return engines, nil
 }
 
-// ProcessIncludesForEngines processes @include directives to extract engine configurations
+// ProcessIncludesForEngines processes @include and @import directives to extract engine configurations
 func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
 	var engines []string
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
+	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include directive
+		// Check if this line is an @include or @import directive
 		if matches := includePattern.FindStringSubmatch(line); matches != nil {
 			isOptional := matches[1] == "?"
 			includePath := strings.TrimSpace(matches[2])

@@ -367,12 +367,12 @@ func cleanupAllIncludes(verbose bool) error {
 	return err
 }
 
-// findIncludesInContent finds all @include references in content
+// findIncludesInContent finds all @include and @import references in content
 func findIncludesInContent(content, baseDir string, verbose bool) ([]string, error) {
 	_ = baseDir // unused parameter for now, keeping for potential future use
 	_ = verbose // unused parameter for now, keeping for potential future use
 	var includes []string
-	includePattern := regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
+	includePattern := regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {

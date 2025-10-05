@@ -185,10 +185,10 @@ safe-outputs:
           run: echo "Deploying..."
 ---
 
-@include shared/common-jobs.md
+@import shared/common-jobs.md
 ```
 
-**Included file (shared/common-jobs.md):**
+**Imported file (shared/common-jobs.md):**
 ```aw wrap
 ---
 safe-outputs:
