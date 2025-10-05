@@ -483,8 +483,33 @@ func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bo
 	newSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRef)
 	newResult.Frontmatter["source"] = newSourceSpec
 
-	// Reconstruct the workflow file
-	return reconstructWorkflowFile(newResult.Frontmatter, newResult.Markdown)
+	// Reconstruct the workflow file with updated source
+	content, err := reconstructWorkflowFile(newResult.Frontmatter, newResult.Markdown)
+	if err != nil {
+		return "", err
+	}
+
+	// Process @include directives in the new content and replace with workflowspec
+	// Build a WorkflowSpec from the sourceSpec to use for processing includes
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			Repo:    sourceSpec.Repo,
+			Version: newRef,
+		},
+		WorkflowPath: sourceSpec.Path,
+	}
+
+	// We don't have access to the package path here, so we'll just process the markdown
+	// The compile step will handle downloading the includes when needed
+	processedContent, err := processIncludesInContent(content, workflow, newRef, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+		}
+		return content, nil // Return unprocessed content on error
+	}
+
+	return processedContent, nil
 }
 
 // reconstructWorkflowFile reconstructs a workflow file from frontmatter and markdown

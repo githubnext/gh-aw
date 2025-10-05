@@ -1814,3 +1814,103 @@ func TestProcessIncludesOptional(t *testing.T) {
 		})
 	}
 }
+
+func TestIsWorkflowSpec(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{
+			name: "valid workflowspec",
+			path: "owner/repo/path/to/file.md",
+			want: true,
+		},
+		{
+			name: "workflowspec with ref",
+			path: "owner/repo/workflows/file.md@main",
+			want: true,
+		},
+		{
+			name: "workflowspec with section",
+			path: "owner/repo/workflows/file.md#section",
+			want: true,
+		},
+		{
+			name: "workflowspec with ref and section",
+			path: "owner/repo/workflows/file.md@sha123#section",
+			want: true,
+		},
+		{
+			name: "local path with .github",
+			path: ".github/workflows/file.md",
+			want: false,
+		},
+		{
+			name: "relative local path",
+			path: "../shared/file.md",
+			want: false,
+		},
+		{
+			name: "absolute path",
+			path: "/tmp/file.md",
+			want: false,
+		},
+		{
+			name: "too few parts",
+			path: "owner/repo",
+			want: false,
+		},
+		{
+			name: "local path starting with dot",
+			path: "./file.md",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isWorkflowSpec(tt.path)
+			if got != tt.want {
+				t.Errorf("isWorkflowSpec(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProcessIncludesWithCycleDetection(t *testing.T) {
+	// Create a temporary directory for test files
+	tempDir, err := os.MkdirTemp("", "test_cycle_detection")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create file A that includes file B
+	fileA := filepath.Join(tempDir, "fileA.md")
+	if err := os.WriteFile(fileA, []byte("# File A\n@include fileB.md\n"), 0644); err != nil {
+		t.Fatalf("Failed to write fileA: %v", err)
+	}
+
+	// Create file B that includes file A (creating a cycle)
+	fileB := filepath.Join(tempDir, "fileB.md")
+	if err := os.WriteFile(fileB, []byte("# File B\n@include fileA.md\n"), 0644); err != nil {
+		t.Fatalf("Failed to write fileB: %v", err)
+	}
+
+	// Process includes from file A - should not hang due to cycle detection
+	content := "# Main\n@include fileA.md\n"
+	result, err := ProcessIncludes(content, tempDir, false)
+
+	if err != nil {
+		t.Errorf("ProcessIncludes with cycle should not error: %v", err)
+	}
+
+	// Result should contain content from fileA and fileB, but cycle should be prevented
+	if !strings.Contains(result, "File A") {
+		t.Errorf("ProcessIncludes result should contain File A content")
+	}
+	if !strings.Contains(result, "File B") {
+		t.Errorf("ProcessIncludes result should contain File B content")
+	}
+}

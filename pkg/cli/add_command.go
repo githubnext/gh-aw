@@ -454,6 +454,16 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 			} else {
 				content = updatedContent
 			}
+
+			// Process @include directives and replace with workflowspec
+			processedContent, err := processIncludesWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, sourceInfo.PackagePath, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+				}
+			} else {
+				content = processedContent
+			}
 		}
 
 		// Track the file based on whether it existed before (if tracker is available)
