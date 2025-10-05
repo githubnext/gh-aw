@@ -533,7 +533,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional tools
-	includedTools, err := parser.ExpandIncludesVerbose(result.Markdown, markdownDir, true, c.verbose)
+	includedTools, err := parser.ExpandIncludes(result.Markdown, markdownDir, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
@@ -583,7 +583,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	c.validateWebSearchSupport(tools, agenticEngine)
 
 	// Process @include directives in markdown content
-	markdownContent, err := parser.ExpandIncludesVerbose(result.Markdown, markdownDir, false, c.verbose)
+	markdownContent, err := parser.ExpandIncludes(result.Markdown, markdownDir, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
 	}

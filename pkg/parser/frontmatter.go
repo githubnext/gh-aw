@@ -292,17 +292,11 @@ func ExtractMarkdown(filePath string) (string, error) {
 // This matches the bash process_includes function behavior
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
 	visited := make(map[string]bool)
-	return processIncludesWithVisited(content, baseDir, extractTools, visited, false)
-}
-
-// ProcessIncludesVerbose processes @include and @import directives with verbose logging
-func ProcessIncludesVerbose(content, baseDir string, extractTools bool, verbose bool) (string, error) {
-	visited := make(map[string]bool)
-	return processIncludesWithVisited(content, baseDir, extractTools, visited, verbose)
+	return processIncludesWithVisited(content, baseDir, extractTools, visited)
 }
 
 // processIncludesWithVisited processes @include and @import directives with cycle detection
-func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool, verbose bool) (string, error) {
+func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
 
@@ -340,8 +334,8 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 
 			// Check for cycles using the resolved full path
 			if visited[fullPath] {
-				if verbose && !extractTools {
-					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", filePath)))
+				if !extractTools {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cycle detected for include: %s, skipping", filePath)))
 				}
 				continue
 			}
@@ -350,7 +344,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			visited[fullPath] = true
 
 			// Process the included file
-			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, baseDir, visited, verbose)
+			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, baseDir, visited)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return "", fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
@@ -511,7 +505,7 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 
 // processIncludedFile processes a single included file, optionally extracting a section
 // processIncludedFileWithVisited processes a single included file with cycle detection for nested includes
-func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, baseDir string, visited map[string]bool, verbose bool) (string, error) {
+func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, baseDir string, visited map[string]bool) (string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)
@@ -595,7 +589,7 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 
 	// Process nested includes recursively
 	includedDir := filepath.Dir(filePath)
-	markdownContent, err = processIncludesWithVisited(markdownContent, includedDir, extractTools, visited, verbose)
+	markdownContent, err = processIncludesWithVisited(markdownContent, includedDir, extractTools, visited)
 	if err != nil {
 		return "", fmt.Errorf("failed to process nested includes in %s: %w", filePath, err)
 	}
@@ -659,27 +653,12 @@ func extractEngineFromContent(content string) (string, error) {
 // ExpandIncludes recursively expands @include and @import directives until no more remain
 // This matches the bash expand_includes function behavior
 func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) {
-	return expandIncludesWithVerbose(content, baseDir, extractTools, false)
-}
-
-// ExpandIncludesVerbose recursively expands @include and @import directives with verbose logging
-func ExpandIncludesVerbose(content, baseDir string, extractTools bool, verbose bool) (string, error) {
-	return expandIncludesWithVerbose(content, baseDir, extractTools, verbose)
-}
-
-func expandIncludesWithVerbose(content, baseDir string, extractTools bool, verbose bool) (string, error) {
 	const maxDepth = 10
 	currentContent := content
 
 	for depth := 0; depth < maxDepth; depth++ {
 		// Process includes in current content
-		var processedContent string
-		var err error
-		if verbose {
-			processedContent, err = ProcessIncludesVerbose(currentContent, baseDir, extractTools, verbose)
-		} else {
-			processedContent, err = ProcessIncludes(currentContent, baseDir, extractTools)
-		}
+		processedContent, err := ProcessIncludes(currentContent, baseDir, extractTools)
 		if err != nil {
 			return "", err
 		}
