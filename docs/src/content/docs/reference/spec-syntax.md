@@ -42,7 +42,7 @@ gh aw add githubnext/agentics
 
 **Repository with commit SHA:**
 ```bash
-gh aw add githubnext/agentics@abc123def456789012345678901234567890abcd
+gh aw add githubnext/agentics@abc123def456789012345678901234567890abcdef
 ```
 
 ### Validation Rules
@@ -220,7 +220,7 @@ Used for:
 Full 40-character commit SHA for precise version pinning:
 
 ```bash
-abc123def456789012345678901234567890abcd
+abc123def456789012345678901234567890abcdef
 1234567890abcdef1234567890abcdef12345678
 ```
 
@@ -289,7 +289,7 @@ gh aw add githubnext/agentics/ci-doctor@v1.0.0
 
 Result in frontmatter:
 ```yaml
-source: "githubnext/agentics/workflows/ci-doctor.md@abc123...def456"
+source: "githubnext/agentics/workflows/ci-doctor.md@abc123def456789012345678901234567890abcdef"
 ```
 
 ### Tracking a Branch
@@ -313,7 +313,7 @@ gh aw add githubnext/agentics/ci-doctor
 
 Result in frontmatter:
 ```yaml
-source: "githubnext/agentics/workflows/ci-doctor.md@abc123...def456"
+source: "githubnext/agentics/workflows/ci-doctor.md@abc123def456789012345678901234567890abcdef"
 ```
 
 ## Error Messages
