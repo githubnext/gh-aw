@@ -7,7 +7,9 @@ This guide covers how to add web search capabilities to workflows using the Tavi
 
 ## Overview
 
-Some AI engines (like Copilot) don't include built-in web search functionality. To add web search capabilities to these workflows, you can integrate the Tavily MCP server that provides AI-optimized search functionality.
+Some AI engines (like Copilot) don't include built-in web search functionality. To add web search capabilities to these workflows, you can integrate third-party MCP servers that provide search functionality.
+
+This guide focuses on Tavily, an AI-optimized search provider designed for LLM applications. Other alternatives include Exa (semantic search), SerpAPI (Google search access), and Brave Search (privacy-focused), though this guide only covers Tavily setup.
 
 ## Tavily Search
 
