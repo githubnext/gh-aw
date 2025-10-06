@@ -3,6 +3,7 @@ name: Issue Classifier
 on:
   issues:
     types: [opened]
+  reaction: "eyes"
 permissions:
   contents: read
   actions: read
