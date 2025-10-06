@@ -52,12 +52,12 @@ This is common setup content that should be prepended.
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
-		name                 string
-		workflowContent      string
-		expectedInPrompt     []string
-		expectedOrderBefore  string // content that should come before
-		expectedOrderAfter   string // content that should come after
-		description          string
+		name                string
+		workflowContent     string
+		expectedInPrompt    []string
+		expectedOrderBefore string // content that should come before
+		expectedOrderAfter  string // content that should come after
+		description         string
 	}{
 		{
 			name: "single_import_with_markdown",
@@ -235,7 +235,7 @@ This is the main workflow content.`
 		}
 	}
 
-	// Verify ordering: 
+	// Verify ordering:
 	// - imported content should come before main workflow heading (it's prepended)
 	// - included content appears after main workflow heading (it's expanded in-place where @include directive was)
 	importedIdx := strings.Index(lockContent, "# Imported Content")
