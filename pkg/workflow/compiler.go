@@ -1204,18 +1204,22 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 }
 
 // mergeMCPServers merges mcp-servers from imports with top-level mcp-servers
-// Handles newline-separated JSON objects from multiple imports
+// Takes object maps and merges them directly
 func (c *Compiler) mergeMCPServers(topMCPServers map[string]any, importedMCPServersJSON string) (map[string]any, error) {
 	if importedMCPServersJSON == "" || importedMCPServersJSON == "{}" {
 		return topMCPServers, nil
 	}
 
+	// Initialize result with top-level MCP servers
+	result := make(map[string]any)
+	if topMCPServers != nil {
+		for k, v := range topMCPServers {
+			result[k] = v
+		}
+	}
+
 	// Split by newlines to handle multiple JSON objects from different imports
 	lines := strings.Split(importedMCPServersJSON, "\n")
-	result := topMCPServers
-	if result == nil {
-		result = make(map[string]any)
-	}
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -1223,6 +1227,7 @@ func (c *Compiler) mergeMCPServers(topMCPServers map[string]any, importedMCPServ
 			continue
 		}
 
+		// Parse JSON line to map
 		var importedMCPServers map[string]any
 		if err := json.Unmarshal([]byte(line), &importedMCPServers); err != nil {
 			continue // Skip invalid lines
