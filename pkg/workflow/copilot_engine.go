@@ -391,6 +391,11 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	var currentSequence []string                  // Track tool sequence
 	turns := 0
 
+	// For multi-line JSON parsing
+	var jsonBuffer strings.Builder
+	var inJSON bool
+	var braceCount int
+
 	for _, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
@@ -412,17 +417,76 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 			currentSequence = append(currentSequence, toolName)
 		}
 
-		// Try to extract token usage from JSON format if available
-		jsonMetrics := ExtractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || jsonMetrics.PremiumCost > 0 {
-			if jsonMetrics.TokenUsage > maxTokenUsage {
-				maxTokenUsage = jsonMetrics.TokenUsage
+		// Handle multi-line JSON blocks
+		trimmedLine := strings.TrimSpace(line)
+		
+		// Check if line starts a JSON object (after removing timestamp prefix)
+		// Look for patterns like "[DEBUG] {" or just "{"
+		startsJSON := false
+		if strings.HasPrefix(trimmedLine, "{") {
+			startsJSON = true
+		} else if strings.Contains(line, "[DEBUG] {") || strings.Contains(line, "[LOG] {") {
+			// Extract the part after the log prefix
+			idx := strings.Index(line, "{")
+			if idx != -1 {
+				trimmedLine = line[idx:]
+				startsJSON = true
 			}
-			if jsonMetrics.EstimatedCost > 0 {
-				metrics.EstimatedCost += jsonMetrics.EstimatedCost
+		}
+		
+		if startsJSON {
+			if !inJSON {
+				inJSON = true
+				braceCount = 0
+				jsonBuffer.Reset()
 			}
-			if jsonMetrics.PremiumCost > 0 {
-				metrics.PremiumCost += jsonMetrics.PremiumCost
+		}
+		
+		// If we're in a JSON block, accumulate lines and track brace depth
+		if inJSON {
+			jsonBuffer.WriteString(trimmedLine)
+			jsonBuffer.WriteString(" ")
+			
+			// Count braces to detect when JSON block is complete
+			for _, ch := range trimmedLine {
+				if ch == '{' {
+					braceCount++
+				} else if ch == '}' {
+					braceCount--
+				}
+			}
+			
+			// If braces are balanced, try to parse the accumulated JSON
+			if braceCount == 0 {
+				jsonStr := jsonBuffer.String()
+				jsonMetrics := ExtractJSONMetrics(jsonStr, verbose)
+				if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || jsonMetrics.PremiumCost > 0 {
+					if jsonMetrics.TokenUsage > maxTokenUsage {
+						maxTokenUsage = jsonMetrics.TokenUsage
+					}
+					if jsonMetrics.EstimatedCost > 0 {
+						metrics.EstimatedCost += jsonMetrics.EstimatedCost
+					}
+					if jsonMetrics.PremiumCost > 0 {
+						metrics.PremiumCost += jsonMetrics.PremiumCost
+					}
+				}
+				inJSON = false
+				jsonBuffer.Reset()
+			}
+		} else {
+			// Try single-line JSON extraction for backward compatibility
+			jsonMetrics := ExtractJSONMetrics(line, verbose)
+			if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || jsonMetrics.PremiumCost > 0 {
+				if jsonMetrics.TokenUsage > maxTokenUsage {
+					maxTokenUsage = jsonMetrics.TokenUsage
+				}
+				if jsonMetrics.EstimatedCost > 0 {
+					metrics.EstimatedCost += jsonMetrics.EstimatedCost
+				}
+				if jsonMetrics.PremiumCost > 0 {
+					metrics.PremiumCost += jsonMetrics.PremiumCost
+				}
 			}
 		}
 
