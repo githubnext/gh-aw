@@ -1156,22 +1156,39 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 }
 
 // mergeTools merges two tools maps, combining allowed arrays when keys coincide
+// Handles newline-separated JSON objects from multiple imports/includes
 func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
 	if includedToolsJSON == "" || includedToolsJSON == "{}" {
 		return topTools, nil
 	}
 
-	var includedTools map[string]any
-	if err := json.Unmarshal([]byte(includedToolsJSON), &includedTools); err != nil {
-		return topTools, nil // Return original tools if parsing fails
+	// Split by newlines to handle multiple JSON objects from different imports/includes
+	lines := strings.Split(includedToolsJSON, "\n")
+	result := topTools
+	if result == nil {
+		result = make(map[string]any)
 	}
 
-	// Use the merge logic from the parser package
-	mergedTools, err := parser.MergeTools(topTools, includedTools)
-	if err != nil {
-		return nil, fmt.Errorf("failed to merge tools: %w", err)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "{}" {
+			continue
+		}
+
+		var includedTools map[string]any
+		if err := json.Unmarshal([]byte(line), &includedTools); err != nil {
+			continue // Skip invalid lines
+		}
+
+		// Merge this set of tools
+		merged, err := parser.MergeTools(result, includedTools)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge tools: %w", err)
+		}
+		result = merged
 	}
-	return mergedTools, nil
+
+	return result, nil
 }
 
 // mergeSafeJobsFromIncludes merges safe-jobs from included files and detects conflicts
