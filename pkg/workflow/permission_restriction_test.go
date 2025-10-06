@@ -182,6 +182,25 @@ Test workflow content.`,
 			expectPermissionCheck: true,
 			expectedPermissions:   []string{"admin", "maintainer"},
 		},
+		{
+			name: "workflow with command and workflow_dispatch with write role should include permission check for command",
+			frontmatter: `---
+on:
+  command:
+    name: scout
+  workflow_dispatch:
+roles: [admin, maintainer, write]
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Scout-like Workflow
+Test workflow content.`,
+			filename:              "scout-like-workflow.md",
+			expectPermissionCheck: true,
+			expectedPermissions:   []string{"admin", "maintainer", "write"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -209,7 +228,9 @@ Test workflow content.`,
 			lockContentStr := string(lockContent)
 
 			// Check if permission check is present
-			hasPermissionCheck := strings.Contains(lockContentStr, "Check team membership for workflow")
+			// For command workflows, look for command-specific check text
+			hasPermissionCheck := strings.Contains(lockContentStr, "Check team membership for workflow") ||
+				strings.Contains(lockContentStr, "Check team membership for command workflow")
 
 			if tt.expectPermissionCheck {
 				if !hasPermissionCheck {

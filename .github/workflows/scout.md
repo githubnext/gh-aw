@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   actions: read
+roles: [admin, maintainer, write]
 engine: copilot
 tools:
   cache-memory:
