@@ -510,6 +510,15 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		engineSetting = finalEngineSetting
 	}
 
+	// If engineConfig is nil (engine was in an included file), extract it from the included engine JSON
+	if engineConfig == nil && len(allEngines) > 0 {
+		extractedConfig, err := c.extractEngineConfigFromJSON(allEngines[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
+		}
+		engineConfig = extractedConfig
+	}
+
 	// Apply the default AI engine setting if not specified
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()

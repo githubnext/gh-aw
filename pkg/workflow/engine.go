@@ -246,3 +246,23 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 
 	return "", fmt.Errorf("invalid engine configuration in included file")
 }
+
+// extractEngineConfigFromJSON parses engine configuration from JSON string (from included files)
+func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig, error) {
+	if engineJSON == "" {
+		return nil, nil
+	}
+
+	var engineData any
+	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
+		return nil, fmt.Errorf("failed to parse engine JSON: %w", err)
+	}
+
+	// Use the existing ExtractEngineConfig function by creating a temporary frontmatter map
+	tempFrontmatter := map[string]any{
+		"engine": engineData,
+	}
+
+	_, config := c.ExtractEngineConfig(tempFrontmatter)
+	return config, nil
+}

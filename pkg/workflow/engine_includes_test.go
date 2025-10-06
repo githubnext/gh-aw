@@ -365,3 +365,271 @@ This should fail due to multiple engine specifications in includes.
 		t.Errorf("Expected error message to contain 'multiple engine fields found', got: %s", errMsg)
 	}
 }
+
+// TestImportedEngineWithCustomSteps tests importing a custom engine configuration with steps
+func TestImportedEngineWithCustomSteps(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create shared file with custom engine and steps
+	sharedContent := `---
+engine:
+  id: custom
+  steps:
+    - name: Run AI Inference
+      uses: actions/ai-inference@v1
+      with:
+        prompt-file: ${{ env.GITHUB_AW_PROMPT }}
+        model: gpt-4o-mini
+---
+
+<!--
+This shared configuration sets up a custom agentic engine using GitHub's AI inference action.
+-->
+`
+	sharedFile := filepath.Join(sharedDir, "actions-ai-inference.md")
+	if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create main workflow that imports the shared engine config
+	mainContent := `---
+name: Test Imported Custom Engine
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  models: read
+imports:
+  - shared/actions-ai-inference.md
+---
+
+# Test Workflow
+
+This workflow imports a custom engine with steps.
+`
+	mainFile := filepath.Join(workflowsDir, "test-imported-engine.md")
+	if err := os.WriteFile(mainFile, []byte(mainContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err := compiler.CompileWorkflow(mainFile)
+	if err != nil {
+		t.Fatalf("Expected successful compilation, got error: %v", err)
+	}
+
+	// Check that lock file was created
+	lockFile := filepath.Join(workflowsDir, "test-imported-engine.lock.yml")
+	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
+		t.Fatal("Expected lock file to be created")
+	}
+
+	// Verify lock file contains the custom step
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockStr := string(lockContent)
+
+	// Should contain the AI Inference step
+	if !strings.Contains(lockStr, "name: Run AI Inference") {
+		t.Error("Expected lock file to contain 'name: Run AI Inference' step")
+	}
+	if !strings.Contains(lockStr, "uses: actions/ai-inference@v1") {
+		t.Error("Expected lock file to contain 'uses: actions/ai-inference@v1'")
+	}
+	if !strings.Contains(lockStr, "prompt-file:") {
+		t.Error("Expected lock file to contain 'prompt-file:' parameter")
+	}
+	if !strings.Contains(lockStr, "model: gpt-4o-mini") {
+		t.Error("Expected lock file to contain 'model: gpt-4o-mini'")
+	}
+}
+
+// TestImportedEngineWithEnvVars tests importing an engine configuration with environment variables
+func TestImportedEngineWithEnvVars(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create shared file with custom engine, steps, and env vars
+	sharedContent := `---
+engine:
+  id: custom
+  env:
+    CUSTOM_VAR: "test-value"
+    ANOTHER_VAR: "another-value"
+  steps:
+    - name: Test Step
+      run: echo "Testing with env vars"
+---
+
+# Shared Config
+`
+	sharedFile := filepath.Join(sharedDir, "custom-with-env.md")
+	if err := os.WriteFile(sharedFile, []byte(sharedContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create main workflow that imports the shared engine config
+	mainContent := `---
+name: Test Imported Engine With Env
+on: push
+imports:
+  - shared/custom-with-env.md
+---
+
+# Test Workflow
+
+This workflow imports a custom engine with env vars.
+`
+	mainFile := filepath.Join(workflowsDir, "test-env.md")
+	if err := os.WriteFile(mainFile, []byte(mainContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err := compiler.CompileWorkflow(mainFile)
+	if err != nil {
+		t.Fatalf("Expected successful compilation, got error: %v", err)
+	}
+
+	// Check that lock file was created
+	lockFile := filepath.Join(workflowsDir, "test-env.lock.yml")
+	if _, err := os.Stat(lockFile); os.IsNotExist(err) {
+		t.Fatal("Expected lock file to be created")
+	}
+
+	// Verify lock file contains the environment variables
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockStr := string(lockContent)
+
+	// Should contain the custom environment variables
+	if !strings.Contains(lockStr, "CUSTOM_VAR: test-value") {
+		t.Error("Expected lock file to contain 'CUSTOM_VAR: test-value'")
+	}
+	if !strings.Contains(lockStr, "ANOTHER_VAR: another-value") {
+		t.Error("Expected lock file to contain 'ANOTHER_VAR: another-value'")
+	}
+}
+
+// TestExtractEngineConfigFromJSON tests the extractEngineConfigFromJSON function
+func TestExtractEngineConfigFromJSON(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name          string
+		engineJSON    string
+		expectedID    string
+		expectedSteps int
+		expectedEnv   map[string]string
+		expectError   bool
+	}{
+		{
+			name:          "simple string engine",
+			engineJSON:    `"claude"`,
+			expectedID:    "claude",
+			expectedSteps: 0,
+			expectError:   false,
+		},
+		{
+			name:          "object with id only",
+			engineJSON:    `{"id": "custom"}`,
+			expectedID:    "custom",
+			expectedSteps: 0,
+			expectError:   false,
+		},
+		{
+			name:          "custom engine with steps",
+			engineJSON:    `{"id": "custom", "steps": [{"name": "Test", "run": "echo test"}]}`,
+			expectedID:    "custom",
+			expectedSteps: 1,
+			expectError:   false,
+		},
+		{
+			name:          "custom engine with env vars",
+			engineJSON:    `{"id": "custom", "env": {"VAR1": "value1", "VAR2": "value2"}, "steps": [{"name": "Test", "run": "echo test"}]}`,
+			expectedID:    "custom",
+			expectedSteps: 1,
+			expectedEnv:   map[string]string{"VAR1": "value1", "VAR2": "value2"},
+			expectError:   false,
+		},
+		{
+			name:        "invalid JSON",
+			engineJSON:  `{invalid}`,
+			expectError: true,
+		},
+		{
+			name:        "empty string",
+			engineJSON:  ``,
+			expectedID:  "",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := compiler.extractEngineConfigFromJSON(tt.engineJSON)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if tt.engineJSON == "" {
+				if config != nil {
+					t.Error("Expected nil config for empty JSON")
+				}
+				return
+			}
+
+			if config == nil {
+				t.Fatal("Expected non-nil config")
+			}
+
+			if config.ID != tt.expectedID {
+				t.Errorf("Expected ID %q, got %q", tt.expectedID, config.ID)
+			}
+
+			if len(config.Steps) != tt.expectedSteps {
+				t.Errorf("Expected %d steps, got %d", tt.expectedSteps, len(config.Steps))
+			}
+
+			if tt.expectedEnv != nil {
+				if config.Env == nil {
+					t.Error("Expected env vars but got nil")
+				} else {
+					for key, expectedValue := range tt.expectedEnv {
+						if actualValue, exists := config.Env[key]; !exists {
+							t.Errorf("Expected env var %q to exist", key)
+						} else if actualValue != expectedValue {
+							t.Errorf("Expected env var %q to be %q, got %q", key, expectedValue, actualValue)
+						}
+					}
+				}
+			}
+		})
+	}
+}
