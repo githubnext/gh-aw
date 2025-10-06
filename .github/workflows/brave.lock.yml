@@ -2686,6 +2686,13 @@ jobs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
       comment_url: ${{ steps.add_comment.outputs.comment_url }}
     steps:
+      - name: Debug agent outputs
+        env:
+          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+        run: |
+          echo "Output: $AGENT_OUTPUT"
+          echo "Output types: $AGENT_OUTPUT_TYPES"
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@v8
