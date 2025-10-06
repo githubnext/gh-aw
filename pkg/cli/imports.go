@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
-	"github.com/goccy/go-yaml"
+	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 // processImportsWithWorkflowSpec processes imports field in frontmatter and replaces local file references
@@ -70,22 +71,33 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 	// Update frontmatter with processed imports
 	result.Frontmatter["imports"] = processedImports
 
-	// Convert frontmatter back to YAML
-	frontmatterYAML, err := yaml.Marshal(result.Frontmatter)
+	// Use helper function to reconstruct workflow file with proper field ordering
+	return reconstructWorkflowFileFromMap(result.Frontmatter, result.Markdown)
+}
+
+// reconstructWorkflowFileFromMap reconstructs a workflow file from frontmatter map and markdown
+// using proper field ordering and YAML helpers
+func reconstructWorkflowFileFromMap(frontmatter map[string]any, markdown string) (string, error) {
+	// Convert frontmatter to YAML with proper field ordering
+	// Use PriorityWorkflowFields to ensure consistent ordering of top-level fields
+	updatedFrontmatter, err := workflow.MarshalWithFieldOrder(frontmatter, constants.PriorityWorkflowFields)
 	if err != nil {
-		return content, fmt.Errorf("failed to marshal frontmatter: %w", err)
+		return "", fmt.Errorf("failed to marshal frontmatter: %w", err)
 	}
 
-	// Reconstruct the workflow file
+	// Clean up the YAML - remove trailing newline and unquote the "on" key
+	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
+	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
+
+	// Reconstruct the file
 	var lines []string
 	lines = append(lines, "---")
-	frontmatterStr := strings.TrimSuffix(string(frontmatterYAML), "\n")
 	if frontmatterStr != "" {
 		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
 	}
 	lines = append(lines, "---")
-	if result.Markdown != "" {
-		lines = append(lines, result.Markdown)
+	if markdown != "" {
+		lines = append(lines, markdown)
 	}
 
 	return strings.Join(lines, "\n"), nil
