@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 )
@@ -58,9 +59,76 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 	return spec, nil
 }
 
+// parseGitHubURL attempts to parse a GitHub URL and extract workflow specification components
+// Supports URLs like:
+//   - https://github.com/owner/repo/blob/branch/path/to/workflow.md
+//   - https://github.com/owner/repo/blob/main/workflows/workflow.md
+//   - https://github.com/owner/repo/tree/branch/path/to/workflow.md
+//   - https://github.com/owner/repo/raw/branch/path/to/workflow.md
+func parseGitHubURL(spec string) (*WorkflowSpec, error) {
+	// Parse the URL
+	parsedURL, err := url.Parse(spec)
+	if err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Must be a GitHub URL
+	if parsedURL.Host != "github.com" {
+		return nil, fmt.Errorf("URL must be from github.com")
+	}
+
+	// Parse the path: /owner/repo/{blob|tree|raw}/ref/path/to/file
+	pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+
+	// Need at least: owner, repo, type (blob/tree/raw), ref, and filename
+	if len(pathParts) < 5 {
+		return nil, fmt.Errorf("invalid GitHub URL format: path too short")
+	}
+
+	owner := pathParts[0]
+	repo := pathParts[1]
+	urlType := pathParts[2] // blob, tree, or raw
+	ref := pathParts[3]     // branch name, tag, or commit SHA
+	filePath := strings.Join(pathParts[4:], "/")
+
+	// Validate URL type
+	if urlType != "blob" && urlType != "tree" && urlType != "raw" {
+		return nil, fmt.Errorf("invalid GitHub URL format: expected /blob/, /tree/, or /raw/, got /%s/", urlType)
+	}
+
+	// Ensure the file path ends with .md
+	if !strings.HasSuffix(filePath, ".md") {
+		return nil, fmt.Errorf("GitHub URL must point to a .md file")
+	}
+
+	// Validate owner and repo
+	if owner == "" || repo == "" {
+		return nil, fmt.Errorf("invalid GitHub URL: owner and repo cannot be empty")
+	}
+
+	if !isValidGitHubIdentifier(owner) || !isValidGitHubIdentifier(repo) {
+		return nil, fmt.Errorf("invalid GitHub URL: '%s/%s' does not look like a valid GitHub repository", owner, repo)
+	}
+
+	return &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			Repo:    fmt.Sprintf("%s/%s", owner, repo),
+			Version: ref,
+		},
+		WorkflowPath: filePath,
+		WorkflowName: strings.TrimSuffix(filepath.Base(filePath), ".md"),
+	}, nil
+}
+
 // parseWorkflowSpec parses a workflow specification in the new format
 // Format: owner/repo/workflows/workflow-name[@version] or owner/repo/workflow-name[@version]
+// Also supports full GitHub URLs like https://github.com/owner/repo/blob/branch/path/to/workflow.md
 func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
+	// Check if this is a GitHub URL
+	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
+		return parseGitHubURL(spec)
+	}
+
 	// Handle version first (anything after @)
 	parts := strings.SplitN(spec, "@", 2)
 	specWithoutVersion := parts[0]
