@@ -72,6 +72,7 @@ tools:
 
 ## Related Documentation
 
+- [Packaging and Imports](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options
