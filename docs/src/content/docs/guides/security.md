@@ -186,7 +186,8 @@ By default, workflows restrict execution to users with administrative privileges
 
 - **Default roles**: `admin` and `maintainer` repository permissions are required
 - **Automatic enforcement**: Permission checks are automatically added to workflows with potentially unsafe triggers (`push`, `issues`, `pull_request`, etc.)
-- **Safe trigger exceptions**: Workflows that only use "safe" triggers (`workflow_dispatch`, `schedule`, `workflow_run`) skip permission checks by default
+- **Safe trigger exceptions**: Workflows that only use "safe" triggers (`schedule`, `workflow_run`) skip permission checks by default
+- **workflow_dispatch** is treated as safe only when `write` is in the allowed roles, since workflow_dispatch can be triggered by users with write access
 
 Use the `roles:` frontmatter field to customize who can trigger workflows:
 
@@ -198,6 +199,25 @@ roles: [admin, maintainer]
 roles: [admin, maintainer, write]
 
 # Disable restrictions entirely (high risk in public repos)
+roles: all
+```
+
+**workflow_dispatch Examples:**
+
+```yaml
+# Permission check REQUIRED - write role not allowed
+on:
+  workflow_dispatch:
+roles: [admin, maintainer]  # Users with write access will be denied
+
+# Permission check SKIPPED - write role allowed
+on:
+  workflow_dispatch:
+roles: [admin, maintainer, write]  # Users with write access allowed
+
+# Permission check SKIPPED - all users allowed
+on:
+  workflow_dispatch:
 roles: all
 ```
 
