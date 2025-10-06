@@ -25,6 +25,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 **Properties specific to GitHub Agentic Workflows:**
 - `description`: Human-readable description rendered as a comment in the lock file
 - `source`: Source reference tracking where the workflow was added from (format: `owner/repo/path@ref`)
+- `imports`: List of files to import (see [Packaging and Imports](/gh-aw/guides/packaging-imports/))
 - `engine`: AI engine configuration (copilot/claude/codex) with optional max-turns setting
 - `strict`: Enable strict mode validation (boolean, defaults to false)
 - `roles`: Permission restrictions based on repository access levels
