@@ -266,7 +266,8 @@ roles: admin
 
 **Behavior:**
 - Workflows with potentially unsafe triggers (like `push`, `issues`, `pull_request`) automatically include permission checks
-- "Safe" triggers like `workflow_dispatch`, `schedule`, and `workflow_run` skip permission checks by default
+- "Safe" triggers like `schedule` and `workflow_run` skip permission checks by default
+- `workflow_dispatch` is treated as safe only when `write` is in the allowed roles (since workflow_dispatch can be triggered by users with write access)
 - When permission checks fail, the workflow is automatically cancelled with a warning message
 - Users without sufficient permissions will see the workflow start but then immediately stop
 
