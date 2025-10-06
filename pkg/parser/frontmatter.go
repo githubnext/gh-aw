@@ -15,8 +15,55 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// IncludeDirectivePattern matches @include or @import directives
-var IncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
+// IncludeDirectivePattern matches @include, @import (deprecated), or {{#import: (new) directives
+var IncludeDirectivePattern = regexp.MustCompile(`^(?:@(?:include|import)(\?)?\s+(.+)|{{#import(\?)?:\s*(.+?)\s*}})$`)
+
+// LegacyIncludeDirectivePattern matches only the deprecated @include and @import directives
+var LegacyIncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
+
+// ImportDirectiveMatch holds the parsed components of an import directive
+type ImportDirectiveMatch struct {
+	IsOptional bool
+	Path       string
+	IsLegacy   bool
+	Original   string
+}
+
+// ParseImportDirective parses an import directive and returns its components
+func ParseImportDirective(line string) *ImportDirectiveMatch {
+	trimmedLine := strings.TrimSpace(line)
+	
+	// Check if it matches the import pattern at all
+	matches := IncludeDirectivePattern.FindStringSubmatch(trimmedLine)
+	if matches == nil {
+		return nil
+	}
+	
+	// Check if it's legacy syntax
+	isLegacy := LegacyIncludeDirectivePattern.MatchString(trimmedLine)
+	
+	var isOptional bool
+	var path string
+	
+	if isLegacy {
+		// Legacy syntax: @include? path or @import? path
+		// Group 1: optional marker, Group 2: path
+		isOptional = matches[1] == "?"
+		path = strings.TrimSpace(matches[2])
+	} else {
+		// New syntax: {{#import?: path}} or {{#import: path}}
+		// Group 3: optional marker, Group 4: path
+		isOptional = matches[3] == "?"
+		path = strings.TrimSpace(matches[4])
+	}
+	
+	return &ImportDirectiveMatch{
+		IsOptional: isOptional,
+		Path:       path,
+		IsLegacy:   isLegacy,
+		Original:   trimmedLine,
+	}
+}
 
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
@@ -379,14 +426,14 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	return toolsBuilder.String(), engines, processedFiles, nil
 }
 
-// ProcessIncludes processes @include and @import directives in markdown content
+// ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content
 // This matches the bash process_includes function behavior
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
 	visited := make(map[string]bool)
 	return processIncludesWithVisited(content, baseDir, extractTools, visited)
 }
 
-// processIncludesWithVisited processes @include and @import directives with cycle detection
+// processIncludesWithVisited processes import directives with cycle detection
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
@@ -394,10 +441,19 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include or @import directive
-		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
+		// Parse import directive
+		directive := ParseImportDirective(line)
+		if directive != nil {
+			// Emit deprecation warning for legacy syntax
+			if directive.IsLegacy {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: '%s'. Use '{{#import%s: %s}}' instead.", 
+					directive.Original, 
+					map[bool]string{true: "?", false: ""}[directive.IsOptional],
+					directive.Path)))
+			}
+
+			isOptional := directive.IsOptional
+			includePath := directive.Path
 
 			// Handle section references (file.md#Section)
 			var filePath, sectionName string

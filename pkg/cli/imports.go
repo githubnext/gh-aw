@@ -218,8 +218,9 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 		for nestedScanner.Scan() {
 			line := nestedScanner.Text()
 
-			if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-				includePath := strings.TrimSpace(matches[2])
+			directive := parser.ParseImportDirective(line)
+			if directive != nil {
+				includePath := directive.Path
 
 				// Handle section references
 				var nestedFilePath string
@@ -268,10 +269,11 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include or @import directive
-		if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
+		// Parse import directive
+		directive := parser.ParseImportDirective(line)
+		if directive != nil {
+			isOptional := directive.IsOptional
+			includePath := directive.Path
 
 			// Skip if it's already a workflowspec (contains repo/path format)
 			if isWorkflowSpecFormat(includePath) {

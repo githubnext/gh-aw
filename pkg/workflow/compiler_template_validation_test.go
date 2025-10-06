@@ -65,7 +65,7 @@ permissions:
 @import shared/config.md
 {{/if}}`,
 			shouldError: true,
-			errContains: "@include/@import directives cannot be used inside template regions",
+			errContains: "import directives cannot be used inside template regions",
 		},
 		{
 			name: "valid workflow with multiple templates and includes between them",

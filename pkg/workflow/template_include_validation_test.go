@@ -32,7 +32,7 @@ This is inside a template.
 Some content here.
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "invalid - import inside template region",
@@ -42,7 +42,7 @@ Some content here.
 @import shared/config.md
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "invalid - optional include inside template region",
@@ -52,7 +52,7 @@ Some content here.
 @include? shared/optional.md
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "valid - multiple includes outside templates",
@@ -102,7 +102,7 @@ First template - no include.
 Second template - has include.
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "valid - nested content but include outside",
@@ -125,7 +125,7 @@ Some content.
 @include shared/tools.md#Security
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "valid - include with section reference outside template",
@@ -151,7 +151,7 @@ with multiple lines of content.
 More content after the include.
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "valid - template inside template outside (complex nesting)",
@@ -189,7 +189,7 @@ Content 2
 @include shared/tools.md
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "valid - no templates or includes",
@@ -207,7 +207,7 @@ No templates or includes here.`,
   @include shared/tools.md
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 		{
 			name: "invalid - nested template with include in inner block",
@@ -223,7 +223,7 @@ First level template.
 End of first level.
 {{/if}}`,
 			wantErr: true,
-			errMsg:  "@include/@import directives cannot be used inside template regions",
+			errMsg:  "import directives cannot be used inside template regions",
 		},
 	}
 
