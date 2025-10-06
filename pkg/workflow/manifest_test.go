@@ -286,8 +286,9 @@ Handle the issue.`
 	}
 
 	// Verify we found all includes
-	if len(includeLines) != 4 {
-		t.Fatalf("Expected 4 include lines, found %d", len(includeLines))
+	expectedCount := len(includeFiles)
+	if len(includeLines) != expectedCount {
+		t.Fatalf("Expected %d include lines, found %d", expectedCount, len(includeLines))
 	}
 
 	// Expected order is alphabetical
