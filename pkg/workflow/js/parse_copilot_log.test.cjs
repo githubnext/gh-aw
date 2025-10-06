@@ -259,10 +259,10 @@ describe("parse_copilot_log.cjs", () => {
       expect(result).toContain("<summary>");
       expect(result).toContain("</summary>");
       expect(result).toContain("</details>");
-      
+
       // Summary should contain the command
       expect(result).toContain("cat README.md");
-      
+
       // Details should contain the output
       expect(result).toContain("Project Title");
     });
