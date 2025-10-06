@@ -94,46 +94,6 @@ network:
 
 The Copilot engine doesn't require explicit network permissions as MCP servers run with network access by default.
 
-## Troubleshooting
-
-### API Key Issues
-
-**Problem:** MCP server fails with authentication error
-```
-Error: Invalid API key
-```
-
-**Solutions:**
-1. Verify the secret is set: `gh secret list`
-2. Check the secret name matches the workflow configuration
-3. Ensure the API key is valid and active in the provider's dashboard
-
-### Rate Limiting
-
-**Problem:** Search requests fail with rate limit errors
-```
-Error: Rate limit exceeded
-```
-
-**Solutions:**
-1. Check your API usage on the provider's dashboard
-2. Upgrade to a higher tier if needed
-3. Implement caching or reduce search frequency
-4. Add error handling in your workflow instructions
-
-### MCP Connection Failures
-
-**Problem:** MCP server fails to start
-```
-Error: Failed to connect to MCP server
-```
-
-**Solutions:**
-1. Verify the package name is correct
-2. Check that npx can install the package
-3. Test the MCP server configuration: `gh aw mcp inspect <workflow-name>`
-4. Review workflow logs for detailed error messages
-
 ## Related Documentation
 
 - [MCP Integration](/gh-aw/guides/mcps/) - Complete MCP server guide
