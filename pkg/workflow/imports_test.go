@@ -160,3 +160,73 @@ This is a test workflow with multiple imports.
 		t.Error("Expected compiled workflow to contain URL from second import")
 	}
 }
+
+func TestCompileWorkflowWithMCPServersImport(t *testing.T) {
+// Create a temporary directory for test files
+tempDir := t.TempDir()
+
+// Create a shared mcp-servers file (like tavily-mcp.md)
+sharedMCPPath := filepath.Join(tempDir, "shared-mcp.md")
+sharedMCPContent := `---
+mcp-servers:
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=test"
+    allowed: ["*"]
+---
+`
+if err := os.WriteFile(sharedMCPPath, []byte(sharedMCPContent), 0644); err != nil {
+t.Fatalf("Failed to write shared MCP file: %v", err)
+}
+
+// Create a workflow file that imports the shared MCP server
+workflowPath := filepath.Join(tempDir, "test-workflow.md")
+workflowContent := `---
+on: issues
+permissions:
+  contents: read
+engine: copilot
+imports:
+  - shared-mcp.md
+tools:
+  cache-memory:
+    retention-days: 7
+---
+
+# Test Workflow
+
+This is a test workflow with imported MCP server.
+`
+if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+t.Fatalf("Failed to write workflow file: %v", err)
+}
+
+// Compile the workflow
+compiler := workflow.NewCompiler(false, "", "test")
+if err := compiler.CompileWorkflow(workflowPath); err != nil {
+t.Fatalf("CompileWorkflow failed: %v", err)
+}
+
+// Read the generated lock file
+lockFilePath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+lockFileContent, err := os.ReadFile(lockFilePath)
+if err != nil {
+t.Fatalf("Failed to read lock file: %v", err)
+}
+
+workflowData := string(lockFileContent)
+
+// Verify that the compiled workflow contains the imported MCP server
+if !strings.Contains(workflowData, "tavily") {
+t.Error("Expected compiled workflow to contain tavily MCP server from imported file")
+}
+
+// Verify the MCP URL is present
+if !strings.Contains(workflowData, "https://mcp.tavily.com/mcp") {
+t.Error("Expected compiled workflow to contain Tavily MCP URL from imported file")
+}
+
+// Verify it's configured as an HTTP MCP server
+if !strings.Contains(workflowData, `"type": "http"`) {
+t.Error("Expected tavily to be configured as HTTP MCP server")
+}
+}

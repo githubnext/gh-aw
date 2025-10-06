@@ -565,8 +565,20 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		allIncludedTools = includedTools
 	}
 
+	// Combine imported mcp-servers with top-level mcp-servers
+	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
+	allMCPServers := mcpServers
+	if importsResult.MergedMCPServers != "" {
+		// Parse and merge imported MCP servers
+		mergedMCPServers, err := c.mergeMCPServers(mcpServers, importsResult.MergedMCPServers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
+		}
+		allMCPServers = mergedMCPServers
+	}
+
 	// Merge tools including mcp-servers
-	tools, err = c.mergeToolsAndMCPServers(topTools, mcpServers, allIncludedTools)
+	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
@@ -1186,6 +1198,40 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 			return nil, fmt.Errorf("failed to merge tools: %w", err)
 		}
 		result = merged
+	}
+
+	return result, nil
+}
+
+// mergeMCPServers merges mcp-servers from imports with top-level mcp-servers
+// Handles newline-separated JSON objects from multiple imports
+func (c *Compiler) mergeMCPServers(topMCPServers map[string]any, importedMCPServersJSON string) (map[string]any, error) {
+	if importedMCPServersJSON == "" || importedMCPServersJSON == "{}" {
+		return topMCPServers, nil
+	}
+
+	// Split by newlines to handle multiple JSON objects from different imports
+	lines := strings.Split(importedMCPServersJSON, "\n")
+	result := topMCPServers
+	if result == nil {
+		result = make(map[string]any)
+	}
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line == "{}" {
+			continue
+		}
+
+		var importedMCPServers map[string]any
+		if err := json.Unmarshal([]byte(line), &importedMCPServers); err != nil {
+			continue // Skip invalid lines
+		}
+
+		// Merge MCP servers - imported servers take precedence over top-level ones
+		for serverName, serverConfig := range importedMCPServers {
+			result[serverName] = serverConfig
+		}
 	}
 
 	return result, nil
