@@ -27,11 +27,13 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor@v1.0.0
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + constants.CLIExtensionPrefix + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --pr --force
 
 Workflow specifications:
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
+  - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
   - Version can be tag, branch, or SHA
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -471,6 +472,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Validate that @include/@import directives are not used inside template regions
+	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
+		return nil, fmt.Errorf("template region validation failed: %w", err)
+	}
+
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting
@@ -631,6 +637,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	for file := range allIncludedFilesMap {
 		allIncludedFiles = append(allIncludedFiles, file)
 	}
+	// Sort files alphabetically to ensure consistent ordering in lock files
+	sort.Strings(allIncludedFiles)
 
 	// Extract workflow name
 	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(markdownPath)
