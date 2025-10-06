@@ -492,15 +492,15 @@ func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 
 	// Execute git merge-file
 	// Format: git merge-file <current> <base> <new>
-	cmd := exec.Command("git", "merge-file", 
+	cmd := exec.Command("git", "merge-file",
 		"-L", "current (local changes)",
 		"-L", "base (original)",
 		"-L", "new (upstream)",
-		"--diff3",  // Use diff3 style conflict markers for better context
+		"--diff3", // Use diff3 style conflict markers for better context
 		currentFile, baseFile, newFile)
-	
+
 	output, err := cmd.CombinedOutput()
-	
+
 	// git merge-file returns:
 	// - 0 if merge was successful without conflicts
 	// - >0 if conflicts were found (appears to return number of conflicts, but file is still updated)
@@ -545,7 +545,7 @@ func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 				},
 				WorkflowPath: sourceSpec.Path,
 			}
-			
+
 			processedContent, err := processIncludesInContent(mergedStr, workflow, newRef, verbose)
 			if err != nil {
 				if verbose {
