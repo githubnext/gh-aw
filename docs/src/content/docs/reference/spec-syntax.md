@@ -133,6 +133,7 @@ Fix: Don't start or end identifiers with hyphens.
 
 ## Related Documentation
 
+- [Packaging and Imports](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
 - [CLI Commands](/gh-aw/tools/cli/) - Full CLI reference
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - Configuration options
