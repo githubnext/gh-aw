@@ -32,19 +32,19 @@ type ImportDirectiveMatch struct {
 // ParseImportDirective parses an import directive and returns its components
 func ParseImportDirective(line string) *ImportDirectiveMatch {
 	trimmedLine := strings.TrimSpace(line)
-	
+
 	// Check if it matches the import pattern at all
 	matches := IncludeDirectivePattern.FindStringSubmatch(trimmedLine)
 	if matches == nil {
 		return nil
 	}
-	
+
 	// Check if it's legacy syntax
 	isLegacy := LegacyIncludeDirectivePattern.MatchString(trimmedLine)
-	
+
 	var isOptional bool
 	var path string
-	
+
 	if isLegacy {
 		// Legacy syntax: @include? path or @import? path
 		// Group 1: optional marker, Group 2: path
@@ -56,7 +56,7 @@ func ParseImportDirective(line string) *ImportDirectiveMatch {
 		isOptional = matches[3] == "?"
 		path = strings.TrimSpace(matches[4])
 	}
-	
+
 	return &ImportDirectiveMatch{
 		IsOptional: isOptional,
 		Path:       path,
@@ -446,8 +446,8 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 		if directive != nil {
 			// Emit deprecation warning for legacy syntax
 			if directive.IsLegacy {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: '%s'. Use '{{#import%s: %s}}' instead.", 
-					directive.Original, 
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: '%s'. Use '{{#import%s: %s}}' instead.",
+					directive.Original,
 					map[bool]string{true: "?", false: ""}[directive.IsOptional],
 					directive.Path)))
 			}
@@ -884,7 +884,7 @@ func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 	return engines, nil
 }
 
-// ProcessIncludesForEngines processes @include and @import directives to extract engine configurations
+// ProcessIncludesForEngines processes import directives to extract engine configurations
 func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
@@ -893,10 +893,11 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include or @import directive
-		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
+		// Parse import directive
+		directive := ParseImportDirective(line)
+		if directive != nil {
+			isOptional := directive.IsOptional
+			includePath := directive.Path
 
 			// Handle section references (file.md#Section) - for engines, we ignore sections
 			var filePath string

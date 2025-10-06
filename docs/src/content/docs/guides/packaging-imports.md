@@ -269,19 +269,19 @@ Import directives allow you to modularize and reuse workflow components across m
 ### Basic Import Syntax
 
 ```aw wrap
-@import relative/path/to/file.md
+{{#import: relative/path/to/file.md}}
 ```
 
 Imports files relative to the current markdown file's location.
 
 :::note
-`@import` and `@include` are aliases - you can use either keyword interchangeably.
+**New Syntax:** Use `{{#import: path}}` (recommended). The old `@import` and `@include` syntax is deprecated and will show warnings.
 :::
 
 ### Optional Imports
 
 ```aw wrap
-@import? relative/path/to/file.md
+{{#import?: relative/path/to/file.md}}
 ```
 
 Imports files optionally - if the file doesn't exist, no error occurs and a friendly informational comment is added to the workflow. The optional file will be watched for changes in `gh aw compile --watch` mode, so creating the file later will automatically import it.
@@ -289,7 +289,7 @@ Imports files optionally - if the file doesn't exist, no error occurs and a frie
 ### Section-Specific Imports
 
 ```aw wrap
-@import filename.md#Section
+{{#import: filename.md#Section}}
 ```
 
 Imports only a specific section from a markdown file using the section header.
@@ -315,7 +315,7 @@ tools:
     allowed: [get_issue]
 ---
 
-@import shared/extra-tools.md  # Adds more GitHub tools
+{{#import: shared/extra-tools.md}}  # Adds more GitHub tools
 ```
 
 ```aw wrap
@@ -332,16 +332,16 @@ tools:
 
 ### Import Processing During Add
 
-When adding a workflow with the `add` command, local file references in `@include` directives are automatically converted to workflow specifications:
+When adding a workflow with the `add` command, local file references in import directives are automatically converted to workflow specifications:
 
 **Before (in source repository):**
 ```aw wrap
-@include shared/security-notice.md
+{{#import: shared/security-notice.md}}
 ```
 
 **After (in your repository):**
 ```aw wrap
-@include githubnext/agentics/shared/security-notice.md@abc123def
+{{#import: githubnext/agentics/shared/security-notice.md@abc123def}}
 ```
 
 This ensures that included files continue to reference the source repository, maintaining consistency and enabling updates.
@@ -379,6 +379,24 @@ imports:
 ```
 
 This maintains references to the source repository and enables proper version tracking.
+
+### Legacy Syntax (Deprecated)
+
+:::caution[Deprecated]
+The `@include` and `@import` syntax is deprecated. Use `{{#import: path}}` instead. The old syntax will continue to work but will display deprecation warnings during compilation.
+
+**Migration example:**
+```diff
+- @include shared/tools.md
++ {{#import: shared/tools.md}}
+
+- @include? shared/optional.md
++ {{#import?: shared/optional.md}}
+
+- @import shared/config.md#Section
++ {{#import: shared/config.md#Section}}
+```
+:::
 
 ## Practical Examples
 
@@ -480,7 +498,7 @@ permissions:
 
 # Issue Analyzer
 
-@include shared/security-notice.md
+{{#import: shared/security-notice.md}}
 
 Analyze the issue and provide helpful feedback.
 ```
