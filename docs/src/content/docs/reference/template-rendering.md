@@ -26,6 +26,31 @@ Content to include if expression is truthy
 {{/if}}
 ```
 
+### Automatic Expression Wrapping
+
+The compiler automatically wraps expressions in template conditionals with `${{ }}` so they are evaluated by GitHub Actions before template rendering. This means you can write:
+
+```markdown
+{{#if github.event.issue.number}}
+This appears only when there's an issue number
+{{/if}}
+```
+
+And the compiler automatically converts it to:
+
+```markdown
+{{#if ${{ github.event.issue.number }} }}
+This appears only when there's an issue number
+{{/if}}
+```
+
+This ensures expressions are evaluated to their actual runtime values (e.g., "123" or empty string) rather than being treated as literal strings.
+
+**Key Points:**
+- Any expression in `{{#if ...}}` that doesn't already start with `${{` is automatically wrapped
+- Prevents double-wrapping: `{{#if ${{ github.actor }} }}` remains unchanged
+- Works with all expression types: GitHub context, needs, steps, env, and literals
+
 ### Truthy and Falsy Values
 
 | Expression | Result |
@@ -44,17 +69,18 @@ The evaluation is case-insensitive, so `TRUE`, `False`, `NULL`, etc. work as exp
 
 The template rendering process:
 
-1. **GitHub Actions interpolation**: All `${{ }}` expressions are evaluated first
-2. **Pattern detection**: Compiler checks for `{{#if` patterns in the markdown
-3. **Conditional step**: If patterns found, a rendering step is automatically added
-4. **Evaluation**: Template blocks are processed, keeping truthy content and removing falsy content
-5. **Prompt file update**: The rendered markdown is written back to the prompt file
+1. **Expression wrapping**: The compiler automatically wraps expressions in `{{#if}}` blocks with `${{ }}` if they don't already start with `${{`
+2. **GitHub Actions interpolation**: All `${{ }}` expressions are evaluated during workflow execution
+3. **Pattern detection**: The compiler checks for `{{#if` patterns in the markdown
+4. **Conditional step**: If patterns are found, a rendering step is automatically added
+5. **Evaluation**: Template blocks are processed, keeping truthy content and removing falsy content
+6. **Prompt file update**: The rendered markdown is written back to the prompt file
 
 ## Examples
 
 ### Dynamic Content with GitHub Expressions
 
-Combine GitHub Actions expressions with template conditionals:
+The compiler automatically wraps GitHub expressions in template conditionals, so you can write them naturally:
 
 ```aw
 ---
@@ -68,18 +94,20 @@ engine: claude
 
 Analyze issue #${{ github.event.issue.number }}.
 
-{{#if ${{ github.event.issue.labels[0].name == 'bug' }}}}
-## Bug-Specific Analysis
-Focus on error messages, stack traces, and reproduction steps.
+{{#if github.event.issue.number}}
+## Issue-Specific Analysis
+This section appears only when processing an issue.
+You are analyzing issue #${{ github.event.issue.number }}.
 {{/if}}
 
-{{#if ${{ github.event.issue.labels[0].name == 'feature' }}}}
-## Feature Request Analysis
-Evaluate scope, complexity, and alignment with project goals.
+{{#if github.event.pull_request.number}}
+## Pull Request Analysis
+This section appears only when processing a pull request.
+You are analyzing PR #${{ github.event.pull_request.number }}.
 {{/if}}
 ```
 
-In this example, GitHub Actions first evaluates the `${{ }}` expressions to `true` or `false`, then the template renderer processes the conditional blocks.
+The compiler automatically wraps the expressions in `{{#if}}` blocks with `${{ }}`, so `{{#if github.event.issue.number}}` becomes `{{#if ${{ github.event.issue.number }} }}`. GitHub Actions then evaluates these expressions to their actual values before the template renderer processes the conditionals.
 
 ### Multiple Conditionals with Workflow Inputs
 
@@ -106,14 +134,14 @@ tools:
 
 # PR Review
 
-{{#if ${{ github.event.inputs.security_review }}}}
+{{#if github.event.inputs.security_review}}
 ## Security Checks
 - Verify no secrets are committed
 - Check for SQL injection vulnerabilities
 - Review authentication logic
 {{/if}}
 
-{{#if ${{ github.event.inputs.code_quality }}}}
+{{#if github.event.inputs.code_quality}}
 ## Code Quality
 - Check for code style consistency
 - Verify test coverage
@@ -123,6 +151,8 @@ tools:
 ## Standard Review
 Always perform these basic checks regardless of inputs.
 ```
+
+The compiler wraps these expressions automatically, so you don't need to write `{{#if ${{ ... }} }}`.
 
 ### Environment-Based Conditionals
 
@@ -138,7 +168,7 @@ env:
 
 # Workflow Task
 
-{{#if ${{ env.DETAILED_LOGGING }}}}
+{{#if env.DETAILED_LOGGING}}
 ## Debugging Instructions
 Enable verbose logging for all operations.
 Include stack traces in error messages.
@@ -147,9 +177,29 @@ Include stack traces in error messages.
 Proceed with the main task.
 ```
 
+Again, the compiler automatically wraps `env.DETAILED_LOGGING` with `${{ }}` for you.
+
 ## Performance
 
 The template rendering step is only added when conditional patterns are detected in the markdown content. If your workflow contains no `{{#if` patterns, no rendering step is generated, keeping the workflow lean.
+
+## Advanced: Manual Expression Wrapping
+
+While the compiler automatically wraps simple expressions, you may want to manually use `${{ }}` for complex expressions or comparisons:
+
+```aw
+{{#if ${{ github.event.issue.labels[0].name == 'bug' }}}}
+## Bug-Specific Analysis
+This appears when the first label is 'bug'
+{{/if}}
+
+{{#if ${{ contains(github.event.issue.labels.*.name, 'security') }}}}
+## Security Review
+This appears when any label contains 'security'
+{{/if}}
+```
+
+For these complex expressions with operators or functions, you should manually wrap them in `${{ }}` to ensure proper evaluation.
 
 ## Limitations
 

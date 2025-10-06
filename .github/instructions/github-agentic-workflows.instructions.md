@@ -938,6 +938,7 @@ Agentic workflows compile to GitHub Actions YAML:
 - `.github/workflows/example.md` → `.github/workflows/example.lock.yml`
 - Include dependencies are resolved and merged
 - Tool configurations are processed
+- Template expressions are automatically wrapped
 - GitHub Actions syntax is generated
 
 ### Compilation Commands
@@ -948,6 +949,105 @@ Agentic workflows compile to GitHub Actions YAML:
   - Supports partial matching and fuzzy search for workflow names
 - **`gh aw compile --verbose`** - Show detailed compilation and validation messages
 - **`gh aw compile --purge`** - Remove orphaned `.lock.yml` files that no longer have corresponding `.md` files
+
+## Template Rendering
+
+Template rendering allows conditional content in your workflow prompts using `{{#if}}` blocks. The compiler automatically handles expression wrapping for you.
+
+### Automatic Expression Wrapping
+
+The compiler automatically wraps expressions in template conditionals with `${{ }}` so they are evaluated by GitHub Actions before template rendering:
+
+```markdown
+{{#if github.event.issue.number}}
+This appears only when there's an issue number
+{{/if}}
+```
+
+This is automatically converted during compilation to:
+
+```markdown
+{{#if ${{ github.event.issue.number }} }}
+This appears only when there's an issue number
+{{/if}}
+```
+
+**Key Points:**
+- Any expression in `{{#if ...}}` that doesn't start with `${{` is automatically wrapped
+- Prevents double-wrapping: already-wrapped expressions remain unchanged
+- Works with all expression types: GitHub context, needs, steps, env, and literals
+
+### Example: Event-Based Conditional Content
+
+```aw
+---
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+engine: claude
+---
+
+# Analyze the submission
+
+{{#if github.event.issue.number}}
+## Issue Analysis
+You are analyzing issue #${{ github.event.issue.number }}.
+Focus on problem description and reproduction steps.
+{{/if}}
+
+{{#if github.event.pull_request.number}}
+## Pull Request Review
+You are reviewing PR #${{ github.event.pull_request.number }}.
+Focus on code changes and test coverage.
+{{/if}}
+```
+
+### Example: Workflow Input Conditionals
+
+```aw
+---
+on:
+  workflow_dispatch:
+    inputs:
+      include_security:
+        type: boolean
+        description: Include security analysis
+engine: copilot
+---
+
+# Code Review
+
+{{#if github.event.inputs.include_security}}
+## Security Analysis
+- Check for hardcoded credentials
+- Review authentication logic
+- Verify input validation
+{{/if}}
+
+## Standard Review
+Perform standard code review checks.
+```
+
+### Complex Expressions
+
+For complex expressions with operators or functions, manually wrap them in `${{ }}`:
+
+```markdown
+{{#if ${{ github.event.issue.labels[0].name == 'bug' }}}}
+## Bug-Specific Instructions
+Focus on error messages and stack traces.
+{{/if}}
+```
+
+### Truthy/Falsy Evaluation
+
+The template renderer evaluates expressions as truthy or falsy:
+- **Truthy**: Non-empty strings, `true`, any value except the falsy ones below
+- **Falsy**: `false`, `0`, `null`, `undefined`, `""` (empty string)
+
+For more details, see the [Template Rendering documentation](https://githubnext.github.io/gh-aw/reference/template-rendering/).
 
 ## Best Practices
 
