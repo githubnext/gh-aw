@@ -17,9 +17,15 @@ These files are excluded from git via `.gitignore` due to their size. They are s
 ### Transformed Output (In Git)
 
 #### copilot-transformed-run-18296543175.md
-- **Description**: Output from applying `parse_copilot_log.cjs` to the raw logs
-- **Result**: Parser cannot process this format - it expects JSON array/JSONL format
-- **Location**: Committed to git for review (small file, ~300 bytes)
+- **Description**: Output from applying `parse_copilot_log.cjs` to workflow run 18296543175 (tidy workflow)
+- **Result**: Successfully parsed debug logs showing code formatting and linting workflow
+- **Location**: Committed to git for review (small file, ~1.4KB)
+
+#### copilot-transformed-run-18296916269.md
+- **Description**: Output from applying `parse_copilot_log.cjs` to workflow run 18296916269 (MCP imports research)
+- **Result**: Successfully parsed debug logs showing research workflow with web search and file editing
+- **Location**: Committed to git for review (small file, ~6.9KB)
+- **Workflow**: Research task involving MCP server configuration and imports
 
 ## Format Analysis
 
