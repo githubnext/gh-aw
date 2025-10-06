@@ -455,6 +455,16 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 				content = updatedContent
 			}
 
+			// Process imports field and replace with workflowspec
+			processedImportsContent, err := processImportsWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process imports: %v", err)))
+				}
+			} else {
+				content = processedImportsContent
+			}
+
 			// Process @include directives and replace with workflowspec
 			processedContent, err := processIncludesWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, sourceInfo.PackagePath, verbose)
 			if err != nil {

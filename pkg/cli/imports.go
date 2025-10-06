@@ -9,7 +9,87 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/goccy/go-yaml"
 )
+
+// processImportsWithWorkflowSpec processes imports field in frontmatter and replaces local file references
+// with workflowspec format (owner/repo/path@sha) for all imports found
+func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Processing imports field to replace with workflowspec"))
+	}
+
+	// Extract frontmatter from content
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return content, nil // Return original content if no frontmatter
+	}
+
+	// Check if imports field exists
+	importsField, exists := result.Frontmatter["imports"]
+	if !exists {
+		return content, nil // No imports field, return original content
+	}
+
+	// Convert imports to array of strings
+	var imports []string
+	switch v := importsField.(type) {
+	case []any:
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				imports = append(imports, str)
+			}
+		}
+	case []string:
+		imports = v
+	default:
+		return content, nil // Invalid imports field, skip processing
+	}
+
+	// Process each import and replace with workflowspec format
+	processedImports := make([]string, 0, len(imports))
+	for _, importPath := range imports {
+		// Skip if already a workflowspec
+		if isWorkflowSpecFormat(importPath) {
+			processedImports = append(processedImports, importPath)
+			continue
+		}
+
+		// Build workflowspec for this import
+		// Format: owner/repo/path@sha
+		workflowSpec := workflow.Repo + "/" + importPath
+		if commitSHA != "" {
+			workflowSpec += "@" + commitSHA
+		} else if workflow.Version != "" {
+			workflowSpec += "@" + workflow.Version
+		}
+
+		processedImports = append(processedImports, workflowSpec)
+	}
+
+	// Update frontmatter with processed imports
+	result.Frontmatter["imports"] = processedImports
+
+	// Convert frontmatter back to YAML
+	frontmatterYAML, err := yaml.Marshal(result.Frontmatter)
+	if err != nil {
+		return content, fmt.Errorf("failed to marshal frontmatter: %w", err)
+	}
+
+	// Reconstruct the workflow file
+	var lines []string
+	lines = append(lines, "---")
+	frontmatterStr := strings.TrimSuffix(string(frontmatterYAML), "\n")
+	if frontmatterStr != "" {
+		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
+	}
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, result.Markdown)
+	}
+
+	return strings.Join(lines, "\n"), nil
+}
 
 // processIncludesWithWorkflowSpec processes @include directives in content and replaces local file references
 // with workflowspec format (owner/repo/path@sha) for all includes found in the package
@@ -157,8 +237,20 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 }
 
 // processIncludesInContent processes @include directives in workflow content for update command
+// and also processes imports field in frontmatter
 func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA string, verbose bool) (string, error) {
-	scanner := bufio.NewScanner(strings.NewReader(content))
+	// First process imports field in frontmatter
+	processedImportsContent, err := processImportsWithWorkflowSpec(content, workflow, commitSHA, verbose)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process imports: %v", err)))
+		}
+		// Continue with original content on error
+		processedImportsContent = content
+	}
+
+	// Then process @include directives in markdown
+	scanner := bufio.NewScanner(strings.NewReader(processedImportsContent))
 	var result strings.Builder
 
 	for scanner.Scan() {

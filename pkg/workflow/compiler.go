@@ -478,14 +478,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		engineSetting = c.engineOverride
 	}
 
+	// Process imports from frontmatter first (before @include directives)
+	importedTools, importedEngines, err := parser.ProcessImportsFromFrontmatter(result.Frontmatter, markdownDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
+	}
+
 	// Process @include directives to extract engine configurations and check for conflicts
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes for engines: %w", err)
 	}
 
+	// Combine imported engines with included engines
+	allEngines := append(importedEngines, includedEngines...)
+
 	// Validate that only one engine field exists across all files
-	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, includedEngines)
+	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
 	if err != nil {
 		return nil, err
 	}
@@ -538,8 +547,18 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
 
+	// Combine imported tools with included tools
+	var allIncludedTools string
+	if importedTools != "" && includedTools != "" {
+		allIncludedTools = importedTools + "\n" + includedTools
+	} else if importedTools != "" {
+		allIncludedTools = importedTools
+	} else {
+		allIncludedTools = includedTools
+	}
+
 	// Merge tools including mcp-servers
-	tools, err = c.mergeToolsAndMCPServers(topTools, mcpServers, includedTools)
+	tools, err = c.mergeToolsAndMCPServers(topTools, mcpServers, allIncludedTools)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge tools: %w", err)

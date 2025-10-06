@@ -288,6 +288,86 @@ func ExtractMarkdown(filePath string) (string, error) {
 	return ExtractMarkdownContent(string(content))
 }
 
+// ProcessImportsFromFrontmatter processes imports field from frontmatter
+// Returns merged tools and engines from imported files
+func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
+	// Check if imports field exists
+	importsField, exists := frontmatter["imports"]
+	if !exists {
+		return "", nil, nil
+	}
+
+	// Convert to array of strings
+	var imports []string
+	switch v := importsField.(type) {
+	case []any:
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				imports = append(imports, str)
+			}
+		}
+	case []string:
+		imports = v
+	default:
+		return "", nil, fmt.Errorf("imports field must be an array of strings")
+	}
+
+	if len(imports) == 0 {
+		return "", nil, nil
+	}
+
+	// Track visited to prevent cycles
+	visited := make(map[string]bool)
+	
+	// Process each import
+	var toolsBuilder strings.Builder
+	var engines []string
+	
+	for _, importPath := range imports {
+		// Handle section references (file.md#Section)
+		var filePath, sectionName string
+		if strings.Contains(importPath, "#") {
+			parts := strings.SplitN(importPath, "#", 2)
+			filePath = parts[0]
+			sectionName = parts[1]
+		} else {
+			filePath = importPath
+		}
+
+		// Resolve import path (supports workflowspec format)
+		fullPath, err := resolveIncludePath(filePath, baseDir)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
+		}
+
+		// Check for cycles
+		if visited[fullPath] {
+			continue
+		}
+		visited[fullPath] = true
+
+		// Extract tools from imported file
+		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, baseDir, visited)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
+		}
+		toolsBuilder.WriteString(toolsContent + "\n")
+
+		// Extract engines from imported file
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
+		}
+		
+		engineContent, err := extractEngineFromContent(string(content))
+		if err == nil && engineContent != "" {
+			engines = append(engines, engineContent)
+		}
+	}
+
+	return toolsBuilder.String(), engines, nil
+}
+
 // ProcessIncludes processes @include and @import directives in markdown content
 // This matches the bash process_includes function behavior
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
