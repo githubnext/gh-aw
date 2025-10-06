@@ -38,7 +38,7 @@ func wrapExpressionsInTemplateConditionals(markdown string) string {
 	return result
 }
 
-// validateNoIncludesInTemplateRegions checks that @include/@import directives
+// validateNoIncludesInTemplateRegions checks that import directives
 // are not used inside template conditional blocks ({{#if...}}{{/if}})
 func validateNoIncludesInTemplateRegions(markdown string) error {
 	// Find all template regions by matching {{#if...}}...{{/if}} blocks
@@ -55,21 +55,14 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 		// Check the content inside the template region (capture group 1)
 		regionContent := match[1]
 
-		// Check for @include or @import directives in this region
+		// Check for import directives in this region
 		lines := strings.Split(regionContent, "\n")
 		for lineNum, line := range lines {
 			// Trim leading/trailing whitespace before checking
 			trimmedLine := strings.TrimSpace(line)
-			if parser.IncludeDirectivePattern.MatchString(trimmedLine) {
-				// Found an include directive inside a template region
-				// Extract just the directive for error message
-				matches := parser.IncludeDirectivePattern.FindStringSubmatch(trimmedLine)
-				directive := trimmedLine
-				if len(matches) > 0 {
-					directive = matches[0]
-				}
-
-				return fmt.Errorf("@include/@import directives cannot be used inside template regions ({{#if...}}{{/if}}): found '%s' at line %d within template block", directive, lineNum+1)
+			directive := parser.ParseImportDirective(trimmedLine)
+			if directive != nil {
+				return fmt.Errorf("import directives cannot be used inside template regions ({{#if...}}{{/if}}): found '%s' at line %d within template block", directive.Original, lineNum+1)
 			}
 		}
 	}
