@@ -291,17 +291,17 @@ func ExtractMarkdown(filePath string) (string, error) {
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
 // Returns merged tools and engines from imported files
 func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
-	mergedTools, mergedEngines, _, err = ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir)
+	mergedTools, mergedEngines, _, _, err = ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir)
 	return mergedTools, mergedEngines, err
 }
 
 // ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
-// Returns merged tools, engines, and list of imported files
-func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, importedFiles []string, err error) {
+// Returns merged tools, engines, markdown content, and list of imported files
+func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, mergedMarkdown string, importedFiles []string, err error) {
 	// Check if imports field exists
 	importsField, exists := frontmatter["imports"]
 	if !exists {
-		return "", nil, nil, nil
+		return "", nil, "", nil, nil
 	}
 
 	// Convert to array of strings
@@ -316,11 +316,11 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	case []string:
 		imports = v
 	default:
-		return "", nil, nil, fmt.Errorf("imports field must be an array of strings")
+		return "", nil, "", nil, fmt.Errorf("imports field must be an array of strings")
 	}
 
 	if len(imports) == 0 {
-		return "", nil, nil, nil
+		return "", nil, "", nil, nil
 	}
 
 	// Track visited to prevent cycles
@@ -328,6 +328,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 
 	// Process each import
 	var toolsBuilder strings.Builder
+	var markdownBuilder strings.Builder
 	var engines []string
 	var processedFiles []string
 
@@ -345,7 +346,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		// Resolve import path (supports workflowspec format)
 		fullPath, err := resolveIncludePath(filePath, baseDir)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
+			return "", nil, "", nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
 		}
 
 		// Check for cycles
@@ -360,14 +361,31 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		// Extract tools from imported file
 		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, baseDir, visited)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
+			return "", nil, "", nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
 		}
 		toolsBuilder.WriteString(toolsContent + "\n")
+
+		// Extract markdown content from imported file
+		markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, baseDir, visited)
+		if err != nil {
+			return "", nil, "", nil, fmt.Errorf("failed to process markdown from imported file '%s': %w", fullPath, err)
+		}
+		if markdownContent != "" {
+			markdownBuilder.WriteString(markdownContent)
+			// Add blank line separator between imported files
+			if !strings.HasSuffix(markdownContent, "\n\n") {
+				if strings.HasSuffix(markdownContent, "\n") {
+					markdownBuilder.WriteString("\n")
+				} else {
+					markdownBuilder.WriteString("\n\n")
+				}
+			}
+		}
 
 		// Extract engines from imported file
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			return "", nil, nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
+			return "", nil, "", nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
 		}
 
 		engineContent, err := extractEngineFromContent(string(content))
@@ -376,7 +394,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		}
 	}
 
-	return toolsBuilder.String(), engines, processedFiles, nil
+	return toolsBuilder.String(), engines, markdownBuilder.String(), processedFiles, nil
 }
 
 // ProcessIncludes processes @include and @import directives in markdown content

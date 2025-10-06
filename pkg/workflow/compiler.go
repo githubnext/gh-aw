@@ -481,7 +481,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Process imports from frontmatter first (before @include directives)
-	importedTools, importedEngines, importedFiles, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir)
+	importedTools, importedEngines, importedMarkdown, importedFiles, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
@@ -607,6 +607,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
+	}
+
+	// Prepend imported markdown from frontmatter imports field
+	if importedMarkdown != "" {
+		markdownContent = importedMarkdown + markdownContent
 	}
 
 	if c.verbose {
