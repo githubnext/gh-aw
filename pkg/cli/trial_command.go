@@ -176,6 +176,13 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 		return fmt.Errorf("failed to ensure trial repository: %w", err)
 	}
 
+	// Set up secret cleanup to always run on exit
+	defer func() {
+		if err := cleanupTrialSecrets(trialRepoSlug, verbose); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
+		}
+	}()
+
 	// Set up cleanup if requested
 	if deleteRepo {
 		defer func() {
@@ -300,11 +307,6 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 	}
 	if err := copyTrialResultsToRepo(tempDir, dateTimeID, workflowNames, finalTargetRepoSlug, verbose); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy trial results to repository: %v", err)))
-	}
-
-	// Step 7: Clean up secrets
-	if err := cleanupTrialSecrets(trialRepoSlug, verbose); err != nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All trials completed successfully"))
@@ -908,7 +910,7 @@ func cleanupTrialSecrets(repoSlug string, verbose bool) error {
 	fullRepoName := repoSlug
 
 	// List of API key secrets to remove (keep GH_AW_GITHUB_TOKEN as it's needed for repository operations)
-	secretsToRemove := []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "COPILOT_CLI_TOKEN"}
+	secretsToRemove := []string{"GH_AW_GITHUB_TOKEN", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "COPILOT_CLI_TOKEN"}
 
 	for _, secretName := range secretsToRemove {
 		cmd := exec.Command("gh", "secret", "delete", secretName, "--repo", fullRepoName)
