@@ -318,11 +318,11 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 
 	// Track visited to prevent cycles
 	visited := make(map[string]bool)
-	
+
 	// Process each import
 	var toolsBuilder strings.Builder
 	var engines []string
-	
+
 	for _, importPath := range imports {
 		// Handle section references (file.md#Section)
 		var filePath, sectionName string
@@ -358,7 +358,7 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
 		}
-		
+
 		engineContent, err := extractEngineFromContent(string(content))
 		if err == nil && engineContent != "" {
 			engines = append(engines, engineContent)
