@@ -5,8 +5,8 @@
 #
 # Resolved workflow manifest:
 #   Includes:
-#     - shared/use-emojis.md
 #     - shared/keep-it-short.md
+#     - shared/use-emojis.md
 
 name: "Dev"
 on:

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -626,6 +627,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	for file := range allIncludedFilesMap {
 		allIncludedFiles = append(allIncludedFiles, file)
 	}
+	// Sort files alphabetically to ensure consistent ordering in lock files
+	sort.Strings(allIncludedFiles)
 
 	// Extract workflow name
 	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(markdownPath)

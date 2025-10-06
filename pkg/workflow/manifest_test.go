@@ -188,3 +188,119 @@ Handle the issue.`,
 		})
 	}
 }
+
+// TestManifestIncludeOrdering tests that included files are rendered in alphabetical order
+func TestManifestIncludeOrdering(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "manifest-order-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create shared directory
+	sharedDir := filepath.Join(tmpDir, "shared")
+	if err := os.Mkdir(sharedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create multiple include files with names that would be out of order if not sorted
+	includeFiles := []string{
+		"zebra.md",
+		"apple.md",
+		"middle.md",
+		"banana.md",
+	}
+
+	for _, filename := range includeFiles {
+		content := "# " + filename + "\n\nSome content."
+		filePath := filepath.Join(sharedDir, filename)
+		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create workflow that includes all files in non-alphabetical order
+	workflowContent := `---
+on: issues
+engine: claude
+---
+
+# Test Workflow
+
+@include shared/zebra.md
+@include shared/apple.md
+@include shared/middle.md
+@include shared/banana.md
+
+Handle the issue.`
+
+	compiler := NewCompiler(false, "", "test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(workflowContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Verify manifest section exists
+	if !strings.Contains(lockContent, "# Resolved workflow manifest:") {
+		t.Fatal("Expected manifest section but none found")
+	}
+
+	// Verify includes section exists
+	if !strings.Contains(lockContent, "#   Includes:") {
+		t.Fatal("Expected Includes section but none found")
+	}
+
+	// Extract the includes section and verify alphabetical order
+	lines := strings.Split(lockContent, "\n")
+	var includeLines []string
+	inIncludesSection := false
+
+	for _, line := range lines {
+		if strings.Contains(line, "#   Includes:") {
+			inIncludesSection = true
+			continue
+		}
+		if inIncludesSection {
+			if strings.HasPrefix(line, "#     - ") {
+				includeLines = append(includeLines, line)
+			} else if !strings.HasPrefix(line, "#") {
+				// End of includes section
+				break
+			}
+		}
+	}
+
+	// Verify we found all includes
+	if len(includeLines) != 4 {
+		t.Fatalf("Expected 4 include lines, found %d", len(includeLines))
+	}
+
+	// Expected order is alphabetical
+	expectedOrder := []string{
+		"#     - shared/apple.md",
+		"#     - shared/banana.md",
+		"#     - shared/middle.md",
+		"#     - shared/zebra.md",
+	}
+
+	for i, expected := range expectedOrder {
+		if includeLines[i] != expected {
+			t.Errorf("Include line %d: expected %q, got %q", i, expected, includeLines[i])
+		}
+	}
+}
