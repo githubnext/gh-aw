@@ -43,8 +43,8 @@ func TestSchemaAlignmentWithGitHubActions(t *testing.T) {
 	t.Run("push event properties match GitHub Actions", func(t *testing.T) {
 		ourPush := getNestedValue(ourEvents, "push", "properties").(map[string]any)
 		githubPush := getNestedValue(githubEvents, "push", "oneOf").([]any)[1].(map[string]any)
-		githubPushProps := getNestedValue(githubPush, "allOf").([]any)[0].(map[string]any)
-		githubPushProps = getNestedValue(githubPushProps, "properties").(map[string]any)
+		githubPushAllOf := getNestedValue(githubPush, "allOf").([]any)[0].(map[string]any)
+		githubPushProps := getNestedValue(githubPushAllOf, "properties").(map[string]any)
 
 		// Check that all GitHub Actions properties are present in our schema
 		for prop := range githubPushProps {
@@ -63,9 +63,6 @@ func TestSchemaAlignmentWithGitHubActions(t *testing.T) {
 	// Test pull_request event properties
 	t.Run("pull_request event properties", func(t *testing.T) {
 		ourPR := getNestedValue(ourEvents, "pull_request", "properties").(map[string]any)
-		githubPR := getNestedValue(githubEvents, "pull_request", "oneOf").([]any)[1].(map[string]any)
-		githubPRProps := getNestedValue(githubPR, "allOf").([]any)[0].(map[string]any)
-		githubPRProps = getNestedValue(githubPRProps, "properties").(map[string]any)
 
 		// Standard GitHub Actions properties that should be present
 		standardProps := []string{"branches", "branches-ignore", "paths", "paths-ignore", "types"}
