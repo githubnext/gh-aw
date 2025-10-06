@@ -1914,3 +1914,114 @@ func TestProcessIncludesWithCycleDetection(t *testing.T) {
 		t.Errorf("ProcessIncludes result should contain File B content")
 	}
 }
+
+func TestProcessImportsFromFrontmatter(t *testing.T) {
+	// Create temp directory for test files
+	tempDir := t.TempDir()
+
+	// Create a test include file
+	includeFile := filepath.Join(tempDir, "include.md")
+	includeContent := `---
+tools:
+  bash:
+    allowed:
+      - ls
+      - cat
+---
+# Include Content
+This is an included file.`
+	if err := os.WriteFile(includeFile, []byte(includeContent), 0644); err != nil {
+		t.Fatalf("Failed to write include file: %v", err)
+	}
+
+	tests := []struct {
+		name          string
+		frontmatter   map[string]any
+		wantToolsJSON bool
+		wantEngines   bool
+		wantErr       bool
+	}{
+		{
+			name: "no imports field",
+			frontmatter: map[string]any{
+				"on": "push",
+			},
+			wantToolsJSON: false,
+			wantEngines:   false,
+			wantErr:       false,
+		},
+		{
+			name: "empty imports array",
+			frontmatter: map[string]any{
+				"on":      "push",
+				"imports": []string{},
+			},
+			wantToolsJSON: false,
+			wantEngines:   false,
+			wantErr:       false,
+		},
+		{
+			name: "valid imports",
+			frontmatter: map[string]any{
+				"on":      "push",
+				"imports": []string{"include.md"},
+			},
+			wantToolsJSON: true,
+			wantEngines:   false,
+			wantErr:       false,
+		},
+		{
+			name: "invalid imports type",
+			frontmatter: map[string]any{
+				"on":      "push",
+				"imports": "not-an-array",
+			},
+			wantToolsJSON: false,
+			wantEngines:   false,
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tools, engines, err := ProcessImportsFromFrontmatter(tt.frontmatter, tempDir)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("ProcessImportsFromFrontmatter() expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("ProcessImportsFromFrontmatter() unexpected error: %v", err)
+				return
+			}
+
+			if tt.wantToolsJSON {
+				if tools == "" {
+					t.Errorf("ProcessImportsFromFrontmatter() expected tools JSON but got empty string")
+				}
+				// Verify it's valid JSON
+				var toolsMap map[string]any
+				if err := json.Unmarshal([]byte(tools), &toolsMap); err != nil {
+					t.Errorf("ProcessImportsFromFrontmatter() tools not valid JSON: %v", err)
+				}
+			} else {
+				if tools != "" {
+					t.Errorf("ProcessImportsFromFrontmatter() expected no tools but got: %s", tools)
+				}
+			}
+
+			if tt.wantEngines {
+				if len(engines) == 0 {
+					t.Errorf("ProcessImportsFromFrontmatter() expected engines but got none")
+				}
+			} else {
+				if len(engines) != 0 {
+					t.Errorf("ProcessImportsFromFrontmatter() expected no engines but got: %v", engines)
+				}
+			}
+		})
+	}
+}
