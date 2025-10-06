@@ -8,9 +8,8 @@ permissions:
   actions: read
 engine: copilot
 mcp-servers:
-  brave:
-    command: "npx"
-    args: ["-y", "@brave/brave-search-mcp-server"]
+  brave-search:
+    container: "docker.io/mcp/brave-search"
     env:
       BRAVE_API_KEY: "${{ secrets.BRAVE_API_KEY }}"
     allowed: ["*"]
