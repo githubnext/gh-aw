@@ -22,12 +22,14 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	}
 
 	var steps []string
-	// Add debug step to echo the output values
+	// Add debug step to echo the output values using environment variables to prevent shell injection
 	steps = append(steps, "      - name: Debug agent outputs\n")
+	steps = append(steps, "        env:\n")
+	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	steps = append(steps, fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName))
 	steps = append(steps, "        run: |\n")
-	steps = append(steps, fmt.Sprintf("          echo \"Output: ${{ needs.%s.outputs.output }}\"\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          echo \"Output types: ${{ needs.%s.outputs.output_types }}\"\n", mainJobName))
-
+	steps = append(steps, "          echo \"Output: $AGENT_OUTPUT\"\n")
+	steps = append(steps, "          echo \"Output types: $AGENT_OUTPUT_TYPES\"\n")
 	steps = append(steps, "      - name: Add Issue Comment\n")
 	steps = append(steps, "        id: add_comment\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
