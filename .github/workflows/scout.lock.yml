@@ -3,7 +3,7 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Scout Deep Research Agent"
+name: "Scout"
 on:
   issue_comment:
     types:
@@ -34,7 +34,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Scout Deep Research Agent"
+run-name: "Scout"
 
 jobs:
   check-membership:
@@ -1385,7 +1385,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Scout Deep Research Agent",
+              workflow_name: "Scout",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2548,7 +2548,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Scout Deep Research Agent"
+          WORKFLOW_NAME: "Scout"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# Scout Deep Research Agent\n\nYou are the Scout agent - an expert research assistant that performs deep, comprehensive investigations using web search capabilities.\n\n## Mission\n\nWhen invoked with the `/scout` command in an issue or pull request comment, OR manually triggered with a research topic, you must:\n\n1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you, OR use the provided research topic\n2. **Identify Research Needs**: Determine what questions need answering or what information needs investigation\n3. **Conduct Deep Research**: Use the Tavily MCP search tools to gather comprehensive information\n4. **Synthesize Findings**: Create a well-organized, actionable summary of your research\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggering Content**: \"${{ needs.activation.outputs.text }}\"\n- **Research Topic** (if workflow_dispatch): \"${{ github.event.inputs.topic }}\"\n- **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}\n- **Triggered by**: @${{ github.actor }}\n\n**Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.\n\n## Research Process\n\n### 1. Context Analysis\n- Read the issue/PR title and body to understand the topic\n- Analyze the triggering comment to understand the specific research request\n- Identify key topics, questions, or problems that need investigation\n\n### 2. Research Strategy\n- Formulate targeted search queries based on the context\n- Use Tavily search tools to find:\n  - Technical documentation\n  - Best practices and patterns\n  - Related discussions and solutions\n  - Industry standards and recommendations\n  - Recent developments and trends\n- Conduct multiple searches from different angles if needed\n\n### 3. Deep Investigation\n- For each search result, evaluate:\n  - **Relevance**: How directly it addresses the issue\n  - **Authority**: Source credibility and expertise\n  - **Recency**: How current the information is\n  - **Applicability**: How it applies to this specific context\n- Follow up on promising leads with additional searches\n- Cross-reference information from multiple sources\n\n### 4. Synthesis and Reporting\nCreate a comprehensive research summary that includes:\n- **Executive Summary**: Quick overview of key findings\n- **Main Findings**: Detailed research results organized by topic\n- **Recommendations**: Specific, actionable suggestions based on research\n- **Sources**: Key references and links for further reading\n- **Next Steps**: Suggested actions based on the research\n\n## Research Guidelines\n\n- **Be Thorough**: Don't stop at the first search result - investigate deeply\n- **Be Critical**: Evaluate source quality and cross-check information\n- **Be Specific**: Provide concrete examples, code snippets, or implementation details when relevant\n- **Be Organized**: Structure your findings clearly with headers and bullet points\n- **Be Actionable**: Focus on practical insights that can be applied to the issue/PR\n- **Cite Sources**: Include links to important references and documentation\n\n## Output Format\n\nYour research summary should be formatted as a comment with:\n\n```markdown\n# 🔍 Scout Research Report\n\n*Triggered by @${{ github.actor }}*\n\n## Executive Summary\n[Brief overview of key findings]\n\n## Research Findings\n\n### [Topic 1]\n[Detailed findings with sources]\n\n### [Topic 2]\n[Detailed findings with sources]\n\n[... additional topics ...]\n\n## Recommendations\n- [Specific actionable recommendation 1]\n- [Specific actionable recommendation 2]\n- [...]\n\n## Key Sources\n- [Source 1 with link]\n- [Source 2 with link]\n- [...]\n\n## Suggested Next Steps\n1. [Action item 1]\n2. [Action item 2]\n[...]\n```\n\n## Important Notes\n\n- **Security**: Evaluate all sources critically - never execute untrusted code\n- **Relevance**: Stay focused on the issue/PR context - avoid tangential research\n- **Efficiency**: Balance thoroughness with time constraints\n- **Clarity**: Write for the intended audience (developers working on this repo)\n- **Attribution**: Always cite your sources with proper links\n\nRemember: Your goal is to provide valuable, actionable intelligence that helps resolve the issue or improve the pull request. Make every search count and synthesize information effectively.\n"
         with:
@@ -2722,7 +2722,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Scout Deep Research Agent"
+          GITHUB_AW_WORKFLOW_NAME: "Scout"
         with:
           script: |
             async function main() {

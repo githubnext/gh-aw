@@ -1,4 +1,5 @@
 ---
+name: Scout
 on:
   command:
     name: scout
