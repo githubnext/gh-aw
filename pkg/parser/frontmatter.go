@@ -291,10 +291,17 @@ func ExtractMarkdown(filePath string) (string, error) {
 // ProcessImportsFromFrontmatter processes imports field from frontmatter
 // Returns merged tools and engines from imported files
 func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
+	mergedTools, mergedEngines, _, err = ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir)
+	return mergedTools, mergedEngines, err
+}
+
+// ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
+// Returns merged tools, engines, and list of imported files
+func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, importedFiles []string, err error) {
 	// Check if imports field exists
 	importsField, exists := frontmatter["imports"]
 	if !exists {
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 
 	// Convert to array of strings
@@ -309,11 +316,11 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 	case []string:
 		imports = v
 	default:
-		return "", nil, fmt.Errorf("imports field must be an array of strings")
+		return "", nil, nil, fmt.Errorf("imports field must be an array of strings")
 	}
 
 	if len(imports) == 0 {
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 
 	// Track visited to prevent cycles
@@ -322,6 +329,7 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 	// Process each import
 	var toolsBuilder strings.Builder
 	var engines []string
+	var processedFiles []string
 
 	for _, importPath := range imports {
 		// Handle section references (file.md#Section)
@@ -337,7 +345,7 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 		// Resolve import path (supports workflowspec format)
 		fullPath, err := resolveIncludePath(filePath, baseDir)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
+			return "", nil, nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
 		}
 
 		// Check for cycles
@@ -346,17 +354,20 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 		}
 		visited[fullPath] = true
 
+		// Add to list of processed files (use original importPath for manifest)
+		processedFiles = append(processedFiles, importPath)
+
 		// Extract tools from imported file
 		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, baseDir, visited)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
+			return "", nil, nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
 		}
 		toolsBuilder.WriteString(toolsContent + "\n")
 
 		// Extract engines from imported file
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
+			return "", nil, nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
 		}
 
 		engineContent, err := extractEngineFromContent(string(content))
@@ -365,7 +376,7 @@ func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (
 		}
 	}
 
-	return toolsBuilder.String(), engines, nil
+	return toolsBuilder.String(), engines, processedFiles, nil
 }
 
 // ProcessIncludes processes @include and @import directives in markdown content
@@ -733,14 +744,21 @@ func extractEngineFromContent(content string) (string, error) {
 // ExpandIncludes recursively expands @include and @import directives until no more remain
 // This matches the bash expand_includes function behavior
 func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) {
+	expandedContent, _, err := ExpandIncludesWithManifest(content, baseDir, extractTools)
+	return expandedContent, err
+}
+
+// ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
+func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
 	const maxDepth = 10
 	currentContent := content
+	visited := make(map[string]bool)
 
 	for depth := 0; depth < maxDepth; depth++ {
 		// Process includes in current content
-		processedContent, err := ProcessIncludes(currentContent, baseDir, extractTools)
+		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		// For tools mode, check if we still have @include or @import directives
@@ -761,12 +779,25 @@ func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) 
 		currentContent = processedContent
 	}
 
-	if extractTools {
-		// For tools mode, merge all extracted JSON objects
-		return mergeToolsFromJSON(currentContent)
+	// Convert visited map to slice of file paths (make them relative to baseDir if possible)
+	var includedFiles []string
+	for filePath := range visited {
+		// Try to make path relative to baseDir for cleaner output
+		relPath, err := filepath.Rel(baseDir, filePath)
+		if err == nil && !strings.HasPrefix(relPath, "..") {
+			includedFiles = append(includedFiles, relPath)
+		} else {
+			includedFiles = append(includedFiles, filePath)
+		}
 	}
 
-	return currentContent, nil
+	if extractTools {
+		// For tools mode, merge all extracted JSON objects
+		mergedTools, err := mergeToolsFromJSON(currentContent)
+		return mergedTools, includedFiles, err
+	}
+
+	return currentContent, includedFiles, nil
 }
 
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations

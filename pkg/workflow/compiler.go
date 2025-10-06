@@ -108,10 +108,12 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name               string
-	TrialMode          bool   // whether the workflow is running in trial mode
-	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
-	Description        string // optional description rendered as comment in lock file
-	Source             string // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	TrialMode          bool     // whether the workflow is running in trial mode
+	FrontmatterName    string   // name field from frontmatter (for code scanning alert driver default)
+	Description        string   // optional description rendered as comment in lock file
+	Source             string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	ImportedFiles      []string // list of files imported via imports field (rendered as comment in lock file)
+	IncludedFiles      []string // list of files included via @include directives (rendered as comment in lock file)
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
@@ -479,7 +481,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Process imports from frontmatter first (before @include directives)
-	importedTools, importedEngines, err := parser.ProcessImportsFromFrontmatter(result.Frontmatter, markdownDir)
+	importedTools, importedEngines, importedFiles, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
@@ -542,7 +544,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional tools
-	includedTools, err := parser.ExpandIncludes(result.Markdown, markdownDir, true)
+	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
@@ -602,13 +604,27 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	c.validateWebSearchSupport(tools, agenticEngine)
 
 	// Process @include directives in markdown content
-	markdownContent, err := parser.ExpandIncludes(result.Markdown, markdownDir, false)
+	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
 	}
 
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage("Expanded includes in markdown content"))
+	}
+
+	// Combine all included files (from tools and markdown)
+	// Use a map to deduplicate files
+	allIncludedFilesMap := make(map[string]bool)
+	for _, file := range includedToolFiles {
+		allIncludedFilesMap[file] = true
+	}
+	for _, file := range includedMarkdownFiles {
+		allIncludedFilesMap[file] = true
+	}
+	var allIncludedFiles []string
+	for file := range allIncludedFilesMap {
+		allIncludedFiles = append(allIncludedFiles, file)
 	}
 
 	// Extract workflow name
@@ -636,6 +652,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		FrontmatterName:    frontmatterName,
 		Description:        c.extractDescription(result.Frontmatter),
 		Source:             c.extractSource(result.Frontmatter),
+		ImportedFiles:      importedFiles,
+		IncludedFiles:      allIncludedFiles,
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
@@ -1389,6 +1407,26 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	if data.Source != "" {
 		yaml.WriteString("#\n")
 		yaml.WriteString(fmt.Sprintf("# Source: %s\n", data.Source))
+	}
+
+	// Add manifest of imported/included files if any exist
+	if len(data.ImportedFiles) > 0 || len(data.IncludedFiles) > 0 {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Resolved workflow manifest:\n")
+
+		if len(data.ImportedFiles) > 0 {
+			yaml.WriteString("#   Imports:\n")
+			for _, file := range data.ImportedFiles {
+				yaml.WriteString(fmt.Sprintf("#     - %s\n", file))
+			}
+		}
+
+		if len(data.IncludedFiles) > 0 {
+			yaml.WriteString("#   Includes:\n")
+			for _, file := range data.IncludedFiles {
+				yaml.WriteString(fmt.Sprintf("#     - %s\n", file))
+			}
+		}
 	}
 
 	// Add stop-time comment if configured
