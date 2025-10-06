@@ -131,9 +131,12 @@ The update command intelligently determines how to update based on the current r
 The update process:
 1. Parses the source field to extract repository, path, and current ref
 2. Resolves the latest compatible version/commit based on the ref type
-3. Downloads the updated workflow content from GitHub
-4. Performs a 3-way merge, preserving the source field with the new ref
-5. Automatically recompiles the updated workflow
+3. Downloads the base version (original from source) and new version from GitHub
+4. Performs a 3-way merge using `git merge-file` to intelligently combine changes:
+   - Preserves both local modifications and upstream improvements when possible
+   - Detects conflicts when both versions modify the same content
+   - Uses diff3-style conflict markers for manual resolution when needed
+5. Automatically recompiles the updated workflow (skips compilation if conflicts exist)
 
 **Source Field Format:**
 
@@ -146,6 +149,36 @@ Examples:
 - `githubnext/agentics/workflows/ci-doctor.md@v1.0.0` (tag)
 - `githubnext/agentics/workflows/ci-doctor.md@main` (branch)
 - `githubnext/agentics/workflows/ci-doctor.md` (no ref, uses default branch)
+
+**Merge Behavior and Conflict Resolution:**
+
+The update command uses a 3-way merge algorithm (via `git merge-file`) to intelligently combine changes:
+
+- **Clean Merge**: When local and upstream changes don't overlap, both are automatically preserved
+  - Example: Local adds markdown section, upstream adds frontmatter field → both included
+  
+- **Conflicts**: When both versions modify the same content, conflict markers are added:
+  ```yaml
+  <<<<<<< current (local changes)
+  permissions:
+    issues: write
+  ||||||| base (original)
+  =======
+  permissions:
+    pull-requests: write
+  >>>>>>> new (upstream)
+  ```
+  
+  To resolve conflicts:
+  1. Review the conflict markers in the updated workflow file
+  2. Manually edit to keep desired changes from both sides
+  3. Remove conflict markers (`<<<<<<<`, `|||||||`, `=======`, `>>>>>>>`)
+  4. Run `gh aw compile` to recompile the resolved workflow
+
+- **Conflict Notification**: When conflicts occur, the update command displays a warning:
+  ```
+  ⚠ Updated ci-doctor.md from v1.0.0 to v1.1.0 with CONFLICTS - please review and resolve manually
+  ```
 
 ## 🔧 Workflow Recompilation
 
