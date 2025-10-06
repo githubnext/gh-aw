@@ -15,8 +15,9 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// IncludeDirectivePattern matches @include, @import (deprecated), or {{#import: (new) directives
-var IncludeDirectivePattern = regexp.MustCompile(`^(?:@(?:include|import)(\?)?\s+(.+)|{{#import(\?)?:\s*(.+?)\s*}})$`)
+// IncludeDirectivePattern matches @include, @import (deprecated), or {{#import (new) directives
+// The colon after #import is optional and ignored if present
+var IncludeDirectivePattern = regexp.MustCompile(`^(?:@(?:include|import)(\?)?\s+(.+)|{{#import(\?)?\s*:?\s*(.+?)\s*}})$`)
 
 // LegacyIncludeDirectivePattern matches only the deprecated @include and @import directives
 var LegacyIncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
@@ -51,7 +52,7 @@ func ParseImportDirective(line string) *ImportDirectiveMatch {
 		isOptional = matches[1] == "?"
 		path = strings.TrimSpace(matches[2])
 	} else {
-		// New syntax: {{#import?: path}} or {{#import: path}}
+		// New syntax: {{#import?: path}} or {{#import: path}} (colon is optional)
 		// Group 3: optional marker, Group 4: path
 		isOptional = matches[3] == "?"
 		path = strings.TrimSpace(matches[4])
@@ -446,7 +447,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 		if directive != nil {
 			// Emit deprecation warning for legacy syntax
 			if directive.IsLegacy {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: '%s'. Use '{{#import%s: %s}}' instead.",
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: '%s'. Use '{{#import%s %s}}' instead.",
 					directive.Original,
 					map[bool]string{true: "?", false: ""}[directive.IsOptional],
 					directive.Path)))

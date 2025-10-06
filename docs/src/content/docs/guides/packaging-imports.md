@@ -269,16 +269,28 @@ Import directives allow you to modularize and reuse workflow components across m
 ### Basic Import Syntax
 
 ```aw wrap
+{{#import relative/path/to/file.md}}
+```
+
+Or with an optional colon:
+
+```aw wrap
 {{#import: relative/path/to/file.md}}
 ```
 
 Imports files relative to the current markdown file's location.
 
 :::note
-**New Syntax:** Use `{{#import: path}}` (recommended). The old `@import` and `@include` syntax is deprecated and will show warnings.
+**New Syntax:** Use `{{#import path}}` or `{{#import: path}}` (recommended). The colon is optional and ignored if present. The old `@import` and `@include` syntax is deprecated and will show warnings.
 :::
 
 ### Optional Imports
+
+```aw wrap
+{{#import? relative/path/to/file.md}}
+```
+
+Or with a colon:
 
 ```aw wrap
 {{#import?: relative/path/to/file.md}}
@@ -287,6 +299,12 @@ Imports files relative to the current markdown file's location.
 Imports files optionally - if the file doesn't exist, no error occurs and a friendly informational comment is added to the workflow. The optional file will be watched for changes in `gh aw compile --watch` mode, so creating the file later will automatically import it.
 
 ### Section-Specific Imports
+
+```aw wrap
+{{#import filename.md#Section}}
+```
+
+Or with a colon:
 
 ```aw wrap
 {{#import: filename.md#Section}}
@@ -383,18 +401,25 @@ This maintains references to the source repository and enables proper version tr
 ### Legacy Syntax (Deprecated)
 
 :::caution[Deprecated]
-The `@include` and `@import` syntax is deprecated. Use `{{#import: path}}` instead. The old syntax will continue to work but will display deprecation warnings during compilation.
+The `@include` and `@import` syntax is deprecated. Use `{{#import path}}` or `{{#import: path}}` instead (the colon is optional). The old syntax will continue to work but will display deprecation warnings during compilation.
 
 **Migration example:**
 ```diff
 - @include shared/tools.md
-+ {{#import: shared/tools.md}}
++ {{#import shared/tools.md}}
 
 - @include? shared/optional.md
-+ {{#import?: shared/optional.md}}
++ {{#import? shared/optional.md}}
 
 - @import shared/config.md#Section
-+ {{#import: shared/config.md#Section}}
++ {{#import shared/config.md#Section}}
+```
+
+You can also use the colon if preferred:
+```aw wrap
+{{#import: shared/tools.md}}
+{{#import?: shared/optional.md}}
+{{#import: shared/config.md#Section}}
 ```
 :::
 

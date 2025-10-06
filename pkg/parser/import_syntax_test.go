@@ -56,6 +56,31 @@ func TestParseImportDirective(t *testing.T) {
 			wantOptional: true,
 			wantLegacy:   false,
 		},
+		// New syntax without colon tests
+		{
+			name:         "new syntax - basic import without colon",
+			input:        "{{#import shared/tools.md}}",
+			wantMatch:    true,
+			wantPath:     "shared/tools.md",
+			wantOptional: false,
+			wantLegacy:   false,
+		},
+		{
+			name:         "new syntax - optional import without colon",
+			input:        "{{#import? shared/tools.md}}",
+			wantMatch:    true,
+			wantPath:     "shared/tools.md",
+			wantOptional: true,
+			wantLegacy:   false,
+		},
+		{
+			name:         "new syntax - with section without colon",
+			input:        "{{#import shared/tools.md#Security}}",
+			wantMatch:    true,
+			wantPath:     "shared/tools.md#Security",
+			wantOptional: false,
+			wantLegacy:   false,
+		},
 		// Legacy syntax tests
 		{
 			name:         "legacy - @include basic",
@@ -101,16 +126,6 @@ func TestParseImportDirective(t *testing.T) {
 		{
 			name:      "no match - regular text",
 			input:     "This is regular text",
-			wantMatch: false,
-		},
-		{
-			name:      "no match - incomplete new syntax",
-			input:     "{{#import shared/tools.md}}",
-			wantMatch: false,
-		},
-		{
-			name:      "no match - missing colon in new syntax",
-			input:     "{{#import shared/tools.md}}",
 			wantMatch: false,
 		},
 		{
@@ -180,14 +195,26 @@ This is a test file content.
 		wantErr  bool
 	}{
 		{
-			name:     "new syntax - basic import",
+			name:     "new syntax - basic import with colon",
 			content:  "{{#import: test.md}}\n# After import",
 			expected: "# Test Content\nThis is a test file content.\n# After import\n",
 			wantErr:  false,
 		},
 		{
-			name:     "new syntax - optional import (file exists)",
+			name:     "new syntax - basic import without colon",
+			content:  "{{#import test.md}}\n# After import",
+			expected: "# Test Content\nThis is a test file content.\n# After import\n",
+			wantErr:  false,
+		},
+		{
+			name:     "new syntax - optional import with colon (file exists)",
 			content:  "{{#import?: test.md}}\n# After import",
+			expected: "# Test Content\nThis is a test file content.\n# After import\n",
+			wantErr:  false,
+		},
+		{
+			name:     "new syntax - optional import without colon (file exists)",
+			content:  "{{#import? test.md}}\n# After import",
 			expected: "# Test Content\nThis is a test file content.\n# After import\n",
 			wantErr:  false,
 		},
