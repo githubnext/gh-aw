@@ -202,7 +202,7 @@ func TestExtractJSONPremiumCost(t *testing.T) {
 	tests := []struct {
 		name                string
 		line                string
-		expectedPremiumCost int
+		expectedPremiumCost float64
 	}{
 		{
 			name:                "Copilot usage with cached tokens",
@@ -236,7 +236,7 @@ func TestExtractJSONPremiumCost(t *testing.T) {
 			metrics := extractJSONMetrics(tt.line, false)
 
 			if metrics.PremiumCost != tt.expectedPremiumCost {
-				t.Errorf("Expected premium cost %d, got %d", tt.expectedPremiumCost, metrics.PremiumCost)
+				t.Errorf("Expected premium cost %.0f, got %.0f", tt.expectedPremiumCost, metrics.PremiumCost)
 			}
 		})
 	}

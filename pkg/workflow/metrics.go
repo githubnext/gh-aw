@@ -21,7 +21,7 @@ type ToolCallInfo struct {
 type LogMetrics struct {
 	TokenUsage    int
 	EstimatedCost float64
-	PremiumCost   int // Premium requests (uncached tokens) for Copilot billing
+	PremiumCost   float64 // Premium requests (uncached tokens) for Copilot billing
 	ErrorCount    int
 	WarningCount  int
 	Turns         int            // Number of turns needed to complete the task
@@ -191,16 +191,16 @@ func ExtractJSONCost(data map[string]any) float64 {
 
 // ExtractJSONPremiumCost extracts premium requests (uncached tokens) from JSON data
 // For Copilot, this is calculated as: prompt_tokens - cached_tokens
-func ExtractJSONPremiumCost(data map[string]any) int {
+func ExtractJSONPremiumCost(data map[string]any) float64 {
 	// Look for usage object with prompt_tokens_details
 	if usage, exists := data["usage"]; exists {
 		if usageMap, ok := usage.(map[string]any); ok {
-			promptTokens := ConvertToInt(usageMap["prompt_tokens"])
+			promptTokens := ConvertToFloat(usageMap["prompt_tokens"])
 
 			// Check for cached tokens in prompt_tokens_details
 			if details, exists := usageMap["prompt_tokens_details"]; exists {
 				if detailsMap, ok := details.(map[string]any); ok {
-					cachedTokens := ConvertToInt(detailsMap["cached_tokens"])
+					cachedTokens := ConvertToFloat(detailsMap["cached_tokens"])
 					// Premium requests = uncached prompt tokens
 					uncachedTokens := promptTokens - cachedTokens
 					if uncachedTokens > 0 {
