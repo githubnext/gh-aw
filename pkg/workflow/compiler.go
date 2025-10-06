@@ -481,7 +481,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Process imports from frontmatter first (before @include directives)
-	importedTools, importedEngines, importedMarkdown, importedFiles, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir)
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
@@ -493,7 +493,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Combine imported engines with included engines
-	allEngines := append(importedEngines, includedEngines...)
+	allEngines := append(importsResult.MergedEngines, includedEngines...)
 
 	// Validate that only one engine field exists across all files
 	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
@@ -551,10 +551,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Combine imported tools with included tools
 	var allIncludedTools string
-	if importedTools != "" && includedTools != "" {
-		allIncludedTools = importedTools + "\n" + includedTools
-	} else if importedTools != "" {
-		allIncludedTools = importedTools
+	if importsResult.MergedTools != "" && includedTools != "" {
+		allIncludedTools = importsResult.MergedTools + "\n" + includedTools
+	} else if importsResult.MergedTools != "" {
+		allIncludedTools = importsResult.MergedTools
 	} else {
 		allIncludedTools = includedTools
 	}
@@ -610,8 +610,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	}
 
 	// Prepend imported markdown from frontmatter imports field
-	if importedMarkdown != "" {
-		markdownContent = importedMarkdown + markdownContent
+	if importsResult.MergedMarkdown != "" {
+		markdownContent = importsResult.MergedMarkdown + markdownContent
 	}
 
 	if c.verbose {
@@ -657,7 +657,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		FrontmatterName:    frontmatterName,
 		Description:        c.extractDescription(result.Frontmatter),
 		Source:             c.extractSource(result.Frontmatter),
-		ImportedFiles:      importedFiles,
+		ImportedFiles:      importsResult.ImportedFiles,
 		IncludedFiles:      allIncludedFiles,
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
