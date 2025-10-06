@@ -201,7 +201,9 @@ tools:
   # bash: ["echo", "ls", "git status"]  # Or specify custom commands
 ```
 
-**Note:** Some engines (like Copilot) don't have built-in `web-search` support. You can add web search using third-party MCP servers instead. See the [Web Search with MCP guide](/gh-aw/guides/web-search/) for options.
+:::note
+Some engines (like Copilot) don't have built-in `web-search` support. You can add web search using third-party MCP servers instead. See the [Web Search with MCP guide](/gh-aw/guides/web-search/) for options.
+:::
 
 ### Bash Command Configuration
 
