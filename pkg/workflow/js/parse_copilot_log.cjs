@@ -44,42 +44,48 @@ function parseCopilotLog(logContent) {
         throw new Error("Not a JSON array");
       }
     } catch (jsonArrayError) {
-      // If that fails, try to parse as mixed format (debug logs + JSONL)
-      logEntries = [];
-      const lines = logContent.split("\n");
+      // If that fails, try to parse as debug logs format
+      const debugLogEntries = parseDebugLogFormat(logContent);
+      if (debugLogEntries && debugLogEntries.length > 0) {
+        logEntries = debugLogEntries;
+      } else {
+        // Try JSONL format
+        logEntries = [];
+        const lines = logContent.split("\n");
 
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (trimmedLine === "") {
-          continue; // Skip empty lines
-        }
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (trimmedLine === "") {
+            continue; // Skip empty lines
+          }
 
-        // Handle lines that start with [ (JSON array format)
-        if (trimmedLine.startsWith("[{")) {
-          try {
-            const arrayEntries = JSON.parse(trimmedLine);
-            if (Array.isArray(arrayEntries)) {
-              logEntries.push(...arrayEntries);
+          // Handle lines that start with [ (JSON array format)
+          if (trimmedLine.startsWith("[{")) {
+            try {
+              const arrayEntries = JSON.parse(trimmedLine);
+              if (Array.isArray(arrayEntries)) {
+                logEntries.push(...arrayEntries);
+                continue;
+              }
+            } catch (arrayParseError) {
+              // Skip invalid array lines
               continue;
             }
-          } catch (arrayParseError) {
-            // Skip invalid array lines
+          }
+
+          // Skip debug log lines that don't start with {
+          if (!trimmedLine.startsWith("{")) {
             continue;
           }
-        }
 
-        // Skip debug log lines that don't start with {
-        if (!trimmedLine.startsWith("{")) {
-          continue;
-        }
-
-        // Try to parse each line as JSON
-        try {
-          const jsonEntry = JSON.parse(trimmedLine);
-          logEntries.push(jsonEntry);
-        } catch (jsonLineError) {
-          // Skip invalid JSON lines
-          continue;
+          // Try to parse each line as JSON
+          try {
+            const jsonEntry = JSON.parse(trimmedLine);
+            logEntries.push(jsonEntry);
+          } catch (jsonLineError) {
+            // Skip invalid JSON lines
+            continue;
+          }
         }
       }
     }
@@ -221,6 +227,235 @@ function parseCopilotLog(logContent) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
   }
+}
+
+/**
+ * Parses Copilot CLI debug log format and reconstructs the conversation flow
+ * @param {string} logContent - Raw debug log content
+ * @returns {Array} Array of log entries in structured format
+ */
+function parseDebugLogFormat(logContent) {
+  const entries = [];
+  const lines = logContent.split("\n");
+
+  // Extract model information from the start
+  let model = "unknown";
+  let sessionId = null;
+  const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
+  if (modelMatch) {
+    sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+  }
+
+  // Find all JSON response blocks in the debug logs
+  let inDataBlock = false;
+  let currentJsonLines = [];
+  let turnCount = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Detect start of a JSON data block
+    if (line.includes("[DEBUG] data:")) {
+      inDataBlock = true;
+      currentJsonLines = [];
+      continue;
+    }
+
+    // While in a data block, accumulate lines
+    if (inDataBlock) {
+      // Check if this line starts with timestamp AND NOT [DEBUG] (new non-JSON log entry)
+      const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
+      const hasDebug = line.includes("[DEBUG]");
+
+      if (hasTimestamp && !hasDebug) {
+        // This is a new log line (not part of JSON) - end of JSON block, process what we have
+        if (currentJsonLines.length > 0) {
+          try {
+            const jsonStr = currentJsonLines.join("\n");
+            const jsonData = JSON.parse(jsonStr);
+
+            // Extract model info
+            if (jsonData.model) {
+              model = jsonData.model;
+            }
+
+            // Process the choices in the response
+            if (jsonData.choices && Array.isArray(jsonData.choices)) {
+              for (const choice of jsonData.choices) {
+                if (choice.message) {
+                  const message = choice.message;
+
+                  // Create an assistant entry
+                  const content = [];
+
+                  if (message.content && message.content.trim()) {
+                    content.push({
+                      type: "text",
+                      text: message.content,
+                    });
+                  }
+
+                  if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                    for (const toolCall of message.tool_calls) {
+                      if (toolCall.function) {
+                        let toolName = toolCall.function.name;
+                        let args = {};
+
+                        // Parse tool name (handle github- prefix and bash)
+                        if (toolName.startsWith("github-")) {
+                          toolName = "mcp__github__" + toolName.substring(7);
+                        } else if (toolName === "bash") {
+                          toolName = "Bash";
+                        }
+
+                        // Parse arguments
+                        try {
+                          args = JSON.parse(toolCall.function.arguments);
+                        } catch (e) {
+                          args = {};
+                        }
+
+                        content.push({
+                          type: "tool_use",
+                          id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                          name: toolName,
+                          input: args,
+                        });
+                      }
+                    }
+                  }
+
+                  if (content.length > 0) {
+                    entries.push({
+                      type: "assistant",
+                      message: { content },
+                    });
+                    turnCount++;
+                  }
+                }
+              }
+
+              // Add usage/result entry if this is the last response
+              if (jsonData.usage) {
+                const resultEntry = {
+                  type: "result",
+                  num_turns: turnCount,
+                  usage: jsonData.usage,
+                };
+
+                // Store for later (we'll add it at the end)
+                entries._lastResult = resultEntry;
+              }
+            }
+          } catch (e) {
+            // Skip invalid JSON blocks
+          }
+        }
+
+        inDataBlock = false;
+        currentJsonLines = [];
+      } else {
+        // This line is part of the JSON - add it (remove [DEBUG] prefix if present)
+        const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+        currentJsonLines.push(cleanLine);
+      }
+    }
+  }
+
+  // Process any remaining JSON block at the end of file
+  if (inDataBlock && currentJsonLines.length > 0) {
+    try {
+      const jsonStr = currentJsonLines.join("\n");
+      const jsonData = JSON.parse(jsonStr);
+
+      if (jsonData.model) {
+        model = jsonData.model;
+      }
+
+      if (jsonData.choices && Array.isArray(jsonData.choices)) {
+        for (const choice of jsonData.choices) {
+          if (choice.message) {
+            const message = choice.message;
+            const content = [];
+
+            if (message.content && message.content.trim()) {
+              content.push({
+                type: "text",
+                text: message.content,
+              });
+            }
+
+            if (message.tool_calls && Array.isArray(message.tool_calls)) {
+              for (const toolCall of message.tool_calls) {
+                if (toolCall.function) {
+                  let toolName = toolCall.function.name;
+                  let args = {};
+
+                  if (toolName.startsWith("github-")) {
+                    toolName = "mcp__github__" + toolName.substring(7);
+                  } else if (toolName === "bash") {
+                    toolName = "Bash";
+                  }
+
+                  try {
+                    args = JSON.parse(toolCall.function.arguments);
+                  } catch (e) {
+                    args = {};
+                  }
+
+                  content.push({
+                    type: "tool_use",
+                    id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                    name: toolName,
+                    input: args,
+                  });
+                }
+              }
+            }
+
+            if (content.length > 0) {
+              entries.push({
+                type: "assistant",
+                message: { content },
+              });
+              turnCount++;
+            }
+          }
+        }
+
+        if (jsonData.usage) {
+          const resultEntry = {
+            type: "result",
+            num_turns: turnCount,
+            usage: jsonData.usage,
+          };
+          entries._lastResult = resultEntry;
+        }
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+  }
+
+  // Add system init entry at the beginning if we have entries
+  if (entries.length > 0) {
+    const initEntry = {
+      type: "system",
+      subtype: "init",
+      session_id: sessionId,
+      model: model,
+      tools: [], // We don't have tool info from debug logs
+    };
+    entries.unshift(initEntry);
+
+    // Add the final result entry if we have it
+    if (entries._lastResult) {
+      entries.push(entries._lastResult);
+      delete entries._lastResult;
+    }
+  }
+
+  return entries;
 }
 
 /**
