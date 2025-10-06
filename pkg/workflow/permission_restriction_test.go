@@ -100,6 +100,7 @@ Test workflow content.`,
 			frontmatter: `---
 on:
   workflow_dispatch:
+roles: [admin, maintainer, write]
 tools:
   github:
     allowed: [list_issues]
@@ -109,6 +110,23 @@ tools:
 Test workflow content.`,
 			filename:              "manual-workflow.md",
 			expectPermissionCheck: false,
+			expectedPermissions:   []string{"admin", "maintainer", "write"},
+		},
+		{
+			name: "workflow with workflow_dispatch without write role should include permission check",
+			frontmatter: `---
+on:
+  workflow_dispatch:
+roles: [admin, maintainer]
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Manual Workflow Restricted
+Test workflow content.`,
+			filename:              "manual-workflow-restricted.md",
+			expectPermissionCheck: true,
 			expectedPermissions:   []string{"admin", "maintainer"},
 		},
 		{

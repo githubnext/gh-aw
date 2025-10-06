@@ -1,19 +1,32 @@
 async function main() {
   const { eventName } = context;
+  const actor = context.actor;
+  const { owner, repo } = context.repo;
+  const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+  const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
 
-  // skip check for safe events
-  const safeEvents = ["workflow_dispatch", "workflow_run", "schedule"];
+  // For workflow_dispatch, only skip check if "write" is in the allowed roles
+  // since workflow_dispatch can be triggered by users with write access
+  if (eventName === "workflow_dispatch") {
+    const hasWriteRole = requiredPermissions.includes("write");
+    if (hasWriteRole) {
+      core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+      core.setOutput("is_team_member", "true");
+      core.setOutput("result", "safe_event");
+      return;
+    }
+    // If write is not allowed, continue with permission check
+    core.debug(`Event ${eventName} requires validation (write role not allowed)`);
+  }
+
+  // skip check for other safe events
+  const safeEvents = ["workflow_run", "schedule"];
   if (safeEvents.includes(eventName)) {
     core.info(`✅ Event ${eventName} does not require validation`);
     core.setOutput("is_team_member", "true");
     core.setOutput("result", "safe_event");
     return;
   }
-
-  const actor = context.actor;
-  const { owner, repo } = context.repo;
-  const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-  const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
 
   if (!requiredPermissions || requiredPermissions.length === 0) {
     core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
