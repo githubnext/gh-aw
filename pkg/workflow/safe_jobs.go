@@ -251,12 +251,13 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
 
 		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName))
+		steps = append(steps, fmt.Sprintf("          printf 'GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s\\n' >> \"$GITHUB_ENV\"\n", constants.AgentOutputArtifactName))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {
 			for key, value := range jobConfig.Env {
-				steps = append(steps, fmt.Sprintf("          echo \"%s=%s\" >> $GITHUB_ENV\n", key, value))
+				// Use printf to safely write environment variables to avoid shell injection
+				steps = append(steps, fmt.Sprintf("          printf '%%s=%%s\\n' %q %q >> \"$GITHUB_ENV\"\n", key, value))
 			}
 		}
 

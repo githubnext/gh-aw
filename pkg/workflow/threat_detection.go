@@ -150,8 +150,8 @@ func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
 		fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName),
 		"        run: |\n",
-		"          echo \"Agent output: $AGENT_OUTPUT\"\n",
-		"          echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"\n",
+		"          printf 'Agent output: %s\\n' \"$AGENT_OUTPUT\"\n",
+		"          printf 'Agent output-types: %s\\n' \"$AGENT_OUTPUT_TYPES\"\n",
 	}
 }
 

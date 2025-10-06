@@ -262,8 +262,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	yaml.WriteString("          echo \"-------/home/runner/.copilot-----------\"\n")
 	yaml.WriteString("          find /home/runner/.copilot\n")
 	//GITHUB_COPILOT_CLI_MODE
-	yaml.WriteString("          echo \"HOME: $HOME\"\n")
-	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
+	yaml.WriteString("          printf 'HOME: %s\\n' \"$HOME\"\n")
+	yaml.WriteString("          printf 'GITHUB_COPILOT_CLI_MODE: %s\\n' \"$GITHUB_COPILOT_CLI_MODE\"\n")
 	//yaml.WriteString("          echo \"GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\"")
 
 }

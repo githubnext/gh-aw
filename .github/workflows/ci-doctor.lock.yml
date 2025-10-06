@@ -44,16 +44,16 @@ jobs:
           
           # Check stop-time limit
           STOP_TIME="2025-10-07 03:00:18"
-          echo "Checking stop-time limit: $STOP_TIME"
+          printf 'Checking stop-time limit: %s\n' "$STOP_TIME"
           
           # Convert stop time to epoch seconds
           STOP_EPOCH=$(date -d "$STOP_TIME" +%s 2>/dev/null || echo "invalid")
           if [ "$STOP_EPOCH" = "invalid" ]; then
-            echo "Warning: Invalid stop-time format: $STOP_TIME. Expected format: YYYY-MM-DD HH:MM:SS"
+            printf 'Warning: Invalid stop-time format: %s. Expected format: YYYY-MM-DD HH:MM:SS\n' "$STOP_TIME"
           else
             CURRENT_EPOCH=$(date +%s)
             echo "Current time: $(date)"
-            echo "Stop time: $STOP_TIME"
+            printf 'Stop time: %s\n' "$STOP_TIME"
             
             if [ "$CURRENT_EPOCH" -ge "$STOP_EPOCH" ]; then
               echo "Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting."
@@ -787,8 +787,8 @@ jobs:
           echo "-------END MCP CONFIG-----------"
           echo "-------/home/runner/.copilot-----------"
           find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
+          printf 'HOME: %s\n' "$HOME"
+          printf 'GITHUB_COPILOT_CLI_MODE: %s\n' "$GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -2224,8 +2224,8 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
-          echo "Agent output-types: $AGENT_OUTPUT_TYPES"
+          printf 'Agent output: %s\n' "$AGENT_OUTPUT"
+          printf 'Agent output-types: %s\n' "$AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
@@ -2589,8 +2589,8 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Output: $AGENT_OUTPUT"
-          echo "Output types: $AGENT_OUTPUT_TYPES"
+          printf 'Output: %s\n' "$AGENT_OUTPUT"
+          printf 'Output types: %s\n' "$AGENT_OUTPUT_TYPES"
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@v8

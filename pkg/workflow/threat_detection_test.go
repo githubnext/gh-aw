@@ -627,8 +627,8 @@ func TestEchoAgentOutputsStep(t *testing.T) {
 		"AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
 		"AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}",
 		"run: |",
-		"echo \"Agent output: $AGENT_OUTPUT\"",
-		"echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"",
+		"printf 'Agent output: %s\\n' \"$AGENT_OUTPUT\"",
+		"printf 'Agent output-types: %s\\n' \"$AGENT_OUTPUT_TYPES\"",
 	}
 
 	for _, expected := range expectedComponents {
