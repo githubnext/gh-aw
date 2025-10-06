@@ -1413,14 +1413,14 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	if len(data.ImportedFiles) > 0 || len(data.IncludedFiles) > 0 {
 		yaml.WriteString("#\n")
 		yaml.WriteString("# Resolved workflow manifest:\n")
-		
+
 		if len(data.ImportedFiles) > 0 {
 			yaml.WriteString("#   Imports:\n")
 			for _, file := range data.ImportedFiles {
 				yaml.WriteString(fmt.Sprintf("#     - %s\n", file))
 			}
 		}
-		
+
 		if len(data.IncludedFiles) > 0 {
 			yaml.WriteString("#   Includes:\n")
 			for _, file := range data.IncludedFiles {
