@@ -19,13 +19,14 @@ type ToolCallInfo struct {
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
-	TokenUsage    int
-	EstimatedCost float64
-	ErrorCount    int
-	WarningCount  int
-	Turns         int            // Number of turns needed to complete the task
-	ToolCalls     []ToolCallInfo // Tool call statistics
-	ToolSequences [][]string     // Sequences of tool calls preserving order
+	TokenUsage     int
+	EstimatedCost  float64
+	PremiumCost    int     // Premium requests (uncached tokens) for Copilot billing
+	ErrorCount     int
+	WarningCount   int
+	Turns          int            // Number of turns needed to complete the task
+	ToolCalls      []ToolCallInfo // Tool call statistics
+	ToolSequences  [][]string     // Sequences of tool calls preserving order
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 
@@ -80,6 +81,11 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 	// Extract cost information from various possible fields
 	if cost := ExtractJSONCost(jsonData); cost > 0 {
 		metrics.EstimatedCost = cost
+	}
+
+	// Extract premium cost (uncached tokens) for Copilot billing
+	if premiumCost := ExtractJSONPremiumCost(jsonData); premiumCost > 0 {
+		metrics.PremiumCost = premiumCost
 	}
 
 	return metrics
@@ -180,6 +186,36 @@ func ExtractJSONCost(data map[string]any) float64 {
 		}
 	}
 
+	return 0
+}
+
+// ExtractJSONPremiumCost extracts premium requests (uncached tokens) from JSON data
+// For Copilot, this is calculated as: prompt_tokens - cached_tokens
+func ExtractJSONPremiumCost(data map[string]any) int {
+	// Look for usage object with prompt_tokens_details
+	if usage, exists := data["usage"]; exists {
+		if usageMap, ok := usage.(map[string]any); ok {
+			promptTokens := ConvertToInt(usageMap["prompt_tokens"])
+			
+			// Check for cached tokens in prompt_tokens_details
+			if details, exists := usageMap["prompt_tokens_details"]; exists {
+				if detailsMap, ok := details.(map[string]any); ok {
+					cachedTokens := ConvertToInt(detailsMap["cached_tokens"])
+					// Premium requests = uncached prompt tokens
+					uncachedTokens := promptTokens - cachedTokens
+					if uncachedTokens > 0 {
+						return uncachedTokens
+					}
+				}
+			}
+			
+			// If no cached token info, return total prompt tokens
+			if promptTokens > 0 {
+				return promptTokens
+			}
+		}
+	}
+	
 	return 0
 }
 

@@ -414,12 +414,15 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 
 		// Try to extract token usage from JSON format if available
 		jsonMetrics := ExtractJSONMetrics(line, verbose)
-		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 {
+		if jsonMetrics.TokenUsage > 0 || jsonMetrics.EstimatedCost > 0 || jsonMetrics.PremiumCost > 0 {
 			if jsonMetrics.TokenUsage > maxTokenUsage {
 				maxTokenUsage = jsonMetrics.TokenUsage
 			}
 			if jsonMetrics.EstimatedCost > 0 {
 				metrics.EstimatedCost += jsonMetrics.EstimatedCost
+			}
+			if jsonMetrics.PremiumCost > 0 {
+				metrics.PremiumCost += jsonMetrics.PremiumCost
 			}
 		}
 

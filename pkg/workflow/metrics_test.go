@@ -370,6 +370,89 @@ func TestExtractJSONCost(t *testing.T) {
 	}
 }
 
+func TestExtractJSONPremiumCost(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]any
+		expected int
+	}{
+		{
+			name: "Copilot usage with cached tokens",
+			data: map[string]any{
+				"usage": map[string]any{
+					"prompt_tokens":     46237,
+					"completion_tokens": 154,
+					"prompt_tokens_details": map[string]any{
+						"cached_tokens": 42279,
+					},
+					"total_tokens": 46391,
+				},
+			},
+			expected: 3958, // 46237 - 42279 = 3958 uncached tokens
+		},
+		{
+			name: "Copilot usage without cached tokens",
+			data: map[string]any{
+				"usage": map[string]any{
+					"prompt_tokens":     38038,
+					"completion_tokens": 124,
+					"prompt_tokens_details": map[string]any{
+						"cached_tokens": 0,
+					},
+					"total_tokens": 38162,
+				},
+			},
+			expected: 38038, // All prompt tokens are uncached
+		},
+		{
+			name: "Copilot usage with no cached_tokens field",
+			data: map[string]any{
+				"usage": map[string]any{
+					"prompt_tokens":     1000,
+					"completion_tokens": 100,
+					"total_tokens":      1100,
+				},
+			},
+			expected: 1000, // All prompt tokens counted when no cached info
+		},
+		{
+			name: "No usage field",
+			data: map[string]any{
+				"cost": 0.045,
+			},
+			expected: 0,
+		},
+		{
+			name: "Empty usage object",
+			data: map[string]any{
+				"usage": map[string]any{},
+			},
+			expected: 0,
+		},
+		{
+			name: "String values for tokens",
+			data: map[string]any{
+				"usage": map[string]any{
+					"prompt_tokens": "5000",
+					"prompt_tokens_details": map[string]any{
+						"cached_tokens": "2000",
+					},
+				},
+			},
+			expected: 3000, // 5000 - 2000 = 3000
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractJSONPremiumCost(tt.data)
+			if result != tt.expected {
+				t.Errorf("ExtractJSONPremiumCost(%+v) = %d, want %d", tt.data, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestConvertToInt(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -198,6 +198,50 @@ func TestExtractJSONMetrics(t *testing.T) {
 	}
 }
 
+func TestExtractJSONPremiumCost(t *testing.T) {
+	tests := []struct {
+		name                string
+		line                string
+		expectedPremiumCost int
+	}{
+		{
+			name:                "Copilot usage with cached tokens",
+			line:                `{"usage": {"prompt_tokens": 46237, "completion_tokens": 154, "prompt_tokens_details": {"cached_tokens": 42279}, "total_tokens": 46391}}`,
+			expectedPremiumCost: 3958, // 46237 - 42279 = 3958 uncached tokens
+		},
+		{
+			name:                "Copilot usage without cached tokens",
+			line:                `{"usage": {"prompt_tokens": 38038, "completion_tokens": 124, "prompt_tokens_details": {"cached_tokens": 0}, "total_tokens": 38162}}`,
+			expectedPremiumCost: 38038, // All prompt tokens are uncached
+		},
+		{
+			name:                "Copilot usage with no cached_tokens field",
+			line:                `{"usage": {"prompt_tokens": 1000, "completion_tokens": 100, "total_tokens": 1100}}`,
+			expectedPremiumCost: 1000, // All prompt tokens counted when no cached info
+		},
+		{
+			name:                "No usage field",
+			line:                `{"cost": 0.045}`,
+			expectedPremiumCost: 0,
+		},
+		{
+			name:                "Empty usage object",
+			line:                `{"usage": {}}`,
+			expectedPremiumCost: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metrics := extractJSONMetrics(tt.line, false)
+
+			if metrics.PremiumCost != tt.expectedPremiumCost {
+				t.Errorf("Expected premium cost %d, got %d", tt.expectedPremiumCost, metrics.PremiumCost)
+			}
+		})
+	}
+}
+
 func TestParseLogFileWithJSON(t *testing.T) {
 	// Create a temporary log file with mixed JSON and text format
 	tmpDir := t.TempDir()
