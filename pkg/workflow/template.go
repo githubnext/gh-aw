@@ -58,11 +58,13 @@ func validateNoIncludesInTemplateRegions(markdown string) error {
 		// Check for @include or @import directives in this region
 		lines := strings.Split(regionContent, "\n")
 		for lineNum, line := range lines {
-			if parser.IncludeDirectivePattern.MatchString(line) {
+			// Trim leading/trailing whitespace before checking
+			trimmedLine := strings.TrimSpace(line)
+			if parser.IncludeDirectivePattern.MatchString(trimmedLine) {
 				// Found an include directive inside a template region
 				// Extract just the directive for error message
-				matches := parser.IncludeDirectivePattern.FindStringSubmatch(line)
-				directive := strings.TrimSpace(line)
+				matches := parser.IncludeDirectivePattern.FindStringSubmatch(trimmedLine)
+				directive := trimmedLine
 				if len(matches) > 0 {
 					directive = matches[0]
 				}

@@ -199,6 +199,32 @@ Just regular markdown content.
 No templates or includes here.`,
 			wantErr: false,
 		},
+		{
+			name: "invalid - indented include inside template",
+			input: `# Test Workflow
+
+{{#if github.event.issue.number}}
+  @include shared/tools.md
+{{/if}}`,
+			wantErr: true,
+			errMsg:  "@include/@import directives cannot be used inside template regions",
+		},
+		{
+			name: "invalid - nested template with include in inner block",
+			input: `# Test Workflow
+
+{{#if github.event.issue.number}}
+First level template.
+
+  {{#if github.actor}}
+  @include shared/nested-tools.md
+  {{/if}}
+
+End of first level.
+{{/if}}`,
+			wantErr: true,
+			errMsg:  "@include/@import directives cannot be used inside template regions",
+		},
 	}
 
 	for _, tt := range tests {
