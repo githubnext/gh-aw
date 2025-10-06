@@ -13,7 +13,7 @@ safe-outputs:
     max: 1
 timeout_minutes: 5
 imports:
-  - shared/custom-ai-inference.md
+  - shared/actions-ai-inference.md
 ---
 
 # Issue Classification

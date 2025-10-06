@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/custom-ai-inference.md
+#     - shared/actions-ai-inference.md
 
 name: "Issue Classifier"
 on:
