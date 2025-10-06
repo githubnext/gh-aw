@@ -58,7 +58,7 @@ jobs:
         id: check-membership
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer,write
         with:
           script: |
             async function main() {
