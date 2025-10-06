@@ -19,14 +19,14 @@ type ToolCallInfo struct {
 
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
-	TokenUsage     int
-	EstimatedCost  float64
-	PremiumCost    int     // Premium requests (uncached tokens) for Copilot billing
-	ErrorCount     int
-	WarningCount   int
-	Turns          int            // Number of turns needed to complete the task
-	ToolCalls      []ToolCallInfo // Tool call statistics
-	ToolSequences  [][]string     // Sequences of tool calls preserving order
+	TokenUsage    int
+	EstimatedCost float64
+	PremiumCost   int // Premium requests (uncached tokens) for Copilot billing
+	ErrorCount    int
+	WarningCount  int
+	Turns         int            // Number of turns needed to complete the task
+	ToolCalls     []ToolCallInfo // Tool call statistics
+	ToolSequences [][]string     // Sequences of tool calls preserving order
 	// Timestamp removed - use GitHub API timestamps instead of parsing from logs
 }
 
@@ -196,7 +196,7 @@ func ExtractJSONPremiumCost(data map[string]any) int {
 	if usage, exists := data["usage"]; exists {
 		if usageMap, ok := usage.(map[string]any); ok {
 			promptTokens := ConvertToInt(usageMap["prompt_tokens"])
-			
+
 			// Check for cached tokens in prompt_tokens_details
 			if details, exists := usageMap["prompt_tokens_details"]; exists {
 				if detailsMap, ok := details.(map[string]any); ok {
@@ -208,14 +208,14 @@ func ExtractJSONPremiumCost(data map[string]any) int {
 					}
 				}
 			}
-			
+
 			// If no cached token info, return total prompt tokens
 			if promptTokens > 0 {
 				return promptTokens
 			}
 		}
 	}
-	
+
 	return 0
 }
 
