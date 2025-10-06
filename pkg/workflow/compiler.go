@@ -472,6 +472,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Validate that @include/@import directives are not used inside template regions
+	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
+		return nil, fmt.Errorf("template region validation failed: %w", err)
+	}
+
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting
