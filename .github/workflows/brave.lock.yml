@@ -2507,9 +2507,12 @@ jobs:
           name: aw.patch
           path: /tmp/threat-detection/
       - name: Echo agent outputs
+        env:
+          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Agent output: ${{ needs.agent.outputs.output }}"
-          echo "Agent output-types: ${{ needs.agent.outputs.output_types }}"
+          echo "Agent output: $AGENT_OUTPUT"
+          echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:

@@ -623,9 +623,12 @@ func TestEchoAgentOutputsStep(t *testing.T) {
 	// Verify key components of the echo step
 	expectedComponents := []string{
 		"name: Echo agent outputs",
+		"env:",
+		"AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
+		"AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}",
 		"run: |",
-		"echo \"Agent output: ${{ needs.agent.outputs.output }}\"",
-		"echo \"Agent output-types: ${{ needs.agent.outputs.output_types }}\"",
+		"echo \"Agent output: $AGENT_OUTPUT\"",
+		"echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"",
 	}
 
 	for _, expected := range expectedComponents {

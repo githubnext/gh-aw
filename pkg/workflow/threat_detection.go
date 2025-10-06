@@ -146,9 +146,12 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 	return []string{
 		"      - name: Echo agent outputs\n",
+		"        env:\n",
+		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
+		fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName),
 		"        run: |\n",
-		fmt.Sprintf("          echo \"Agent output: ${{ needs.%s.outputs.output }}\"\n", mainJobName),
-		fmt.Sprintf("          echo \"Agent output-types: ${{ needs.%s.outputs.output_types }}\"\n", mainJobName),
+		"          echo \"Agent output: $AGENT_OUTPUT\"\n",
+		"          echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"\n",
 	}
 }
 
