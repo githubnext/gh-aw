@@ -246,3 +246,121 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 
 	return "", fmt.Errorf("invalid engine configuration in included file")
 }
+
+// extractEngineConfigFromJSON parses engine configuration from JSON string (from included files)
+func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig, error) {
+	if engineJSON == "" {
+		return nil, nil
+	}
+
+	var engineData any
+	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
+		return nil, fmt.Errorf("failed to parse engine JSON: %w", err)
+	}
+
+	// Handle string format (simple engine ID)
+	if engineStr, ok := engineData.(string); ok {
+		return &EngineConfig{ID: engineStr}, nil
+	}
+
+	// Handle object format
+	engineObj, ok := engineData.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("engine must be a string or object")
+	}
+
+	config := &EngineConfig{}
+
+	// Extract ID (required)
+	if id, exists := engineObj["id"]; exists {
+		if idStr, ok := id.(string); ok {
+			config.ID = idStr
+		}
+	}
+
+	// Extract optional fields
+	if version, exists := engineObj["version"]; exists {
+		if versionStr, ok := version.(string); ok {
+			config.Version = versionStr
+		}
+	}
+
+	if model, exists := engineObj["model"]; exists {
+		if modelStr, ok := model.(string); ok {
+			config.Model = modelStr
+		}
+	}
+
+	if maxTurns, exists := engineObj["max-turns"]; exists {
+		switch v := maxTurns.(type) {
+		case int:
+			config.MaxTurns = fmt.Sprintf("%d", v)
+		case float64:
+			config.MaxTurns = fmt.Sprintf("%.0f", v)
+		case string:
+			config.MaxTurns = v
+		}
+	}
+
+	if userAgent, exists := engineObj["user-agent"]; exists {
+		if userAgentStr, ok := userAgent.(string); ok {
+			config.UserAgent = userAgentStr
+		}
+	}
+
+	// Extract env
+	if envData, exists := engineObj["env"]; exists {
+		if envMap, ok := envData.(map[string]any); ok {
+			config.Env = make(map[string]string)
+			for key, val := range envMap {
+				if valStr, ok := val.(string); ok {
+					config.Env[key] = valStr
+				}
+			}
+		}
+	}
+
+	// Extract steps (for custom engine)
+	if stepsData, exists := engineObj["steps"]; exists {
+		if stepsArray, ok := stepsData.([]any); ok {
+			for _, step := range stepsArray {
+				if stepMap, ok := step.(map[string]any); ok {
+					config.Steps = append(config.Steps, stepMap)
+				}
+			}
+		}
+	}
+
+	// Extract error_patterns
+	if patternsData, exists := engineObj["error_patterns"]; exists {
+		if patternsArray, ok := patternsData.([]any); ok {
+			for _, patternData := range patternsArray {
+				if patternMap, ok := patternData.(map[string]any); ok {
+					pattern := ErrorPattern{}
+					if p, ok := patternMap["pattern"].(string); ok {
+						pattern.Pattern = p
+					}
+					if lg, ok := patternMap["level_group"].(float64); ok {
+						pattern.LevelGroup = int(lg)
+					}
+					if mg, ok := patternMap["message_group"].(float64); ok {
+						pattern.MessageGroup = int(mg)
+					}
+					if d, ok := patternMap["description"].(string); ok {
+						pattern.Description = d
+					}
+					config.ErrorPatterns = append(config.ErrorPatterns, pattern)
+				}
+			}
+		}
+	}
+
+	// Extract config (for codex engine)
+	if configData, exists := engineObj["config"]; exists {
+		if configStr, ok := configData.(string); ok {
+			config.Config = configStr
+		}
+	}
+
+	return config, nil
+}
