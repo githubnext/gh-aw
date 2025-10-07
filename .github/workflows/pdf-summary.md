@@ -41,14 +41,15 @@ When PDF files are pushed to the repository, you must:
 ### 1. Identify PDF Files
 - Use git to list all PDF files that were added or modified in the commit
 - Focus only on files with `.pdf` extension
+- **Skip PDFs that already have summary files**: Check if a corresponding `.summary.md` file already exists for each PDF. If it does, skip processing that PDF to avoid duplicate work.
 
 ### 2. Convert PDFs to Markdown
-For each PDF file:
+For each PDF file that needs processing (no existing summary):
 - Use the markitdown MCP server to convert the PDF to markdown format
 - Extract the full text content from the PDF
 
 ### 3. Create Summary Files
-For each PDF file:
+For each PDF file processed:
 - Create a summary markdown file with the naming pattern: `[original-name].summary.md`
 - Place the summary file in the same directory as the original PDF
 - Include in the summary:
@@ -62,6 +63,7 @@ For each PDF file:
 - Use a descriptive title like: "Add PDF summaries for [list of PDF files]"
 - In the PR description, include:
   - List of PDF files processed
+  - List of PDF files skipped (if any already had summaries)
   - Summary of what was extracted from each PDF
   - Any conversion notes or issues encountered
 
@@ -88,10 +90,12 @@ Each summary file should be formatted as:
 
 ## Important Notes
 
+- **Skip Existing Summaries**: Before processing any PDF, check if a `.summary.md` file already exists for it. If it does, skip that PDF to avoid regenerating existing summaries.
 - **File Naming**: Use `.summary.md` extension (not `.summary.pdf`)
 - **Directory Structure**: Keep summaries in the same directory as their source PDFs
 - **Conversion Quality**: If the markitdown conversion has issues, note them in the summary
 - **Error Handling**: If a PDF cannot be converted, create a summary file noting the error
 - **Branch Creation**: Ensure changes are committed to a new branch for the pull request
+- **Empty PR Handling**: If all PDFs already have summaries, do not create a pull request. Simply exit gracefully.
 
-Remember: Your goal is to make PDF content more accessible by providing searchable markdown summaries.
+Remember: Your goal is to make PDF content more accessible by providing searchable markdown summaries, but avoid duplicate work by skipping files that already have summaries.

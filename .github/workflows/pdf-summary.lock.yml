@@ -858,14 +858,15 @@ jobs:
           ### 1. Identify PDF Files
           - Use git to list all PDF files that were added or modified in the commit
           - Focus only on files with `.pdf` extension
+          - **Skip PDFs that already have summary files**: Check if a corresponding `.summary.md` file already exists for each PDF. If it does, skip processing that PDF to avoid duplicate work.
           
           ### 2. Convert PDFs to Markdown
-          For each PDF file:
+          For each PDF file that needs processing (no existing summary):
           - Use the markitdown MCP server to convert the PDF to markdown format
           - Extract the full text content from the PDF
           
           ### 3. Create Summary Files
-          For each PDF file:
+          For each PDF file processed:
           - Create a summary markdown file with the naming pattern: `[original-name].summary.md`
           - Place the summary file in the same directory as the original PDF
           - Include in the summary:
@@ -879,6 +880,7 @@ jobs:
           - Use a descriptive title like: "Add PDF summaries for [list of PDF files]"
           - In the PR description, include:
             - List of PDF files processed
+            - List of PDF files skipped (if any already had summaries)
             - Summary of what was extracted from each PDF
             - Any conversion notes or issues encountered
           
@@ -905,13 +907,15 @@ jobs:
           
           ## Important Notes
           
+          - **Skip Existing Summaries**: Before processing any PDF, check if a `.summary.md` file already exists for it. If it does, skip that PDF to avoid regenerating existing summaries.
           - **File Naming**: Use `.summary.md` extension (not `.summary.pdf`)
           - **Directory Structure**: Keep summaries in the same directory as their source PDFs
           - **Conversion Quality**: If the markitdown conversion has issues, note them in the summary
           - **Error Handling**: If a PDF cannot be converted, create a summary file noting the error
           - **Branch Creation**: Ensure changes are committed to a new branch for the pull request
+          - **Empty PR Handling**: If all PDFs already have summaries, do not create a pull request. Simply exit gracefully.
           
-          Remember: Your goal is to make PDF content more accessible by providing searchable markdown summaries.
+          Remember: Your goal is to make PDF content more accessible by providing searchable markdown summaries, but avoid duplicate work by skipping files that already have summaries.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -2713,7 +2717,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "PDF Summary Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "\n\n# PDF Summary Generator\n\nYou are a PDF summary generator powered by the markitdown MCP server.\n\n## Mission\n\nWhen PDF files are pushed to the repository, you must:\n\n1. **Identify PDF Files**: Find all PDF files in the latest commit\n2. **Convert to Markdown**: Use the markitdown MCP server to convert each PDF to markdown\n3. **Generate Summary Files**: Create a summary markdown file for each PDF (file.pdf -> file.summary.md)\n4. **Create Pull Request**: Create a pull request with all summary files and a descriptive title and body\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit SHA**: ${{ github.event.after }}\n- **Pusher**: @${{ github.actor }}\n\n## Processing Steps\n\n### 1. Identify PDF Files\n- Use git to list all PDF files that were added or modified in the commit\n- Focus only on files with `.pdf` extension\n\n### 2. Convert PDFs to Markdown\nFor each PDF file:\n- Use the markitdown MCP server to convert the PDF to markdown format\n- Extract the full text content from the PDF\n\n### 3. Create Summary Files\nFor each PDF file:\n- Create a summary markdown file with the naming pattern: `[original-name].summary.md`\n- Place the summary file in the same directory as the original PDF\n- Include in the summary:\n  - Title of the PDF (if available)\n  - Main sections/headings\n  - Key points and highlights\n  - Full converted markdown content\n\n### 4. Create Pull Request\n- Create a pull request with all generated summary files\n- Use a descriptive title like: \"Add PDF summaries for [list of PDF files]\"\n- In the PR description, include:\n  - List of PDF files processed\n  - Summary of what was extracted from each PDF\n  - Any conversion notes or issues encountered\n\n## Output Format\n\nEach summary file should be formatted as:\n\n```markdown\n# Summary of [PDF Filename]\n\n**Original File**: [path/to/file.pdf]\n**Generated**: [timestamp]\n**Converter**: markitdown MCP\n\n## Overview\n[Brief overview of the PDF content]\n\n## Key Sections\n[Main sections and headings from the PDF]\n\n## Full Content\n[Complete converted markdown content from the PDF]\n```\n\n## Important Notes\n\n- **File Naming**: Use `.summary.md` extension (not `.summary.pdf`)\n- **Directory Structure**: Keep summaries in the same directory as their source PDFs\n- **Conversion Quality**: If the markitdown conversion has issues, note them in the summary\n- **Error Handling**: If a PDF cannot be converted, create a summary file noting the error\n- **Branch Creation**: Ensure changes are committed to a new branch for the pull request\n\nRemember: Your goal is to make PDF content more accessible by providing searchable markdown summaries.\n"
+          WORKFLOW_MARKDOWN: "\n\n# PDF Summary Generator\n\nYou are a PDF summary generator powered by the markitdown MCP server.\n\n## Mission\n\nWhen PDF files are pushed to the repository, you must:\n\n1. **Identify PDF Files**: Find all PDF files in the latest commit\n2. **Convert to Markdown**: Use the markitdown MCP server to convert each PDF to markdown\n3. **Generate Summary Files**: Create a summary markdown file for each PDF (file.pdf -> file.summary.md)\n4. **Create Pull Request**: Create a pull request with all summary files and a descriptive title and body\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit SHA**: ${{ github.event.after }}\n- **Pusher**: @${{ github.actor }}\n\n## Processing Steps\n\n### 1. Identify PDF Files\n- Use git to list all PDF files that were added or modified in the commit\n- Focus only on files with `.pdf` extension\n- **Skip PDFs that already have summary files**: Check if a corresponding `.summary.md` file already exists for each PDF. If it does, skip processing that PDF to avoid duplicate work.\n\n### 2. Convert PDFs to Markdown\nFor each PDF file that needs processing (no existing summary):\n- Use the markitdown MCP server to convert the PDF to markdown format\n- Extract the full text content from the PDF\n\n### 3. Create Summary Files\nFor each PDF file processed:\n- Create a summary markdown file with the naming pattern: `[original-name].summary.md`\n- Place the summary file in the same directory as the original PDF\n- Include in the summary:\n  - Title of the PDF (if available)\n  - Main sections/headings\n  - Key points and highlights\n  - Full converted markdown content\n\n### 4. Create Pull Request\n- Create a pull request with all generated summary files\n- Use a descriptive title like: \"Add PDF summaries for [list of PDF files]\"\n- In the PR description, include:\n  - List of PDF files processed\n  - List of PDF files skipped (if any already had summaries)\n  - Summary of what was extracted from each PDF\n  - Any conversion notes or issues encountered\n\n## Output Format\n\nEach summary file should be formatted as:\n\n```markdown\n# Summary of [PDF Filename]\n\n**Original File**: [path/to/file.pdf]\n**Generated**: [timestamp]\n**Converter**: markitdown MCP\n\n## Overview\n[Brief overview of the PDF content]\n\n## Key Sections\n[Main sections and headings from the PDF]\n\n## Full Content\n[Complete converted markdown content from the PDF]\n```\n\n## Important Notes\n\n- **Skip Existing Summaries**: Before processing any PDF, check if a `.summary.md` file already exists for it. If it does, skip that PDF to avoid regenerating existing summaries.\n- **File Naming**: Use `.summary.md` extension (not `.summary.pdf`)\n- **Directory Structure**: Keep summaries in the same directory as their source PDFs\n- **Conversion Quality**: If the markitdown conversion has issues, note them in the summary\n- **Error Handling**: If a PDF cannot be converted, create a summary file noting the error\n- **Branch Creation**: Ensure changes are committed to a new branch for the pull request\n- **Empty PR Handling**: If all PDFs already have summaries, do not create a pull request. Simply exit gracefully.\n\nRemember: Your goal is to make PDF content more accessible by providing searchable markdown summaries, but avoid duplicate work by skipping files that already have summaries.\n"
         with:
           script: |
             const fs = require('fs');
