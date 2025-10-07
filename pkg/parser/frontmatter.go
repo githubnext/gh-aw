@@ -850,68 +850,39 @@ func extractToolsFromContent(content string) (string, error) {
 
 // extractSafeOutputsFromContent extracts safe-outputs section from frontmatter as JSON string
 func extractSafeOutputsFromContent(content string) (string, error) {
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "{}", nil // Return empty object on error
-	}
-
-	// Extract safe-outputs section
-	safeOutputs, exists := result.Frontmatter["safe-outputs"]
-	if !exists {
-		return "{}", nil
-	}
-
-	// Convert to JSON string
-	safeOutputsJSON, err := json.Marshal(safeOutputs)
-	if err != nil {
-		return "{}", nil
-	}
-
-	return strings.TrimSpace(string(safeOutputsJSON)), nil
+	return extractFrontmatterField(content, "safe-outputs", "{}")
 }
 
 // extractMCPServersFromContent extracts mcp-servers section from frontmatter as JSON string
 func extractMCPServersFromContent(content string) (string, error) {
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "{}", nil // Return empty object on error
-	}
-
-	// Extract mcp-servers section
-	mcpServers, exists := result.Frontmatter["mcp-servers"]
-	if !exists {
-		return "{}", nil
-	}
-
-	// Convert to JSON string
-	mcpServersJSON, err := json.Marshal(mcpServers)
-	if err != nil {
-		return "{}", nil
-	}
-
-	return strings.TrimSpace(string(mcpServersJSON)), nil
+	return extractFrontmatterField(content, "mcp-servers", "{}")
 }
 
 // extractEngineFromContent extracts engine section from frontmatter as JSON string
 func extractEngineFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "engine", "")
+}
+
+// extractFrontmatterField extracts a specific field from frontmatter as JSON string
+func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
-		return "", nil // Return empty string on error
+		return emptyValue, nil // Return empty value on error
 	}
 
-	// Extract engine section
-	engine, exists := result.Frontmatter["engine"]
+	// Extract the requested field
+	fieldValue, exists := result.Frontmatter[fieldName]
 	if !exists {
-		return "", nil
+		return emptyValue, nil
 	}
 
 	// Convert to JSON string
-	engineJSON, err := json.Marshal(engine)
+	fieldJSON, err := json.Marshal(fieldValue)
 	if err != nil {
-		return "", nil
+		return emptyValue, nil
 	}
 
-	return strings.TrimSpace(string(engineJSON)), nil
+	return strings.TrimSpace(string(fieldJSON)), nil
 }
 
 // ExpandIncludes recursively expands @include and @import directives until no more remain
@@ -975,47 +946,29 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
-	const maxDepth = 10
-	var engines []string
-	currentContent := content
-
-	for depth := 0; depth < maxDepth; depth++ {
-		// Process includes in current content to extract engines
-		processedEngines, processedContent, err := ProcessIncludesForEngines(currentContent, baseDir)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add found engines to the list
-		engines = append(engines, processedEngines...)
-
-		// Check if content changed
-		if processedContent == currentContent {
-			// No more includes to process
-			break
-		}
-
-		currentContent = processedContent
-	}
-
-	return engines, nil
+	return expandIncludesForField(content, baseDir, extractEngineFromContent, "")
 }
 
 // ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
 func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
+	return expandIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+}
+
+// expandIncludesForField recursively expands includes to extract a specific frontmatter field
+func expandIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, error) {
 	const maxDepth = 10
-	var safeOutputs []string
+	var results []string
 	currentContent := content
 
 	for depth := 0; depth < maxDepth; depth++ {
-		// Process includes in current content to extract safe-outputs
-		processedSafeOutputs, processedContent, err := ProcessIncludesForSafeOutputs(currentContent, baseDir)
+		// Process includes in current content to extract the field
+		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue)
 		if err != nil {
 			return nil, err
 		}
 
-		// Add found safe-outputs to the list
-		safeOutputs = append(safeOutputs, processedSafeOutputs...)
+		// Add found results to the list
+		results = append(results, processedResults...)
 
 		// Check if content changed
 		if processedContent == currentContent {
@@ -1026,75 +979,24 @@ func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
 		currentContent = processedContent
 	}
 
-	return safeOutputs, nil
+	return results, nil
 }
 
 // ProcessIncludesForEngines processes import directives to extract engine configurations
 func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	var result bytes.Buffer
-	var engines []string
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Parse import directive
-		directive := ParseImportDirective(line)
-		if directive != nil {
-			isOptional := directive.IsOptional
-			includePath := directive.Path
-
-			// Handle section references (file.md#Section) - for engines, we ignore sections
-			var filePath string
-			if strings.Contains(includePath, "#") {
-				parts := strings.SplitN(includePath, "#", 2)
-				filePath = parts[0]
-				// Note: section references are ignored for engine extraction since engines are in frontmatter
-			} else {
-				filePath = includePath
-			}
-
-			// Resolve file path
-			fullPath, err := resolveIncludePath(filePath, baseDir)
-			if err != nil {
-				if isOptional {
-					// For optional includes, skip engine extraction
-					continue
-				}
-				// For required includes, fail compilation with an error
-				return nil, "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
-			}
-
-			// Extract engine configuration from the included file
-			content, err := os.ReadFile(fullPath)
-			if err != nil {
-				// For any processing errors, fail compilation
-				return nil, "", fmt.Errorf("failed to read included file '%s': %w", fullPath, err)
-			}
-
-			// Extract engine configuration
-			engineJSON, err := extractEngineFromContent(string(content))
-			if err != nil {
-				return nil, "", fmt.Errorf("failed to extract engine from '%s': %w", fullPath, err)
-			}
-
-			if engineJSON != "" {
-				engines = append(engines, engineJSON)
-			}
-		} else {
-			// Regular line, just pass through
-			result.WriteString(line + "\n")
-		}
-	}
-
-	return engines, result.String(), nil
+	return processIncludesForField(content, baseDir, extractEngineFromContent, "")
 }
 
 // ProcessIncludesForSafeOutputs processes import directives to extract safe-outputs configurations
 func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, error) {
+	return processIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+}
+
+// processIncludesForField processes import directives to extract a specific frontmatter field
+func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-	var safeOutputs []string
+	var results []string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -1105,12 +1007,12 @@ func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, e
 			isOptional := directive.IsOptional
 			includePath := directive.Path
 
-			// Handle section references (file.md#Section) - for safe-outputs, we ignore sections
+			// Handle section references (file.md#Section) - for frontmatter fields, we ignore sections
 			var filePath string
 			if strings.Contains(includePath, "#") {
 				parts := strings.SplitN(includePath, "#", 2)
 				filePath = parts[0]
-				// Note: section references are ignored for safe-outputs extraction since safe-outputs are in frontmatter
+				// Note: section references are ignored for frontmatter field extraction
 			} else {
 				filePath = includePath
 			}
@@ -1119,28 +1021,28 @@ func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, e
 			fullPath, err := resolveIncludePath(filePath, baseDir)
 			if err != nil {
 				if isOptional {
-					// For optional includes, skip safe-outputs extraction
+					// For optional includes, skip extraction
 					continue
 				}
 				// For required includes, fail compilation with an error
 				return nil, "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
 
-			// Extract safe-outputs configuration from the included file
-			content, err := os.ReadFile(fullPath)
+			// Read the included file
+			fileContent, err := os.ReadFile(fullPath)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return nil, "", fmt.Errorf("failed to read included file '%s': %w", fullPath, err)
 			}
 
-			// Extract safe-outputs configuration
-			safeOutputsJSON, err := extractSafeOutputsFromContent(string(content))
+			// Extract the field using the provided extraction function
+			fieldJSON, err := extractFunc(string(fileContent))
 			if err != nil {
-				return nil, "", fmt.Errorf("failed to extract safe-outputs from '%s': %w", fullPath, err)
+				return nil, "", fmt.Errorf("failed to extract field from '%s': %w", fullPath, err)
 			}
 
-			if safeOutputsJSON != "" && safeOutputsJSON != "{}" {
-				safeOutputs = append(safeOutputs, safeOutputsJSON)
+			if fieldJSON != "" && fieldJSON != emptyValue {
+				results = append(results, fieldJSON)
 			}
 		} else {
 			// Regular line, just pass through
@@ -1148,7 +1050,7 @@ func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, e
 		}
 	}
 
-	return safeOutputs, result.String(), nil
+	return results, result.String(), nil
 }
 
 // mergeToolsFromJSON merges multiple JSON tool objects from content
