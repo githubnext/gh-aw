@@ -15,6 +15,7 @@ roles: [admin, maintainer, write]
 engine: copilot
 imports:
   - shared/tavily-mcp.md
+  - shared/microsoftdocs-mcp.md
 tools:
   cache-memory:
     retention-days: 7
