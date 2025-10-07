@@ -3194,7 +3194,8 @@ jobs:
             > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
             To apply the patch locally:
             \`\`\`sh
-            # Download the artifact from the workflow run
+            # Download the artifact from the workflow run ${runUrl}
+            # (Use GitHub MCP tools if gh CLI is not available)
             gh run download ${runId} -n aw.patch
             # Apply the patch
             git am aw.patch

@@ -320,7 +320,8 @@ async function main() {
 To apply the patch locally:
 
 \`\`\`sh
-# Download the artifact from the workflow run
+# Download the artifact from the workflow run ${runUrl}
+# (Use GitHub MCP tools if gh CLI is not available)
 gh run download ${runId} -n aw.patch
 
 # Apply the patch
