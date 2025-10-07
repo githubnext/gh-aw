@@ -1,12 +1,9 @@
 ---
 name: Duplicate Code Detector
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "**.go"
   workflow_dispatch:
+  schedule:
+    - cron: "0 11 * * *"
 permissions:
   contents: read
   actions: read
