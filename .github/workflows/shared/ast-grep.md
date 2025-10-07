@@ -4,10 +4,7 @@ tools:
 steps:
   - name: Install ast-grep
     run: |
-      curl -L https://github.com/ast-grep/ast-grep/releases/latest/download/ast-grep-x86_64-unknown-linux-gnu.zip -o /tmp/ast-grep.zip
-      unzip -q /tmp/ast-grep.zip -d /tmp/ast-grep
-      sudo mv /tmp/ast-grep/ast-grep /usr/local/bin/
-      chmod +x /usr/local/bin/ast-grep
+      npm install --global @ast-grep/cli
       ast-grep --version
 ---
 

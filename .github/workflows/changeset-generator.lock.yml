@@ -2,26 +2,20 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/ast-grep.md
 
-name: "Go Pattern Detector"
+name: "Changeset Generator"
 on:
-  push:
-    branches:
-    - main
-    paths:
-    - "**/*.go"
-  workflow_dispatch: null
+  pull_request:
+    types:
+    - ready_for_review
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
 
-run-name: "Go Pattern Detector"
+run-name: "Changeset Generator"
 
 jobs:
   check-membership:
@@ -117,29 +111,175 @@ jobs:
     needs: check-membership
     if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      text: ${{ steps.compute-text.outputs.text }}
     steps:
-      - run: echo "Activation success"
+      - name: Compute current body text
+        id: compute-text
+        uses: actions/github-script@v8
+        with:
+          script: |
+            function sanitizeContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+              const allowedDomains = allowedDomainsEnv
+                ? allowedDomainsEnv
+                    .split(",")
+                    .map(d => d.trim())
+                    .filter(d => d)
+                : defaultAllowedDomains;
+              let sanitized = content;
+              sanitized = neutralizeMentions(sanitized);
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = convertXmlTagsToParentheses(sanitized);
+              sanitized = sanitizeUrlProtocols(sanitized);
+              sanitized = sanitizeUrlDomains(sanitized);
+              const maxLength = 524288;
+              if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              const lines = sanitized.split("\n");
+              const maxLines = 65000;
+              if (lines.length > maxLines) {
+                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
+              }
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = neutralizeBotTriggers(sanitized);
+              return sanitized.trim();
+              function convertXmlTagsToParentheses(s) {
+                if (!s || typeof s !== "string") {
+                  return s;
+                }
+                return (
+                  s
+                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
+                      const innerContent = match.slice(1, -1);
+                      return `(${innerContent})`;
+                    })
+                    .replace(/<!--[\s\S]*?-->/g, match => {
+                      const innerContent = match.slice(4, -3); 
+                      return `(!--${innerContent}--)`;
+                    })
+                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
+                      const innerContent = match.slice(9, -3); 
+                      return `(![CDATA[${innerContent}]])`;
+                    })
+                    .replace(/<\?[\s\S]*?\?>/g, match => {
+                      const innerContent = match.slice(2, -2); 
+                      return `(?${innerContent}?)`;
+                    })
+                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
+                      const innerContent = match.slice(9, -1); 
+                      return `(!DOCTYPE${innerContent})`;
+                    })
+                );
+              }
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
+                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+                  });
+                  return isAllowed ? match : "(redacted)";
+                });
+                return s;
+              }
+              function sanitizeUrlProtocols(s) {
+                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
+                });
+              }
+              function neutralizeMentions(s) {
+                return s.replace(
+                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                  (_m, p1, p2) => `${p1}\`@${p2}\``
+                );
+              }
+              function neutralizeBotTriggers(s) {
+                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+              }
+            }
+            async function main() {
+              let text = "";
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: owner,
+                repo: repo,
+                username: actor,
+              });
+              const permission = repoPermission.data.permission;
+              core.debug(`Repository permission level: ${permission}`);
+              if (permission !== "admin" && permission !== "maintain") {
+                core.setOutput("text", "");
+                return;
+              }
+              switch (context.eventName) {
+                case "issues":
+                  if (context.payload.issue) {
+                    const title = context.payload.issue.title || "";
+                    const body = context.payload.issue.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "pull_request":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "pull_request_target":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "issue_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                case "pull_request_review_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                case "pull_request_review":
+                  if (context.payload.review) {
+                    text = context.payload.review.body || "";
+                  }
+                  break;
+                default:
+                  text = "";
+                  break;
+              }
+              const sanitizedText = sanitizeContent(text);
+              core.debug(`text: ${sanitizedText}`);
+              core.setOutput("text", sanitizedText);
+            }
+            await main();
 
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      pull-requests: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Install ast-grep
-        run: |-
-          npm install --global @ast-grep/cli
-          ast-grep --version
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -258,7 +398,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"create-issue":{"max":1},"missing-tool":{}}
+          {"missing-tool":{},"push-to-pull-request-branch":{}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -729,7 +869,7 @@ jobs:
                 const jobConfig = safeOutputsConfig[configKey];
                 const dynamicTool = {
                   name: normalizedKey,
-                  description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
+                  description: `Custom safe-job: ${configKey}`,
                   inputSchema: {
                     type: "object",
                     properties: {},
@@ -888,7 +1028,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -929,157 +1069,124 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          ## ast-grep Tool Setup
+          # Changeset Generator
           
-          ### Using ast-grep
+          You are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.
           
-          ast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.
+          ## Mission
           
-          ### Basic Usage
-          
-          **Search for patterns:**
-          ```bash
-          ast-grep --pattern '$PATTERN' --lang go
-          ```
-          
-          **Search in specific files:**
-          ```bash
-          ast-grep --pattern '$PATTERN' --lang go path/to/files/**/*.go
-          ```
-          
-          **Common Go patterns to detect:**
-          
-          1. **Unmarshal with dash tag** (problematic pattern):
-             ```bash
-             ast-grep --pattern 'json:"-"' --lang go
-             ```
-          
-          2. **Error handling issues:**
-             ```bash
-             ast-grep --pattern 'if err != nil { $$$A }' --lang go
-             ```
-          
-          3. **Finding specific function calls:**
-             ```bash
-             ast-grep --pattern 'functionName($$$ARGS)' --lang go
-             ```
-          
-          ### Output Format
-          
-          By default, ast-grep outputs matched code with line numbers and context. Use `--json` flag for machine-readable output:
-          ```bash
-          ast-grep --pattern '$PATTERN' --lang go --json
-          ```
-          
-          ### More Information
-          
-          - Documentation: https://ast-grep.github.io/
-          - Go patterns catalog: https://ast-grep.github.io/catalog/go/
-          - Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html
-          
-          # Go Code Pattern Detector
-          
-          You are a code quality assistant that uses ast-grep to detect problematic Go code patterns in the repository.
+          When a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.
           
           ## Current Context
           
           - **Repository**: ${{ github.repository }}
-          - **Push Event**: ${{ github.event.after }}
-          - **Triggered by**: @${{ github.actor }}
+          - **Pull Request Number**: ${{ github.event.pull_request.number }}
+          - **Pull Request Content**: "${{ needs.activation.outputs.text }}"
           
-          ## Your Task
+          ## Task
           
-          Analyze the Go code in the repository to detect problematic patterns using ast-grep.
+          Your task is to:
           
-          ### 1. Scan for Problematic Patterns
+          1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.
           
-          Use ast-grep to search for the following problematic Go pattern:
+          2. **Determine the Package Name**: 
+             - Check if this is a monorepo with multiple packages in `package.json` files
+             - If it's a single package repo, use the package name from the root `package.json`
+             - If no package.json exists, use the repository name as the package identifier
           
-          **Unmarshal Tag with Dash**: This pattern detects struct fields with `json:"-"` tags that might be problematic when used with JSON unmarshaling. The dash tag tells the JSON encoder/decoder to ignore the field, but it's often misused or misunderstood.
+          3. **Determine the Change Type**:
+             - **major**: Breaking changes (indicated by "BREAKING CHANGE" in PR or major API changes)
+             - **minor**: New features, enhancements (look for "feat:", "feature:", "add:", etc.)
+             - **patch**: Bug fixes, documentation, refactoring (look for "fix:", "bug:", "docs:", etc.)
           
-          Run this command to detect the pattern:
-          ```bash
-          ast-grep --pattern 'json:"-"' --lang go
-          ```
+          4. **Generate the Changeset File**:
+             - Create a file in the `.changeset/` directory with a descriptive kebab-case name
+             - Use the format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)
+             - Follow the changeset format specification:
           
-          You can also check the full pattern from the ast-grep catalog:
-          - https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html
-          
-          ### 2. Analyze Results
-          
-          If ast-grep finds any matches:
-          - Review each occurrence carefully
-          - Understand the context where the pattern appears
-          - Determine if it's truly problematic or a valid use case
-          - Note the file paths and line numbers
-          
-          ### 3. Create an Issue (if patterns found)
-          
-          If you find problematic occurrences of this pattern, create a GitHub issue with:
-          
-          **Title**: "Detected problematic json:\"-\" tag usage in Go structs"
-          
-          **Issue Body** should include:
-          - A clear explanation of what the pattern is and why it might be problematic
-          - List of all files and line numbers where the pattern was found
-          - Code snippets showing each occurrence
-          - Explanation of the potential issues with each occurrence
-          - Recommended fixes or next steps
-          - Link to the ast-grep catalog entry for reference
-          
-          **Example issue format:**
           ```markdown
-          ## Summary
+          ---
+          "package-name": <major|minor|patch>
+          ---
           
-          Found N instances of potentially problematic `json:"-"` struct tag usage in the codebase.
+          Brief summary of the change (from PR title or first line of description)
           
-          ## What is the Issue?
-          
-          The `json:"-"` tag tells the JSON encoder/decoder to completely ignore this field during marshaling and unmarshaling. While this is sometimes intentional, it can lead to:
-          - Data loss if the field should be persisted
-          - Confusion if the intent was to omit empty values (should use `omitempty` instead)
-          - Security issues if sensitive fields aren't properly excluded from API responses
-          
-          ## Detected Occurrences
-          
-          ### File: `path/to/file.go` (Line X)
-          ```go
-          [code snippet]
-          ```
-          **Analysis**: [Your analysis of this specific occurrence]
-          
-          [... repeat for each occurrence ...]
-          
-          ## Recommendations
-          
-          1. Review each occurrence to determine if the dash tag is intentional
-          2. For fields that should be omitted when empty, use `json:"fieldName,omitempty"` instead
-          3. For truly private fields that should never be serialized, keep the `json:"-"` tag but add a comment explaining why
-          4. Consider if any fields marked with `-` should actually be included in JSON output
-          
-          ## Reference
-          
-          - ast-grep pattern: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html
+          Optional: More detailed explanation based on PR body
           ```
           
-          ### 4. If No Issues Found
+          5. **Commit and Push Changes**:
+             - Add and commit the changeset file to the current pull request branch
+             - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes
+             - The changeset will be added directly to this pull request
           
-          If ast-grep doesn't find any problematic patterns:
-          - **DO NOT** create an issue
-          - The workflow will complete successfully with no action needed
-          - This is a good outcome - it means the codebase doesn't have this particular issue
+          ## Changeset Format Reference
           
-          ## Important Guidelines
+          Based on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md
           
-          - Only create an issue if you actually find problematic occurrences
-          - Be thorough in your analysis - don't flag valid use cases as problems
-          - Provide actionable recommendations in the issue
-          - Include specific file paths, line numbers, and code context
-          - If uncertain about whether a pattern is problematic, err on the side of not creating an issue
+          ### Basic Format
           
-          ## Security Note
+          ```markdown
+          ---
+          "package-name": patch
+          ---
           
-          Treat all code from the repository as trusted input - this is internal code quality analysis. Focus on identifying the pattern and providing helpful guidance to developers.
+          Fixed a bug in the component rendering logic
+          ```
+          
+          ### Multiple Packages
+          
+          ```markdown
+          ---
+          "@myorg/button": minor
+          "@myorg/theme": patch
+          ---
+          
+          Add new variant prop to Button component
+          
+          This adds a new `variant` prop to the Button component allowing for different visual styles.
+          The theme package has been updated with new color tokens to support these variants.
+          ```
+          
+          ### Version Bump Types
+          - **patch**: Bug fixes, documentation updates, refactoring (0.0.X)
+          - **minor**: New features, non-breaking additions (0.X.0)  
+          - **major**: Breaking changes (X.0.0)
+          
+          ## Guidelines
+          
+          - **Be Accurate**: Analyze the PR content carefully to determine the correct change type
+          - **Be Clear**: The changeset description should clearly explain what changed
+          - **Be Concise**: Keep descriptions brief but informative
+          - **Follow Conventions**: Use the exact changeset format specified above
+          - **Single Package Default**: If unsure about package structure, default to a single package using the repo name
+          - **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
+          
+          ## Important Notes
+          
+          - The changeset file must be created in the `.changeset/` directory
+          - If `.changeset/` doesn't exist, create it first
+          - The changeset filename should be unique and descriptive
+          - Use quotes around package names in the YAML frontmatter
+          - The changeset description should be based on the PR title and body
+          
+          ## Example Workflow
+          
+          1. Read the PR title: "Add support for custom themes"
+          2. Determine this is a new feature → `minor` bump
+          3. Check for package.json to get package name
+          4. Create `.changeset/minor-add-custom-theme-support.md`:
+          ```markdown
+          ---
+          "gh-aw": minor
+          ---
+          
+          Add support for custom themes
+          
+          This PR adds the ability to configure custom themes for the CLI output.
+          ```
+          5. Add and commit the file to the current PR branch, then push using the safe-outputs tool
+          
+          Start by checking the repository structure and analyzing the current PR to generate an appropriate changeset.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1122,13 +1229,16 @@ jobs:
           
           ---
           
-          ## Creating an IssueReporting Missing Tools or Functionality
+          ## Pushing Changes to Branch, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Creating an Issue**
+          **Pushing Changes to Pull Request Branch**
           
-          To create an issue, use the create-issue tool from the safe-outputs MCP
+          To push changes to the branch of a pull request:
+          1. Make any file changes directly in the working directory
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP
           
           **Reporting Missing Tools or Functionality**
           
@@ -1163,7 +1273,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Go Pattern Detector",
+              workflow_name: "Changeset Generator",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1202,10 +1312,17 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash(ast-grep:*)
         # - Bash(cat)
         # - Bash(date)
         # - Bash(echo)
+        # - Bash(git add:*)
+        # - Bash(git branch:*)
+        # - Bash(git checkout:*)
+        # - Bash(git commit:*)
+        # - Bash(git merge:*)
+        # - Bash(git rm:*)
+        # - Bash(git status)
+        # - Bash(git switch:*)
         # - Bash(grep)
         # - Bash(head)
         # - Bash(ls)
@@ -1215,11 +1332,14 @@ jobs:
         # - Bash(uniq)
         # - Bash(wc)
         # - BashOutput
+        # - Edit
         # - ExitPlanMode
         # - Glob
         # - Grep
         # - KillBash
         # - LS
+        # - MultiEdit
+        # - NotebookEdit
         # - NotebookRead
         # - Read
         # - Task
@@ -1280,7 +1400,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(ast-grep:*),Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
+          claude --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1334,7 +1454,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
         with:
           script: |
             async function main() {
@@ -2592,6 +2712,94 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+      - name: Generate git patch
+        if: always()
+        env:
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          # Check current git status
+          echo "Current git status:"
+          git status
+          # Extract branch name from JSONL output
+          BRANCH_NAME=""
+          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+            echo "Checking for branch name in JSONL output..."
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then
+                # Extract branch from create-pull-request line using simple grep and sed
+                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create-pull-request"'; then
+                  echo "Found create-pull-request line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    break
+                  fi
+                # Extract branch from push-to-pull-request-branch line using simple grep and sed
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pull-request-branch"'; then
+                  echo "Found push-to-pull-request-branch line: $line"
+                  # Extract branch value using sed
+                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                  if [ -n "$BRANCH_NAME" ]; then
+                    echo "Extracted branch name from push-to-pull-request-branch: $BRANCH_NAME"
+                    break
+                  fi
+                fi
+              fi
+            done < "$GITHUB_AW_SAFE_OUTPUTS"
+          fi
+          # If no branch or branch doesn't exist, no patch
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "No branch found, no patch generation"
+          fi
+          # If we have a branch name, check if that branch exists and get its diff
+          if [ -n "$BRANCH_NAME" ]; then
+            echo "Looking for branch: $BRANCH_NAME"
+            # Check if the branch exists
+            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
+              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
+              # Check if origin/$BRANCH_NAME exists to use as base
+              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
+                echo "Using origin/$BRANCH_NAME as base for patch generation"
+                BASE_REF="origin/$BRANCH_NAME"
+              else
+                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
+                # Get the default branch name
+                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+                echo "Default branch: $DEFAULT_BRANCH"
+                # Fetch the default branch to ensure it's available locally
+                git fetch origin $DEFAULT_BRANCH
+                # Find merge base between default branch and current branch
+                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
+                echo "Using merge-base as base: $BASE_REF"
+              fi
+              # Generate patch from the determined base to the branch
+              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
+            else
+              echo "Branch $BRANCH_NAME does not exist, no patch"
+            fi
+          fi
+          # Show patch info if it exists
+          if [ -f /tmp/aw.patch ]; then
+            ls -la /tmp/aw.patch
+            # Show the first 50 lines of the patch for review
+            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```diff' >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            echo '...' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+          fi
+      - name: Upload git patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aw.patch
+          path: /tmp/aw.patch
+          if-no-files-found: ignore
 
   detection:
     needs: agent
@@ -2622,9 +2830,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Go Pattern Detector"
+          WORKFLOW_NAME: "Changeset Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "## ast-grep Tool Setup\n\n### Using ast-grep\n\nast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.\n\n### Basic Usage\n\n**Search for patterns:**\n```bash\nast-grep --pattern '$PATTERN' --lang go\n```\n\n**Search in specific files:**\n```bash\nast-grep --pattern '$PATTERN' --lang go path/to/files/**/*.go\n```\n\n**Common Go patterns to detect:**\n\n1. **Unmarshal with dash tag** (problematic pattern):\n   ```bash\n   ast-grep --pattern 'json:\"-\"' --lang go\n   ```\n\n2. **Error handling issues:**\n   ```bash\n   ast-grep --pattern 'if err != nil { $$$A }' --lang go\n   ```\n\n3. **Finding specific function calls:**\n   ```bash\n   ast-grep --pattern 'functionName($$$ARGS)' --lang go\n   ```\n\n### Output Format\n\nBy default, ast-grep outputs matched code with line numbers and context. Use `--json` flag for machine-readable output:\n```bash\nast-grep --pattern '$PATTERN' --lang go --json\n```\n\n### More Information\n\n- Documentation: https://ast-grep.github.io/\n- Go patterns catalog: https://ast-grep.github.io/catalog/go/\n- Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html\n\n# Go Code Pattern Detector\n\nYou are a code quality assistant that uses ast-grep to detect problematic Go code patterns in the repository.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Push Event**: ${{ github.event.after }}\n- **Triggered by**: @${{ github.actor }}\n\n## Your Task\n\nAnalyze the Go code in the repository to detect problematic patterns using ast-grep.\n\n### 1. Scan for Problematic Patterns\n\nUse ast-grep to search for the following problematic Go pattern:\n\n**Unmarshal Tag with Dash**: This pattern detects struct fields with `json:\"-\"` tags that might be problematic when used with JSON unmarshaling. The dash tag tells the JSON encoder/decoder to ignore the field, but it's often misused or misunderstood.\n\nRun this command to detect the pattern:\n```bash\nast-grep --pattern 'json:\"-\"' --lang go\n```\n\nYou can also check the full pattern from the ast-grep catalog:\n- https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n\n### 2. Analyze Results\n\nIf ast-grep finds any matches:\n- Review each occurrence carefully\n- Understand the context where the pattern appears\n- Determine if it's truly problematic or a valid use case\n- Note the file paths and line numbers\n\n### 3. Create an Issue (if patterns found)\n\nIf you find problematic occurrences of this pattern, create a GitHub issue with:\n\n**Title**: \"Detected problematic json:\\\"-\\\" tag usage in Go structs\"\n\n**Issue Body** should include:\n- A clear explanation of what the pattern is and why it might be problematic\n- List of all files and line numbers where the pattern was found\n- Code snippets showing each occurrence\n- Explanation of the potential issues with each occurrence\n- Recommended fixes or next steps\n- Link to the ast-grep catalog entry for reference\n\n**Example issue format:**\n```markdown\n## Summary\n\nFound N instances of potentially problematic `json:\"-\"` struct tag usage in the codebase.\n\n## What is the Issue?\n\nThe `json:\"-\"` tag tells the JSON encoder/decoder to completely ignore this field during marshaling and unmarshaling. While this is sometimes intentional, it can lead to:\n- Data loss if the field should be persisted\n- Confusion if the intent was to omit empty values (should use `omitempty` instead)\n- Security issues if sensitive fields aren't properly excluded from API responses\n\n## Detected Occurrences\n\n### File: `path/to/file.go` (Line X)\n```go\n[code snippet]\n```\n**Analysis**: [Your analysis of this specific occurrence]\n\n[... repeat for each occurrence ...]\n\n## Recommendations\n\n1. Review each occurrence to determine if the dash tag is intentional\n2. For fields that should be omitted when empty, use `json:\"fieldName,omitempty\"` instead\n3. For truly private fields that should never be serialized, keep the `json:\"-\"` tag but add a comment explaining why\n4. Consider if any fields marked with `-` should actually be included in JSON output\n\n## Reference\n\n- ast-grep pattern: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n```\n\n### 4. If No Issues Found\n\nIf ast-grep doesn't find any problematic patterns:\n- **DO NOT** create an issue\n- The workflow will complete successfully with no action needed\n- This is a good outcome - it means the codebase doesn't have this particular issue\n\n## Important Guidelines\n\n- Only create an issue if you actually find problematic occurrences\n- Be thorough in your analysis - don't flag valid use cases as problems\n- Provide actionable recommendations in the issue\n- Include specific file paths, line numbers, and code context\n- If uncertain about whether a pattern is problematic, err on the side of not creating an issue\n\n## Security Note\n\nTreat all code from the repository as trusted input - this is internal code quality analysis. Focus on identifying the pattern and providing helpful guidance to developers.\n"
+          WORKFLOW_MARKDOWN: "# Changeset Generator\n\nYou are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.\n\n## Mission\n\nWhen a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Pull Request Number**: ${{ github.event.pull_request.number }}\n- **Pull Request Content**: \"${{ needs.activation.outputs.text }}\"\n\n## Task\n\nYour task is to:\n\n1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.\n\n2. **Determine the Package Name**: \n   - Check if this is a monorepo with multiple packages in `package.json` files\n   - If it's a single package repo, use the package name from the root `package.json`\n   - If no package.json exists, use the repository name as the package identifier\n\n3. **Determine the Change Type**:\n   - **major**: Breaking changes (indicated by \"BREAKING CHANGE\" in PR or major API changes)\n   - **minor**: New features, enhancements (look for \"feat:\", \"feature:\", \"add:\", etc.)\n   - **patch**: Bug fixes, documentation, refactoring (look for \"fix:\", \"bug:\", \"docs:\", etc.)\n\n4. **Generate the Changeset File**:\n   - Create a file in the `.changeset/` directory with a descriptive kebab-case name\n   - Use the format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)\n   - Follow the changeset format specification:\n\n```markdown\n---\n\"package-name\": <major|minor|patch>\n---\n\nBrief summary of the change (from PR title or first line of description)\n\nOptional: More detailed explanation based on PR body\n```\n\n5. **Commit and Push Changes**:\n   - Add and commit the changeset file to the current pull request branch\n   - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes\n   - The changeset will be added directly to this pull request\n\n## Changeset Format Reference\n\nBased on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md\n\n### Basic Format\n\n```markdown\n---\n\"package-name\": patch\n---\n\nFixed a bug in the component rendering logic\n```\n\n### Multiple Packages\n\n```markdown\n---\n\"@myorg/button\": minor\n\"@myorg/theme\": patch\n---\n\nAdd new variant prop to Button component\n\nThis adds a new `variant` prop to the Button component allowing for different visual styles.\nThe theme package has been updated with new color tokens to support these variants.\n```\n\n### Version Bump Types\n- **patch**: Bug fixes, documentation updates, refactoring (0.0.X)\n- **minor**: New features, non-breaking additions (0.X.0)  \n- **major**: Breaking changes (X.0.0)\n\n## Guidelines\n\n- **Be Accurate**: Analyze the PR content carefully to determine the correct change type\n- **Be Clear**: The changeset description should clearly explain what changed\n- **Be Concise**: Keep descriptions brief but informative\n- **Follow Conventions**: Use the exact changeset format specified above\n- **Single Package Default**: If unsure about package structure, default to a single package using the repo name\n- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)\n\n## Important Notes\n\n- The changeset file must be created in the `.changeset/` directory\n- If `.changeset/` doesn't exist, create it first\n- The changeset filename should be unique and descriptive\n- Use quotes around package names in the YAML frontmatter\n- The changeset description should be based on the PR title and body\n\n## Example Workflow\n\n1. Read the PR title: \"Add support for custom themes\"\n2. Determine this is a new feature → `minor` bump\n3. Check for package.json to get package name\n4. Create `.changeset/minor-add-custom-theme-support.md`:\n```markdown\n---\n\"gh-aw\": minor\n---\n\nAdd support for custom themes\n\nThis PR adds the ability to configure custom themes for the CLI output.\n```\n5. Add and commit the file to the current PR branch, then push using the safe-outputs tool\n\nStart by checking the repository structure and analyzing the current PR to generate an appropriate changeset.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2784,56 +2992,120 @@ jobs:
           path: /tmp/threat-detection/detection.log
           if-no-files-found: ignore
 
-  create_issue:
+  push_to_pull_request_branch:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
+    if: >
+      ((always()) && (contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch'))) &&
+      (((github.event.issue.number) &&
+      (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      issues: write
+      contents: write
+      pull-requests: read
+      issues: read
     timeout-minutes: 10
     outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
     steps:
-      - name: Create Output Issue
-        id: create_issue
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: aw.patch
+          path: /tmp/
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Push to Branch
+        id: push_to_pull_request_branch
         uses: actions/github-script@v8
         env:
+          GH_TOKEN: ${{ github.token }}
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Go Pattern Detector"
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[ast-grep] "
-          GITHUB_AW_ISSUE_LABELS: "code-quality,ast-grep"
+          GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
+          GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
+            const fs = require("fs");
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
                 return;
               }
+              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
+              const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
+              if (!fs.existsSync("/tmp/aw.patch")) {
+                const message = "No patch file found - cannot push without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(message);
+                    return;
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+              if (patchContent.includes("Failed to generate patch")) {
+                const message = "Patch file contains error message - cannot push without changes";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed(message);
+                    return;
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    return;
+                }
+              }
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  core.setFailed(message);
+                  return;
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
+                    return;
+                  case "ignore":
+                    break;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    break;
+                }
+              }
               core.info(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              }
+              core.info(`Target configuration: ${target}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
@@ -2845,130 +3117,173 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
+              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
+              if (!pushItem) {
+                core.info("No push-to-pull-request-branch item found in agent output");
                 return;
               }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
+              core.info("Found push-to-pull-request-branch item");
+              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
+                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
+                summaryContent += `**Target:** ${target}\n\n`;
+                if (pushItem.commit_message) {
+                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
+                }
+                if (fs.existsSync("/tmp/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+                  if (patchStats.trim()) {
+                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                  } else {
+                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
                   }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
+                core.info("📝 Push to PR branch preview written to step summary");
                 return;
               }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
-                );
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels];
+              if (target !== "*" && target !== "triggering") {
+                const pullNumber = parseInt(target, 10);
+                if (isNaN(pullNumber)) {
+                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
+                  return;
                 }
-                labels = labels
-                  .filter(label => label != null && label !== false && label !== 0)
-                  .map(label => String(label).trim())
-                  .filter(label => label)
-                  .map(label => sanitizeLabelContent(label))
-                  .filter(label => label)
-                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                  .filter((label, index, arr) => arr.indexOf(label) === index);
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
-                if (!title) {
-                  title = createIssueItem.body || "Agent Output";
+              }
+              let pullNumber;
+              if (target === "triggering") {
+                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
+                if (!pullNumber) {
+                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
+                  return;
                 }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
+              } else if (target === "*") {
+                if (pushItem.pull_number) {
+                  pullNumber = parseInt(pushItem.pull_number, 10);
                 }
-                if (parentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
-                  bodyLines.push(`Related to #${parentIssueNumber}`);
+              } else {
+                pullNumber = parseInt(target, 10);
+              }
+              let branchName;
+              let prTitle = "";
+              let prLabels = [];
+              try {
+                const prInfoRes = await exec.getExecOutput(`gh`, [
+                  `pr`,
+                  `view`,
+                  `${pullNumber}`,
+                  `--json`,
+                  `headRefName,title,labels`,
+                  `--jq`,
+                  `{headRefName, title, labels: (.labels // [] | map(.name))}`,
+                ]);
+                if (prInfoRes.exitCode === 0) {
+                  const prData = JSON.parse(prInfoRes.stdout.trim());
+                  branchName = prData.headRefName;
+                  prTitle = prData.title || "";
+                  prLabels = prData.labels || [];
+                } else {
+                  throw new Error("No PR data found");
                 }
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const runId = context.runId;
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/actions/runs/${runId}`;
-                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
+              } catch (error) {
+                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
+                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+                return;
+              }
+              core.info(`Target branch: ${branchName}`);
+              core.info(`PR title: ${prTitle}`);
+              core.info(`PR labels: ${prLabels.join(", ")}`);
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
+                core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
+                return;
+              }
+              const requiredLabelsStr = process.env.GITHUB_AW_PR_LABELS;
+              if (requiredLabelsStr) {
+                const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
+                const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
+                if (missingLabels.length > 0) {
+                  core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
+                  return;
+                }
+              }
+              if (titlePrefix) {
+                core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+              }
+              if (requiredLabelsStr) {
+                core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
+              }
+              const hasChanges = !isEmpty;
+              core.info(`Switching to branch: ${branchName}`);
+              try {
+                await exec.exec("git fetch origin");
                 try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  if (parentIssueNumber) {
-                    try {
-                      await github.rest.issues.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issue_number: parentIssueNumber,
-                        body: `Created related issue: #${issue.number}`,
-                      });
-                      core.info("Added comment to parent issue #" + parentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
-                    }
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
+                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
+                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
+                  core.info(`Checked out existing branch from origin: ${branchName}`);
+                } catch (originError) {
+                  core.setFailed(
+                    `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
+                  );
+                  return;
+                }
+              } catch (error) {
+                core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                try {
+                  await exec.exec("git am /tmp/aw.patch");
+                  core.info("Patch applied successfully");
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info(`Changes committed and pushed to branch: ${branchName}`);
                 } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                    continue;
-                  }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
-                  throw error;
+                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+                  core.setFailed("Failed to apply patch");
+                  return;
+                }
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                const message = "No changes to apply - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
+                    return;
+                  case "ignore":
+                    break;
+                  case "warn":
+                  default:
+                    core.info(message);
+                    break;
                 }
               }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+              const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+              if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
+              const commitSha = commitShaRes.stdout.trim();
+              const pushUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/tree/${branchName}`
+                : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+              core.setOutput("branch_name", branchName);
+              core.setOutput("commit_sha", commitSha);
+              core.setOutput("push_url", pushUrl);
+              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
+              const summaryContent = hasChanges
+                ? `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+            - **URL**: [${pushUrl}](${pushUrl})
+            `
+                : `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Status**: No changes to apply (noop operation)
+            - **URL**: [${pushUrl}](${pushUrl})
+            `;
+              await core.summary.addRaw(summaryContent).write();
             }
-            (async () => {
-              await main();
-            })();
+            await main();
 
   missing_tool:
     needs:

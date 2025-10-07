@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -183,13 +184,16 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		case "env":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)
-				first := true
-				for envKey, envValue := range mcpConfig.Env {
-					if !first {
+				envKeys := make([]string, 0, len(mcpConfig.Env))
+				for key := range mcpConfig.Env {
+					envKeys = append(envKeys, key)
+				}
+				sort.Strings(envKeys)
+				for i, envKey := range envKeys {
+					if i > 0 {
 						yaml.WriteString(", ")
 					}
-					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, envValue)
-					first = false
+					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, mcpConfig.Env[envKey])
 				}
 				yaml.WriteString(" }\n")
 			} else {
@@ -202,6 +206,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				for key := range mcpConfig.Env {
 					envKeys = append(envKeys, key)
 				}
+				sort.Strings(envKeys)
 				for envIndex, envKey := range envKeys {
 					envComma := ","
 					if envIndex == len(envKeys)-1 {
@@ -227,6 +232,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			for key := range mcpConfig.Headers {
 				headerKeys = append(headerKeys, key)
 			}
+			sort.Strings(headerKeys)
 			for headerIndex, headerKey := range headerKeys {
 				headerComma := ","
 				if headerIndex == len(headerKeys)-1 {
