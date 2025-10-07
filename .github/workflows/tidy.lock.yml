@@ -30,8 +30,8 @@ run-name: "Tidy"
 jobs:
   check-membership:
     if: >
-      ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/tidy')) && (github.event.issue.pull_request != null))) ||
-      (!(github.event_name == 'issue_comment'))
+      ((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/tidy')) &&
+      (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -124,7 +124,8 @@ jobs:
     needs: check-membership
     if: >
       (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/tidy')) && (github.event.issue.pull_request != null))) || (!(github.event_name == 'issue_comment')))
+      ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/tidy')) && (github.event.issue.pull_request != null)))) ||
+      (!(github.event_name == 'issue_comment')))
     runs-on: ubuntu-latest
     steps:
       - run: echo "Activation success"
