@@ -66,6 +66,10 @@ type CodingAgentEngine interface {
 	// GetVersionCommand returns the command to get the version of the agent (e.g., "copilot --version")
 	// Returns empty string if the engine does not support version reporting
 	GetVersionCommand() string
+
+	// HasDefaultConcurrency returns true if this engine should have default concurrency mode enabled
+	// Default concurrency mode applies gh-aw-{engine-id} pattern when no custom concurrency is configured
+	HasDefaultConcurrency() bool
 }
 
 // ErrorPattern represents a regex pattern for extracting error information from logs
@@ -93,6 +97,7 @@ type BaseEngine struct {
 	supportsMaxTurns       bool
 	supportsWebFetch       bool
 	supportsWebSearch      bool
+	hasDefaultConcurrency  bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -144,6 +149,11 @@ func (e *BaseEngine) GetErrorPatterns() []ErrorPattern {
 // GetVersionCommand returns empty string by default (engines can override)
 func (e *BaseEngine) GetVersionCommand() string {
 	return ""
+}
+
+// HasDefaultConcurrency returns the configured value for default concurrency mode
+func (e *BaseEngine) HasDefaultConcurrency() bool {
+	return e.hasDefaultConcurrency
 }
 
 // EngineRegistry manages available agentic engines

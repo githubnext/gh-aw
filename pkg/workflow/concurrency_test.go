@@ -307,7 +307,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 	}
 }
 
-// TestGenerateJobConcurrencyConfig tests the job-level concurrency configuration for max-concurrency
+// TestGenerateJobConcurrencyConfig tests the job-level concurrency configuration for agent jobs
 func TestGenerateJobConcurrencyConfig(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -316,48 +316,57 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 		description  string
 	}{
 		{
-			name: "Default max-concurrency (3) with copilot engine",
+			name: "Default concurrency with copilot engine",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "copilot"},
 			},
 			expected: `concurrency:
-  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
-			description: "Should use default max-concurrency of 3 with copilot engine ID",
+  group: "gh-aw-copilot"`,
+			description: "Copilot should use default pattern gh-aw-{engine-id} (has default concurrency enabled)",
 		},
 		{
-			name: "Custom max-concurrency value should be used",
+			name: "No default concurrency with claude engine",
 			workflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "claude", MaxConcurrency: 5},
+				EngineConfig: &EngineConfig{ID: "claude"},
+			},
+			expected:    "",
+			description: "Claude should NOT have default concurrency (returns empty string)",
+		},
+		{
+			name: "Custom concurrency string (simple group)",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+					Concurrency: `concurrency:
+  group: "custom-group-${{ github.ref }}"`,
+				},
 			},
 			expected: `concurrency:
-  group: "gh-aw-claude-${{ github.run_id % 5 }}"`,
-			description: "Custom max-concurrency should use specified value instead of default",
+  group: "custom-group-${{ github.ref }}"`,
+			description: "Should use custom concurrency when specified",
 		},
 		{
-			name: "Zero max-concurrency should use default (3)",
+			name: "Custom concurrency with cancel-in-progress",
 			workflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "copilot", MaxConcurrency: 0}, // 0 means use default
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Concurrency: `concurrency:
+  group: "custom-group"
+  cancel-in-progress: true`,
+				},
 			},
 			expected: `concurrency:
-  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
-			description: "Zero max-concurrency should default to 3",
+  group: "custom-group"
+  cancel-in-progress: true`,
+			description: "Should preserve cancel-in-progress when specified",
 		},
 		{
-			name: "Different engine ID should be included in concurrency group",
+			name: "No default concurrency with codex engine",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "codex"},
 			},
-			expected: `concurrency:
-  group: "gh-aw-codex-${{ github.run_id % 3 }}"`,
-			description: "Different engine IDs should be included in concurrency group for isolation",
-		},
-		{
-			name: "Max-concurrency -1 should disable agent concurrency",
-			workflowData: &WorkflowData{
-				EngineConfig: &EngineConfig{ID: "claude", MaxConcurrency: -1},
-			},
 			expected:    "",
-			description: "Max-concurrency -1 should return empty string (no agent concurrency)",
+			description: "Codex should NOT have default concurrency (returns empty string)",
 		},
 	}
 
