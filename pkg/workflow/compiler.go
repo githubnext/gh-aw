@@ -146,6 +146,7 @@ type WorkflowData struct {
 	Roles              []string            // permission levels required to trigger workflow
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 	SafetyPrompt       bool                // whether to include XPIA safety prompt (default true)
+	MaxConcurrency     int                 // maximum number of agentic jobs that can run concurrently across all workflows (default: 3)
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -715,6 +716,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Services = c.extractTopLevelYAMLSection(result.Frontmatter, "services")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
 	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
+	workflowData.MaxConcurrency = c.extractMaxConcurrency(result.Frontmatter)
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
@@ -861,6 +863,29 @@ func (c *Compiler) extractSource(frontmatter map[string]any) string {
 	}
 
 	return ""
+}
+
+// extractMaxConcurrency extracts the max-concurrency field from frontmatter
+// Returns the value if specified, otherwise returns 0 (which will use default of 3)
+func (c *Compiler) extractMaxConcurrency(frontmatter map[string]any) int {
+	value, exists := frontmatter["max-concurrency"]
+	if !exists {
+		return 0 // 0 means use default value
+	}
+
+	// Handle different numeric types that YAML parsers might return
+	switch v := value.(type) {
+	case int:
+		return v
+	case float64:
+		return int(v)
+	case uint64:
+		return int(v)
+	case int64:
+		return int(v)
+	}
+
+	return 0 // Invalid type, use default
 }
 
 // extractSafetyPromptSetting extracts the safety-prompt setting from tools

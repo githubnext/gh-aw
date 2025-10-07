@@ -15,7 +15,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id % 3 }}"
 
 run-name: "Duplicate Code Detector"
 
@@ -819,11 +819,11 @@ jobs:
                   "--rm",
                   "-i",
                   "-e",
+                  "SERENA_DOCKER",
+                  "-e",
                   "SERENA_PORT",
                   "-e",
                   "SERENA_DASHBOARD_PORT",
-                  "-e",
-                  "SERENA_DOCKER",
                   "-v",
                   "${{ github.workspace }}:/workspace:ro",
                   "-w",

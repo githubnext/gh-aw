@@ -51,6 +51,7 @@ The YAML frontmatter supports these fields:
 - **`runs-on:`** - Runner type (string, array, or object)
 - **`timeout_minutes:`** - Workflow timeout (integer, has sensible default and can typically be omitted)
 - **`concurrency:`** - Concurrency control (string or object)
+- **`max-concurrency:`** - Maximum number of agentic jobs that can run concurrently across all workflows (integer, defaults to 3)
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
 - **`run-name:`** - Custom workflow run name (string)

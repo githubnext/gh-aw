@@ -793,6 +793,11 @@
         }
       ]
     },
+    "max-concurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of agentic jobs that can run concurrently across all workflows. Defaults to 3. This uses GitHub Actions concurrency controls to limit parallel execution."
+    },
     "env": {
       "description": "Environment variables for the workflow",
       "oneOf": [

@@ -522,12 +522,12 @@ Different workflow types receive different concurrency groups and cancellation b
 
 | Trigger Type | Concurrency Group | Cancellation | Description |
 |--------------|-------------------|--------------|-------------|
-| `issues` | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}` | ❌ | Issue workflows include issue number for isolation |
-| `pull_request` | `gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number \|\| github.ref }}` | ✅ | PR workflows include PR number with cancellation |
-| `discussion` | `gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}` | ❌ | Discussion workflows include discussion number |
-| Mixed issue/PR | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ✅ | Mixed workflows handle both contexts with cancellation |
-| Alias workflows | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ❌ | Alias workflows handle both contexts without cancellation |
-| Other triggers | `gh-aw-${{ github.workflow }}` | ❌ | Default behavior for schedule, push, etc. |
+| `issues` | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-${{ github.run_id % 3 }}` | ❌ | Issue workflows include issue number for isolation |
+| `pull_request` | `gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number \|\| github.ref }}-${{ github.run_id % 3 }}` | ✅ | PR workflows include PR number with cancellation |
+| `discussion` | `gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}-${{ github.run_id % 3 }}` | ❌ | Discussion workflows include discussion number |
+| Mixed issue/PR | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}-${{ github.run_id % 3 }}` | ✅ | Mixed workflows handle both contexts with cancellation |
+| Alias workflows | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}-${{ github.run_id % 3 }}` | ❌ | Alias workflows handle both contexts without cancellation |
+| Other triggers | `gh-aw-${{ github.workflow }}-${{ github.run_id % 3 }}` | ❌ | Default behavior for schedule, push, etc. |
 
 **Benefits:**
 - **Better Isolation**: Workflows operating on different issues/PRs can run concurrently
@@ -536,6 +536,47 @@ Different workflow types receive different concurrency groups and cancellation b
 - **Predictable Behavior**: Consistent concurrency rules based on trigger type
 
 If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
+
+### Global Concurrency Limiting (`max-concurrency:`)
+
+The `max-concurrency` option limits how many agentic jobs can run concurrently across **all workflows** in your repository:
+
+```yaml
+max-concurrency: 5
+```
+
+**Default Value:** 3 (if not specified)
+
+**How it works:**
+- Uses GitHub Actions concurrency groups with slot distribution
+- Workflows are distributed across available slots using `github.run_id % max-concurrency`
+- Each slot can only run one workflow at a time
+- Prevents resource exhaustion from too many concurrent AI executions
+
+**Example configurations:**
+
+```yaml
+# Allow up to 5 concurrent agentic workflows
+max-concurrency: 5
+```
+
+```yaml
+# Restrict to 1 workflow at a time (sequential execution)
+max-concurrency: 1
+```
+
+```yaml
+# Use default of 3 concurrent workflows
+# (max-concurrency not specified)
+```
+
+**Generated concurrency group pattern:**
+```yaml
+concurrency:
+  group: "gh-aw-${{ github.workflow }}-...-${{ github.run_id % 3 }}"
+```
+
+The slot number (`github.run_id % 3`) ensures workflows are distributed across the allowed concurrent slots.
 
 ## Environment Variables (`env:`)
 
