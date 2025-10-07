@@ -23,26 +23,27 @@ import (
 
 // WorkflowRun represents a GitHub Actions workflow run with metrics
 type WorkflowRun struct {
-	DatabaseID    int64     `json:"databaseId"`
-	Number        int       `json:"number"`
-	URL           string    `json:"url"`
-	Status        string    `json:"status"`
-	Conclusion    string    `json:"conclusion"`
-	WorkflowName  string    `json:"workflowName"`
-	CreatedAt     time.Time `json:"createdAt"`
-	StartedAt     time.Time `json:"startedAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
-	Event         string    `json:"event"`
-	HeadBranch    string    `json:"headBranch"`
-	HeadSha       string    `json:"headSha"`
-	DisplayTitle  string    `json:"displayTitle"`
-	Duration      time.Duration
-	TokenUsage    int
-	EstimatedCost float64
-	Turns         int
-	ErrorCount    int
-	WarningCount  int
-	LogsPath      string
+	DatabaseID       int64     `json:"databaseId"`
+	Number           int       `json:"number"`
+	URL              string    `json:"url"`
+	Status           string    `json:"status"`
+	Conclusion       string    `json:"conclusion"`
+	WorkflowName     string    `json:"workflowName"`
+	CreatedAt        time.Time `json:"createdAt"`
+	StartedAt        time.Time `json:"startedAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	Event            string    `json:"event"`
+	HeadBranch       string    `json:"headBranch"`
+	HeadSha          string    `json:"headSha"`
+	DisplayTitle     string    `json:"displayTitle"`
+	Duration         time.Duration
+	TokenUsage       int
+	EstimatedCost    float64
+	Turns            int
+	ErrorCount       int
+	WarningCount     int
+	MissingToolCount int
+	LogsPath         string
 }
 
 // LogMetrics represents extracted metrics from log files
@@ -526,7 +527,9 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	// Display overview table
 	workflowRuns := make([]WorkflowRun, len(processedRuns))
 	for i, pr := range processedRuns {
-		workflowRuns[i] = pr.Run
+		run := pr.Run
+		run.MissingToolCount = len(pr.MissingTools)
+		workflowRuns[i] = run
 	}
 	displayLogsOverview(workflowRuns)
 
@@ -1037,7 +1040,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 	}
 
 	// Prepare table data
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Created", "Logs Path"}
+	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Created", "Logs Path"}
 	var rows [][]string
 
 	var totalTokens int
@@ -1046,6 +1049,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 	var totalTurns int
 	var totalErrors int
 	var totalWarnings int
+	var totalMissingTools int
 
 	for _, run := range runs {
 		// Format duration
@@ -1084,6 +1088,10 @@ func displayLogsOverview(runs []WorkflowRun) {
 		warningsStr := fmt.Sprintf("%d", run.WarningCount)
 		totalWarnings += run.WarningCount
 
+		// Format missing tools
+		missingToolsStr := fmt.Sprintf("%d", run.MissingToolCount)
+		totalMissingTools += run.MissingToolCount
+
 		// Truncate workflow name if too long
 		workflowName := run.WorkflowName
 		if len(workflowName) > 20 {
@@ -1109,6 +1117,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 			turnsStr,
 			errorsStr,
 			warningsStr,
+			missingToolsStr,
 			run.CreatedAt.Format("2006-01-02"),
 			relPath,
 		}
@@ -1126,6 +1135,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 		fmt.Sprintf("%d", totalTurns),
 		fmt.Sprintf("%d", totalErrors),
 		fmt.Sprintf("%d", totalWarnings),
+		fmt.Sprintf("%d", totalMissingTools),
 		"",
 		"",
 	}
