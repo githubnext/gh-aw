@@ -1,7 +1,7 @@
 ---
 on:
   schedule:
-    - cron: "0 9 * * *"  # Daily at 9 AM UTC
+    - cron: "0 10 * * *"  # Daily at 9 AM UTC
   workflow_dispatch:
 permissions:
   contents: read
