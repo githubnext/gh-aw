@@ -61,6 +61,7 @@ type MCPServerConfig struct {
 	Command   string            `json:"command"`    // for stdio
 	Args      []string          `json:"args"`       // for stdio
 	Container string            `json:"container"`  // for docker
+	Version   string            `json:"version"`    // optional version/tag for container
 	URL       string            `json:"url"`        // for http
 	Headers   map[string]string `json:"headers"`    // for http
 	Env       map[string]string `json:"env"`        // environment variables

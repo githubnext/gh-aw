@@ -348,6 +348,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"type":       true,
 		"command":    true,
 		"container":  true,
+		"version":    true,
 		"args":       true,
 		"env":        true,
 		"proxy-args": true,
@@ -399,6 +400,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if container, hasContainer := config.GetString("container"); hasContainer {
 			result.Container = container
 		}
+		if version, hasVersion := config.GetString("version"); hasVersion {
+			result.Version = version
+		}
 		if args, hasArgs := config.GetStringArray("args"); hasArgs {
 			result.Args = args
 		}
@@ -428,6 +432,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	// Handle container transformation for stdio type
 	if result.Type == "stdio" && result.Container != "" {
+		// Save user-provided args before transforming
+		userProvidedArgs := result.Args
+
 		// Transform container field to docker command and args
 		result.Command = "docker"
 		result.Args = []string{"run", "--rm", "-i"}
@@ -437,11 +444,23 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Args = append(result.Args, "-e", envKey)
 		}
 
-		// Add the container image as the last argument
-		result.Args = append(result.Args, result.Container)
+		// Insert user-provided args (e.g., volume mounts) before the container image
+		if len(userProvidedArgs) > 0 {
+			result.Args = append(result.Args, userProvidedArgs...)
+		}
 
-		// Clear the container field since it's now part of the command
+		// Build container image with version if provided
+		containerImage := result.Container
+		if result.Version != "" {
+			containerImage = containerImage + ":" + result.Version
+		}
+
+		// Add the container image as the last argument
+		result.Args = append(result.Args, containerImage)
+
+		// Clear the container and version fields since they're now part of the command
 		result.Container = ""
+		result.Version = ""
 	}
 
 	return result, nil
