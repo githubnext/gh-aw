@@ -3,6 +3,7 @@ engine:
   id: custom
   env:
     GITHUB_AW_AGENT_VERSION: "1.140.0"
+    GITHUB_AW_AGENT_MODEL_VERSION: "gpt-4o-mini"
   steps:
     - name: Install GenAIScript
       run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
@@ -16,12 +17,13 @@ engine:
           exit 1
         fi
         echo '---' > /tmp/aw-prompts/prompt.genai.md
-        echo 'model: gpt-4o-mini' >> /tmp/aw-prompts/prompt.genai.md
+        echo "model: ${GITHUB_AW_AGENT_MODEL_VERSION}" >> /tmp/aw-prompts/prompt.genai.md
         echo '---' >> /tmp/aw-prompts/prompt.genai.md
         cat "$GITHUB_AW_PROMPT" >> /tmp/aw-prompts/prompt.genai.md
         echo "Generated GenAI prompt file"
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
+        GITHUB_AW_AGENT_MODEL_VERSION: ${{ env.GITHUB_AW_AGENT_MODEL_VERSION }}
     
     - name: Run GenAIScript
       id: genaiscript
@@ -64,6 +66,7 @@ imports:
 
 **Note**: 
 - This workflow requires internet access to install npm packages
-- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable
+- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `1.140.0`)
+- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)
 - MCP server configuration is automatically passed if configured in the workflow
 -->
