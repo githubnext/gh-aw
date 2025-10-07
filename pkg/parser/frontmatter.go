@@ -91,6 +91,7 @@ type ImportsResult struct {
 	MergedMCPServers string   // Merged mcp-servers configuration from all imports
 	MergedEngines    []string // Merged engine configurations from all imports
 	MergedMarkdown   string   // Merged markdown content from all imports
+	MergedSteps      string   // Merged steps configuration from all imports
 	ImportedFiles    []string // List of imported file paths (for manifest)
 }
 
@@ -390,6 +391,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var toolsBuilder strings.Builder
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
+	var stepsBuilder strings.Builder
 	var engines []string
 	var processedFiles []string
 
@@ -459,6 +461,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
 			mcpServersBuilder.WriteString(mcpServersContent + "\n")
 		}
+
+		// Extract steps from imported file
+		stepsContent, err := extractStepsFromContent(string(content))
+		if err == nil && stepsContent != "" {
+			stepsBuilder.WriteString(stepsContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
@@ -466,6 +474,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedMCPServers: mcpServersBuilder.String(),
 		MergedEngines:    engines,
 		MergedMarkdown:   markdownBuilder.String(),
+		MergedSteps:      stepsBuilder.String(),
 		ImportedFiles:    processedFiles,
 	}, nil
 }
@@ -839,6 +848,28 @@ func extractMCPServersFromContent(content string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(mcpServersJSON)), nil
+}
+
+// extractStepsFromContent extracts steps section from frontmatter as YAML string
+func extractStepsFromContent(content string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", nil // Return empty string on error
+	}
+
+	// Extract steps section
+	steps, exists := result.Frontmatter["steps"]
+	if !exists {
+		return "", nil
+	}
+
+	// Convert to YAML string (similar to how CustomSteps are handled in compiler)
+	stepsYAML, err := yaml.Marshal(steps)
+	if err != nil {
+		return "", nil
+	}
+
+	return strings.TrimSpace(string(stepsYAML)), nil
 }
 
 // extractEngineFromContent extracts engine section from frontmatter as JSON string
