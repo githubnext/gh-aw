@@ -577,29 +577,30 @@ timeout_minutes: 30                  # Defaults to 15 minutes
 
 ## Concurrency Control (`concurrency:`)
 
-GitHub Agentic Workflows automatically generates concurrency policies to limit concurrent execution across all workflows using the same engine:
+GitHub Agentic Workflows automatically generates concurrency policies to limit concurrent execution across all workflows using the same engine.
 
+See [Concurrency Control](/gh-aw/reference/concurrency/) for complete documentation on max-concurrency configuration, global locks, and engine isolation.
+
+**Quick reference:**
+- Configure via `engine.max-concurrency` (default: 3)
+- Creates global lock across all workflows and refs for each engine
+- Applied at both workflow and job levels
+- Different engines can run concurrently without interfering
+
+**Example:**
 ```yaml
-concurrency:
-  group: "{engine-id}-${{ github.run_id % 3 }}"
+engine:
+  id: claude
+  max-concurrency: 5
 ```
 
-All workflow types use the same global concurrency pattern with only engine ID and slot distribution:
+Generates:
+```yaml
+concurrency:
+  group: "gh-aw-claude-${{ github.run_id % 5 }}"
+```
 
-| Trigger Type | Concurrency Group | Cancellation | Description |
-|--------------|-------------------|--------------|-------------|
-| `pull_request` | `{engine}-${{ github.run_id % 3 }}` | ✅ | PR workflows have cancel-in-progress enabled |
-| All other triggers | `{engine}-${{ github.run_id % 3 }}` | ❌ | Global concurrency lock across workflows and refs |
-
-Where `{engine}` is the engine ID (e.g., `copilot`, `claude`, `codex`) and `${{ github.run_id % 3 }}` is the concurrency slot (configurable via `max-concurrency` in engine config).
-
-**Benefits:**
-- **Global Limiting**: Max-concurrency applies across all workflows and refs for an engine
-- **Engine Isolation**: Different engines can run concurrently without interfering
-- **Concurrency Control**: Prevents resource exhaustion from too many concurrent AI executions
-- **Simple and Predictable**: Consistent behavior across all workflow types
-
-If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
+You can override automatic concurrency by specifying a custom `concurrency` section in the frontmatter.
 
 ## Environment Variables (`env:`)
 
