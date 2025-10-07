@@ -2807,6 +2807,8 @@ jobs:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-claude"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact
