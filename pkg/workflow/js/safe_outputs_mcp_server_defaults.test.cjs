@@ -972,3 +972,208 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
     });
   });
 });
+
+// Test that create_pull_request and push_to_pull_request_branch tools have optional branch parameter
+describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
+  it("should have optional branch parameter for create_pull_request", async () => {
+    const config = {
+      "create-pull-request": {},
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+        },
+      });
+
+      let receivedMessages = [];
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/list request after initialization
+      setTimeout(() => {
+        const listToolsMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/list",
+            params: {},
+          }) + "\n";
+        child.stdin.write(listToolsMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/list response
+        const listResponse = receivedMessages.find(m => m.id === 2);
+        expect(listResponse).toBeDefined();
+        expect(listResponse.result).toBeDefined();
+        expect(listResponse.result.tools).toBeDefined();
+
+        // Find the create_pull_request tool
+        const createPrTool = listResponse.result.tools.find(t => t.name === "create_pull_request");
+        expect(createPrTool).toBeDefined();
+
+        // Check that branch is NOT in required fields
+        expect(createPrTool.inputSchema.required).toEqual(["title", "body"]);
+        expect(createPrTool.inputSchema.required).not.toContain("branch");
+
+        // Check that branch property exists and has the correct description
+        expect(createPrTool.inputSchema.properties.branch).toBeDefined();
+        expect(createPrTool.inputSchema.properties.branch.description).toContain("Optional");
+        expect(createPrTool.inputSchema.properties.branch.description).toContain("current branch");
+
+        resolve();
+      }, 500);
+    });
+  });
+
+  it("should have optional branch parameter for push_to_pull_request_branch", async () => {
+    const config = {
+      "push-to-pull-request-branch": {},
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+        },
+      });
+
+      let receivedMessages = [];
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/list request after initialization
+      setTimeout(() => {
+        const listToolsMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/list",
+            params: {},
+          }) + "\n";
+        child.stdin.write(listToolsMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/list response
+        const listResponse = receivedMessages.find(m => m.id === 2);
+        expect(listResponse).toBeDefined();
+        expect(listResponse.result).toBeDefined();
+        expect(listResponse.result.tools).toBeDefined();
+
+        // Find the push_to_pull_request_branch tool
+        const pushTool = listResponse.result.tools.find(t => t.name === "push_to_pull_request_branch");
+        expect(pushTool).toBeDefined();
+
+        // Check that branch is NOT in required fields (only message is required)
+        expect(pushTool.inputSchema.required).toEqual(["message"]);
+        expect(pushTool.inputSchema.required).not.toContain("branch");
+
+        // Check that branch property exists and has the correct description
+        expect(pushTool.inputSchema.properties.branch).toBeDefined();
+        expect(pushTool.inputSchema.properties.branch.description).toContain("Optional");
+        expect(pushTool.inputSchema.properties.branch.description).toContain("current branch");
+
+        resolve();
+      }, 500);
+    });
+  });
+});

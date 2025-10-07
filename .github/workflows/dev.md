@@ -16,6 +16,8 @@ engine: claude
 safe-outputs:
     staged: true
     create-issue:
+timeout_minutes: 10
+strict: true
 ---
 
 # Poem Generator

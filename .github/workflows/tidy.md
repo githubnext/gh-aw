@@ -52,6 +52,7 @@ steps:
       cache: true
   - name: Dev dependencies
     run: make deps-dev
+strict: true
 ---
 
 # Code Tidying Agent

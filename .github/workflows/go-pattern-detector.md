@@ -22,6 +22,7 @@ safe-outputs:
     title-prefix: "[ast-grep] "
     labels: [code-quality, ast-grep]
     max: 1
+strict: true
 ---
 
 # Go Code Pattern Detector

@@ -3,21 +3,18 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Technical Documentation Writer for GitHub Actions"
+name: "Agentic Workflow Audit Agent"
 on:
-  workflow_dispatch:
-    inputs:
-      topic:
-        description: Documentation topic to review
-        required: true
-        type: string
+  schedule:
+  - cron: 0 0 * * *
+  workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Technical Documentation Writer for GitHub Actions"
+run-name: "Agentic Workflow Audit Agent"
 
 jobs:
   check-membership:
@@ -119,30 +116,18 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+      actions: read
+      contents: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{},\"upload-asset\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          cache: npm
-          cache-dependency-path: docs/package-lock.json
-          node-version: "24"
-      - name: Install dependencies
-        run: npm ci
-        working-directory: ./docs
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Build documentation
-        run: npm run build
-        working-directory: ./docs
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |
@@ -247,7 +232,7 @@ jobs:
           import re
           
           # Domain allow-list (populated during generation)
-          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","*.githubusercontent.com","raw.githubusercontent.com","objects.githubusercontent.com","lfs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","codeload.github.com"]
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -323,7 +308,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"add-comment":{"max":1},"create-pull-request":{},"missing-tool":{},"upload-asset":{}}
+          {"create-issue":{"max":1},"create-pull-request":{},"missing-tool":{}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -997,10 +982,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{},\"upload-asset\":{}}"
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -1041,161 +1023,267 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Technical Documentation Writer for GitHub Actions
+          # Agentic Workflow Audit Agent
           
-          You are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  
-          Your docs use **Astro Starlight** and follow the **GitHub Docs voice**.  
-          You apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).
+          You are the Agentic Workflow Audit Agent - an expert system that monitors, analyzes, and improves agentic workflows running in this repository.
           
-          ## Core Principles
+          ## Mission
           
-          ### Framework
-          - Output uses **Astro Starlight** features:
-            - Markdown/MDX with headings, sidebars, and TOC.
-            - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).
-            - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.
-            - Frontmatter metadata (`title`, `description`) for each page.
+          Daily audit all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and opportunities for improvement.
           
-          ### Style & Tone (GitHub Docs)
-          - Clear, concise, approachable English.
-          - Active voice; address reader as "you".
-          - Friendly, empathetic, trustworthy tone.
-          - Prioritize clarity over rigid grammar rules.
-          - Consistent terminology across all docs.
-          - Inclusive, globally understandable (avoid slang/idioms).
+          ## Current Context
           
-          ### Structure (Diátaxis-inspired)
-          - **Getting Started** → prerequisites, install, first example.
-          - **How-to Guides** → task-based, step-by-step workflows.
-          - **Reference** → full breakdown of inputs, outputs, options.
-          - **Concepts/FAQs** → background explanations.
+          - **Repository**: ${{ github.repository }}
+          - **Triggered by**: ${{ github.actor }}
+          - **Run Time**: ${{ github.run_id }}
           
-          ### Developer Experience (DX)
-          - Runnable, copy-paste–ready code blocks.
-          - Prerequisites clearly listed.
-          - Minimal setup friction.
-          - Early "Hello World" example.
-          - Optimized headings for search.
+          ## Audit Process
           
-          ## Navigation & Linking
-          - Sidebar auto-generated by folder structure.
-          - Per-page TOC built from headings.
-          - Descriptive internal links (`See [Getting Started](/docs/getting-started)`).
-          - Relative links within docs; clear labels for external references.
+          ### Phase 1: Build and Prepare
           
-          ## Code Guidelines
-          - Use fenced code blocks with language tags:
-            ```yaml
-            name: CI
-            on: [push]
-            jobs:
-              build:
-                runs-on: ubuntu-latest
-                steps:
-                  - uses: actions/checkout@v4
-                  - uses: my-org/my-action@v1
-            ```
-          - Do **not** include `$` prompts.
-          - Use ALL_CAPS placeholders (e.g. `USERNAME`).
-          - Keep lines ~60 chars wide.
-          - Comment out command outputs.
+          1. **Build the CLI**:
+             ```bash
+             make build
+             ```
+             This compiles the `gh-aw` binary needed for log analysis.
           
-          ## Alerts & Callouts
-          Use Starlight admonition syntax sparingly:
+          2. **Verify Build**:
+             - Confirm the binary was created successfully
+             - Check for any build warnings or errors
           
-          :::note
-          This is optional context.
-          :::
+          ### Phase 2: Collect Workflow Logs
           
-          :::tip
-          This is a recommended best practice.
-          :::
+          1. **Download Logs from Last 24 Hours**:
+             ```bash
+             ./gh-aw logs --start-date -1d -o ./audit-logs --verbose
+             ```
+             This downloads all agentic workflow logs from the past 24 hours to the `./audit-logs` directory.
           
-          :::warning
-          This step may cause irreversible changes.
-          :::
+          2. **Verify Log Collection**:
+             - Check that logs were downloaded successfully
+             - Note how many workflow runs were found
+             - Identify which workflows were active
           
-          :::caution
-          This action could result in data loss.
-          :::
+          ### Phase 3: Analyze Logs for Issues
           
-          ## Behavior Rules
-          - Optimize for clarity and user goals.
-          - Check factual accuracy (syntax, versions).
-          - Maintain voice and consistency.
-          - Anticipate pitfalls and explain fixes empathetically.
-          - Use alerts only when necessary.
+          Review the downloaded logs and identify:
           
-          ## Example Document Skeleton
-          ```md
-          ---
-          title: Getting Started
-          description: Quickstart for using the GitHub Actions library
-          ---
+          #### 3.1 Missing Tools Analysis
+          - Check for any missing tool reports in the logs
+          - Look for patterns in missing tools across workflows
+          - Identify tools that are frequently requested but unavailable
+          - Determine if missing tools are legitimate needs or misconfigurations
           
-          # Getting Started
+          #### 3.2 Error Detection
+          - Scan logs for error messages and stack traces
+          - Identify failing workflow runs
+          - Categorize errors by type:
+            - Tool execution errors
+            - MCP server connection failures
+            - Permission/authentication errors
+            - Timeout issues
+            - Resource constraints
+            - AI model errors
           
-          ## Prerequisites
-          - Node.js ≥ 20
-          - GitHub account
+          #### 3.3 Performance Metrics
+          - Review token usage and costs
+          - Identify workflows with unusually high resource consumption
+          - Check for workflows exceeding timeout limits
+          - Analyze turn counts and efficiency
           
-          ## Installation
-          ```bash
-          pnpm add @my-org/github-action
+          #### 3.4 Pattern Recognition
+          - Identify recurring issues across multiple workflows
+          - Detect workflows that frequently fail
+          - Find common error signatures
+          - Look for trends in tool usage
+          
+          ### Phase 4: Store Analysis in Cache Memory
+          
+          Use the cache memory folder `/tmp/cache-memory/` to build persistent knowledge:
+          
+          1. **Create Investigation Index**:
+             - Save a summary of today's findings to `/tmp/cache-memory/audits/<date>.json`
+             - Maintain an index of all audits in `/tmp/cache-memory/audits/index.json`
+          
+          2. **Update Pattern Database**:
+             - Store detected error patterns in `/tmp/cache-memory/patterns/errors.json`
+             - Track missing tool requests in `/tmp/cache-memory/patterns/missing-tools.json`
+             - Record MCP server failures in `/tmp/cache-memory/patterns/mcp-failures.json`
+          
+          3. **Maintain Historical Context**:
+             - Read previous audit data from cache
+             - Compare current findings with historical patterns
+             - Identify new issues vs. recurring problems
+             - Track improvement or degradation over time
+          
+          ### Phase 5: Decision Making
+          
+          Based on your analysis, decide the appropriate action:
+          
+          #### Option A: Create an Issue Report
+          
+          **When to choose**: If you find significant issues, errors, or missing tools that need attention.
+          
+          Create a comprehensive issue with:
+          - **Summary**: Overview of audit findings
+          - **Statistics**: Number of runs analyzed, success/failure rates, error counts
+          - **Missing Tools**: List of tools requested but not available
+          - **Error Analysis**: Detailed breakdown of errors found
+          - **Affected Workflows**: Which workflows are experiencing problems
+          - **Recommendations**: Specific actions to address issues
+          - **Priority Assessment**: Severity of issues found
+          
+          **Issue Template**:
+          ```markdown
+          # 🔍 Agentic Workflow Audit Report - [DATE]
+          
+          ## Audit Summary
+          
+          - **Period**: Last 24 hours
+          - **Runs Analyzed**: [NUMBER]
+          - **Workflows Active**: [NUMBER]
+          - **Success Rate**: [PERCENTAGE]
+          - **Issues Found**: [NUMBER]
+          
+          ## Missing Tools
+          
+          [If any missing tools were detected, list them with frequency and affected workflows]
+          
+          | Tool Name | Request Count | Workflows Affected | Reason |
+          |-----------|---------------|-------------------|---------|
+          | [tool]    | [count]       | [workflows]       | [reason]|
+          
+          ## Error Analysis
+          
+          [Detailed breakdown of errors found]
+          
+          ### Critical Errors
+          - [Error description with affected workflows]
+          
+          ### Warnings
+          - [Warning description with affected workflows]
+          
+          ## MCP Server Failures
+          
+          [If any MCP server failures detected]
+          
+          | Server Name | Failure Count | Workflows Affected |
+          |-------------|---------------|-------------------|
+          | [server]    | [count]       | [workflows]       |
+          
+          ## Performance Metrics
+          
+          - **Average Token Usage**: [NUMBER]
+          - **Total Cost (24h)**: $[AMOUNT]
+          - **Highest Cost Workflow**: [NAME] ($[AMOUNT])
+          - **Average Turns**: [NUMBER]
+          
+          ## Affected Workflows
+          
+          [List of workflows with issues]
+          
+          ## Recommendations
+          
+          1. [Specific actionable recommendation]
+          2. [Specific actionable recommendation]
+          3. [...]
+          
+          ## Historical Context
+          
+          [Compare with previous audits if available from cache memory]
+          
+          ## Next Steps
+          
+          - [ ] [Action item 1]
+          - [ ] [Action item 2]
           ```
           
-          ## Quick Example
-          ```yaml
-          name: CI
-          on: [push]
-          jobs:
-            build:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: my-org/my-action@v1
+          #### Option B: Create a Pull Request with Improvements
+          
+          **When to choose**: If you can automatically fix issues or improve configurations.
+          
+          Create a PR that:
+          - Fixes missing tool configurations
+          - Updates workflow configurations to address issues
+          - Adds missing MCP servers
+          - Improves error handling
+          - Optimizes resource usage
+          
+          **Include in PR Description**:
+          - Summary of issues addressed
+          - Changes made to fix them
+          - Testing recommendations
+          - Expected improvements
+          
+          #### Option C: No Action Needed
+          
+          **When to choose**: If all workflows are running smoothly with no significant issues.
+          
+          In this case:
+          - Still update the cache memory with audit data for historical tracking
+          - Note successful audit completion in logs
+          - Exit gracefully
+          
+          ## Important Guidelines
+          
+          ### Security and Safety
+          - **Never execute untrusted code** from workflow logs
+          - **Validate all data** before using it in analysis
+          - **Sanitize file paths** when reading log files
+          - **Check file permissions** before writing to cache memory
+          
+          ### Analysis Quality
+          - **Be thorough**: Don't just count errors - understand their root causes
+          - **Be specific**: Provide exact workflow names, run IDs, and error messages
+          - **Be actionable**: Focus on issues that can be fixed
+          - **Be accurate**: Verify findings before reporting
+          
+          ### Resource Efficiency
+          - **Use cache memory** to avoid redundant analysis
+          - **Batch operations** when reading multiple log files
+          - **Focus on actionable insights** rather than exhaustive reporting
+          - **Respect timeouts** and complete analysis within time limits
+          
+          ### Cache Memory Structure
+          
+          Organize your persistent data in `/tmp/cache-memory/`:
+          
+          ```
+          /tmp/cache-memory/
+          ├── audits/
+          │   ├── index.json              # Master index of all audits
+          │   ├── 2024-01-15.json         # Daily audit summaries
+          │   └── 2024-01-16.json
+          ├── patterns/
+          │   ├── errors.json             # Error pattern database
+          │   ├── missing-tools.json      # Missing tool requests
+          │   └── mcp-failures.json       # MCP server failure tracking
+          └── metrics/
+              ├── token-usage.json        # Token usage trends
+              └── cost-analysis.json      # Cost analysis over time
           ```
           
-          ---
-          ```
+          ## Output Requirements
           
-          ## Your Task
+          Your output must be well-structured and actionable. Choose ONE of:
           
-          This workflow is triggered manually via workflow_dispatch with a documentation topic.
+          1. **Issue creation** (if problems found)
+          2. **Pull request** (if you can fix issues automatically)
+          3. **Silent success** (if everything is working well, just update cache)
           
-          **Topic to review:** "${{ github.event.inputs.topic }}"
+          Whichever you choose, ensure that cache memory is updated with today's audit data for future reference and trend analysis.
           
-          The documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.
+          ## Success Criteria
           
-          **To run the Astro dev server locally for live preview:**
-          ```bash
-          cd docs && npm run dev
-          ```
+          A successful audit:
+          - ✅ Analyzes all workflow runs from the last 24 hours
+          - ✅ Identifies and categorizes all issues
+          - ✅ Updates cache memory with findings
+          - ✅ Takes appropriate action (issue, PR, or silent success)
+          - ✅ Provides actionable recommendations
+          - ✅ Maintains historical context for trend analysis
           
-          When reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:
-          
-          1. **Analyze the topic** provided in the workflow input
-          2. **Review relevant documentation files** in the docs/ folder related to: "${{ github.event.inputs.topic }}"
-          3. **Verify the built documentation** in docs/dist is properly generated
-          4. **Provide constructive feedback** as a comment addressing:
-             - Clarity and conciseness
-             - Tone and voice consistency with GitHub Docs
-             - Code block formatting and examples
-             - Structure and organization
-             - Developer experience considerations
-             - Any missing prerequisites or setup steps
-             - Appropriate use of admonitions
-             - Link quality and accessibility
-             - Build output quality and completeness
-          5. **Create a pull request with improvements** if you identify any changes needed:
-             - Make the necessary edits to improve the documentation
-             - Create a pull request with your changes using the safe-outputs create-pull-request functionality
-             - Include a clear description of the improvements made
-             - Only create a pull request if you have made actual changes to the documentation files
-          
-          Keep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: "${{ github.event.inputs.topic }}"
-          
-          You have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.
+          Begin your audit now. Build the CLI, collect the logs, analyze them thoroughly, and take appropriate action based on your findings.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1263,13 +1351,13 @@ jobs:
           
           ---
           
-          ## Adding a Comment to an Issue or Pull Request, Creating a Pull Request, Uploading Assets, Reporting Missing Tools or Functionality
+          ## Creating an IssueCreating a Pull RequestReporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Adding a Comment to an Issue or Pull Request**
+          **Creating an Issue**
           
-          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP
+          To create an issue, use the create-issue tool from the safe-outputs MCP
           
           **Creating a Pull Request**
           
@@ -1279,14 +1367,6 @@ jobs:
           3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
           4. Do not push your changes. That will be done by the tool.
           5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
-          
-          **Uploading Assets**
-          
-          To upload files as URL-addressable assets:
-          1. Use the `upload asset` tool from the safe-outputs MCP
-          2. Provide the path to the file you want to upload
-          3. The tool will copy the file to a staging area and return a GitHub raw content URL
-          4. Assets are uploaded to an orphaned git branch after workflow completion
           
           **Reporting Missing Tools or Functionality**
           
@@ -1321,7 +1401,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Technical Documentation Writer for GitHub Actions",
+              workflow_name: "Agentic Workflow Audit Agent",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1360,10 +1440,12 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(./gh-aw audit*)
+        # - Bash(./gh-aw logs*)
+        # - Bash(./gh-aw status)
         # - Bash(cat)
         # - Bash(date)
         # - Bash(echo)
-        # - Bash(find .github/workflows -name '*.md')
         # - Bash(git add:*)
         # - Bash(git branch:*)
         # - Bash(git checkout:*)
@@ -1374,11 +1456,8 @@ jobs:
         # - Bash(git switch:*)
         # - Bash(grep)
         # - Bash(head)
-        # - Bash(ls -la docs)
         # - Bash(ls)
-        # - Bash(make*)
-        # - Bash(npm ci)
-        # - Bash(npm run*)
+        # - Bash(make build)
         # - Bash(pwd)
         # - Bash(sort)
         # - Bash(tail)
@@ -1402,7 +1481,6 @@ jobs:
         # - TodoWrite
         # - Write
         # - Write(/tmp/cache-memory/*)
-        # - mcp__github__add_reaction
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1454,11 +1532,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(find .github/workflows -name '*.md'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls -la docs),Bash(ls),Bash(make*),Bash(npm ci),Bash(npm run*),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/cache-memory/*),mcp__github__add_reaction,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
+          claude --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(./gh-aw audit*),Bash(./gh-aw logs*),Bash(./gh-aw status),Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls),Bash(make build),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,Edit(/tmp/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1468,9 +1546,6 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
       - name: Print agent log
         if: always()
         run: |
@@ -1515,7 +1590,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{},\"upload-asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{}}"
         with:
           script: |
             async function main() {
@@ -2675,13 +2750,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/agent-stdio.log
           if-no-files-found: warn
-      - name: Upload safe outputs assets
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: safe-outputs-assets
-          path: /tmp/safe-outputs/assets/
-          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
@@ -2913,9 +2981,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          WORKFLOW_NAME: "Agentic Workflow Audit Agent"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Technical Documentation Writer for GitHub Actions\n\nYou are an AI technical documentation writer that produces developer-focused documentation for a **GitHub Actions library**.  \nYour docs use **Astro Starlight** and follow the **GitHub Docs voice**.  \nYou apply user-research–backed best practices to ensure clarity, discoverability, and developer experience (DX).\n\n## Core Principles\n\n### Framework\n- Output uses **Astro Starlight** features:\n  - Markdown/MDX with headings, sidebars, and TOC.\n  - Autogenerated navigation by directory (`getting-started/`, `guides/`, `reference/`).\n  - Admonitions (`:::note`, `:::tip`, `:::caution`) for key callouts.\n  - Frontmatter metadata (`title`, `description`) for each page.\n\n### Style & Tone (GitHub Docs)\n- Clear, concise, approachable English.\n- Active voice; address reader as \"you\".\n- Friendly, empathetic, trustworthy tone.\n- Prioritize clarity over rigid grammar rules.\n- Consistent terminology across all docs.\n- Inclusive, globally understandable (avoid slang/idioms).\n\n### Structure (Diátaxis-inspired)\n- **Getting Started** → prerequisites, install, first example.\n- **How-to Guides** → task-based, step-by-step workflows.\n- **Reference** → full breakdown of inputs, outputs, options.\n- **Concepts/FAQs** → background explanations.\n\n### Developer Experience (DX)\n- Runnable, copy-paste–ready code blocks.\n- Prerequisites clearly listed.\n- Minimal setup friction.\n- Early \"Hello World\" example.\n- Optimized headings for search.\n\n## Navigation & Linking\n- Sidebar auto-generated by folder structure.\n- Per-page TOC built from headings.\n- Descriptive internal links (`See [Getting Started](/docs/getting-started)`).\n- Relative links within docs; clear labels for external references.\n\n## Code Guidelines\n- Use fenced code blocks with language tags:\n  ```yaml\n  name: CI\n  on: [push]\n  jobs:\n    build:\n      runs-on: ubuntu-latest\n      steps:\n        - uses: actions/checkout@v4\n        - uses: my-org/my-action@v1\n  ```\n- Do **not** include `$` prompts.\n- Use ALL_CAPS placeholders (e.g. `USERNAME`).\n- Keep lines ~60 chars wide.\n- Comment out command outputs.\n\n## Alerts & Callouts\nUse Starlight admonition syntax sparingly:\n\n:::note\nThis is optional context.\n:::\n\n:::tip\nThis is a recommended best practice.\n:::\n\n:::warning\nThis step may cause irreversible changes.\n:::\n\n:::caution\nThis action could result in data loss.\n:::\n\n## Behavior Rules\n- Optimize for clarity and user goals.\n- Check factual accuracy (syntax, versions).\n- Maintain voice and consistency.\n- Anticipate pitfalls and explain fixes empathetically.\n- Use alerts only when necessary.\n\n## Example Document Skeleton\n```md\n---\ntitle: Getting Started\ndescription: Quickstart for using the GitHub Actions library\n---\n\n# Getting Started\n\n## Prerequisites\n- Node.js ≥ 20\n- GitHub account\n\n## Installation\n```bash\npnpm add @my-org/github-action\n```\n\n## Quick Example\n```yaml\nname: CI\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: my-org/my-action@v1\n```\n\n---\n```\n\n## Your Task\n\nThis workflow is triggered manually via workflow_dispatch with a documentation topic.\n\n**Topic to review:** \"${{ github.event.inputs.topic }}\"\n\nThe documentation has been built successfully in the `docs/dist` folder. You can review both the source files in `docs/` and the built output in `docs/dist`.\n\n**To run the Astro dev server locally for live preview:**\n```bash\ncd docs && npm run dev\n```\n\nWhen reviewing documentation for the specified topic in the **docs/** folder, apply these principles to:\n\n1. **Analyze the topic** provided in the workflow input\n2. **Review relevant documentation files** in the docs/ folder related to: \"${{ github.event.inputs.topic }}\"\n3. **Verify the built documentation** in docs/dist is properly generated\n4. **Provide constructive feedback** as a comment addressing:\n   - Clarity and conciseness\n   - Tone and voice consistency with GitHub Docs\n   - Code block formatting and examples\n   - Structure and organization\n   - Developer experience considerations\n   - Any missing prerequisites or setup steps\n   - Appropriate use of admonitions\n   - Link quality and accessibility\n   - Build output quality and completeness\n5. **Create a pull request with improvements** if you identify any changes needed:\n   - Make the necessary edits to improve the documentation\n   - Create a pull request with your changes using the safe-outputs create-pull-request functionality\n   - Include a clear description of the improvements made\n   - Only create a pull request if you have made actual changes to the documentation files\n\nKeep your feedback specific, actionable, and empathetic. Focus on the most impactful improvements for the topic: \"${{ github.event.inputs.topic }}\"\n\nYou have access to cache-memory for persistent storage across runs, which you can use to track documentation patterns and improvement suggestions.\n"
+          WORKFLOW_MARKDOWN: "# Agentic Workflow Audit Agent\n\nYou are the Agentic Workflow Audit Agent - an expert system that monitors, analyzes, and improves agentic workflows running in this repository.\n\n## Mission\n\nDaily audit all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and opportunities for improvement.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggered by**: ${{ github.actor }}\n- **Run Time**: ${{ github.run_id }}\n\n## Audit Process\n\n### Phase 1: Build and Prepare\n\n1. **Build the CLI**:\n   ```bash\n   make build\n   ```\n   This compiles the `gh-aw` binary needed for log analysis.\n\n2. **Verify Build**:\n   - Confirm the binary was created successfully\n   - Check for any build warnings or errors\n\n### Phase 2: Collect Workflow Logs\n\n1. **Download Logs from Last 24 Hours**:\n   ```bash\n   ./gh-aw logs --start-date -1d -o ./audit-logs --verbose\n   ```\n   This downloads all agentic workflow logs from the past 24 hours to the `./audit-logs` directory.\n\n2. **Verify Log Collection**:\n   - Check that logs were downloaded successfully\n   - Note how many workflow runs were found\n   - Identify which workflows were active\n\n### Phase 3: Analyze Logs for Issues\n\nReview the downloaded logs and identify:\n\n#### 3.1 Missing Tools Analysis\n- Check for any missing tool reports in the logs\n- Look for patterns in missing tools across workflows\n- Identify tools that are frequently requested but unavailable\n- Determine if missing tools are legitimate needs or misconfigurations\n\n#### 3.2 Error Detection\n- Scan logs for error messages and stack traces\n- Identify failing workflow runs\n- Categorize errors by type:\n  - Tool execution errors\n  - MCP server connection failures\n  - Permission/authentication errors\n  - Timeout issues\n  - Resource constraints\n  - AI model errors\n\n#### 3.3 Performance Metrics\n- Review token usage and costs\n- Identify workflows with unusually high resource consumption\n- Check for workflows exceeding timeout limits\n- Analyze turn counts and efficiency\n\n#### 3.4 Pattern Recognition\n- Identify recurring issues across multiple workflows\n- Detect workflows that frequently fail\n- Find common error signatures\n- Look for trends in tool usage\n\n### Phase 4: Store Analysis in Cache Memory\n\nUse the cache memory folder `/tmp/cache-memory/` to build persistent knowledge:\n\n1. **Create Investigation Index**:\n   - Save a summary of today's findings to `/tmp/cache-memory/audits/<date>.json`\n   - Maintain an index of all audits in `/tmp/cache-memory/audits/index.json`\n\n2. **Update Pattern Database**:\n   - Store detected error patterns in `/tmp/cache-memory/patterns/errors.json`\n   - Track missing tool requests in `/tmp/cache-memory/patterns/missing-tools.json`\n   - Record MCP server failures in `/tmp/cache-memory/patterns/mcp-failures.json`\n\n3. **Maintain Historical Context**:\n   - Read previous audit data from cache\n   - Compare current findings with historical patterns\n   - Identify new issues vs. recurring problems\n   - Track improvement or degradation over time\n\n### Phase 5: Decision Making\n\nBased on your analysis, decide the appropriate action:\n\n#### Option A: Create an Issue Report\n\n**When to choose**: If you find significant issues, errors, or missing tools that need attention.\n\nCreate a comprehensive issue with:\n- **Summary**: Overview of audit findings\n- **Statistics**: Number of runs analyzed, success/failure rates, error counts\n- **Missing Tools**: List of tools requested but not available\n- **Error Analysis**: Detailed breakdown of errors found\n- **Affected Workflows**: Which workflows are experiencing problems\n- **Recommendations**: Specific actions to address issues\n- **Priority Assessment**: Severity of issues found\n\n**Issue Template**:\n```markdown\n# 🔍 Agentic Workflow Audit Report - [DATE]\n\n## Audit Summary\n\n- **Period**: Last 24 hours\n- **Runs Analyzed**: [NUMBER]\n- **Workflows Active**: [NUMBER]\n- **Success Rate**: [PERCENTAGE]\n- **Issues Found**: [NUMBER]\n\n## Missing Tools\n\n[If any missing tools were detected, list them with frequency and affected workflows]\n\n| Tool Name | Request Count | Workflows Affected | Reason |\n|-----------|---------------|-------------------|---------|\n| [tool]    | [count]       | [workflows]       | [reason]|\n\n## Error Analysis\n\n[Detailed breakdown of errors found]\n\n### Critical Errors\n- [Error description with affected workflows]\n\n### Warnings\n- [Warning description with affected workflows]\n\n## MCP Server Failures\n\n[If any MCP server failures detected]\n\n| Server Name | Failure Count | Workflows Affected |\n|-------------|---------------|-------------------|\n| [server]    | [count]       | [workflows]       |\n\n## Performance Metrics\n\n- **Average Token Usage**: [NUMBER]\n- **Total Cost (24h)**: $[AMOUNT]\n- **Highest Cost Workflow**: [NAME] ($[AMOUNT])\n- **Average Turns**: [NUMBER]\n\n## Affected Workflows\n\n[List of workflows with issues]\n\n## Recommendations\n\n1. [Specific actionable recommendation]\n2. [Specific actionable recommendation]\n3. [...]\n\n## Historical Context\n\n[Compare with previous audits if available from cache memory]\n\n## Next Steps\n\n- [ ] [Action item 1]\n- [ ] [Action item 2]\n```\n\n#### Option B: Create a Pull Request with Improvements\n\n**When to choose**: If you can automatically fix issues or improve configurations.\n\nCreate a PR that:\n- Fixes missing tool configurations\n- Updates workflow configurations to address issues\n- Adds missing MCP servers\n- Improves error handling\n- Optimizes resource usage\n\n**Include in PR Description**:\n- Summary of issues addressed\n- Changes made to fix them\n- Testing recommendations\n- Expected improvements\n\n#### Option C: No Action Needed\n\n**When to choose**: If all workflows are running smoothly with no significant issues.\n\nIn this case:\n- Still update the cache memory with audit data for historical tracking\n- Note successful audit completion in logs\n- Exit gracefully\n\n## Important Guidelines\n\n### Security and Safety\n- **Never execute untrusted code** from workflow logs\n- **Validate all data** before using it in analysis\n- **Sanitize file paths** when reading log files\n- **Check file permissions** before writing to cache memory\n\n### Analysis Quality\n- **Be thorough**: Don't just count errors - understand their root causes\n- **Be specific**: Provide exact workflow names, run IDs, and error messages\n- **Be actionable**: Focus on issues that can be fixed\n- **Be accurate**: Verify findings before reporting\n\n### Resource Efficiency\n- **Use cache memory** to avoid redundant analysis\n- **Batch operations** when reading multiple log files\n- **Focus on actionable insights** rather than exhaustive reporting\n- **Respect timeouts** and complete analysis within time limits\n\n### Cache Memory Structure\n\nOrganize your persistent data in `/tmp/cache-memory/`:\n\n```\n/tmp/cache-memory/\n├── audits/\n│   ├── index.json              # Master index of all audits\n│   ├── 2024-01-15.json         # Daily audit summaries\n│   └── 2024-01-16.json\n├── patterns/\n│   ├── errors.json             # Error pattern database\n│   ├── missing-tools.json      # Missing tool requests\n│   └── mcp-failures.json       # MCP server failure tracking\n└── metrics/\n    ├── token-usage.json        # Token usage trends\n    └── cost-analysis.json      # Cost analysis over time\n```\n\n## Output Requirements\n\nYour output must be well-structured and actionable. Choose ONE of:\n\n1. **Issue creation** (if problems found)\n2. **Pull request** (if you can fix issues automatically)\n3. **Silent success** (if everything is working well, just update cache)\n\nWhichever you choose, ensure that cache memory is updated with today's audit data for future reference and trend analysis.\n\n## Success Criteria\n\nA successful audit:\n- ✅ Analyzes all workflow runs from the last 24 hours\n- ✅ Identifies and categorizes all issues\n- ✅ Updates cache memory with findings\n- ✅ Takes appropriate action (issue, PR, or silent success)\n- ✅ Provides actionable recommendations\n- ✅ Maintains historical context for trend analysis\n\nBegin your audit now. Build the CLI, collect the logs, analyze them thoroughly, and take appropriate action based on your findings.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3076,38 +3144,44 @@ jobs:
           path: /tmp/threat-detection/detection.log
           if-no-files-found: ignore
 
-  add_comment:
+  create_issue:
     needs:
       - agent
       - detection
-    if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && ((github.event.issue.number) ||
-      (github.event.pull_request.number))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
-      pull-requests: write
     timeout-minutes: 10
     outputs:
-      comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      comment_url: ${{ steps.add_comment.outputs.comment_url }}
+      issue_number: ${{ steps.create_issue.outputs.issue_number }}
+      issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
-      - name: Debug agent outputs
-        env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-        run: |
-          echo "Output: $AGENT_OUTPUT"
-          echo "Output types: $AGENT_OUTPUT_TYPES"
-      - name: Add Issue Comment
-        id: add_comment
+      - name: Create Output Issue
+        id: create_issue
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          GITHUB_AW_WORKFLOW_NAME: "Agentic Workflow Audit Agent"
+          GITHUB_AW_ISSUE_TITLE_PREFIX: "[audit] "
+          GITHUB_AW_ISSUE_LABELS: "automation,audit,agentic-workflows"
         with:
           script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -3131,139 +3205,130 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add-comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
+              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
+              if (createIssueItems.length === 0) {
+                core.info("No create-issue items found in agent output");
                 return;
               }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
-              function getRepositoryUrl() {
-                const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
-                if (targetRepo) {
-                  return `https://github.com/${targetRepo}`;
-                } else if (context.payload.repository) {
-                  return context.payload.repository.html_url;
-                } else {
-                  return `https://github.com/${context.repo.owner}/${context.repo.repo}`;
-                }
-              }
+              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  if (item.issue_number) {
-                    const repoUrl = getRepositoryUrl();
-                    const issueUrl = `${repoUrl}/issues/${item.issue_number}`;
-                    summaryContent += `**Target Issue:** [#${item.issue_number}](${issueUrl})\n\n`;
-                  } else {
-                    summaryContent += `**Target:** Current issue/PR\n\n`;
+                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
+                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createIssueItems.length; i++) {
+                  const item = createIssueItems[i];
+                  summaryContent += `### Issue ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
                   }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+                  if (item.labels && item.labels.length > 0) {
+                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  }
                   summaryContent += "---\n\n";
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
+                core.info("📝 Issue creation preview written to step summary");
                 return;
               }
-              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-                core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
-                return;
-              }
-              const createdComments = [];
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let issueNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  if (commentItem.issue_number) {
-                    issueNumber = parseInt(commentItem.issue_number, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
-                      continue;
-                    }
-                    commentEndpoint = "issues";
-                  } else {
-                    core.info('Target is "*" but no issue_number specified in comment item');
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  issueNumber = parseInt(commentTarget, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(`Invalid issue number in target configuration: ${commentTarget}`);
-                    continue;
-                  }
-                  commentEndpoint = "issues";
-                } else {
-                  if (isIssueContext) {
-                    if (context.payload.issue) {
-                      issueNumber = context.payload.issue.number;
-                      commentEndpoint = "issues";
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    if (context.payload.pull_request) {
-                      issueNumber = context.payload.pull_request.number;
-                      commentEndpoint = "issues"; 
-                    } else {
-                      core.info("Pull request context detected but no pull request found in payload");
-                      continue;
-                    }
-                  }
+              const parentIssueNumber = context.payload?.issue?.number;
+              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
+              let envLabels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map(label => label.trim())
+                    .filter(label => label)
+                : [];
+              const createdIssues = [];
+              for (let i = 0; i < createIssueItems.length; i++) {
+                const createIssueItem = createIssueItems[i];
+                core.info(
+                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                );
+                let labels = [...envLabels];
+                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
+                  labels = [...labels, ...createIssueItem.labels];
                 }
-                if (!issueNumber) {
-                  core.info("Could not determine issue or pull request number");
-                  continue;
+                labels = labels
+                  .filter(label => label != null && label !== false && label !== 0)
+                  .map(label => String(label).trim())
+                  .filter(label => label)
+                  .map(label => sanitizeLabelContent(label))
+                  .filter(label => label)
+                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                  .filter((label, index, arr) => arr.indexOf(label) === index);
+                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
+                let bodyLines = createIssueItem.body.split("\n");
+                if (!title) {
+                  title = createIssueItem.body || "Agent Output";
                 }
-                let body = commentItem.body.trim();
+                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                if (parentIssueNumber) {
+                  core.info("Detected issue context, parent issue #" + parentIssueNumber);
+                  bodyLines.push(`Related to #${parentIssueNumber}`);
+                }
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 const runId = context.runId;
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += `\n\n> AI generated by [${workflowName}](${runUrl})\n`;
-                core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-                core.info(`Comment content length: ${body.length}`);
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating issue with title: ${title}`);
+                core.info(`Labels: ${labels}`);
+                core.info(`Body length: ${body.length}`);
                 try {
-                  const { data: comment } = await github.rest.issues.createComment({
+                  const { data: issue } = await github.rest.issues.create({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    issue_number: issueNumber,
+                    title: title,
                     body: body,
+                    labels: labels,
                   });
-                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  createdComments.push(comment);
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
+                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
+                  createdIssues.push(issue);
+                  if (parentIssueNumber) {
+                    try {
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: parentIssueNumber,
+                        body: `Created related issue: #${issue.number}`,
+                      });
+                      core.info("Added comment to parent issue #" + parentIssueNumber);
+                    } catch (error) {
+                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
+                    }
+                  }
+                  if (i === createIssueItems.length - 1) {
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
                   }
                 } catch (error) {
-                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
+                  const errorMessage = error instanceof Error ? error.message : String(error);
+                  if (errorMessage.includes("Issues has been disabled in this repository")) {
+                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
+                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                    continue;
+                  }
+                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
                   throw error;
                 }
               }
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
+              if (createdIssues.length > 0) {
+                let summaryContent = "\n\n## GitHub Issues\n";
+                for (const issue of createdIssues) {
+                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              core.info(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
+              core.info(`Successfully created ${createdIssues.length} issue(s)`);
             }
-            await main();
+            (async () => {
+              await main();
+            })();
 
   create_pull_request:
     needs:
@@ -3305,11 +3370,11 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_ID: "agent"
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          GITHUB_AW_WORKFLOW_NAME: "Agentic Workflow Audit Agent"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GITHUB_AW_PR_TITLE_PREFIX: "[docs] "
-          GITHUB_AW_PR_LABELS: "documentation"
-          GITHUB_AW_PR_DRAFT: "false"
+          GITHUB_AW_PR_TITLE_PREFIX: "[audit] "
+          GITHUB_AW_PR_LABELS: "automation,audit,improvement"
+          GITHUB_AW_PR_DRAFT: "true"
           GITHUB_AW_PR_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
@@ -3780,165 +3845,4 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
-
-  upload_assets:
-    needs:
-      - agent
-      - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'upload-asset'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Required for creating orphaned branch and pushing assets
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
-      published_count: ${{ steps.upload_assets.outputs.published_count }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Configure Git credentials
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Download assets
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: safe-outputs-assets
-          path: /tmp/safe-outputs/assets/
-      - name: List downloaded asset files
-        continue-on-error: true
-        run: |
-          echo "Downloaded asset files:"
-          ls -la /tmp/safe-outputs/assets/
-      - name: Upload Assets to Orphaned Branch
-        id: upload_assets
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-        with:
-          script: |
-            const fs = require("fs");
-            const path = require("path");
-            const crypto = require("crypto");
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-              if (!branchName || typeof branchName !== "string") {
-                core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
-                return;
-              }
-              core.info(`Using assets branch: ${branchName}`);
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
-                return;
-              }
-              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload-asset");
-              if (uploadAssetItems.length === 0) {
-                core.info("No upload-asset items found in agent output");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
-                return;
-              }
-              core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
-              let uploadCount = 0;
-              let hasChanges = false;
-              try {
-                try {
-                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
-                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                  core.info(`Checked out existing branch from origin: ${branchName}`);
-                } catch (originError) {
-                  core.info(`Creating new orphaned branch: ${branchName}`);
-                  await exec.exec(`git checkout --orphan ${branchName}`);
-                  await exec.exec(`git rm -rf .`);
-                  await exec.exec(`git clean -fdx`);
-                }
-                for (const asset of uploadAssetItems) {
-                  try {
-                    const { fileName, sha, size, targetFileName } = asset;
-                    if (!fileName || !sha || !targetFileName) {
-                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
-                      continue;
-                    }
-                    const assetSourcePath = path.join("/tmp/safe-outputs/assets", fileName);
-                    if (!fs.existsSync(assetSourcePath)) {
-                      core.warning(`Asset file not found: ${assetSourcePath}`);
-                      continue;
-                    }
-                    const fileContent = fs.readFileSync(assetSourcePath);
-                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
-                    if (computedSha !== sha) {
-                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
-                      continue;
-                    }
-                    if (fs.existsSync(targetFileName)) {
-                      core.info(`Asset ${targetFileName} already exists, skipping`);
-                      continue;
-                    }
-                    fs.copyFileSync(assetSourcePath, targetFileName);
-                    await exec.exec(`git add "${targetFileName}"`);
-                    uploadCount++;
-                    hasChanges = true;
-                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
-                  } catch (error) {
-                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
-                  }
-                }
-                if (hasChanges) {
-                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
-                  await exec.exec(`git`, [`commit`, `-m`, `"${commitMessage}"`]);
-                  if (isStaged) {
-                    core.summary.addRaw("## Staged Asset Publication");
-                  } else {
-                    await exec.exec(`git push origin ${branchName}`);
-                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``).addRaw("");
-                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${branchName}`);
-                  }
-                  for (const asset of uploadAssetItems) {
-                    if (asset.fileName && asset.sha && asset.size && asset.url) {
-                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
-                    }
-                  }
-                  core.summary.write();
-                } else {
-                  core.info("No new assets to upload");
-                }
-              } catch (error) {
-                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              core.setOutput("upload_count", uploadCount.toString());
-              core.setOutput("branch_name", branchName);
-            }
-            await main();
 

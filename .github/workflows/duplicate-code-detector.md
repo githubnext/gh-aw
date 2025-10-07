@@ -1,12 +1,9 @@
 ---
 name: Duplicate Code Detector
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "**.go"
   workflow_dispatch:
+  schedule:
+    - cron: "0 11 * * *"
 permissions:
   contents: read
   actions: read
@@ -24,6 +21,9 @@ mcp-servers:
       SERENA_DOCKER: "1"
       SERENA_PORT: "9121"
       SERENA_DASHBOARD_PORT: "24282"
+    network:
+      allowed:
+        - "github.com"
     allowed:
       - activate_project
       - find_symbol
@@ -38,6 +38,7 @@ safe-outputs:
     title-prefix: "[duplicate-code] "
     labels: [code-quality, automated-analysis]
 timeout_minutes: 15
+strict: true
 ---
 
 # Duplicate Code Detection Agent

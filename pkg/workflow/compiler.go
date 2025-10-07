@@ -119,7 +119,7 @@ type WorkflowData struct {
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
-	Concurrency        string
+	Concurrency        string // workflow-level concurrency configuration
 	RunName            string
 	Env                string
 	If                 string
@@ -455,6 +455,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Save the initial strict mode state to restore it after this workflow is processed
+	// This ensures that strict mode from one workflow doesn't affect other workflows
+	initialStrictMode := c.strictMode
+
 	// Check if strict mode is enabled in frontmatter
 	// If strict is true in frontmatter, enable strict mode for this workflow
 	// This allows declarative strict mode control per workflow
@@ -470,8 +474,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Perform strict mode validations
 	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictMode
 		return nil, err
 	}
+
+	// Restore the initial strict mode state after validation
+	// This ensures strict mode doesn't leak to other workflows being compiled
+	c.strictMode = initialStrictMode
 
 	// Validate that @include/@import directives are not used inside template regions
 	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
@@ -2007,8 +2017,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
-	// Generate agent concurrency for max-concurrency feature
-	//agentConcurrency := GenerateJobConcurrencyConfig(data)
+	// Generate agent concurrency configuration
+	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
 	job := &Job{
 		Name:        constants.AgentJobName,
@@ -2018,7 +2028,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
-		Concurrency: "", // c.indentYAMLLines(agentConcurrency, "    "),
+		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
 		Env:         env,
 		Steps:       steps,
 		Needs:       depends,
@@ -2048,9 +2058,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
-
-		// Add step to checkout PR branch if the event is a comment on a PR
-		c.generatePRBranchCheckout(yaml, data)
 	}
 
 	// Add custom steps if present
@@ -2077,8 +2084,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add cache-memory steps if cache-memory configuration is present
 	generateCacheMemorySteps(yaml, data)
 
-	// Configure git credentials if git operations will be needed
-	// Note: Git configuration is handled by token in checkout step when in trial mode
+	// Configure git credentials for agentic workflows
+	gitConfigSteps := c.generateGitConfigurationSteps()
+	for _, line := range gitConfigSteps {
+		yaml.WriteString(line)
+	}
+
+	// Add step to checkout PR branch if the event is pull_request
+	c.generatePRReadyForReviewCheckout(yaml, data)
 
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)

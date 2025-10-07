@@ -87,11 +87,15 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	// Build steps using a more structured approach
 	steps := c.buildThreatDetectionSteps(data, mainJobName)
 
+	// Generate agent concurrency configuration (same as main agent job)
+	agentConcurrency := GenerateJobConcurrencyConfig(data)
+
 	job := &Job{
 		Name:           constants.DetectionJobName,
 		If:             "",
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions: read-all",
+		Concurrency:    c.indentYAMLLines(agentConcurrency, "    "),
 		TimeoutMinutes: 10,
 		Steps:          steps,
 		Needs:          []string{mainJobName},
@@ -208,15 +212,16 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 func (c *Compiler) buildSetupScript() string {
 	return fmt.Sprintf(`const fs = require('fs');
 
-// Read patch file if it exists
-let patchContent = '';
+// Check if patch file exists
 const patchPath = '/tmp/threat-detection/aw.patch';
+let patchFileInfo = 'No patch file found';
 if (fs.existsSync(patchPath)) {
   try {
-    patchContent = fs.readFileSync(patchPath, 'utf8');
-    core.info('Patch file loaded: ' + patchPath);
+    const stats = fs.statSync(patchPath);
+    patchFileInfo = patchPath + ' (' + stats.size + ' bytes)';
+    core.info('Patch file found: ' + patchFileInfo);
   } catch (error) {
-    core.warning('Failed to read patch file: ' + error.message);
+    core.warning('Failed to stat patch file: ' + error.message);
   }
 } else {
   core.info('No patch file found at: ' + patchPath);
@@ -229,7 +234,7 @@ let promptContent = templateContent
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
   .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
   .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
-  .replace(/{AGENT_PATCH}/g, patchContent);
+  .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
 
 // Append custom prompt instructions if provided
 const customPrompt = process.env.CUSTOM_PROMPT;
