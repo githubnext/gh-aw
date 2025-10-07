@@ -118,6 +118,7 @@ Containerized MCP servers for isolation and portability:
 mcp-servers:
   notion:
     container: "mcp/notion"
+    version: "latest"
     env:
       NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
     allowed: ["create_page", "search_pages"]
@@ -125,7 +126,9 @@ mcp-servers:
 
 The `container` field automatically generates:
 - **Command**: `"docker"`
-- **Args**: `["run", "--rm", "-i", "-e", "NOTION_TOKEN", "mcp/notion"]`
+- **Args**: `["run", "--rm", "-i", "-e", "NOTION_TOKEN", "mcp/notion:latest"]`
+
+The `version` field is optional and allows you to specify the container tag separately from the image name. If not provided, you can include the version in the container field directly (e.g., `container: "mcp/notion:latest"`).
 
 **Use cases**: Third-party MCP servers, complex dependencies, security isolation
 
@@ -136,7 +139,8 @@ For advanced use cases, you can provide custom Docker arguments such as volume m
 ```yaml
 mcp-servers:
   serena:
-    container: "ghcr.io/oraios/serena:latest"
+    container: "ghcr.io/oraios/serena"
+    version: "latest"
     args:
       - "-v"
       - "${{ github.workspace }}:/workspace:ro"

@@ -10,7 +10,8 @@ permissions:
 engine: copilot
 mcp-servers:
   serena:
-    container: "ghcr.io/oraios/serena:latest"
+    container: "ghcr.io/oraios/serena"
+    version: "latest"
     args:
       - "-v"
       - "${{ github.workspace }}:/workspace:ro"

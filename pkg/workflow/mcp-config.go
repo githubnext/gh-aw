@@ -348,6 +348,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"type":       true,
 		"command":    true,
 		"container":  true,
+		"version":    true,
 		"args":       true,
 		"env":        true,
 		"proxy-args": true,
@@ -399,6 +400,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if container, hasContainer := config.GetString("container"); hasContainer {
 			result.Container = container
 		}
+		if version, hasVersion := config.GetString("version"); hasVersion {
+			result.Version = version
+		}
 		if args, hasArgs := config.GetStringArray("args"); hasArgs {
 			result.Args = args
 		}
@@ -445,11 +449,18 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			result.Args = append(result.Args, userProvidedArgs...)
 		}
 
-		// Add the container image as the last argument
-		result.Args = append(result.Args, result.Container)
+		// Build container image with version if provided
+		containerImage := result.Container
+		if result.Version != "" {
+			containerImage = containerImage + ":" + result.Version
+		}
 
-		// Clear the container field since it's now part of the command
+		// Add the container image as the last argument
+		result.Args = append(result.Args, containerImage)
+
+		// Clear the container and version fields since they're now part of the command
 		result.Container = ""
+		result.Version = ""
 	}
 
 	return result, nil

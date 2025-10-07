@@ -194,6 +194,10 @@
         "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
         "description": "Container image for stdio MCP connections (alternative to command)"
       },
+      "version": {
+        "type": "string",
+        "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')"
+      },
       "args": {
         "type": "array",
         "items": {
