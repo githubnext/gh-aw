@@ -308,6 +308,13 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		}
 	}
 
+	// Ensure shared agentic workflow prompt is present
+	if err := ensureSharedAgenticWorkflowPrompt(verbose, skipInstructions); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update shared agentic workflow prompt: %v", err)))
+		}
+	}
+
 	return workflowDataList, nil
 }
 

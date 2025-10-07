@@ -967,7 +967,7 @@ jobs:
                 const jobConfig = safeOutputsConfig[configKey];
                 const dynamicTool = {
                   name: normalizedKey,
-                  description: `Custom safe-job: ${configKey}`,
+                  description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
                   inputSchema: {
                     type: "object",
                     properties: {},

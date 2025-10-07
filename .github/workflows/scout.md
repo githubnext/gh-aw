@@ -16,6 +16,7 @@ engine: copilot
 imports:
   - shared/tavily-mcp.md
   - shared/microsoftdocs-mcp.md
+  - shared/deepwiki-mcp.md
 tools:
   cache-memory:
     retention-days: 7
@@ -57,12 +58,10 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
 
 ### 2. Research Strategy
 - Formulate targeted search queries based on the context
-- Use Tavily search tools to find:
-  - Technical documentation
-  - Best practices and patterns
-  - Related discussions and solutions
-  - Industry standards and recommendations
-  - Recent developments and trends
+- Use available research tools to find:
+  - **Tavily**: Web search for technical documentation, best practices, recent developments
+  - **DeepWiki**: GitHub repository documentation and Q&A for specific projects
+  - **Microsoft Docs**: Official Microsoft documentation and guides
 - Conduct multiple searches from different angles if needed
 
 ### 3. Deep Investigation
