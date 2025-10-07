@@ -1462,7 +1462,6 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	yaml.WriteString(fmt.Sprintf("name: \"%s\"\n", data.Name))
 	yaml.WriteString(data.On + "\n\n")
 	yaml.WriteString("permissions: {}\n\n")
-	yaml.WriteString(data.Concurrency + "\n\n")
 	yaml.WriteString(data.RunName + "\n\n")
 
 	// Add env section if present
@@ -1931,6 +1930,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Concurrency: c.indentYAMLLines(data.Concurrency, "    "),
 		Env:         env,
 		Steps:       steps,
 		Needs:       depends,
