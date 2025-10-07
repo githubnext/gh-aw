@@ -47,9 +47,14 @@ engine:
 This shared configuration sets up a custom agentic engine using microsoft/genaiscript.
 
 **Usage:**
-Include this file in your workflow to use genaiscript as the engine:
+Include this file in your workflow using frontmatter imports:
 
-In your workflow file, use the import directive with this shared config.
+```yaml
+---
+imports:
+  - shared/genaiscript.md
+---
+```
 
 **Requirements:**
 - The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var

@@ -165,9 +165,9 @@ permissions:
 safe-outputs:
   add-comment:
     max: 1
+imports:
+  - shared/genaiscript.md
 ---
-
-{{#import shared/genaiscript.md}}
 
 # Your workflow instructions here
 ```
