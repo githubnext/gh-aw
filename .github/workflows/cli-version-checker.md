@@ -134,6 +134,7 @@ If updates were made:
 - **Document Changes**: Include detailed information in the PR description
 - **Test First**: The recompile step will catch obvious issues
 - **Security Focused**: Prioritize security updates
+- **DO NOT COMMIT *.lock.yml files directly**. These files will be reconstructed by another action.
 
 ## PR Description Template
 
