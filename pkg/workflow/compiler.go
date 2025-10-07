@@ -732,9 +732,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract safe-jobs from the new location (safe-outputs.jobs) or old location (safe-jobs) for backwards compatibility
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
-	// Process @include directives to extract additional safe-jobs (reuse the same includedTools JSON)
-	// Since ExpandIncludes extracts all frontmatter as JSON, we can use the same result
-	includedSafeJobs, err := c.mergeSafeJobsFromIncludes(topSafeJobs, includedTools)
+	// Process @include directives to extract additional safe-outputs configurations
+	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(result.Markdown, markdownDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
+	}
+
+	// Merge safe-jobs from included safe-outputs configurations
+	includedSafeJobs, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, includedSafeOutputsConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
@@ -1198,6 +1203,40 @@ func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConf
 	}
 
 	return mergedSafeJobs, nil
+}
+
+// mergeSafeJobsFromIncludedConfigs merges safe-jobs from included safe-outputs configurations
+func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*SafeJobConfig, includedConfigs []string) (map[string]*SafeJobConfig, error) {
+	result := topSafeJobs
+	if result == nil {
+		result = make(map[string]*SafeJobConfig)
+	}
+
+	for _, configJSON := range includedConfigs {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+
+		// Parse the safe-outputs configuration
+		var safeOutputsConfig map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &safeOutputsConfig); err != nil {
+			continue // Skip invalid JSON
+		}
+
+		// Extract safe-jobs from the safe-outputs.jobs field
+		includedSafeJobs := extractSafeJobsFromFrontmatter(map[string]any{
+			"safe-outputs": safeOutputsConfig,
+		})
+
+		// Merge with conflict detection
+		var err error
+		result, err = mergeSafeJobs(result, includedSafeJobs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
+		}
+	}
+
+	return result, nil
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present

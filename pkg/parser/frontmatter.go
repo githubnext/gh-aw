@@ -797,26 +797,68 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	return strings.Trim(markdownContent, "\n") + "\n", nil
 }
 
-// extractToolsFromContent extracts tools section from frontmatter as JSON string
+// extractToolsFromContent extracts tools and mcp-servers sections from frontmatter as merged JSON string
 func extractToolsFromContent(content string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return "{}", nil // Return empty object on error to match bash behavior
 	}
 
-	// Extract tools section
-	tools, exists := result.Frontmatter["tools"]
+	// Create a map to hold the merged result
+	extracted := make(map[string]any)
+
+	// Extract and merge tools section (tools are stored as tool_name: tool_config)
+	if tools, exists := result.Frontmatter["tools"]; exists {
+		if toolsMap, ok := tools.(map[string]any); ok {
+			for toolName, toolConfig := range toolsMap {
+				extracted[toolName] = toolConfig
+			}
+		}
+	}
+
+	// Extract and merge mcp-servers section (mcp-servers are stored as server_name: server_config)
+	if mcpServers, exists := result.Frontmatter["mcp-servers"]; exists {
+		if mcpServersMap, ok := mcpServers.(map[string]any); ok {
+			for serverName, serverConfig := range mcpServersMap {
+				extracted[serverName] = serverConfig
+			}
+		}
+	}
+
+	// If nothing was extracted, return empty object
+	if len(extracted) == 0 {
+		return "{}", nil
+	}
+
+	// Convert to JSON string
+	extractedJSON, err := json.Marshal(extracted)
+	if err != nil {
+		return "{}", nil
+	}
+
+	return strings.TrimSpace(string(extractedJSON)), nil
+}
+
+// extractSafeOutputsFromContent extracts safe-outputs section from frontmatter as JSON string
+func extractSafeOutputsFromContent(content string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "{}", nil // Return empty object on error
+	}
+
+	// Extract safe-outputs section
+	safeOutputs, exists := result.Frontmatter["safe-outputs"]
 	if !exists {
 		return "{}", nil
 	}
 
 	// Convert to JSON string
-	toolsJSON, err := json.Marshal(tools)
+	safeOutputsJSON, err := json.Marshal(safeOutputs)
 	if err != nil {
 		return "{}", nil
 	}
 
-	return strings.TrimSpace(string(toolsJSON)), nil
+	return strings.TrimSpace(string(safeOutputsJSON)), nil
 }
 
 // extractMCPServersFromContent extracts mcp-servers section from frontmatter as JSON string
@@ -950,6 +992,34 @@ func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 	return engines, nil
 }
 
+// ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
+func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
+	const maxDepth = 10
+	var safeOutputs []string
+	currentContent := content
+
+	for depth := 0; depth < maxDepth; depth++ {
+		// Process includes in current content to extract safe-outputs
+		processedSafeOutputs, processedContent, err := ProcessIncludesForSafeOutputs(currentContent, baseDir)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add found safe-outputs to the list
+		safeOutputs = append(safeOutputs, processedSafeOutputs...)
+
+		// Check if content changed
+		if processedContent == currentContent {
+			// No more includes to process
+			break
+		}
+
+		currentContent = processedContent
+	}
+
+	return safeOutputs, nil
+}
+
 // ProcessIncludesForEngines processes import directives to extract engine configurations
 func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -1009,6 +1079,67 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 	}
 
 	return engines, result.String(), nil
+}
+
+// ProcessIncludesForSafeOutputs processes import directives to extract safe-outputs configurations
+func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, error) {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	var result bytes.Buffer
+	var safeOutputs []string
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Parse import directive
+		directive := ParseImportDirective(line)
+		if directive != nil {
+			isOptional := directive.IsOptional
+			includePath := directive.Path
+
+			// Handle section references (file.md#Section) - for safe-outputs, we ignore sections
+			var filePath string
+			if strings.Contains(includePath, "#") {
+				parts := strings.SplitN(includePath, "#", 2)
+				filePath = parts[0]
+				// Note: section references are ignored for safe-outputs extraction since safe-outputs are in frontmatter
+			} else {
+				filePath = includePath
+			}
+
+			// Resolve file path
+			fullPath, err := resolveIncludePath(filePath, baseDir)
+			if err != nil {
+				if isOptional {
+					// For optional includes, skip safe-outputs extraction
+					continue
+				}
+				// For required includes, fail compilation with an error
+				return nil, "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
+			}
+
+			// Extract safe-outputs configuration from the included file
+			content, err := os.ReadFile(fullPath)
+			if err != nil {
+				// For any processing errors, fail compilation
+				return nil, "", fmt.Errorf("failed to read included file '%s': %w", fullPath, err)
+			}
+
+			// Extract safe-outputs configuration
+			safeOutputsJSON, err := extractSafeOutputsFromContent(string(content))
+			if err != nil {
+				return nil, "", fmt.Errorf("failed to extract safe-outputs from '%s': %w", fullPath, err)
+			}
+
+			if safeOutputsJSON != "" && safeOutputsJSON != "{}" {
+				safeOutputs = append(safeOutputs, safeOutputsJSON)
+			}
+		} else {
+			// Regular line, just pass through
+			result.WriteString(line + "\n")
+		}
+	}
+
+	return safeOutputs, result.String(), nil
 }
 
 // mergeToolsFromJSON merges multiple JSON tool objects from content
