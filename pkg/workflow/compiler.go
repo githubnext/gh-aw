@@ -574,8 +574,20 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		allIncludedTools = includedTools
 	}
 
+	// Combine imported mcp-servers with top-level mcp-servers
+	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
+	allMCPServers := mcpServers
+	if importsResult.MergedMCPServers != "" {
+		// Parse and merge imported MCP servers
+		mergedMCPServers, err := c.mergeMCPServers(mcpServers, importsResult.MergedMCPServers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
+		}
+		allMCPServers = mergedMCPServers
+	}
+
 	// Merge tools including mcp-servers
-	tools, err = c.mergeToolsAndMCPServers(topTools, mcpServers, allIncludedTools)
+	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
@@ -1162,25 +1174,6 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 	}
 
 	return "", nil
-}
-
-// mergeTools merges two tools maps, combining allowed arrays when keys coincide
-func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
-	if includedToolsJSON == "" || includedToolsJSON == "{}" {
-		return topTools, nil
-	}
-
-	var includedTools map[string]any
-	if err := json.Unmarshal([]byte(includedToolsJSON), &includedTools); err != nil {
-		return topTools, nil // Return original tools if parsing fails
-	}
-
-	// Use the merge logic from the parser package
-	mergedTools, err := parser.MergeTools(topTools, includedTools)
-	if err != nil {
-		return nil, fmt.Errorf("failed to merge tools: %w", err)
-	}
-	return mergedTools, nil
 }
 
 // mergeSafeJobsFromIncludes merges safe-jobs from included files and detects conflicts

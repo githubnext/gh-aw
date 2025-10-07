@@ -2,6 +2,23 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "mcp-servers": {
+      "type": "object",
+      "description": "MCP server definitions that can be imported into workflows",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/stdio_mcp_tool"
+            },
+            {
+              "$ref": "#/$defs/http_mcp_tool"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "tools": {
       "type": "object",
       "description": "Tools configuration for the included file",
@@ -150,5 +167,164 @@
     ]
   }
 },
-"additionalProperties": false
+"additionalProperties": false,
+"$defs": {
+  "stdio_mcp_tool": {
+    "type": "object",
+    "description": "Stdio MCP tool configuration",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "stdio",
+          "local"
+        ],
+        "description": "MCP connection type for stdio (local is an alias for stdio)"
+      },
+      "registry": {
+        "type": "string",
+        "description": "URI to the installation location when MCP is installed from a registry"
+      },
+      "command": {
+        "type": "string",
+        "description": "Command for stdio MCP connections"
+      },
+      "container": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$",
+        "description": "Container image for stdio MCP connections (alternative to command)"
+      },
+      "args": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Arguments for command or container execution"
+      },
+      "env": {
+        "type": "object",
+        "patternProperties": {
+          "^[A-Z_][A-Z0-9_]*$": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Environment variables for MCP server"
+      },
+      "network": {
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?)*$",
+              "description": "Allowed domain name"
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "List of allowed domain names for network access"
+          },
+          "proxy-args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Custom proxy arguments for container-based MCP servers"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Network configuration for container-based MCP servers"
+      },
+      "allowed": {
+        "type": "array",
+        "description": "List of allowed tool functions",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false,
+    "anyOf": [
+      {
+        "required": [
+          "command"
+        ]
+      },
+      {
+        "required": [
+          "container"
+        ]
+      }
+    ],
+    "not": {
+      "allOf": [
+        {
+          "required": [
+            "command"
+          ]
+        },
+        {
+          "required": [
+            "container"
+          ]
+        }
+      ]
+    },
+    "allOf": [
+      {
+        "if": {
+          "required": [
+            "network"
+          ]
+        },
+        "then": {
+          "required": [
+            "container"
+          ]
+        }
+      }
+    ]
+  },
+  "http_mcp_tool": {
+    "type": "object",
+    "description": "HTTP MCP tool configuration",
+    "properties": {
+      "type": {
+        "type": "string",
+        "const": "http",
+        "description": "MCP connection type for HTTP"
+      },
+      "registry": {
+        "type": "string",
+        "description": "URI to the installation location when MCP is installed from a registry"
+      },
+      "url": {
+        "type": "string",
+        "description": "URL for HTTP MCP connections"
+      },
+      "headers": {
+        "type": "object",
+        "patternProperties": {
+          "^[A-Za-z0-9-]+$": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "description": "HTTP headers for HTTP MCP connections"
+      },
+      "allowed": {
+        "type": "array",
+        "description": "List of allowed tool functions",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "url"
+    ],
+    "additionalProperties": false
+  }
+}
 }

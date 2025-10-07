@@ -13,13 +13,11 @@ permissions:
   actions: read
 roles: [admin, maintainer, write]
 engine: copilot
+imports:
+  - shared/tavily-mcp.md
 tools:
   cache-memory:
     retention-days: 7
-mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
-    allowed: ["*"]
 safe-outputs:
   add-comment:
     max: 1
