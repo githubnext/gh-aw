@@ -118,7 +118,7 @@ type WorkflowData struct {
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
-	Concurrency        string
+	Concurrency        string // workflow-level concurrency configuration
 	RunName            string
 	Env                string
 	If                 string
@@ -1958,8 +1958,8 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
-	// Generate agent concurrency for max-concurrency feature
-	//agentConcurrency := GenerateJobConcurrencyConfig(data)
+	// Generate agent concurrency configuration
+	agentConcurrency := GenerateJobConcurrencyConfig(data)
 
 	job := &Job{
 		Name:        constants.AgentJobName,
@@ -1969,7 +1969,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
-		Concurrency: "", // c.indentYAMLLines(agentConcurrency, "    "),
+		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
 		Env:         env,
 		Steps:       steps,
 		Needs:       depends,

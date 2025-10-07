@@ -425,6 +425,8 @@ jobs:
       actions: read
       contents: read
       models: read
+    concurrency:
+      group: "gh-aw-custom"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-labels\":{\"allowed\":[\"bug\",\"feature\",\"enhancement\",\"documentation\"],\"max\":1},\"missing-tool\":{}}"
