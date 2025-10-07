@@ -532,3 +532,64 @@ engine: claude
 		t.Errorf("Expected timeout error, got: %v", err)
 	}
 }
+
+func TestStrictModeIsolation(t *testing.T) {
+	// Test that strict mode in one workflow doesn't affect other workflows
+	tmpDir, err := os.MkdirTemp("", "strict-isolation-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// First workflow with strict: true (missing timeout_minutes - should fail)
+	strictWorkflow := `---
+on: push
+strict: true
+permissions:
+  contents: read
+engine: claude
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Strict Workflow`
+
+	// Second workflow without strict mode (no timeout_minutes - should succeed)
+	nonStrictWorkflow := `---
+on: push
+permissions:
+  contents: write
+engine: claude
+---
+
+# Non-Strict Workflow`
+
+	strictFile := filepath.Join(tmpDir, "strict-workflow.md")
+	nonStrictFile := filepath.Join(tmpDir, "non-strict-workflow.md")
+
+	if err := os.WriteFile(strictFile, []byte(strictWorkflow), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(nonStrictFile, []byte(nonStrictWorkflow), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "")
+	// Do NOT set strict mode via CLI - let frontmatter control it
+
+	// Compile strict workflow first - should fail
+	err = compiler.CompileWorkflow(strictFile)
+	if err == nil {
+		t.Error("Expected strict workflow to fail due to missing timeout_minutes, but it succeeded")
+	} else if !strings.Contains(err.Error(), "timeout_minutes") {
+		t.Errorf("Expected timeout_minutes error for strict workflow, got: %v", err)
+	}
+
+	// Compile non-strict workflow second - should succeed
+	// This tests that strict mode from first workflow doesn't leak
+	err = compiler.CompileWorkflow(nonStrictFile)
+	if err != nil {
+		t.Errorf("Expected non-strict workflow to succeed, but it failed: %v", err)
+	}
+}

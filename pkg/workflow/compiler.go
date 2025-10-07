@@ -454,6 +454,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Save the initial strict mode state to restore it after this workflow is processed
+	// This ensures that strict mode from one workflow doesn't affect other workflows
+	initialStrictMode := c.strictMode
+
 	// Check if strict mode is enabled in frontmatter
 	// If strict is true in frontmatter, enable strict mode for this workflow
 	// This allows declarative strict mode control per workflow
@@ -469,8 +473,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Perform strict mode validations
 	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictMode
 		return nil, err
 	}
+
+	// Restore the initial strict mode state after validation
+	// This ensures strict mode doesn't leak to other workflows being compiled
+	c.strictMode = initialStrictMode
 
 	// Validate that @include/@import directives are not used inside template regions
 	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
