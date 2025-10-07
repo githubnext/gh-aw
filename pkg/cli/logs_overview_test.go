@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"strings"
 	"testing"
 	"time"
 )
@@ -350,9 +349,4 @@ func TestMissingToolCountFieldAccessibility(t *testing.T) {
 	if emptyRun.MissingToolCount != 0 {
 		t.Errorf("MissingToolCount should default to 0, got %d", emptyRun.MissingToolCount)
 	}
-}
-
-// Helper function to check if output contains expected string
-func containsString(output, expected string) bool {
-	return strings.Contains(output, expected)
 }
