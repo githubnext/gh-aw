@@ -14,6 +14,14 @@
       "type": "string",
       "description": "Optional source reference indicating where this workflow was added from. Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/ci-doctor.md@v1.0.0). Rendered as a comment in the generated lock file."
     },
+    "imports": {
+      "type": "array",
+      "description": "Optional array of workflow specifications to import (similar to @include directives but defined in frontmatter). Format: owner/repo/path@ref (e.g., githubnext/agentics/workflows/shared/common.md@v1.0.0).",
+      "items": {
+        "type": "string",
+        "description": "Workflow specification in format owner/repo/path@ref"
+      }
+    },
     "on": {
       "description": "Workflow triggers that define when the agentic workflow should run. Supports standard GitHub Actions trigger events plus special command triggers for /commands (required)",
       "oneOf": [
@@ -2256,6 +2264,11 @@
               "type": "integer",
               "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted."
             },
+            "max-concurrency": {
+              "type": "integer",
+              "minimum": -1,
+              "description": "Maximum number of agentic jobs that can run concurrently across all workflows using this engine. Defaults to 3. Set to -1 to disable agent concurrency limiting. Uses GitHub Actions concurrency controls with slot-based distribution."
+            },
             "user-agent": {
               "type": "string",
               "description": "Custom user agent string for GitHub MCP server configuration (codex engine only)"
@@ -2341,8 +2354,12 @@
         },
         "container": {
           "type": "string",
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
           "description": "Container image for stdio MCP connections (alternative to command)"
+        },
+        "version": {
+          "type": "string",
+          "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')"
         },
         "args": {
           "type": "array",

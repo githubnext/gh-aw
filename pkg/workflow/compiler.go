@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -108,10 +109,12 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
 	Name               string
-	TrialMode          bool   // whether the workflow is running in trial mode
-	FrontmatterName    string // name field from frontmatter (for code scanning alert driver default)
-	Description        string // optional description rendered as comment in lock file
-	Source             string // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	TrialMode          bool     // whether the workflow is running in trial mode
+	FrontmatterName    string   // name field from frontmatter (for code scanning alert driver default)
+	Description        string   // optional description rendered as comment in lock file
+	Source             string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	ImportedFiles      []string // list of files imported via imports field (rendered as comment in lock file)
+	IncludedFiles      []string // list of files included via @include directives (rendered as comment in lock file)
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
@@ -469,6 +472,11 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, err
 	}
 
+	// Validate that @include/@import directives are not used inside template regions
+	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
+		return nil, fmt.Errorf("template region validation failed: %w", err)
+	}
+
 	// Override with command line AI engine setting if provided
 	if c.engineOverride != "" {
 		originalEngineSetting := engineSetting
@@ -478,19 +486,37 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		engineSetting = c.engineOverride
 	}
 
+	// Process imports from frontmatter first (before @include directives)
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(result.Frontmatter, markdownDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process imports from frontmatter: %w", err)
+	}
+
 	// Process @include directives to extract engine configurations and check for conflicts
 	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes for engines: %w", err)
 	}
 
+	// Combine imported engines with included engines
+	allEngines := append(importsResult.MergedEngines, includedEngines...)
+
 	// Validate that only one engine field exists across all files
-	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, includedEngines)
+	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
 	if err != nil {
 		return nil, err
 	}
 	if finalEngineSetting != "" {
 		engineSetting = finalEngineSetting
+	}
+
+	// If engineConfig is nil (engine was in an included file), extract it from the included engine JSON
+	if engineConfig == nil && len(allEngines) > 0 {
+		extractedConfig, err := c.extractEngineConfigFromJSON(allEngines[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract engine config from included file: %w", err)
+		}
+		engineConfig = extractedConfig
 	}
 
 	// Apply the default AI engine setting if not specified
@@ -499,6 +525,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		engineSetting = defaultEngine.GetID()
 		if c.verbose {
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("NOTE: No 'engine:' setting found, defaulting to: %s", engineSetting)))
+		}
+		// Create a default EngineConfig with the default engine ID if not already set
+		if engineConfig == nil {
+			engineConfig = &EngineConfig{ID: engineSetting}
+		} else if engineConfig.ID == "" {
+			engineConfig.ID = engineSetting
 		}
 	}
 
@@ -533,13 +565,35 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
 
 	// Process @include directives to extract additional tools
-	includedTools, err := parser.ExpandIncludes(result.Markdown, markdownDir, true)
+	includedTools, includedToolFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes for tools: %w", err)
 	}
 
+	// Combine imported tools with included tools
+	var allIncludedTools string
+	if importsResult.MergedTools != "" && includedTools != "" {
+		allIncludedTools = importsResult.MergedTools + "\n" + includedTools
+	} else if importsResult.MergedTools != "" {
+		allIncludedTools = importsResult.MergedTools
+	} else {
+		allIncludedTools = includedTools
+	}
+
+	// Combine imported mcp-servers with top-level mcp-servers
+	// Imported mcp-servers are in JSON format (newline-separated), need to merge them
+	allMCPServers := mcpServers
+	if importsResult.MergedMCPServers != "" {
+		// Parse and merge imported MCP servers
+		mergedMCPServers, err := c.mergeMCPServers(mcpServers, importsResult.MergedMCPServers)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
+		}
+		allMCPServers = mergedMCPServers
+	}
+
 	// Merge tools including mcp-servers
-	tools, err = c.mergeToolsAndMCPServers(topTools, mcpServers, includedTools)
+	tools, err = c.mergeToolsAndMCPServers(topTools, allMCPServers, allIncludedTools)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
@@ -583,14 +637,35 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	c.validateWebSearchSupport(tools, agenticEngine)
 
 	// Process @include directives in markdown content
-	markdownContent, err := parser.ExpandIncludes(result.Markdown, markdownDir, false)
+	markdownContent, includedMarkdownFiles, err := parser.ExpandIncludesWithManifest(result.Markdown, markdownDir, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to expand includes in markdown: %w", err)
+	}
+
+	// Prepend imported markdown from frontmatter imports field
+	if importsResult.MergedMarkdown != "" {
+		markdownContent = importsResult.MergedMarkdown + markdownContent
 	}
 
 	if c.verbose {
 		fmt.Println(console.FormatInfoMessage("Expanded includes in markdown content"))
 	}
+
+	// Combine all included files (from tools and markdown)
+	// Use a map to deduplicate files
+	allIncludedFilesMap := make(map[string]bool)
+	for _, file := range includedToolFiles {
+		allIncludedFilesMap[file] = true
+	}
+	for _, file := range includedMarkdownFiles {
+		allIncludedFilesMap[file] = true
+	}
+	var allIncludedFiles []string
+	for file := range allIncludedFilesMap {
+		allIncludedFiles = append(allIncludedFiles, file)
+	}
+	// Sort files alphabetically to ensure consistent ordering in lock files
+	sort.Strings(allIncludedFiles)
 
 	// Extract workflow name
 	workflowName, err := parser.ExtractWorkflowNameFromMarkdown(markdownPath)
@@ -617,6 +692,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		FrontmatterName:    frontmatterName,
 		Description:        c.extractDescription(result.Frontmatter),
 		Source:             c.extractSource(result.Frontmatter),
+		ImportedFiles:      importsResult.ImportedFiles,
+		IncludedFiles:      allIncludedFiles,
 		Tools:              tools,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
@@ -637,6 +714,41 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
+
+	// Merge imported steps if any
+	if importsResult.MergedSteps != "" {
+		// Parse imported steps from YAML array
+		var importedSteps []any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
+			// If there are main workflow steps, parse and merge them
+			if workflowData.CustomSteps != "" {
+				// Parse main workflow steps (format: "steps:\n  - ...")
+				var mainStepsWrapper map[string]any
+				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
+					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
+						if mainSteps, ok := mainStepsVal.([]any); ok {
+							// Prepend imported steps to main steps
+							allSteps := append(importedSteps, mainSteps...)
+							// Convert back to YAML with "steps:" wrapper
+							stepsWrapper := map[string]any{"steps": allSteps}
+							stepsYAML, err := yaml.Marshal(stepsWrapper)
+							if err == nil {
+								workflowData.CustomSteps = string(stepsYAML)
+							}
+						}
+					}
+				}
+			} else {
+				// Only imported steps exist, wrap in "steps:" format
+				stepsWrapper := map[string]any{"steps": importedSteps}
+				stepsYAML, err := yaml.Marshal(stepsWrapper)
+				if err == nil {
+					workflowData.CustomSteps = string(stepsYAML)
+				}
+			}
+		}
+	}
+
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
@@ -661,9 +773,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract safe-jobs from the new location (safe-outputs.jobs) or old location (safe-jobs) for backwards compatibility
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
-	// Process @include directives to extract additional safe-jobs (reuse the same includedTools JSON)
-	// Since ExpandIncludes extracts all frontmatter as JSON, we can use the same result
-	includedSafeJobs, err := c.mergeSafeJobsFromIncludes(topSafeJobs, includedTools)
+	// Process @include directives to extract additional safe-outputs configurations
+	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(result.Markdown, markdownDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
+	}
+
+	// Combine imported safe-outputs with included safe-outputs
+	var allSafeOutputsConfigs []string
+	if len(importsResult.MergedSafeOutputs) > 0 {
+		allSafeOutputsConfigs = append(allSafeOutputsConfigs, importsResult.MergedSafeOutputs...)
+	}
+	if len(includedSafeOutputsConfigs) > 0 {
+		allSafeOutputsConfigs = append(allSafeOutputsConfigs, includedSafeOutputsConfigs...)
+	}
+
+	// Merge safe-jobs from all safe-outputs configurations (imported and included)
+	includedSafeJobs, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, allSafeOutputsConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
@@ -1105,25 +1231,6 @@ func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandName
 	return "", nil
 }
 
-// mergeTools merges two tools maps, combining allowed arrays when keys coincide
-func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
-	if includedToolsJSON == "" || includedToolsJSON == "{}" {
-		return topTools, nil
-	}
-
-	var includedTools map[string]any
-	if err := json.Unmarshal([]byte(includedToolsJSON), &includedTools); err != nil {
-		return topTools, nil // Return original tools if parsing fails
-	}
-
-	// Use the merge logic from the parser package
-	mergedTools, err := parser.MergeTools(topTools, includedTools)
-	if err != nil {
-		return nil, fmt.Errorf("failed to merge tools: %w", err)
-	}
-	return mergedTools, nil
-}
-
 // mergeSafeJobsFromIncludes merges safe-jobs from included files and detects conflicts
 func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConfig, includedContentJSON string) (map[string]*SafeJobConfig, error) {
 	if includedContentJSON == "" || includedContentJSON == "{}" {
@@ -1146,6 +1253,40 @@ func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConf
 	}
 
 	return mergedSafeJobs, nil
+}
+
+// mergeSafeJobsFromIncludedConfigs merges safe-jobs from included safe-outputs configurations
+func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*SafeJobConfig, includedConfigs []string) (map[string]*SafeJobConfig, error) {
+	result := topSafeJobs
+	if result == nil {
+		result = make(map[string]*SafeJobConfig)
+	}
+
+	for _, configJSON := range includedConfigs {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+
+		// Parse the safe-outputs configuration
+		var safeOutputsConfig map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &safeOutputsConfig); err != nil {
+			continue // Skip invalid JSON
+		}
+
+		// Extract safe-jobs from the safe-outputs.jobs field
+		includedSafeJobs := extractSafeJobsFromFrontmatter(map[string]any{
+			"safe-outputs": safeOutputsConfig,
+		})
+
+		// Merge with conflict detection
+		var err error
+		result, err = mergeSafeJobs(result, includedSafeJobs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
+		}
+	}
+
+	return result, nil
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
@@ -1370,6 +1511,26 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	if data.Source != "" {
 		yaml.WriteString("#\n")
 		yaml.WriteString(fmt.Sprintf("# Source: %s\n", data.Source))
+	}
+
+	// Add manifest of imported/included files if any exist
+	if len(data.ImportedFiles) > 0 || len(data.IncludedFiles) > 0 {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Resolved workflow manifest:\n")
+
+		if len(data.ImportedFiles) > 0 {
+			yaml.WriteString("#   Imports:\n")
+			for _, file := range data.ImportedFiles {
+				yaml.WriteString(fmt.Sprintf("#     - %s\n", file))
+			}
+		}
+
+		if len(data.IncludedFiles) > 0 {
+			yaml.WriteString("#   Includes:\n")
+			for _, file := range data.IncludedFiles {
+				yaml.WriteString(fmt.Sprintf("#     - %s\n", file))
+			}
+		}
 	}
 
 	// Add stop-time comment if configured
@@ -1845,6 +2006,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
+	// Generate agent concurrency for max-concurrency feature
+	//agentConcurrency := GenerateJobConcurrencyConfig(data)
+
 	job := &Job{
 		Name:        constants.AgentJobName,
 		If:          jobCondition,
@@ -1853,6 +2017,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Concurrency: "", // c.indentYAMLLines(agentConcurrency, "    "),
 		Env:         env,
 		Steps:       steps,
 		Needs:       depends,
@@ -2681,6 +2846,16 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 		for jobName, jobConfig := range data.SafeOutputs.Jobs {
 			safeJobConfig := map[string]any{}
 
+			// Add description if present
+			if jobConfig.Description != "" {
+				safeJobConfig["description"] = jobConfig.Description
+			}
+
+			// Add output if present
+			if jobConfig.Output != "" {
+				safeJobConfig["output"] = jobConfig.Output
+			}
+
 			// Add inputs information
 			if len(jobConfig.Inputs) > 0 {
 				inputsConfig := make(map[string]any)
@@ -2816,7 +2991,7 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 
 	// web-search is specified, check if the engine supports it
 	if !engine.SupportsWebSearch() {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool", engine.GetID())))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://githubnext.github.io/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
 	}
 }
 

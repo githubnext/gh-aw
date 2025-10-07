@@ -39,6 +39,14 @@ func InitRepository(verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-agentic-workflow command"))
 	}
 
+	// Write shared agentic workflow prompt
+	if err := ensureSharedAgenticWorkflowPrompt(verbose, false); err != nil {
+		return fmt.Errorf("failed to write shared agentic workflow prompt: %w", err)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created /create-shared-agentic-workflow command"))
+	}
+
 	// Display success message with next steps
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Repository initialized for agentic workflows!"))

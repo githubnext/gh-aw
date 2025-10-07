@@ -606,3 +606,69 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 		t.Error("Expected upload step to have 'if-no-files-found: ignore'")
 	}
 }
+
+func TestEchoAgentOutputsStep(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	// Test that the echo step is created with correct properties
+	steps := compiler.buildEchoAgentOutputsStep("agent")
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty steps for echo agent outputs")
+	}
+
+	// Join all steps into a single string for easier verification
+	stepsString := strings.Join(steps, "")
+
+	// Verify key components of the echo step
+	expectedComponents := []string{
+		"name: Echo agent outputs",
+		"env:",
+		"AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
+		"AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}",
+		"run: |",
+		"echo \"Agent output: $AGENT_OUTPUT\"",
+		"echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"",
+	}
+
+	for _, expected := range expectedComponents {
+		if !strings.Contains(stepsString, expected) {
+			t.Errorf("Expected echo agent outputs step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
+		}
+	}
+}
+
+func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	steps := compiler.buildThreatDetectionSteps(data, "agent")
+
+	if len(steps) == 0 {
+		t.Fatal("Expected non-empty steps")
+	}
+
+	// Join all steps into a single string for easier verification
+	stepsString := strings.Join(steps, "")
+
+	// Verify that the echo step is included
+	if !strings.Contains(stepsString, "Echo agent outputs") {
+		t.Error("Expected threat detection steps to include echo agent outputs step")
+	}
+
+	// Verify it echoes both outputs
+	if !strings.Contains(stepsString, "needs.agent.outputs.output") {
+		t.Error("Expected echo step to reference needs.agent.outputs.output")
+	}
+
+	if !strings.Contains(stepsString, "needs.agent.outputs.output_types") {
+		t.Error("Expected echo step to reference needs.agent.outputs.output_types")
+	}
+}

@@ -29,7 +29,9 @@ engine:
 - **`model`** (optional): AI model to use (`gpt-5` or defaults to `claude-sonnet-4`)
 - **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
 
-**Note:** The Copilot engine does not support the `web-search` tool. Use Claude or Codex engines if you need web search capabilities.
+:::note
+The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Web Search with MCP guide](/gh-aw/guides/web-search/) for available options and setup instructions.
+:::
 
 **Environment Variables:**
 - **`COPILOT_MODEL`**: Alternative way to set the model (e.g., `gpt-5`)

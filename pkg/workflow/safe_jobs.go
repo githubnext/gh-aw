@@ -11,6 +11,7 @@ import (
 type SafeJobConfig struct {
 	// Standard GitHub Actions job properties
 	Name        string            `yaml:"name,omitempty"`
+	Description string            `yaml:"description,omitempty"`
 	RunsOn      any               `yaml:"runs-on,omitempty"`
 	If          string            `yaml:"if,omitempty"`
 	Needs       []string          `yaml:"needs,omitempty"`
@@ -59,6 +60,20 @@ func (c *Compiler) parseSafeJobsConfig(frontmatter map[string]any) map[string]*S
 		}
 
 		safeJob := &SafeJobConfig{}
+
+		// Parse name
+		if name, exists := jobConfig["name"]; exists {
+			if nameStr, ok := name.(string); ok {
+				safeJob.Name = nameStr
+			}
+		}
+
+		// Parse description
+		if description, exists := jobConfig["description"]; exists {
+			if descStr, ok := description.(string); ok {
+				safeJob.Description = descStr
+			}
+		}
 
 		// Parse runs-on
 		if runsOn, exists := jobConfig["runs-on"]; exists {

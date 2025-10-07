@@ -30,7 +30,7 @@ gh aw add githubnext/agentics@main         # branch
 
 ## Workflow Specification (WorkflowSpec)
 
-Format: `owner/repo/workflow-name[@version]` or `owner/repo/path/to/workflow.md[@version]`
+Format: `owner/repo/workflow-name[@version]` or `owner/repo/path/to/workflow.md[@version]` or full GitHub URL
 
 **Short form** (3 parts): Automatically adds `workflows/` prefix and `.md` extension
 ```bash
@@ -44,10 +44,20 @@ gh aw add owner/repo/workflows/ci-doctor.md@v1.0.0
 gh aw add owner/repo/custom/path/workflow.md@main
 ```
 
+**GitHub URL form**: Full GitHub URL to workflow file
+```bash
+gh aw add https://github.com/owner/repo/blob/main/workflows/ci-doctor.md
+gh aw add https://github.com/owner/repo/blob/v1.0.0/custom/path/workflow.md
+gh aw add https://github.com/owner/repo/tree/develop/workflows/helper.md
+```
+
 **Validation:**
-- Minimum 3 parts (owner/repo/workflow-name)
+- Minimum 3 parts (owner/repo/workflow-name) for spec format
 - Explicit paths must end with `.md` extension
 - Version optional (tag, branch, or commit SHA)
+- GitHub URLs must be from github.com domain
+- GitHub URLs must use /blob/, /tree/, or /raw/ format
+- GitHub URLs automatically extract branch/tag/commit from the URL path
 
 ## Source Specification (SourceSpec)
 
@@ -91,6 +101,7 @@ owner/repo/workflow
 gh aw add githubnext/agentics/ci-doctor              # short form
 gh aw add githubnext/agentics/ci-doctor@v1.0.0       # with version
 gh aw add githubnext/agentics/workflows/ci-doctor.md@main  # explicit path
+gh aw add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md  # GitHub URL
 ```
 
 **Update workflow:**
@@ -133,6 +144,7 @@ Fix: Don't start or end identifiers with hyphens.
 
 ## Related Documentation
 
+- [Packaging and Imports](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
 - [CLI Commands](/gh-aw/tools/cli/) - Full CLI reference
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - Configuration options

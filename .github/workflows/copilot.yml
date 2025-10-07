@@ -1,8 +1,8 @@
-name: Copilot
 on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - copilot*
 permissions: {}
 jobs:
@@ -20,11 +20,30 @@ jobs:
         run: npm install -g @github/copilot
       
       - name: Setup MCP Configuration
+        env:
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
         run: |
           mkdir -p /home/runner/.copilot
           cat > /home/runner/.copilot/mcp-config.json << 'EOF'
           {
             "mcpServers": {
+                "github": {
+                  "type": "local",
+                  "command": "docker",
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "GITHUB_PERSONAL_ACCESS_TOKEN"
+                  },
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:sha-09deac4"
+                  ],
+                  "tools": ["*"]
+                }
+              }
             }
           }
           EOF

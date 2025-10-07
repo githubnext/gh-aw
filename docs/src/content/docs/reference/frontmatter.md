@@ -25,6 +25,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 **Properties specific to GitHub Agentic Workflows:**
 - `description`: Human-readable description rendered as a comment in the lock file
 - `source`: Source reference tracking where the workflow was added from (format: `owner/repo/path@ref`)
+- `imports`: List of files to import (see [Packaging and Imports](/gh-aw/guides/packaging-imports/))
 - `engine`: AI engine configuration (copilot/claude/codex) with optional max-turns setting
 - `strict`: Enable strict mode validation (boolean, defaults to false)
 - `roles`: Permission restrictions based on repository access levels
@@ -265,7 +266,8 @@ roles: admin
 
 **Behavior:**
 - Workflows with potentially unsafe triggers (like `push`, `issues`, `pull_request`) automatically include permission checks
-- "Safe" triggers like `workflow_dispatch`, `schedule`, and `workflow_run` skip permission checks by default
+- "Safe" triggers like `schedule` and `workflow_run` skip permission checks by default
+- `workflow_dispatch` is treated as safe only when `write` is in the allowed roles (since workflow_dispatch can be triggered by users with write access)
 - When permission checks fail, the workflow is automatically cancelled with a warning message
 - Users without sufficient permissions will see the workflow start but then immediately stop
 
@@ -346,6 +348,7 @@ engine:
   version: latest                   # Optional: version of the action
   model: gpt-5                      # Optional: specific LLM model (for copilot)
   max-turns: 5                      # Optional: maximum chat iterations per run (for claude)
+  max-concurrency: 3                # Optional: max concurrent workflows across all workflows (default: 3)
   env:                              # Optional: custom environment variables
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com
@@ -361,6 +364,7 @@ engine:
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
+- **`max-concurrency`** (optional): Maximum number of concurrent workflows across all workflows (default: 3)
 - **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
 - **`config`** (optional): Additional TOML configuration text appended to generated config.toml (codex engine only)
 
@@ -461,6 +465,71 @@ engine:
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
 
+### Concurrency Limiting
+
+The `max-concurrency` option limits how many agentic jobs can run concurrently across **all workflows** in your repository:
+
+```yaml
+engine:
+  id: claude
+  max-concurrency: 5
+```
+
+**Default Value:** 3 (if not specified)
+
+**How it works:**
+- Uses GitHub Actions concurrency groups with slot distribution for global limiting
+- Workflows are distributed across available slots using `github.run_id % max-concurrency`
+- Each slot can only run one workflow at a time across ALL workflows and refs
+- Includes engine ID in concurrency group for isolation between different engines
+- Prevents resource exhaustion from too many concurrent AI executions
+
+**Example configurations:**
+
+```yaml
+# Allow up to 10 concurrent Claude workflows
+engine:
+  id: claude
+  max-concurrency: 10
+```
+
+```yaml
+# Restrict to 1 workflow at a time (sequential execution)
+engine:
+  id: copilot
+  max-concurrency: 1
+```
+
+```yaml
+# Use default of 3 concurrent workflows
+engine:
+  id: claude
+  # max-concurrency not specified, defaults to 3
+```
+
+**Generated concurrency group pattern:**
+```yaml
+# At workflow level
+concurrency:
+  group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
+
+# At job level (agentic job)
+jobs:
+  agent:
+    concurrency:
+      group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
+```
+
+Example for claude with max-concurrency of 5:
+```yaml
+concurrency:
+  group: "gh-aw-claude-${{ github.run_id % 5 }}"
+```
+
+The concurrency group uses **only** the engine ID and slot number (prefixed with "gh-aw-"), creating a global lock across all workflows and refs for that engine. This ensures the max-concurrency limit applies repository-wide.
+
+The concurrency is applied at **both workflow and job level** for maximum control.
+
 ## Tools Configuration (`tools:`)
 
 The `tools:` section specifies which tools and MCP (Model Context Protocol) servers are available to the AI engine. This enables integration with GitHub APIs, browser automation, and other external services.
@@ -508,32 +577,30 @@ timeout_minutes: 30                  # Defaults to 15 minutes
 
 ## Concurrency Control (`concurrency:`)
 
-GitHub Agentic Workflows automatically generates enhanced concurrency policies based on workflow trigger types to provide better isolation and resource management. For example, most workflows produce this:
+GitHub Agentic Workflows automatically generates concurrency policies to limit concurrent execution across all workflows using the same engine.
 
+See [Concurrency Control](/gh-aw/reference/concurrency/) for complete documentation on max-concurrency configuration, global locks, and engine isolation.
+
+**Quick reference:**
+- Configure via `engine.max-concurrency` (default: 3)
+- Creates global lock across all workflows and refs for each engine
+- Applied at both workflow and job levels
+- Different engines can run concurrently without interfering
+
+**Example:**
 ```yaml
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+engine:
+  id: claude
+  max-concurrency: 5
 ```
 
-Different workflow types receive different concurrency groups and cancellation behavior:
+Generates:
+```yaml
+concurrency:
+  group: "gh-aw-claude-${{ github.run_id % 5 }}"
+```
 
-| Trigger Type | Concurrency Group | Cancellation | Description |
-|--------------|-------------------|--------------|-------------|
-| `issues` | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}` | ❌ | Issue workflows include issue number for isolation |
-| `pull_request` | `gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number \|\| github.ref }}` | ✅ | PR workflows include PR number with cancellation |
-| `discussion` | `gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}` | ❌ | Discussion workflows include discussion number |
-| Mixed issue/PR | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ✅ | Mixed workflows handle both contexts with cancellation |
-| Alias workflows | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ❌ | Alias workflows handle both contexts without cancellation |
-| Other triggers | `gh-aw-${{ github.workflow }}` | ❌ | Default behavior for schedule, push, etc. |
-
-**Benefits:**
-- **Better Isolation**: Workflows operating on different issues/PRs can run concurrently
-- **Conflict Prevention**: No interference between unrelated workflow executions  
-- **Resource Management**: Pull request workflows can cancel previous runs when updated
-- **Predictable Behavior**: Consistent concurrency rules based on trigger type
-
-If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
+You can override automatic concurrency by specifying a custom `concurrency` section in the frontmatter.
 
 ## Environment Variables (`env:`)
 

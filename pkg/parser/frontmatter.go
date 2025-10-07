@@ -15,8 +15,56 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// IncludeDirectivePattern matches @include or @import directives
-var IncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
+// IncludeDirectivePattern matches @include, @import (deprecated), or {{#import (new) directives
+// The colon after #import is optional and ignored if present
+var IncludeDirectivePattern = regexp.MustCompile(`^(?:@(?:include|import)(\?)?\s+(.+)|{{#import(\?)?\s*:?\s*(.+?)\s*}})$`)
+
+// LegacyIncludeDirectivePattern matches only the deprecated @include and @import directives
+var LegacyIncludeDirectivePattern = regexp.MustCompile(`^@(?:include|import)(\?)?\s+(.+)$`)
+
+// ImportDirectiveMatch holds the parsed components of an import directive
+type ImportDirectiveMatch struct {
+	IsOptional bool
+	Path       string
+	IsLegacy   bool
+	Original   string
+}
+
+// ParseImportDirective parses an import directive and returns its components
+func ParseImportDirective(line string) *ImportDirectiveMatch {
+	trimmedLine := strings.TrimSpace(line)
+
+	// Check if it matches the import pattern at all
+	matches := IncludeDirectivePattern.FindStringSubmatch(trimmedLine)
+	if matches == nil {
+		return nil
+	}
+
+	// Check if it's legacy syntax
+	isLegacy := LegacyIncludeDirectivePattern.MatchString(trimmedLine)
+
+	var isOptional bool
+	var path string
+
+	if isLegacy {
+		// Legacy syntax: @include? path or @import? path
+		// Group 1: optional marker, Group 2: path
+		isOptional = matches[1] == "?"
+		path = strings.TrimSpace(matches[2])
+	} else {
+		// New syntax: {{#import?: path}} or {{#import: path}} (colon is optional)
+		// Group 3: optional marker, Group 4: path
+		isOptional = matches[3] == "?"
+		path = strings.TrimSpace(matches[4])
+	}
+
+	return &ImportDirectiveMatch{
+		IsOptional: isOptional,
+		Path:       path,
+		IsLegacy:   isLegacy,
+		Original:   trimmedLine,
+	}
+}
 
 // isMCPType checks if a type string represents an MCP-compatible type
 func isMCPType(typeStr string) bool {
@@ -35,6 +83,17 @@ type FrontmatterResult struct {
 	// Additional fields for error context
 	FrontmatterLines []string // Original frontmatter lines for error context
 	FrontmatterStart int      // Line number where frontmatter starts (1-based)
+}
+
+// ImportsResult holds the result of processing imports from frontmatter
+type ImportsResult struct {
+	MergedTools       string   // Merged tools configuration from all imports
+	MergedMCPServers  string   // Merged mcp-servers configuration from all imports
+	MergedEngines     []string // Merged engine configurations from all imports
+	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
+	MergedMarkdown    string   // Merged markdown content from all imports
+	MergedSteps       string   // Merged steps configuration from all imports
+	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -288,14 +347,155 @@ func ExtractMarkdown(filePath string) (string, error) {
 	return ExtractMarkdownContent(string(content))
 }
 
-// ProcessIncludes processes @include and @import directives in markdown content
+// ProcessImportsFromFrontmatter processes imports field from frontmatter
+// Returns merged tools and engines from imported files
+func ProcessImportsFromFrontmatter(frontmatter map[string]any, baseDir string) (mergedTools string, mergedEngines []string, err error) {
+	result, err := ProcessImportsFromFrontmatterWithManifest(frontmatter, baseDir)
+	if err != nil {
+		return "", nil, err
+	}
+	return result.MergedTools, result.MergedEngines, nil
+}
+
+// ProcessImportsFromFrontmatterWithManifest processes imports field from frontmatter
+// Returns result containing merged tools, engines, markdown content, and list of imported files
+func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseDir string) (*ImportsResult, error) {
+	// Check if imports field exists
+	importsField, exists := frontmatter["imports"]
+	if !exists {
+		return &ImportsResult{}, nil
+	}
+
+	// Convert to array of strings
+	var imports []string
+	switch v := importsField.(type) {
+	case []any:
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				imports = append(imports, str)
+			}
+		}
+	case []string:
+		imports = v
+	default:
+		return nil, fmt.Errorf("imports field must be an array of strings")
+	}
+
+	if len(imports) == 0 {
+		return &ImportsResult{}, nil
+	}
+
+	// Track visited to prevent cycles
+	visited := make(map[string]bool)
+
+	// Process each import
+	var toolsBuilder strings.Builder
+	var mcpServersBuilder strings.Builder
+	var markdownBuilder strings.Builder
+	var stepsBuilder strings.Builder
+	var engines []string
+	var safeOutputs []string
+	var processedFiles []string
+
+	for _, importPath := range imports {
+		// Handle section references (file.md#Section)
+		var filePath, sectionName string
+		if strings.Contains(importPath, "#") {
+			parts := strings.SplitN(importPath, "#", 2)
+			filePath = parts[0]
+			sectionName = parts[1]
+		} else {
+			filePath = importPath
+		}
+
+		// Resolve import path (supports workflowspec format)
+		fullPath, err := resolveIncludePath(filePath, baseDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve import '%s': %w", filePath, err)
+		}
+
+		// Check for cycles
+		if visited[fullPath] {
+			continue
+		}
+		visited[fullPath] = true
+
+		// Add to list of processed files (use original importPath for manifest)
+		processedFiles = append(processedFiles, importPath)
+
+		// Extract tools from imported file
+		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, baseDir, visited)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
+		}
+		toolsBuilder.WriteString(toolsContent + "\n")
+
+		// Extract markdown content from imported file
+		markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, baseDir, visited)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process markdown from imported file '%s': %w", fullPath, err)
+		}
+		if markdownContent != "" {
+			markdownBuilder.WriteString(markdownContent)
+			// Add blank line separator between imported files
+			if !strings.HasSuffix(markdownContent, "\n\n") {
+				if strings.HasSuffix(markdownContent, "\n") {
+					markdownBuilder.WriteString("\n")
+				} else {
+					markdownBuilder.WriteString("\n\n")
+				}
+			}
+		}
+
+		// Extract engines from imported file
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read imported file '%s': %w", fullPath, err)
+		}
+
+		engineContent, err := extractEngineFromContent(string(content))
+		if err == nil && engineContent != "" {
+			engines = append(engines, engineContent)
+		}
+
+		// Extract mcp-servers from imported file
+		mcpServersContent, err := extractMCPServersFromContent(string(content))
+		if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
+			mcpServersBuilder.WriteString(mcpServersContent + "\n")
+		}
+
+		// Extract safe-outputs from imported file
+		safeOutputsContent, err := extractSafeOutputsFromContent(string(content))
+		if err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
+			safeOutputs = append(safeOutputs, safeOutputsContent)
+		}
+
+		// Extract steps from imported file
+		stepsContent, err := extractStepsFromContent(string(content))
+		if err == nil && stepsContent != "" {
+			stepsBuilder.WriteString(stepsContent + "\n")
+		}
+	}
+
+	return &ImportsResult{
+		MergedTools:       toolsBuilder.String(),
+		MergedMCPServers:  mcpServersBuilder.String(),
+		MergedEngines:     engines,
+		MergedSafeOutputs: safeOutputs,
+		MergedMarkdown:    markdownBuilder.String(),
+		MergedSteps:       stepsBuilder.String(),
+		ImportedFiles:     processedFiles,
+	}, nil
+}
+
+// ProcessIncludes processes @include, @import (deprecated), and {{#import: directives in markdown content
 // This matches the bash process_includes function behavior
 func ProcessIncludes(content, baseDir string, extractTools bool) (string, error) {
 	visited := make(map[string]bool)
 	return processIncludesWithVisited(content, baseDir, extractTools, visited)
 }
 
-// processIncludesWithVisited processes @include and @import directives with cycle detection
+// processIncludesWithVisited processes import directives with cycle detection
 func processIncludesWithVisited(content, baseDir string, extractTools bool, visited map[string]bool) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
@@ -303,10 +503,19 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include or @import directive
-		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
+		// Parse import directive
+		directive := ParseImportDirective(line)
+		if directive != nil {
+			// Emit deprecation warning for legacy syntax
+			if directive.IsLegacy {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: '%s'. Use '{{#import%s %s}}' instead.",
+					directive.Original,
+					map[bool]string{true: "?", false: ""}[directive.IsOptional],
+					directive.Path)))
+			}
+
+			isOptional := directive.IsOptional
+			includePath := directive.Path
 
 			// Handle section references (file.md#Section)
 			var filePath, sectionName string
@@ -606,61 +815,124 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	return strings.Trim(markdownContent, "\n") + "\n", nil
 }
 
-// extractToolsFromContent extracts tools section from frontmatter as JSON string
+// extractToolsFromContent extracts tools and mcp-servers sections from frontmatter as merged JSON string
 func extractToolsFromContent(content string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return "{}", nil // Return empty object on error to match bash behavior
 	}
 
-	// Extract tools section
-	tools, exists := result.Frontmatter["tools"]
-	if !exists {
+	// Create a map to hold the merged result
+	extracted := make(map[string]any)
+
+	// Helper function to merge a field into extracted map
+	mergeField := func(fieldName string) {
+		if fieldValue, exists := result.Frontmatter[fieldName]; exists {
+			if fieldMap, ok := fieldValue.(map[string]any); ok {
+				for key, value := range fieldMap {
+					extracted[key] = value
+				}
+			}
+		}
+	}
+
+	// Extract and merge tools section (tools are stored as tool_name: tool_config)
+	mergeField("tools")
+
+	// Extract and merge mcp-servers section (mcp-servers are stored as server_name: server_config)
+	mergeField("mcp-servers")
+
+	// If nothing was extracted, return empty object
+	if len(extracted) == 0 {
 		return "{}", nil
 	}
 
 	// Convert to JSON string
-	toolsJSON, err := json.Marshal(tools)
+	extractedJSON, err := json.Marshal(extracted)
 	if err != nil {
 		return "{}", nil
 	}
 
-	return strings.TrimSpace(string(toolsJSON)), nil
+	return strings.TrimSpace(string(extractedJSON)), nil
 }
 
-// extractEngineFromContent extracts engine section from frontmatter as JSON string
-func extractEngineFromContent(content string) (string, error) {
+// extractSafeOutputsFromContent extracts safe-outputs section from frontmatter as JSON string
+func extractSafeOutputsFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "safe-outputs", "{}")
+}
+
+// extractMCPServersFromContent extracts mcp-servers section from frontmatter as JSON string
+func extractMCPServersFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "mcp-servers", "{}")
+}
+
+// extractStepsFromContent extracts steps section from frontmatter as YAML string
+func extractStepsFromContent(content string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return "", nil // Return empty string on error
 	}
 
-	// Extract engine section
-	engine, exists := result.Frontmatter["engine"]
+	// Extract steps section
+	steps, exists := result.Frontmatter["steps"]
 	if !exists {
 		return "", nil
 	}
 
-	// Convert to JSON string
-	engineJSON, err := json.Marshal(engine)
+	// Convert to YAML string (similar to how CustomSteps are handled in compiler)
+	stepsYAML, err := yaml.Marshal(steps)
 	if err != nil {
 		return "", nil
 	}
 
-	return strings.TrimSpace(string(engineJSON)), nil
+	return strings.TrimSpace(string(stepsYAML)), nil
+}
+
+// extractEngineFromContent extracts engine section from frontmatter as JSON string
+func extractEngineFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "engine", "")
+}
+
+// extractFrontmatterField extracts a specific field from frontmatter as JSON string
+func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return emptyValue, nil // Return empty value on error
+	}
+
+	// Extract the requested field
+	fieldValue, exists := result.Frontmatter[fieldName]
+	if !exists {
+		return emptyValue, nil
+	}
+
+	// Convert to JSON string
+	fieldJSON, err := json.Marshal(fieldValue)
+	if err != nil {
+		return emptyValue, nil
+	}
+
+	return strings.TrimSpace(string(fieldJSON)), nil
 }
 
 // ExpandIncludes recursively expands @include and @import directives until no more remain
 // This matches the bash expand_includes function behavior
 func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) {
+	expandedContent, _, err := ExpandIncludesWithManifest(content, baseDir, extractTools)
+	return expandedContent, err
+}
+
+// ExpandIncludesWithManifest recursively expands @include and @import directives and returns list of included files
+func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (string, []string, error) {
 	const maxDepth = 10
 	currentContent := content
+	visited := make(map[string]bool)
 
 	for depth := 0; depth < maxDepth; depth++ {
 		// Process includes in current content
-		processedContent, err := ProcessIncludes(currentContent, baseDir, extractTools)
+		processedContent, err := processIncludesWithVisited(currentContent, baseDir, extractTools, visited)
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
 
 		// For tools mode, check if we still have @include or @import directives
@@ -681,29 +953,52 @@ func ExpandIncludes(content, baseDir string, extractTools bool) (string, error) 
 		currentContent = processedContent
 	}
 
-	if extractTools {
-		// For tools mode, merge all extracted JSON objects
-		return mergeToolsFromJSON(currentContent)
+	// Convert visited map to slice of file paths (make them relative to baseDir if possible)
+	var includedFiles []string
+	for filePath := range visited {
+		// Try to make path relative to baseDir for cleaner output
+		relPath, err := filepath.Rel(baseDir, filePath)
+		if err == nil && !strings.HasPrefix(relPath, "..") {
+			includedFiles = append(includedFiles, relPath)
+		} else {
+			includedFiles = append(includedFiles, filePath)
+		}
 	}
 
-	return currentContent, nil
+	if extractTools {
+		// For tools mode, merge all extracted JSON objects
+		mergedTools, err := mergeToolsFromJSON(currentContent)
+		return mergedTools, includedFiles, err
+	}
+
+	return currentContent, includedFiles, nil
 }
 
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
+	return expandIncludesForField(content, baseDir, extractEngineFromContent, "")
+}
+
+// ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
+func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
+	return expandIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+}
+
+// expandIncludesForField recursively expands includes to extract a specific frontmatter field
+func expandIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, error) {
 	const maxDepth = 10
-	var engines []string
+	var results []string
 	currentContent := content
 
 	for depth := 0; depth < maxDepth; depth++ {
-		// Process includes in current content to extract engines
-		processedEngines, processedContent, err := ProcessIncludesForEngines(currentContent, baseDir)
+		// Process includes in current content to extract the field
+		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue)
 		if err != nil {
 			return nil, err
 		}
 
-		// Add found engines to the list
-		engines = append(engines, processedEngines...)
+		// Add found results to the list
+		results = append(results, processedResults...)
 
 		// Check if content changed
 		if processedContent == currentContent {
@@ -714,29 +1009,40 @@ func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 		currentContent = processedContent
 	}
 
-	return engines, nil
+	return results, nil
 }
 
-// ProcessIncludesForEngines processes @include and @import directives to extract engine configurations
+// ProcessIncludesForEngines processes import directives to extract engine configurations
 func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
+	return processIncludesForField(content, baseDir, extractEngineFromContent, "")
+}
+
+// ProcessIncludesForSafeOutputs processes import directives to extract safe-outputs configurations
+func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, error) {
+	return processIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+}
+
+// processIncludesForField processes import directives to extract a specific frontmatter field
+func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-	var engines []string
+	var results []string
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include or @import directive
-		if matches := IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
+		// Parse import directive
+		directive := ParseImportDirective(line)
+		if directive != nil {
+			isOptional := directive.IsOptional
+			includePath := directive.Path
 
-			// Handle section references (file.md#Section) - for engines, we ignore sections
+			// Handle section references (file.md#Section) - for frontmatter fields, we ignore sections
 			var filePath string
 			if strings.Contains(includePath, "#") {
 				parts := strings.SplitN(includePath, "#", 2)
 				filePath = parts[0]
-				// Note: section references are ignored for engine extraction since engines are in frontmatter
+				// Note: section references are ignored for frontmatter field extraction
 			} else {
 				filePath = includePath
 			}
@@ -745,28 +1051,28 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 			fullPath, err := resolveIncludePath(filePath, baseDir)
 			if err != nil {
 				if isOptional {
-					// For optional includes, skip engine extraction
+					// For optional includes, skip extraction
 					continue
 				}
 				// For required includes, fail compilation with an error
 				return nil, "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
 
-			// Extract engine configuration from the included file
-			content, err := os.ReadFile(fullPath)
+			// Read the included file
+			fileContent, err := os.ReadFile(fullPath)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return nil, "", fmt.Errorf("failed to read included file '%s': %w", fullPath, err)
 			}
 
-			// Extract engine configuration
-			engineJSON, err := extractEngineFromContent(string(content))
+			// Extract the field using the provided extraction function
+			fieldJSON, err := extractFunc(string(fileContent))
 			if err != nil {
-				return nil, "", fmt.Errorf("failed to extract engine from '%s': %w", fullPath, err)
+				return nil, "", fmt.Errorf("failed to extract field from '%s': %w", fullPath, err)
 			}
 
-			if engineJSON != "" {
-				engines = append(engines, engineJSON)
+			if fieldJSON != "" && fieldJSON != emptyValue {
+				results = append(results, fieldJSON)
 			}
 		} else {
 			// Regular line, just pass through
@@ -774,7 +1080,7 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 		}
 	}
 
-	return engines, result.String(), nil
+	return results, result.String(), nil
 }
 
 // mergeToolsFromJSON merges multiple JSON tool objects from content

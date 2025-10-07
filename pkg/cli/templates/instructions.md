@@ -68,13 +68,15 @@ The YAML frontmatter supports these fields:
       version: beta                     # Optional: version of the action (has sensible default)
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
+      max-concurrency: 3                # Optional: max concurrent workflows across all workflows (default: 3)
     ```
-  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
   - **Custom engine format** (⚠️ experimental):
     ```yaml
     engine:
       id: custom                        # Required: custom engine identifier
       max-turns: 10                     # Optional: maximum iterations (for consistency)
+      max-concurrency: 5                # Optional: max concurrent workflows (for consistency)
       steps:                            # Required: array of custom GitHub Actions steps
         - name: Setup Node.js
           uses: actions/setup-node@v4

@@ -126,12 +126,18 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 		if onMap, ok := onValue.(map[string]any); ok {
 			// Check if only safe events are present
 			hasUnsafeEvents := false
+			hasWorkflowDispatch := false
 
 			for eventName := range onMap {
 				// Skip command events as they are handled separately
 				// Skip stop-after and reaction as they are not event types
 				if eventName == "command" || eventName == "stop-after" || eventName == "reaction" {
 					continue
+				}
+
+				// Track if workflow_dispatch is present
+				if eventName == "workflow_dispatch" {
+					hasWorkflowDispatch = true
 				}
 
 				// Check if this event is in the safe list
@@ -159,6 +165,24 @@ func (c *Compiler) hasSafeEventsOnly(data *WorkflowData, frontmatter map[string]
 			}
 			if _, hasReaction := onMap["reaction"]; hasReaction {
 				eventCount--
+			}
+
+			// Special handling for workflow_dispatch:
+			// workflow_dispatch can be triggered by users with "write" access,
+			// so it's only considered "safe" if "write" is in the allowed roles
+			if hasWorkflowDispatch && !hasUnsafeEvents {
+				// Check if "write" is in the allowed roles
+				hasWriteRole := false
+				for _, role := range data.Roles {
+					if role == "write" {
+						hasWriteRole = true
+						break
+					}
+				}
+				// If write is not in the allowed roles, workflow_dispatch needs permission checks
+				if !hasWriteRole {
+					return false
+				}
 			}
 
 			return eventCount > 0 && !hasUnsafeEvents

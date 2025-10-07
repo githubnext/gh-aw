@@ -107,15 +107,18 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	// Step 1: Download agent artifacts
 	steps = append(steps, c.buildDownloadArtifactStep()...)
 
-	// Step 2: Setup and run threat detection
+	// Step 2: Echo agent outputs for debugging
+	steps = append(steps, c.buildEchoAgentOutputsStep(mainJobName)...)
+
+	// Step 3: Setup and run threat detection
 	steps = append(steps, c.buildThreatDetectionAnalysisStep(data, mainJobName)...)
 
-	// Step 3: Add custom steps if configured
+	// Step 4: Add custom steps if configured
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
 		steps = append(steps, c.buildCustomThreatDetectionSteps(data.SafeOutputs.ThreatDetection.Steps)...)
 	}
 
-	// Step 4: Upload detection log artifact
+	// Step 5: Upload detection log artifact
 	steps = append(steps, c.buildUploadDetectionLogStep()...)
 
 	return steps
@@ -136,6 +139,19 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 		"        with:\n",
 		"          name: aw.patch\n",
 		"          path: /tmp/threat-detection/\n",
+	}
+}
+
+// buildEchoAgentOutputsStep creates a step that echoes the agent outputs
+func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
+	return []string{
+		"      - name: Echo agent outputs\n",
+		"        env:\n",
+		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
+		fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName),
+		"        run: |\n",
+		"          echo \"Agent output: $AGENT_OUTPUT\"\n",
+		"          echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"\n",
 	}
 }
 

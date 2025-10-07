@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,7 +10,7 @@ import (
 )
 
 // TestWebSearchValidationForCopilot tests that when a Copilot workflow uses web-search,
-// compilation succeeds but emits a warning
+// compilation succeeds but emits a warning with documentation link
 func TestWebSearchValidationForCopilot(t *testing.T) {
 	// Create a temporary directory for the test
 	tmpDir := t.TempDir()
@@ -33,13 +35,37 @@ Search the web for information.
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
 
+	// Capture stderr to verify warning message
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
 	// Create a compiler
 	compiler := NewCompiler(false, "", "test")
 
 	// Compile the workflow - should succeed with a warning
 	err := compiler.CompileWorkflow(workflowPath)
+
+	// Restore stderr
+	w.Close()
+	os.Stderr = oldStderr
+
+	// Read captured stderr
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	stderrOutput := buf.String()
+
 	if err != nil {
 		t.Fatalf("Expected compilation to succeed for Copilot engine with web-search tool (with warning), but got error: %v", err)
+	}
+
+	// Verify the warning message includes the documentation link
+	if !strings.Contains(stderrOutput, "does not support the web-search tool") {
+		t.Errorf("Expected warning about web-search not being supported, but got: %s", stderrOutput)
+	}
+
+	if !strings.Contains(stderrOutput, "https://githubnext.github.io/gh-aw/guides/web-search/") {
+		t.Errorf("Expected warning to include documentation link, but got: %s", stderrOutput)
 	}
 
 	// Verify the lock file was created

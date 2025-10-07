@@ -373,6 +373,16 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		return nil
 	}
 
+	// Download the base version (current ref from source)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading base version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, currentRef)))
+	}
+
+	baseContent, err := downloadWorkflowContent(sourceSpec.Repo, sourceSpec.Path, currentRef, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to download base workflow: %w", err)
+	}
+
 	// Download the latest version
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Downloading latest version from %s/%s@%s", sourceSpec.Repo, sourceSpec.Path, latestRef)))
@@ -389,8 +399,8 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 		return fmt.Errorf("failed to read current workflow: %w", err)
 	}
 
-	// Perform 3-way merge
-	mergedContent, err := mergeWorkflowContent(string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
+	// Perform 3-way merge using git merge-file
+	mergedContent, hasConflicts, err := mergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to merge workflow content: %w", err)
 	}
@@ -398,6 +408,11 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	// Write updated content
 	if err := os.WriteFile(wf.Path, []byte(mergedContent), 0644); err != nil {
 		return fmt.Errorf("failed to write updated workflow: %w", err)
+	}
+
+	if hasConflicts {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Updated %s from %s to %s with CONFLICTS - please review and resolve manually", wf.Name, currentRef, latestRef)))
+		return nil // Not an error, but user needs to resolve conflicts
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, currentRef, latestRef)))
@@ -435,81 +450,141 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 	return content, nil
 }
 
-// mergeWorkflowContent performs a 3-way merge of workflow content
-// It removes the source field from the new content and updates it with the new ref
-func mergeWorkflowContent(current, new, oldSourceSpec, newRef string, verbose bool) (string, error) {
+// mergeWorkflowContent performs a 3-way merge of workflow content using git merge-file
+// It returns the merged content, whether conflicts exist, and any error
+func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verbose bool) (string, bool, error) {
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Merging workflow content"))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Performing 3-way merge using git merge-file"))
 	}
 
-	// Parse both contents
-	currentResult, err := parser.ExtractFrontmatterFromContent(current)
+	// First, update the source field in the new content before merging
+	// This ensures the source field is correct even if there are conflicts
+	newWithUpdatedSource, err := updateSourceFieldInContent(new, oldSourceSpec, newRef)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse current frontmatter: %w", err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update source in new content: %v", err)))
+		}
+		// Continue with original new content
+		newWithUpdatedSource = new
 	}
 
-	newResult, err := parser.ExtractFrontmatterFromContent(new)
+	// Create temporary directory for merge files
+	tmpDir, err := os.MkdirTemp("", "gh-aw-merge-*")
 	if err != nil {
-		return "", fmt.Errorf("failed to parse new frontmatter: %w", err)
+		return "", false, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Write base, current, and new versions to temporary files
+	baseFile := filepath.Join(tmpDir, "base.md")
+	currentFile := filepath.Join(tmpDir, "current.md")
+	newFile := filepath.Join(tmpDir, "new.md")
+
+	if err := os.WriteFile(baseFile, []byte(base), 0644); err != nil {
+		return "", false, fmt.Errorf("failed to write base file: %w", err)
+	}
+	if err := os.WriteFile(currentFile, []byte(current), 0644); err != nil {
+		return "", false, fmt.Errorf("failed to write current file: %w", err)
+	}
+	if err := os.WriteFile(newFile, []byte(newWithUpdatedSource), 0644); err != nil {
+		return "", false, fmt.Errorf("failed to write new file: %w", err)
 	}
 
-	// Merge strategy: Keep local changes, but allow new fields from upstream
-	// Start with the new frontmatter as base
-	if newResult.Frontmatter == nil {
-		newResult.Frontmatter = make(map[string]any)
-	}
-	if currentResult.Frontmatter == nil {
-		currentResult.Frontmatter = make(map[string]any)
-	}
+	// Execute git merge-file
+	// Format: git merge-file <current> <base> <new>
+	cmd := exec.Command("git", "merge-file",
+		"-L", "current (local changes)",
+		"-L", "base (original)",
+		"-L", "new (upstream)",
+		"--diff3", // Use diff3 style conflict markers for better context
+		currentFile, baseFile, newFile)
 
-	// Merge: new fields from upstream, but preserve local modifications
-	// This means we overlay current frontmatter on top of new frontmatter
-	for key, value := range currentResult.Frontmatter {
-		// Skip the source field as we'll update it separately
-		if key != "source" {
-			newResult.Frontmatter[key] = value
+	output, err := cmd.CombinedOutput()
+
+	// git merge-file returns:
+	// - 0 if merge was successful without conflicts
+	// - >0 if conflicts were found (appears to return number of conflicts, but file is still updated)
+	// The exit code can be >1 for multiple conflicts, not just errors
+	hasConflicts := false
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode := exitErr.ExitCode()
+			if exitCode > 0 && exitCode < 128 {
+				// Conflicts found (exit codes 1-127 indicate conflicts)
+				// Exit codes >= 128 typically indicate system errors
+				hasConflicts = true
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Merge conflicts detected (exit code: %d)", exitCode)))
+				}
+			} else {
+				// Real error (exit code >= 128)
+				return "", false, fmt.Errorf("git merge-file failed: %w\nOutput: %s", err, output)
+			}
+		} else {
+			return "", false, fmt.Errorf("failed to execute git merge-file: %w", err)
 		}
 	}
 
-	// Use the new markdown content (assume upstream knows best for documentation)
-	// But if you want to preserve local markdown changes, you could use currentResult.Markdown
+	// Read the merged content from the current file (git merge-file updates it in-place)
+	mergedContent, err := os.ReadFile(currentFile)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to read merged content: %w", err)
+	}
 
-	// Update source field with new ref
+	mergedStr := string(mergedContent)
+
+	// Process @include directives if present and no conflicts
+	// Skip include processing if there are conflicts to avoid errors
+	if !hasConflicts {
+		sourceSpec, err := parseSourceSpec(oldSourceSpec)
+		if err == nil {
+			workflow := &WorkflowSpec{
+				RepoSpec: RepoSpec{
+					Repo:    sourceSpec.Repo,
+					Version: newRef,
+				},
+				WorkflowPath: sourceSpec.Path,
+			}
+
+			processedContent, err := processIncludesInContent(mergedStr, workflow, newRef, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
+				}
+				// Return unprocessed content on error
+			} else {
+				mergedStr = processedContent
+			}
+		}
+	}
+
+	return mergedStr, hasConflicts, nil
+}
+
+// updateSourceFieldInContent updates the source field in workflow content
+func updateSourceFieldInContent(content, oldSourceSpec, newRef string) (string, error) {
+	// Parse the content
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	if result.Frontmatter == nil {
+		result.Frontmatter = make(map[string]any)
+	}
+
+	// Parse the old source spec to construct the new one
 	sourceSpec, err := parseSourceSpec(oldSourceSpec)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse source spec: %w", err)
 	}
 
+	// Update with new ref
 	newSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRef)
-	newResult.Frontmatter["source"] = newSourceSpec
+	result.Frontmatter["source"] = newSourceSpec
 
-	// Reconstruct the workflow file with updated source
-	content, err := reconstructWorkflowFile(newResult.Frontmatter, newResult.Markdown)
-	if err != nil {
-		return "", err
-	}
-
-	// Process @include directives in the new content and replace with workflowspec
-	// Build a WorkflowSpec from the sourceSpec to use for processing includes
-	workflow := &WorkflowSpec{
-		RepoSpec: RepoSpec{
-			Repo:    sourceSpec.Repo,
-			Version: newRef,
-		},
-		WorkflowPath: sourceSpec.Path,
-	}
-
-	// We don't have access to the package path here, so we'll just process the markdown
-	// The compile step will handle downloading the includes when needed
-	processedContent, err := processIncludesInContent(content, workflow, newRef, verbose)
-	if err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process includes: %v", err)))
-		}
-		return content, nil // Return unprocessed content on error
-	}
-
-	return processedContent, nil
+	// Reconstruct the workflow file
+	return reconstructWorkflowFile(result.Frontmatter, result.Markdown)
 }
 
 // reconstructWorkflowFile reconstructs a workflow file from frontmatter and markdown

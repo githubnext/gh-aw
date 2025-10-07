@@ -142,10 +142,10 @@ async function editCommentWithWorkflowLink(endpoint, runUrl) {
     });
 
     const originalBody = getResponse.data.body || "";
-    const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
+    const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
 
     // Check if we've already added a workflow link to avoid duplicates
-    if (originalBody.includes("*🤖 [Workflow run](")) {
+    if (originalBody.includes("> Agentic [workflow run](")) {
       core.info("Comment already contains a workflow run link, skipping edit");
       return;
     }

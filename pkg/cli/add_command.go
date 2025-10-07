@@ -27,11 +27,13 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor@v1.0.0
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/workflows/ci-doctor.md@main
+  ` + constants.CLIExtensionPrefix + ` add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md
   ` + constants.CLIExtensionPrefix + ` add githubnext/agentics/ci-doctor --pr --force
 
 Workflow specifications:
   - Three parts: "owner/repo/workflow-name[@version]" (implicitly looks in workflows/ directory)
   - Four+ parts: "owner/repo/workflows/workflow-name.md[@version]" (requires explicit .md extension)
+  - GitHub URL: "https://github.com/owner/repo/blob/branch/path/to/workflow.md"
   - Version can be tag, branch, or SHA
 
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
@@ -455,6 +457,16 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 				content = updatedContent
 			}
 
+			// Process imports field and replace with workflowspec
+			processedImportsContent, err := processImportsWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, verbose)
+			if err != nil {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to process imports: %v", err)))
+				}
+			} else {
+				content = processedImportsContent
+			}
+
 			// Process @include directives and replace with workflowspec
 			processedContent, err := processIncludesWithWorkflowSpec(content, workflow, sourceInfo.CommitSHA, sourceInfo.PackagePath, verbose)
 			if err != nil {
@@ -644,52 +656,12 @@ func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
 
 // ensureAgenticWorkflowPrompt ensures that .github/prompts/create-agentic-workflow.prompt.md contains the agentic workflow creation prompt
 func ensureAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	if skipInstructions {
-		return nil // Skip writing prompt if flag is set
-	}
+	return ensurePromptFromTemplate("create-agentic-workflow.prompt.md", agenticWorkflowPromptTemplate, verbose, skipInstructions)
+}
 
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return err // Not in a git repository, skip
-	}
-
-	promptsDir := filepath.Join(gitRoot, ".github", "prompts")
-	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-
-	// Ensure the .github/prompts directory exists
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/prompts directory: %w", err)
-	}
-
-	// Check if the prompt file already exists and matches the template
-	existingContent := ""
-	if content, err := os.ReadFile(agenticWorkflowPromptPath); err == nil {
-		existingContent = string(content)
-	}
-
-	// Check if content matches our expected template
-	expectedContent := strings.TrimSpace(agenticWorkflowPromptTemplate)
-	if strings.TrimSpace(existingContent) == expectedContent {
-		if verbose {
-			fmt.Printf("Agentic workflow prompt is up-to-date: %s\n", agenticWorkflowPromptPath)
-		}
-		return nil
-	}
-
-	// Write the agentic workflow prompt file
-	if err := os.WriteFile(agenticWorkflowPromptPath, []byte(agenticWorkflowPromptTemplate), 0644); err != nil {
-		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
-	}
-
-	if verbose {
-		if existingContent == "" {
-			fmt.Printf("Created agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
-		} else {
-			fmt.Printf("Updated agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
-		}
-	}
-
-	return nil
+// ensureSharedAgenticWorkflowPrompt ensures that .github/prompts/create-shared-agentic-workflow.prompt.md contains the shared workflow creation prompt
+func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
+	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
 }
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes

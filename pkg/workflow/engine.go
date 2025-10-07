@@ -7,15 +7,17 @@ import (
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID            string
-	Version       string
-	Model         string
-	MaxTurns      string
-	UserAgent     string
-	Env           map[string]string
-	Steps         []map[string]any
-	ErrorPatterns []ErrorPattern
-	Config        string
+	ID               string
+	Version          string
+	Model            string
+	MaxTurns         string
+	MaxConcurrency   int
+	ConcurrencyGroup string
+	UserAgent        string
+	Env              map[string]string
+	Steps            []map[string]any
+	ErrorPatterns    []ErrorPattern
+	Config           string
 }
 
 // NetworkPermissions represents network access permissions
@@ -71,6 +73,24 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'max-concurrency' field
+			if maxConcurrency, hasMaxConcurrency := engineObj["max-concurrency"]; hasMaxConcurrency {
+				if maxConcurrencyInt, ok := maxConcurrency.(int); ok {
+					config.MaxConcurrency = maxConcurrencyInt
+				} else if maxConcurrencyFloat, ok := maxConcurrency.(float64); ok {
+					config.MaxConcurrency = int(maxConcurrencyFloat)
+				} else if maxConcurrencyUint64, ok := maxConcurrency.(uint64); ok {
+					config.MaxConcurrency = int(maxConcurrencyUint64)
+				}
+			}
+
+			// Extract optional 'concurrency-group' field
+			if concurrencyGroup, hasConcurrencyGroup := engineObj["concurrency-group"]; hasConcurrencyGroup {
+				if concurrencyGroupStr, ok := concurrencyGroup.(string); ok {
+					config.ConcurrencyGroup = concurrencyGroupStr
 				}
 			}
 
@@ -245,4 +265,24 @@ func (c *Compiler) validateSingleEngineSpecification(mainEngineSetting string, i
 	}
 
 	return "", fmt.Errorf("invalid engine configuration in included file")
+}
+
+// extractEngineConfigFromJSON parses engine configuration from JSON string (from included files)
+func (c *Compiler) extractEngineConfigFromJSON(engineJSON string) (*EngineConfig, error) {
+	if engineJSON == "" {
+		return nil, nil
+	}
+
+	var engineData any
+	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
+		return nil, fmt.Errorf("failed to parse engine JSON: %w", err)
+	}
+
+	// Use the existing ExtractEngineConfig function by creating a temporary frontmatter map
+	tempFrontmatter := map[string]any{
+		"engine": engineData,
+	}
+
+	_, config := c.ExtractEngineConfig(tempFrontmatter)
+	return config, nil
 }
