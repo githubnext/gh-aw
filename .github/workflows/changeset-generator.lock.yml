@@ -285,12 +285,12 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Checkout PR branch for ready_for_review
+      - name: Checkout PR branch
         if: |
-          (github.event_name == 'pull_request') && (github.event.action == 'ready_for_review')
+          github.event_name == 'pull_request'
         run: |
           set -e
-          # Checkout PR branch for ready_for_review event
+          # Checkout PR branch for pull_request events
           PR_BRANCH="${{ github.event.pull_request.head.ref }}"
           echo "Checking out PR branch: $PR_BRANCH"
           git fetch origin "$PR_BRANCH"

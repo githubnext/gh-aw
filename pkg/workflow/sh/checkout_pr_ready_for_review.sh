@@ -1,6 +1,6 @@
 set -e
 
-# Checkout PR branch for ready_for_review event
+# Checkout PR branch for pull_request events
 PR_BRANCH="${{ github.event.pull_request.head.ref }}"
 
 echo "Checking out PR branch: $PR_BRANCH"

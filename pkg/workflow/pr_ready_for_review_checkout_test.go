@@ -7,12 +7,12 @@ import (
 	"testing"
 )
 
-// TestPRReadyForReviewCheckout verifies that PR branch checkout is added for pull_request ready_for_review events
-func TestPRReadyForReviewCheckout(t *testing.T) {
+// TestPRCheckout verifies that PR branch checkout is added for pull_request events
+func TestPRCheckout(t *testing.T) {
 	tests := []struct {
-		name                         string
-		workflowContent              string
-		expectReadyForReviewCheckout bool
+		name             string
+		workflowContent  string
+		expectPRCheckout bool
 	}{
 		{
 			name: "pull_request with ready_for_review should add checkout",
@@ -28,10 +28,10 @@ engine: claude
 # Test Workflow
 Test workflow with pull_request ready_for_review trigger.
 `,
-			expectReadyForReviewCheckout: true,
+			expectPRCheckout: true,
 		},
 		{
-			name: "pull_request with opened should NOT add ready_for_review checkout",
+			name: "pull_request with opened should add checkout",
 			workflowContent: `---
 on:
   pull_request:
@@ -44,10 +44,10 @@ engine: claude
 # Test Workflow
 Test workflow with pull_request opened trigger.
 `,
-			expectReadyForReviewCheckout: false,
+			expectPRCheckout: true,
 		},
 		{
-			name: "push trigger should NOT add ready_for_review checkout",
+			name: "push trigger should NOT add checkout",
 			workflowContent: `---
 on:
   push:
@@ -60,10 +60,10 @@ engine: claude
 # Test Workflow
 Test workflow with push trigger.
 `,
-			expectReadyForReviewCheckout: false,
+			expectPRCheckout: false,
 		},
 		{
-			name: "no contents permission should NOT add ready_for_review checkout",
+			name: "no contents permission should NOT add checkout",
 			workflowContent: `---
 on:
   pull_request:
@@ -76,14 +76,14 @@ engine: claude
 # Test Workflow
 Test workflow without contents permission.
 `,
-			expectReadyForReviewCheckout: false,
+			expectPRCheckout: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory for test
-			tempDir, err := os.MkdirTemp("", "pr-ready-for-review-test")
+			tempDir, err := os.MkdirTemp("", "pr-checkout-test")
 			if err != nil {
 				t.Fatalf("Failed to create temp dir: %v", err)
 			}
@@ -115,36 +115,33 @@ Test workflow without contents permission.
 			}
 			lockStr := string(lockContent)
 
-			// Check for ready_for_review checkout step
-			hasReadyForReviewCheckout := strings.Contains(lockStr, "Checkout PR branch for ready_for_review")
-			if hasReadyForReviewCheckout != tt.expectReadyForReviewCheckout {
-				t.Errorf("Expected ready_for_review checkout step: %v, got: %v", tt.expectReadyForReviewCheckout, hasReadyForReviewCheckout)
+			// Check for PR checkout step
+			hasPRCheckout := strings.Contains(lockStr, "Checkout PR branch")
+			if hasPRCheckout != tt.expectPRCheckout {
+				t.Errorf("Expected PR checkout step: %v, got: %v", tt.expectPRCheckout, hasPRCheckout)
 			}
 
-			// If ready_for_review checkout is expected, verify the conditional logic
-			if tt.expectReadyForReviewCheckout {
+			// If PR checkout is expected, verify the conditional logic
+			if tt.expectPRCheckout {
 				if !strings.Contains(lockStr, "github.event_name == 'pull_request'") {
-					t.Error("Ready for review checkout step should check for pull_request event")
-				}
-				if !strings.Contains(lockStr, "github.event.action == 'ready_for_review'") {
-					t.Error("Ready for review checkout step should check for ready_for_review action")
+					t.Error("PR checkout step should check for pull_request event")
 				}
 				if !strings.Contains(lockStr, "github.event.pull_request.head.ref") {
-					t.Error("Ready for review checkout step should reference PR head ref")
+					t.Error("PR checkout step should reference PR head ref")
 				}
 				if !strings.Contains(lockStr, "git fetch origin") {
-					t.Error("Ready for review checkout step should fetch from origin")
+					t.Error("PR checkout step should fetch from origin")
 				}
 				if !strings.Contains(lockStr, "git checkout") {
-					t.Error("Ready for review checkout step should checkout the branch")
+					t.Error("PR checkout step should checkout the branch")
 				}
 			}
 		})
 	}
 }
 
-// TestPRReadyForReviewCheckoutConditionalLogic verifies the conditional logic for ready_for_review checkout
-func TestPRReadyForReviewCheckoutConditionalLogic(t *testing.T) {
+// TestPRCheckoutForAllPullRequestTypes verifies the conditional logic for PR checkout on all pull_request types
+func TestPRCheckoutForAllPullRequestTypes(t *testing.T) {
 	workflowContent := `---
 on:
   pull_request:
@@ -159,7 +156,7 @@ Test workflow with pull_request triggers.
 `
 
 	// Create temporary directory for test
-	tempDir, err := os.MkdirTemp("", "pr-ready-for-review-logic-test")
+	tempDir, err := os.MkdirTemp("", "pr-checkout-logic-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -191,10 +188,9 @@ Test workflow with pull_request triggers.
 	}
 	lockStr := string(lockContent)
 
-	// Verify the conditional structure includes the event type and action
+	// Verify the conditional structure includes the event type (no action check)
 	expectedConditions := []string{
 		"github.event_name == 'pull_request'",
-		"github.event.action == 'ready_for_review'",
 	}
 
 	for _, condition := range expectedConditions {
