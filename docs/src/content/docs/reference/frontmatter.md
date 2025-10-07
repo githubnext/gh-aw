@@ -509,17 +509,26 @@ engine:
 
 **Generated concurrency group pattern:**
 ```yaml
+# At workflow level
 concurrency:
-  group: "{engine-id}-${{ github.run_id % max-concurrency }}"
+  group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
+
+# At job level (agentic job)
+jobs:
+  agent:
+    concurrency:
+      group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
 ```
 
 Example for claude with max-concurrency of 5:
 ```yaml
 concurrency:
-  group: "claude-${{ github.run_id % 5 }}"
+  group: "gh-aw-claude-${{ github.run_id % 5 }}"
 ```
 
-The concurrency group uses **only** the engine ID and slot number, creating a global lock across all workflows and refs for that engine. This ensures the max-concurrency limit applies repository-wide.
+The concurrency group uses **only** the engine ID and slot number (prefixed with "gh-aw-"), creating a global lock across all workflows and refs for that engine. This ensures the max-concurrency limit applies repository-wide.
+
+The concurrency is applied at **both workflow and job level** for maximum control.
 
 ## Tools Configuration (`tools:`)
 

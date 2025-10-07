@@ -21,6 +21,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  cancel-in-progress: true
+  group: tidy-${{ github.ref }}
+
 run-name: "Tidy"
 
 jobs:

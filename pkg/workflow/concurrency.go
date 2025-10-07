@@ -17,6 +17,9 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 	// This ensures the limit applies across all workflows and refs for the engine
 	var keys []string
 	
+	// Prepend with gh-aw- prefix
+	keys = append(keys, "gh-aw")
+	
 	// Add engine ID as the base key
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
 		keys = append(keys, workflowData.EngineConfig.ID)

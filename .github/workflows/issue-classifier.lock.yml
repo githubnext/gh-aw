@@ -15,6 +15,9 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: "gh-aw-custom-${{ github.run_id % 3 }}"
+
 run-name: "Issue Classifier"
 
 jobs:
@@ -423,7 +426,7 @@ jobs:
       contents: read
       models: read
     concurrency:
-      group: "custom-${{ github.run_id % 3 }}"
+      group: "gh-aw-custom-${{ github.run_id % 3 }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-labels\":{\"allowed\":[\"bug\",\"feature\",\"enhancement\",\"documentation\"],\"max\":1},\"missing-tool\":{}}"

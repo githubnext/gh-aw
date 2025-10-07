@@ -19,6 +19,9 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"
+
 run-name: "Poem Bot - A Creative Agentic Workflow"
 
 jobs:
@@ -434,7 +437,7 @@ jobs:
       actions: read
       contents: read
     concurrency:
-      group: "copilot-${{ github.run_id % 3 }}"
+      group: "gh-aw-copilot-${{ github.run_id % 3 }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":3,\"target\":\"*\"},\"add-labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create-issue\":{\"max\":2},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{\"max\":2},\"upload-asset\":{}}"

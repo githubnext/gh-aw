@@ -37,7 +37,7 @@ tools:
 ---`,
 			filename: "pr-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "copilot-${{ github.run_id % 3 }}"
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"
   cancel-in-progress: true`,
 			shouldHaveCancel: true,
 			description:      "PR workflows use global concurrency with engine ID and slot",
@@ -54,7 +54,7 @@ tools:
 ---`,
 			filename: "command-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "copilot-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Alias workflows use global concurrency with engine ID and slot",
 		},
@@ -70,7 +70,7 @@ tools:
 ---`,
 			filename: "regular-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "copilot-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Regular workflows use global concurrency with engine ID and slot",
 		},
@@ -86,7 +86,7 @@ tools:
 ---`,
 			filename: "push-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "copilot-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Push workflows use global concurrency with engine ID and slot",
 		},
@@ -102,7 +102,7 @@ tools:
 ---`,
 			filename: "issue-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "copilot-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Issue workflows use global concurrency with engine ID and slot",
 		},
@@ -173,7 +173,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"
   cancel-in-progress: true`,
 			description: "PR workflows use global concurrency with engine ID and slot",
 		},
@@ -188,7 +188,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: true,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"`,
 			description: "Alias workflows use global concurrency with engine ID and slot",
 		},
 		{
@@ -202,7 +202,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"`,
 			description: "Push workflows use global concurrency with engine ID and slot",
 		},
 		{
@@ -216,7 +216,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"`,
 			description: "Regular workflows use global concurrency with engine ID and slot",
 		},
 		{
@@ -230,7 +230,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"`,
 			description: "Issue workflows use global concurrency with engine ID and slot",
 		},
 		{
@@ -244,7 +244,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"`,
 			description: "Issue comment workflows use global concurrency with engine ID and slot",
 		},
 		{
@@ -260,7 +260,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"
   cancel-in-progress: true`,
 			description: "Mixed workflows use global concurrency with engine ID and slot",
 		},
@@ -275,7 +275,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"`,
 			description: "Discussion workflows use global concurrency with engine ID and slot",
 		},
 		{
@@ -291,7 +291,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 3 }}"`,
 			description: "Mixed issue and discussion workflows use global concurrency with engine ID and slot",
 		},
 		{
@@ -319,7 +319,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "claude-${{ github.run_id % 5 }}"`,
+  group: "gh-aw-claude-${{ github.run_id % 5 }}"`,
 			description: "Custom max-concurrency should use specified value instead of default",
 		},
 		{
@@ -333,7 +333,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "copilot-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
 			description: "Zero max-concurrency should default to 3",
 		},
 		{
@@ -347,7 +347,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "codex-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-codex-${{ github.run_id % 3 }}"`,
 			description: "Different engine IDs should be included in concurrency group for isolation",
 		},
 	}
