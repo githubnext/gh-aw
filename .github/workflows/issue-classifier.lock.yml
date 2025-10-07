@@ -395,8 +395,8 @@ jobs:
                   },
                 });
                 const originalBody = getResponse.data.body || "";
-                const workflowLinkText = `\n\n---\n*🤖 [Workflow run](${runUrl}) triggered by this comment*`;
-                if (originalBody.includes("*🤖 [Workflow run](")) {
+                const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
+                if (originalBody.includes("> Agentic [workflow run](")) {
                   core.info("Comment already contains a workflow run link, skipping edit");
                   return;
                 }
