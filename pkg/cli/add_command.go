@@ -656,52 +656,12 @@ func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
 
 // ensureAgenticWorkflowPrompt ensures that .github/prompts/create-agentic-workflow.prompt.md contains the agentic workflow creation prompt
 func ensureAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	if skipInstructions {
-		return nil // Skip writing prompt if flag is set
-	}
+	return ensurePromptFromTemplate("create-agentic-workflow.prompt.md", agenticWorkflowPromptTemplate, verbose, skipInstructions)
+}
 
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return err // Not in a git repository, skip
-	}
-
-	promptsDir := filepath.Join(gitRoot, ".github", "prompts")
-	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-
-	// Ensure the .github/prompts directory exists
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/prompts directory: %w", err)
-	}
-
-	// Check if the prompt file already exists and matches the template
-	existingContent := ""
-	if content, err := os.ReadFile(agenticWorkflowPromptPath); err == nil {
-		existingContent = string(content)
-	}
-
-	// Check if content matches our expected template
-	expectedContent := strings.TrimSpace(agenticWorkflowPromptTemplate)
-	if strings.TrimSpace(existingContent) == expectedContent {
-		if verbose {
-			fmt.Printf("Agentic workflow prompt is up-to-date: %s\n", agenticWorkflowPromptPath)
-		}
-		return nil
-	}
-
-	// Write the agentic workflow prompt file
-	if err := os.WriteFile(agenticWorkflowPromptPath, []byte(agenticWorkflowPromptTemplate), 0644); err != nil {
-		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
-	}
-
-	if verbose {
-		if existingContent == "" {
-			fmt.Printf("Created agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
-		} else {
-			fmt.Printf("Updated agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
-		}
-	}
-
-	return nil
+// ensureSharedAgenticWorkflowPrompt ensures that .github/prompts/create-shared-agentic-workflow.prompt.md contains the shared workflow creation prompt
+func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
+	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
 }
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes
