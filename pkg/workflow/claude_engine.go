@@ -30,6 +30,7 @@ func NewClaudeEngine() *ClaudeEngine {
 			supportsMaxTurns:       true, // Claude supports max-turns feature
 			supportsWebFetch:       true, // Claude has built-in WebFetch support
 			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			hasDefaultConcurrency:  false, // Claude does NOT have default concurrency enabled
 		},
 	}
 }

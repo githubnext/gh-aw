@@ -322,16 +322,15 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			},
 			expected: `concurrency:
   group: "gh-aw-copilot"`,
-			description: "Should use default pattern gh-aw-{engine-id} without slot distribution",
+			description: "Copilot should use default pattern gh-aw-{engine-id} (has default concurrency enabled)",
 		},
 		{
-			name: "Default concurrency with claude engine",
+			name: "No default concurrency with claude engine",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "claude"},
 			},
-			expected: `concurrency:
-  group: "gh-aw-claude"`,
-			description: "Should use default pattern gh-aw-{engine-id} for claude",
+			expected:    "",
+			description: "Claude should NOT have default concurrency (returns empty string)",
 		},
 		{
 			name: "Custom concurrency string (simple group)",
@@ -362,13 +361,12 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			description: "Should preserve cancel-in-progress when specified",
 		},
 		{
-			name: "Different engine ID should be included in default concurrency group",
+			name: "No default concurrency with codex engine",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{ID: "codex"},
 			},
-			expected: `concurrency:
-  group: "gh-aw-codex"`,
-			description: "Different engine IDs should be included in concurrency group for isolation",
+			expected:    "",
+			description: "Codex should NOT have default concurrency (returns empty string)",
 		},
 	}
 

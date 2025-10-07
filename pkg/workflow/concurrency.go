@@ -36,6 +36,21 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 		return workflowData.EngineConfig.Concurrency
 	}
 
+	// Check if the engine has default concurrency enabled
+	engineID := ""
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+		engineID = workflowData.EngineConfig.ID
+	}
+
+	// Get the engine to check if default concurrency should be applied
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine(engineID)
+	
+	// If engine not found or doesn't have default concurrency, return empty string (no concurrency)
+	if err != nil || !engine.HasDefaultConcurrency() {
+		return ""
+	}
+
 	// Default behavior: single job per engine across all workflows
 	// Pattern: gh-aw-{engine-id}
 	var keys []string
@@ -44,9 +59,7 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 	keys = append(keys, "gh-aw")
 
 	// Use engine ID for isolation between different engines
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		keys = append(keys, workflowData.EngineConfig.ID)
-	}
+	keys = append(keys, engineID)
 
 	groupValue := strings.Join(keys, "-")
 
