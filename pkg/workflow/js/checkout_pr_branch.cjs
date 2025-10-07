@@ -3,8 +3,6 @@
  * This script handles both pull_request events and comment events on PRs
  */
 
-const { execSync } = require("child_process");
-
 async function main() {
   const eventName = context.eventName;
   const pullRequest = context.payload.pull_request;
@@ -23,8 +21,8 @@ async function main() {
       const branchName = pullRequest.head.ref;
       core.info(`Checking out PR branch: ${branchName}`);
 
-      execSync(`git fetch origin ${branchName}`, { stdio: "inherit" });
-      execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+      await exec.exec("git", ["fetch", "origin", branchName]);
+      await exec.exec("git", ["checkout", branchName]);
 
       core.info(`✅ Successfully checked out branch: ${branchName}`);
     } else {
@@ -32,8 +30,7 @@ async function main() {
       const prNumber = pullRequest.number;
       core.info(`Checking out PR #${prNumber} using gh pr checkout`);
 
-      execSync(`gh pr checkout ${prNumber}`, {
-        stdio: "inherit",
+      await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
         env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
       });
 

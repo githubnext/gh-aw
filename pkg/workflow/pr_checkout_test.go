@@ -269,8 +269,8 @@ Test workflow with multiple comment triggers.
 	// Verify JavaScript code handles PR checkout
 	expectedPatterns := []string{
 		"pullRequest.head.ref",
-		"execSync",
-		"git checkout",
+		"exec.exec",
+		"checkout",
 		"gh pr checkout",
 	}
 

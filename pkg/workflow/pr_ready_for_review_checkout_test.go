@@ -131,10 +131,10 @@ Test workflow without contents permission.
 				if !strings.Contains(lockStr, "pullRequest.head.ref") {
 					t.Error("PR checkout step should reference PR head ref in JavaScript")
 				}
-				if !strings.Contains(lockStr, "execSync") {
-					t.Error("PR checkout step should use execSync for git commands")
+				if !strings.Contains(lockStr, "exec.exec") {
+					t.Error("PR checkout step should use exec.exec for git commands")
 				}
-				if !strings.Contains(lockStr, "git checkout") {
+				if !strings.Contains(lockStr, "checkout") {
 					t.Error("PR checkout step should checkout the branch")
 				}
 			}
@@ -198,8 +198,8 @@ Test workflow with pull_request triggers.
 	// Verify JavaScript code patterns
 	expectedPatterns := []string{
 		`pullRequest.head.ref`,
-		`execSync`,
-		`git checkout`,
+		`exec.exec`,
+		`checkout`,
 	}
 
 	for _, pattern := range expectedPatterns {
