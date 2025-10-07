@@ -47,7 +47,7 @@ Test workflow with pull_request opened trigger.
 			expectPRCheckout: true,
 		},
 		{
-			name: "push trigger should NOT add checkout",
+			name: "push trigger should add checkout (with condition)",
 			workflowContent: `---
 on:
   push:
@@ -60,7 +60,7 @@ engine: claude
 # Test Workflow
 Test workflow with push trigger.
 `,
-			expectPRCheckout: false,
+			expectPRCheckout: true, // Step is added, but condition prevents execution
 		},
 		{
 			name: "no contents permission should NOT add checkout",
@@ -123,8 +123,9 @@ Test workflow without contents permission.
 
 			// If PR checkout is expected, verify the conditional logic
 			if tt.expectPRCheckout {
-				if !strings.Contains(lockStr, "github.event_name == 'pull_request'") {
-					t.Error("PR checkout step should check for pull_request event")
+				// New simpler condition: just check for github.event.pull_request
+				if !strings.Contains(lockStr, "github.event.pull_request") {
+					t.Error("PR checkout step should check for github.event.pull_request")
 				}
 				if !strings.Contains(lockStr, "github.event.pull_request.head.ref") {
 					t.Error("PR checkout step should reference PR head ref")
@@ -188,15 +189,9 @@ Test workflow with pull_request triggers.
 	}
 	lockStr := string(lockContent)
 
-	// Verify the conditional structure includes the event type (no action check)
-	expectedConditions := []string{
-		"github.event_name == 'pull_request'",
-	}
-
-	for _, condition := range expectedConditions {
-		if !strings.Contains(lockStr, condition) {
-			t.Errorf("Expected condition not found: %s", condition)
-		}
+	// Verify the conditional structure uses simple PR context check
+	if !strings.Contains(lockStr, "github.event.pull_request") {
+		t.Error("Expected condition 'github.event.pull_request' not found")
 	}
 
 	// Verify PR branch reference

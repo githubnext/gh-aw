@@ -85,26 +85,26 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 	return false
 }
 
-// generatePRReadyForReviewCheckout generates a step to checkout the PR branch if the event is pull_request
+// generatePRReadyForReviewCheckout generates a step to checkout the PR branch when PR context is available
 func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data *WorkflowData) {
-	// Check if workflow has pull_request trigger
-	if data.On == "" || !strings.Contains(data.On, "pull_request") {
-		return // No pull_request trigger, skip
-	}
-
 	// Check that permissions allow contents read access
 	permParser := NewPermissionsParser(data.Permissions)
 	if !permParser.HasContentsReadAccess() {
 		return // No contents read access, cannot checkout
 	}
 
-	// Add a conditional step that checks out the PR branch if applicable
+	// Always add the step with a condition that checks if PR context is available
 	yaml.WriteString("      - name: Checkout PR branch\n")
 
-	// Build condition for pull_request event
-	condition := BuildEventTypeEquals("pull_request")
+	// Build condition that checks if github.event.pull_request exists
+	// This will be true for pull_request events and comment events on PRs
+	condition := BuildPropertyAccess("github.event.pull_request")
 	RenderConditionAsIf(yaml, condition, "          ")
 
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, checkoutPRReadyForReviewScript, "          ")
+
+	// Always add GH_TOKEN env variable for gh pr checkout (used in comment events)
+	yaml.WriteString("        env:\n")
+	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
 }

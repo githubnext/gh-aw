@@ -2057,9 +2057,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
-
-		// Add step to checkout PR branch if the event is a comment on a PR
-		c.generatePRBranchCheckout(yaml, data)
 	}
 
 	// Add custom steps if present
