@@ -612,7 +612,7 @@ jobs:
                 const jobConfig = safeOutputsConfig[configKey];
                 const dynamicTool = {
                   name: normalizedKey,
-                  description: `Custom safe-job: ${configKey}`,
+                  description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
                   inputSchema: {
                     type: "object",
                     properties: {},
@@ -819,11 +819,11 @@ jobs:
                   "--rm",
                   "-i",
                   "-e",
-                  "SERENA_DOCKER",
-                  "-e",
                   "SERENA_PORT",
                   "-e",
                   "SERENA_DASHBOARD_PORT",
+                  "-e",
+                  "SERENA_DOCKER",
                   "-v",
                   "${{ github.workspace }}:/workspace:ro",
                   "-w",
