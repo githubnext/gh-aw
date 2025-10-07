@@ -27,7 +27,7 @@ run-name: "Poem Bot - A Creative Agentic Workflow"
 jobs:
   check-membership:
     if: >
-      ((github.event_name == 'issues') && (contains(github.event.issue.body, '/poem-bot'))) ||
+      ((github.event_name == 'issues') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/poem-bot')))) ||
       (!(github.event_name == 'issues'))
     runs-on: ubuntu-latest
     outputs:
@@ -120,8 +120,8 @@ jobs:
   activation:
     needs: check-membership
     if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues') && (contains(github.event.issue.body, '/poem-bot'))) ||
-      (!(github.event_name == 'issues')))
+      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
+      (contains(github.event.issue.body, '/poem-bot')))) || (!(github.event_name == 'issues')))
     runs-on: ubuntu-latest
     outputs:
       text: ${{ steps.compute-text.outputs.text }}

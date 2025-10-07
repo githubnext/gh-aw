@@ -26,57 +26,76 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	hasPRReview := slices.Contains(eventNames, "pull_request_review_comment")
 
 	if hasIssues {
-		issueBodyCheck := BuildContains(
-			BuildPropertyAccess("github.event.issue.body"),
-			BuildStringLiteral(commandText),
-		)
+		// issues event - check github.event.issue.body only when event is 'issues'
+		issueBodyCheck := &AndNode{
+			Left: BuildEventTypeEquals("issues"),
+			Right: BuildContains(
+				BuildPropertyAccess("github.event.issue.body"),
+				BuildStringLiteral(commandText),
+			),
+		}
 		commandChecks = append(commandChecks, issueBodyCheck)
 	}
 
 	if hasIssueComment {
-		// issue_comment event only on issues (not PRs) - check that github.event.issue.pull_request is null
+		// issue_comment event only on issues (not PRs) - check github.event.comment.body only when event is 'issue_comment'
+		// and github.event.issue.pull_request is null
 		commentBodyCheck := &AndNode{
-			Left: BuildContains(
-				BuildPropertyAccess("github.event.comment.body"),
-				BuildStringLiteral(commandText),
-			),
-			Right: BuildEquals(
-				BuildPropertyAccess("github.event.issue.pull_request"),
-				BuildNullLiteral(),
-			),
+			Left: BuildEventTypeEquals("issue_comment"),
+			Right: &AndNode{
+				Left: BuildContains(
+					BuildPropertyAccess("github.event.comment.body"),
+					BuildStringLiteral(commandText),
+				),
+				Right: BuildEquals(
+					BuildPropertyAccess("github.event.issue.pull_request"),
+					BuildNullLiteral(),
+				),
+			},
 		}
 		commandChecks = append(commandChecks, commentBodyCheck)
 	}
 
 	if hasPRComment {
-		// pull_request_comment event only on PRs - check that github.event.issue.pull_request is not null
+		// pull_request_comment event only on PRs - check github.event.comment.body only when event is 'issue_comment'
+		// and github.event.issue.pull_request is not null
 		prCommentBodyCheck := &AndNode{
-			Left: BuildContains(
-				BuildPropertyAccess("github.event.comment.body"),
-				BuildStringLiteral(commandText),
-			),
-			Right: BuildNotEquals(
-				BuildPropertyAccess("github.event.issue.pull_request"),
-				BuildNullLiteral(),
-			),
+			Left: BuildEventTypeEquals("issue_comment"),
+			Right: &AndNode{
+				Left: BuildContains(
+					BuildPropertyAccess("github.event.comment.body"),
+					BuildStringLiteral(commandText),
+				),
+				Right: BuildNotEquals(
+					BuildPropertyAccess("github.event.issue.pull_request"),
+					BuildNullLiteral(),
+				),
+			},
 		}
 		commandChecks = append(commandChecks, prCommentBodyCheck)
 	}
 
 	if hasPRReview {
-		// pull_request_review_comment uses github.event.comment.body
-		reviewCommentBodyCheck := BuildContains(
-			BuildPropertyAccess("github.event.comment.body"),
-			BuildStringLiteral(commandText),
-		)
+		// pull_request_review_comment uses github.event.comment.body only when event is 'pull_request_review_comment'
+		reviewCommentBodyCheck := &AndNode{
+			Left: BuildEventTypeEquals("pull_request_review_comment"),
+			Right: BuildContains(
+				BuildPropertyAccess("github.event.comment.body"),
+				BuildStringLiteral(commandText),
+			),
+		}
 		commandChecks = append(commandChecks, reviewCommentBodyCheck)
 	}
 
 	if hasPR {
-		prBodyCheck := BuildContains(
-			BuildPropertyAccess("github.event.pull_request.body"),
-			BuildStringLiteral(commandText),
-		)
+		// pull_request event - check github.event.pull_request.body only when event is 'pull_request'
+		prBodyCheck := &AndNode{
+			Left: BuildEventTypeEquals("pull_request"),
+			Right: BuildContains(
+				BuildPropertyAccess("github.event.pull_request.body"),
+				BuildStringLiteral(commandText),
+			),
+		}
 		commandChecks = append(commandChecks, prBodyCheck)
 	}
 

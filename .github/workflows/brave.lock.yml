@@ -19,7 +19,8 @@ run-name: "Brave Web Search Agent"
 
 jobs:
   check-membership:
-    if: (contains(github.event.comment.body, '/brave')) && (github.event.issue.pull_request == null)
+    if: >
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/brave')) && (github.event.issue.pull_request == null))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -111,8 +112,8 @@ jobs:
   activation:
     needs: check-membership
     if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && ((contains(github.event.comment.body, '/brave')) &&
-      (github.event.issue.pull_request == null))
+      (needs.check-membership.outputs.is_team_member == 'true') && ((github.event_name == 'issue_comment') &&
+      ((contains(github.event.comment.body, '/brave')) && (github.event.issue.pull_request == null)))
     runs-on: ubuntu-latest
     outputs:
       text: ${{ steps.compute-text.outputs.text }}
