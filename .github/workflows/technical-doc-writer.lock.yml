@@ -15,7 +15,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-claude-${{ github.run_id % 3 }}"
+  group: "gh-aw-${{ github.workflow }}"
 
 run-name: "Technical Documentation Writer for GitHub Actions"
 

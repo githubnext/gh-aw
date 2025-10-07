@@ -25,7 +25,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-claude-${{ github.run_id % 3 }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
 run-name: "Dev"
 

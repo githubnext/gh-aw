@@ -9,11 +9,11 @@ GitHub Agentic Workflows provides sophisticated concurrency control to manage ho
 
 ## Overview
 
-Concurrency control in GitHub Agentic Workflows uses a dual-level approach:
-- **Workflow-level concurrency**: Limits concurrent workflow runs
-- **Job-level concurrency**: Limits concurrent agentic job executions
+Concurrency control in GitHub Agentic Workflows uses a dual-level approach with different strategies at each level:
+- **Workflow-level concurrency**: Context-specific limiting based on workflow type (issue, PR, branch, etc.)
+- **Job-level concurrency (max-concurrency)**: Global limiting across all workflows using the same engine
 
-Both levels use the same concurrency group key, creating a global lock across all workflows and refs for each engine.
+This dual-level approach provides both fine-grained control per workflow and global resource management across all workflows.
 
 ## Max Concurrency Configuration
 
@@ -56,23 +56,84 @@ engine:
 
 ## How It Works
 
-### Concurrency Group Generation
+### Workflow-Level Concurrency
 
-The system generates a concurrency group key using:
-1. **Prefix**: `gh-aw-` (standardized identifier)
-2. **Engine ID**: `copilot`, `claude`, `codex`, or custom engine name
-3. **Slot Number**: `${{ github.run_id % max-concurrency }}`
+The workflow-level concurrency uses context-specific keys based on the trigger type:
 
-**Generated pattern:**
+**For issue workflows:**
 ```yaml
 concurrency:
-  group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+```
+
+**For pull request workflows:**
+```yaml
+concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+```
+
+**For push workflows:**
+```yaml
+concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+```
+
+**For schedule/other workflows:**
+```yaml
+concurrency:
+  group: "gh-aw-${{ github.workflow }}"
+```
+
+This ensures workflows operating on different issues, PRs, or branches can run concurrently without interfering with each other.
+
+### Job-Level Concurrency (Max-Concurrency)
+
+The job-level concurrency uses **only** the engine ID and slot number for global limiting:
+
+```yaml
+jobs:
+  agent:
+    concurrency:
+      group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
 ```
 
 **Example for Claude with max-concurrency of 5:**
 ```yaml
+jobs:
+  agent:
+    concurrency:
+      group: "gh-aw-claude-${{ github.run_id % 5 }}"
+```
+
+This creates a global lock across **all workflows and refs** for each engine, preventing resource exhaustion from too many concurrent AI executions.
+
+### Complete Example
+
+Here's how both levels work together in a generated workflow:
+
+```yaml
+name: "Issue Responder"
+on:
+  issues:
+    types: [opened]
+
+permissions: {}
+
+# Workflow-level: Context-specific concurrency
 concurrency:
-  group: "gh-aw-claude-${{ github.run_id % 5 }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    permissions: read-all
+    # Job-level: Global max-concurrency limiting
+    concurrency:
+      group: "gh-aw-claude-${{ github.run_id % 5 }}"
+    steps:
+      - name: Execute workflow
+        ...
 ```
 
 ### Slot Distribution
@@ -90,49 +151,48 @@ Workflows are distributed across available slots using modulo arithmetic:
 
 ### Dual-Level Application
 
-Concurrency is applied at both workflow and job levels:
+The dual-level concurrency provides complementary control:
 
-```yaml
-name: "Issue Responder"
-on:
-  issues:
-    types: [opened]
+1. **Workflow-level**: Prevents conflicts between runs of the same workflow on different contexts (e.g., different issues or PRs)
+2. **Job-level**: Prevents resource exhaustion by limiting total concurrent AI executions across all workflows
 
-permissions: {}
+**Example scenario:**
+- 5 different issues trigger the same workflow
+- Workflow-level concurrency allows all 5 to start (different issue numbers)
+- Job-level max-concurrency (e.g., 3) ensures only 3 AI jobs run simultaneously
+- The other 2 workflows queue until slots become available
 
-# Workflow-level concurrency
-concurrency:
-  group: "gh-aw-claude-${{ github.run_id % 5 }}"
-
-jobs:
-  agent:
-    runs-on: ubuntu-latest
-    permissions: read-all
-    # Job-level concurrency (same group)
-    concurrency:
-      group: "gh-aw-claude-${{ github.run_id % 5 }}"
-    steps:
-      - name: Execute workflow
-        ...
-```
+This approach balances:
+- **Workflow isolation**: Different contexts don't block each other at the workflow level
+- **Global resource management**: Total AI resource usage is controlled at the job level
 
 ## Global Lock Behavior
 
-The concurrency group uses **only** engine ID and slot number, creating a true global lock:
+The **job-level** concurrency (max-concurrency) uses **only** engine ID and slot number, creating a true global lock:
 
-### What's Included
+### What's Included in Job-Level Concurrency
 - ✅ Engine ID (`copilot`, `claude`, `codex`)
 - ✅ Slot number (from `run_id % max-concurrency`)
 - ✅ `gh-aw-` prefix
 
-### What's NOT Included
+### What's NOT Included in Job-Level Concurrency
 - ❌ Workflow name
 - ❌ Issue number
 - ❌ Pull request number
 - ❌ Branch/ref name
 - ❌ Event type
 
-This ensures the limit applies **repository-wide** across all workflows and refs for each engine.
+This ensures the max-concurrency limit applies **repository-wide** across all workflows and refs for each engine.
+
+### Workflow-Level Concurrency Includes Context
+
+The **workflow-level** concurrency includes context-specific information:
+- ✅ Workflow name
+- ✅ Issue/PR/discussion number (when applicable)
+- ✅ Branch ref (for push workflows)
+- ✅ `gh-aw-` prefix
+
+This allows different contexts to run concurrently while preventing conflicts within the same context.
 
 ## Engine Isolation
 

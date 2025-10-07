@@ -13,8 +13,26 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 		return workflowData.Concurrency
 	}
 
-	// For max-concurrency, use a global lock with only engine ID and run_id slot
-	// This ensures the limit applies across all workflows and refs for the engine
+	// Build concurrency group keys using the original workflow-specific logic
+	keys := buildConcurrencyGroupKeys(workflowData, isCommandTrigger)
+	groupValue := strings.Join(keys, "-")
+
+	// Build the concurrency configuration
+	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
+
+	// Add cancel-in-progress if appropriate
+	if shouldEnableCancelInProgress(workflowData, isCommandTrigger) {
+		concurrencyConfig += "\n  cancel-in-progress: true"
+	}
+
+	return concurrencyConfig
+}
+
+// GenerateJobConcurrencyConfig generates the job-level concurrency configuration
+// for max-concurrency limiting across all workflows using the same engine
+func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
+	// Build job-level concurrency for max-concurrency feature
+	// This uses ONLY engine ID and run_id slot for global limiting
 	var keys []string
 	
 	// Prepend with gh-aw- prefix
@@ -38,13 +56,8 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 	
 	groupValue := strings.Join(keys, "-")
 
-	// Build the concurrency configuration
+	// Build the concurrency configuration (no cancel-in-progress at job level)
 	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
-
-	// Add cancel-in-progress if appropriate
-	if shouldEnableCancelInProgress(workflowData, isCommandTrigger) {
-		concurrencyConfig += "\n  cancel-in-progress: true"
-	}
 
 	return concurrencyConfig
 }
