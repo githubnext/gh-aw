@@ -327,3 +327,149 @@ func generateLogCaptureStep(logFile string) GitHubActionStep {
 	}
 	return GitHubActionStep(logCaptureLines)
 }
+
+// ProcessCustomSteps processes custom steps from engine config if they exist
+// This reduces code duplication across engines by providing a shared implementation
+// for handling custom steps defined in the engine configuration
+func ProcessCustomSteps(workflowData *WorkflowData) []GitHubActionStep {
+	var steps []GitHubActionStep
+
+	// Handle custom steps if they exist in engine config
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
+		for _, step := range workflowData.EngineConfig.Steps {
+			stepYAML, err := ConvertStepToYAML(step)
+			if err != nil {
+				// Log error but continue with other steps
+				continue
+			}
+			steps = append(steps, GitHubActionStep{stepYAML})
+		}
+	}
+
+	return steps
+}
+
+// AddSafeOutputsEnvToMap adds safe-outputs environment variables to a map
+// This is used by engines that build environment as a map (Codex, Copilot)
+func AddSafeOutputsEnvToMap(env map[string]string, workflowData *WorkflowData, useQuoting bool) {
+	if workflowData.SafeOutputs == nil {
+		return
+	}
+
+	env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+
+	// Add staged flag if specified
+	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
+		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+	}
+
+	// Add branch name if upload assets is configured
+	if workflowData.SafeOutputs.UploadAssets != nil {
+		if useQuoting {
+			env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", workflowData.SafeOutputs.UploadAssets.BranchName)
+			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
+		} else {
+			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
+			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
+		}
+		env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
+	}
+}
+
+// AddMaxTurnsEnvToMap adds max-turns environment variable to a map if configured
+// This is used by engines that support the max-turns configuration (Copilot, Custom)
+func AddMaxTurnsEnvToMap(env map[string]string, workflowData *WorkflowData) {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
+}
+
+// AddCustomEngineEnvToMap adds custom environment variables from engine config to a map
+// This is used by all engines that support custom environment variables
+func AddCustomEngineEnvToMap(env map[string]string, workflowData *WorkflowData) {
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
+			env[key] = value
+		}
+	}
+}
+
+// AddSafeOutputsEnvToLines adds safe-outputs environment variables to step lines
+// This is used by engines that build environment as step lines (Claude)
+func AddSafeOutputsEnvToLines(stepLines *[]string, workflowData *WorkflowData) {
+	if workflowData.SafeOutputs == nil {
+		return
+	}
+
+	*stepLines = append(*stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
+
+	// Add staged flag if specified
+	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
+		*stepLines = append(*stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+	}
+
+	// Add branch name if upload assets is configured
+	if workflowData.SafeOutputs.UploadAssets != nil {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
+		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
+	}
+}
+
+// AddMaxTurnsEnvToLines adds max-turns environment variable to step lines if configured
+// This is used by engines that build environment as step lines (Claude)
+func AddMaxTurnsEnvToLines(stepLines *[]string, workflowData *WorkflowData) {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
+	}
+}
+
+// AddCustomEngineEnvToLines adds custom environment variables from engine config to step lines
+// This is used by engines that build environment as step lines (Claude)
+func AddCustomEngineEnvToLines(stepLines *[]string, workflowData *WorkflowData) {
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
+			*stepLines = append(*stepLines, fmt.Sprintf("          %s: %s", key, value))
+		}
+	}
+}
+
+// AddSafeOutputsEnvToAnyMap adds safe-outputs environment variables to a map[string]any
+// This is used by the custom engine which uses map[string]any for environment variables
+func AddSafeOutputsEnvToAnyMap(env map[string]any, workflowData *WorkflowData) {
+	if workflowData.SafeOutputs == nil {
+		return
+	}
+
+	env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+
+	// Add staged flag if specified
+	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
+		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+	}
+
+	// Add branch name if upload assets is configured
+	if workflowData.SafeOutputs.UploadAssets != nil {
+		env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
+		env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
+		env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
+	}
+}
+
+// AddMaxTurnsEnvToAnyMap adds max-turns environment variable to a map[string]any if configured
+// This is used by the custom engine which uses map[string]any for environment variables
+func AddMaxTurnsEnvToAnyMap(env map[string]any, workflowData *WorkflowData) {
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
+		env["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
+	}
+}
+
+// AddCustomEngineEnvToAnyMap adds custom environment variables from engine config to a map[string]any
+// This is used by the custom engine which uses map[string]any for environment variables
+func AddCustomEngineEnvToAnyMap(env map[string]any, workflowData *WorkflowData) {
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
+			env[key] = value
+		}
+	}
+}

@@ -55,34 +55,14 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
 			envVars["GITHUB_AW_MCP_CONFIG"] = "/tmp/mcp-config/mcp-servers.json"
 
-			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
-			if workflowData.SafeOutputs != nil {
-				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+			// Add safe-outputs environment variables
+			AddSafeOutputsEnvToAnyMap(envVars, workflowData)
 
-				// Add staged flag if specified
-				if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-					envVars["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
-				}
-
-				// Add branch name if upload assets is configured
-				if workflowData.SafeOutputs.UploadAssets != nil {
-					envVars["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
-					envVars["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-					envVars["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
-				}
-			}
-
-			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
-			if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-				envVars["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
-			}
+			// Add max-turns environment variable if configured
+			AddMaxTurnsEnvToAnyMap(envVars, workflowData)
 
 			// Add custom environment variables from engine config
-			if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-				for key, value := range workflowData.EngineConfig.Env {
-					envVars[key] = value
-				}
-			}
+			AddCustomEngineEnvToAnyMap(envVars, workflowData)
 
 			// Merge environment variables into the step
 			if len(envVars) > 0 {

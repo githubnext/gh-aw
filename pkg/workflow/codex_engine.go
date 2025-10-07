@@ -80,19 +80,8 @@ func (e *CodexEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	var steps []GitHubActionStep
-
-	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-	}
+	// Process custom steps if they exist in engine config
+	steps := ProcessCustomSteps(workflowData)
 
 	// Build model parameter only if specified in engineConfig
 	var modelParam string
@@ -126,29 +115,10 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
-	hasOutput := workflowData.SafeOutputs != nil
-	if hasOutput {
-		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-
-		// Add staged flag if specified
-		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
-		}
-
-		// Add branch name if upload assets is configured
-		if workflowData.SafeOutputs.UploadAssets != nil {
-			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
-			env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
-		}
-	}
+	AddSafeOutputsEnvToMap(env, workflowData, false)
 
 	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
-	}
+	AddCustomEngineEnvToMap(env, workflowData)
 
 	// Generate the step for Codex execution
 	stepName := "Run Codex"
