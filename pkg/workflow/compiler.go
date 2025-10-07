@@ -2057,9 +2057,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
-
-		// Add step to checkout PR branch if the event is a comment on a PR
-		c.generatePRBranchCheckout(yaml, data)
 	}
 
 	// Add custom steps if present
@@ -2091,6 +2088,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	for _, line := range gitConfigSteps {
 		yaml.WriteString(line)
 	}
+
+	// Add step to checkout PR branch if the event is pull_request
+	c.generatePRReadyForReviewCheckout(yaml, data)
 
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)

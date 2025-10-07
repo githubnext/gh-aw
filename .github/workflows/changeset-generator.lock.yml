@@ -285,6 +285,43 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch
+        if: |
+          github.event.pull_request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            async function main() {
+              const eventName = context.eventName;
+              const pullRequest = context.payload.pull_request;
+              if (!pullRequest) {
+                core.info("No pull request context available, skipping checkout");
+                return;
+              }
+              core.info(`Event: ${eventName}`);
+              core.info(`Pull Request #${pullRequest.number}`);
+              try {
+                if (eventName === "pull_request") {
+                  const branchName = pullRequest.head.ref;
+                  core.info(`Checking out PR branch: ${branchName}`);
+                  await exec.exec("git", ["fetch", "origin", branchName]);
+                  await exec.exec("git", ["checkout", branchName]);
+                  core.info(`✅ Successfully checked out branch: ${branchName}`);
+                } else {
+                  const prNumber = pullRequest.number;
+                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
+                  await exec.exec("gh", ["pr", "checkout", prNumber.toString()], {
+                    env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
+                  });
+                  core.info(`✅ Successfully checked out PR #${prNumber}`);
+                }
+              } catch (error) {
+                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

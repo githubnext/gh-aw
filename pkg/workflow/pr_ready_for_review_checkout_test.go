@@ -7,103 +7,31 @@ import (
 	"testing"
 )
 
-// TestPRBranchCheckout verifies that PR branch checkout is added for comment triggers
-func TestPRBranchCheckout(t *testing.T) {
+// TestPRCheckout verifies that PR branch checkout is added for pull_request events
+func TestPRCheckout(t *testing.T) {
 	tests := []struct {
 		name             string
 		workflowContent  string
 		expectPRCheckout bool
-		expectPRPrompt   bool
 	}{
 		{
-			name: "issue_comment trigger should add PR checkout",
+			name: "pull_request with ready_for_review should add checkout",
 			workflowContent: `---
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    types: [ready_for_review]
 permissions:
   contents: read
 engine: claude
 ---
 
 # Test Workflow
-Test workflow with issue_comment trigger.
+Test workflow with pull_request ready_for_review trigger.
 `,
 			expectPRCheckout: true,
-			expectPRPrompt:   true,
 		},
 		{
-			name: "pull_request_review_comment trigger should add PR checkout",
-			workflowContent: `---
-on:
-  pull_request_review_comment:
-    types: [created]
-permissions:
-  contents: read
-engine: claude
----
-
-# Test Workflow
-Test workflow with pull_request_review_comment trigger.
-`,
-			expectPRCheckout: true,
-			expectPRPrompt:   true,
-		},
-		{
-			name: "multiple comment triggers should add PR checkout",
-			workflowContent: `---
-on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-permissions:
-  contents: read
-engine: claude
----
-
-# Test Workflow
-Test workflow with multiple comment triggers.
-`,
-			expectPRCheckout: true,
-			expectPRPrompt:   true,
-		},
-		{
-			name: "command trigger should add PR checkout (expands to comments)",
-			workflowContent: `---
-on:
-  command:
-    name: test-bot
-permissions:
-  contents: read
-engine: claude
----
-
-# Test Workflow
-Test workflow with command trigger.
-`,
-			expectPRCheckout: true,
-			expectPRPrompt:   true,
-		},
-		{
-			name: "push trigger should add PR checkout (with runtime condition)",
-			workflowContent: `---
-on:
-  push:
-    branches: [main]
-permissions:
-  contents: read
-engine: claude
----
-
-# Test Workflow
-Test workflow with push trigger only.
-`,
-			expectPRCheckout: true, // Step is added but runtime condition prevents execution
-			expectPRPrompt:   false,
-		},
-		{
-			name: "pull_request trigger should add PR checkout",
+			name: "pull_request with opened should add checkout",
 			workflowContent: `---
 on:
   pull_request:
@@ -114,27 +42,41 @@ engine: claude
 ---
 
 # Test Workflow
-Test workflow with pull_request trigger only.
+Test workflow with pull_request opened trigger.
 `,
-			expectPRCheckout: true, // Step is added and will execute for PR events
-			expectPRPrompt:   false,
+			expectPRCheckout: true,
 		},
 		{
-			name: "no contents permission should NOT add PR checkout",
+			name: "push trigger should add checkout (with condition)",
 			workflowContent: `---
 on:
-  issue_comment:
-    types: [created]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+engine: claude
+---
+
+# Test Workflow
+Test workflow with push trigger.
+`,
+			expectPRCheckout: true, // Step is added, but condition prevents execution
+		},
+		{
+			name: "no contents permission should NOT add checkout",
+			workflowContent: `---
+on:
+  pull_request:
+    types: [ready_for_review]
 permissions:
   issues: write
 engine: claude
 ---
 
 # Test Workflow
-Test workflow without contents read permission.
+Test workflow without contents permission.
 `,
 			expectPRCheckout: false,
-			expectPRPrompt:   false,
 		},
 	}
 
@@ -173,59 +115,46 @@ Test workflow without contents read permission.
 			}
 			lockStr := string(lockContent)
 
-			// Check for PR checkout step (now uses JavaScript)
+			// Check for PR checkout step
 			hasPRCheckout := strings.Contains(lockStr, "Checkout PR branch")
 			if hasPRCheckout != tt.expectPRCheckout {
 				t.Errorf("Expected PR checkout step: %v, got: %v", tt.expectPRCheckout, hasPRCheckout)
 			}
 
-			// Check for PR context prompt
-			hasPRPrompt := strings.Contains(lockStr, "Current Branch Context")
-			if hasPRPrompt != tt.expectPRPrompt {
-				t.Errorf("Expected PR context prompt: %v, got: %v", tt.expectPRPrompt, hasPRPrompt)
-			}
-
-			// If PR checkout is expected, verify it uses JavaScript
+			// If PR checkout is expected, verify it uses actions/github-script
 			if tt.expectPRCheckout {
+				// Check for actions/github-script usage
 				if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
 					t.Error("PR checkout step should use actions/github-script@v8")
 				}
-				if !strings.Contains(lockStr, "pullRequest") {
-					t.Error("PR checkout step should reference pullRequest in JavaScript")
+				// Check for JavaScript code patterns
+				if !strings.Contains(lockStr, "pullRequest.head.ref") {
+					t.Error("PR checkout step should reference PR head ref in JavaScript")
 				}
-				if !strings.Contains(lockStr, "gh pr checkout") {
-					t.Error("PR checkout step should use gh pr checkout command")
+				if !strings.Contains(lockStr, "exec.exec") {
+					t.Error("PR checkout step should use exec.exec for git commands")
 				}
-			}
-
-			// If PR prompt is expected, verify key content
-			if tt.expectPRPrompt {
-				if !strings.Contains(lockStr, "automatically checked out to the PR's branch") {
-					t.Error("PR context prompt should explain the branch context")
-				}
-				if !strings.Contains(lockStr, "Current Branch Context") {
-					t.Error("PR context prompt should include branch context heading")
+				if !strings.Contains(lockStr, "checkout") {
+					t.Error("PR checkout step should checkout the branch")
 				}
 			}
 		})
 	}
 }
 
-// TestPRCheckoutConditionalLogic verifies the conditional logic for PR checkout
-func TestPRCheckoutConditionalLogic(t *testing.T) {
+// TestPRCheckoutForAllPullRequestTypes verifies the conditional logic for PR checkout on all pull_request types
+func TestPRCheckoutForAllPullRequestTypes(t *testing.T) {
 	workflowContent := `---
 on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
+  pull_request:
+    types: [ready_for_review, opened]
 permissions:
   contents: read
 engine: claude
 ---
 
 # Test Workflow
-Test workflow with multiple comment triggers.
+Test workflow with pull_request triggers.
 `
 
 	// Create temporary directory for test
@@ -261,17 +190,16 @@ Test workflow with multiple comment triggers.
 	}
 	lockStr := string(lockContent)
 
-	// Verify the checkout step uses actions/github-script
+	// Verify the checkout uses actions/github-script
 	if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
 		t.Error("Expected PR checkout to use actions/github-script@v8")
 	}
 
-	// Verify JavaScript code handles PR checkout
+	// Verify JavaScript code patterns
 	expectedPatterns := []string{
-		"pullRequest.head.ref",
-		"exec.exec",
-		"checkout",
-		"gh pr checkout",
+		`pullRequest.head.ref`,
+		`exec.exec`,
+		`checkout`,
 	}
 
 	for _, pattern := range expectedPatterns {

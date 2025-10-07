@@ -49,8 +49,8 @@ func TestClaudeEngine(t *testing.T) {
 	if !strings.Contains(installStep, "Install Claude Code CLI") {
 		t.Errorf("Expected 'Install Claude Code CLI' in installation step, got: %s", installStep)
 	}
-	if !strings.Contains(installStep, "npm install -g @anthropic-ai/claude-code@2.0.1") {
-		t.Errorf("Expected 'npm install -g @anthropic-ai/claude-code@2.0.1' in install step, got: %s", installStep)
+	if !strings.Contains(installStep, "npm install -g @anthropic-ai/claude-code@2.0.9") {
+		t.Errorf("Expected 'npm install -g @anthropic-ai/claude-code@2.0.9' in install step, got: %s", installStep)
 	}
 
 	// Test execution steps
