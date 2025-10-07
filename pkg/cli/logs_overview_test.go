@@ -8,42 +8,55 @@ import (
 
 // TestLogsOverviewIncludesMissingTools verifies that the overview table includes missing tools count
 func TestLogsOverviewIncludesMissingTools(t *testing.T) {
-	runs := []WorkflowRun{
+	processedRuns := []ProcessedRun{
 		{
-			DatabaseID:       12345,
-			WorkflowName:     "Test Workflow A",
-			Status:           "completed",
-			Conclusion:       "success",
-			CreatedAt:        time.Now(),
-			Duration:         5 * time.Minute,
-			TokenUsage:       1000,
-			EstimatedCost:    0.01,
-			Turns:            3,
-			ErrorCount:       0,
-			WarningCount:     2,
-			MissingToolCount: 1,
-			LogsPath:         "/tmp/run-12345",
+			Run: WorkflowRun{
+				DatabaseID:       12345,
+				WorkflowName:     "Test Workflow A",
+				Status:           "completed",
+				Conclusion:       "success",
+				CreatedAt:        time.Now(),
+				Duration:         5 * time.Minute,
+				TokenUsage:       1000,
+				EstimatedCost:    0.01,
+				Turns:            3,
+				ErrorCount:       0,
+				WarningCount:     2,
+				MissingToolCount: 1,
+				LogsPath:         "/tmp/run-12345",
+			},
+			MissingTools: []MissingToolReport{
+				{Tool: "terraform", Reason: "Infrastructure automation needed"},
+			},
 		},
 		{
-			DatabaseID:       67890,
-			WorkflowName:     "Test Workflow B",
-			Status:           "completed",
-			Conclusion:       "failure",
-			CreatedAt:        time.Now(),
-			Duration:         3 * time.Minute,
-			TokenUsage:       500,
-			EstimatedCost:    0.005,
-			Turns:            2,
-			ErrorCount:       1,
-			WarningCount:     0,
-			MissingToolCount: 3,
-			LogsPath:         "/tmp/run-67890",
+			Run: WorkflowRun{
+				DatabaseID:       67890,
+				WorkflowName:     "Test Workflow B",
+				Status:           "completed",
+				Conclusion:       "failure",
+				CreatedAt:        time.Now(),
+				Duration:         3 * time.Minute,
+				TokenUsage:       500,
+				EstimatedCost:    0.005,
+				Turns:            2,
+				ErrorCount:       1,
+				WarningCount:     0,
+				MissingToolCount: 3,
+				LogsPath:         "/tmp/run-67890",
+			},
+			MissingTools: []MissingToolReport{
+				{Tool: "kubectl", Reason: "K8s management"},
+				{Tool: "docker", Reason: "Container runtime"},
+				{Tool: "helm", Reason: "K8s package manager"},
+			},
 		},
 	}
 
 	// Capture output by redirecting - this is a smoke test to ensure displayLogsOverview doesn't panic
 	// and that it processes the MissingToolCount field
-	displayLogsOverview(runs)
+	displayLogsOverview(processedRuns, false)
+	displayLogsOverview(processedRuns, true)
 }
 
 // TestWorkflowRunStructHasMissingToolCount verifies that WorkflowRun has the MissingToolCount field
@@ -107,65 +120,96 @@ func TestLogsOverviewHeaderIncludesMissing(t *testing.T) {
 func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 	testCases := []struct {
 		name             string
-		runs             []WorkflowRun
+		processedRuns    []ProcessedRun
 		expectedNonPanic bool
 	}{
 		{
 			name: "no missing tools",
-			runs: []WorkflowRun{
+			processedRuns: []ProcessedRun{
 				{
-					DatabaseID:       1,
-					WorkflowName:     "Clean Workflow",
-					MissingToolCount: 0,
-					LogsPath:         "/tmp/run-1",
+					Run: WorkflowRun{
+						DatabaseID:       1,
+						WorkflowName:     "Clean Workflow",
+						MissingToolCount: 0,
+						LogsPath:         "/tmp/run-1",
+					},
+					MissingTools: []MissingToolReport{},
 				},
 			},
 			expectedNonPanic: true,
 		},
 		{
 			name: "single missing tool",
-			runs: []WorkflowRun{
+			processedRuns: []ProcessedRun{
 				{
-					DatabaseID:       2,
-					WorkflowName:     "Workflow with One Missing",
-					MissingToolCount: 1,
-					LogsPath:         "/tmp/run-2",
+					Run: WorkflowRun{
+						DatabaseID:       2,
+						WorkflowName:     "Workflow with One Missing",
+						MissingToolCount: 1,
+						LogsPath:         "/tmp/run-2",
+					},
+					MissingTools: []MissingToolReport{
+						{Tool: "terraform", Reason: "Need IaC"},
+					},
 				},
 			},
 			expectedNonPanic: true,
 		},
 		{
 			name: "multiple missing tools",
-			runs: []WorkflowRun{
+			processedRuns: []ProcessedRun{
 				{
-					DatabaseID:       3,
-					WorkflowName:     "Workflow with Multiple Missing",
-					MissingToolCount: 5,
-					LogsPath:         "/tmp/run-3",
+					Run: WorkflowRun{
+						DatabaseID:       3,
+						WorkflowName:     "Workflow with Multiple Missing",
+						MissingToolCount: 5,
+						LogsPath:         "/tmp/run-3",
+					},
+					MissingTools: []MissingToolReport{
+						{Tool: "terraform", Reason: "IaC"},
+						{Tool: "kubectl", Reason: "K8s"},
+						{Tool: "docker", Reason: "Containers"},
+						{Tool: "helm", Reason: "Packages"},
+						{Tool: "argocd", Reason: "GitOps"},
+					},
 				},
 			},
 			expectedNonPanic: true,
 		},
 		{
 			name: "mixed missing tool counts",
-			runs: []WorkflowRun{
+			processedRuns: []ProcessedRun{
 				{
-					DatabaseID:       4,
-					WorkflowName:     "Workflow A",
-					MissingToolCount: 0,
-					LogsPath:         "/tmp/run-4",
+					Run: WorkflowRun{
+						DatabaseID:       4,
+						WorkflowName:     "Workflow A",
+						MissingToolCount: 0,
+						LogsPath:         "/tmp/run-4",
+					},
+					MissingTools: []MissingToolReport{},
 				},
 				{
-					DatabaseID:       5,
-					WorkflowName:     "Workflow B",
-					MissingToolCount: 2,
-					LogsPath:         "/tmp/run-5",
+					Run: WorkflowRun{
+						DatabaseID:       5,
+						WorkflowName:     "Workflow B",
+						MissingToolCount: 2,
+						LogsPath:         "/tmp/run-5",
+					},
+					MissingTools: []MissingToolReport{
+						{Tool: "kubectl", Reason: "K8s"},
+						{Tool: "docker", Reason: "Containers"},
+					},
 				},
 				{
-					DatabaseID:       6,
-					WorkflowName:     "Workflow C",
-					MissingToolCount: 1,
-					LogsPath:         "/tmp/run-6",
+					Run: WorkflowRun{
+						DatabaseID:       6,
+						WorkflowName:     "Workflow C",
+						MissingToolCount: 1,
+						LogsPath:         "/tmp/run-6",
+					},
+					MissingTools: []MissingToolReport{
+						{Tool: "helm", Reason: "Packages"},
+					},
 				},
 			},
 			expectedNonPanic: true,
@@ -180,7 +224,8 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 					t.Errorf("displayLogsOverview panicked with: %v", r)
 				}
 			}()
-			displayLogsOverview(tc.runs)
+			displayLogsOverview(tc.processedRuns, false)
+			displayLogsOverview(tc.processedRuns, true)
 		})
 	}
 }
@@ -210,23 +255,29 @@ func TestTotalMissingToolsCalculation(t *testing.T) {
 // TestOverviewDisplayConsistency verifies that the overview function is consistent
 func TestOverviewDisplayConsistency(t *testing.T) {
 	// Create a run with known values
-	run := WorkflowRun{
-		DatabaseID:       99999,
-		WorkflowName:     "Consistency Test",
-		Status:           "completed",
-		Conclusion:       "success",
-		Duration:         10 * time.Minute,
-		TokenUsage:       2000,
-		EstimatedCost:    0.02,
-		Turns:            5,
-		ErrorCount:       1,
-		WarningCount:     3,
-		MissingToolCount: 2,
-		CreatedAt:        time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
-		LogsPath:         "/tmp/run-99999",
+	processedRuns := []ProcessedRun{
+		{
+			Run: WorkflowRun{
+				DatabaseID:       99999,
+				WorkflowName:     "Consistency Test",
+				Status:           "completed",
+				Conclusion:       "success",
+				Duration:         10 * time.Minute,
+				TokenUsage:       2000,
+				EstimatedCost:    0.02,
+				Turns:            5,
+				ErrorCount:       1,
+				WarningCount:     3,
+				MissingToolCount: 2,
+				CreatedAt:        time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+				LogsPath:         "/tmp/run-99999",
+			},
+			MissingTools: []MissingToolReport{
+				{Tool: "terraform", Reason: "IaC"},
+				{Tool: "kubectl", Reason: "K8s"},
+			},
+		},
 	}
-
-	runs := []WorkflowRun{run}
 
 	// Call displayLogsOverview - it should not panic and should handle all fields
 	defer func() {
@@ -235,7 +286,8 @@ func TestOverviewDisplayConsistency(t *testing.T) {
 		}
 	}()
 
-	displayLogsOverview(runs)
+	displayLogsOverview(processedRuns, false)
+	displayLogsOverview(processedRuns, true)
 }
 
 // TestMissingToolsIntegration tests the full flow from ProcessedRun to display
@@ -244,10 +296,11 @@ func TestMissingToolsIntegration(t *testing.T) {
 	processedRuns := []ProcessedRun{
 		{
 			Run: WorkflowRun{
-				DatabaseID:   11111,
-				WorkflowName: "Integration Test Workflow",
-				Status:       "completed",
-				Conclusion:   "success",
+				DatabaseID:       11111,
+				WorkflowName:     "Integration Test Workflow",
+				Status:           "completed",
+				Conclusion:       "success",
+				MissingToolCount: 2,
 			},
 			MissingTools: []MissingToolReport{
 				{
@@ -268,21 +321,14 @@ func TestMissingToolsIntegration(t *testing.T) {
 		},
 	}
 
-	// Simulate the logs command flow
-	workflowRuns := make([]WorkflowRun, len(processedRuns))
-	for i, pr := range processedRuns {
-		run := pr.Run
-		run.MissingToolCount = len(pr.MissingTools)
-		workflowRuns[i] = run
-	}
-
 	// Verify count is correct
-	if workflowRuns[0].MissingToolCount != 2 {
-		t.Errorf("Expected MissingToolCount to be 2, got %d", workflowRuns[0].MissingToolCount)
+	if processedRuns[0].Run.MissingToolCount != 2 {
+		t.Errorf("Expected MissingToolCount to be 2, got %d", processedRuns[0].Run.MissingToolCount)
 	}
 
 	// Display should work without panicking
-	displayLogsOverview(workflowRuns)
+	displayLogsOverview(processedRuns, false)
+	displayLogsOverview(processedRuns, true)
 
 	// Display analysis should also work
 	displayMissingToolsAnalysis(processedRuns, false)

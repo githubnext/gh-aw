@@ -531,7 +531,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		run.MissingToolCount = len(pr.MissingTools)
 		workflowRuns[i] = run
 	}
-	displayLogsOverview(workflowRuns)
+	displayLogsOverview(processedRuns, verbose)
 
 	// Display MCP failures analysis
 	displayMCPFailuresAnalysis(processedRuns, verbose)
@@ -1034,8 +1034,8 @@ func parseLogFileWithEngine(filePath string, detectedEngine workflow.CodingAgent
 var extractJSONMetrics = workflow.ExtractJSONMetrics
 
 // displayLogsOverview displays a summary table of workflow runs and metrics
-func displayLogsOverview(runs []WorkflowRun) {
-	if len(runs) == 0 {
+func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
+	if len(processedRuns) == 0 {
 		return
 	}
 
@@ -1051,7 +1051,8 @@ func displayLogsOverview(runs []WorkflowRun) {
 	var totalWarnings int
 	var totalMissingTools int
 
-	for _, run := range runs {
+	for _, pr := range processedRuns {
+		run := pr.Run
 		// Format duration
 		durationStr := ""
 		if run.Duration > 0 {
@@ -1089,7 +1090,22 @@ func displayLogsOverview(runs []WorkflowRun) {
 		totalWarnings += run.WarningCount
 
 		// Format missing tools
-		missingToolsStr := fmt.Sprintf("%d", run.MissingToolCount)
+		var missingToolsStr string
+		if verbose && len(pr.MissingTools) > 0 {
+			// In verbose mode, show actual tool names
+			toolNames := make([]string, len(pr.MissingTools))
+			for i, tool := range pr.MissingTools {
+				toolNames[i] = tool.Tool
+			}
+			missingToolsStr = strings.Join(toolNames, ", ")
+			// Truncate if too long
+			if len(missingToolsStr) > 30 {
+				missingToolsStr = missingToolsStr[:27] + "..."
+			}
+		} else {
+			// In normal mode, just show the count
+			missingToolsStr = fmt.Sprintf("%d", run.MissingToolCount)
+		}
 		totalMissingTools += run.MissingToolCount
 
 		// Truncate workflow name if too long
@@ -1126,7 +1142,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 
 	// Prepare total row
 	totalRow := []string{
-		fmt.Sprintf("TOTAL (%d runs)", len(runs)),
+		fmt.Sprintf("TOTAL (%d runs)", len(processedRuns)),
 		"",
 		"",
 		formatDuration(totalDuration),
