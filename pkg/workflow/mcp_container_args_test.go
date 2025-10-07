@@ -8,7 +8,7 @@ func TestContainerWithCustomArgs(t *testing.T) {
 	// Test that custom args are preserved when using container field
 	config := map[string]interface{}{
 		"container": "test:latest",
-		"args": []interface{}{"-v", "/tmp:/tmp:ro", "-w", "/tmp"},
+		"args":      []interface{}{"-v", "/tmp:/tmp:ro", "-w", "/tmp"},
 		"env": map[string]interface{}{
 			"TEST_VAR": "value",
 		},

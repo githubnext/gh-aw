@@ -430,7 +430,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	if result.Type == "stdio" && result.Container != "" {
 		// Save user-provided args before transforming
 		userProvidedArgs := result.Args
-		
+
 		// Transform container field to docker command and args
 		result.Command = "docker"
 		result.Args = []string{"run", "--rm", "-i"}

@@ -129,6 +129,34 @@ The `container` field automatically generates:
 
 **Use cases**: Third-party MCP servers, complex dependencies, security isolation
 
+#### Custom Docker Arguments
+
+For advanced use cases, you can provide custom Docker arguments such as volume mounts or working directory:
+
+```yaml
+mcp-servers:
+  serena:
+    container: "ghcr.io/oraios/serena:latest"
+    args:
+      - "-v"
+      - "${{ github.workspace }}:/workspace:ro"
+      - "-w"
+      - "/workspace"
+    env:
+      SERENA_DOCKER: "1"
+    allowed: ["read_file", "find_symbol"]
+```
+
+This generates:
+- **Command**: `"docker"`
+- **Args**: `["run", "--rm", "-i", "-e", "SERENA_DOCKER", "-v", "${{ github.workspace }}:/workspace:ro", "-w", "/workspace", "ghcr.io/oraios/serena:latest"]`
+
+The custom args are inserted after environment variable flags but before the container image, allowing you to:
+- Mount volumes with `-v` for file access
+- Set working directory with `-w`
+- Configure network settings
+- Add any other Docker run flags
+
 ### 3. HTTP MCP Servers
 
 Remote MCP servers accessible via HTTP (Claude engine only):
