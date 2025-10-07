@@ -1,10 +1,6 @@
-## ast-grep Tool Setup
-
-### Installation
-
-To use ast-grep in your workflow, add this step to your workflow's `steps:` section:
-
-```yaml
+---
+tools:
+  bash: ["ast-grep:*", "sg:*"]
 steps:
   - name: Install ast-grep
     run: |
@@ -13,14 +9,9 @@ steps:
       sudo mv /tmp/ast-grep/ast-grep /usr/local/bin/
       chmod +x /usr/local/bin/ast-grep
       ast-grep --version
-```
+---
 
-And add ast-grep to your bash tools in the workflow frontmatter:
-
-```yaml
-tools:
-  bash: ["ast-grep:*", "sg:*"]
-```
+## ast-grep Tool Setup
 
 ### Using ast-grep
 

@@ -708,6 +708,41 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
+	
+	// Merge imported steps if any
+	if importsResult.MergedSteps != "" {
+		// Parse imported steps from YAML array
+		var importedSteps []any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
+			// If there are main workflow steps, parse and merge them
+			if workflowData.CustomSteps != "" {
+				// Parse main workflow steps (format: "steps:\n  - ...")
+				var mainStepsWrapper map[string]any
+				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
+					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
+						if mainSteps, ok := mainStepsVal.([]any); ok {
+							// Prepend imported steps to main steps
+							allSteps := append(importedSteps, mainSteps...)
+							// Convert back to YAML with "steps:" wrapper
+							stepsWrapper := map[string]any{"steps": allSteps}
+							stepsYAML, err := yaml.Marshal(stepsWrapper)
+							if err == nil {
+								workflowData.CustomSteps = string(stepsYAML)
+							}
+						}
+					}
+				}
+			} else {
+				// Only imported steps exist, wrap in "steps:" format
+				stepsWrapper := map[string]any{"steps": importedSteps}
+				stepsYAML, err := yaml.Marshal(stepsWrapper)
+				if err == nil {
+					workflowData.CustomSteps = string(stepsYAML)
+				}
+			}
+		}
+	}
+	
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")

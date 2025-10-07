@@ -14,9 +14,6 @@ permissions:
 engine: claude
 timeout_minutes: 10
 
-tools:
-  bash: ["ast-grep:*", "sg:*"]
-
 imports:
   - shared/ast-grep.md
 
@@ -25,15 +22,6 @@ safe-outputs:
     title-prefix: "[ast-grep] "
     labels: [code-quality, ast-grep]
     max: 1
-
-steps:
-  - name: Install ast-grep
-    run: |
-      curl -L https://github.com/ast-grep/ast-grep/releases/latest/download/ast-grep-x86_64-unknown-linux-gnu.zip -o /tmp/ast-grep.zip
-      unzip -q /tmp/ast-grep.zip -d /tmp/ast-grep
-      sudo mv /tmp/ast-grep/ast-grep /usr/local/bin/
-      chmod +x /usr/local/bin/ast-grep
-      ast-grep --version
 ---
 
 # Go Code Pattern Detector
