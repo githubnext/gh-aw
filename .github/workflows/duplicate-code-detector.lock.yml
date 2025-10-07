@@ -15,7 +15,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-copilot-${{ github.run_id % 3 }}"
+  group: "copilot-${{ github.run_id % 3 }}"
 
 run-name: "Duplicate Code Detector"
 
@@ -819,11 +819,11 @@ jobs:
                   "--rm",
                   "-i",
                   "-e",
-                  "SERENA_DOCKER",
-                  "-e",
                   "SERENA_PORT",
                   "-e",
                   "SERENA_DASHBOARD_PORT",
+                  "-e",
+                  "SERENA_DOCKER",
                   "-v",
                   "${{ github.workspace }}:/workspace:ro",
                   "-w",
@@ -831,9 +831,9 @@ jobs:
                   "ghcr.io/oraios/serena:latest"
                 ],
                 "env": {
-                  "SERENA_DOCKER": "1",
                   "SERENA_PORT": "9121",
-                  "SERENA_DASHBOARD_PORT": "24282"
+                  "SERENA_DASHBOARD_PORT": "24282",
+                  "SERENA_DOCKER": "1"
                 }
               }
             }

@@ -478,9 +478,9 @@ engine:
 **Default Value:** 3 (if not specified)
 
 **How it works:**
-- Uses GitHub Actions concurrency groups with slot distribution
+- Uses GitHub Actions concurrency groups with slot distribution for global limiting
 - Workflows are distributed across available slots using `github.run_id % max-concurrency`
-- Each slot can only run one workflow at a time
+- Each slot can only run one workflow at a time across ALL workflows and refs
 - Includes engine ID in concurrency group for isolation between different engines
 - Prevents resource exhaustion from too many concurrent AI executions
 
@@ -510,10 +510,16 @@ engine:
 **Generated concurrency group pattern:**
 ```yaml
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-...-{engine-id}-${{ github.run_id % 3 }}"
+  group: "{engine-id}-${{ github.run_id % max-concurrency }}"
 ```
 
-The slot number (`github.run_id % 3`) ensures workflows are distributed across the allowed concurrent slots, and the engine ID ensures isolation between workflows using different engines.
+Example for claude with max-concurrency of 5:
+```yaml
+concurrency:
+  group: "claude-${{ github.run_id % 5 }}"
+```
+
+The concurrency group uses **only** the engine ID and slot number, creating a global lock across all workflows and refs for that engine. This ensures the max-concurrency limit applies repository-wide.
 
 ## Tools Configuration (`tools:`)
 
@@ -562,34 +568,27 @@ timeout_minutes: 30                  # Defaults to 15 minutes
 
 ## Concurrency Control (`concurrency:`)
 
-GitHub Agentic Workflows automatically generates enhanced concurrency policies based on workflow trigger types to provide better isolation and resource management. For example, most workflows produce this:
+GitHub Agentic Workflows automatically generates concurrency policies to limit concurrent execution across all workflows using the same engine:
 
 ```yaml
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: "{engine-id}-${{ github.run_id % 3 }}"
 ```
 
-Different workflow types receive different concurrency groups and cancellation behavior:
+All workflow types use the same global concurrency pattern with only engine ID and slot distribution:
 
 | Trigger Type | Concurrency Group | Cancellation | Description |
 |--------------|-------------------|--------------|-------------|
-| `issues` | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-{engine}-${{ github.run_id % 3 }}` | ❌ | Issue workflows include issue number for isolation |
-| `pull_request` | `gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number \|\| github.ref }}-{engine}-${{ github.run_id % 3 }}` | ✅ | PR workflows include PR number with cancellation |
-| `discussion` | `gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}-{engine}-${{ github.run_id % 3 }}` | ❌ | Discussion workflows include discussion number |
-| Mixed issue/PR | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}-{engine}-${{ github.run_id % 3 }}` | ✅ | Mixed workflows handle both contexts with cancellation |
-| Alias workflows | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}-{engine}-${{ github.run_id % 3 }}` | ❌ | Alias workflows handle both contexts without cancellation |
-| Other triggers | `gh-aw-${{ github.workflow }}-{engine}-${{ github.run_id % 3 }}` | ❌ | Default behavior for schedule, push, etc. |
+| `pull_request` | `{engine}-${{ github.run_id % 3 }}` | ✅ | PR workflows have cancel-in-progress enabled |
+| All other triggers | `{engine}-${{ github.run_id % 3 }}` | ❌ | Global concurrency lock across workflows and refs |
 
 Where `{engine}` is the engine ID (e.g., `copilot`, `claude`, `codex`) and `${{ github.run_id % 3 }}` is the concurrency slot (configurable via `max-concurrency` in engine config).
 
 **Benefits:**
-- **Better Isolation**: Workflows operating on different issues/PRs can run concurrently
+- **Global Limiting**: Max-concurrency applies across all workflows and refs for an engine
 - **Engine Isolation**: Different engines can run concurrently without interfering
-- **Concurrency Control**: Max-concurrency limits prevent resource exhaustion
-- **Conflict Prevention**: No interference between unrelated workflow executions  
-- **Resource Management**: Pull request workflows can cancel previous runs when updated
-- **Predictable Behavior**: Consistent concurrency rules based on trigger type
+- **Concurrency Control**: Prevents resource exhaustion from too many concurrent AI executions
+- **Simple and Predictable**: Consistent behavior across all workflow types
 
 If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
 

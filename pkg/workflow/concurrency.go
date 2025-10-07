@@ -13,15 +13,16 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 		return workflowData.Concurrency
 	}
 
-	// Build concurrency group keys
-	keys := buildConcurrencyGroupKeys(workflowData, isCommandTrigger)
+	// For max-concurrency, use a global lock with only engine ID and run_id slot
+	// This ensures the limit applies across all workflows and refs for the engine
+	var keys []string
 	
-	// Add engine ID to the keys for better isolation
+	// Add engine ID as the base key
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
 		keys = append(keys, workflowData.EngineConfig.ID)
 	}
 	
-	// Add max-concurrency slot to the group if max-concurrency is configured
+	// Add max-concurrency slot to the group
 	maxConcurrency := 3 // default value
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxConcurrency > 0 {
 		maxConcurrency = workflowData.EngineConfig.MaxConcurrency

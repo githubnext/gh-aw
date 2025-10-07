@@ -12,7 +12,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-copilot-${{ github.run_id % 3 }}"
+  group: "copilot-${{ github.run_id % 3 }}"
 
 run-name: "GitHub Actions Artifacts Usage Summary"
 
