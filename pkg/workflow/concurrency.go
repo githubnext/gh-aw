@@ -15,18 +15,18 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 
 	// Build concurrency group keys
 	keys := buildConcurrencyGroupKeys(workflowData, isCommandTrigger)
-	
+
 	// Add max-concurrency slot to the group if max-concurrency is enabled
 	maxConcurrency := workflowData.MaxConcurrency
 	if maxConcurrency == 0 {
 		maxConcurrency = 3 // default value
 	}
-	
+
 	// Add a slot number based on run_id to distribute workflows across concurrency slots
 	// This implements a simple round-robin distribution using modulo
 	slotKey := fmt.Sprintf("${{ github.run_id %% %d }}", maxConcurrency)
 	keys = append(keys, slotKey)
-	
+
 	groupValue := strings.Join(keys, "-")
 
 	// Build the concurrency configuration
