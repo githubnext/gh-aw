@@ -5,17 +5,14 @@
 
 name: "Duplicate Code Detector"
 on:
-  push:
-    branches:
-    - main
-    paths:
-    - "**.go"
+  schedule:
+  - cron: 0 11 * * *
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}"
 
 run-name: "Duplicate Code Detector"
 
@@ -243,9 +240,9 @@ jobs:
                 - HTTPS_PROXY=http://squid-proxy:3128
               networks:
                 - awproxy-serena
-                - SERENA_DOCKER=1
                 - SERENA_PORT=9121
                 - SERENA_DASHBOARD_PORT=24282
+                - SERENA_DOCKER=1
               depends_on:
                 squid-proxy:
                   condition: service_healthy
