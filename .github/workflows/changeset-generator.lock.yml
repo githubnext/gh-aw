@@ -271,6 +271,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    concurrency:
+      group: "gh-aw-claude-${{ github.run_id % 3 }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
