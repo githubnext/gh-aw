@@ -465,70 +465,83 @@ engine:
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
 
-### Concurrency Limiting
+### Agent Job Concurrency
 
-The `max-concurrency` option limits how many agentic jobs can run concurrently across **all workflows** in your repository:
+The `concurrency` field in the engine configuration controls how many agent jobs can run concurrently. It uses GitHub Actions concurrency syntax:
 
 ```yaml
 engine:
   id: claude
-  max-concurrency: 5
+  concurrency:
+    group: "custom-group-${{ github.workflow }}"
+    cancel-in-progress: true
 ```
 
-**Default Value:** 3 (if not specified)
+**Default Behavior:** Single job per engine across all workflows (group: `gh-aw-{engine-id}`)
 
 **How it works:**
-- Uses GitHub Actions concurrency groups with slot distribution for global limiting
-- Workflows are distributed across available slots using `github.run_id % max-concurrency`
-- Each slot can only run one workflow at a time across ALL workflows and refs
-- Includes engine ID in concurrency group for isolation between different engines
-- Prevents resource exhaustion from too many concurrent AI executions
+- Creates a concurrency group for the agent job
+- Default pattern: `gh-aw-{engine-id}` ensures one job per engine across all workflows
+- Supports full GitHub Actions concurrency syntax (group + optional cancel-in-progress)
+- Different engines (claude, copilot, codex) can run concurrently without interfering
+
+**Simple string format:**
+```yaml
+engine:
+  id: claude
+  concurrency: "my-custom-group-${{ github.ref }}"
+```
+
+This is converted to:
+```yaml
+concurrency:
+  group: "my-custom-group-${{ github.ref }}"
+```
+
+**Object format (full control):**
+```yaml
+engine:
+  id: claude
+  concurrency:
+    group: "my-group-${{ github.workflow }}-${{ github.ref }}"
+    cancel-in-progress: true
+```
 
 **Example configurations:**
 
 ```yaml
-# Allow up to 10 concurrent Claude workflows
+# Default: single job per engine across all workflows
 engine:
   id: claude
-  max-concurrency: 10
+  # No concurrency specified, uses gh-aw-claude
 ```
 
 ```yaml
-# Restrict to 1 workflow at a time (sequential execution)
+# Allow multiple concurrent jobs with different workflow names
+engine:
+  id: claude
+  concurrency:
+    group: "gh-aw-claude-${{ github.workflow }}"
+```
+
+```yaml
+# Per-branch concurrency
 engine:
   id: copilot
-  max-concurrency: 1
+  concurrency:
+    group: "gh-aw-copilot-${{ github.ref }}"
+    cancel-in-progress: true
 ```
 
+**Generated concurrency in agent job:**
 ```yaml
-# Use default of 3 concurrent workflows
-engine:
-  id: claude
-  # max-concurrency not specified, defaults to 3
-```
-
-**Generated concurrency group pattern:**
-```yaml
-# At workflow level
-concurrency:
-  group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
-
-# At job level (agentic job)
 jobs:
   agent:
     concurrency:
-      group: "gh-aw-{engine-id}-${{ github.run_id % max-concurrency }}"
+      group: "gh-aw-claude"  # Default pattern
 ```
 
-Example for claude with max-concurrency of 5:
-```yaml
-concurrency:
-  group: "gh-aw-claude-${{ github.run_id % 5 }}"
-```
-
-The concurrency group uses **only** the engine ID and slot number (prefixed with "gh-aw-"), creating a global lock across all workflows and refs for that engine. This ensures the max-concurrency limit applies repository-wide.
-
-The concurrency is applied at **both workflow and job level** for maximum control.
+The concurrency group applies **only** to the agent job (not the workflow level). This ensures concurrency control for AI execution while allowing activation jobs to run freely.
 
 ## Tools Configuration (`tools:`)
 
@@ -577,30 +590,36 @@ timeout_minutes: 30                  # Defaults to 15 minutes
 
 ## Concurrency Control (`concurrency:`)
 
-GitHub Agentic Workflows automatically generates concurrency policies to limit concurrent execution across all workflows using the same engine.
+GitHub Agentic Workflows automatically generates concurrency policies for the agent job to control concurrent execution.
 
-See [Concurrency Control](/gh-aw/reference/concurrency/) for complete documentation on max-concurrency configuration, global locks, and engine isolation.
+See [Concurrency Control](/gh-aw/reference/concurrency/) for complete documentation on agent concurrency configuration.
 
 **Quick reference:**
-- Configure via `engine.max-concurrency` (default: 3)
-- Creates global lock across all workflows and refs for each engine
-- Applied at both workflow and job levels
+- Configure via `engine.concurrency` field
+- Default: Single job per engine across all workflows (group: `gh-aw-{engine-id}`)
+- Applied at the agent job level only
 - Different engines can run concurrently without interfering
+- Supports full GitHub Actions concurrency syntax
 
 **Example:**
 ```yaml
 engine:
   id: claude
-  max-concurrency: 5
+  concurrency:
+    group: "custom-${{ github.workflow }}"
+    cancel-in-progress: true
 ```
 
-Generates:
+Generates agent job concurrency:
 ```yaml
-concurrency:
-  group: "gh-aw-claude-${{ github.run_id % 5 }}"
+jobs:
+  agent:
+    concurrency:
+      group: "custom-${{ github.workflow }}"
+      cancel-in-progress: true
 ```
 
-You can override automatic concurrency by specifying a custom `concurrency` section in the frontmatter.
+You can also override workflow-level concurrency by specifying a custom `concurrency` section in the frontmatter (separate from engine concurrency).
 
 ## Environment Variables (`env:`)
 

@@ -29,37 +29,37 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 }
 
 // GenerateJobConcurrencyConfig generates the agent concurrency configuration
-// for max-concurrency limiting across all workflows using the same engine
+// for the agent job based on engine.concurrency field
 func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
-	// Check if max-concurrency is -1 (disabled)
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxConcurrency == -1 {
-		return "" // Don't emit agent concurrency when disabled
+	// If concurrency is explicitly configured in engine, use it
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {
+		return workflowData.EngineConfig.Concurrency
 	}
 
-	// Build agent concurrency for max-concurrency feature
-	// This uses ONLY engine ID (or custom concurrency-group) and run_id slot for global limiting
+	// Check if the engine has default concurrency enabled
+	engineID := ""
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+		engineID = workflowData.EngineConfig.ID
+	}
+
+	// Get the engine to check if default concurrency should be applied
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine(engineID)
+
+	// If engine not found or doesn't have default concurrency, return empty string (no concurrency)
+	if err != nil || !engine.HasDefaultConcurrency() {
+		return ""
+	}
+
+	// Default behavior: single job per engine across all workflows
+	// Pattern: gh-aw-{engine-id}
 	var keys []string
 
 	// Prepend with gh-aw- prefix
 	keys = append(keys, "gh-aw")
 
-	// Use custom concurrency-group if provided, otherwise use engine ID
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ConcurrencyGroup != "" {
-		keys = append(keys, workflowData.EngineConfig.ConcurrencyGroup)
-	} else if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		keys = append(keys, workflowData.EngineConfig.ID)
-	}
-
-	// Add max-concurrency slot to the group
-	maxConcurrency := 3 // default value
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxConcurrency > 0 {
-		maxConcurrency = workflowData.EngineConfig.MaxConcurrency
-	}
-
-	// Add a slot number based on run_id to distribute workflows across concurrency slots
-	// This implements a simple round-robin distribution using modulo
-	slotKey := fmt.Sprintf("${{ github.run_id %% %d }}", maxConcurrency)
-	keys = append(keys, slotKey)
+	// Use engine ID for isolation between different engines
+	keys = append(keys, engineID)
 
 	groupValue := strings.Join(keys, "-")
 

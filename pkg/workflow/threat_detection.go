@@ -87,11 +87,15 @@ func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName strin
 	// Build steps using a more structured approach
 	steps := c.buildThreatDetectionSteps(data, mainJobName)
 
+	// Generate agent concurrency configuration (same as main agent job)
+	agentConcurrency := GenerateJobConcurrencyConfig(data)
+
 	job := &Job{
 		Name:           constants.DetectionJobName,
 		If:             "",
 		RunsOn:         "runs-on: ubuntu-latest",
 		Permissions:    "permissions: read-all",
+		Concurrency:    c.indentYAMLLines(agentConcurrency, "    "),
 		TimeoutMinutes: 10,
 		Steps:          steps,
 		Needs:          []string{mainJobName},
