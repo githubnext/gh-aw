@@ -793,11 +793,6 @@
         }
       ]
     },
-    "max-concurrency": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum number of agentic jobs that can run concurrently across all workflows. Defaults to 3. This uses GitHub Actions concurrency controls to limit parallel execution."
-    },
     "env": {
       "description": "Environment variables for the workflow",
       "oneOf": [
@@ -2268,6 +2263,11 @@
             "max-turns": {
               "type": "integer",
               "description": "Maximum number of chat iterations per run. Helps prevent runaway loops and control costs. Has sensible defaults and can typically be omitted."
+            },
+            "max-concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum number of agentic jobs that can run concurrently across all workflows using this engine. Defaults to 3. Uses GitHub Actions concurrency controls with slot-based distribution."
             },
             "user-agent": {
               "type": "string",

@@ -7,15 +7,16 @@ import (
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID            string
-	Version       string
-	Model         string
-	MaxTurns      string
-	UserAgent     string
-	Env           map[string]string
-	Steps         []map[string]any
-	ErrorPatterns []ErrorPattern
-	Config        string
+	ID             string
+	Version        string
+	Model          string
+	MaxTurns       string
+	MaxConcurrency int
+	UserAgent      string
+	Env            map[string]string
+	Steps          []map[string]any
+	ErrorPatterns  []ErrorPattern
+	Config         string
 }
 
 // NetworkPermissions represents network access permissions
@@ -71,6 +72,17 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'max-concurrency' field
+			if maxConcurrency, hasMaxConcurrency := engineObj["max-concurrency"]; hasMaxConcurrency {
+				if maxConcurrencyInt, ok := maxConcurrency.(int); ok {
+					config.MaxConcurrency = maxConcurrencyInt
+				} else if maxConcurrencyFloat, ok := maxConcurrency.(float64); ok {
+					config.MaxConcurrency = int(maxConcurrencyFloat)
+				} else if maxConcurrencyUint64, ok := maxConcurrency.(uint64); ok {
+					config.MaxConcurrency = int(maxConcurrencyUint64)
 				}
 			}
 

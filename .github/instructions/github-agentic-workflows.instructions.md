@@ -51,7 +51,6 @@ The YAML frontmatter supports these fields:
 - **`runs-on:`** - Runner type (string, array, or object)
 - **`timeout_minutes:`** - Workflow timeout (integer, has sensible default and can typically be omitted)
 - **`concurrency:`** - Concurrency control (string or object)
-- **`max-concurrency:`** - Maximum number of agentic jobs that can run concurrently across all workflows (integer, defaults to 3)
 - **`env:`** - Environment variables (object or string)
 - **`if:`** - Conditional execution expression (string)
 - **`run-name:`** - Custom workflow run name (string)
@@ -70,13 +69,15 @@ The YAML frontmatter supports these fields:
       version: beta                     # Optional: version of the action (has sensible default)
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
+      max-concurrency: 3                # Optional: max concurrent workflows across all workflows (default: 3)
     ```
-  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
   - **Custom engine format** (⚠️ experimental):
     ```yaml
     engine:
       id: custom                        # Required: custom engine identifier
       max-turns: 10                     # Optional: maximum iterations (for consistency)
+      max-concurrency: 5                # Optional: max concurrent workflows (for consistency)
       steps:                            # Required: array of custom GitHub Actions steps
         - name: Setup Node.js
           uses: actions/setup-node@v4

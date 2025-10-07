@@ -37,7 +37,7 @@ tools:
 ---`,
 			filename: "pr-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.run_id % 3 }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-copilot-${{ github.run_id % 3 }}"
   cancel-in-progress: true`,
 			shouldHaveCancel: true,
 			description:      "PR workflows should use dynamic concurrency with PR number and cancellation",
@@ -54,7 +54,7 @@ tools:
 ---`,
 			filename: "command-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Alias workflows should use dynamic concurrency with ref but without cancellation",
 		},
@@ -70,7 +70,7 @@ tools:
 ---`,
 			filename: "regular-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Regular workflows should use static concurrency without cancellation",
 		},
@@ -86,7 +86,7 @@ tools:
 ---`,
 			filename: "push-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Push workflows should use dynamic concurrency with github.ref",
 		},
@@ -102,7 +102,7 @@ tools:
 ---`,
 			filename: "issue-workflow.md",
 			expectedConcurrency: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-copilot-${{ github.run_id % 3 }}"`,
 			shouldHaveCancel: false,
 			description:      "Issue workflows should use dynamic concurrency with issue number but no cancellation",
 		},
@@ -192,11 +192,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   pull_request:
     types: [opened, synchronize]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.run_id % 3 }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-claude-${{ github.run_id % 3 }}"
   cancel-in-progress: true`,
 			description: "PR workflows should use PR number or ref with cancellation",
 		},
@@ -206,11 +207,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   issues:
     types: [opened, edited, reopened]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: true,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}-claude-${{ github.run_id % 3 }}"`,
 			description: "Alias workflows should use dynamic concurrency with ref but without cancellation",
 		},
 		{
@@ -219,11 +221,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   push:
     branches: [main]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-claude-${{ github.run_id % 3 }}"`,
 			description: "Push workflows should use github.ref without cancellation",
 		},
 		{
@@ -232,11 +235,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   schedule:
     - cron: "0 9 * * 1"`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-claude-${{ github.run_id % 3 }}"`,
 			description: "Regular workflows should use static concurrency without cancellation",
 		},
 		{
@@ -245,11 +249,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   issues:
     types: [opened, edited]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-claude-${{ github.run_id % 3 }}"`,
 			description: "Issue workflows should use issue number without cancellation",
 		},
 		{
@@ -258,11 +263,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   issue_comment:
     types: [created, edited]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-claude-${{ github.run_id % 3 }}"`,
 			description: "Issue comment workflows should use issue number without cancellation",
 		},
 		{
@@ -273,11 +279,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
     types: [opened, edited]
   pull_request:
     types: [opened, synchronize]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.run_id % 3 }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}-claude-${{ github.run_id % 3 }}"
   cancel-in-progress: true`,
 			description: "Mixed workflows should use issue/PR number with cancellation enabled",
 		},
@@ -287,11 +294,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   discussion:
     types: [created, edited]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}-claude-${{ github.run_id % 3 }}"`,
 			description: "Discussion workflows should use discussion number without cancellation",
 		},
 		{
@@ -302,11 +310,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
     types: [opened, edited]
   discussion:
     types: [created, edited]`,
-				Concurrency: "", // Empty, should be generated
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude"},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.discussion.number }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.discussion.number }}-claude-${{ github.run_id % 3 }}"`,
 			description: "Mixed issue and discussion workflows should use issue/discussion number without cancellation",
 		},
 		{
@@ -329,12 +338,12 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   push:
     branches: [main]`,
-				Concurrency:    "", // Empty, should be generated
-				MaxConcurrency: 5,
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "claude", MaxConcurrency: 5},
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id % 5 }}"`,
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}-claude-${{ github.run_id % 5 }}"`,
 			description: "Custom max-concurrency should use specified value instead of default",
 		},
 		{
@@ -343,13 +352,27 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   schedule:
     - cron: "0 9 * * 1"`,
-				Concurrency:    "", // Empty, should be generated
-				MaxConcurrency: 0,  // 0 means use default
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "copilot", MaxConcurrency: 0}, // 0 means use default
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.run_id % 3 }}"`,
+  group: "gh-aw-${{ github.workflow }}-copilot-${{ github.run_id % 3 }}"`,
 			description: "Zero max-concurrency should default to 3",
+		},
+		{
+			name: "Different engine ID should be included in concurrency group",
+			workflowData: &WorkflowData{
+				On: `on:
+  issues:
+    types: [opened]`,
+				Concurrency:  "", // Empty, should be generated
+				EngineConfig: &EngineConfig{ID: "codex"},
+			},
+			isAliasTrigger: false,
+			expected: `concurrency:
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-codex-${{ github.run_id % 3 }}"`,
+			description: "Different engine IDs should be included in concurrency group for isolation",
 		},
 	}
 

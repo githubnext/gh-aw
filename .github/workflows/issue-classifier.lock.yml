@@ -16,7 +16,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-${{ github.run_id % 3 }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}-custom-${{ github.run_id % 3 }}"
 
 run-name: "Issue Classifier"
 
