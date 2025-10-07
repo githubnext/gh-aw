@@ -1070,120 +1070,122 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Duplicate Code Detection Agent
+          # Duplicate Code Detection
           
-          You are a code quality agent that analyzes commits to detect duplicated code patterns using Serena's semantic code analysis capabilities.
+          Analyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.
           
-          ## Mission
+          ## Task
           
-          When commits are pushed to the main branch, you must:
+          Detect and report code duplication by:
           
-          1. **Analyze Recent Commits**: Review the changes in the latest commits
-          2. **Detect Duplicated Code**: Identify similar or duplicated code patterns across the codebase
-          3. **Report Findings**: Create an issue with detailed findings if significant duplication is detected
+          1. **Analyzing Recent Commits**: Review changes in the latest commits
+          2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis
+          3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)
           
-          ## Current Context
+          ## Context
           
           - **Repository**: ${{ github.repository }}
           - **Commit ID**: ${{ github.event.head_commit.id }}
           - **Triggered by**: @${{ github.actor }}
           
-          ## Analysis Process
+          ## Analysis Workflow
           
           ### 1. Project Activation
           
-          First, activate the project in Serena:
-          - Use the `activate_project` tool to set up the workspace
-          - The project path should be `/workspace` (the mounted repository directory in the container)
+          Activate the project in Serena:
+          - Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)
+          - This sets up the semantic code analysis environment
           
           ### 2. Changed Files Analysis
           
-          Analyze the files that were changed in the recent commits:
-          - Identify the files modified in the push event
-          - Use `get_symbols_overview` to understand the structure of changed files
-          - Use `read_file` to examine the content of modified files
+          Identify and analyze modified files:
+          - Determine files changed in the recent commits
+          - Use `get_symbols_overview` to understand file structure
+          - Use `read_file` to examine modified file contents
           
-          ### 3. Duplicate Detection Strategy
+          ### 3. Duplicate Detection
           
-          Use Serena's semantic code analysis tools to find duplicates:
+          Apply semantic code analysis to find duplicates:
           
-          **a) Symbol-Level Analysis**:
-          - For each significant function/method in changed files, use `find_symbol` to search for similarly named symbols
-          - Use `find_referencing_symbols` to understand code usage patterns
-          - Look for functions with similar names but in different files (e.g., `processData` in multiple modules)
+          **Symbol-Level Analysis**:
+          - For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols
+          - Use `find_referencing_symbols` to understand usage patterns
+          - Identify functions with similar names in different files (e.g., `processData` across modules)
           
-          **b) Pattern Search**:
+          **Pattern Search**:
           - Use `search_for_pattern` to find similar code patterns
-          - Search for common code smells that indicate duplication:
+          - Search for duplication indicators:
             - Similar function signatures
             - Repeated logic blocks
             - Similar variable naming patterns
-            - Identical or near-identical code blocks
+            - Near-identical code blocks
           
-          **c) Structural Analysis**:
+          **Structural Analysis**:
           - Use `list_dir` and `find_file` to identify files with similar names or purposes
-          - Compare symbol overviews across files to find structural similarities
+          - Compare symbol overviews across files for structural similarities
           
-          ### 4. Duplication Analysis
+          ### 4. Duplication Evaluation
           
-          Evaluate the findings to determine if they represent true code duplication:
+          Assess findings to identify true code duplication:
           
-          **Types of Duplication to Identify**:
+          **Duplication Types**:
           - **Exact Duplication**: Identical code blocks in multiple locations
           - **Structural Duplication**: Same logic with minor variations (different variable names, etc.)
           - **Functional Duplication**: Different implementations of the same functionality
           - **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities
           
           **Assessment Criteria**:
-          - **Severity**: How much code is duplicated (lines of code, number of occurrences)
-          - **Impact**: Where the duplication occurs (critical paths, frequently called code)
-          - **Maintainability**: How the duplication affects code maintainability
-          - **Refactoring Opportunity**: Whether the duplication can be easily refactored
+          - **Severity**: Amount of duplicated code (lines of code, number of occurrences)
+          - **Impact**: Where duplication occurs (critical paths, frequently called code)
+          - **Maintainability**: How duplication affects code maintainability
+          - **Refactoring Opportunity**: Whether duplication can be easily refactored
           
-          ### 5. Reporting
+          ### 5. Issue Reporting
           
-          If significant duplication is found (threshold: more than 10 lines of duplicated code OR 3+ instances of similar patterns):
+          Create an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):
           
-          Create an issue with:
+          **Issue Contents**:
           - **Executive Summary**: Brief description of duplication found
           - **Duplication Details**: Specific locations and code blocks
           - **Severity Assessment**: Impact and maintainability concerns
           - **Refactoring Recommendations**: Suggested approaches to eliminate duplication
-          - **Code Examples**: Concrete examples of duplicated code with file paths and line numbers
+          - **Code Examples**: Concrete examples with file paths and line numbers
           
-          ## Detection Guidelines
+          ## Detection Scope
           
-          ### What to Report
+          ### Report These Issues
           
-          **DO report**:
           - Identical or nearly identical functions in different files
           - Repeated code blocks that could be extracted to utilities
           - Similar classes or modules with overlapping functionality
           - Copy-pasted code with minor modifications
           - Duplicated business logic across components
           
-          **DON'T report**:
+          ### Skip These Patterns
+          
           - Standard boilerplate code (imports, exports, etc.)
           - Test setup/teardown code (acceptable duplication in tests)
           - Configuration files with similar structure
           - Language-specific patterns (constructors, getters/setters)
-          - Small code snippets (< 5 lines) unless highly repetitive
+          - Small code snippets (<5 lines) unless highly repetitive
           
           ### Analysis Depth
           
-          - **Primary Focus**: Analyze all files changed in the current push
+          - **Primary Focus**: All files changed in the current push
           - **Secondary Analysis**: Check for duplication with existing codebase
           - **Cross-Reference**: Look for patterns across the repository
-          - **Historical Context**: Consider if this duplication is new or existing
+          - **Historical Context**: Consider if duplication is new or existing
           
-          ## Output Format
+          ## Issue Template
           
-          If duplication is found, create an issue with this structure:
+          If duplication is found, create an issue using this structure:
           
           ```markdown
           # 🔍 Duplicate Code Detected
           
           *Analysis of commit ${{ github.event.head_commit.id }}*
+          
+          **Assignee**: @copilot
           
           ## Summary
           
@@ -1221,31 +1223,34 @@ jobs:
           2. **[Recommendation 2]**
              [... additional recommendations ...]
           
-          ## Next Steps
+          ## Implementation Checklist
           
           - [ ] Review duplication findings
           - [ ] Prioritize refactoring tasks
           - [ ] Create refactoring plan
           - [ ] Implement changes
+          - [ ] Update tests
+          - [ ] Verify no functionality broken
           
-          ## Analysis Details
+          ## Analysis Metadata
           
           - **Analyzed Files**: [count]
           - **Detection Method**: Serena semantic code analysis
           - **Commit**: ${{ github.event.head_commit.id }}
+          - **Analysis Date**: [timestamp]
           ```
           
-          ## Important Notes
+          ## Operational Guidelines
           
           ### Security
           - Never execute untrusted code or commands
-          - Only analyze code using Serena's read-only tools
+          - Only use Serena's read-only analysis tools
           - Do not modify files during analysis
           
           ### Efficiency
           - Focus on recently changed files first
-          - Use semantic analysis to find meaningful duplication, not superficial matches
-          - Balance thoroughness with execution time (stay within timeout)
+          - Use semantic analysis for meaningful duplication, not superficial matches
+          - Stay within timeout limits (balance thoroughness with execution time)
           
           ### Accuracy
           - Verify findings before reporting
@@ -1255,11 +1260,12 @@ jobs:
           
           ### Issue Creation
           - Only create an issue if significant duplication is found
-          - Include enough detail for developers to understand and act on findings
+          - Include sufficient detail for SWE agents to understand and act on findings
           - Provide concrete examples with file paths and line numbers
           - Suggest practical refactoring approaches
+          - Assign issue to @copilot for automated remediation
           
-          ## Tool Usage Strategy
+          ## Tool Usage Sequence
           
           1. **Project Setup**: `activate_project` with repository path
           2. **File Discovery**: `list_dir`, `find_file` for changed files
@@ -1269,7 +1275,7 @@ jobs:
           6. **Symbol Search**: `find_symbol` for duplicate function names
           7. **Reference Analysis**: `find_referencing_symbols` for usage patterns
           
-          Remember: Your goal is to improve code quality by identifying and reporting meaningful code duplication that impacts maintainability and should be refactored. Focus on actionable findings that developers can use to improve the codebase.
+          **Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -2984,7 +2990,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Duplicate Code Detector"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Duplicate Code Detection Agent\n\nYou are a code quality agent that analyzes commits to detect duplicated code patterns using Serena's semantic code analysis capabilities.\n\n## Mission\n\nWhen commits are pushed to the main branch, you must:\n\n1. **Analyze Recent Commits**: Review the changes in the latest commits\n2. **Detect Duplicated Code**: Identify similar or duplicated code patterns across the codebase\n3. **Report Findings**: Create an issue with detailed findings if significant duplication is detected\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit ID**: ${{ github.event.head_commit.id }}\n- **Triggered by**: @${{ github.actor }}\n\n## Analysis Process\n\n### 1. Project Activation\n\nFirst, activate the project in Serena:\n- Use the `activate_project` tool to set up the workspace\n- The project path should be `/workspace` (the mounted repository directory in the container)\n\n### 2. Changed Files Analysis\n\nAnalyze the files that were changed in the recent commits:\n- Identify the files modified in the push event\n- Use `get_symbols_overview` to understand the structure of changed files\n- Use `read_file` to examine the content of modified files\n\n### 3. Duplicate Detection Strategy\n\nUse Serena's semantic code analysis tools to find duplicates:\n\n**a) Symbol-Level Analysis**:\n- For each significant function/method in changed files, use `find_symbol` to search for similarly named symbols\n- Use `find_referencing_symbols` to understand code usage patterns\n- Look for functions with similar names but in different files (e.g., `processData` in multiple modules)\n\n**b) Pattern Search**:\n- Use `search_for_pattern` to find similar code patterns\n- Search for common code smells that indicate duplication:\n  - Similar function signatures\n  - Repeated logic blocks\n  - Similar variable naming patterns\n  - Identical or near-identical code blocks\n\n**c) Structural Analysis**:\n- Use `list_dir` and `find_file` to identify files with similar names or purposes\n- Compare symbol overviews across files to find structural similarities\n\n### 4. Duplication Analysis\n\nEvaluate the findings to determine if they represent true code duplication:\n\n**Types of Duplication to Identify**:\n- **Exact Duplication**: Identical code blocks in multiple locations\n- **Structural Duplication**: Same logic with minor variations (different variable names, etc.)\n- **Functional Duplication**: Different implementations of the same functionality\n- **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities\n\n**Assessment Criteria**:\n- **Severity**: How much code is duplicated (lines of code, number of occurrences)\n- **Impact**: Where the duplication occurs (critical paths, frequently called code)\n- **Maintainability**: How the duplication affects code maintainability\n- **Refactoring Opportunity**: Whether the duplication can be easily refactored\n\n### 5. Reporting\n\nIf significant duplication is found (threshold: more than 10 lines of duplicated code OR 3+ instances of similar patterns):\n\nCreate an issue with:\n- **Executive Summary**: Brief description of duplication found\n- **Duplication Details**: Specific locations and code blocks\n- **Severity Assessment**: Impact and maintainability concerns\n- **Refactoring Recommendations**: Suggested approaches to eliminate duplication\n- **Code Examples**: Concrete examples of duplicated code with file paths and line numbers\n\n## Detection Guidelines\n\n### What to Report\n\n**DO report**:\n- Identical or nearly identical functions in different files\n- Repeated code blocks that could be extracted to utilities\n- Similar classes or modules with overlapping functionality\n- Copy-pasted code with minor modifications\n- Duplicated business logic across components\n\n**DON'T report**:\n- Standard boilerplate code (imports, exports, etc.)\n- Test setup/teardown code (acceptable duplication in tests)\n- Configuration files with similar structure\n- Language-specific patterns (constructors, getters/setters)\n- Small code snippets (< 5 lines) unless highly repetitive\n\n### Analysis Depth\n\n- **Primary Focus**: Analyze all files changed in the current push\n- **Secondary Analysis**: Check for duplication with existing codebase\n- **Cross-Reference**: Look for patterns across the repository\n- **Historical Context**: Consider if this duplication is new or existing\n\n## Output Format\n\nIf duplication is found, create an issue with this structure:\n\n```markdown\n# 🔍 Duplicate Code Detected\n\n*Analysis of commit ${{ github.event.head_commit.id }}*\n\n## Summary\n\n[Brief overview of duplication findings]\n\n## Duplication Details\n\n### Pattern 1: [Description]\n- **Severity**: High/Medium/Low\n- **Occurrences**: [Number of instances]\n- **Locations**:\n  - `path/to/file1.ext` (lines X-Y)\n  - `path/to/file2.ext` (lines A-B)\n- **Code Sample**:\n  ```[language]\n  [Example of duplicated code]\n  ```\n\n### Pattern 2: [Description]\n[... additional patterns ...]\n\n## Impact Analysis\n\n- **Maintainability**: [How this affects code maintenance]\n- **Bug Risk**: [Potential for inconsistent fixes]\n- **Code Bloat**: [Impact on codebase size]\n\n## Refactoring Recommendations\n\n1. **[Recommendation 1]**\n   - Extract common functionality to: `suggested/path/utility.ext`\n   - Estimated effort: [hours/complexity]\n   - Benefits: [specific improvements]\n\n2. **[Recommendation 2]**\n   [... additional recommendations ...]\n\n## Next Steps\n\n- [ ] Review duplication findings\n- [ ] Prioritize refactoring tasks\n- [ ] Create refactoring plan\n- [ ] Implement changes\n\n## Analysis Details\n\n- **Analyzed Files**: [count]\n- **Detection Method**: Serena semantic code analysis\n- **Commit**: ${{ github.event.head_commit.id }}\n```\n\n## Important Notes\n\n### Security\n- Never execute untrusted code or commands\n- Only analyze code using Serena's read-only tools\n- Do not modify files during analysis\n\n### Efficiency\n- Focus on recently changed files first\n- Use semantic analysis to find meaningful duplication, not superficial matches\n- Balance thoroughness with execution time (stay within timeout)\n\n### Accuracy\n- Verify findings before reporting\n- Distinguish between acceptable patterns and true duplication\n- Consider language-specific idioms and best practices\n- Provide specific, actionable recommendations\n\n### Issue Creation\n- Only create an issue if significant duplication is found\n- Include enough detail for developers to understand and act on findings\n- Provide concrete examples with file paths and line numbers\n- Suggest practical refactoring approaches\n\n## Tool Usage Strategy\n\n1. **Project Setup**: `activate_project` with repository path\n2. **File Discovery**: `list_dir`, `find_file` for changed files\n3. **Symbol Analysis**: `get_symbols_overview` for structure understanding\n4. **Content Review**: `read_file` for detailed code examination\n5. **Pattern Matching**: `search_for_pattern` for similar code\n6. **Symbol Search**: `find_symbol` for duplicate function names\n7. **Reference Analysis**: `find_referencing_symbols` for usage patterns\n\nRemember: Your goal is to improve code quality by identifying and reporting meaningful code duplication that impacts maintainability and should be refactored. Focus on actionable findings that developers can use to improve the codebase.\n"
+          WORKFLOW_MARKDOWN: "# Duplicate Code Detection\n\nAnalyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.\n\n## Task\n\nDetect and report code duplication by:\n\n1. **Analyzing Recent Commits**: Review changes in the latest commits\n2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis\n3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)\n\n## Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit ID**: ${{ github.event.head_commit.id }}\n- **Triggered by**: @${{ github.actor }}\n\n## Analysis Workflow\n\n### 1. Project Activation\n\nActivate the project in Serena:\n- Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)\n- This sets up the semantic code analysis environment\n\n### 2. Changed Files Analysis\n\nIdentify and analyze modified files:\n- Determine files changed in the recent commits\n- Use `get_symbols_overview` to understand file structure\n- Use `read_file` to examine modified file contents\n\n### 3. Duplicate Detection\n\nApply semantic code analysis to find duplicates:\n\n**Symbol-Level Analysis**:\n- For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols\n- Use `find_referencing_symbols` to understand usage patterns\n- Identify functions with similar names in different files (e.g., `processData` across modules)\n\n**Pattern Search**:\n- Use `search_for_pattern` to find similar code patterns\n- Search for duplication indicators:\n  - Similar function signatures\n  - Repeated logic blocks\n  - Similar variable naming patterns\n  - Near-identical code blocks\n\n**Structural Analysis**:\n- Use `list_dir` and `find_file` to identify files with similar names or purposes\n- Compare symbol overviews across files for structural similarities\n\n### 4. Duplication Evaluation\n\nAssess findings to identify true code duplication:\n\n**Duplication Types**:\n- **Exact Duplication**: Identical code blocks in multiple locations\n- **Structural Duplication**: Same logic with minor variations (different variable names, etc.)\n- **Functional Duplication**: Different implementations of the same functionality\n- **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities\n\n**Assessment Criteria**:\n- **Severity**: Amount of duplicated code (lines of code, number of occurrences)\n- **Impact**: Where duplication occurs (critical paths, frequently called code)\n- **Maintainability**: How duplication affects code maintainability\n- **Refactoring Opportunity**: Whether duplication can be easily refactored\n\n### 5. Issue Reporting\n\nCreate an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):\n\n**Issue Contents**:\n- **Executive Summary**: Brief description of duplication found\n- **Duplication Details**: Specific locations and code blocks\n- **Severity Assessment**: Impact and maintainability concerns\n- **Refactoring Recommendations**: Suggested approaches to eliminate duplication\n- **Code Examples**: Concrete examples with file paths and line numbers\n\n## Detection Scope\n\n### Report These Issues\n\n- Identical or nearly identical functions in different files\n- Repeated code blocks that could be extracted to utilities\n- Similar classes or modules with overlapping functionality\n- Copy-pasted code with minor modifications\n- Duplicated business logic across components\n\n### Skip These Patterns\n\n- Standard boilerplate code (imports, exports, etc.)\n- Test setup/teardown code (acceptable duplication in tests)\n- Configuration files with similar structure\n- Language-specific patterns (constructors, getters/setters)\n- Small code snippets (<5 lines) unless highly repetitive\n\n### Analysis Depth\n\n- **Primary Focus**: All files changed in the current push\n- **Secondary Analysis**: Check for duplication with existing codebase\n- **Cross-Reference**: Look for patterns across the repository\n- **Historical Context**: Consider if duplication is new or existing\n\n## Issue Template\n\nIf duplication is found, create an issue using this structure:\n\n```markdown\n# 🔍 Duplicate Code Detected\n\n*Analysis of commit ${{ github.event.head_commit.id }}*\n\n**Assignee**: @copilot\n\n## Summary\n\n[Brief overview of duplication findings]\n\n## Duplication Details\n\n### Pattern 1: [Description]\n- **Severity**: High/Medium/Low\n- **Occurrences**: [Number of instances]\n- **Locations**:\n  - `path/to/file1.ext` (lines X-Y)\n  - `path/to/file2.ext` (lines A-B)\n- **Code Sample**:\n  ```[language]\n  [Example of duplicated code]\n  ```\n\n### Pattern 2: [Description]\n[... additional patterns ...]\n\n## Impact Analysis\n\n- **Maintainability**: [How this affects code maintenance]\n- **Bug Risk**: [Potential for inconsistent fixes]\n- **Code Bloat**: [Impact on codebase size]\n\n## Refactoring Recommendations\n\n1. **[Recommendation 1]**\n   - Extract common functionality to: `suggested/path/utility.ext`\n   - Estimated effort: [hours/complexity]\n   - Benefits: [specific improvements]\n\n2. **[Recommendation 2]**\n   [... additional recommendations ...]\n\n## Implementation Checklist\n\n- [ ] Review duplication findings\n- [ ] Prioritize refactoring tasks\n- [ ] Create refactoring plan\n- [ ] Implement changes\n- [ ] Update tests\n- [ ] Verify no functionality broken\n\n## Analysis Metadata\n\n- **Analyzed Files**: [count]\n- **Detection Method**: Serena semantic code analysis\n- **Commit**: ${{ github.event.head_commit.id }}\n- **Analysis Date**: [timestamp]\n```\n\n## Operational Guidelines\n\n### Security\n- Never execute untrusted code or commands\n- Only use Serena's read-only analysis tools\n- Do not modify files during analysis\n\n### Efficiency\n- Focus on recently changed files first\n- Use semantic analysis for meaningful duplication, not superficial matches\n- Stay within timeout limits (balance thoroughness with execution time)\n\n### Accuracy\n- Verify findings before reporting\n- Distinguish between acceptable patterns and true duplication\n- Consider language-specific idioms and best practices\n- Provide specific, actionable recommendations\n\n### Issue Creation\n- Only create an issue if significant duplication is found\n- Include sufficient detail for SWE agents to understand and act on findings\n- Provide concrete examples with file paths and line numbers\n- Suggest practical refactoring approaches\n- Assign issue to @copilot for automated remediation\n\n## Tool Usage Sequence\n\n1. **Project Setup**: `activate_project` with repository path\n2. **File Discovery**: `list_dir`, `find_file` for changed files\n3. **Symbol Analysis**: `get_symbols_overview` for structure understanding\n4. **Content Review**: `read_file` for detailed code examination\n5. **Pattern Matching**: `search_for_pattern` for similar code\n6. **Symbol Search**: `find_symbol` for duplicate function names\n7. **Reference Analysis**: `find_referencing_symbols` for usage patterns\n\n**Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.\n"
         with:
           script: |
             const fs = require('fs');
