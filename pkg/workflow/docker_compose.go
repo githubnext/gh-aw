@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"hash/crc32"
+	"sort"
 	"strings"
 )
 
@@ -64,16 +65,28 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
       - PROXY_HOST=squid-proxy
       - PROXY_PORT=3128
       - HTTP_PROXY=http://squid-proxy:3128
-      - HTTPS_PROXY=http://squid-proxy:3128
-    networks:
-      - ` + networkName + ``
+      - HTTPS_PROXY=http://squid-proxy:3128`
 
-	// Add environment variables
-	for key, value := range envVars {
-		if valueStr, ok := value.(string); ok {
-			compose += "\n      - " + key + "=" + valueStr
+	// Add environment variables in sorted order for deterministic output
+	if len(envVars) > 0 {
+		// Extract and sort keys
+		keys := make([]string, 0, len(envVars))
+		for key := range envVars {
+			keys = append(keys, key)
+		}
+		sortStringSlice(keys)
+
+		// Add environment variables in sorted order
+		for _, key := range keys {
+			if valueStr, ok := envVars[key].(string); ok {
+				compose += "\n      - " + key + "=" + valueStr
+			}
 		}
 	}
+
+	compose += `
+    networks:
+      - ` + networkName + ``
 
 	// Set proxy-aware command - use standard proxy args for all containers
 	var proxyArgs []string
@@ -116,4 +129,9 @@ func computeProxyNetworkParams(toolName string) (subnetCIDR string, squidIP stri
 	squidIP = fmt.Sprintf("172.28.%d.10", octet)
 	networkName = "awproxy-" + toolName
 	return
+}
+
+// sortStringSlice sorts a slice of strings in-place
+func sortStringSlice(s []string) {
+	sort.Strings(s)
 }
