@@ -7,16 +7,17 @@ import (
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID             string
-	Version        string
-	Model          string
-	MaxTurns       string
-	MaxConcurrency int
-	UserAgent      string
-	Env            map[string]string
-	Steps          []map[string]any
-	ErrorPatterns  []ErrorPattern
-	Config         string
+	ID               string
+	Version          string
+	Model            string
+	MaxTurns         string
+	MaxConcurrency   int
+	ConcurrencyGroup string
+	UserAgent        string
+	Env              map[string]string
+	Steps            []map[string]any
+	ErrorPatterns    []ErrorPattern
+	Config           string
 }
 
 // NetworkPermissions represents network access permissions
@@ -83,6 +84,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxConcurrency = int(maxConcurrencyFloat)
 				} else if maxConcurrencyUint64, ok := maxConcurrency.(uint64); ok {
 					config.MaxConcurrency = int(maxConcurrencyUint64)
+				}
+			}
+
+			// Extract optional 'concurrency-group' field
+			if concurrencyGroup, hasConcurrencyGroup := engineObj["concurrency-group"]; hasConcurrencyGroup {
+				if concurrencyGroupStr, ok := concurrencyGroup.(string); ok {
+					config.ConcurrencyGroup = concurrencyGroupStr
 				}
 			}
 

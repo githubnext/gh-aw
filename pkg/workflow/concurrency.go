@@ -37,14 +37,16 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 	}
 
 	// Build agent concurrency for max-concurrency feature
-	// This uses ONLY engine ID and run_id slot for global limiting
+	// This uses ONLY engine ID (or custom concurrency-group) and run_id slot for global limiting
 	var keys []string
 
 	// Prepend with gh-aw- prefix
 	keys = append(keys, "gh-aw")
 
-	// Add engine ID as the base key
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+	// Use custom concurrency-group if provided, otherwise use engine ID
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ConcurrencyGroup != "" {
+		keys = append(keys, workflowData.EngineConfig.ConcurrencyGroup)
+	} else if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
 		keys = append(keys, workflowData.EngineConfig.ID)
 	}
 
