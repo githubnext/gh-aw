@@ -2086,8 +2086,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add cache-memory steps if cache-memory configuration is present
 	generateCacheMemorySteps(yaml, data)
 
-	// Configure git credentials if git operations will be needed
-	// Note: Git configuration is handled by token in checkout step when in trial mode
+	// Configure git credentials for agentic workflows
+	gitConfigSteps := c.generateGitConfigurationSteps()
+	for _, line := range gitConfigSteps {
+		yaml.WriteString(line)
+	}
 
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
