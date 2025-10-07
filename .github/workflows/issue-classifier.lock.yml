@@ -1268,6 +1268,8 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         with:
+          enable-github-mcp: ${{ secrets.github_mcp_secret != '' }}
+          github-mcp-token: ${{ secrets.github_mcp_secret }}
           model: gpt-4o-mini
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
       - name: Ensure log file exists
@@ -2185,6 +2187,8 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
         with:
+          enable-github-mcp: ${{ secrets.github_mcp_secret != '' }}
+          github-mcp-token: ${{ secrets.github_mcp_secret }}
           model: gpt-4o-mini
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
       - name: Ensure log file exists
