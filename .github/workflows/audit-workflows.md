@@ -12,6 +12,8 @@ tools:
   bash:
     - "make build"
     - "./gh-aw logs*"
+    - "./gh-aw status"
+    - "./gh-aw audit*"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -57,7 +59,7 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 
 1. **Download Logs from Last 24 Hours**:
    ```bash
-   ./gh-aw logs --start-date -1d -o ./audit-logs
+   ./gh-aw logs --start-date -1d -o ./audit-logs --verbose
    ```
    This downloads all agentic workflow logs from the past 24 hours to the `./audit-logs` directory.
 
