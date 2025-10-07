@@ -15,7 +15,7 @@ steps:
       ast-grep --version
 ```
 
-And add ast-grep to your bash tools:
+And add ast-grep to your bash tools in the workflow frontmatter:
 
 ```yaml
 tools:
