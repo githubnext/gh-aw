@@ -704,6 +704,56 @@ func ensureAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
 	return nil
 }
 
+// ensureSharedAgenticWorkflowPrompt ensures that .github/prompts/create-shared-agentic-workflow.prompt.md contains the shared workflow creation prompt
+func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
+	if skipInstructions {
+		return nil // Skip writing prompt if flag is set
+	}
+
+	gitRoot, err := findGitRoot()
+	if err != nil {
+		return err // Not in a git repository, skip
+	}
+
+	promptsDir := filepath.Join(gitRoot, ".github", "prompts")
+	sharedWorkflowPromptPath := filepath.Join(promptsDir, "create-shared-agentic-workflow.prompt.md")
+
+	// Ensure the .github/prompts directory exists
+	if err := os.MkdirAll(promptsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .github/prompts directory: %w", err)
+	}
+
+	// Check if the prompt file already exists and matches the template
+	existingContent := ""
+	if content, err := os.ReadFile(sharedWorkflowPromptPath); err == nil {
+		existingContent = string(content)
+	}
+
+	// Check if content matches our expected template
+	expectedContent := strings.TrimSpace(sharedAgenticWorkflowPromptTemplate)
+	if strings.TrimSpace(existingContent) == expectedContent {
+		if verbose {
+			fmt.Printf("Shared agentic workflow prompt is up-to-date: %s\n", sharedWorkflowPromptPath)
+		}
+		return nil
+	}
+
+	// Write the shared agentic workflow prompt file
+	if err := os.WriteFile(sharedWorkflowPromptPath, []byte(sharedAgenticWorkflowPromptTemplate), 0644); err != nil {
+		return fmt.Errorf("failed to write shared agentic workflow prompt: %w", err)
+	}
+
+	if verbose {
+		if existingContent == "" {
+			fmt.Printf("Created shared agentic workflow prompt: %s\n", sharedWorkflowPromptPath)
+		} else {
+			fmt.Printf("Updated shared agentic workflow prompt: %s\n", sharedWorkflowPromptPath)
+		}
+	}
+
+	return nil
+}
+
 // checkCleanWorkingDirectory checks if there are uncommitted changes
 func checkCleanWorkingDirectory(verbose bool) error {
 	if verbose {

@@ -22,6 +22,9 @@ var copilotInstructionsTemplate string
 //go:embed templates/create-agentic-workflow.prompt.md
 var agenticWorkflowPromptTemplate string
 
+//go:embed templates/create-shared-agentic-workflow.prompt.md
+var sharedAgenticWorkflowPromptTemplate string
+
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
 	version = v
