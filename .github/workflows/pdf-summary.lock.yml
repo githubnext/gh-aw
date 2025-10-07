@@ -5,10 +5,9 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/tavily-mcp.md
-#     - shared/microsoftdocs-mcp.md
+#     - shared/markitdown-mcp.md
 
-name: "Scout"
+name: "Resource Summarizer Agent"
 on:
   issue_comment:
     types:
@@ -19,39 +18,32 @@ on:
     - opened
     - edited
     - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request_review_comment:
-    types:
-    - created
-    - edited
   workflow_dispatch:
     inputs:
-      topic:
-        description: Research topic or question
+      query:
+        default: summarize in the context of this repository
+        description: Query or question to answer about the resource(s)
+        required: false
+        type: string
+      url:
+        description: URL(s) to resource(s) to analyze (comma-separated for multiple URLs)
         required: true
+        type: string
 
 permissions: {}
 
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
 
-run-name: "Scout"
+run-name: "Resource Summarizer Agent"
 
 jobs:
   check-membership:
     if: >
-      ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment') && ((github.event_name == 'issues') &&
-      (contains(github.event.issue.body, '/scout')) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/scout')) ||
-      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/scout')))) || (!(github.event_name == 'issues' ||
-      github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))
+      ((github.event_name == 'issue_comment' || github.event_name == 'issues') && ((github.event_name == 'issues') &&
+      (contains(github.event.issue.body, '/summarize')) || (github.event_name == 'issue_comment') &&
+      ((contains(github.event.comment.body, '/summarize')) &&
+      (github.event.issue.pull_request == null)))) || (!(github.event_name == 'issue_comment' || github.event_name == 'issues'))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -63,7 +55,7 @@ jobs:
         id: check-membership
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer,write
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
         with:
           script: |
             async function main() {
@@ -143,16 +135,10 @@ jobs:
   activation:
     needs: check-membership
     if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && ((github.event_name == 'issues') &&
-      (contains(github.event.issue.body, '/scout')) || (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/scout')) &&
-      (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) &&
-      (github.event.issue.pull_request != null)) || (github.event_name == 'pull_request_review_comment') &&
-      (contains(github.event.comment.body, '/scout')) || (github.event_name == 'pull_request') &&
-      (contains(github.event.pull_request.body, '/scout')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment')))
+      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issue_comment' ||
+      github.event_name == 'issues') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/summarize')) ||
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/summarize')) && (github.event.issue.pull_request == null)))) ||
+      (!(github.event_name == 'issue_comment' || github.event_name == 'issues')))
     runs-on: ubuntu-latest
     outputs:
       text: ${{ steps.compute-text.outputs.text }}
@@ -327,7 +313,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REACTION: eyes
-          GITHUB_AW_COMMAND: scout
+          GITHUB_AW_COMMAND: summarize
         with:
           script: |
             async function main() {
@@ -513,7 +499,6 @@ jobs:
         with:
           name: cache-memory
           path: /tmp/cache-memory
-          retention-days: 7
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -995,7 +980,7 @@ jobs:
                 const jobConfig = safeOutputsConfig[configKey];
                 const dynamicTool = {
                   name: normalizedKey,
-                  description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
+                  description: `Custom safe-job: ${configKey}`,
                   inputSchema: {
                     type: "object",
                     properties: {},
@@ -1174,11 +1159,17 @@ jobs:
                 ],
                 "tools": ["*"]
               },
-              "microsoftdocs": {
-                "type": "http",
-                "url": "https://learn.microsoft.com/api/mcp",
+              "markitdown": {
+                "type": "local",
+                "command": "docker",
                 "tools": [
                   "*"
+                ],
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "ghcr.io/microsoft/markitdown"
                 ]
               },
               "safe_outputs": {
@@ -1190,13 +1181,6 @@ jobs:
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
                   "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
                 }
-              },
-              "tavily": {
-                "type": "http",
-                "url": "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}",
-                "tools": [
-                  "*"
-                ]
               }
             }
           }
@@ -1217,121 +1201,148 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           
           
+          # Resource Summarizer Agent
           
-          
-          # Scout Deep Research Agent
-          
-          You are the Scout agent - an expert research assistant that performs deep, comprehensive investigations using web search capabilities.
+          You are a resource analysis and summarization agent powered by the markitdown MCP server.
           
           ## Mission
           
-          When invoked with the `/scout` command in an issue or pull request comment, OR manually triggered with a research topic, you must:
+          When invoked with the `/summarize` command or triggered via workflow_dispatch, you must:
           
-          1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you, OR use the provided research topic
-          2. **Identify Research Needs**: Determine what questions need answering or what information needs investigation
-          3. **Conduct Deep Research**: Use the Tavily MCP search tools to gather comprehensive information
-          4. **Synthesize Findings**: Create a well-organized, actionable summary of your research
+          1. **Identify Resources**: Extract URLs from the command or use the provided URL input
+          2. **Convert to Markdown**: Use the markitdown MCP server to convert each resource to markdown
+          3. **Analyze Content**: Analyze the converted markdown content
+          4. **Answer Query**: Respond to the query or provide a summary
           
           ## Current Context
           
           - **Repository**: ${{ github.repository }}
-          - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Research Topic** (if workflow_dispatch): "${{ github.event.inputs.topic }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
           - **Triggered by**: @${{ github.actor }}
+          - **Triggering Content**: "${{ needs.activation.outputs.text }}"
+          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
+          - **Workflow Dispatch URL**: ${{ github.event.inputs.url }}
+          - **Workflow Dispatch Query**: ${{ github.event.inputs.query }}
+          - **Persistent Storage**: `/tmp/cache-memory/` (use this to store analysis results for future reference)
           
-          **Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.
+          ## Processing Steps
           
-          ## Research Process
+          ### 1. Identify Resources and Query
           
-          ### 1. Context Analysis
-          - Read the issue/PR title and body to understand the topic
-          - Analyze the triggering comment to understand the specific research request
-          - Identify key topics, questions, or problems that need investigation
+          **For Command Trigger (`/summarize`):**
+          - Parse the triggering comment/issue to extract URL(s) to resources
+          - Look for URLs in the comment text (e.g., `/summarize https://example.com/document.pdf`)
+          - Extract any query or question after the URL(s)
+          - If no query is provided, use: "summarize in the context of this repository"
           
-          ### 2. Research Strategy
-          - Formulate targeted search queries based on the context
-          - Use Tavily search tools to find:
-            - Technical documentation
-            - Best practices and patterns
-            - Related discussions and solutions
-            - Industry standards and recommendations
-            - Recent developments and trends
-          - Conduct multiple searches from different angles if needed
+          **For Workflow Dispatch:**
+          - Use the provided `url` input (may contain comma-separated URLs)
+          - Use the provided `query` input (defaults to "summarize in the context of this repository")
           
-          ### 3. Deep Investigation
-          - For each search result, evaluate:
-            - **Relevance**: How directly it addresses the issue
-            - **Authority**: Source credibility and expertise
-            - **Recency**: How current the information is
-            - **Applicability**: How it applies to this specific context
-          - Follow up on promising leads with additional searches
-          - Cross-reference information from multiple sources
+          ### 2. Fetch and Convert Resources
           
-          ### 4. Synthesis and Reporting
-          Create a comprehensive research summary that includes:
-          - **Executive Summary**: Quick overview of key findings
-          - **Main Findings**: Detailed research results organized by topic
-          - **Recommendations**: Specific, actionable suggestions based on research
-          - **Sources**: Key references and links for further reading
-          - **Next Steps**: Suggested actions based on the research
+          For each identified URL:
+          - Use the markitdown MCP server to convert the resource to markdown
+          - Supported formats include: PDF, HTML, Word documents, PowerPoint, images, and more
+          - Handle conversion errors gracefully and note any issues
           
-          ## Research Guidelines
+          ### 3. Analyze Content
           
-          - **Be Thorough**: Don't stop at the first search result - investigate deeply
-          - **Be Critical**: Evaluate source quality and cross-check information
-          - **Be Specific**: Provide concrete examples, code snippets, or implementation details when relevant
-          - **Be Organized**: Structure your findings clearly with headers and bullet points
-          - **Be Actionable**: Focus on practical insights that can be applied to the issue/PR
-          - **Cite Sources**: Include links to important references and documentation
+          - Review the converted markdown content from all resources
+          - Consider the repository context when analyzing
+          - Identify key information relevant to the query
           
-          ## Output Format
+          ### 4. Generate Response
           
-          Your research summary should be formatted as a comment with:
+          - Answer the query based on the analyzed content
+          - Provide a well-structured response that includes:
+            - Summary of findings
+            - Key points from the resources
+            - Relevant insights in the context of this repository
+            - Any conversion issues or limitations encountered
+          
+          ### 5. Store Results in Cache Memory
+          
+          - Store the analysis results in the cache-memory folder (`/tmp/cache-memory/`)
+          - Create a structured file with the resource URL, query, and analysis results
+          - Use a naming convention like: `analysis-{timestamp}.json` or organize by resource domain
+          - This allows future runs to reference previous analyses and build on prior knowledge
+          - Store both the converted markdown and your analysis for future reference
+          
+          ### 6. Post Response
+          
+          - Post your analysis as a comment on the triggering issue/PR
+          - Format the response clearly with headers and bullet points
+          - Include references to the analyzed URLs
+          
+          ## Response Format
+          
+          Your response should be formatted as:
           
           ```markdown
-          # 🔍 Scout Research Report
+          # 📊 Resource Analysis
           
-          *Triggered by @${{ github.actor }}*
+          **Query**: [The query or question being answered]
           
-          ## Executive Summary
-          [Brief overview of key findings]
+          **Resources Analyzed**:
+          - [URL 1] - [Brief description]
+          - [URL 2] - [Brief description]
+          - ...
           
-          ## Research Findings
+          ## Summary
           
-          ### [Topic 1]
-          [Detailed findings with sources]
+          [Comprehensive summary addressing the query]
           
-          ### [Topic 2]
-          [Detailed findings with sources]
+          ## Key Findings
           
-          [... additional topics ...]
+          - **Finding 1**: [Detail]
+          - **Finding 2**: [Detail]
+          - ...
           
-          ## Recommendations
-          - [Specific actionable recommendation 1]
-          - [Specific actionable recommendation 2]
-          - [...]
+          ## Context for This Repository
           
-          ## Key Sources
-          - [Source 1 with link]
-          - [Source 2 with link]
-          - [...]
+          [How these findings relate to ${{ github.repository }}]
           
-          ## Suggested Next Steps
-          1. [Action item 1]
-          2. [Action item 2]
-          [...]
+          ## Additional Notes
+          
+          [Any conversion issues, limitations, or additional observations]
           ```
           
           ## Important Notes
           
-          - **Security**: Evaluate all sources critically - never execute untrusted code
-          - **Relevance**: Stay focused on the issue/PR context - avoid tangential research
-          - **Efficiency**: Balance thoroughness with time constraints
-          - **Clarity**: Write for the intended audience (developers working on this repo)
-          - **Attribution**: Always cite your sources with proper links
+          - **URL Extraction**: Be flexible in parsing URLs from comments - they may appear anywhere in the text
+          - **Multiple Resources**: Handle multiple URLs when provided (comma-separated or space-separated)
+          - **Error Handling**: If a resource cannot be converted, note this in your response and continue with other resources
+          - **Query Flexibility**: Adapt your analysis to the specific query provided
+          - **Repository Context**: Always consider how the analyzed content relates to the current repository
+          - **Default Query**: When no specific query is provided, use "summarize in the context of this repository"
+          - **Cache Memory Storage**: Store all analysis results in `/tmp/cache-memory/` for future reference. This allows you to:
+            - Build knowledge over time about analyzed resources
+            - Reference previous analyses when new queries come in
+            - Track patterns and recurring themes across multiple resource analyses
+            - Create a searchable database of analyzed resources for this repository
           
-          Remember: Your goal is to provide valuable, actionable intelligence that helps resolve the issue or improve the pull request. Make every search count and synthesize information effectively.
+          ## Cache Memory Usage
+          
+          You have access to persistent storage in `/tmp/cache-memory/` across workflow runs. Use this to:
+          
+          1. **Store Analysis Results**: Save each resource analysis as a structured JSON file
+          2. **Track History**: Maintain a log of all analyzed resources and their summaries
+          3. **Build Knowledge**: Reference previous analyses to provide more contextual insights
+          4. **Avoid Redundancy**: Check if a resource has been analyzed before and reference prior findings
+          
+          Example structure for stored analysis:
+          ```json
+          {
+            "timestamp": "2024-01-15T10:30:00Z",
+            "url": "https://example.com/document.pdf",
+            "query": "summarize in the context of this repository",
+            "analysis": "...",
+            "key_findings": ["finding1", "finding2"],
+            "repository_context": "..."
+          }
+          ```
+          
+          Remember: Your goal is to help users understand external resources in the context of their repository by converting them to markdown, providing insightful analysis, and building persistent knowledge over time.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1462,7 +1473,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Scout",
+              workflow_name: "Resource Summarizer Agent",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1552,16 +1563,14 @@ jobs:
         # --allow-tool github(search_pull_requests)
         # --allow-tool github(search_repositories)
         # --allow-tool github(search_users)
-        # --allow-tool microsoftdocs
-        # --allow-tool microsoftdocs(*)
+        # --allow-tool markitdown
+        # --allow-tool markitdown(*)
         # --allow-tool safe_outputs
-        # --allow-tool tavily
-        # --allow-tool tavily(*)
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool microsoftdocs --allow-tool 'microsoftdocs(*)' --allow-tool safe_outputs --allow-tool tavily --allow-tool 'tavily(*)' --add-dir /tmp/cache-memory/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool markitdown --allow-tool 'markitdown(*)' --allow-tool safe_outputs --add-dir /tmp/cache-memory/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -3067,9 +3076,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Scout"
+          WORKFLOW_NAME: "Resource Summarizer Agent"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "\n\n\n\n# Scout Deep Research Agent\n\nYou are the Scout agent - an expert research assistant that performs deep, comprehensive investigations using web search capabilities.\n\n## Mission\n\nWhen invoked with the `/scout` command in an issue or pull request comment, OR manually triggered with a research topic, you must:\n\n1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you, OR use the provided research topic\n2. **Identify Research Needs**: Determine what questions need answering or what information needs investigation\n3. **Conduct Deep Research**: Use the Tavily MCP search tools to gather comprehensive information\n4. **Synthesize Findings**: Create a well-organized, actionable summary of your research\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggering Content**: \"${{ needs.activation.outputs.text }}\"\n- **Research Topic** (if workflow_dispatch): \"${{ github.event.inputs.topic }}\"\n- **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}\n- **Triggered by**: @${{ github.actor }}\n\n**Note**: If a research topic is provided above (from workflow_dispatch), use that as your primary research focus. Otherwise, analyze the triggering content to determine the research topic.\n\n## Research Process\n\n### 1. Context Analysis\n- Read the issue/PR title and body to understand the topic\n- Analyze the triggering comment to understand the specific research request\n- Identify key topics, questions, or problems that need investigation\n\n### 2. Research Strategy\n- Formulate targeted search queries based on the context\n- Use Tavily search tools to find:\n  - Technical documentation\n  - Best practices and patterns\n  - Related discussions and solutions\n  - Industry standards and recommendations\n  - Recent developments and trends\n- Conduct multiple searches from different angles if needed\n\n### 3. Deep Investigation\n- For each search result, evaluate:\n  - **Relevance**: How directly it addresses the issue\n  - **Authority**: Source credibility and expertise\n  - **Recency**: How current the information is\n  - **Applicability**: How it applies to this specific context\n- Follow up on promising leads with additional searches\n- Cross-reference information from multiple sources\n\n### 4. Synthesis and Reporting\nCreate a comprehensive research summary that includes:\n- **Executive Summary**: Quick overview of key findings\n- **Main Findings**: Detailed research results organized by topic\n- **Recommendations**: Specific, actionable suggestions based on research\n- **Sources**: Key references and links for further reading\n- **Next Steps**: Suggested actions based on the research\n\n## Research Guidelines\n\n- **Be Thorough**: Don't stop at the first search result - investigate deeply\n- **Be Critical**: Evaluate source quality and cross-check information\n- **Be Specific**: Provide concrete examples, code snippets, or implementation details when relevant\n- **Be Organized**: Structure your findings clearly with headers and bullet points\n- **Be Actionable**: Focus on practical insights that can be applied to the issue/PR\n- **Cite Sources**: Include links to important references and documentation\n\n## Output Format\n\nYour research summary should be formatted as a comment with:\n\n```markdown\n# 🔍 Scout Research Report\n\n*Triggered by @${{ github.actor }}*\n\n## Executive Summary\n[Brief overview of key findings]\n\n## Research Findings\n\n### [Topic 1]\n[Detailed findings with sources]\n\n### [Topic 2]\n[Detailed findings with sources]\n\n[... additional topics ...]\n\n## Recommendations\n- [Specific actionable recommendation 1]\n- [Specific actionable recommendation 2]\n- [...]\n\n## Key Sources\n- [Source 1 with link]\n- [Source 2 with link]\n- [...]\n\n## Suggested Next Steps\n1. [Action item 1]\n2. [Action item 2]\n[...]\n```\n\n## Important Notes\n\n- **Security**: Evaluate all sources critically - never execute untrusted code\n- **Relevance**: Stay focused on the issue/PR context - avoid tangential research\n- **Efficiency**: Balance thoroughness with time constraints\n- **Clarity**: Write for the intended audience (developers working on this repo)\n- **Attribution**: Always cite your sources with proper links\n\nRemember: Your goal is to provide valuable, actionable intelligence that helps resolve the issue or improve the pull request. Make every search count and synthesize information effectively.\n"
+          WORKFLOW_MARKDOWN: "\n\n# Resource Summarizer Agent\n\nYou are a resource analysis and summarization agent powered by the markitdown MCP server.\n\n## Mission\n\nWhen invoked with the `/summarize` command or triggered via workflow_dispatch, you must:\n\n1. **Identify Resources**: Extract URLs from the command or use the provided URL input\n2. **Convert to Markdown**: Use the markitdown MCP server to convert each resource to markdown\n3. **Analyze Content**: Analyze the converted markdown content\n4. **Answer Query**: Respond to the query or provide a summary\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggered by**: @${{ github.actor }}\n- **Triggering Content**: \"${{ needs.activation.outputs.text }}\"\n- **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}\n- **Workflow Dispatch URL**: ${{ github.event.inputs.url }}\n- **Workflow Dispatch Query**: ${{ github.event.inputs.query }}\n- **Persistent Storage**: `/tmp/cache-memory/` (use this to store analysis results for future reference)\n\n## Processing Steps\n\n### 1. Identify Resources and Query\n\n**For Command Trigger (`/summarize`):**\n- Parse the triggering comment/issue to extract URL(s) to resources\n- Look for URLs in the comment text (e.g., `/summarize https://example.com/document.pdf`)\n- Extract any query or question after the URL(s)\n- If no query is provided, use: \"summarize in the context of this repository\"\n\n**For Workflow Dispatch:**\n- Use the provided `url` input (may contain comma-separated URLs)\n- Use the provided `query` input (defaults to \"summarize in the context of this repository\")\n\n### 2. Fetch and Convert Resources\n\nFor each identified URL:\n- Use the markitdown MCP server to convert the resource to markdown\n- Supported formats include: PDF, HTML, Word documents, PowerPoint, images, and more\n- Handle conversion errors gracefully and note any issues\n\n### 3. Analyze Content\n\n- Review the converted markdown content from all resources\n- Consider the repository context when analyzing\n- Identify key information relevant to the query\n\n### 4. Generate Response\n\n- Answer the query based on the analyzed content\n- Provide a well-structured response that includes:\n  - Summary of findings\n  - Key points from the resources\n  - Relevant insights in the context of this repository\n  - Any conversion issues or limitations encountered\n\n### 5. Store Results in Cache Memory\n\n- Store the analysis results in the cache-memory folder (`/tmp/cache-memory/`)\n- Create a structured file with the resource URL, query, and analysis results\n- Use a naming convention like: `analysis-{timestamp}.json` or organize by resource domain\n- This allows future runs to reference previous analyses and build on prior knowledge\n- Store both the converted markdown and your analysis for future reference\n\n### 6. Post Response\n\n- Post your analysis as a comment on the triggering issue/PR\n- Format the response clearly with headers and bullet points\n- Include references to the analyzed URLs\n\n## Response Format\n\nYour response should be formatted as:\n\n```markdown\n# 📊 Resource Analysis\n\n**Query**: [The query or question being answered]\n\n**Resources Analyzed**:\n- [URL 1] - [Brief description]\n- [URL 2] - [Brief description]\n- ...\n\n## Summary\n\n[Comprehensive summary addressing the query]\n\n## Key Findings\n\n- **Finding 1**: [Detail]\n- **Finding 2**: [Detail]\n- ...\n\n## Context for This Repository\n\n[How these findings relate to ${{ github.repository }}]\n\n## Additional Notes\n\n[Any conversion issues, limitations, or additional observations]\n```\n\n## Important Notes\n\n- **URL Extraction**: Be flexible in parsing URLs from comments - they may appear anywhere in the text\n- **Multiple Resources**: Handle multiple URLs when provided (comma-separated or space-separated)\n- **Error Handling**: If a resource cannot be converted, note this in your response and continue with other resources\n- **Query Flexibility**: Adapt your analysis to the specific query provided\n- **Repository Context**: Always consider how the analyzed content relates to the current repository\n- **Default Query**: When no specific query is provided, use \"summarize in the context of this repository\"\n- **Cache Memory Storage**: Store all analysis results in `/tmp/cache-memory/` for future reference. This allows you to:\n  - Build knowledge over time about analyzed resources\n  - Reference previous analyses when new queries come in\n  - Track patterns and recurring themes across multiple resource analyses\n  - Create a searchable database of analyzed resources for this repository\n\n## Cache Memory Usage\n\nYou have access to persistent storage in `/tmp/cache-memory/` across workflow runs. Use this to:\n\n1. **Store Analysis Results**: Save each resource analysis as a structured JSON file\n2. **Track History**: Maintain a log of all analyzed resources and their summaries\n3. **Build Knowledge**: Reference previous analyses to provide more contextual insights\n4. **Avoid Redundancy**: Check if a resource has been analyzed before and reference prior findings\n\nExample structure for stored analysis:\n```json\n{\n  \"timestamp\": \"2024-01-15T10:30:00Z\",\n  \"url\": \"https://example.com/document.pdf\",\n  \"query\": \"summarize in the context of this repository\",\n  \"analysis\": \"...\",\n  \"key_findings\": [\"finding1\", \"finding2\"],\n  \"repository_context\": \"...\"\n}\n```\n\nRemember: Your goal is to help users understand external resources in the context of their repository by converting them to markdown, providing insightful analysis, and building persistent knowledge over time.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3248,7 +3257,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Scout"
+          GITHUB_AW_WORKFLOW_NAME: "Resource Summarizer Agent"
         with:
           script: |
             async function main() {
