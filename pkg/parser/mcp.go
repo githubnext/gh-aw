@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
@@ -480,8 +481,15 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 				// Add environment variables
 				if env, hasEnv := mcpConfig["env"]; hasEnv {
 					if envMap, ok := env.(map[string]any); ok {
-						for key, value := range envMap {
-							if valueStr, ok := value.(string); ok {
+						// Sort environment variable keys to ensure deterministic arg order
+						var envKeys []string
+						for key := range envMap {
+							envKeys = append(envKeys, key)
+						}
+						sort.Strings(envKeys)
+
+						for _, key := range envKeys {
+							if valueStr, ok := envMap[key].(string); ok {
 								config.Args = append(config.Args, "-e", key)
 								config.Env[key] = valueStr
 							}

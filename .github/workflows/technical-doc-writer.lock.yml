@@ -120,8 +120,6 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
-    concurrency:
-      group: "gh-aw-claude-${{ github.run_id % 3 }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{},\"upload-asset\":{}}"
