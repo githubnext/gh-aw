@@ -1914,32 +1914,37 @@ jobs:
                     throw new Error("Not a JSON array");
                   }
                 } catch (jsonArrayError) {
-                  logEntries = [];
-                  const lines = logContent.split("\n");
-                  for (const line of lines) {
-                    const trimmedLine = line.trim();
-                    if (trimmedLine === "") {
-                      continue; 
-                    }
-                    if (trimmedLine.startsWith("[{")) {
-                      try {
-                        const arrayEntries = JSON.parse(trimmedLine);
-                        if (Array.isArray(arrayEntries)) {
-                          logEntries.push(...arrayEntries);
+                  const debugLogEntries = parseDebugLogFormat(logContent);
+                  if (debugLogEntries && debugLogEntries.length > 0) {
+                    logEntries = debugLogEntries;
+                  } else {
+                    logEntries = [];
+                    const lines = logContent.split("\n");
+                    for (const line of lines) {
+                      const trimmedLine = line.trim();
+                      if (trimmedLine === "") {
+                        continue; 
+                      }
+                      if (trimmedLine.startsWith("[{")) {
+                        try {
+                          const arrayEntries = JSON.parse(trimmedLine);
+                          if (Array.isArray(arrayEntries)) {
+                            logEntries.push(...arrayEntries);
+                            continue;
+                          }
+                        } catch (arrayParseError) {
                           continue;
                         }
-                      } catch (arrayParseError) {
+                      }
+                      if (!trimmedLine.startsWith("{")) {
                         continue;
                       }
-                    }
-                    if (!trimmedLine.startsWith("{")) {
-                      continue;
-                    }
-                    try {
-                      const jsonEntry = JSON.parse(trimmedLine);
-                      logEntries.push(jsonEntry);
-                    } catch (jsonLineError) {
-                      continue;
+                      try {
+                        const jsonEntry = JSON.parse(trimmedLine);
+                        logEntries.push(jsonEntry);
+                      } catch (jsonLineError) {
+                        continue;
+                      }
                     }
                   }
                 }
@@ -2050,6 +2055,179 @@ jobs:
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
               }
+            }
+            function parseDebugLogFormat(logContent) {
+              const entries = [];
+              const lines = logContent.split("\n");
+              let model = "unknown";
+              let sessionId = null;
+              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
+              if (modelMatch) {
+                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+              }
+              let inDataBlock = false;
+              let currentJsonLines = [];
+              let turnCount = 0;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.includes("[DEBUG] data:")) {
+                  inDataBlock = true;
+                  currentJsonLines = [];
+                  continue;
+                }
+                if (inDataBlock) {
+                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
+                  const hasDebug = line.includes("[DEBUG]");
+                  if (hasTimestamp && !hasDebug) {
+                    if (currentJsonLines.length > 0) {
+                      try {
+                        const jsonStr = currentJsonLines.join("\n");
+                        const jsonData = JSON.parse(jsonStr);
+                        if (jsonData.model) {
+                          model = jsonData.model;
+                        }
+                        if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                          for (const choice of jsonData.choices) {
+                            if (choice.message) {
+                              const message = choice.message;
+                              const content = [];
+                              if (message.content && message.content.trim()) {
+                                content.push({
+                                  type: "text",
+                                  text: message.content,
+                                });
+                              }
+                              if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                                for (const toolCall of message.tool_calls) {
+                                  if (toolCall.function) {
+                                    let toolName = toolCall.function.name;
+                                    let args = {};
+                                    if (toolName.startsWith("github-")) {
+                                      toolName = "mcp__github__" + toolName.substring(7);
+                                    } else if (toolName === "bash") {
+                                      toolName = "Bash";
+                                    }
+                                    try {
+                                      args = JSON.parse(toolCall.function.arguments);
+                                    } catch (e) {
+                                      args = {};
+                                    }
+                                    content.push({
+                                      type: "tool_use",
+                                      id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                                      name: toolName,
+                                      input: args,
+                                    });
+                                  }
+                                }
+                              }
+                              if (content.length > 0) {
+                                entries.push({
+                                  type: "assistant",
+                                  message: { content },
+                                });
+                                turnCount++;
+                              }
+                            }
+                          }
+                          if (jsonData.usage) {
+                            const resultEntry = {
+                              type: "result",
+                              num_turns: turnCount,
+                              usage: jsonData.usage,
+                            };
+                            entries._lastResult = resultEntry;
+                          }
+                        }
+                      } catch (e) {
+                      }
+                    }
+                    inDataBlock = false;
+                    currentJsonLines = [];
+                  } else {
+                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
+                    currentJsonLines.push(cleanLine);
+                  }
+                }
+              }
+              if (inDataBlock && currentJsonLines.length > 0) {
+                try {
+                  const jsonStr = currentJsonLines.join("\n");
+                  const jsonData = JSON.parse(jsonStr);
+                  if (jsonData.model) {
+                    model = jsonData.model;
+                  }
+                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
+                    for (const choice of jsonData.choices) {
+                      if (choice.message) {
+                        const message = choice.message;
+                        const content = [];
+                        if (message.content && message.content.trim()) {
+                          content.push({
+                            type: "text",
+                            text: message.content,
+                          });
+                        }
+                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
+                          for (const toolCall of message.tool_calls) {
+                            if (toolCall.function) {
+                              let toolName = toolCall.function.name;
+                              let args = {};
+                              if (toolName.startsWith("github-")) {
+                                toolName = "mcp__github__" + toolName.substring(7);
+                              } else if (toolName === "bash") {
+                                toolName = "Bash";
+                              }
+                              try {
+                                args = JSON.parse(toolCall.function.arguments);
+                              } catch (e) {
+                                args = {};
+                              }
+                              content.push({
+                                type: "tool_use",
+                                id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                                name: toolName,
+                                input: args,
+                              });
+                            }
+                          }
+                        }
+                        if (content.length > 0) {
+                          entries.push({
+                            type: "assistant",
+                            message: { content },
+                          });
+                          turnCount++;
+                        }
+                      }
+                    }
+                    if (jsonData.usage) {
+                      const resultEntry = {
+                        type: "result",
+                        num_turns: turnCount,
+                        usage: jsonData.usage,
+                      };
+                      entries._lastResult = resultEntry;
+                    }
+                  }
+                } catch (e) {
+                }
+              }
+              if (entries.length > 0) {
+                const initEntry = {
+                  type: "system",
+                  subtype: "init",
+                  session_id: sessionId,
+                  model: model,
+                  tools: [], 
+                };
+                entries.unshift(initEntry);
+                if (entries._lastResult) {
+                  entries.push(entries._lastResult);
+                  delete entries._lastResult;
+                }
+              }
+              return entries;
             }
             function formatInitializationSummary(initEntry) {
               let markdown = "";
