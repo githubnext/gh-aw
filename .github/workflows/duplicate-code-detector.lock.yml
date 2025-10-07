@@ -122,6 +122,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.run_id % 3 }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
@@ -819,11 +821,11 @@ jobs:
                   "--rm",
                   "-i",
                   "-e",
-                  "SERENA_DASHBOARD_PORT",
-                  "-e",
                   "SERENA_DOCKER",
                   "-e",
                   "SERENA_PORT",
+                  "-e",
+                  "SERENA_DASHBOARD_PORT",
                   "-v",
                   "${{ github.workspace }}:/workspace:ro",
                   "-w",

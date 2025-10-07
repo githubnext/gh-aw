@@ -163,7 +163,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   pull_request:
     types: [opened, synchronize]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
@@ -177,7 +177,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   issues:
     types: [opened, edited, reopened]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: true,
 			expected: `concurrency:
@@ -190,7 +190,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   push:
     branches: [main]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
@@ -203,7 +203,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   schedule:
     - cron: "0 9 * * 1"`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
@@ -216,7 +216,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   issues:
     types: [opened, edited]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
@@ -229,7 +229,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   issue_comment:
     types: [created, edited]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
@@ -244,7 +244,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
     types: [opened, edited]
   pull_request:
     types: [opened, synchronize]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
@@ -258,7 +258,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 				On: `on:
   discussion:
     types: [created, edited]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:
@@ -273,7 +273,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
     types: [opened, edited]
   discussion:
     types: [created, edited]`,
-				Concurrency:  "", // Empty, should be generated
+				Concurrency: "", // Empty, should be generated
 			},
 			isAliasTrigger: false,
 			expected: `concurrency:

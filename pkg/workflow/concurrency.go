@@ -34,26 +34,26 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 	// Build job-level concurrency for max-concurrency feature
 	// This uses ONLY engine ID and run_id slot for global limiting
 	var keys []string
-	
+
 	// Prepend with gh-aw- prefix
 	keys = append(keys, "gh-aw")
-	
+
 	// Add engine ID as the base key
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
 		keys = append(keys, workflowData.EngineConfig.ID)
 	}
-	
+
 	// Add max-concurrency slot to the group
 	maxConcurrency := 3 // default value
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxConcurrency > 0 {
 		maxConcurrency = workflowData.EngineConfig.MaxConcurrency
 	}
-	
+
 	// Add a slot number based on run_id to distribute workflows across concurrency slots
 	// This implements a simple round-robin distribution using modulo
 	slotKey := fmt.Sprintf("${{ github.run_id %% %d }}", maxConcurrency)
 	keys = append(keys, slotKey)
-	
+
 	groupValue := strings.Join(keys, "-")
 
 	// Build the concurrency configuration (no cancel-in-progress at job level)
