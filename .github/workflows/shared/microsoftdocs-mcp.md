@@ -1,6 +1,6 @@
 ---
 mcp-servers:
   microsoftdocs:
-    url: "https://github.com/mcp/microsoftdocs/mcp"
+    url: "https://learn.microsoft.com/api/mcp"
     allowed: ["*"]
 ---

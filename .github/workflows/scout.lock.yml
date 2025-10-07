@@ -1176,7 +1176,7 @@ jobs:
               },
               "microsoftdocs": {
                 "type": "http",
-                "url": "https://github.com/mcp/microsoftdocs/mcp",
+                "url": "https://learn.microsoft.com/api/mcp",
                 "tools": [
                   "*"
                 ]
