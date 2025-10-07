@@ -833,9 +833,9 @@ jobs:
                   "ghcr.io/oraios/serena:latest"
                 ],
                 "env": {
-                  "SERENA_DOCKER": "1",
                   "SERENA_PORT": "9121",
-                  "SERENA_DASHBOARD_PORT": "24282"
+                  "SERENA_DASHBOARD_PORT": "24282",
+                  "SERENA_DOCKER": "1"
                 }
               }
             }
