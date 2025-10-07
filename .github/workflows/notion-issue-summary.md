@@ -2,6 +2,12 @@
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      text:
+        description: "Issue text to analyze"
+        required: true
+        type: string
 permissions:
   contents: read
   actions: read

@@ -825,23 +825,22 @@ func extractToolsFromContent(content string) (string, error) {
 	// Create a map to hold the merged result
 	extracted := make(map[string]any)
 
-	// Extract and merge tools section (tools are stored as tool_name: tool_config)
-	if tools, exists := result.Frontmatter["tools"]; exists {
-		if toolsMap, ok := tools.(map[string]any); ok {
-			for toolName, toolConfig := range toolsMap {
-				extracted[toolName] = toolConfig
+	// Helper function to merge a field into extracted map
+	mergeField := func(fieldName string) {
+		if fieldValue, exists := result.Frontmatter[fieldName]; exists {
+			if fieldMap, ok := fieldValue.(map[string]any); ok {
+				for key, value := range fieldMap {
+					extracted[key] = value
+				}
 			}
 		}
 	}
 
+	// Extract and merge tools section (tools are stored as tool_name: tool_config)
+	mergeField("tools")
+
 	// Extract and merge mcp-servers section (mcp-servers are stored as server_name: server_config)
-	if mcpServers, exists := result.Frontmatter["mcp-servers"]; exists {
-		if mcpServersMap, ok := mcpServers.(map[string]any); ok {
-			for serverName, serverConfig := range mcpServersMap {
-				extracted[serverName] = serverConfig
-			}
-		}
-	}
+	mergeField("mcp-servers")
 
 	// If nothing was extracted, return empty object
 	if len(extracted) == 0 {
