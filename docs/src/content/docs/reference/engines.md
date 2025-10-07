@@ -148,6 +148,43 @@ engine:
 - No AI interpretation - direct step execution
 - Useful for deterministic workflows or hybrid approaches
 
+#### GenAIScript Shared Configuration
+
+GenAIScript is a scripting language and runtime for generative AI, developed by Microsoft. The repository includes a shared configuration file that sets up GenAIScript as a custom engine.
+
+**Usage:**
+```aw
+---
+name: Issue Summarizer
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  actions: read
+safe-outputs:
+  add-comment:
+    max: 1
+---
+
+{{#import shared/genaiscript.md}}
+
+# Your workflow instructions here
+```
+
+**How it works:**
+1. Installs the `genaiscript` npm package (version specified in `GITHUB_AW_AGENT_VERSION`)
+2. Converts the generated prompt file to GenAI markdown format (`prompt.genai.md`)
+3. Executes GenAIScript with MCP server configuration if available
+4. Captures the output to the agent log file
+
+**Configuration:**
+- Version is set via `GITHUB_AW_AGENT_VERSION` environment variable (default: `1.140.0`)
+- Automatically passes `GITHUB_AW_PROMPT` path to scripts
+- Supports MCP server configuration via `GITHUB_AW_MCP_CONFIG`
+
+**Example workflow:** See `.github/workflows/issue-summarizer-genaiscript.md` for a complete example.
+
 ## Engine-Specific Configuration
 
 ### Environment Variables
