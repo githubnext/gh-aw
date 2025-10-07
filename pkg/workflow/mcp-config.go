@@ -618,7 +618,14 @@ func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
 		return len(domains) > 0, domains
 	}
 
-	// New format: check direct network field under mcp
+	// Check direct network field at tool level
+	if network, hasNetwork := toolConfig["network"]; hasNetwork {
+		if ok, domains := extract(network); ok {
+			return true, domains
+		}
+	}
+
+	// Legacy format: check direct network field under mcp
 	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
 		if m, ok := mcpSection.(map[string]any); ok {
 			if network, hasNetwork := m["network"]; hasNetwork {
