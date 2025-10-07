@@ -457,5 +457,136 @@ npm warn exec The following package was not found
 
       expect(result.markdown).toContain("github::create_pull_request");
     });
+
+    it("should render tool outputs in collapsible HTML details elements", () => {
+      const parseClaudeLog = extractParseFunction();
+
+      const logWithToolOutput = JSON.stringify([
+        {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                id: "tool_1",
+                name: "Bash",
+                input: { command: "ls -la", description: "List files" },
+              },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "tool_1",
+                content:
+                  "total 48\ndrwxr-xr-x 5 user user 4096 Jan 1 00:00 .\ndrwxr-xr-x 3 user user 4096 Jan 1 00:00 ..\n-rw-r--r-- 1 user user  123 Jan 1 00:00 file1.txt\n-rw-r--r-- 1 user user  456 Jan 1 00:00 file2.txt",
+                is_error: false,
+              },
+            ],
+          },
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithToolOutput);
+
+      // Should contain HTML details tag
+      expect(result.markdown).toContain("<details>");
+      expect(result.markdown).toContain("<summary>");
+      expect(result.markdown).toContain("</summary>");
+      expect(result.markdown).toContain("</details>");
+
+      // Summary should contain the tool description and command
+      expect(result.markdown).toContain("List files: `ls -la`");
+
+      // Details should contain the output in a code block
+      expect(result.markdown).toContain("```");
+      expect(result.markdown).toContain("total 48");
+      expect(result.markdown).toContain("file1.txt");
+    });
+
+    it("should truncate long tool outputs", () => {
+      const parseClaudeLog = extractParseFunction();
+
+      const longOutput = "x".repeat(600);
+      const logWithLongOutput = JSON.stringify([
+        {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                id: "tool_1",
+                name: "Bash",
+                input: { command: "cat large_file.txt" },
+              },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "tool_1",
+                content: longOutput,
+                is_error: false,
+              },
+            ],
+          },
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithLongOutput);
+
+      // Should truncate with ellipsis
+      expect(result.markdown).toContain("...");
+      // Should not contain the full output
+      expect(result.markdown).not.toContain("x".repeat(600));
+    });
+
+    it("should show summary only when no tool output", () => {
+      const parseClaudeLog = extractParseFunction();
+
+      const logWithoutOutput = JSON.stringify([
+        {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                id: "tool_1",
+                name: "Bash",
+                input: { command: "mkdir test_dir" },
+              },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "tool_1",
+                content: "",
+                is_error: false,
+              },
+            ],
+          },
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithoutOutput);
+
+      // Should not contain details tag when there's no output
+      expect(result.markdown).not.toContain("<details>");
+      // Should still contain the summary line
+      expect(result.markdown).toContain("mkdir test_dir");
+    });
   });
 });
