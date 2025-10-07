@@ -27,6 +27,9 @@ engine: copilot
 imports:
   - shared/markitdown-mcp.md
 
+tools:
+  cache-memory: true
+
 safe-outputs:
   add-comment:
     max: 1
@@ -55,6 +58,7 @@ When invoked with the `/summarize` command or triggered via workflow_dispatch, y
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Workflow Dispatch URL**: ${{ github.event.inputs.url }}
 - **Workflow Dispatch Query**: ${{ github.event.inputs.query }}
+- **Persistent Storage**: `/tmp/cache-memory/` (use this to store analysis results for future reference)
 
 ## Processing Steps
 
@@ -92,7 +96,15 @@ For each identified URL:
   - Relevant insights in the context of this repository
   - Any conversion issues or limitations encountered
 
-### 5. Post Response
+### 5. Store Results in Cache Memory
+
+- Store the analysis results in the cache-memory folder (`/tmp/cache-memory/`)
+- Create a structured file with the resource URL, query, and analysis results
+- Use a naming convention like: `analysis-{timestamp}.json` or organize by resource domain
+- This allows future runs to reference previous analyses and build on prior knowledge
+- Store both the converted markdown and your analysis for future reference
+
+### 6. Post Response
 
 - Post your analysis as a comment on the triggering issue/PR
 - Format the response clearly with headers and bullet points
@@ -139,5 +151,31 @@ Your response should be formatted as:
 - **Query Flexibility**: Adapt your analysis to the specific query provided
 - **Repository Context**: Always consider how the analyzed content relates to the current repository
 - **Default Query**: When no specific query is provided, use "summarize in the context of this repository"
+- **Cache Memory Storage**: Store all analysis results in `/tmp/cache-memory/` for future reference. This allows you to:
+  - Build knowledge over time about analyzed resources
+  - Reference previous analyses when new queries come in
+  - Track patterns and recurring themes across multiple resource analyses
+  - Create a searchable database of analyzed resources for this repository
 
-Remember: Your goal is to help users understand external resources in the context of their repository by converting them to markdown and providing insightful analysis.
+## Cache Memory Usage
+
+You have access to persistent storage in `/tmp/cache-memory/` across workflow runs. Use this to:
+
+1. **Store Analysis Results**: Save each resource analysis as a structured JSON file
+2. **Track History**: Maintain a log of all analyzed resources and their summaries
+3. **Build Knowledge**: Reference previous analyses to provide more contextual insights
+4. **Avoid Redundancy**: Check if a resource has been analyzed before and reference prior findings
+
+Example structure for stored analysis:
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "url": "https://example.com/document.pdf",
+  "query": "summarize in the context of this repository",
+  "analysis": "...",
+  "key_findings": ["finding1", "finding2"],
+  "repository_context": "..."
+}
+```
+
+Remember: Your goal is to help users understand external resources in the context of their repository by converting them to markdown, providing insightful analysis, and building persistent knowledge over time.
