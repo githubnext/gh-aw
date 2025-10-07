@@ -565,9 +565,9 @@ jobs:
                 - PROXY_PORT=3128
                 - HTTP_PROXY=http://squid-proxy:3128
                 - HTTPS_PROXY=http://squid-proxy:3128
+                - BRAVE_API_KEY=${{ secrets.BRAVE_API_KEY }}
               networks:
                 - awproxy-brave-search
-                - BRAVE_API_KEY=${{ secrets.BRAVE_API_KEY }}
               depends_on:
                 squid-proxy:
                   condition: service_healthy
