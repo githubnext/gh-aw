@@ -1,19 +1,19 @@
 package workflow
 
 import (
-"os"
-"path/filepath"
-"strings"
-"testing"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
 )
 
 func TestEngineConcurrencyIntegration(t *testing.T) {
 	tests := []struct {
-		name                 string
-		markdown             string
-		expectedInJob        string
-		notExpectedInJob     string
-		description          string
+		name             string
+		markdown         string
+		expectedInJob    string
+		notExpectedInJob string
+		description      string
 	}{
 		{
 			name: "Copilot engine has default concurrency",

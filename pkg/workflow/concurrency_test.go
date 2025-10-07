@@ -336,7 +336,7 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			name: "Custom concurrency string (simple group)",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
-					ID:          "claude",
+					ID: "claude",
 					Concurrency: `concurrency:
   group: "custom-group-${{ github.ref }}"`,
 				},
@@ -349,7 +349,7 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
 			name: "Custom concurrency with cancel-in-progress",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
-					ID:          "copilot",
+					ID: "copilot",
 					Concurrency: `concurrency:
   group: "custom-group"
   cancel-in-progress: true`,

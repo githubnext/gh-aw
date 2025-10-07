@@ -45,7 +45,7 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 	// Get the engine to check if default concurrency should be applied
 	registry := GetGlobalEngineRegistry()
 	engine, err := registry.GetEngine(engineID)
-	
+
 	// If engine not found or doesn't have default concurrency, return empty string (no concurrency)
 	if err != nil || !engine.HasDefaultConcurrency() {
 		return ""
