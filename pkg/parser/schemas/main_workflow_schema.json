@@ -2266,8 +2266,8 @@
             },
             "max-concurrency": {
               "type": "integer",
-              "minimum": 1,
-              "description": "Maximum number of agentic jobs that can run concurrently across all workflows using this engine. Defaults to 3. Uses GitHub Actions concurrency controls with slot-based distribution."
+              "minimum": -1,
+              "description": "Maximum number of agentic jobs that can run concurrently across all workflows using this engine. Defaults to 3. Set to -1 to disable agent concurrency limiting. Uses GitHub Actions concurrency controls with slot-based distribution."
             },
             "user-agent": {
               "type": "string",

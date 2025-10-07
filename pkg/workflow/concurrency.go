@@ -28,10 +28,15 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 	return concurrencyConfig
 }
 
-// GenerateJobConcurrencyConfig generates the job-level concurrency configuration
+// GenerateJobConcurrencyConfig generates the agent concurrency configuration
 // for max-concurrency limiting across all workflows using the same engine
 func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
-	// Build job-level concurrency for max-concurrency feature
+	// Check if max-concurrency is -1 (disabled)
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxConcurrency == -1 {
+		return "" // Don't emit agent concurrency when disabled
+	}
+
+	// Build agent concurrency for max-concurrency feature
 	// This uses ONLY engine ID and run_id slot for global limiting
 	var keys []string
 
@@ -56,7 +61,7 @@ func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
 
 	groupValue := strings.Join(keys, "-")
 
-	// Build the concurrency configuration (no cancel-in-progress at job level)
+	// Build the concurrency configuration (no cancel-in-progress at agent level)
 	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
 
 	return concurrencyConfig

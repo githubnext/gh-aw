@@ -11,7 +11,7 @@ GitHub Agentic Workflows provides sophisticated concurrency control to manage ho
 
 Concurrency control in GitHub Agentic Workflows uses a dual-level approach with different strategies at each level:
 - **Workflow-level concurrency**: Context-specific limiting based on workflow type (issue, PR, branch, etc.)
-- **Job-level concurrency (max-concurrency)**: Global limiting across all workflows using the same engine
+- **Agent concurrency (max-concurrency)**: Global limiting across all workflows using the same engine
 
 This dual-level approach provides both fine-grained control per workflow and global resource management across all workflows.
 
@@ -29,6 +29,7 @@ engine:
 
 - **Default**: 3 concurrent slots (when not specified or set to 0)
 - **Minimum**: 1 (sequential execution)
+- **Disabled**: -1 (no agent concurrency limiting)
 - **No maximum**: Set to any positive integer based on your needs
 
 ### Configuration Examples
@@ -52,6 +53,13 @@ engine:
 engine:
   id: claude
   max-concurrency: 10
+```
+
+**Disable agent concurrency limiting:**
+```yaml
+engine:
+  id: claude
+  max-concurrency: -1  # No global limiting, only workflow-level concurrency applies
 ```
 
 ## How It Works
@@ -87,9 +95,9 @@ concurrency:
 
 This ensures workflows operating on different issues, PRs, or branches can run concurrently without interfering with each other.
 
-### Job-Level Concurrency (Max-Concurrency)
+### Agent Concurrency (Max-Concurrency)
 
-The job-level concurrency uses **only** the engine ID and slot number for global limiting:
+The agent concurrency uses **only** the engine ID and slot number for global limiting:
 
 ```yaml
 jobs:
@@ -128,7 +136,7 @@ jobs:
   agent:
     runs-on: ubuntu-latest
     permissions: read-all
-    # Job-level: Global max-concurrency limiting
+    # Agent concurrency: Global max-concurrency limiting
     concurrency:
       group: "gh-aw-claude-${{ github.run_id % 5 }}"
     steps:
@@ -154,28 +162,28 @@ Workflows are distributed across available slots using modulo arithmetic:
 The dual-level concurrency provides complementary control:
 
 1. **Workflow-level**: Prevents conflicts between runs of the same workflow on different contexts (e.g., different issues or PRs)
-2. **Job-level**: Prevents resource exhaustion by limiting total concurrent AI executions across all workflows
+2. **Agent concurrency**: Prevents resource exhaustion by limiting total concurrent AI executions across all workflows
 
 **Example scenario:**
 - 5 different issues trigger the same workflow
 - Workflow-level concurrency allows all 5 to start (different issue numbers)
-- Job-level max-concurrency (e.g., 3) ensures only 3 AI jobs run simultaneously
+- Agent concurrency with max-concurrency (e.g., 3) ensures only 3 AI jobs run simultaneously
 - The other 2 workflows queue until slots become available
 
 This approach balances:
 - **Workflow isolation**: Different contexts don't block each other at the workflow level
-- **Global resource management**: Total AI resource usage is controlled at the job level
+- **Global resource management**: Total AI resource usage is controlled at the agent level
 
 ## Global Lock Behavior
 
-The **job-level** concurrency (max-concurrency) uses **only** engine ID and slot number, creating a true global lock:
+The **agent concurrency** (max-concurrency) uses **only** engine ID and slot number, creating a true global lock:
 
-### What's Included in Job-Level Concurrency
+### What's Included in Agent Concurrency
 - ✅ Engine ID (`copilot`, `claude`, `codex`)
 - ✅ Slot number (from `run_id % max-concurrency`)
 - ✅ `gh-aw-` prefix
 
-### What's NOT Included in Job-Level Concurrency
+### What's NOT Included in Agent Concurrency
 - ❌ Workflow name
 - ❌ Issue number
 - ❌ Pull request number
@@ -183,6 +191,9 @@ The **job-level** concurrency (max-concurrency) uses **only** engine ID and slot
 - ❌ Event type
 
 This ensures the max-concurrency limit applies **repository-wide** across all workflows and refs for each engine.
+
+**Disabling Agent Concurrency**:
+Set `max-concurrency: -1` to disable agent concurrency limiting entirely. When disabled, only workflow-level concurrency applies, and there is no global limit on concurrent AI executions across workflows.
 
 ### Workflow-Level Concurrency Includes Context
 

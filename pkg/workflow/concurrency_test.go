@@ -351,6 +351,14 @@ func TestGenerateJobConcurrencyConfig(t *testing.T) {
   group: "gh-aw-codex-${{ github.run_id % 3 }}"`,
 			description: "Different engine IDs should be included in concurrency group for isolation",
 		},
+		{
+			name: "Max-concurrency -1 should disable agent concurrency",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude", MaxConcurrency: -1},
+			},
+			expected:    "",
+			description: "Max-concurrency -1 should return empty string (no agent concurrency)",
+		},
 	}
 
 	for _, tt := range tests {
