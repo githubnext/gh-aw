@@ -20,9 +20,9 @@ tools:
   edit:
 safe-outputs:
   create-pull-request:
-    title-prefix: "[auto] "
+    title-prefix: "[ca] "
     labels: [automation, dependencies]
-    draft: false
+    draft: true
 timeout_minutes: 15
 ---
 
@@ -134,7 +134,7 @@ If updates were made:
 - **Document Changes**: Include detailed information in the PR description
 - **Test First**: The recompile step will catch obvious issues
 - **Security Focused**: Prioritize security updates
-- **DO NOT COMMIT *.lock.yml files directly**. These files will be reconstructed by another action.
+- **DO NOT COMMIT `*.lock.yml` and `pkg/workflow/js/*.js` files directly**. These files will be reconstructed by another action.
 
 ## PR Description Template
 
