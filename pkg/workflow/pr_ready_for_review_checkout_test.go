@@ -121,17 +121,18 @@ Test workflow without contents permission.
 				t.Errorf("Expected PR checkout step: %v, got: %v", tt.expectPRCheckout, hasPRCheckout)
 			}
 
-			// If PR checkout is expected, verify the conditional logic
+			// If PR checkout is expected, verify it uses actions/github-script
 			if tt.expectPRCheckout {
-				// New simpler condition: just check for github.event.pull_request
-				if !strings.Contains(lockStr, "github.event.pull_request") {
-					t.Error("PR checkout step should check for github.event.pull_request")
+				// Check for actions/github-script usage
+				if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
+					t.Error("PR checkout step should use actions/github-script@v8")
 				}
-				if !strings.Contains(lockStr, "github.event.pull_request.head.ref") {
-					t.Error("PR checkout step should reference PR head ref")
+				// Check for JavaScript code patterns
+				if !strings.Contains(lockStr, "pullRequest.head.ref") {
+					t.Error("PR checkout step should reference PR head ref in JavaScript")
 				}
-				if !strings.Contains(lockStr, "git fetch origin") {
-					t.Error("PR checkout step should fetch from origin")
+				if !strings.Contains(lockStr, "execSync") {
+					t.Error("PR checkout step should use execSync for git commands")
 				}
 				if !strings.Contains(lockStr, "git checkout") {
 					t.Error("PR checkout step should checkout the branch")
@@ -189,21 +190,21 @@ Test workflow with pull_request triggers.
 	}
 	lockStr := string(lockContent)
 
-	// Verify the conditional structure uses simple PR context check
-	if !strings.Contains(lockStr, "github.event.pull_request") {
-		t.Error("Expected condition 'github.event.pull_request' not found")
+	// Verify the checkout uses actions/github-script
+	if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
+		t.Error("Expected PR checkout to use actions/github-script@v8")
 	}
 
-	// Verify PR branch reference
-	expectedPRLogic := []string{
-		`PR_BRANCH="${{ github.event.pull_request.head.ref }}"`,
-		`git fetch origin "$PR_BRANCH"`,
-		`git checkout "$PR_BRANCH"`,
+	// Verify JavaScript code patterns
+	expectedPatterns := []string{
+		`pullRequest.head.ref`,
+		`execSync`,
+		`git checkout`,
 	}
 
-	for _, logic := range expectedPRLogic {
-		if !strings.Contains(lockStr, logic) {
-			t.Errorf("Expected PR logic not found: %s", logic)
+	for _, pattern := range expectedPatterns {
+		if !strings.Contains(lockStr, pattern) {
+			t.Errorf("Expected JavaScript pattern not found: %s", pattern)
 		}
 	}
 }

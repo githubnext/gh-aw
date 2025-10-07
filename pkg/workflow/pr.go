@@ -101,10 +101,11 @@ func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data 
 	condition := BuildPropertyAccess("github.event.pull_request")
 	RenderConditionAsIf(yaml, condition, "          ")
 
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, checkoutPRReadyForReviewScript, "          ")
+	// Use actions/github-script instead of shell script
+	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
 
-	// Always add GH_TOKEN env variable for gh pr checkout (used in comment events)
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
+	// Add the JavaScript for checking out the PR branch
+	WriteJavaScriptToYAML(yaml, checkoutPRBranchScript)
 }

@@ -477,31 +477,42 @@ jobs:
       - name: Checkout PR branch
         if: |
           github.event.pull_request
-        run: |
-          set -e
-          # Checkout PR branch for pull_request events or comment events on PRs
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # For pull_request events, use the head ref directly
-            PR_BRANCH="${{ github.event.pull_request.head.ref }}"
-            echo "Checking out PR branch: $PR_BRANCH"
-            git fetch origin "$PR_BRANCH"
-            git checkout "$PR_BRANCH"
-          else
-            # For comment events on PRs, determine PR number and use gh pr checkout
-            if [ "${{ github.event_name }}" = "issue_comment" ]; then
-              PR_NUMBER="${{ github.event.issue.number }}"
-            elif [ "${{ github.event_name }}" = "pull_request_review_comment" ]; then
-              PR_NUMBER="${{ github.event.pull_request.number }}"
-            elif [ "${{ github.event_name }}" = "pull_request_review" ]; then
-              PR_NUMBER="${{ github.event.pull_request.number }}"
-            fi
-            if [ -n "$PR_NUMBER" ]; then
-              echo "Fetching PR #$PR_NUMBER..."
-              gh pr checkout "$PR_NUMBER"
-            fi
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { execSync } = require("child_process");
+            async function main() {
+              const eventName = context.eventName;
+              const pullRequest = context.payload.pull_request;
+              if (!pullRequest) {
+                core.info("No pull request context available, skipping checkout");
+                return;
+              }
+              core.info(`Event: ${eventName}`);
+              core.info(`Pull Request #${pullRequest.number}`);
+              try {
+                if (eventName === "pull_request") {
+                  const branchName = pullRequest.head.ref;
+                  core.info(`Checking out PR branch: ${branchName}`);
+                  execSync(`git fetch origin ${branchName}`, { stdio: "inherit" });
+                  execSync(`git checkout ${branchName}`, { stdio: "inherit" });
+                  core.info(`✅ Successfully checked out branch: ${branchName}`);
+                } else {
+                  const prNumber = pullRequest.number;
+                  core.info(`Checking out PR #${prNumber} using gh pr checkout`);
+                  execSync(`gh pr checkout ${prNumber}`, {
+                    stdio: "inherit",
+                    env: { ...process.env, GH_TOKEN: process.env.GITHUB_TOKEN },
+                  });
+                  core.info(`✅ Successfully checked out PR #${prNumber}`);
+                }
+              } catch (error) {
+                core.setFailed(`Failed to checkout PR branch: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
