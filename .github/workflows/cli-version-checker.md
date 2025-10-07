@@ -7,7 +7,8 @@ permissions:
   contents: read
   actions: read
 engine: claude
-network: defaults
+network: 
+   allowed: [defaults, "registry.npmjs.org"]
 tools:
   web-fetch:
   bash:
