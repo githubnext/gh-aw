@@ -167,6 +167,7 @@ describe("parse_copilot_log.cjs", () => {
         {
           type: "result",
           total_cost_usd: 0.0015,
+          premium_request_cost_usd: 0.0003,
           usage: { input_tokens: 150, output_tokens: 50 },
           num_turns: 1,
         },
@@ -179,6 +180,7 @@ describe("parse_copilot_log.cjs", () => {
       expect(result).toContain("copilot-test-123");
       expect(result).toContain("echo 'Hello World'");
       expect(result).toContain("Total Cost");
+      expect(result).toContain("Premium Request Cost");
       expect(result).toContain("<details>");
       expect(result).toContain("<summary>");
     });

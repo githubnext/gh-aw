@@ -39,6 +39,7 @@ type WorkflowRun struct {
 	Duration      time.Duration
 	TokenUsage    int
 	EstimatedCost float64
+	PremiumCost   float64 // Premium request cost (e.g., extended thinking, reasoning)
 	Turns         int
 	ErrorCount    int
 	WarningCount  int
@@ -463,6 +464,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			run := result.Run
 			run.TokenUsage = result.Metrics.TokenUsage
 			run.EstimatedCost = result.Metrics.EstimatedCost
+			run.PremiumCost = result.Metrics.PremiumCost
 			run.Turns = result.Metrics.Turns
 			run.ErrorCount = result.Metrics.ErrorCount
 			run.WarningCount = result.Metrics.WarningCount
@@ -913,6 +915,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Aggregate metrics
 			metrics.TokenUsage += fileMetrics.TokenUsage
 			metrics.EstimatedCost += fileMetrics.EstimatedCost
+			metrics.PremiumCost += fileMetrics.PremiumCost
 			metrics.ErrorCount += fileMetrics.ErrorCount
 			metrics.WarningCount += fileMetrics.WarningCount
 			if fileMetrics.Turns > metrics.Turns {
@@ -1037,11 +1040,12 @@ func displayLogsOverview(runs []WorkflowRun) {
 	}
 
 	// Prepare table data
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Created", "Logs Path"}
+	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Premium ($)", "Turns", "Errors", "Warnings", "Created", "Logs Path"}
 	var rows [][]string
 
 	var totalTokens int
 	var totalCost float64
+	var totalPremiumCost float64
 	var totalDuration time.Duration
 	var totalTurns int
 	var totalErrors int
@@ -1060,6 +1064,13 @@ func displayLogsOverview(runs []WorkflowRun) {
 		if run.EstimatedCost > 0 {
 			costStr = fmt.Sprintf("%.3f", run.EstimatedCost)
 			totalCost += run.EstimatedCost
+		}
+
+		// Format premium cost
+		premiumCostStr := ""
+		if run.PremiumCost > 0 {
+			premiumCostStr = fmt.Sprintf("%.3f", run.PremiumCost)
+			totalPremiumCost += run.PremiumCost
 		}
 
 		// Format tokens
@@ -1106,6 +1117,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 			durationStr,
 			tokensStr,
 			costStr,
+			premiumCostStr,
 			turnsStr,
 			errorsStr,
 			warningsStr,
@@ -1123,6 +1135,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 		formatDuration(totalDuration),
 		formatNumber(totalTokens),
 		fmt.Sprintf("%.3f", totalCost),
+		fmt.Sprintf("%.3f", totalPremiumCost),
 		fmt.Sprintf("%d", totalTurns),
 		fmt.Sprintf("%d", totalErrors),
 		fmt.Sprintf("%d", totalWarnings),

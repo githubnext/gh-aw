@@ -185,6 +185,10 @@ function parseCopilotLog(logContent) {
         markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
       }
 
+      if (lastEntry.premium_request_cost_usd) {
+        markdown += `**Premium Request Cost:** $${lastEntry.premium_request_cost_usd.toFixed(4)}\n\n`;
+      }
+
       if (lastEntry.usage) {
         const usage = lastEntry.usage;
         if (usage.input_tokens || usage.output_tokens) {

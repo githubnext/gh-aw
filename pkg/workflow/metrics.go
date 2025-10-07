@@ -21,6 +21,7 @@ type ToolCallInfo struct {
 type LogMetrics struct {
 	TokenUsage    int
 	EstimatedCost float64
+	PremiumCost   float64 // Premium request cost (e.g., extended thinking, reasoning)
 	ErrorCount    int
 	WarningCount  int
 	Turns         int            // Number of turns needed to complete the task
@@ -80,6 +81,11 @@ func ExtractJSONMetrics(line string, verbose bool) LogMetrics {
 	// Extract cost information from various possible fields
 	if cost := ExtractJSONCost(jsonData); cost > 0 {
 		metrics.EstimatedCost = cost
+	}
+
+	// Extract premium cost information from various possible fields
+	if premiumCost := ExtractJSONPremiumCost(jsonData); premiumCost > 0 {
+		metrics.PremiumCost = premiumCost
 	}
 
 	return metrics
@@ -171,6 +177,35 @@ func ExtractJSONCost(data map[string]any) float64 {
 	if billing, exists := data["billing"]; exists {
 		if billingMap, ok := billing.(map[string]any); ok {
 			for _, field := range costFields {
+				if val, exists := billingMap[field]; exists {
+					if cost := ConvertToFloat(val); cost > 0 {
+						return cost
+					}
+				}
+			}
+		}
+	}
+
+	return 0
+}
+
+// ExtractJSONPremiumCost extracts premium request cost information from JSON data
+func ExtractJSONPremiumCost(data map[string]any) float64 {
+	// Premium cost field names (extended thinking, reasoning, etc.)
+	premiumCostFields := []string{"premium_request_cost_usd", "premium_cost_usd", "premium_cost", "reasoning_cost_usd", "extended_thinking_cost_usd"}
+
+	for _, field := range premiumCostFields {
+		if val, exists := data[field]; exists {
+			if cost := ConvertToFloat(val); cost > 0 {
+				return cost
+			}
+		}
+	}
+
+	// Check nested billing or pricing objects
+	if billing, exists := data["billing"]; exists {
+		if billingMap, ok := billing.(map[string]any); ok {
+			for _, field := range premiumCostFields {
 				if val, exists := billingMap[field]; exists {
 					if cost := ConvertToFloat(val); cost > 0 {
 						return cost

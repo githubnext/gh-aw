@@ -430,6 +430,59 @@ func TestExtractJSONCost(t *testing.T) {
 	}
 }
 
+func TestExtractJSONPremiumCost(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]any
+		expected float64
+	}{
+		{
+			name:     "premium_request_cost_usd field",
+			data:     map[string]any{"premium_request_cost_usd": 0.0523},
+			expected: 0.0523,
+		},
+		{
+			name:     "premium_cost_usd field",
+			data:     map[string]any{"premium_cost_usd": 0.0123},
+			expected: 0.0123,
+		},
+		{
+			name:     "premium_cost field",
+			data:     map[string]any{"premium_cost": 0.0456},
+			expected: 0.0456,
+		},
+		{
+			name:     "reasoning_cost_usd field",
+			data:     map[string]any{"reasoning_cost_usd": 0.0789},
+			expected: 0.0789,
+		},
+		{
+			name:     "extended_thinking_cost_usd field",
+			data:     map[string]any{"extended_thinking_cost_usd": 0.0234},
+			expected: 0.0234,
+		},
+		{
+			name:     "nested billing premium cost",
+			data:     map[string]any{"billing": map[string]any{"premium_request_cost_usd": 0.0345}},
+			expected: 0.0345,
+		},
+		{
+			name:     "no premium cost fields",
+			data:     map[string]any{"total_cost_usd": 1.0, "tokens": 1000},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := workflow.ExtractJSONPremiumCost(tt.data)
+			if result != tt.expected {
+				t.Errorf("ExtractJSONPremiumCost() = %f, expected %f", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestParseLogFileWithClaudeResult(t *testing.T) {
 	// Create a temporary log file with the exact Claude result format from the issue
 	tmpDir := t.TempDir()

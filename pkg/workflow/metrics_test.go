@@ -370,6 +370,90 @@ func TestExtractJSONCost(t *testing.T) {
 	}
 }
 
+func TestExtractJSONPremiumCost(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]any
+		expected float64
+	}{
+		{
+			name: "Premium request cost USD",
+			data: map[string]any{
+				"premium_request_cost_usd": 0.0523,
+			},
+			expected: 0.0523,
+		},
+		{
+			name: "Premium cost USD",
+			data: map[string]any{
+				"premium_cost_usd": 0.0123,
+			},
+			expected: 0.0123,
+		},
+		{
+			name: "Premium cost",
+			data: map[string]any{
+				"premium_cost": 0.0456,
+			},
+			expected: 0.0456,
+		},
+		{
+			name: "Reasoning cost USD",
+			data: map[string]any{
+				"reasoning_cost_usd": 0.0789,
+			},
+			expected: 0.0789,
+		},
+		{
+			name: "Extended thinking cost USD",
+			data: map[string]any{
+				"extended_thinking_cost_usd": 0.0234,
+			},
+			expected: 0.0234,
+		},
+		{
+			name: "Nested billing premium cost",
+			data: map[string]any{
+				"billing": map[string]any{
+					"premium_request_cost_usd": 0.0345,
+				},
+			},
+			expected: 0.0345,
+		},
+		{
+			name: "No premium cost information",
+			data: map[string]any{
+				"total_cost_usd": 1.0,
+				"tokens":         1000,
+			},
+			expected: 0.0,
+		},
+		{
+			name: "String premium cost value",
+			data: map[string]any{
+				"premium_cost": "0.0567",
+			},
+			expected: 0.0567,
+		},
+		{
+			name: "Zero premium cost",
+			data: map[string]any{
+				"premium_request_cost_usd": 0.0,
+			},
+			expected: 0.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractJSONPremiumCost(tt.data)
+			if result != tt.expected {
+				t.Errorf("ExtractJSONPremiumCost(%+v) = %f, want %f", tt.data, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestConvertToInt(t *testing.T) {
 	tests := []struct {
 		name     string
