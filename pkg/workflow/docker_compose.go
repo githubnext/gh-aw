@@ -74,7 +74,7 @@ func generateDockerCompose(containerImage string, envVars map[string]any, toolNa
 		for key := range envVars {
 			keys = append(keys, key)
 		}
-		sortStringSlice(keys)
+		sort.Strings(keys)
 
 		// Add environment variables in sorted order
 		for _, key := range keys {
@@ -129,9 +129,4 @@ func computeProxyNetworkParams(toolName string) (subnetCIDR string, squidIP stri
 	squidIP = fmt.Sprintf("172.28.%d.10", octet)
 	networkName = "awproxy-" + toolName
 	return
-}
-
-// sortStringSlice sorts a slice of strings in-place
-func sortStringSlice(s []string) {
-	sort.Strings(s)
 }
