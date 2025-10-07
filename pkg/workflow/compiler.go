@@ -2092,6 +2092,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString(line)
 	}
 
+	// Add step to checkout PR branch if the event is pull_request with ready_for_review type
+	c.generatePRReadyForReviewCheckout(yaml, data)
+
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
 

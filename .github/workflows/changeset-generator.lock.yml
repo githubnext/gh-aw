@@ -285,6 +285,16 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Checkout PR branch for ready_for_review
+        if: |
+          (github.event_name == 'pull_request') && (github.event.action == 'ready_for_review')
+        run: |
+          set -e
+          # Checkout PR branch for ready_for_review event
+          PR_BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Checking out PR branch: $PR_BRANCH"
+          git fetch origin "$PR_BRANCH"
+          git checkout "$PR_BRANCH"
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

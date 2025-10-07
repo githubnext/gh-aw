@@ -84,3 +84,39 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 
 	return false
 }
+
+// generatePRReadyForReviewCheckout generates a step to checkout the PR branch if the event is pull_request with ready_for_review type
+func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data *WorkflowData) {
+	// Check if workflow has pull_request trigger with ready_for_review type
+	if data.On == "" || !strings.Contains(data.On, "pull_request") {
+		return // No pull_request trigger, skip
+	}
+
+	// Check if ready_for_review is specified in the trigger configuration
+	if !strings.Contains(data.On, "ready_for_review") {
+		return // No ready_for_review type, skip
+	}
+
+	// Check that permissions allow contents read access
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return // No contents read access, cannot checkout
+	}
+
+	// Add a conditional step that checks out the PR branch if applicable
+	yaml.WriteString("      - name: Checkout PR branch for ready_for_review\n")
+
+	// Build condition for pull_request event with ready_for_review type
+	condition := buildAnd(
+		BuildEventTypeEquals("pull_request"),
+		BuildComparison(
+			BuildPropertyAccess("github.event.action"),
+			"==",
+			&ExpressionNode{Expression: "'ready_for_review'"},
+		),
+	)
+	RenderConditionAsIf(yaml, condition, "          ")
+
+	yaml.WriteString("        run: |\n")
+	WriteShellScriptToYAML(yaml, checkoutPRReadyForReviewScript, "          ")
+}
