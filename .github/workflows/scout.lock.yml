@@ -467,6 +467,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    concurrency:
+      group: "gh-aw-copilot-${{ github.run_id % 3 }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
