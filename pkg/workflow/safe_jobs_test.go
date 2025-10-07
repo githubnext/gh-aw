@@ -473,3 +473,96 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 		t.Errorf("Expected conflict error message, got '%s'", err.Error())
 	}
 }
+
+// TestMergeSafeJobsFromIncludedConfigs tests merging safe-jobs from included safe-outputs configurations
+func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
+c := &Compiler{}
+
+// Top-level safe-jobs
+topSafeJobs := map[string]*SafeJobConfig{
+"deploy": {
+Name:   "Deploy Application",
+RunsOn: "ubuntu-latest",
+},
+}
+
+// Simulate included safe-outputs configurations (as returned by ExpandIncludesForSafeOutputs)
+includedConfigs := []string{
+`{
+"jobs": {
+"test": {
+"runs-on": "ubuntu-latest",
+"inputs": {
+"suite": {
+"description": "Test suite to run",
+"required": true,
+"type": "string"
+}
+}
+}
+}
+}`,
+`{
+"jobs": {
+"notify": {
+"runs-on": "ubuntu-latest",
+"output": "Notification sent",
+"inputs": {
+"message": {
+"description": "Notification message",
+"required": true,
+"type": "string"
+}
+}
+}
+}
+}`,
+}
+
+result, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, includedConfigs)
+if err != nil {
+t.Errorf("Expected no error merging from included configs, got %v", err)
+}
+
+if len(result) != 3 {
+t.Errorf("Expected 3 safe-jobs after merge, got %d", len(result))
+}
+
+testJob, exists := result["test"]
+if !exists {
+t.Error("Expected 'test' job from includes to exist")
+}
+
+if testJob.RunsOn != "ubuntu-latest" {
+t.Errorf("Expected test job runs-on to be 'ubuntu-latest', got '%s'", testJob.RunsOn)
+}
+
+notifyJob, exists := result["notify"]
+if !exists {
+t.Error("Expected 'notify' job from includes to exist")
+}
+
+if notifyJob.Output != "Notification sent" {
+t.Errorf("Expected notify job output to be 'Notification sent', got '%s'", notifyJob.Output)
+}
+
+// Test conflict detection
+conflictingConfigs := []string{
+`{
+"jobs": {
+"deploy": {
+"runs-on": "windows-latest"
+}
+}
+}`,
+}
+
+_, err = c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, conflictingConfigs)
+if err == nil {
+t.Error("Expected error when merging conflicting safe-job from included configs")
+}
+
+if !strings.Contains(err.Error(), "safe-job name conflict") {
+t.Errorf("Expected conflict error message, got '%s'", err.Error())
+}
+}
