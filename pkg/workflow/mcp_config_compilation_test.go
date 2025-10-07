@@ -116,6 +116,87 @@ Please use the markitdown MCP server to convert HTML to markdown.
 	}
 }
 
+// TestMCPEnvVarsAlphabeticallySorted verifies that env vars in MCP configs are sorted alphabetically
+func TestMCPEnvVarsAlphabeticallySorted(t *testing.T) {
+	// Create a temporary markdown file with mcp-servers configuration containing env vars
+	workflowContent := `---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+engine: copilot
+mcp-servers:
+  test-server:
+    container: example/test:latest
+    env:
+      ZEBRA_VAR: "z"
+      ALPHA_VAR: "a"
+      BETA_VAR: "b"
+---
+
+# Test MCP Env Var Sorting
+
+This workflow tests that MCP server env vars are sorted alphabetically.
+`
+
+	// Create temporary file
+	tmpFile, err := os.CreateTemp("", "test-env-sort-*.md")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	// Write content to file
+	if _, err := tmpFile.WriteString(workflowContent); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	// Create compiler and compile workflow
+	compiler := NewCompiler(false, "", "test")
+	compiler.SetSkipValidation(true)
+
+	// Generate YAML
+	workflowData, err := compiler.ParseWorkflowFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse workflow file: %v", err)
+	}
+
+	yamlContent, err := compiler.generateYAML(workflowData, tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Find the env section in the generated YAML
+	envIndex := strings.Index(yamlContent, `"env": {`)
+	if envIndex == -1 {
+		t.Fatalf("Could not find env section in generated YAML")
+	}
+
+	// Extract a portion of YAML starting from env section (next 300 chars should be enough)
+	envSection := yamlContent[envIndex : envIndex+300]
+
+	// Verify that ALPHA_VAR appears before BETA_VAR and ZEBRA_VAR
+	alphaIndex := strings.Index(envSection, `"ALPHA_VAR"`)
+	betaIndex := strings.Index(envSection, `"BETA_VAR"`)
+	zebraIndex := strings.Index(envSection, `"ZEBRA_VAR"`)
+
+	if alphaIndex == -1 || betaIndex == -1 || zebraIndex == -1 {
+		t.Fatalf("Could not find all env vars in generated YAML. Section: %s", envSection)
+	}
+
+	// Verify alphabetical order
+	if alphaIndex >= betaIndex {
+		t.Errorf("Expected ALPHA_VAR to appear before BETA_VAR, but ALPHA_VAR is at %d and BETA_VAR is at %d", alphaIndex, betaIndex)
+	}
+	if betaIndex >= zebraIndex {
+		t.Errorf("Expected BETA_VAR to appear before ZEBRA_VAR, but BETA_VAR is at %d and ZEBRA_VAR is at %d", betaIndex, zebraIndex)
+	}
+	if alphaIndex >= zebraIndex {
+		t.Errorf("Expected ALPHA_VAR to appear before ZEBRA_VAR, but ALPHA_VAR is at %d and ZEBRA_VAR is at %d", alphaIndex, zebraIndex)
+	}
+}
+
 // TestHasMCPConfigDetection verifies that hasMCPConfig properly detects MCP configurations
 func TestHasMCPConfigDetection(t *testing.T) {
 	testCases := []struct {
