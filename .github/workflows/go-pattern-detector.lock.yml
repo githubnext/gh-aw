@@ -189,7 +189,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.1
+        run: npm install -g @anthropic-ai/claude-code@2.0.9
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -308,6 +308,7 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            const { execSync } = require("child_process");
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
@@ -518,6 +519,47 @@ jobs:
                 ],
               };
             };
+            function getCurrentBranch() {
+              try {
+                const branch = execSync("git rev-parse --abbrev-ref HEAD", { encoding: "utf8" }).trim();
+                debug(`Resolved current branch: ${branch}`);
+                return branch;
+              } catch (error) {
+                throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            const createPullRequestHandler = args => {
+              const entry = { ...args, type: "create_pull_request" };
+              if (!entry.branch || entry.branch.trim() === "") {
+                entry.branch = getCurrentBranch();
+                debug(`Using current branch for create_pull_request: ${entry.branch}`);
+              }
+              appendSafeOutput(entry);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: `success`,
+                  },
+                ],
+              };
+            };
+            const pushToPullRequestBranchHandler = args => {
+              const entry = { ...args, type: "push_to_pull_request_branch" };
+              if (!entry.branch || entry.branch.trim() === "") {
+                entry.branch = getCurrentBranch();
+                debug(`Using current branch for push_to_pull_request_branch: ${entry.branch}`);
+              }
+              appendSafeOutput(entry);
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: `success`,
+                  },
+                ],
+              };
+            };
             const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
             const ALL_TOOLS = [
               {
@@ -573,7 +615,7 @@ jobs:
                 description: "Create a new GitHub pull request",
                 inputSchema: {
                   type: "object",
-                  required: ["title", "body", "branch"],
+                  required: ["title", "body"],
                   properties: {
                     title: { type: "string", description: "Pull request title" },
                     body: {
@@ -582,7 +624,7 @@ jobs:
                     },
                     branch: {
                       type: "string",
-                      description: "Required branch name",
+                      description: "Optional branch name. If not provided, the current branch will be used.",
                     },
                     labels: {
                       type: "array",
@@ -592,6 +634,7 @@ jobs:
                   },
                   additionalProperties: false,
                 },
+                handler: createPullRequestHandler,
               },
               {
                 name: "create_pull_request_review_comment",
@@ -705,11 +748,11 @@ jobs:
                 description: "Push changes to a pull request branch",
                 inputSchema: {
                   type: "object",
-                  required: ["branch", "message"],
+                  required: ["message"],
                   properties: {
                     branch: {
                       type: "string",
-                      description: "The name of the branch to push to, should be the branch name associated with the pull request",
+                      description: "Optional branch name. If not provided, the current branch will be used.",
                     },
                     message: { type: "string", description: "Commit message" },
                     pull_request_number: {
@@ -719,6 +762,7 @@ jobs:
                   },
                   additionalProperties: false,
                 },
+                handler: pushToPullRequestBranchHandler,
               },
               {
                 name: "upload_asset",
@@ -2406,61 +2450,76 @@ jobs:
                 }
                 return "❓"; 
               }
-              let markdown = "";
               const statusIcon = getStatusIcon();
+              let summary = "";
+              let details = "";
+              if (toolResult && toolResult.content) {
+                if (typeof toolResult.content === "string") {
+                  details = toolResult.content;
+                } else if (Array.isArray(toolResult.content)) {
+                  details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
+                }
+              }
               switch (toolName) {
                 case "Bash":
                   const command = input.command || "";
                   const description = input.description || "";
                   const formattedCommand = formatBashCommand(command);
                   if (description) {
-                    markdown += `${description}:\n\n`;
+                    summary = `${statusIcon} ${description}: \`${formattedCommand}\``;
+                  } else {
+                    summary = `${statusIcon} \`${formattedCommand}\``;
                   }
-                  markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
                   break;
                 case "Read":
                   const filePath = input.file_path || input.path || "";
                   const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); 
-                  markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
+                  summary = `${statusIcon} Read \`${relativePath}\``;
                   break;
                 case "Write":
                 case "Edit":
                 case "MultiEdit":
                   const writeFilePath = input.file_path || input.path || "";
                   const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
+                  summary = `${statusIcon} Write \`${writeRelativePath}\``;
                   break;
                 case "Grep":
                 case "Glob":
                   const query = input.query || input.pattern || "";
-                  markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
+                  summary = `${statusIcon} Search for \`${truncateString(query, 80)}\``;
                   break;
                 case "LS":
                   const lsPath = input.path || "";
                   const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
+                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}`;
                   break;
                 default:
                   if (toolName.startsWith("mcp__")) {
                     const mcpName = formatMcpName(toolName);
                     const params = formatMcpParameters(input);
-                    markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
+                    summary = `${statusIcon} ${mcpName}(${params})`;
                   } else {
                     const keys = Object.keys(input);
                     if (keys.length > 0) {
                       const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
                       const value = String(input[mainParam] || "");
                       if (value) {
-                        markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
+                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}`;
                       } else {
-                        markdown += `${statusIcon} ${toolName}\n\n`;
+                        summary = `${statusIcon} ${toolName}`;
                       }
                     } else {
-                      markdown += `${statusIcon} ${toolName}\n\n`;
+                      summary = `${statusIcon} ${toolName}`;
                     }
                   }
               }
-              return markdown;
+              if (details && details.trim()) {
+                const maxDetailsLength = 500;
+                const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
+                return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
+              } else {
+                return `${summary}\n\n`;
+              }
             }
             function formatMcpName(toolName) {
               if (toolName.startsWith("mcp__")) {
@@ -2754,7 +2813,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.1
+        run: npm install -g @anthropic-ai/claude-code@2.0.9
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
