@@ -273,7 +273,7 @@ jobs:
       pull-requests: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{},\"missing-tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -398,7 +398,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"create-pull-request":{},"missing-tool":{}}
+          {"missing-tool":{},"push-to-pull-request-branch":{}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1028,7 +1028,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -1114,12 +1114,10 @@ jobs:
           Optional: More detailed explanation based on PR body
           ```
           
-          5. **Create a Branch and Pull Request**:
-             - Create a new branch with a descriptive name (e.g., `changeset/pr-123-add-feature`)
-             - Add and commit the changeset file to the new branch
-             - Create a pull request with:
-               - Title: "[changeset] Add changeset for PR #<number>"
-               - Body explaining what changeset was generated and for which PR
+          5. **Commit and Push Changes**:
+             - Add and commit the changeset file to the current pull request branch
+             - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes
+             - The changeset will be added directly to this pull request
           
           ## Changeset Format Reference
           
@@ -1186,7 +1184,7 @@ jobs:
           
           This PR adds the ability to configure custom themes for the CLI output.
           ```
-          5. Create a branch, commit the file, and create a PR
+          5. Add and commit the file to the current PR branch, then push using the safe-outputs tool
           
           Start by checking the repository structure and analyzing the current PR to generate an appropriate changeset.
           
@@ -1231,18 +1229,16 @@ jobs:
           
           ---
           
-          ## Creating a Pull RequestReporting Missing Tools or Functionality
+          ## Pushing Changes to Branch, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Creating a Pull Request**
+          **Pushing Changes to Pull Request Branch**
           
-          To create a pull request:
+          To push changes to the branch of a pull request:
           1. Make any file changes directly in the working directory
-          2. If you haven't done so already, create a local branch using an appropriate unique name
-          3. Add and commit your changes to the branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          4. Do not push your changes. That will be done by the tool.
-          5. Create the pull request with the create-pull-request tool from the safe-outputs MCP
+          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
+          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP
           
           **Reporting Missing Tools or Functionality**
           
@@ -1458,7 +1454,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
         with:
           script: |
             async function main() {
@@ -2836,7 +2832,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Changeset Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Changeset Generator\n\nYou are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.\n\n## Mission\n\nWhen a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Pull Request Number**: ${{ github.event.pull_request.number }}\n- **Pull Request Content**: \"${{ needs.activation.outputs.text }}\"\n\n## Task\n\nYour task is to:\n\n1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.\n\n2. **Determine the Package Name**: \n   - Check if this is a monorepo with multiple packages in `package.json` files\n   - If it's a single package repo, use the package name from the root `package.json`\n   - If no package.json exists, use the repository name as the package identifier\n\n3. **Determine the Change Type**:\n   - **major**: Breaking changes (indicated by \"BREAKING CHANGE\" in PR or major API changes)\n   - **minor**: New features, enhancements (look for \"feat:\", \"feature:\", \"add:\", etc.)\n   - **patch**: Bug fixes, documentation, refactoring (look for \"fix:\", \"bug:\", \"docs:\", etc.)\n\n4. **Generate the Changeset File**:\n   - Create a file in the `.changeset/` directory with a descriptive kebab-case name\n   - Use the format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)\n   - Follow the changeset format specification:\n\n```markdown\n---\n\"package-name\": <major|minor|patch>\n---\n\nBrief summary of the change (from PR title or first line of description)\n\nOptional: More detailed explanation based on PR body\n```\n\n5. **Create a Branch and Pull Request**:\n   - Create a new branch with a descriptive name (e.g., `changeset/pr-123-add-feature`)\n   - Add and commit the changeset file to the new branch\n   - Create a pull request with:\n     - Title: \"[changeset] Add changeset for PR #<number>\"\n     - Body explaining what changeset was generated and for which PR\n\n## Changeset Format Reference\n\nBased on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md\n\n### Basic Format\n\n```markdown\n---\n\"package-name\": patch\n---\n\nFixed a bug in the component rendering logic\n```\n\n### Multiple Packages\n\n```markdown\n---\n\"@myorg/button\": minor\n\"@myorg/theme\": patch\n---\n\nAdd new variant prop to Button component\n\nThis adds a new `variant` prop to the Button component allowing for different visual styles.\nThe theme package has been updated with new color tokens to support these variants.\n```\n\n### Version Bump Types\n- **patch**: Bug fixes, documentation updates, refactoring (0.0.X)\n- **minor**: New features, non-breaking additions (0.X.0)  \n- **major**: Breaking changes (X.0.0)\n\n## Guidelines\n\n- **Be Accurate**: Analyze the PR content carefully to determine the correct change type\n- **Be Clear**: The changeset description should clearly explain what changed\n- **Be Concise**: Keep descriptions brief but informative\n- **Follow Conventions**: Use the exact changeset format specified above\n- **Single Package Default**: If unsure about package structure, default to a single package using the repo name\n- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)\n\n## Important Notes\n\n- The changeset file must be created in the `.changeset/` directory\n- If `.changeset/` doesn't exist, create it first\n- The changeset filename should be unique and descriptive\n- Use quotes around package names in the YAML frontmatter\n- The changeset description should be based on the PR title and body\n\n## Example Workflow\n\n1. Read the PR title: \"Add support for custom themes\"\n2. Determine this is a new feature → `minor` bump\n3. Check for package.json to get package name\n4. Create `.changeset/minor-add-custom-theme-support.md`:\n```markdown\n---\n\"gh-aw\": minor\n---\n\nAdd support for custom themes\n\nThis PR adds the ability to configure custom themes for the CLI output.\n```\n5. Create a branch, commit the file, and create a PR\n\nStart by checking the repository structure and analyzing the current PR to generate an appropriate changeset.\n"
+          WORKFLOW_MARKDOWN: "# Changeset Generator\n\nYou are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.\n\n## Mission\n\nWhen a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Pull Request Number**: ${{ github.event.pull_request.number }}\n- **Pull Request Content**: \"${{ needs.activation.outputs.text }}\"\n\n## Task\n\nYour task is to:\n\n1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.\n\n2. **Determine the Package Name**: \n   - Check if this is a monorepo with multiple packages in `package.json` files\n   - If it's a single package repo, use the package name from the root `package.json`\n   - If no package.json exists, use the repository name as the package identifier\n\n3. **Determine the Change Type**:\n   - **major**: Breaking changes (indicated by \"BREAKING CHANGE\" in PR or major API changes)\n   - **minor**: New features, enhancements (look for \"feat:\", \"feature:\", \"add:\", etc.)\n   - **patch**: Bug fixes, documentation, refactoring (look for \"fix:\", \"bug:\", \"docs:\", etc.)\n\n4. **Generate the Changeset File**:\n   - Create a file in the `.changeset/` directory with a descriptive kebab-case name\n   - Use the format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)\n   - Follow the changeset format specification:\n\n```markdown\n---\n\"package-name\": <major|minor|patch>\n---\n\nBrief summary of the change (from PR title or first line of description)\n\nOptional: More detailed explanation based on PR body\n```\n\n5. **Commit and Push Changes**:\n   - Add and commit the changeset file to the current pull request branch\n   - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes\n   - The changeset will be added directly to this pull request\n\n## Changeset Format Reference\n\nBased on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md\n\n### Basic Format\n\n```markdown\n---\n\"package-name\": patch\n---\n\nFixed a bug in the component rendering logic\n```\n\n### Multiple Packages\n\n```markdown\n---\n\"@myorg/button\": minor\n\"@myorg/theme\": patch\n---\n\nAdd new variant prop to Button component\n\nThis adds a new `variant` prop to the Button component allowing for different visual styles.\nThe theme package has been updated with new color tokens to support these variants.\n```\n\n### Version Bump Types\n- **patch**: Bug fixes, documentation updates, refactoring (0.0.X)\n- **minor**: New features, non-breaking additions (0.X.0)  \n- **major**: Breaking changes (X.0.0)\n\n## Guidelines\n\n- **Be Accurate**: Analyze the PR content carefully to determine the correct change type\n- **Be Clear**: The changeset description should clearly explain what changed\n- **Be Concise**: Keep descriptions brief but informative\n- **Follow Conventions**: Use the exact changeset format specified above\n- **Single Package Default**: If unsure about package structure, default to a single package using the repo name\n- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)\n\n## Important Notes\n\n- The changeset file must be created in the `.changeset/` directory\n- If `.changeset/` doesn't exist, create it first\n- The changeset filename should be unique and descriptive\n- Use quotes around package names in the YAML frontmatter\n- The changeset description should be based on the PR title and body\n\n## Example Workflow\n\n1. Read the PR title: \"Add support for custom themes\"\n2. Determine this is a new feature → `minor` bump\n3. Check for package.json to get package name\n4. Create `.changeset/minor-add-custom-theme-support.md`:\n```markdown\n---\n\"gh-aw\": minor\n---\n\nAdd support for custom themes\n\nThis PR adds the ability to configure custom themes for the CLI output.\n```\n5. Add and commit the file to the current PR branch, then push using the safe-outputs tool\n\nStart by checking the repository structure and analyzing the current PR to generate an appropriate changeset.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2996,24 +2992,24 @@ jobs:
           path: /tmp/threat-detection/detection.log
           if-no-files-found: ignore
 
-  create_pull_request:
+  push_to_pull_request_branch:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-pull-request'))
+    if: >
+      ((always()) && (contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch'))) &&
+      (((github.event.issue.number) &&
+      (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      issues: write
-      pull-requests: write
+      pull-requests: read
+      issues: read
     timeout-minutes: 10
     outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
+      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
+      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
+      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
     steps:
       - name: Download patch artifact
         continue-on-error: true
@@ -3030,80 +3026,51 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Create Pull Request
-        id: create_pull_request
+      - name: Push to Branch
+        id: push_to_pull_request_branch
         uses: actions/github-script@v8
         env:
+          GH_TOKEN: ${{ github.token }}
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "agent"
-          GITHUB_AW_WORKFLOW_NAME: "Changeset Generator"
-          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GITHUB_AW_PR_TITLE_PREFIX: "[changeset] "
-          GITHUB_AW_PR_LABELS: "automation,changeset"
-          GITHUB_AW_PR_DRAFT: "false"
-          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
+          GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
           script: |
             const fs = require("fs");
-            const crypto = require("crypto");
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
-              }
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
+                return;
               }
-              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
+              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
+              const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
               if (!fs.existsSync("/tmp/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
+                const message = "No patch file found - cannot push without changes";
                 switch (ifNoChanges) {
                   case "error":
-                    throw new Error(message);
+                    core.setFailed(message);
+                    return;
                   case "ignore":
                     return;
                   case "warn":
                   default:
-                    core.warning(message);
+                    core.info(message);
                     return;
                 }
               }
               const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
               if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
+                const message = "Patch file contains error message - cannot push without changes";
                 switch (ifNoChanges) {
                   case "error":
-                    throw new Error(message);
+                    core.setFailed(message);
+                    return;
                   case "ignore":
                     return;
                   case "warn":
                   default:
-                    core.warning(message);
+                    core.info(message);
                     return;
                 }
               }
@@ -3115,38 +3082,30 @@ jobs:
                 core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
                 if (patchSizeKb > maxSizeKb) {
                   const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
+                  core.setFailed(message);
+                  return;
                 }
                 core.info("Patch size validation passed");
               }
-              if (isEmpty && !isStaged) {
+              if (isEmpty) {
                 const message = "Patch file is empty - no changes to apply (noop operation)";
                 switch (ifNoChanges) {
                   case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
+                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
                     return;
+                  case "ignore":
+                    break;
                   case "warn":
                   default:
-                    core.warning(message);
-                    return;
+                    core.info(message);
+                    break;
                 }
               }
-              core.debug(`Agent output content length: ${outputContent.length}`);
+              core.info(`Agent output content length: ${outputContent.length}`);
               if (!isEmpty) {
                 core.info("Patch content validation passed");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
               }
+              core.info(`Target configuration: ${target}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
@@ -3155,23 +3114,21 @@ jobs:
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
+                core.info("No valid items found in agent output");
                 return;
               }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create-pull-request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
+              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
+              if (!pushItem) {
+                core.info("No push-to-pull-request-branch item found in agent output");
                 return;
               }
-              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+              core.info("Found push-to-pull-request-branch item");
+              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
+                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
+                summaryContent += `**Target:** ${target}\n\n`;
+                if (pushItem.commit_message) {
+                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
                 }
                 if (fs.existsSync("/tmp/aw.patch")) {
                   const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
@@ -3183,224 +3140,148 @@ jobs:
                   }
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
+                core.info("📝 Push to PR branch preview written to step summary");
                 return;
               }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
+              if (target !== "*" && target !== "triggering") {
+                const pullNumber = parseInt(target, 10);
+                if (isNaN(pullNumber)) {
+                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
+                  return;
+                }
               }
-              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/actions/runs/${runId}`;
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
-              const labels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
-                : [];
-              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.debug(`Labels: ${JSON.stringify(labels)}`);
-              core.debug(`Draft: ${draft}`);
-              core.debug(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.debug("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
+              let pullNumber;
+              if (target === "triggering") {
+                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
+                if (!pullNumber) {
+                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
+                  return;
+                }
+              } else if (target === "*") {
+                if (pushItem.pull_number) {
+                  pullNumber = parseInt(pushItem.pull_number, 10);
+                }
               } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.debug(`Using branch name from JSONL with added salt: ${branchName}`);
+                pullNumber = parseInt(target, 10);
               }
-              core.info(`Generated branch name: ${branchName}`);
-              core.debug(`Base branch: ${baseBranch}`);
-              core.debug(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.debug(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
+              let branchName;
+              let prTitle = "";
+              let prLabels = [];
+              try {
+                const prInfoRes = await exec.getExecOutput(`gh`, [
+                  `pr`,
+                  `view`,
+                  `${pullNumber}`,
+                  `--json`,
+                  `headRefName,title,labels`,
+                  `--jq`,
+                  `{headRefName, title, labels: (.labels // [] | map(.name))}`,
+                ]);
+                if (prInfoRes.exitCode === 0) {
+                  const prData = JSON.parse(prInfoRes.stdout.trim());
+                  branchName = prData.headRefName;
+                  prTitle = prData.title || "";
+                  prLabels = prData.labels || [];
+                } else {
+                  throw new Error("No PR data found");
+                }
+              } catch (error) {
+                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
+                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
+                return;
+              }
+              core.info(`Target branch: ${branchName}`);
+              core.info(`PR title: ${prTitle}`);
+              core.info(`PR labels: ${prLabels.join(", ")}`);
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
+                core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
+                return;
+              }
+              const requiredLabelsStr = process.env.GITHUB_AW_PR_LABELS;
+              if (requiredLabelsStr) {
+                const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
+                const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
+                if (missingLabels.length > 0) {
+                  core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
+                  return;
+                }
+              }
+              if (titlePrefix) {
+                core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
+              }
+              if (requiredLabelsStr) {
+                core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
+              }
+              const hasChanges = !isEmpty;
+              core.info(`Switching to branch: ${branchName}`);
+              try {
+                await exec.exec("git fetch origin");
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
+                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
+                  core.info(`Checked out existing branch from origin: ${branchName}`);
+                } catch (originError) {
+                  core.setFailed(
+                    `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
+                  );
+                  return;
+                }
+              } catch (error) {
+                core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
               if (!isEmpty) {
                 core.info("Applying patch...");
-                await exec.exec("git am /tmp/aw.patch");
-                core.info("Patch applied successfully");
                 try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.debug(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
+                  await exec.exec("git am /tmp/aw.patch");
+                  core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `https://github.com/actions/runs/${runId}`;
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            `;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
+                  core.info(`Changes committed and pushed to branch: ${branchName}`);
+                } catch (error) {
+                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
+                  core.setFailed("Failed to apply patch");
+                  return;
                 }
               } else {
                 core.info("Skipping patch application (empty patch)");
                 const message = "No changes to apply - noop operation completed successfully";
                 switch (ifNoChanges) {
                   case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
+                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
                     return;
+                  case "ignore":
+                    break;
                   case "warn":
                   default:
-                    core.warning(message);
-                    return;
+                    core.info(message);
+                    break;
                 }
               }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-                }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+              const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
+              if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
+              const commitSha = commitShaRes.stdout.trim();
+              const pushUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/tree/${branchName}`
+                : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+              core.setOutput("branch_name", branchName);
+              core.setOutput("commit_sha", commitSha);
+              core.setOutput("push_url", pushUrl);
+              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
+              const summaryContent = hasChanges
+                ? `
+            ## ${summaryTitle}
             - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
+            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
+            - **URL**: [${pushUrl}](${pushUrl})
             `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.`;
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
-                }
-              }
+                : `
+            ## ${summaryTitle}
+            - **Branch**: \`${branchName}\`
+            - **Status**: No changes to apply (noop operation)
+            - **URL**: [${pushUrl}](${pushUrl})
+            `;
+              await core.summary.addRaw(summaryContent).write();
             }
             await main();
 

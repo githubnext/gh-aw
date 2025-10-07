@@ -8,10 +8,7 @@ permissions:
   pull-requests: read
 engine: claude
 safe-outputs:
-  create-pull-request:
-    title-prefix: "[changeset] "
-    labels: [automation, changeset]
-    draft: false
+  push-to-pull-request-branch:
 timeout_minutes: 10
 ---
 
@@ -60,12 +57,10 @@ Brief summary of the change (from PR title or first line of description)
 Optional: More detailed explanation based on PR body
 ```
 
-5. **Create a Branch and Pull Request**:
-   - Create a new branch with a descriptive name (e.g., `changeset/pr-123-add-feature`)
-   - Add and commit the changeset file to the new branch
-   - Create a pull request with:
-     - Title: "[changeset] Add changeset for PR #<number>"
-     - Body explaining what changeset was generated and for which PR
+5. **Commit and Push Changes**:
+   - Add and commit the changeset file to the current pull request branch
+   - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes
+   - The changeset will be added directly to this pull request
 
 ## Changeset Format Reference
 
@@ -132,6 +127,6 @@ Add support for custom themes
 
 This PR adds the ability to configure custom themes for the CLI output.
 ```
-5. Create a branch, commit the file, and create a PR
+5. Add and commit the file to the current PR branch, then push using the safe-outputs tool
 
 Start by checking the repository structure and analyzing the current PR to generate an appropriate changeset.
