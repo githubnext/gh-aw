@@ -536,7 +536,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
     // Create a dynamic tool for this safe-job
     const dynamicTool = {
       name: normalizedKey,
-      description: `Custom safe-job: ${configKey}`,
+      description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
       inputSchema: {
         type: "object",
         properties: {},
