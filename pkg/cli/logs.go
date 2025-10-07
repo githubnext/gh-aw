@@ -1040,7 +1040,7 @@ func displayLogsOverview(runs []WorkflowRun) {
 	}
 
 	// Prepare table data
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Premium ($)", "Turns", "Errors", "Warnings", "Created", "Logs Path"}
+	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Premium", "Turns", "Errors", "Warnings", "Created", "Logs Path"}
 	var rows [][]string
 
 	var totalTokens int

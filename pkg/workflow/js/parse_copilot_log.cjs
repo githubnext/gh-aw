@@ -186,7 +186,7 @@ function parseCopilotLog(logContent) {
       }
 
       if (lastEntry.premium_request_cost_usd) {
-        markdown += `**Premium Request Cost:** $${lastEntry.premium_request_cost_usd.toFixed(4)}\n\n`;
+        markdown += `**Premium Request Cost:** ${lastEntry.premium_request_cost_usd.toFixed(4)}\n\n`;
       }
 
       if (lastEntry.usage) {
