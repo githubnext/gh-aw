@@ -1322,7 +1322,7 @@ jobs:
         # - mcp__notion__get_page
         # - mcp__notion__query_database
         # - mcp__notion__search_pages
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file

@@ -10,6 +10,7 @@ engine: claude
 safe-outputs:
   push-to-pull-request-branch:
 timeout_minutes: 10
+strict: true
 ---
 
 # Changeset Generator

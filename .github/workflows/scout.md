@@ -24,6 +24,7 @@ safe-outputs:
   add-comment:
     max: 1
 timeout_minutes: 10
+strict: true
 ---
 
 # Scout Deep Research Agent

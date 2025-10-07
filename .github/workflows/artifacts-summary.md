@@ -19,6 +19,7 @@ safe-outputs:
     labels: [automation, artifacts, report]
     max: 1
 timeout_minutes: 15
+strict: true
 ---
 
 # GitHub Actions Artifacts Usage Summary

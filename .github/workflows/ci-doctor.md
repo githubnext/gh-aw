@@ -20,6 +20,7 @@ tools:
   cache-memory: true
   web-fetch: null
   web-search: null
+strict: true
 ---
 # CI Failure Doctor
 

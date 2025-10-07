@@ -24,6 +24,9 @@ mcp-servers:
       SERENA_DOCKER: "1"
       SERENA_PORT: "9121"
       SERENA_DASHBOARD_PORT: "24282"
+    network:
+      allowed:
+        - "github.com"
     allowed:
       - activate_project
       - find_symbol
@@ -38,6 +41,7 @@ safe-outputs:
     title-prefix: "[duplicate-code] "
     labels: [code-quality, automated-analysis]
 timeout_minutes: 15
+strict: true
 ---
 
 # Duplicate Code Detection Agent

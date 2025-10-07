@@ -139,6 +139,138 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@latest
+      - name: Setup Proxy Configuration for MCP Network Restrictions
+        run: |
+          echo "Generating proxy configuration files for MCP tools with network restrictions..."
+          
+          # Generate Squid proxy configuration
+          cat > squid.conf << 'EOF'
+          # Squid configuration for egress traffic control
+          # This configuration implements a allow-list-based proxy
+          
+          # Access log and cache configuration
+          access_log /var/log/squid/access.log squid
+          cache_log /var/log/squid/cache.log
+          cache deny all
+          
+          # Port configuration
+          http_port 3128
+          
+          # ACL definitions for allowed domains
+          acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
+          acl localnet src 10.0.0.0/8
+          acl localnet src 172.16.0.0/12
+          acl localnet src 192.168.0.0/16
+          acl SSL_ports port 443
+          acl Safe_ports port 80
+          acl Safe_ports port 443
+          acl CONNECT method CONNECT
+          
+          # Access rules
+          # Deny requests to unknown domains (not in allow-list)
+          http_access deny !allowed_domains
+          http_access deny !Safe_ports
+          http_access deny CONNECT !SSL_ports
+          http_access allow localnet
+          http_access deny all
+          
+          # Disable caching
+          cache deny all
+          
+          # DNS settings
+          dns_nameservers 8.8.8.8 8.8.4.4
+          
+          # Forwarded headers
+          forwarded_for delete
+          via off
+          
+          # Error page customization
+          error_directory /usr/share/squid/errors/English
+          
+          # Logging
+          logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
+          access_log /var/log/squid/access.log combined
+          
+          # Memory and file descriptor limits
+          cache_mem 64 MB
+          maximum_object_size 0 KB
+          EOF
+          
+          # Generate allowed domains file
+          cat > allowed_domains.txt << 'EOF'
+          # Allowed domains for egress traffic
+          # Add one domain per line
+          github.com
+          
+          EOF
+          
+          # Generate Docker Compose configuration for serena
+          cat > docker-compose-serena.yml << 'EOF'
+          services:
+            squid-proxy:
+              image: ubuntu/squid:latest
+              container_name: squid-proxy-serena
+              ports:
+                - "3128:3128"
+              volumes:
+                - ./squid.conf:/etc/squid/squid.conf:ro
+                - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
+                - squid-logs:/var/log/squid
+              healthcheck:
+                test: ["CMD", "squid", "-k", "check"]
+                interval: 30s
+                timeout: 10s
+                retries: 3
+              restart: unless-stopped
+              networks:
+                awproxy-serena:
+                  ipv4_address: 172.28.198.10
+          
+            serena:
+              image: ghcr.io/oraios/serena:latest
+              container_name: serena-mcp
+              stdin_open: true
+              tty: true
+              environment:
+                - PROXY_HOST=squid-proxy
+                - PROXY_PORT=3128
+                - HTTP_PROXY=http://squid-proxy:3128
+                - HTTPS_PROXY=http://squid-proxy:3128
+              networks:
+                - awproxy-serena
+                - SERENA_PORT=9121
+                - SERENA_DASHBOARD_PORT=24282
+                - SERENA_DOCKER=1
+              depends_on:
+                squid-proxy:
+                  condition: service_healthy
+          
+          volumes:
+            squid-logs:
+          
+          networks:
+            awproxy-serena:
+              driver: bridge
+              ipam:
+                config:
+                  - subnet: 172.28.198.0/24
+          
+          EOF
+          
+          echo "Proxy configuration files generated."
+      - name: Pre-pull images and start Squid proxy
+        run: |
+          set -e
+          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'
+          docker pull ubuntu/squid:latest
+          echo 'Starting squid-proxy service for serena'
+          docker compose -f docker-compose-serena.yml up -d squid-proxy
+          echo 'Enforcing egress to proxy for serena (subnet 172.28.198.0/24, squid 172.28.198.10)'
+          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi
+          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+          $SUDO iptables -C DOCKER-USER -s 172.28.198.10 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 2 -s 172.28.198.10 -j ACCEPT
+          $SUDO iptables -C DOCKER-USER -s 172.28.198.0/24 -d 172.28.198.10 -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 3 -s 172.28.198.0/24 -d 172.28.198.10 -p tcp --dport 3128 -j ACCEPT
+          $SUDO iptables -C DOCKER-USER -s 172.28.198.0/24 -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s 172.28.198.0/24 -j REJECT
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
@@ -2045,6 +2177,23 @@ jobs:
           path: |
             /tmp/.copilot/logs/
           if-no-files-found: ignore
+      - name: Extract squid access logs
+        if: always()
+        run: |
+          mkdir -p /tmp/access-logs
+          echo 'Extracting access.log from squid-proxy-serena container'
+          if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-serena$'; then
+            docker cp squid-proxy-serena:/var/log/squid/access.log /tmp/access-logs/access-serena.log 2>/dev/null || echo 'No access.log found for serena'
+          else
+            echo 'Container squid-proxy-serena not found'
+          fi
+      - name: Upload squid access logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: access.log
+          path: /tmp/access-logs/
+          if-no-files-found: warn
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
