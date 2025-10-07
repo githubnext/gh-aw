@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "**.go"
   workflow_dispatch:
 permissions:
   contents: read
