@@ -37,8 +37,9 @@ Imports only a specific section from a markdown file using the section header.
 
 ## Frontmatter Merging
 
-- **Only `tools:` frontmatter** is allowed in imported files, other entries give a warning.
+- **Only `tools:` and `mcp-servers:` frontmatter** is allowed in imported files, other entries give a warning.
 - **Tool merging**: `allowed:` tools are merged across all imported files
+- **MCP server merging**: MCP servers defined in imported files are merged with the main workflow
 
 ### Example Tool Merging
 ```aw wrap
@@ -63,6 +64,30 @@ tools:
 ```
 
 **Result**: Final workflow has `github.allowed: [get_issue, add_issue_comment, update_issue]` and Claude Edit tool.
+
+### Example MCP Server Merging
+
+```aw wrap
+# Base workflow
+---
+on: issues
+engine: copilot
+---
+
+@import shared/tavily-mcp.md  # Adds Tavily MCP server
+```
+
+```aw wrap
+# shared/tavily-mcp.md
+---
+mcp-servers:
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+---
+```
+
+**Result**: Final workflow has the Tavily MCP server configured and available to the AI engine.
 
 ## Import Path Resolution
 

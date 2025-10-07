@@ -298,8 +298,9 @@ Imports only a specific section from a markdown file using the section header.
 
 ### Frontmatter Merging
 
-- **Only `tools:` frontmatter** is allowed in imported files; other entries give a warning
+- **Only `tools:` and `mcp-servers:` frontmatter** is allowed in imported files; other entries give a warning
 - **Tool merging**: `allowed:` tools are merged across all imported files
+- **MCP server merging**: MCP servers defined in imported files are merged with the main workflow
 
 **Example Tool Merging:**
 
@@ -325,6 +326,30 @@ tools:
 ```
 
 **Result:** Final workflow has `github.allowed: [get_issue, add_issue_comment, update_issue]` and Claude Edit tool.
+
+**Example MCP Server Merging:**
+
+```aw wrap
+# Base workflow
+---
+on: issues
+engine: copilot
+---
+
+{{#import: shared/tavily-mcp.md}}  # Adds Tavily MCP server
+```
+
+```aw wrap
+# shared/tavily-mcp.md
+---
+mcp-servers:
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+---
+```
+
+**Result:** Final workflow has the Tavily MCP server configured and available to the AI engine.
 
 ### Import Processing During Add
 
@@ -353,8 +378,11 @@ The `imports:` field in frontmatter provides an alternative way to import files,
 imports:
   - shared/common-tools.md
   - shared/security-setup.md
+  - shared/tavily-mcp.md
 ---
 ```
+
+Imports can include both tool configurations and MCP server definitions from shared files.
 
 ### Import Processing
 
@@ -427,6 +455,44 @@ gh aw update experimental
 
 ### Example 3: Using Imports for Modular Workflows
 
+Create a shared MCP server configuration:
+
+```aw wrap
+# .github/workflows/shared/tavily-mcp.md
+---
+mcp-servers:
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+---
+```
+
+Create a workflow that imports the MCP server:
+
+```aw wrap
+# .github/workflows/research-agent.md
+---
+on:
+  issues:
+    types: [opened]
+
+imports:
+  - shared/tavily-mcp.md
+
+tools:
+  github:
+    allowed: [add_issue_comment]
+---
+
+# Research Agent
+
+Perform web research using Tavily and respond to issues.
+```
+
+The final workflow will have both the Tavily MCP server and GitHub tools configured.
+
+### Example 4: Using Imports for Common Tools
+
 Create a base workflow with common tools:
 
 ```aw wrap
@@ -466,7 +532,7 @@ Handle new issues with automated responses.
 
 The final workflow will have all three GitHub tools: `get_issue`, `get_pull_request`, and `add_issue_comment`.
 
-### Example 4: Creating Reusable Components
+### Example 5: Creating Reusable Components
 
 **Shared security notice:**
 

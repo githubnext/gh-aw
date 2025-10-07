@@ -87,10 +87,11 @@ type FrontmatterResult struct {
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools    string   // Merged tools configuration from all imports
-	MergedEngines  []string // Merged engine configurations from all imports
-	MergedMarkdown string   // Merged markdown content from all imports
-	ImportedFiles  []string // List of imported file paths (for manifest)
+	MergedTools      string   // Merged tools configuration from all imports
+	MergedMCPServers string   // Merged mcp-servers configuration from all imports
+	MergedEngines    []string // Merged engine configurations from all imports
+	MergedMarkdown   string   // Merged markdown content from all imports
+	ImportedFiles    []string // List of imported file paths (for manifest)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -387,6 +388,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 
 	// Process each import
 	var toolsBuilder strings.Builder
+	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
 	var engines []string
 	var processedFiles []string
@@ -451,13 +453,20 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && engineContent != "" {
 			engines = append(engines, engineContent)
 		}
+
+		// Extract mcp-servers from imported file
+		mcpServersContent, err := extractMCPServersFromContent(string(content))
+		if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
+			mcpServersBuilder.WriteString(mcpServersContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
-		MergedTools:    toolsBuilder.String(),
-		MergedEngines:  engines,
-		MergedMarkdown: markdownBuilder.String(),
-		ImportedFiles:  processedFiles,
+		MergedTools:      toolsBuilder.String(),
+		MergedMCPServers: mcpServersBuilder.String(),
+		MergedEngines:    engines,
+		MergedMarkdown:   markdownBuilder.String(),
+		ImportedFiles:    processedFiles,
 	}, nil
 }
 
@@ -808,6 +817,28 @@ func extractToolsFromContent(content string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(toolsJSON)), nil
+}
+
+// extractMCPServersFromContent extracts mcp-servers section from frontmatter as JSON string
+func extractMCPServersFromContent(content string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return "{}", nil // Return empty object on error
+	}
+
+	// Extract mcp-servers section
+	mcpServers, exists := result.Frontmatter["mcp-servers"]
+	if !exists {
+		return "{}", nil
+	}
+
+	// Convert to JSON string
+	mcpServersJSON, err := json.Marshal(mcpServers)
+	if err != nil {
+		return "{}", nil
+	}
+
+	return strings.TrimSpace(string(mcpServersJSON)), nil
 }
 
 // extractEngineFromContent extracts engine section from frontmatter as JSON string
