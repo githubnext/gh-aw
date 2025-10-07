@@ -1,6 +1,6 @@
 ---
 tools:
-  bash: ["ast-grep:*", "sg:*"]
+  bash: ["ast-grep:*"]
 steps:
   - name: Install ast-grep
     run: |
@@ -15,7 +15,7 @@ steps:
 
 ### Using ast-grep
 
-ast-grep (also available as `sg` command) is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.
+ast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.
 
 ### Basic Usage
 
