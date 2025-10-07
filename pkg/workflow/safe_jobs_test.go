@@ -476,9 +476,9 @@ func TestMergeSafeJobsFromIncludes(t *testing.T) {
 
 // TestMergeSafeJobsFromIncludedConfigs tests merging safe-jobs from included safe-outputs configurations
 func TestMergeSafeJobsFromIncludedConfigs(t *testing.T) {
-c := &Compiler{}
+	c := NewCompiler(false, "", "test")
 
-// Top-level safe-jobs
+	// Top-level safe-jobs
 topSafeJobs := map[string]*SafeJobConfig{
 "deploy": {
 Name:   "Deploy Application",
