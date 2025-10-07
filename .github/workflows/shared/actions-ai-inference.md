@@ -7,6 +7,8 @@ engine:
       with:
         prompt-file: ${{ env.GITHUB_AW_PROMPT }}
         model: gpt-4o-mini
+        enable-github-mcp: ${{ secrets.github_mcp_secret != '' }}
+        github-mcp-token: ${{ secrets.github_mcp_secret }}
 ---
 
 <!--
