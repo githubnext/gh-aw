@@ -4,7 +4,7 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
 # Resolved workflow manifest:
-#   Includes:
+#   Imports:
 #     - shared/notion.md
 
 name: "Issue Summary to Notion"
@@ -276,7 +276,7 @@ jobs:
       contents: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"},\"page_id\":{\"description\":\"The Notion page ID to add a comment to\",\"required\":true,\"type\":\"string\"}}}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"},\"page_id\":{\"description\":\"The Notion page ID to add a comment to\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -401,7 +401,7 @@ jobs:
         run: |
           mkdir -p /tmp/safe-outputs
           cat > /tmp/safe-outputs/config.json << 'EOF'
-          {"notion-add-comment":{"inputs":{"comment":{"description":"The comment text to add","required":true,"type":"string"},"page_id":{"description":"The Notion page ID to add a comment to","required":true,"type":"string"}}}}
+          {"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"description":"The comment text to add","required":true,"type":"string"},"page_id":{"description":"The Notion page ID to add a comment to","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"}}
           EOF
           cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -872,7 +872,7 @@ jobs:
                 const jobConfig = safeOutputsConfig[configKey];
                 const dynamicTool = {
                   name: normalizedKey,
-                  description: `Custom safe-job: ${configKey}`,
+                  description: jobConfig && jobConfig.description ? jobConfig.description : `Custom safe-job: ${configKey}`,
                   inputSchema: {
                     type: "object",
                     properties: {},
@@ -1031,7 +1031,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"},\"page_id\":{\"description\":\"The Notion page ID to add a comment to\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"},\"page_id\":{\"description\":\"The Notion page ID to add a comment to\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
         run: |
           mkdir -p /tmp/mcp-config
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
@@ -1374,7 +1374,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"},\"page_id\":{\"description\":\"The Notion page ID to add a comment to\",\"required\":true,\"type\":\"string\"}}}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"},\"page_id\":{\"description\":\"The Notion page ID to add a comment to\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
         with:
           script: |
             async function main() {
@@ -2650,29 +2650,55 @@ jobs:
           echo "Setting up environment for safe job"
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
       - name: Add comment to Notion page
-        run: |-
-          echo "Adding comment to Notion page: $PAGE_ID"
-
-          # Make API request to add comment to Notion page
-          curl -X POST "https://api.notion.com/v1/comments" \
-            -H "Authorization: Bearer $NOTION_TOKEN" \
-            -H "Notion-Version: 2022-06-28" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"parent\": {
-                \"page_id\": \"$PAGE_ID\"
-              },
-              \"rich_text\": [{
-                \"type\": \"text\",
-                \"text\": {
-                  \"content\": \"$COMMENT\"
-                }
-              }]
-            }"
-
-          echo "Comment added successfully"
+        uses: actions/github-script@v8
         env:
           COMMENT: ${{ inputs.comment }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           PAGE_ID: ${{ inputs.page_id }}
+        with:
+          script: |-
+            const notionToken = process.env.NOTION_TOKEN;
+            const pageId = process.env.PAGE_ID;
+            const comment = process.env.COMMENT;
+
+            if (!notionToken) {
+              core.setFailed('NOTION_TOKEN secret is not configured');
+              return;
+            }
+
+            core.info(`Adding comment to Notion page: ${pageId}`);
+
+            try {
+              const response = await fetch('https://api.notion.com/v1/comments', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${notionToken}`,
+                  'Notion-Version': '2022-06-28',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  parent: {
+                    page_id: pageId
+                  },
+                  rich_text: [{
+                    type: 'text',
+                    text: {
+                      content: comment
+                    }
+                  }]
+                })
+              });
+
+              if (!response.ok) {
+                const errorData = await response.text();
+                core.setFailed(`Notion API error (${response.status}): ${errorData}`);
+                return;
+              }
+
+              const data = await response.json();
+              core.info('Comment added successfully');
+              core.info(`Comment ID: ${data.id}`);
+            } catch (error) {
+              core.setFailed(`Failed to add comment: ${error.message}`);
+            }
 

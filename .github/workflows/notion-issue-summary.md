@@ -6,9 +6,9 @@ permissions:
   contents: read
   actions: read
 engine: claude
+imports:
+  - shared/notion.md
 ---
-
-{{#import shared/notion.md}}
 
 # Issue Summary to Notion
 

@@ -12,6 +12,7 @@ mcp-servers:
 safe-outputs:
   jobs:
     notion-add-comment:
+      description: "Add a comment to a Notion page"
       runs-on: ubuntu-latest
       output: "Comment added to Notion successfully!"
       inputs:
@@ -27,31 +28,57 @@ safe-outputs:
         contents: read
       steps:
         - name: Add comment to Notion page
+          uses: actions/github-script@v8
           env:
             NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
             PAGE_ID: "${{ inputs.page_id }}"
             COMMENT: "${{ inputs.comment }}"
-          run: |
-            echo "Adding comment to Notion page: $PAGE_ID"
-            
-            # Make API request to add comment to Notion page
-            curl -X POST "https://api.notion.com/v1/comments" \
-              -H "Authorization: Bearer $NOTION_TOKEN" \
-              -H "Notion-Version: 2022-06-28" \
-              -H "Content-Type: application/json" \
-              -d "{
-                \"parent\": {
-                  \"page_id\": \"$PAGE_ID\"
-                },
-                \"rich_text\": [{
-                  \"type\": \"text\",
-                  \"text\": {
-                    \"content\": \"$COMMENT\"
-                  }
-                }]
-              }"
-            
-            echo "Comment added successfully"
+          with:
+            script: |
+              const notionToken = process.env.NOTION_TOKEN;
+              const pageId = process.env.PAGE_ID;
+              const comment = process.env.COMMENT;
+              
+              if (!notionToken) {
+                core.setFailed('NOTION_TOKEN secret is not configured');
+                return;
+              }
+              
+              core.info(`Adding comment to Notion page: ${pageId}`);
+              
+              try {
+                const response = await fetch('https://api.notion.com/v1/comments', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${notionToken}`,
+                    'Notion-Version': '2022-06-28',
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    parent: {
+                      page_id: pageId
+                    },
+                    rich_text: [{
+                      type: 'text',
+                      text: {
+                        content: comment
+                      }
+                    }]
+                  })
+                });
+                
+                if (!response.ok) {
+                  const errorData = await response.text();
+                  core.setFailed(`Notion API error (${response.status}): ${errorData}`);
+                  return;
+                }
+                
+                const data = await response.json();
+                core.info('Comment added successfully');
+                core.info(`Comment ID: ${data.id}`);
+              } catch (error) {
+                core.setFailed(`Failed to add comment: ${error.message}`);
+              }
 ---
 
 ## Notion Integration

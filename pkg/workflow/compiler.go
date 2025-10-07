@@ -738,8 +738,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
 	}
 
-	// Merge safe-jobs from included safe-outputs configurations
-	includedSafeJobs, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, includedSafeOutputsConfigs)
+	// Combine imported safe-outputs with included safe-outputs
+	var allSafeOutputsConfigs []string
+	if len(importsResult.MergedSafeOutputs) > 0 {
+		allSafeOutputsConfigs = append(allSafeOutputsConfigs, importsResult.MergedSafeOutputs...)
+	}
+	if len(includedSafeOutputsConfigs) > 0 {
+		allSafeOutputsConfigs = append(allSafeOutputsConfigs, includedSafeOutputsConfigs...)
+	}
+
+	// Merge safe-jobs from all safe-outputs configurations (imported and included)
+	includedSafeJobs, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, allSafeOutputsConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
@@ -2791,6 +2800,16 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	if len(data.SafeOutputs.Jobs) > 0 {
 		for jobName, jobConfig := range data.SafeOutputs.Jobs {
 			safeJobConfig := map[string]any{}
+
+			// Add description if present
+			if jobConfig.Description != "" {
+				safeJobConfig["description"] = jobConfig.Description
+			}
+
+			// Add output if present
+			if jobConfig.Output != "" {
+				safeJobConfig["output"] = jobConfig.Output
+			}
 
 			// Add inputs information
 			if len(jobConfig.Inputs) > 0 {

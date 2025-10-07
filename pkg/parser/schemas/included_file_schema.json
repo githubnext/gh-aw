@@ -351,6 +351,10 @@
         "type": "string",
         "description": "Display name for the job"
       },
+      "description": {
+        "type": "string",
+        "description": "Description of the safe-job (used in MCP tool registration)"
+      },
       "runs-on": {
         "oneOf": [
           {

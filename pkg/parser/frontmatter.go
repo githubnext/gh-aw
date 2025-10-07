@@ -87,11 +87,12 @@ type FrontmatterResult struct {
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools      string   // Merged tools configuration from all imports
-	MergedMCPServers string   // Merged mcp-servers configuration from all imports
-	MergedEngines    []string // Merged engine configurations from all imports
-	MergedMarkdown   string   // Merged markdown content from all imports
-	ImportedFiles    []string // List of imported file paths (for manifest)
+	MergedTools       string   // Merged tools configuration from all imports
+	MergedMCPServers  string   // Merged mcp-servers configuration from all imports
+	MergedEngines     []string // Merged engine configurations from all imports
+	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
+	MergedMarkdown    string   // Merged markdown content from all imports
+	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -391,6 +392,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
 	var engines []string
+	var safeOutputs []string
 	var processedFiles []string
 
 	for _, importPath := range imports {
@@ -459,14 +461,21 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
 			mcpServersBuilder.WriteString(mcpServersContent + "\n")
 		}
+
+		// Extract safe-outputs from imported file
+		safeOutputsContent, err := extractSafeOutputsFromContent(string(content))
+		if err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
+			safeOutputs = append(safeOutputs, safeOutputsContent)
+		}
 	}
 
 	return &ImportsResult{
-		MergedTools:      toolsBuilder.String(),
-		MergedMCPServers: mcpServersBuilder.String(),
-		MergedEngines:    engines,
-		MergedMarkdown:   markdownBuilder.String(),
-		ImportedFiles:    processedFiles,
+		MergedTools:       toolsBuilder.String(),
+		MergedMCPServers:  mcpServersBuilder.String(),
+		MergedEngines:     engines,
+		MergedSafeOutputs: safeOutputs,
+		MergedMarkdown:    markdownBuilder.String(),
+		ImportedFiles:     processedFiles,
 	}, nil
 }
 
