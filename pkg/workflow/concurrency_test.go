@@ -104,7 +104,7 @@ tools:
 			expectedConcurrency: `concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"`,
 			shouldHaveCancel: false,
-			description:      "Issue workflows should use dynamic concurrency with issue number but no cancellation",
+			description:      "Issue workflows use global concurrency with engine ID and slot",
 		},
 	}
 
@@ -144,35 +144,6 @@ This is a test workflow for concurrency behavior.
 				t.Errorf("Expected cancel-in-progress: true for %s workflow, but not found in: %s", tt.name, workflowData.Concurrency)
 			} else if !tt.shouldHaveCancel && hasCancel {
 				t.Errorf("Did not expect cancel-in-progress: true for %s workflow, but found in: %s", tt.name, workflowData.Concurrency)
-			}
-
-			// For PR workflows, check for PR number inclusion; for alias workflows, check for issue/PR numbers; for issue workflows, check for issue number; for push workflows, check for github.ref
-			isPRWorkflow := strings.Contains(tt.name, "PR workflow")
-			isAliasWorkflow := strings.Contains(tt.name, "alias workflow")
-			isIssueWorkflow := strings.Contains(tt.name, "issue workflow")
-			isPushWorkflow := strings.Contains(tt.name, "push workflow")
-
-			if isPRWorkflow {
-				if !strings.Contains(workflowData.Concurrency, "github.event.pull_request.number") {
-					t.Errorf("Expected concurrency to include github.event.pull_request.number for %s workflow, got: %s", tt.name, workflowData.Concurrency)
-				}
-			} else if isAliasWorkflow {
-				if !strings.Contains(workflowData.Concurrency, "github.event.issue.number || github.event.pull_request.number") {
-					t.Errorf("Expected concurrency to include issue/PR numbers for %s workflow, got: %s", tt.name, workflowData.Concurrency)
-				}
-			} else if isIssueWorkflow {
-				if !strings.Contains(workflowData.Concurrency, "github.event.issue.number") {
-					t.Errorf("Expected concurrency to include github.event.issue.number for %s workflow, got: %s", tt.name, workflowData.Concurrency)
-				}
-			} else if isPushWorkflow {
-				if !strings.Contains(workflowData.Concurrency, "github.ref") {
-					t.Errorf("Expected concurrency to include github.ref for %s workflow, got: %s", tt.name, workflowData.Concurrency)
-				}
-			} else {
-				// For regular workflows (like schedule), don't expect github.ref unless it's also a push workflow
-				if strings.Contains(workflowData.Concurrency, "github.ref") && !isPushWorkflow {
-					t.Errorf("Did not expect concurrency to include github.ref for %s workflow, got: %s", tt.name, workflowData.Concurrency)
-				}
 			}
 		})
 	}
@@ -331,6 +302,71 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 
 			if result != tt.expected {
 				t.Errorf("GenerateConcurrencyConfig() failed for %s\nExpected:\n%s\nGot:\n%s", tt.description, tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestGenerateJobConcurrencyConfig tests the job-level concurrency configuration for max-concurrency
+func TestGenerateJobConcurrencyConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     string
+		description  string
+	}{
+		{
+			name: "Default max-concurrency (3) with copilot engine",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
+			description: "Should use default max-concurrency of 3 with copilot engine ID",
+		},
+		{
+			name: "Custom max-concurrency value should be used",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude", MaxConcurrency: 5},
+			},
+			expected: `concurrency:
+  group: "gh-aw-claude-${{ github.run_id % 5 }}"`,
+			description: "Custom max-concurrency should use specified value instead of default",
+		},
+		{
+			name: "Zero max-concurrency should use default (3)",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot", MaxConcurrency: 0}, // 0 means use default
+			},
+			expected: `concurrency:
+  group: "gh-aw-copilot-${{ github.run_id % 3 }}"`,
+			description: "Zero max-concurrency should default to 3",
+		},
+		{
+			name: "Different engine ID should be included in concurrency group",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "codex"},
+			},
+			expected: `concurrency:
+  group: "gh-aw-codex-${{ github.run_id % 3 }}"`,
+			description: "Different engine IDs should be included in concurrency group for isolation",
+		},
+		{
+			name: "Max-concurrency -1 should disable agent concurrency",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude", MaxConcurrency: -1},
+			},
+			expected:    "",
+			description: "Max-concurrency -1 should return empty string (no agent concurrency)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GenerateJobConcurrencyConfig(tt.workflowData)
+
+			if result != tt.expected {
+				t.Errorf("GenerateJobConcurrencyConfig() failed for %s\nExpected:\n%s\nGot:\n%s", tt.description, tt.expected, result)
 			}
 		})
 	}

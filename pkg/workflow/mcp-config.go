@@ -445,8 +445,13 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		result.Command = "docker"
 		result.Args = []string{"run", "--rm", "-i"}
 
-		// Add environment variables as -e flags
+		// Add environment variables as -e flags (sorted for deterministic output)
+		envKeys := make([]string, 0, len(result.Env))
 		for envKey := range result.Env {
+			envKeys = append(envKeys, envKey)
+		}
+		sort.Strings(envKeys)
+		for _, envKey := range envKeys {
 			result.Args = append(result.Args, "-e", envKey)
 		}
 

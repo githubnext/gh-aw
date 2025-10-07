@@ -16,6 +16,7 @@ type Job struct {
 	If             string
 	Permissions    string
 	TimeoutMinutes int
+	Concurrency    string            // Job-level concurrency configuration
 	Environment    string            // Job environment configuration
 	Container      string            // Job container configuration
 	Services       string            // Job services configuration
@@ -220,6 +221,11 @@ func (jm *JobManager) renderJob(job *Job) string {
 	// Add permissions section
 	if job.Permissions != "" {
 		yaml.WriteString(fmt.Sprintf("    %s\n", job.Permissions))
+	}
+
+	// Add concurrency section
+	if job.Concurrency != "" {
+		yaml.WriteString(fmt.Sprintf("    %s\n", job.Concurrency))
 	}
 
 	// Add timeout_minutes if specified
