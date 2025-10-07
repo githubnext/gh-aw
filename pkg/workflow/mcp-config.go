@@ -428,6 +428,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	// Handle container transformation for stdio type
 	if result.Type == "stdio" && result.Container != "" {
+		// Save user-provided args before transforming
+		userProvidedArgs := result.Args
+		
 		// Transform container field to docker command and args
 		result.Command = "docker"
 		result.Args = []string{"run", "--rm", "-i"}
@@ -435,6 +438,11 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		// Add environment variables as -e flags
 		for envKey := range result.Env {
 			result.Args = append(result.Args, "-e", envKey)
+		}
+
+		// Insert user-provided args (e.g., volume mounts) before the container image
+		if len(userProvidedArgs) > 0 {
+			result.Args = append(result.Args, userProvidedArgs...)
 		}
 
 		// Add the container image as the last argument

@@ -11,6 +11,11 @@ engine: copilot
 mcp-servers:
   serena:
     container: "ghcr.io/oraios/serena:latest"
+    args:
+      - "-v"
+      - "${{ github.workspace }}:/workspace:ro"
+      - "-w"
+      - "/workspace"
     env:
       SERENA_DOCKER: "1"
       SERENA_PORT: "9121"
@@ -55,7 +60,7 @@ When commits are pushed to the main branch, you must:
 
 First, activate the project in Serena:
 - Use the `activate_project` tool to set up the workspace
-- The project path should be the repository root directory
+- The project path should be `/workspace` (the mounted repository directory in the container)
 
 ### 2. Changed Files Analysis
 

@@ -821,6 +821,10 @@ jobs:
                   "SERENA_PORT",
                   "-e",
                   "SERENA_DASHBOARD_PORT",
+                  "-v",
+                  "${{ github.workspace }}:/workspace:ro",
+                  "-w",
+                  "/workspace",
                   "ghcr.io/oraios/serena:latest"
                 ],
                 "env": {
