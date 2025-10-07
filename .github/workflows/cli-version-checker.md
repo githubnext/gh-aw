@@ -24,6 +24,7 @@ safe-outputs:
     labels: [automation, dependencies]
     draft: true
 timeout_minutes: 15
+strict: true
 ---
 
 # CLI Version Checker

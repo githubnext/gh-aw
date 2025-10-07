@@ -486,6 +486,11 @@ jobs:
           name: cache-memory
           path: /tmp/cache-memory
           retention-days: 30
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

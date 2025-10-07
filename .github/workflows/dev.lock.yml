@@ -139,6 +139,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -1161,7 +1166,7 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file

@@ -14,6 +14,8 @@ permissions:
 engine: claude
 imports:
   - shared/notion.md
+timeout_minutes: 10
+strict: true
 ---
 
 # Issue Summary to Notion
