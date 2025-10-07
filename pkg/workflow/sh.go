@@ -9,9 +9,6 @@ import (
 //go:embed sh/checkout_pr.sh
 var checkoutPRScript string
 
-//go:embed sh/checkout_pr_ready_for_review.sh
-var checkoutPRReadyForReviewScript string
-
 //go:embed sh/pr_context_prompt.md
 var prContextPromptText string
 
