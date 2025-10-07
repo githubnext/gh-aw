@@ -61,6 +61,7 @@ tools:
     - "npm run*"
 
 timeout_minutes: 10
+strict: true
 
 ---
 

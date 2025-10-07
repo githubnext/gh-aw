@@ -15,6 +15,7 @@ safe-outputs:
 timeout_minutes: 5
 imports:
   - shared/actions-ai-inference.md
+strict: true
 ---
 
 # Issue Classification
