@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestPRBranchCheckout verifies that PR branch checkout is added for comment triggers
@@ -148,7 +150,7 @@ Test workflow without contents read permission.
 			defer os.RemoveAll(tempDir)
 
 			// Create workflows directory
-			workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+			workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 			if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 				t.Fatalf("Failed to create workflows directory: %v", err)
 			}
@@ -236,7 +238,7 @@ Test workflow with multiple comment triggers.
 	defer os.RemoveAll(tempDir)
 
 	// Create workflows directory
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}

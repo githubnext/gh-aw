@@ -61,3 +61,6 @@ pkg/cli/workflows/*.yml
 # Large test data files
 pkg/workflow/js/test-data/*.log
 sample-logs/
+pkg/workflow/js/add_labels.js
+pkg/workflow/js/create_issue.js
+pkg/workflow/js/collect_ndjson_output.js

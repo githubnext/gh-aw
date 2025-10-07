@@ -299,7 +299,5 @@ The command will:
 		},
 	}
 
-	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed MCP server configuration")
-
 	return cmd
 }

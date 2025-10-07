@@ -66,7 +66,6 @@ Examples:
 
 	// Add flags to audit command
 	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
-	auditCmd.Flags().BoolP("verbose", "v", false, "Show detailed information during audit")
 
 	return auditCmd
 }

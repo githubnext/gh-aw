@@ -15,7 +15,7 @@ import (
 )
 
 // NewUpdateCommand creates the update command
-func NewUpdateCommand(verbose bool, validateEngine func(string) error) *cobra.Command {
+func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [workflow-name]...",
 		Short: "Update workflows from their source repositories",
@@ -37,6 +37,7 @@ Examples:
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			engineOverride, _ := cmd.Flags().GetString("engine")
+			verbose, _ := cmd.Flags().GetBool("verbose")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))

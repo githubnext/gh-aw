@@ -11,7 +11,7 @@ import (
 )
 
 // NewInitCommand creates the init command
-func NewInitCommand(verbose bool) *cobra.Command {
+func NewInitCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
 		Short: "Initialize repository for agentic workflows",
@@ -31,6 +31,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init
   ` + constants.CLIExtensionPrefix + ` init -v`,
 		Run: func(cmd *cobra.Command, args []string) {
+			verbose, _ := cmd.Flags().GetBool("verbose")
 			if err := cli.InitRepository(verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)

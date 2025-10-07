@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestAddMCPTool_BasicFunctionality(t *testing.T) {
@@ -30,7 +32,7 @@ func TestAddMCPTool_BasicFunctionality(t *testing.T) {
 	}
 
 	// Create .github/workflows directory
-	workflowsDir := filepath.Join(".github", "workflows")
+	workflowsDir := filepath.Join(constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
@@ -203,7 +205,7 @@ func TestAddMCPTool_ToolAlreadyExists(t *testing.T) {
 	}
 
 	// Create .github/workflows directory
-	workflowsDir := filepath.Join(".github", "workflows")
+	workflowsDir := filepath.Join(constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
@@ -304,7 +306,7 @@ func TestAddMCPTool_CustomToolID(t *testing.T) {
 	}
 
 	// Create .github/workflows directory
-	workflowsDir := filepath.Join(".github", "workflows")
+	workflowsDir := filepath.Join(constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}

@@ -1,5 +1,7 @@
 package constants
 
+import "path/filepath"
+
 // CLIExtensionPrefix is the prefix used in user-facing output to refer to the CLI extension
 const CLIExtensionPrefix = "gh aw"
 
@@ -170,3 +172,7 @@ var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions"
 // PriorityWorkflowFields defines the conventional field order for top-level GitHub Actions workflow frontmatter
 // Fields appear in this order first, followed by remaining fields alphabetically
 var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "imports", "safe-outputs", "steps"}
+
+func GetWorkflowDir() string {
+	return filepath.Join(".github", "workflows")
+}

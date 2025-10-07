@@ -36,7 +36,7 @@ type CombinedTrialResult struct {
 }
 
 // NewTrialCommand creates the trial command
-func NewTrialCommand(verbose bool, validateEngine func(string) error) *cobra.Command {
+func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trial <owner/repo/workflow1> [owner/repo/workflow2...]",
 		Short: "Trial one or more agentic workflows against the current target repository",
@@ -73,6 +73,7 @@ Trial results are saved both locally (in trials/ directory) and in the trial rep
 			deleteRepo, _ := cmd.Flags().GetBool("delete-trial-repo")
 			quiet, _ := cmd.Flags().GetBool("quiet")
 			timeout, _ := cmd.Flags().GetInt("timeout")
+			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
 			if err := RunWorkflowTrials(workflowSpecs, targetRepo, trialRepo, deleteRepo, quiet, timeout, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -241,10 +242,6 @@ func RunWorkflowTrials(workflowSpecs []string, targetRepoSlug string, trialRepo 
 
 		// Wait for workflow completion
 		if err := waitForWorkflowCompletion(trialRepoSlug, runID, timeoutMinutes, verbose); err != nil {
-			// Clean up secrets even if workflow failed
-			if cleanupErr := cleanupTrialSecrets(trialRepoSlug, verbose); cleanupErr != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", cleanupErr)))
-			}
 			return fmt.Errorf("workflow '%s' execution failed or timed out: %w", parsedSpec.WorkflowName, err)
 		}
 
@@ -568,7 +565,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, target
 
 	// Compile the workflow with trial modifications
 	config := CompileConfig{
-		MarkdownFiles:       []string{},
+		MarkdownFiles:       []string{".github/workflows/" + parsedSpec.WorkflowName + ".md"},
 		Verbose:             verbose,
 		EngineOverride:      "",
 		Validate:            true,
@@ -584,9 +581,13 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, target
 	if err != nil {
 		return fmt.Errorf("failed to compile workflow: %w", err)
 	}
+	if len(workflowDataList) != 1 {
+		return fmt.Errorf("expected one compiled workflow, got %d", len(workflowDataList))
+	}
+	workflowData := workflowDataList[0]
 
 	// Determine required engine secret from workflow data
-	if err := determineEngineSecret(workflowDataList, parsedSpec.WorkflowName, trialRepoSlug, verbose); err != nil {
+	if err := determineAndAddEngineSecret(workflowData, trialRepoSlug, verbose); err != nil {
 		return fmt.Errorf("failed to determine engine secret: %w", err)
 	}
 
@@ -707,44 +708,24 @@ func waitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbo
 	}
 }
 
-// determineEngineSecret determines and sets the appropriate engine secret based on workflow configuration
-func determineEngineSecret(workflowDataList []*workflow.WorkflowData, workflowName, trialRepoSlug string, verbose bool) error {
+// determineAndAddEngineSecret determines and sets the appropriate engine secret based on workflow configuration
+func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, trialRepoSlug string, verbose bool) error {
 	var engineType string
 
-	// Generate the expected processed workflow name from the filename
-	// Convert hyphens to spaces and capitalize each word
-	processedWorkflowName := strings.ReplaceAll(workflowName, "-", " ")
-	words := strings.Fields(processedWorkflowName)
-	for i, word := range words {
-		if len(word) > 0 {
-			words[i] = strings.ToUpper(word[:1]) + word[1:]
-		}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Determining required engine secret for workflow"))
 	}
-	processedWorkflowName = strings.Join(words, " ")
 
 	// Find the matching workflow and determine its engine
-	for _, workflowData := range workflowDataList {
-		// Check both the original filename-based name and the processed display name
-		if workflowData.Name == workflowName || workflowData.Name == processedWorkflowName {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found matching workflow: %s", workflowData.Name)))
-			}
-			// Check if engine is specified in the AI field (legacy)
-			if workflowData.AI != "" {
-				engineType = workflowData.AI
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in AI field: %s", engineType)))
-				}
-				break
-			}
-			// Check if engine is specified in the EngineConfig
-			if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-				engineType = workflowData.EngineConfig.ID
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in EngineConfig: %s", engineType)))
-				}
-				break
-			}
+	// Check both the original filename-based name and the processed display name
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found matching workflow: %s", workflowData.Name)))
+	}
+	// Check if engine is specified in the EngineConfig
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+		engineType = workflowData.EngineConfig.ID
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in EngineConfig: %s", engineType)))
 		}
 	}
 
@@ -830,7 +811,7 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, targetRepo string, verbos
 	}
 
 	// Find the workflow markdown file
-	workflowPath := filepath.Join(tempDir, ".github", "workflows", fmt.Sprintf("%s.md", workflowName))
+	workflowPath := filepath.Join(tempDir, constants.GetWorkflowDir(), fmt.Sprintf("%s.md", workflowName))
 
 	content, err := os.ReadFile(workflowPath)
 	if err != nil {

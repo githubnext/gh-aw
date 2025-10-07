@@ -17,7 +17,7 @@ import (
 )
 
 // NewAddCommand creates the add command
-func NewAddCommand(verbose bool, validateEngine func(string) error) *cobra.Command {
+func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <workflow>...",
 		Short: "Add one or more workflows from the components to .github/workflows",
@@ -39,24 +39,6 @@ Workflow specifications:
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --pr flag automatically creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.`,
-		Args: func(cmd *cobra.Command, args []string) error {
-			// If no arguments provided and not in CI, automatically use interactive mode
-			if len(args) == 0 && !IsRunningInCI() {
-				// Auto-enable interactive mode
-				var workflowName = "my-workflow" // Default name
-				if err := CreateWorkflowInteractively(workflowName, verbose, false); err != nil {
-					return fmt.Errorf("failed to create workflow interactively: %w", err)
-				}
-				// Exit successfully after interactive creation
-				os.Exit(0)
-			}
-
-			// Normal mode requires at least one workflow
-			if len(args) < 1 {
-				return fmt.Errorf("requires at least 1 arg(s), received %d", len(args))
-			}
-			return nil
-		},
 		Run: func(cmd *cobra.Command, args []string) {
 			workflows := args
 			numberFlag, _ := cmd.Flags().GetInt("number")
@@ -64,6 +46,19 @@ The --force flag overwrites existing workflow files.`,
 			nameFlag, _ := cmd.Flags().GetString("name")
 			prFlag, _ := cmd.Flags().GetBool("pr")
 			forceFlag, _ := cmd.Flags().GetBool("force")
+			verbose, _ := cmd.Flags().GetBool("verbose")
+
+			// If no arguments provided and not in CI, automatically use interactive mode
+			if len(args) == 0 && !IsRunningInCI() {
+				// Auto-enable interactive mode
+				var workflowName = "my-workflow" // Default name
+				if err := CreateWorkflowInteractively(workflowName, verbose, false); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+					os.Exit(1)
+				}
+				// Exit successfully after interactive creation
+				os.Exit(0)
+			}
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -448,7 +443,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		// Add source field to frontmatter
 		sourceString := buildSourceStringWithCommitSHA(workflow, sourceInfo.CommitSHA)
 		if sourceString != "" {
-			updatedContent, err := addSourceToWorkflow(content, sourceString, verbose)
+			updatedContent, err := addSourceToWorkflow(content, sourceString)
 			if err != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
@@ -802,7 +797,7 @@ func createPR(branchName, title, body string, verbose bool) error {
 }
 
 // addSourceToWorkflow adds the source field to the workflow's frontmatter
-func addSourceToWorkflow(content, source string, verbose bool) (string, error) {
+func addSourceToWorkflow(content, source string) (string, error) {
 	// Parse frontmatter using parser package
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
