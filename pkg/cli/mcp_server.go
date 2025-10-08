@@ -90,7 +90,6 @@ func runMCPServer() error {
 	// Add compile tool
 	type compileArgs struct {
 		Workflows []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
-		Engine    string   `json:"engine,omitempty" jsonschema:"Override AI engine (claude, codex, copilot)"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "compile",
@@ -99,9 +98,6 @@ func runMCPServer() error {
 		// Build command arguments
 		// Always validate (validation is enabled by default)
 		cmdArgs := []string{"aw", "compile"}
-		if args.Engine != "" {
-			cmdArgs = append(cmdArgs, "--engine", args.Engine)
-		}
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
 		// Execute the CLI command
@@ -133,8 +129,6 @@ func runMCPServer() error {
 		Branch        string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 		AfterRunID    int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID   int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
-		ToolGraph     bool   `json:"tool_graph,omitempty" jsonschema:"Generate Mermaid tool sequence graph from agent logs"`
-		NoStaged      bool   `json:"no_staged,omitempty" jsonschema:"Filter out staged workflow runs"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "logs",
@@ -166,12 +160,6 @@ func runMCPServer() error {
 		}
 		if args.BeforeRunID > 0 {
 			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
-		}
-		if args.ToolGraph {
-			cmdArgs = append(cmdArgs, "--tool-graph")
-		}
-		if args.NoStaged {
-			cmdArgs = append(cmdArgs, "--no-staged")
 		}
 
 		// Execute the CLI command
