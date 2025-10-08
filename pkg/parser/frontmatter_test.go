@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestExtractFrontmatterFromContent(t *testing.T) {
@@ -648,7 +650,7 @@ func TestProcessIncludesConditionalValidation(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create .github/workflows directory structure
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows dir: %v", err)
 	}

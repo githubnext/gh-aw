@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -280,7 +281,7 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
-		workflowsDir := workflow.GetWorkflowDir()
+		workflowsDir := constants.GetWorkflowDir()
 
 		// Normalize the workflow file path
 		if !strings.HasSuffix(workflowFile, ".md") {
@@ -531,7 +532,6 @@ The command will:
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "Filter to inspect only the specified MCP server")
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
-	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed connection information")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
 
 	return cmd

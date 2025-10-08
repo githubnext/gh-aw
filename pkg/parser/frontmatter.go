@@ -424,14 +424,14 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		processedFiles = append(processedFiles, importPath)
 
 		// Extract tools from imported file
-		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, baseDir, visited)
+		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, visited)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
 		}
 		toolsBuilder.WriteString(toolsContent + "\n")
 
 		// Extract markdown content from imported file
-		markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, baseDir, visited)
+		markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, visited)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process markdown from imported file '%s': %w", fullPath, err)
 		}
@@ -553,7 +553,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			visited[fullPath] = true
 
 			// Process the included file
-			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, baseDir, visited)
+			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, visited)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return "", fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
@@ -714,7 +714,7 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 
 // processIncludedFile processes a single included file, optionally extracting a section
 // processIncludedFileWithVisited processes a single included file with cycle detection for nested includes
-func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, baseDir string, visited map[string]bool) (string, error) {
+func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, visited map[string]bool) (string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)

@@ -124,9 +124,10 @@ func MergeEventsForYAML(mappings []CommentEventMapping) []CommentEventMapping {
 	hasPRComment := false
 
 	for _, mapping := range mappings {
-		if mapping.EventName == "issue_comment" {
+		switch mapping.EventName {
+		case "issue_comment":
 			hasIssueComment = true
-		} else if mapping.EventName == "pull_request_comment" {
+		case "pull_request_comment":
 			hasPRComment = true
 		}
 	}

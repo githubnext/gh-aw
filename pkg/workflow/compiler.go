@@ -110,6 +110,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 type WorkflowData struct {
 	Name               string
 	TrialMode          bool     // whether the workflow is running in trial mode
+	TrialTargetRepo    string   // target repository slug for trial mode (owner/repo)
 	FrontmatterName    string   // name field from frontmatter (for code scanning alert driver default)
 	Description        string   // optional description rendered as comment in lock file
 	Source             string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
@@ -2618,6 +2619,10 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
+	// Set trial mode information before calling engine
+	data.TrialMode = c.trialMode
+	data.TrialTargetRepo = c.trialTargetRepoSlug
+
 	steps := engine.GetExecutionSteps(data, logFile)
 
 	for _, step := range steps {

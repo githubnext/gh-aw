@@ -83,7 +83,7 @@ This workflow has complex 'on' triggers.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := addSourceToWorkflow(tt.content, tt.source, false)
+			result, err := addSourceToWorkflow(tt.content, tt.source)
 
 			if tt.expectError && err == nil {
 				t.Errorf("addSourceToWorkflow() expected error, got nil")
