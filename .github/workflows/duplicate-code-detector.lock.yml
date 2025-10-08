@@ -2209,54 +2209,11 @@ jobs:
                     inThinkingSection = true;
                     continue;
                   }
-                  if (line.includes("] tool ") && line.includes("(")) {
+                  if (line.includes("] tool ") || line.includes("] exec ")) {
                     inThinkingSection = false;
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
-                      } else {
-                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
-                      }
-                    }
                     continue;
                   }
-                  if (line.includes("] exec ")) {
-                    inThinkingSection = false;
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-                    }
-                    continue;
-                  }
-                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
+                  if (inThinkingSection && line.trim().length > 0 && !line.startsWith("[2025-")) {
                     const trimmed = line.trim();
                     markdown += `${trimmed}\n\n`;
                   }

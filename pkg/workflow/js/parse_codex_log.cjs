@@ -141,7 +141,7 @@ function parseCodexLog(logContent) {
 
     markdown += "\n## 🤖 Reasoning\n\n";
 
-    // Second pass: process full conversation flow with interleaved reasoning, tools, and commands
+    // Second pass: process thinking content only (tools and commands are already in the Commands section)
     let inThinkingSection = false;
 
     for (let i = 0; i < lines.length; i++) {
@@ -169,65 +169,14 @@ function parseCodexLog(logContent) {
         continue;
       }
 
-      // Process tool calls
-      if (line.includes("] tool ") && line.includes("(")) {
+      // End thinking section when we hit tool calls or exec commands
+      if (line.includes("] tool ") || line.includes("] exec ")) {
         inThinkingSection = false;
-        const toolMatch = line.match(/\] tool ([^(]+)\(/);
-        if (toolMatch) {
-          const toolName = toolMatch[1];
-
-          // Look ahead to find the result status
-          let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-            const nextLine = lines[j];
-            if (nextLine.includes("success in")) {
-              statusIcon = "✅";
-              break;
-            } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-              statusIcon = "❌";
-              break;
-            }
-          }
-
-          if (toolName.includes(".")) {
-            const parts = toolName.split(".");
-            const provider = parts[0];
-            const method = parts.slice(1).join("_");
-            markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
-          } else {
-            markdown += `${statusIcon} ${toolName}(...)\n\n`;
-          }
-        }
         continue;
       }
 
-      // Process exec commands
-      if (line.includes("] exec ")) {
-        inThinkingSection = false;
-        const execMatch = line.match(/exec (.+?) in/);
-        if (execMatch) {
-          const formattedCommand = formatBashCommand(execMatch[1]);
-
-          // Look ahead to find the result status
-          let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-            const nextLine = lines[j];
-            if (nextLine.includes("succeeded in")) {
-              statusIcon = "✅";
-              break;
-            } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-              statusIcon = "❌";
-              break;
-            }
-          }
-
-          markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-        }
-        continue;
-      }
-
-      // Process thinking content
-      if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
+      // Process thinking content - only add content from thinking sections
+      if (inThinkingSection && line.trim().length > 0 && !line.startsWith("[2025-")) {
         const trimmed = line.trim();
         // Add thinking content directly
         markdown += `${trimmed}\n\n`;
