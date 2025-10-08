@@ -1,4 +1,14 @@
 ---
+mcp-servers:
+  context7:
+    url: "https://mcp.context7.com/mcp?apiKey=${{ secrets.CONTEXT7_API_KEY }}"
+    allowed:
+      - get-library-docs
+      - resolve-library-id
+---
+
+<!--
+
 # Context7 MCP Server
 # Vector database and semantic search from Upstash
 #
@@ -6,21 +16,11 @@
 # Documentation: https://github.com/upstash/context7
 #
 # Available tools:
-#   - search: Semantic search over stored data
-#   - insert: Add data to the vector database
-#   - query: Query the vector database
+#   - get-library-docs: Get library documentation
+#   - resolve-library-id: Resolve library identifiers
 #
 # Usage:
 #   imports:
 #     - shared/context7-mcp.md
 
-mcp-servers:
-  context7:
-    container: "mcp/upstash/context7"
-    env:
-      UPSTASH_VECTOR_REST_URL: "${{ secrets.UPSTASH_VECTOR_REST_URL }}"
-      UPSTASH_VECTOR_REST_TOKEN: "${{ secrets.UPSTASH_VECTOR_REST_TOKEN }}"
-    allowed:
-      - search
-      - query
----
+-->
