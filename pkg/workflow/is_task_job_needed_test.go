@@ -9,12 +9,12 @@ func TestIsActivationJobNeeded(t *testing.T) {
 		data := &WorkflowData{
 			Roles: []string{"all"}, // Explicitly disable permission checks
 		}
-		// Pass false for needsPermissionCheck since roles: all is specified
-		if func() bool {
+		// Activation job is always needed now to perform timestamp check
+		if !func() bool {
 			var _ *WorkflowData = data
 			return compiler.isActivationJobNeeded()
 		}() {
-			t.Errorf("Expected isActivationJobNeeded to be false when no alias, no needsTextOutput, no If condition, and roles: all")
+			t.Errorf("Expected isActivationJobNeeded to be true - activation job is always needed for timestamp check")
 		}
 	})
 
@@ -42,12 +42,12 @@ func TestIsActivationJobNeeded(t *testing.T) {
 
 	t.Run("permission_check_not_needed", func(t *testing.T) {
 		data := &WorkflowData{} // No other conditions that would require activation job
-		// Pass false for needsPermissionCheck - activation job should not be needed
-		if func() bool {
+		// Activation job is always needed now to perform timestamp check
+		if !func() bool {
 			var _ *WorkflowData = data
 			return compiler.isActivationJobNeeded()
 		}() {
-			t.Errorf("Expected isActivationJobNeeded to be false when no conditions require activation job")
+			t.Errorf("Expected isActivationJobNeeded to be true - activation job is always needed for timestamp check")
 		}
 	})
 }
