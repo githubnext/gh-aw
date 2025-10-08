@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
   actions: read
-engine: copilot
+engine: codex
 imports:
   - shared/serena-mcp.md
 safe-outputs:
