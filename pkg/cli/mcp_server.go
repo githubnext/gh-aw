@@ -54,24 +54,6 @@ func runMCPServer() error {
 		Version: GetVersion(),
 	}, nil)
 
-	// Redirect all logging to /dev/null to avoid interfering with stdio protocol
-	// Store original stderr for restoration if needed
-	originalStderr := os.Stderr
-	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open /dev/null: %w", err)
-	}
-	defer devNull.Close()
-
-	// Redirect stderr to /dev/null
-	os.Stderr = devNull
-
-	// Also redirect the console output by setting a discard writer
-	// This ensures no console formatting output interferes with MCP protocol
-	defer func() {
-		os.Stderr = originalStderr
-	}()
-
 	// Add status tool
 	type statusArgs struct {
 		Pattern string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
