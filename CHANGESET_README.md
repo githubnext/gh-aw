@@ -7,15 +7,21 @@ A minimalistic implementation for managing version releases, inspired by `@chang
 ```bash
 # Preview next version from changesets
 node changeset.js version
+# Or use make target
+make changeset-version
 
 # Preview without modifying files (dry-run)
 node changeset.js version --dry-run
 
 # Create release and update CHANGELOG
 node changeset.js release
+# Or use make target
+make changeset-release
 
 # Preview release without modifying files (dry-run)
 node changeset.js release --dry-run
+# Or use make target
+make changeset-dry-run
 
 # Create specific release type
 node changeset.js release patch
@@ -24,6 +30,21 @@ node changeset.js release major
 
 # Dry-run for specific release type
 node changeset.js release minor --dry-run
+```
+
+## Prerequisites for Release
+
+When running `node changeset.js release` (without `--dry-run`), the script checks:
+
+1. **Clean working tree**: All changes must be committed or stashed
+2. **On main branch**: Must be on the `main` branch to create a release
+
+These checks are skipped in dry-run mode to allow previewing from any branch or state.
+
+Example error when not on main branch:
+```bash
+$ node changeset.js release
+✗ Must be on 'main' branch to create a release (currently on 'feature-branch')
 ```
 
 ## Dry-Run Mode

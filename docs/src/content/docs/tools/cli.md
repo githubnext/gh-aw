@@ -32,6 +32,10 @@ gh aw audit 12345678                             # Audit a specific run
 # Release management
 node changeset.js version                        # Preview next version from changesets
 node changeset.js release                        # Create release and update CHANGELOG
+# Or use make targets
+make changeset-version                           # Preview next version
+make changeset-release                           # Create release
+make changeset-dry-run                           # Preview release without modifying files
 ```
 
 ## Global Flags
@@ -366,6 +370,8 @@ Bump types: `patch` (bug fixes), `minor` (new features), `major` (breaking chang
 ```bash
 # Analyze changesets and preview next version
 node changeset.js version
+# Or use make target
+make changeset-version
 
 # Preview without modifying files (dry-run)
 node changeset.js version --dry-run
@@ -381,19 +387,32 @@ node changeset.js version --dry-run
 ```bash
 # Create release with automatic version determination
 node changeset.js release
+# Or use make target
+make changeset-release
 
 # Preview release without modifying files (dry-run)
 node changeset.js release --dry-run
+# Or use make target
+make changeset-dry-run
 
 # Create specific release type
 node changeset.js release patch
 node changeset.js release minor --dry-run
 
 # This will:
+# - Check prerequisites (clean tree, main branch)
 # - Update CHANGELOG.md with new version and changes
 # - Delete processed changeset files
 # - Provide next steps for committing and tagging
 ```
+
+**Prerequisites for Release:**
+
+When running without `--dry-run`, the script checks:
+- **Clean working tree**: All changes must be committed or stashed
+- **On main branch**: Must be on the `main` branch
+
+These checks are skipped in dry-run mode.
 
 **Dry-Run Mode:**
 
@@ -401,9 +420,12 @@ The `--dry-run` flag allows previewing changes without modifying files. Useful f
 - Previewing CHANGELOG entries before committing
 - Checking which changeset files would be deleted
 - Verifying the version bump is correct
+- Testing from any branch or with uncommitted changes
 
 ```bash
 node changeset.js release --dry-run
+# Or
+make changeset-dry-run
 # Shows what would be changed without modifying files
 ```
 

@@ -236,6 +236,54 @@ function extractFirstLine(text) {
 }
 
 /**
+ * Check if git working tree is clean
+ * @returns {boolean} True if tree is clean
+ */
+function isGitTreeClean() {
+  try {
+    const output = execSync('git status --porcelain', { encoding: 'utf8' });
+    return output.trim() === '';
+  } catch (error) {
+    throw new Error('Failed to check git status. Are you in a git repository?');
+  }
+}
+
+/**
+ * Get current git branch name
+ * @returns {string} Branch name
+ */
+function getCurrentBranch() {
+  try {
+    const output = execSync('git branch --show-current', { encoding: 'utf8' });
+    return output.trim();
+  } catch (error) {
+    throw new Error('Failed to get current branch. Are you in a git repository?');
+  }
+}
+
+/**
+ * Check git prerequisites for release
+ * @param {boolean} dryRun - If true, skip checks
+ */
+function checkGitPrerequisites(dryRun = false) {
+  if (dryRun) {
+    // Skip checks in dry-run mode
+    return;
+  }
+  
+  // Check if on main branch
+  const currentBranch = getCurrentBranch();
+  if (currentBranch !== 'main') {
+    throw new Error(`Must be on 'main' branch to create a release (currently on '${currentBranch}')`);
+  }
+  
+  // Check if working tree is clean
+  if (!isGitTreeClean()) {
+    throw new Error('Working tree is not clean. Commit or stash your changes before creating a release.');
+  }
+}
+
+/**
  * Update CHANGELOG.md with new version and changes
  * @param {string} version - Version string
  * @param {Array} changesets - Array of changesets
@@ -376,6 +424,9 @@ function runVersion(dryRun = false) {
  * @param {boolean} dryRun - If true, preview changes without writing
  */
 function runRelease(releaseType, dryRun = false) {
+  // Check git prerequisites (clean tree, main branch)
+  checkGitPrerequisites(dryRun);
+  
   const changesets = readChangesets();
   
   if (changesets.length === 0) {
