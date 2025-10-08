@@ -21,8 +21,12 @@ steps:
     uses: astral-sh/setup-uv@v6
   - name: Verify uv
     run: uv --version
+  - name: Setup go
+    uses: actions/setup-go@v4
   - name: Install Go language service
     run: go install golang.org/x/tools/gopls@latest
+  - name: Check gopls version
+    run: gopls version
 ---
 
 Activate the current dir as project using serena.
