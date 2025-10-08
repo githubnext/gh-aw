@@ -71,7 +71,7 @@ global.core = mockCore;
 global.github = mockGithub;
 global.context = mockContext;
 
-describe("add_labels.js", () => {
+describe("add_labels.cjs", () => {
   let addLabelsScript;
 
   beforeEach(() => {
@@ -89,7 +89,7 @@ describe("add_labels.js", () => {
     delete global.context.payload.pull_request;
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "add_labels.js");
+    const scriptPath = path.join(process.cwd(), "add_labels.cjs");
     addLabelsScript = fs.readFileSync(scriptPath, "utf8");
   });
 
