@@ -11,6 +11,8 @@ steps:
     with:
       go-version-file: go.mod
       cache: true
+  - name: Install dependencies
+    run: make deps-dev
   - name: Build gh-aw CLI
     run: make build
 ---

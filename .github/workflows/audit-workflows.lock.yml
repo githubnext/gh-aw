@@ -137,6 +137,8 @@ jobs:
         with:
           cache: true
           go-version-file: go.mod
+      - name: Install dependencies
+        run: make deps-dev
       - name: Build gh-aw CLI
         run: make build
 
