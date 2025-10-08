@@ -88,6 +88,16 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "allowed_github_event_pull_request_base_ref",
+			content:     "PR base branch: ${{ github.event.pull_request.base.ref }}",
+			expectError: false,
+		},
+		{
+			name:        "allowed_github_event_repository_default_branch",
+			content:     "Default branch: ${{ github.event.repository.default_branch }}",
+			expectError: false,
+		},
+		{
 			name:        "multiple_allowed_expressions",
 			content:     "Workflow: ${{ github.workflow }}, Repository: ${{ github.repository }}, Output: ${{ needs.activation.outputs.text }}",
 			expectError: false,
