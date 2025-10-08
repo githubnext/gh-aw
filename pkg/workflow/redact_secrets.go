@@ -10,27 +10,27 @@ import (
 // This scans for patterns like ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
 func CollectSecretReferences(yamlContent string) []string {
 	secretsMap := make(map[string]bool)
-	
+
 	// Pattern to match ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
 	// This matches both with and without the ${{ }} wrapper
 	secretPattern := regexp.MustCompile(`secrets\.([A-Z][A-Z0-9_]*)`)
-	
+
 	matches := secretPattern.FindAllStringSubmatch(yamlContent, -1)
 	for _, match := range matches {
 		if len(match) > 1 {
 			secretsMap[match[1]] = true
 		}
 	}
-	
+
 	// Convert map to sorted slice for consistent ordering
 	secrets := make([]string, 0, len(secretsMap))
 	for secret := range secretsMap {
 		secrets = append(secrets, secret)
 	}
-	
+
 	// Sort for consistent output
 	SortStrings(secrets)
-	
+
 	return secrets
 }
 
@@ -38,7 +38,7 @@ func CollectSecretReferences(yamlContent string) []string {
 func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, yamlContent string) {
 	// Extract secret references from the generated YAML
 	secretReferences := CollectSecretReferences(yamlContent)
-	
+
 	// If no secrets found, skip the redaction step
 	if len(secretReferences) == 0 {
 		return
@@ -65,10 +65,10 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowDa
 
 	// Add environment variables
 	yaml.WriteString("        env:\n")
-	
+
 	// Pass the list of secret names as a comma-separated string
 	yaml.WriteString(fmt.Sprintf("          GITHUB_AW_SECRET_NAMES: '%s'\n", strings.Join(secretReferences, ",")))
-	
+
 	// Pass the actual secret values as environment variables so they can be redacted
 	// Each secret will be available as an environment variable
 	for _, secretName := range secretReferences {
@@ -76,30 +76,16 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowDa
 	}
 }
 
-// validateSecretsPattern validates that the generated secrets pattern is a valid regex
-func validateSecretsPattern(pattern string) error {
-	if pattern == "" {
-		return nil
-	}
-
-	_, err := regexp.Compile(pattern)
-	if err != nil {
-		return fmt.Errorf("invalid secrets pattern regex: %w", err)
-	}
-
-	return nil
-}
-
 // validateSecretReferences validates that secret references are valid
 func validateSecretReferences(secrets []string) error {
 	// Secret names must be valid environment variable names
 	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
-	
+
 	for _, secret := range secrets {
 		if !secretNamePattern.MatchString(secret) {
 			return fmt.Errorf("invalid secret name: %s", secret)
 		}
 	}
-	
+
 	return nil
 }
