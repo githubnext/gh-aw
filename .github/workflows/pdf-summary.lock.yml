@@ -3693,6 +3693,9 @@ jobs:
                     };
                     core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
                   } else {
+                    if (!issueNumber) {
+                      throw new Error("Issue number is required for non-discussion comments");
+                    }
                     core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
                     core.info(`Comment content length: ${body.length}`);
                     const { data: restComment } = await github.rest.issues.createComment({

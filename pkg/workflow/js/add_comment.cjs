@@ -238,6 +238,9 @@ async function main() {
         core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
       } else {
         // For issues and PRs, use REST API
+        if (!issueNumber) {
+          throw new Error("Issue number is required for non-discussion comments");
+        }
         core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
         core.info(`Comment content length: ${body.length}`);
 
