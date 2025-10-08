@@ -1581,6 +1581,10 @@
                   "type": "string",
                   "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository comments. Takes precedence over trial target repo settings."
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
