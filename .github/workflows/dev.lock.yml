@@ -131,6 +131,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -885,29 +890,15 @@ jobs:
           env = { "GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", "GITHUB_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_AW_ASSETS_BRANCH" = "${{ env.GITHUB_AW_ASSETS_BRANCH }}", "GITHUB_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}", "GITHUB_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}" }
           
           [mcp_servers.serena]
-          command = "docker"
+          command = "uvx"
           args = [
-            "run",
-            "--rm",
-            "-i",
-            "-e",
-            "SERENA_DASHBOARD_PORT",
-            "-e",
-            "SERENA_DOCKER",
-            "-e",
-            "SERENA_PORT",
-            "--network",
-            "host",
-            "-v",
-            "${{ github.workspace }}:/workspace/projects",
-            "--entrypoint",
+            "--from",
+            "git+https://github.com/oraios/serena",
             "serena",
             "start-mcp-server",
-            "--transport",
-            "stdio",
-            "ghcr.io/oraios/serena:latest",
+            "--context",
+            "codex",
           ]
-          env = { "SERENA_DASHBOARD_PORT" = "24282", "SERENA_DOCKER" = "1", "SERENA_PORT" = "9121" }
           EOF
       - name: Create prompt
         env:
@@ -916,8 +907,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          ### Serana Tools
-          Serana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**
+          Activate the current dir as project using serena.
           
           
           
@@ -2221,7 +2211,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "### Serana Tools\nSerana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\nUse serena to count lines of code in the repository.\nFail if serena mCP server is not available.\n"
+          WORKFLOW_MARKDOWN: "Activate the current dir as project using serena.\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\nUse serena to count lines of code in the repository.\nFail if serena mCP server is not available.\n"
         with:
           script: |
             const fs = require('fs');

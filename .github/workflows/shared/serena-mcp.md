@@ -1,35 +1,23 @@
 ---
 mcp-servers:
   serena:
-    container: "ghcr.io/oraios/serena"
-    version: "latest"
+    command: "uvx"
     args:
-      - "--network"
-      - "host"
-      - "-v"
-      - "${{ github.workspace }}:/workspace/projects"
-      - "--entrypoint"
+      - "--from"
+      - "git+https://github.com/oraios/serena"
       - "serena"
       - "start-mcp-server"
-      - "--transport"
-      - "stdio"
-    env:
-      SERENA_DOCKER: "1"
-      SERENA_PORT: "9121"
-      SERENA_DASHBOARD_PORT: "24282"
-    allowed:
-      - activate_project
-      - find_symbol
-      - find_referencing_symbols
-      - get_symbols_overview
-      - read_file
-      - search_for_pattern
-      - list_dir
-      - find_file
+      - "--context"
+      - "codex"
+    allowed: ["*"]
+steps:
+  - name: Setup python
+    uses: actions/setup-python@v6
+    with:
+      python-version: "3.13"
 ---
 
-### Serana Tools
-Serana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**
+Activate the current dir as project using serena.
 
 <!--
 
