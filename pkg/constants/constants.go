@@ -55,6 +55,7 @@ var AllowedExpressions = []string{
 	"github.event.release.id",
 	"github.event.release.tag_name",
 	"github.event.repository.id",
+	"github.event.repository.default_branch",
 	"github.event.review.id",
 	"github.event.review_comment.id",
 	"github.event.sender.id",
