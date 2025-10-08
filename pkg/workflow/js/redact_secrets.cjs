@@ -1,16 +1,5 @@
-/**
- * Redacts secrets from files in /tmp directory before uploading artifacts
- * This script processes all .txt, .json, .log files under /tmp and redacts
- * any strings matching the actual secret values provided via environment variables.
- */
 const fs = require("fs");
 const path = require("path");
-/**
- * Recursively finds all files matching the specified extensions
- * @param {string} dir - Directory to search
- * @param {string[]} extensions - File extensions to match (e.g., ['.txt', '.json', '.log'])
- * @returns {string[]} Array of file paths
- */
 function findFiles(dir, extensions) {
   const results = [];
   try {
@@ -36,13 +25,6 @@ function findFiles(dir, extensions) {
   }
   return results;
 }
-
-/**
- * Redacts secrets from file content using exact string matching
- * @param {string} content - File content to process
- * @param {string[]} secretValues - Array of secret values to redact
- * @returns {{content: string, redactionCount: number}} Redacted content and count of redactions
- */
 function redactSecrets(content, secretValues) {
   let redactionCount = 0;
   let redacted = content;
@@ -53,10 +35,6 @@ function redactSecrets(content, secretValues) {
     if (!secretValue || secretValue.length < 8) {
       continue;
     }
-    // Count occurrences before replacement
-    // Use split and join for exact string matching (not regex)
-    // This is safer than regex as it doesn't interpret special characters
-    // Show first 3 letters followed by asterisks for the remaining length
     const prefix = secretValue.substring(0, 3);
     const asterisks = "*".repeat(Math.max(0, secretValue.length - 3));
     const replacement = prefix + asterisks;
@@ -70,13 +48,6 @@ function redactSecrets(content, secretValues) {
   }
   return { content: redacted, redactionCount };
 }
-
-/**
- * Process a single file for secret redaction
- * @param {string} filePath - Path to the file
- * @param {string[]} secretValues - Array of secret values to redact
- * @returns {number} Number of redactions made
- */
 function processFile(filePath, secretValues) {
   try {
     const content = fs.readFileSync(filePath, "utf8");
@@ -91,12 +62,7 @@ function processFile(filePath, secretValues) {
     return 0;
   }
 }
-
-/**
- * Main function
- */
 async function main() {
-  // Get the list of secret names from environment variable
   const secretNames = process.env.GITHUB_AW_SECRET_NAMES;
   if (!secretNames) {
     core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
@@ -104,14 +70,11 @@ async function main() {
   }
   core.info("Starting secret redaction in /tmp directory");
   try {
-    // Parse the comma-separated list of secret names
     const secretNameList = secretNames.split(",").filter(name => name.trim());
-    // Collect the actual secret values from environment variables
     const secretValues = [];
     for (const secretName of secretNameList) {
       const envVarName = `SECRET_${secretName}`;
       const secretValue = process.env[envVarName];
-      // Skip empty or undefined secrets
       if (!secretValue || secretValue.trim() === "") {
         continue;
       }
@@ -122,13 +85,11 @@ async function main() {
       return;
     }
     core.info(`Found ${secretValues.length} secret(s) to redact`);
-    // Find all target files in /tmp directory
     const targetExtensions = [".txt", ".json", ".log"];
     const files = findFiles("/tmp", targetExtensions);
     core.info(`Found ${files.length} file(s) to scan for secrets`);
     let totalRedactions = 0;
     let filesWithRedactions = 0;
-    // Process each file
     for (const file of files) {
       const redactionCount = processFile(file, secretValues);
       if (redactionCount > 0) {

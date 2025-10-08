@@ -38,10 +38,6 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 		return
 	}
 
-	// Add secret redaction step before uploading artifacts
-	// Pass the current YAML content to scan for secret references
-	c.generateSecretRedactionStep(yaml, yaml.String())
-
 	// Create a single upload step that handles all declared output files
 	// The action will ignore missing files automatically with if-no-files-found: ignore
 	yaml.WriteString("      - name: Upload engine output files\n")

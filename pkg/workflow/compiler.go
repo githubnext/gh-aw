@@ -2056,6 +2056,19 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	return job, nil
 }
 
+// generateLogCaptureStep creates a shared log capture step for any engine
+// This reduces code duplication across engines and ensures consistency
+func (c *Compiler) generateLogCaptureStep(yaml *strings.Builder, logFile string) {
+	yaml.WriteString("      - name: Print agent stdio\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          touch " + logFile + "\n")
+	yaml.WriteString("          echo \"## Agent Stdio\" >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString("          echo '```markdown' >> $GITHUB_STEP_SUMMARY\n")
+	yaml.WriteString(fmt.Sprintf("          cat %s >> $GITHUB_STEP_SUMMARY\n", logFile))
+	yaml.WriteString("          echo '```' >> $GITHUB_STEP_SUMMARY\n")
+}
+
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Determine if we need to add a checkout step
@@ -2164,6 +2177,13 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
+
+	// Add secret redaction step before uploading artifacts
+	// Pass the current YAML content to scan for secret references
+	c.generateSecretRedactionStep(yaml, yaml.String())
+
+	// print agent stdio
+	c.generateLogCaptureStep(yaml, logFileFull)
 
 	// Add output collection step only if safe-outputs feature is used (GITHUB_AW_SAFE_OUTPUTS functionality)
 	if data.SafeOutputs != nil {
