@@ -277,7 +277,7 @@ describe("add_comment.cjs", () => {
 
     // Verify GraphQL calls
     expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
-    
+
     // First call should be to get discussion ID
     expect(mockGithub.graphql.mock.calls[0][0]).toContain("query($owner: String!, $repo: String!, $number: Int!)");
     expect(mockGithub.graphql.mock.calls[0][1]).toEqual({
@@ -293,7 +293,10 @@ describe("add_comment.cjs", () => {
 
     // Verify outputs were set
     expect(mockCore.setOutput).toHaveBeenCalledWith("comment_id", 5678);
-    expect(mockCore.setOutput).toHaveBeenCalledWith("comment_url", "https://github.com/testowner/testrepo/discussions/42#discussioncomment-5678");
+    expect(mockCore.setOutput).toHaveBeenCalledWith(
+      "comment_url",
+      "https://github.com/testowner/testrepo/discussions/42#discussioncomment-5678"
+    );
   });
 
   it("should skip discussion_comment when not in discussion context", async () => {
