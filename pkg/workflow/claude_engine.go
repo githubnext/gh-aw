@@ -650,15 +650,15 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubURL := getGitHubURL(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
-	
+
 	yaml.WriteString("              \"github\": {\n")
-	
+
 	// Check if HTTP mode is enabled (url field is specified)
 	if githubURL != "" {
 		// HTTP mode - use hosted GitHub MCP server
 		yaml.WriteString("                \"type\": \"http\",\n")
 		yaml.WriteString(fmt.Sprintf("                \"url\": \"%s\"", githubURL))
-		
+
 		// Add custom github-token if specified
 		if customGitHubToken != "" {
 			yaml.WriteString(",\n")
@@ -673,7 +673,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
 		readOnly := getGitHubReadOnly(githubTool)
-		
+
 		yaml.WriteString("                \"command\": \"docker\",\n")
 		yaml.WriteString("                \"args\": [\n")
 		yaml.WriteString("                  \"run\",\n")
@@ -693,7 +693,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		yaml.WriteString("\n")
 		yaml.WriteString("                ],\n")
 		yaml.WriteString("                \"env\": {\n")
-		
+
 		// Use custom token if specified, otherwise use default
 		if customGitHubToken != "" {
 			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"\n", customGitHubToken))

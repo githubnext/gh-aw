@@ -247,7 +247,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		var useHTTP bool
 		var githubURL string
 		var customGitHubToken string
-		
+
 		if toolConfig, ok := toolValue.(map[string]any); ok {
 			// Check if URL is specified (HTTP mode)
 			if url, hasURL := toolConfig["url"]; hasURL {
@@ -256,7 +256,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 					githubURL = urlStr
 				}
 			}
-			
+
 			// Check for custom github-token
 			if token, hasToken := toolConfig["github-token"]; hasToken {
 				if tokenStr, ok := token.(string); ok {
@@ -266,7 +266,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 		}
 
 		var config MCPServerConfig
-		
+
 		if useHTTP {
 			// Handle GitHub MCP server in HTTP mode (hosted)
 			config = MCPServerConfig{
@@ -276,7 +276,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				Headers: make(map[string]string),
 				Env:     make(map[string]string),
 			}
-			
+
 			// Store custom token for later use in workflow generation
 			if customGitHubToken != "" {
 				config.Env["GITHUB_TOKEN"] = customGitHubToken
