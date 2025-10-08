@@ -173,7 +173,9 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
 
       // Check if we've already added a workflow link to avoid duplicates
-      if (originalBody.includes("Agentic [") && originalBody.includes("](") && originalBody.includes("triggered by this comment")) {
+      // Look for the specific pattern "Agentic [<workflow-name>](<url>) triggered by this comment"
+      const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
+      if (duplicatePattern.test(originalBody)) {
         core.info("Comment already contains a workflow run link, skipping edit");
         return;
       }
