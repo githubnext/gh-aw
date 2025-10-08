@@ -12,11 +12,15 @@ import (
 type RuntimeType string
 
 const (
-	RuntimeNode   RuntimeType = "node"
-	RuntimePython RuntimeType = "python"
-	RuntimeGo     RuntimeType = "go"
-	RuntimeRuby   RuntimeType = "ruby"
-	RuntimeUV     RuntimeType = "uv" // Python package installer
+	RuntimeNode    RuntimeType = "node"
+	RuntimePython  RuntimeType = "python"
+	RuntimeGo      RuntimeType = "go"
+	RuntimeRuby    RuntimeType = "ruby"
+	RuntimeUV      RuntimeType = "uv"      // Python package installer
+	RuntimeDotNet  RuntimeType = "dotnet"  // .NET runtime
+	RuntimeJava    RuntimeType = "java"    // Java runtime
+	RuntimeElixir  RuntimeType = "elixir"  // Elixir runtime
+	RuntimeHaskell RuntimeType = "haskell" // Haskell runtime
 )
 
 // RuntimeRequirement represents a detected runtime requirement
@@ -42,6 +46,18 @@ var commandPatterns = map[string]RuntimeType{
 	"ruby":    RuntimeRuby,
 	"gem":     RuntimeRuby,
 	"bundle":  RuntimeRuby,
+	"dotnet":  RuntimeDotNet,
+	"java":    RuntimeJava,
+	"javac":   RuntimeJava,
+	"mvn":     RuntimeJava,
+	"gradle":  RuntimeJava,
+	"elixir":  RuntimeElixir,
+	"mix":     RuntimeElixir,
+	"iex":     RuntimeElixir,
+	"ghc":     RuntimeHaskell,
+	"ghci":    RuntimeHaskell,
+	"cabal":   RuntimeHaskell,
+	"stack":   RuntimeHaskell,
 }
 
 // DetectRuntimeRequirements analyzes workflow data to detect required runtimes
@@ -65,7 +81,7 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 
 	// Convert map to sorted slice
 	var result []RuntimeRequirement
-	runtimeOrder := []RuntimeType{RuntimeNode, RuntimePython, RuntimeGo, RuntimeRuby, RuntimeUV}
+	runtimeOrder := []RuntimeType{RuntimeNode, RuntimePython, RuntimeGo, RuntimeRuby, RuntimeDotNet, RuntimeJava, RuntimeElixir, RuntimeHaskell, RuntimeUV}
 	for _, rt := range runtimeOrder {
 		if version, exists := requirements[rt]; exists {
 			result = append(result, RuntimeRequirement{
@@ -217,6 +233,10 @@ func hasExistingSetupAction(customSteps string) bool {
 		strings.Contains(customSteps, "actions/setup-python") ||
 		strings.Contains(customSteps, "actions/setup-go") ||
 		strings.Contains(customSteps, "actions/setup-ruby") ||
+		strings.Contains(customSteps, "actions/setup-dotnet") ||
+		strings.Contains(customSteps, "actions/setup-java") ||
+		strings.Contains(customSteps, "erlef/setup-beam") ||
+		strings.Contains(customSteps, "haskell-actions/setup") ||
 		strings.Contains(customSteps, "astral-sh/setup-uv")
 }
 
@@ -285,6 +305,14 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 			steps = append(steps, generateGoSetup(req.Version))
 		case RuntimeRuby:
 			steps = append(steps, generateRubySetup(req.Version))
+		case RuntimeDotNet:
+			steps = append(steps, generateDotNetSetup(req.Version))
+		case RuntimeJava:
+			steps = append(steps, generateJavaSetup(req.Version))
+		case RuntimeElixir:
+			steps = append(steps, generateElixirSetup(req.Version))
+		case RuntimeHaskell:
+			steps = append(steps, generateHaskellSetup(req.Version))
 		case RuntimeUV:
 			steps = append(steps, generateUVSetup(req.Version))
 		}
@@ -367,6 +395,60 @@ func generateUVSetup(version string) GitHubActionStep {
 	return step
 }
 
+// generateDotNetSetup creates a setup-dotnet step
+func generateDotNetSetup(version string) GitHubActionStep {
+	if version == "" {
+		version = constants.DefaultDotNetVersion
+	}
+	return GitHubActionStep{
+		"      - name: Setup .NET",
+		"        uses: actions/setup-dotnet@v4",
+		"        with:",
+		fmt.Sprintf("          dotnet-version: '%s'", version),
+	}
+}
+
+// generateJavaSetup creates a setup-java step
+func generateJavaSetup(version string) GitHubActionStep {
+	if version == "" {
+		version = constants.DefaultJavaVersion
+	}
+	return GitHubActionStep{
+		"      - name: Setup Java",
+		"        uses: actions/setup-java@v4",
+		"        with:",
+		fmt.Sprintf("          java-version: '%s'", version),
+		"          distribution: 'temurin'",
+	}
+}
+
+// generateElixirSetup creates a setup-elixir step
+func generateElixirSetup(version string) GitHubActionStep {
+	if version == "" {
+		version = constants.DefaultElixirVersion
+	}
+	return GitHubActionStep{
+		"      - name: Setup Elixir",
+		"        uses: erlef/setup-beam@v1",
+		"        with:",
+		fmt.Sprintf("          elixir-version: '%s'", version),
+		"          otp-version: '27'",
+	}
+}
+
+// generateHaskellSetup creates a setup-haskell step
+func generateHaskellSetup(version string) GitHubActionStep {
+	if version == "" {
+		version = constants.DefaultHaskellVersion
+	}
+	return GitHubActionStep{
+		"      - name: Setup Haskell",
+		"        uses: haskell-actions/setup@v2",
+		"        with:",
+		fmt.Sprintf("          ghc-version: '%s'", version),
+	}
+}
+
 // ShouldSkipRuntimeSetup checks if we should skip automatic runtime setup
 // This returns true if the workflow already has setup actions in custom steps
 func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
@@ -383,6 +465,10 @@ func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
 						strings.Contains(usesStr, "setup-python") ||
 						strings.Contains(usesStr, "setup-go") ||
 						strings.Contains(usesStr, "setup-ruby") ||
+						strings.Contains(usesStr, "setup-dotnet") ||
+						strings.Contains(usesStr, "setup-java") ||
+						strings.Contains(usesStr, "setup-beam") ||
+						strings.Contains(usesStr, "haskell-actions/setup") ||
 						strings.Contains(usesStr, "astral-sh/setup-uv") {
 						return true
 					}

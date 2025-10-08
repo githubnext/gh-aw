@@ -67,6 +67,76 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 			},
 		},
 		{
+			name:    "dotnet command",
+			command: "dotnet build",
+			expected: map[RuntimeType]string{
+				RuntimeDotNet: "",
+			},
+		},
+		{
+			name:    "java command",
+			command: "java -jar app.jar",
+			expected: map[RuntimeType]string{
+				RuntimeJava: "",
+			},
+		},
+		{
+			name:    "javac command",
+			command: "javac Main.java",
+			expected: map[RuntimeType]string{
+				RuntimeJava: "",
+			},
+		},
+		{
+			name:    "maven command",
+			command: "mvn clean install",
+			expected: map[RuntimeType]string{
+				RuntimeJava: "",
+			},
+		},
+		{
+			name:    "gradle command",
+			command: "gradle build",
+			expected: map[RuntimeType]string{
+				RuntimeJava: "",
+			},
+		},
+		{
+			name:    "elixir command",
+			command: "elixir script.exs",
+			expected: map[RuntimeType]string{
+				RuntimeElixir: "",
+			},
+		},
+		{
+			name:    "mix command",
+			command: "mix deps.get",
+			expected: map[RuntimeType]string{
+				RuntimeElixir: "",
+			},
+		},
+		{
+			name:    "haskell ghc command",
+			command: "ghc Main.hs",
+			expected: map[RuntimeType]string{
+				RuntimeHaskell: "",
+			},
+		},
+		{
+			name:    "cabal command",
+			command: "cabal build",
+			expected: map[RuntimeType]string{
+				RuntimeHaskell: "",
+			},
+		},
+		{
+			name:    "stack command",
+			command: "stack build",
+			expected: map[RuntimeType]string{
+				RuntimeHaskell: "",
+			},
+		},
+		{
 			name:    "multiple commands",
 			command: "npm install && python test.py",
 			expected: map[RuntimeType]string{
@@ -318,6 +388,55 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 			checkContent: []string{
 				"Setup uv",
 				"astral-sh/setup-uv@v5",
+			},
+		},
+		{
+			name: "generates dotnet setup",
+			requirements: []RuntimeRequirement{
+				{Type: RuntimeDotNet, Version: "8.0"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup .NET",
+				"actions/setup-dotnet@v4",
+				"dotnet-version: '8.0'",
+			},
+		},
+		{
+			name: "generates java setup",
+			requirements: []RuntimeRequirement{
+				{Type: RuntimeJava, Version: "21"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Java",
+				"actions/setup-java@v4",
+				"java-version: '21'",
+				"distribution: 'temurin'",
+			},
+		},
+		{
+			name: "generates elixir setup",
+			requirements: []RuntimeRequirement{
+				{Type: RuntimeElixir, Version: "1.17"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Elixir",
+				"erlef/setup-beam@v1",
+				"elixir-version: '1.17'",
+			},
+		},
+		{
+			name: "generates haskell setup",
+			requirements: []RuntimeRequirement{
+				{Type: RuntimeHaskell, Version: "9.10"},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Haskell",
+				"haskell-actions/setup@v2",
+				"ghc-version: '9.10'",
 			},
 		},
 		{
