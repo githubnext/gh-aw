@@ -31,45 +31,40 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          echo \"Output: $AGENT_OUTPUT\"\n")
 	steps = append(steps, "          echo \"Output types: $AGENT_OUTPUT_TYPES\"\n")
-	steps = append(steps, "      - name: Add Issue Comment\n")
-	steps = append(steps, "        id: add_comment\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
 
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	// Pass the workflow name for footer generation
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Build custom environment variables specific to add-comment
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
 	}
 	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if data.SafeOutputs.AddComments.TargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddComments.TargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddComments.TargetRepoSlug))
 	} else if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
+	// Get token from config
 	var token string
 	if data.SafeOutputs.AddComments != nil {
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createCommentScript)
-	steps = append(steps, formattedScript...)
+	// Build the GitHub Script step using the common helper and append to existing steps
+	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Add Issue Comment",
+		StepID:        "add_comment",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        createCommentScript,
+		Token:         token,
+	})
+	steps = append(steps, scriptSteps...)
 
 	// Create outputs for the job
 	outputs := map[string]string{

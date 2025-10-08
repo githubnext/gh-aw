@@ -15,36 +15,27 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 		return nil, fmt.Errorf("safe-outputs.missing-tool configuration is required")
 	}
 
-	var steps []string
-	steps = append(steps, "      - name: Record Missing Tool\n")
-	steps = append(steps, "        id: missing_tool\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-
-	// Pass the max configuration if set
+	// Build custom environment variables specific to missing-tool
+	var customEnvVars []string
 	if data.SafeOutputs.MissingTool.Max > 0 {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_MISSING_TOOL_MAX: %d\n", data.SafeOutputs.MissingTool.Max))
 	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
+	// Get token from config
 	var token string
 	if data.SafeOutputs.MissingTool != nil {
 		token = data.SafeOutputs.MissingTool.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(missingToolScript)
-	steps = append(steps, formattedScript...)
+	// Build the GitHub Script step using the common helper
+	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Record Missing Tool",
+		StepID:        "missing_tool",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        missingToolScript,
+		Token:         token,
+	})
 
 	// Create outputs for the job
 	outputs := map[string]string{

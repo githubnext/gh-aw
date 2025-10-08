@@ -20,51 +20,41 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 		return nil, fmt.Errorf("safe-outputs.update-issue configuration is required")
 	}
 
-	var steps []string
-	steps = append(steps, "      - name: Update Issue\n")
-	steps = append(steps, "        id: update_issue\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
+	// Build custom environment variables specific to update-issue
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil))
 
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-
-	// Pass the configuration flags
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_STATUS: %t\n", data.SafeOutputs.UpdateIssues.Status != nil))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_TITLE: %t\n", data.SafeOutputs.UpdateIssues.Title != nil))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_BODY: %t\n", data.SafeOutputs.UpdateIssues.Body != nil))
-
-	// Pass the target configuration
 	if data.SafeOutputs.UpdateIssues.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
 	}
 	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 
 	// Pass target repository - prefer explicit config over trial mode setting
 	if data.SafeOutputs.UpdateIssues.TargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.UpdateIssues.TargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.UpdateIssues.TargetRepoSlug))
 	} else if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
+	// Get token from config
 	var token string
 	if data.SafeOutputs.UpdateIssues != nil {
 		token = data.SafeOutputs.UpdateIssues.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(updateIssueScript)
-	steps = append(steps, formattedScript...)
+	// Build the GitHub Script step using the common helper
+	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Update Issue",
+		StepID:        "update_issue",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        updateIssueScript,
+		Token:         token,
+	})
 
 	// Create outputs for the job
 	outputs := map[string]string{
