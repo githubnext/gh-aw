@@ -418,7 +418,20 @@ When `--parse` is used:
 - Automatically selects the appropriate parser based on the engine (Claude, Codex, Copilot)
 - Generates a `log.md` file in each run folder with formatted markdown output
 - The parser extracts tool calls, reasoning, and other structured information from raw logs
-- Mimics the GitHub Actions environment to execute the same parsers used in workflows
+- Uses a minimal Node.js environment that mocks the `@actions/core` API for parser execution
+
+**Output Format:**
+
+The generated `log.md` file contains:
+- Tool usage section with formatted command execution details
+- Reasoning and thinking sections showing the agent's decision-making process
+- Status indicators (✅ success, ⚠️ warnings, ❌ errors) for tool executions
+- Structured markdown suitable for review and analysis
+
+Each engine's parser formats the output differently based on the log structure:
+- **Claude**: Extracts tool_use and tool_result blocks, interleaved with reasoning text
+- **Codex**: Parses thinking sections and command execution logs
+- **Copilot**: Formats conversation flow and tool interactions
 
 ## 🔎 Single Run Audit
 
