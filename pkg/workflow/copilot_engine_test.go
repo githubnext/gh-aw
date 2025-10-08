@@ -61,8 +61,8 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (copilot execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Copilot execution (log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the execution step (first step)
@@ -98,8 +98,8 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (copilot execution + log capture) with output, got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Copilot execution with output (log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the execution step (first step)
@@ -380,8 +380,8 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (copilot execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step for Copilot execution (log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the execution step contains tool arguments (first step)
@@ -424,8 +424,8 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Get the full command from the execution step (step 0 is the copilot execution)
@@ -469,8 +469,8 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Get the full command from the execution step (step 0 is the copilot execution)
@@ -661,8 +661,8 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
 
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps, got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Get the full command from the execution step (step 0 is the copilot execution)
