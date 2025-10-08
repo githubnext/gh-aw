@@ -6,8 +6,12 @@ on:
       - copilot/*
       - serena*
 name: Dev
-engine: codex
+engine: copilot
 tools:
+  github:
+    mode: remote
+    github-token: "${{ secrets.COPILOT_CLI_TOKEN }}"
+    allowed: [list_pull_requests, get_pull_request]
   cache-memory: true
 safe-outputs:
     staged: true
@@ -18,4 +22,4 @@ imports:
   - shared/serena-mcp.md
 ---
 
-Use serena to count methods in go sources.
+List the last 5 merged pull requests in this repository.
