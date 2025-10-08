@@ -2093,6 +2093,18 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add step to checkout PR branch if the event is pull_request
 	c.generatePRReadyForReviewCheckout(yaml, data)
 
+	// Add automatic runtime setup steps if needed
+	// This detects runtimes from custom steps and MCP configs
+	if !ShouldSkipRuntimeSetup(data) {
+		runtimeRequirements := DetectRuntimeRequirements(data)
+		runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
+		for _, step := range runtimeSetupSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
 
