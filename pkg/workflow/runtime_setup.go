@@ -2,67 +2,146 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
-	"github.com/goccy/go-yaml"
 )
 
-// RuntimeType represents a runtime environment that might need setup
-type RuntimeType string
-
-const (
-	RuntimeNode    RuntimeType = "node"
-	RuntimePython  RuntimeType = "python"
-	RuntimeGo      RuntimeType = "go"
-	RuntimeRuby    RuntimeType = "ruby"
-	RuntimeUV      RuntimeType = "uv"      // Python package installer
-	RuntimeDotNet  RuntimeType = "dotnet"  // .NET runtime
-	RuntimeJava    RuntimeType = "java"    // Java runtime
-	RuntimeElixir  RuntimeType = "elixir"  // Elixir runtime
-	RuntimeHaskell RuntimeType = "haskell" // Haskell runtime
-)
+// Runtime represents configuration for a runtime environment
+type Runtime struct {
+	ID              string            // Unique identifier (e.g., "node", "python")
+	Name            string            // Display name (e.g., "Node.js", "Python")
+	ActionRepo      string            // GitHub Actions repository (e.g., "actions/setup-node")
+	ActionVersion   string            // Action version (e.g., "@v4")
+	VersionField    string            // Field name for version in action (e.g., "node-version")
+	DefaultVersion  string            // Default version to use
+	Commands        []string          // Commands that indicate this runtime is needed
+	ExtraWithFields map[string]string // Additional 'with' fields for the action
+}
 
 // RuntimeRequirement represents a detected runtime requirement
 type RuntimeRequirement struct {
-	Type    RuntimeType
-	Version string // Empty string means use default/latest
+	Runtime *Runtime
+	Version string // Empty string means use default
 }
 
-// commandPatterns maps command patterns to runtime types
-var commandPatterns = map[string]RuntimeType{
-	"node":    RuntimeNode,
-	"npm":     RuntimeNode,
-	"npx":     RuntimeNode,
-	"yarn":    RuntimeNode,
-	"pnpm":    RuntimeNode,
-	"python":  RuntimePython,
-	"python3": RuntimePython,
-	"pip":     RuntimePython,
-	"pip3":    RuntimePython,
-	"uvx":     RuntimeUV,
-	"uv":      RuntimeUV,
-	"go":      RuntimeGo,
-	"ruby":    RuntimeRuby,
-	"gem":     RuntimeRuby,
-	"bundle":  RuntimeRuby,
-	"dotnet":  RuntimeDotNet,
-	"java":    RuntimeJava,
-	"javac":   RuntimeJava,
-	"mvn":     RuntimeJava,
-	"gradle":  RuntimeJava,
-	"elixir":  RuntimeElixir,
-	"mix":     RuntimeElixir,
-	"iex":     RuntimeElixir,
-	"ghc":     RuntimeHaskell,
-	"ghci":    RuntimeHaskell,
-	"cabal":   RuntimeHaskell,
-	"stack":   RuntimeHaskell,
+// knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)
+var knownRuntimes = []*Runtime{
+	{
+		ID:             "dotnet",
+		Name:           ".NET",
+		ActionRepo:     "actions/setup-dotnet",
+		ActionVersion:  "@v4",
+		VersionField:   "dotnet-version",
+		DefaultVersion: constants.DefaultDotNetVersion,
+		Commands:       []string{"dotnet"},
+	},
+	{
+		ID:             "elixir",
+		Name:           "Elixir",
+		ActionRepo:     "erlef/setup-beam",
+		ActionVersion:  "@v1",
+		VersionField:   "elixir-version",
+		DefaultVersion: constants.DefaultElixirVersion,
+		Commands:       []string{"elixir", "mix", "iex"},
+		ExtraWithFields: map[string]string{
+			"otp-version": "27",
+		},
+	},
+	{
+		ID:             "go",
+		Name:           "Go",
+		ActionRepo:     "actions/setup-go",
+		ActionVersion:  "@v5",
+		VersionField:   "go-version",
+		DefaultVersion: "", // Special handling: uses go.mod
+		Commands:       []string{"go"},
+	},
+	{
+		ID:             "haskell",
+		Name:           "Haskell",
+		ActionRepo:     "haskell-actions/setup",
+		ActionVersion:  "@v2",
+		VersionField:   "ghc-version",
+		DefaultVersion: constants.DefaultHaskellVersion,
+		Commands:       []string{"ghc", "ghci", "cabal", "stack"},
+	},
+	{
+		ID:             "java",
+		Name:           "Java",
+		ActionRepo:     "actions/setup-java",
+		ActionVersion:  "@v4",
+		VersionField:   "java-version",
+		DefaultVersion: constants.DefaultJavaVersion,
+		Commands:       []string{"java", "javac", "mvn", "gradle"},
+		ExtraWithFields: map[string]string{
+			"distribution": "temurin",
+		},
+	},
+	{
+		ID:             "node",
+		Name:           "Node.js",
+		ActionRepo:     "actions/setup-node",
+		ActionVersion:  "@v4",
+		VersionField:   "node-version",
+		DefaultVersion: constants.DefaultNodeVersion,
+		Commands:       []string{"node", "npm", "npx", "yarn", "pnpm"},
+	},
+	{
+		ID:             "python",
+		Name:           "Python",
+		ActionRepo:     "actions/setup-python",
+		ActionVersion:  "@v5",
+		VersionField:   "python-version",
+		DefaultVersion: constants.DefaultPythonVersion,
+		Commands:       []string{"python", "python3", "pip", "pip3"},
+	},
+	{
+		ID:             "ruby",
+		Name:           "Ruby",
+		ActionRepo:     "ruby/setup-ruby",
+		ActionVersion:  "@v1",
+		VersionField:   "ruby-version",
+		DefaultVersion: constants.DefaultRubyVersion,
+		Commands:       []string{"ruby", "gem", "bundle"},
+	},
+	{
+		ID:             "uv",
+		Name:           "uv",
+		ActionRepo:     "astral-sh/setup-uv",
+		ActionVersion:  "@v5",
+		VersionField:   "version",
+		DefaultVersion: "", // Uses latest
+		Commands:       []string{"uv", "uvx"},
+	},
+}
+
+// commandToRuntime maps command patterns to runtime configurations
+var commandToRuntime map[string]*Runtime
+
+// actionRepoToRuntime maps action repository names to runtime configurations
+var actionRepoToRuntime map[string]*Runtime
+
+func init() {
+	// Build the command to runtime mapping
+	commandToRuntime = make(map[string]*Runtime)
+	for _, runtime := range knownRuntimes {
+		for _, cmd := range runtime.Commands {
+			commandToRuntime[cmd] = runtime
+		}
+	}
+
+	// Build the action repo to runtime mapping
+	actionRepoToRuntime = make(map[string]*Runtime)
+	for _, runtime := range knownRuntimes {
+		actionRepoToRuntime[runtime.ActionRepo] = runtime
+	}
 }
 
 // DetectRuntimeRequirements analyzes workflow data to detect required runtimes
 func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement {
-	requirements := make(map[RuntimeType]string) // map of runtime -> highest version
+	requirements := make(map[string]*RuntimeRequirement) // map of runtime ID -> requirement
 
 	// Detect from custom steps
 	if workflowData.CustomSteps != "" {
@@ -79,78 +158,85 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromEngineSteps(workflowData.EngineConfig.Steps, requirements)
 	}
 
-	// Convert map to sorted slice (alphabetically by runtime name)
+	// Convert map to sorted slice (alphabetically by runtime ID)
 	var result []RuntimeRequirement
-	runtimeOrder := []RuntimeType{RuntimeDotNet, RuntimeElixir, RuntimeGo, RuntimeHaskell, RuntimeJava, RuntimeNode, RuntimePython, RuntimeRuby, RuntimeUV}
-	for _, rt := range runtimeOrder {
-		if version, exists := requirements[rt]; exists {
-			result = append(result, RuntimeRequirement{
-				Type:    rt,
-				Version: version,
-			})
-		}
+	var runtimeIDs []string
+	for id := range requirements {
+		runtimeIDs = append(runtimeIDs, id)
+	}
+	sort.Strings(runtimeIDs)
+
+	for _, id := range runtimeIDs {
+		result = append(result, *requirements[id])
 	}
 
 	return result
 }
 
 // detectFromCustomSteps scans custom steps YAML for runtime commands
-func detectFromCustomSteps(customSteps string, requirements map[RuntimeType]string) {
-	// First check if setup actions already exist
-	if hasExistingSetupAction(customSteps) {
+func detectFromCustomSteps(customSteps string, requirements map[string]*RuntimeRequirement) {
+	// First check if setup actions already exist using action repo detection
+	if hasExistingSetupActionByRepo(customSteps) {
 		return // Don't auto-add if user already has setup actions
 	}
 
 	lines := strings.Split(customSteps, "\n")
-	currentStepRun := ""
-
 	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Accumulate run command lines
-		if strings.HasPrefix(trimmed, "run:") {
-			currentStepRun = strings.TrimPrefix(trimmed, "run:")
-			currentStepRun = strings.TrimSpace(currentStepRun)
-		} else if currentStepRun != "" && (strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t")) {
-			// Multi-line run command
-			currentStepRun += " " + trimmed
-		} else if currentStepRun != "" {
-			// End of run command, analyze it
-			analyzeCommand(currentStepRun, requirements)
-			currentStepRun = ""
-		}
-
-		// Also check if it's a single-line run
-		if strings.HasPrefix(trimmed, "run:") && !strings.HasSuffix(trimmed, "|") && !strings.HasSuffix(trimmed, ">") {
-			cmd := strings.TrimPrefix(trimmed, "run:")
-			cmd = strings.TrimSpace(cmd)
-			analyzeCommand(cmd, requirements)
+		// Look for run: commands
+		if strings.Contains(line, "run:") {
+			// Extract the command part
+			parts := strings.SplitN(line, "run:", 2)
+			if len(parts) == 2 {
+				cmdLine := strings.TrimSpace(parts[1])
+				detectRuntimeFromCommand(cmdLine, requirements)
+			}
 		}
 	}
+}
 
-	// Analyze final run command if any
-	if currentStepRun != "" {
-		analyzeCommand(currentStepRun, requirements)
+// detectRuntimeFromCommand scans a command string for runtime indicators
+func detectRuntimeFromCommand(cmdLine string, requirements map[string]*RuntimeRequirement) {
+	// Split by common shell delimiters and operators
+	words := strings.FieldsFunc(cmdLine, func(r rune) bool {
+		return r == ' ' || r == '|' || r == '&' || r == ';' || r == '\n' || r == '\t'
+	})
+
+	for _, word := range words {
+		// Check if this word matches a known command
+		if runtime, exists := commandToRuntime[word]; exists {
+			// Special handling for "uv pip" to avoid detecting pip separately
+			if word == "pip" || word == "pip3" {
+				// Check if "uv" appears before this pip command
+				uvIndex := -1
+				pipIndex := -1
+				for i, w := range words {
+					if w == "uv" {
+						uvIndex = i
+					}
+					if w == word {
+						pipIndex = i
+						break
+					}
+				}
+				if uvIndex >= 0 && uvIndex < pipIndex {
+					// This is "uv pip", skip pip detection
+					continue
+				}
+			}
+
+			updateRequiredRuntime(runtime, "", requirements)
+		}
 	}
 }
 
 // detectFromMCPConfigs scans MCP server configurations for runtime commands
-func detectFromMCPConfigs(tools map[string]any, requirements map[RuntimeType]string) {
-	for _, toolValue := range tools {
-		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check for command field
-			if command, hasCommand := toolConfig["command"]; hasCommand {
-				if commandStr, ok := command.(string); ok {
-					// Detect runtime from command
-					if runtime, found := commandPatterns[commandStr]; found {
-						// Check if we need to update version
-						if version, exists := toolConfig["version"]; exists {
-							if versionStr, ok := version.(string); ok {
-								updateRequiredVersion(runtime, versionStr, requirements)
-							}
-						} else if _, alreadyHas := requirements[runtime]; !alreadyHas {
-							requirements[runtime] = "" // No specific version
-						}
+func detectFromMCPConfigs(tools map[string]any, requirements map[string]*RuntimeRequirement) {
+	for _, tool := range tools {
+		if toolMap, ok := tool.(map[string]any); ok {
+			if command, exists := toolMap["command"]; exists {
+				if cmdStr, ok := command.(string); ok {
+					if runtime, found := commandToRuntime[cmdStr]; found {
+						updateRequiredRuntime(runtime, "", requirements)
 					}
 				}
 			}
@@ -158,94 +244,37 @@ func detectFromMCPConfigs(tools map[string]any, requirements map[RuntimeType]str
 	}
 }
 
-// detectFromEngineSteps scans custom engine steps for runtime requirements
-func detectFromEngineSteps(steps []map[string]any, requirements map[RuntimeType]string) {
+// detectFromEngineSteps scans engine steps for runtime commands
+func detectFromEngineSteps(steps []map[string]any, requirements map[string]*RuntimeRequirement) {
 	for _, step := range steps {
-		// Check for 'run' field in step
-		if runCmd, hasRun := step["run"]; hasRun {
-			if runStr, ok := runCmd.(string); ok {
-				analyzeCommand(runStr, requirements)
-			}
-		}
-
-		// Check for 'uses' field to see if setup actions are present
-		if uses, hasUses := step["uses"]; hasUses {
-			if usesStr, ok := uses.(string); ok {
-				if strings.Contains(usesStr, "setup-node") ||
-					strings.Contains(usesStr, "setup-python") ||
-					strings.Contains(usesStr, "setup-go") ||
-					strings.Contains(usesStr, "setup-ruby") {
-					// User already has setup actions, don't auto-add
-					return
-				}
+		if run, hasRun := step["run"]; hasRun {
+			if runStr, ok := run.(string); ok {
+				detectRuntimeFromCommand(runStr, requirements)
 			}
 		}
 	}
 }
 
-// analyzeCommand detects runtime requirements from a shell command
-func analyzeCommand(command string, requirements map[RuntimeType]string) {
-	// Split command into tokens
-	tokens := strings.Fields(command)
-
-	// Track if we've seen uv, since "uv pip" shouldn't also trigger pip detection
-	uvSeen := false
-
-	for i, token := range tokens {
-		// Remove common shell operators and get base command
-		baseCmd := strings.TrimLeft(token, "&|;")
-		baseCmd = strings.Split(baseCmd, "=")[0] // Handle VAR=value cases
-
-		// Check if this matches a runtime command
-		if runtime, found := commandPatterns[baseCmd]; found {
-			// Special case: if this is "pip" and we previously saw "uv", skip it
-			if (baseCmd == "pip" || baseCmd == "pip3") && uvSeen {
-				continue
-			}
-
-			// Track if we see uv
-			if baseCmd == "uv" || baseCmd == "uvx" {
-				uvSeen = true
-			}
-
-			if _, alreadyHas := requirements[runtime]; !alreadyHas {
-				requirements[runtime] = "" // No specific version from command
-			}
-		}
-
-		// Also check the previous token for context (e.g., "uv pip" pattern)
-		if i > 0 {
-			prevToken := tokens[i-1]
-			prevBaseCmd := strings.TrimLeft(prevToken, "&|;")
-			prevBaseCmd = strings.Split(prevBaseCmd, "=")[0]
-
-			// If previous was "uv" and current is "pip", we already marked uv, so continue
-			if (prevBaseCmd == "uv") && (baseCmd == "pip" || baseCmd == "pip3") {
-				continue
-			}
+// hasExistingSetupActionByRepo checks if custom steps already contain setup actions using action repo detection
+func hasExistingSetupActionByRepo(customSteps string) bool {
+	for _, runtime := range knownRuntimes {
+		// Check if the action repo is referenced in the custom steps
+		if strings.Contains(customSteps, runtime.ActionRepo) {
+			return true
 		}
 	}
+	return false
 }
 
-// hasExistingSetupAction checks if custom steps already contain setup actions
-func hasExistingSetupAction(customSteps string) bool {
-	return strings.Contains(customSteps, "actions/setup-node") ||
-		strings.Contains(customSteps, "actions/setup-python") ||
-		strings.Contains(customSteps, "actions/setup-go") ||
-		strings.Contains(customSteps, "actions/setup-ruby") ||
-		strings.Contains(customSteps, "actions/setup-dotnet") ||
-		strings.Contains(customSteps, "actions/setup-java") ||
-		strings.Contains(customSteps, "erlef/setup-beam") ||
-		strings.Contains(customSteps, "haskell-actions/setup") ||
-		strings.Contains(customSteps, "astral-sh/setup-uv")
-}
+// updateRequiredRuntime updates the version requirement, choosing the highest version
+func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map[string]*RuntimeRequirement) {
+	existing, exists := requirements[runtime.ID]
 
-// updateRequiredVersion updates the version requirement, choosing the highest version
-func updateRequiredVersion(runtime RuntimeType, newVersion string, requirements map[RuntimeType]string) {
-	existing, exists := requirements[runtime]
-
-	if !exists || existing == "" {
-		requirements[runtime] = newVersion
+	if !exists {
+		requirements[runtime.ID] = &RuntimeRequirement{
+			Runtime: runtime,
+			Version: newVersion,
+		}
 		return
 	}
 
@@ -254,9 +283,15 @@ func updateRequiredVersion(runtime RuntimeType, newVersion string, requirements 
 		return
 	}
 
+	// If existing version is empty, use new version
+	if existing.Version == "" {
+		existing.Version = newVersion
+		return
+	}
+
 	// Compare versions and keep the higher one
-	if compareVersions(newVersion, existing) > 0 {
-		requirements[runtime] = newVersion
+	if compareVersions(newVersion, existing.Version) > 0 {
+		existing.Version = newVersion
 	}
 }
 
@@ -296,181 +331,66 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 	var steps []GitHubActionStep
 
 	for _, req := range requirements {
-		switch req.Type {
-		case RuntimeNode:
-			steps = append(steps, generateNodeSetup(req.Version))
-		case RuntimePython:
-			steps = append(steps, generatePythonSetup(req.Version))
-		case RuntimeGo:
-			steps = append(steps, generateGoSetup(req.Version))
-		case RuntimeRuby:
-			steps = append(steps, generateRubySetup(req.Version))
-		case RuntimeDotNet:
-			steps = append(steps, generateDotNetSetup(req.Version))
-		case RuntimeJava:
-			steps = append(steps, generateJavaSetup(req.Version))
-		case RuntimeElixir:
-			steps = append(steps, generateElixirSetup(req.Version))
-		case RuntimeHaskell:
-			steps = append(steps, generateHaskellSetup(req.Version))
-		case RuntimeUV:
-			steps = append(steps, generateUVSetup(req.Version))
-		}
+		steps = append(steps, generateSetupStep(req.Runtime, req.Version))
 	}
 
 	return steps
 }
 
-// generateNodeSetup creates a setup-node step
-func generateNodeSetup(version string) GitHubActionStep {
+// generateSetupStep creates a setup step for a given runtime
+func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
+	// Use default version if none specified
 	if version == "" {
-		version = constants.DefaultNodeVersion
+		version = runtime.DefaultVersion
 	}
-	return GitHubActionStep{
-		"      - name: Setup Node.js",
-		"        uses: actions/setup-node@v4",
-		"        with:",
-		fmt.Sprintf("          node-version: '%s'", version),
-	}
-}
 
-// generatePythonSetup creates a setup-python step
-func generatePythonSetup(version string) GitHubActionStep {
-	if version == "" {
-		version = constants.DefaultPythonVersion
-	}
-	return GitHubActionStep{
-		"      - name: Setup Python",
-		"        uses: actions/setup-python@v5",
-		"        with:",
-		fmt.Sprintf("          python-version: '%s'", version),
-	}
-}
-
-// generateGoSetup creates a setup-go step
-func generateGoSetup(version string) GitHubActionStep {
 	step := GitHubActionStep{
-		"      - name: Setup Go",
-		"        uses: actions/setup-go@v5",
+		fmt.Sprintf("      - name: Setup %s", runtime.Name),
+		fmt.Sprintf("        uses: %s%s", runtime.ActionRepo, runtime.ActionVersion),
 	}
 
-	if version != "" {
-		step = append(step, "        with:")
-		step = append(step, fmt.Sprintf("          go-version: '%s'", version))
-	} else {
-		// Use go-version-file if no specific version
+	// Special handling for Go when no version is specified
+	if runtime.ID == "go" && version == "" {
 		step = append(step, "        with:")
 		step = append(step, "          go-version-file: go.mod")
 		step = append(step, "          cache: true")
+		return step
 	}
 
-	return step
-}
-
-// generateRubySetup creates a setup-ruby step
-func generateRubySetup(version string) GitHubActionStep {
-	if version == "" {
-		version = constants.DefaultRubyVersion
-	}
-	return GitHubActionStep{
-		"      - name: Setup Ruby",
-		"        uses: ruby/setup-ruby@v1",
-		"        with:",
-		fmt.Sprintf("          ruby-version: '%s'", version),
-	}
-}
-
-// generateUVSetup creates a setup-uv step
-func generateUVSetup(version string) GitHubActionStep {
-	step := GitHubActionStep{
-		"      - name: Setup uv",
-		"        uses: astral-sh/setup-uv@v5",
-	}
-
+	// Add version field if we have a version
 	if version != "" {
 		step = append(step, "        with:")
-		step = append(step, fmt.Sprintf("          version: '%s'", version))
+		step = append(step, fmt.Sprintf("          %s: '%s'", runtime.VersionField, version))
+	} else if runtime.ID == "uv" {
+		// For uv without version, no with block needed
+		return step
+	}
+
+	// Add extra fields if present
+	for key, value := range runtime.ExtraWithFields {
+		step = append(step, fmt.Sprintf("          %s: %s", key, value))
 	}
 
 	return step
-}
-
-// generateDotNetSetup creates a setup-dotnet step
-func generateDotNetSetup(version string) GitHubActionStep {
-	if version == "" {
-		version = constants.DefaultDotNetVersion
-	}
-	return GitHubActionStep{
-		"      - name: Setup .NET",
-		"        uses: actions/setup-dotnet@v4",
-		"        with:",
-		fmt.Sprintf("          dotnet-version: '%s'", version),
-	}
-}
-
-// generateJavaSetup creates a setup-java step
-func generateJavaSetup(version string) GitHubActionStep {
-	if version == "" {
-		version = constants.DefaultJavaVersion
-	}
-	return GitHubActionStep{
-		"      - name: Setup Java",
-		"        uses: actions/setup-java@v4",
-		"        with:",
-		fmt.Sprintf("          java-version: '%s'", version),
-		"          distribution: 'temurin'",
-	}
-}
-
-// generateElixirSetup creates a setup-elixir step
-func generateElixirSetup(version string) GitHubActionStep {
-	if version == "" {
-		version = constants.DefaultElixirVersion
-	}
-	return GitHubActionStep{
-		"      - name: Setup Elixir",
-		"        uses: erlef/setup-beam@v1",
-		"        with:",
-		fmt.Sprintf("          elixir-version: '%s'", version),
-		"          otp-version: '27'",
-	}
-}
-
-// generateHaskellSetup creates a setup-haskell step
-func generateHaskellSetup(version string) GitHubActionStep {
-	if version == "" {
-		version = constants.DefaultHaskellVersion
-	}
-	return GitHubActionStep{
-		"      - name: Setup Haskell",
-		"        uses: haskell-actions/setup@v2",
-		"        with:",
-		fmt.Sprintf("          ghc-version: '%s'", version),
-	}
 }
 
 // ShouldSkipRuntimeSetup checks if we should skip automatic runtime setup
 // This returns true if the workflow already has setup actions in custom steps
 func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
-	if workflowData.CustomSteps != "" && hasExistingSetupAction(workflowData.CustomSteps) {
+	// Check custom steps for existing setup actions
+	if workflowData.CustomSteps != "" && hasExistingSetupActionByRepo(workflowData.CustomSteps) {
 		return true
 	}
 
-	// Also check engine steps
-	if workflowData.EngineConfig != nil {
+	// Check engine steps for existing setup actions
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
 		for _, step := range workflowData.EngineConfig.Steps {
 			if uses, hasUses := step["uses"]; hasUses {
 				if usesStr, ok := uses.(string); ok {
-					if strings.Contains(usesStr, "setup-node") ||
-						strings.Contains(usesStr, "setup-python") ||
-						strings.Contains(usesStr, "setup-go") ||
-						strings.Contains(usesStr, "setup-ruby") ||
-						strings.Contains(usesStr, "setup-dotnet") ||
-						strings.Contains(usesStr, "setup-java") ||
-						strings.Contains(usesStr, "setup-beam") ||
-						strings.Contains(usesStr, "haskell-actions/setup") ||
-						strings.Contains(usesStr, "astral-sh/setup-uv") {
-						return true
+					for _, runtime := range knownRuntimes {
+						if strings.Contains(usesStr, runtime.ActionRepo) {
+							return true
+						}
 					}
 				}
 			}
@@ -478,59 +398,4 @@ func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
 	}
 
 	return false
-}
-
-// ExtractVersionFromSteps tries to extract version requirements from existing setup actions
-func ExtractVersionFromSteps(customSteps string) map[RuntimeType]string {
-	versions := make(map[RuntimeType]string)
-
-	// Parse YAML to extract version information
-	var stepsWrapper struct {
-		Steps []map[string]any `yaml:"steps"`
-	}
-
-	if err := yaml.Unmarshal([]byte(customSteps), &stepsWrapper); err == nil {
-		for _, step := range stepsWrapper.Steps {
-			if uses, hasUses := step["uses"]; hasUses {
-				if usesStr, ok := uses.(string); ok {
-					// Check for setup actions and extract version
-					if strings.Contains(usesStr, "setup-node") {
-						if withMap, hasWith := step["with"].(map[string]any); hasWith {
-							if version, hasVersion := withMap["node-version"]; hasVersion {
-								if versionStr, ok := version.(string); ok {
-									versions[RuntimeNode] = strings.Trim(versionStr, "'\"")
-								}
-							}
-						}
-					} else if strings.Contains(usesStr, "setup-python") {
-						if withMap, hasWith := step["with"].(map[string]any); hasWith {
-							if version, hasVersion := withMap["python-version"]; hasVersion {
-								if versionStr, ok := version.(string); ok {
-									versions[RuntimePython] = strings.Trim(versionStr, "'\"")
-								}
-							}
-						}
-					} else if strings.Contains(usesStr, "setup-go") {
-						if withMap, hasWith := step["with"].(map[string]any); hasWith {
-							if version, hasVersion := withMap["go-version"]; hasVersion {
-								if versionStr, ok := version.(string); ok {
-									versions[RuntimeGo] = strings.Trim(versionStr, "'\"")
-								}
-							}
-						}
-					} else if strings.Contains(usesStr, "setup-ruby") {
-						if withMap, hasWith := step["with"].(map[string]any); hasWith {
-							if version, hasVersion := withMap["ruby-version"]; hasVersion {
-								if versionStr, ok := version.(string); ok {
-									versions[RuntimeRuby] = strings.Trim(versionStr, "'\"")
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return versions
 }

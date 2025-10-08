@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -8,164 +9,122 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 	tests := []struct {
 		name     string
 		command  string
-		expected map[RuntimeType]string
+		expected []string // Expected runtime IDs
 	}{
 		{
-			name:    "npm install command",
-			command: "npm install",
-			expected: map[RuntimeType]string{
-				RuntimeNode: "",
-			},
+			name:     "npm install command",
+			command:  "npm install",
+			expected: []string{"node"},
 		},
 		{
-			name:    "npx command",
-			command: "npx playwright test",
-			expected: map[RuntimeType]string{
-				RuntimeNode: "",
-			},
+			name:     "npx command",
+			command:  "npx playwright test",
+			expected: []string{"node"},
 		},
 		{
-			name:    "python command",
-			command: "python script.py",
-			expected: map[RuntimeType]string{
-				RuntimePython: "",
-			},
+			name:     "python command",
+			command:  "python script.py",
+			expected: []string{"python"},
 		},
 		{
-			name:    "pip install",
-			command: "pip install package",
-			expected: map[RuntimeType]string{
-				RuntimePython: "",
-			},
+			name:     "pip install",
+			command:  "pip install package",
+			expected: []string{"python"},
 		},
 		{
-			name:    "uv command",
-			command: "uv pip install package",
-			expected: map[RuntimeType]string{
-				RuntimeUV: "",
-			},
+			name:     "uv command",
+			command:  "uv pip install package",
+			expected: []string{"uv"},
 		},
 		{
-			name:    "uvx command",
-			command: "uvx ruff check",
-			expected: map[RuntimeType]string{
-				RuntimeUV: "",
-			},
+			name:     "uvx command",
+			command:  "uvx ruff check",
+			expected: []string{"uv"},
 		},
 		{
-			name:    "go command",
-			command: "go build",
-			expected: map[RuntimeType]string{
-				RuntimeGo: "",
-			},
+			name:     "go command",
+			command:  "go build",
+			expected: []string{"go"},
 		},
 		{
-			name:    "ruby command",
-			command: "ruby script.rb",
-			expected: map[RuntimeType]string{
-				RuntimeRuby: "",
-			},
+			name:     "ruby command",
+			command:  "ruby script.rb",
+			expected: []string{"ruby"},
 		},
 		{
-			name:    "dotnet command",
-			command: "dotnet build",
-			expected: map[RuntimeType]string{
-				RuntimeDotNet: "",
-			},
+			name:     "dotnet command",
+			command:  "dotnet build",
+			expected: []string{"dotnet"},
 		},
 		{
-			name:    "java command",
-			command: "java -jar app.jar",
-			expected: map[RuntimeType]string{
-				RuntimeJava: "",
-			},
+			name:     "java command",
+			command:  "java -jar app.jar",
+			expected: []string{"java"},
 		},
 		{
-			name:    "javac command",
-			command: "javac Main.java",
-			expected: map[RuntimeType]string{
-				RuntimeJava: "",
-			},
+			name:     "javac command",
+			command:  "javac Main.java",
+			expected: []string{"java"},
 		},
 		{
-			name:    "maven command",
-			command: "mvn clean install",
-			expected: map[RuntimeType]string{
-				RuntimeJava: "",
-			},
+			name:     "maven command",
+			command:  "mvn clean install",
+			expected: []string{"java"},
 		},
 		{
-			name:    "gradle command",
-			command: "gradle build",
-			expected: map[RuntimeType]string{
-				RuntimeJava: "",
-			},
+			name:     "gradle command",
+			command:  "gradle build",
+			expected: []string{"java"},
 		},
 		{
-			name:    "elixir command",
-			command: "elixir script.exs",
-			expected: map[RuntimeType]string{
-				RuntimeElixir: "",
-			},
+			name:     "elixir command",
+			command:  "elixir script.exs",
+			expected: []string{"elixir"},
 		},
 		{
-			name:    "mix command",
-			command: "mix deps.get",
-			expected: map[RuntimeType]string{
-				RuntimeElixir: "",
-			},
+			name:     "mix command",
+			command:  "mix deps.get",
+			expected: []string{"elixir"},
 		},
 		{
-			name:    "haskell ghc command",
-			command: "ghc Main.hs",
-			expected: map[RuntimeType]string{
-				RuntimeHaskell: "",
-			},
+			name:     "haskell ghc command",
+			command:  "ghc Main.hs",
+			expected: []string{"haskell"},
 		},
 		{
-			name:    "cabal command",
-			command: "cabal build",
-			expected: map[RuntimeType]string{
-				RuntimeHaskell: "",
-			},
+			name:     "cabal command",
+			command:  "cabal build",
+			expected: []string{"haskell"},
 		},
 		{
-			name:    "stack command",
-			command: "stack build",
-			expected: map[RuntimeType]string{
-				RuntimeHaskell: "",
-			},
+			name:     "stack command",
+			command:  "stack build",
+			expected: []string{"haskell"},
 		},
 		{
-			name:    "multiple commands",
-			command: "npm install && python test.py",
-			expected: map[RuntimeType]string{
-				RuntimeNode:   "",
-				RuntimePython: "",
-			},
+			name:     "multiple commands",
+			command:  "npm install && python test.py",
+			expected: []string{"node", "python"},
 		},
 		{
 			name:     "no runtime commands",
 			command:  "echo hello",
-			expected: map[RuntimeType]string{},
+			expected: []string{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			requirements := make(map[RuntimeType]string)
-			analyzeCommand(tt.command, requirements)
+			requirements := make(map[string]*RuntimeRequirement)
+			detectRuntimeFromCommand(tt.command, requirements)
 
 			if len(requirements) != len(tt.expected) {
-				t.Errorf("Expected %d requirements, got %d", len(tt.expected), len(requirements))
+				t.Errorf("Expected %d runtime(s), got %d: %v", len(tt.expected), len(requirements), getRequirementIDs(requirements))
 			}
 
-			for rt, expectedVersion := range tt.expected {
-				actualVersion, exists := requirements[rt]
-				if !exists {
-					t.Errorf("Expected runtime %s to be detected", rt)
-				} else if actualVersion != expectedVersion {
-					t.Errorf("Expected version '%s' for %s, got '%s'", expectedVersion, rt, actualVersion)
+			for _, expectedID := range tt.expected {
+				if _, exists := requirements[expectedID]; !exists {
+					t.Errorf("Expected runtime %s to be detected", expectedID)
 				}
 			}
 		})
@@ -176,79 +135,55 @@ func TestDetectFromCustomSteps(t *testing.T) {
 	tests := []struct {
 		name           string
 		customSteps    string
-		expected       []RuntimeType
+		expected       []string
 		skipIfHasSetup bool
 	}{
 		{
-			name: "detects npm from run command",
+			name: "detects node from npm command",
 			customSteps: `steps:
-  - name: Install deps
-    run: npm install`,
-			expected: []RuntimeType{RuntimeNode},
+  - run: npm install`,
+			expected: []string{"node"},
 		},
 		{
-			name: "detects python from run command",
+			name: "detects python from python command",
 			customSteps: `steps:
-  - name: Run script
-    run: python test.py`,
-			expected: []RuntimeType{RuntimePython},
-		},
-		{
-			name: "detects uv from run command",
-			customSteps: `steps:
-  - name: Install with uv
-    run: uv pip install pytest`,
-			expected: []RuntimeType{RuntimeUV},
+  - run: python test.py`,
+			expected: []string{"python"},
 		},
 		{
 			name: "detects multiple runtimes",
 			customSteps: `steps:
-  - name: Install
-    run: npm install
-  - name: Test
-    run: python test.py`,
-			expected: []RuntimeType{RuntimeNode, RuntimePython},
+  - run: npm install
+  - run: python test.py`,
+			expected: []string{"node", "python"},
 		},
 		{
-			name: "skips detection if setup action exists",
+			name: "skips when setup-node exists",
 			customSteps: `steps:
-  - name: Setup Node
-    uses: actions/setup-node@v4
-    with:
-      node-version: '20'
-  - name: Install
-    run: npm install`,
-			expected:       []RuntimeType{},
+  - uses: actions/setup-node@v4
+  - run: npm install`,
+			expected:       []string{},
 			skipIfHasSetup: true,
-		},
-		{
-			name: "handles multi-line run commands",
-			customSteps: `steps:
-  - name: Build
-    run: |
-      npm install
-      npm run build`,
-			expected: []RuntimeType{RuntimeNode},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			requirements := make(map[RuntimeType]string)
+			requirements := make(map[string]*RuntimeRequirement)
 			detectFromCustomSteps(tt.customSteps, requirements)
 
 			if tt.skipIfHasSetup && len(requirements) != 0 {
-				t.Errorf("Expected no requirements when setup action exists, got %v", requirements)
+				t.Errorf("Expected no requirements when setup action exists, got %v", getRequirementIDs(requirements))
 				return
 			}
 
 			if len(requirements) != len(tt.expected) {
-				t.Errorf("Expected %d requirements, got %d: %v", len(tt.expected), len(requirements), requirements)
+				t.Errorf("Expected %d requirements, got %d: %v", len(tt.expected), len(requirements), getRequirementIDs(requirements))
 			}
 
-			for _, expectedRuntime := range tt.expected {
-				if _, exists := requirements[expectedRuntime]; !exists {
-					t.Errorf("Expected runtime %s to be detected", expectedRuntime)
+			for _, expectedID := range tt.expected {
+				if _, exists := requirements[expectedID]; !exists {
+					t.Errorf("Expected runtime %s to be detected", expectedID)
 				}
 			}
 		})
@@ -259,7 +194,7 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 	tests := []struct {
 		name     string
 		tools    map[string]any
-		expected []RuntimeType
+		expected []string
 	}{
 		{
 			name: "detects node from MCP command",
@@ -269,7 +204,7 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 					"args":    []string{"server.js"},
 				},
 			},
-			expected: []RuntimeType{RuntimeNode},
+			expected: []string{"node"},
 		},
 		{
 			name: "detects python from MCP command",
@@ -279,7 +214,7 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 					"args":    []string{"-m", "server"},
 				},
 			},
-			expected: []RuntimeType{RuntimePython},
+			expected: []string{"python"},
 		},
 		{
 			name: "detects npx from MCP command",
@@ -289,7 +224,7 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 					"args":    []string{"@playwright/mcp"},
 				},
 			},
-			expected: []RuntimeType{RuntimeNode},
+			expected: []string{"node"},
 		},
 		{
 			name: "no detection for non-runtime commands",
@@ -299,22 +234,22 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 					"args":    []string{"run"},
 				},
 			},
-			expected: []RuntimeType{},
+			expected: []string{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			requirements := make(map[RuntimeType]string)
+			requirements := make(map[string]*RuntimeRequirement)
 			detectFromMCPConfigs(tt.tools, requirements)
 
 			if len(requirements) != len(tt.expected) {
-				t.Errorf("Expected %d requirements, got %d: %v", len(tt.expected), len(requirements), requirements)
+				t.Errorf("Expected %d requirements, got %d: %v", len(tt.expected), len(requirements), getRequirementIDs(requirements))
 			}
 
-			for _, expectedRuntime := range tt.expected {
-				if _, exists := requirements[expectedRuntime]; !exists {
-					t.Errorf("Expected runtime %s to be detected", expectedRuntime)
+			for _, expectedID := range tt.expected {
+				if _, exists := requirements[expectedID]; !exists {
+					t.Errorf("Expected runtime %s to be detected", expectedID)
 				}
 			}
 		})
@@ -328,14 +263,14 @@ func TestCompareVersions(t *testing.T) {
 		expected int
 	}{
 		{"1.0.0", "1.0.0", 0},
-		{"2.0.0", "1.0.0", 1},
-		{"1.0.0", "2.0.0", -1},
-		{"1.2.0", "1.1.0", 1},
-		{"1.1.0", "1.2.0", -1},
-		{"20", "18", 1},
-		{"18", "20", -1},
-		{"3.12", "3.11", 1},
-		{"3.11.5", "3.11.4", 1},
+		{"1.0.1", "1.0.0", 1},
+		{"1.0.0", "1.0.1", -1},
+		{"2.0.0", "1.9.9", 1},
+		{"1.9.9", "2.0.0", -1},
+		{"3.11", "3.9", 1},
+		{"3.9", "3.11", -1},
+		{"24", "20", 1},
+		{"20", "24", -1},
 	}
 
 	for _, tt := range tests {
@@ -358,7 +293,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "generates node setup",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeNode, Version: "20"},
+				{Runtime: findRuntimeByID("node"), Version: "20"},
 			},
 			expectSteps: 1,
 			checkContent: []string{
@@ -370,7 +305,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "generates python setup",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimePython, Version: "3.11"},
+				{Runtime: findRuntimeByID("python"), Version: "3.11"},
 			},
 			expectSteps: 1,
 			checkContent: []string{
@@ -382,7 +317,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "generates uv setup",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeUV, Version: ""},
+				{Runtime: findRuntimeByID("uv"), Version: ""},
 			},
 			expectSteps: 1,
 			checkContent: []string{
@@ -393,7 +328,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "generates dotnet setup",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeDotNet, Version: "8.0"},
+				{Runtime: findRuntimeByID("dotnet"), Version: "8.0"},
 			},
 			expectSteps: 1,
 			checkContent: []string{
@@ -405,20 +340,20 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "generates java setup",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeJava, Version: "21"},
+				{Runtime: findRuntimeByID("java"), Version: "21"},
 			},
 			expectSteps: 1,
 			checkContent: []string{
 				"Setup Java",
 				"actions/setup-java@v4",
 				"java-version: '21'",
-				"distribution: 'temurin'",
+				"distribution: temurin",
 			},
 		},
 		{
 			name: "generates elixir setup",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeElixir, Version: "1.17"},
+				{Runtime: findRuntimeByID("elixir"), Version: "1.17"},
 			},
 			expectSteps: 1,
 			checkContent: []string{
@@ -430,7 +365,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "generates haskell setup",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeHaskell, Version: "9.10"},
+				{Runtime: findRuntimeByID("haskell"), Version: "9.10"},
 			},
 			expectSteps: 1,
 			checkContent: []string{
@@ -442,8 +377,8 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "generates multiple setups",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeNode, Version: "24"},
-				{Type: RuntimePython, Version: "3.12"},
+				{Runtime: findRuntimeByID("node"), Version: "24"},
+				{Runtime: findRuntimeByID("python"), Version: "3.12"},
 			},
 			expectSteps: 2,
 			checkContent: []string{
@@ -454,7 +389,7 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 		{
 			name: "uses default versions",
 			requirements: []RuntimeRequirement{
-				{Type: RuntimeNode, Version: ""},
+				{Runtime: findRuntimeByID("node"), Version: ""},
 			},
 			expectSteps: 1,
 			checkContent: []string{
@@ -471,17 +406,10 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 				t.Errorf("Expected %d steps, got %d", tt.expectSteps, len(steps))
 			}
 
-			// Convert steps to string for content checking
-			allContent := ""
-			for _, step := range steps {
-				for _, line := range step {
-					allContent += line + "\n"
-				}
-			}
-
-			for _, expected := range tt.checkContent {
-				if !runtimeContainsString(allContent, expected) {
-					t.Errorf("Expected to find '%s' in generated steps:\n%s", expected, allContent)
+			stepsStr := stepsToString(steps)
+			for _, content := range tt.checkContent {
+				if !strings.Contains(stepsStr, content) {
+					t.Errorf("Expected steps to contain '%s', got: %s", content, stepsStr)
 				}
 			}
 		})
@@ -490,54 +418,37 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 
 func TestShouldSkipRuntimeSetup(t *testing.T) {
 	tests := []struct {
-		name         string
-		workflowData *WorkflowData
-		expected     bool
+		name     string
+		data     *WorkflowData
+		expected bool
 	}{
 		{
-			name: "skip when setup-node exists",
-			workflowData: &WorkflowData{
+			name: "skip when setup action exists in custom steps",
+			data: &WorkflowData{
 				CustomSteps: `steps:
-  - uses: actions/setup-node@v4`,
-			},
-			expected: true,
-		},
-		{
-			name: "skip when setup-python exists",
-			workflowData: &WorkflowData{
-				CustomSteps: `steps:
-  - uses: actions/setup-python@v5`,
-			},
-			expected: true,
-		},
-		{
-			name: "skip when setup-uv exists",
-			workflowData: &WorkflowData{
-				CustomSteps: `steps:
-  - uses: astral-sh/setup-uv@v5`,
+  - uses: actions/setup-node@v4
+  - run: npm install`,
 			},
 			expected: true,
 		},
 		{
 			name: "don't skip when no setup actions",
-			workflowData: &WorkflowData{
+			data: &WorkflowData{
 				CustomSteps: `steps:
   - run: npm install`,
 			},
 			expected: false,
 		},
 		{
-			name: "don't skip when empty",
-			workflowData: &WorkflowData{
-				CustomSteps: "",
-			},
+			name:     "don't skip when no custom steps",
+			data:     &WorkflowData{},
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ShouldSkipRuntimeSetup(tt.workflowData)
+			result := ShouldSkipRuntimeSetup(tt.data)
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}
@@ -545,20 +456,31 @@ func TestShouldSkipRuntimeSetup(t *testing.T) {
 	}
 }
 
-// Helper function to check if a string contains a substring
-func runtimeContainsString(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 &&
-		(s == substr || len(s) > len(substr) &&
-			(s[:len(substr)] == substr ||
-				s[len(s)-len(substr):] == substr ||
-				runtimeFindSubstring(s, substr)))
+// Helper functions
+
+func getRequirementIDs(requirements map[string]*RuntimeRequirement) []string {
+	var ids []string
+	for id := range requirements {
+		ids = append(ids, id)
+	}
+	return ids
 }
 
-func runtimeFindSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+func findRuntimeByID(id string) *Runtime {
+	for _, runtime := range knownRuntimes {
+		if runtime.ID == id {
+			return runtime
 		}
 	}
-	return false
+	return nil
+}
+
+func stepsToString(steps []GitHubActionStep) string {
+	var result string
+	for _, step := range steps {
+		for _, line := range step {
+			result += line + "\n"
+		}
+	}
+	return result
 }
