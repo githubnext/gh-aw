@@ -36,8 +36,9 @@ async function main() {
           return;
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-        // Don't edit issue bodies for now - this might be more complex
-        shouldEditComment = false;
+        commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+        // Create a comment for issue events
+        shouldEditComment = true;
         break;
 
       case "issue_comment":
@@ -60,8 +61,9 @@ async function main() {
         }
         // PRs are "issues" for the reactions endpoint
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-        // Don't edit PR bodies for now - this might be more complex
-        shouldEditComment = false;
+        commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
+        // Create a comment for pull request events
+        shouldEditComment = true;
         break;
 
       case "pull_request_review_comment":
@@ -86,15 +88,15 @@ async function main() {
     // Add reaction first
     await addReaction(reactionEndpoint, reaction);
 
-    // Then edit comment if applicable and if it's a comment event
+    // Then add or edit comment if applicable
     if (shouldEditComment && commentUpdateEndpoint) {
-      core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
-      await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
+      core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
+      await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
     } else {
       if (!command && commentUpdateEndpoint) {
         core.info("Skipping comment edit - only available for command workflows");
       } else {
-        core.info(`Skipping comment edit for event type: ${eventName}`);
+        core.info(`Skipping comment for event type: ${eventName}`);
       }
     }
   } catch (error) {
@@ -128,45 +130,69 @@ async function addReaction(endpoint, reaction) {
 }
 
 /**
- * Edit a comment to add a workflow run link
- * @param {string} endpoint - The GitHub API endpoint to update the comment
+ * Add or edit a comment to add a workflow run link
+ * @param {string} endpoint - The GitHub API endpoint to update or create the comment
  * @param {string} runUrl - The URL of the workflow run
+ * @param {string} eventName - The event type (to determine if we create or edit)
  */
-async function editCommentWithWorkflowLink(endpoint, runUrl) {
+async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   try {
-    // First, get the current comment content
-    const getResponse = await github.request("GET " + endpoint, {
-      headers: {
-        Accept: "application/vnd.github+json",
-      },
-    });
+    // For issues and pull_request events, create a new comment
+    // For comment events (issue_comment, pull_request_review_comment), edit the existing comment
+    const isCreateComment = eventName === "issues" || eventName === "pull_request";
 
-    const originalBody = getResponse.data.body || "";
-    const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
+    if (isCreateComment) {
+      // Create a new comment
+      const workflowLinkText = `> Agentic [workflow run](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
 
-    // Check if we've already added a workflow link to avoid duplicates
-    if (originalBody.includes("> Agentic [workflow run](")) {
-      core.info("Comment already contains a workflow run link, skipping edit");
-      return;
+      const createResponse = await github.request("POST " + endpoint, {
+        body: workflowLinkText,
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
+
+      core.info(`Successfully created comment with workflow link`);
+      core.info(`Comment ID: ${createResponse.data.id}`);
+      core.info(`Comment URL: ${createResponse.data.html_url}`);
+      core.setOutput("comment-id", createResponse.data.id.toString());
+      core.setOutput("comment-url", createResponse.data.html_url);
+    } else {
+      // Edit existing comment
+      // First, get the current comment content
+      const getResponse = await github.request("GET " + endpoint, {
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
+
+      const originalBody = getResponse.data.body || "";
+      const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
+
+      // Check if we've already added a workflow link to avoid duplicates
+      if (originalBody.includes("> Agentic [workflow run](")) {
+        core.info("Comment already contains a workflow run link, skipping edit");
+        return;
+      }
+
+      const updatedBody = originalBody + workflowLinkText;
+
+      // Update the comment
+      const updateResponse = await github.request("PATCH " + endpoint, {
+        body: updatedBody,
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
+
+      core.info(`Successfully updated comment with workflow link`);
+      core.info(`Comment ID: ${updateResponse.data.id}`);
     }
-
-    const updatedBody = originalBody + workflowLinkText;
-
-    // Update the comment
-    const updateResponse = await github.request("PATCH " + endpoint, {
-      body: updatedBody,
-      headers: {
-        Accept: "application/vnd.github+json",
-      },
-    });
-
-    core.info(`Successfully updated comment with workflow link`);
-    core.info(`Comment ID: ${updateResponse.data.id}`);
   } catch (error) {
-    // Don't fail the entire job if comment editing fails - just log it
+    // Don't fail the entire job if comment editing/creation fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.warning(
-      "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
+      "Failed to add/edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
     );
   }
 }
