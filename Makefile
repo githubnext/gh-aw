@@ -91,6 +91,7 @@ deps:
 	go mod tidy
 	go install golang.org/x/tools/gopls@latest
 	go install github.com/rhysd/actionlint/cmd/actionlint@latest
+	go install golang.org/x/tools/gopls@latest
 	npm install -g prettier
 
 # Install development tools (including linter)

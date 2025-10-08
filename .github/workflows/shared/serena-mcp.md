@@ -18,7 +18,7 @@ steps:
   - name: Install uv
     uses: astral-sh/setup-uv@v6
   - name: Verify uv
-    run: uv --version      
+    run: uv --version
 ---
 
 Activate the current dir as project using serena.
