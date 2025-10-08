@@ -62,8 +62,8 @@ func TestClaudeEngine(t *testing.T) {
 		Name: "test-workflow",
 	}
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the main execution step
@@ -149,8 +149,8 @@ func TestClaudeEngineWithOutput(t *testing.T) {
 		SafeOutputs: &SafeOutputsConfig{}, // non-nil means hasOutput=true
 	}
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the main execution step
@@ -182,8 +182,8 @@ func TestClaudeEngineConfiguration(t *testing.T) {
 				Name: tc.workflowName,
 			}
 			steps := engine.GetExecutionSteps(workflowData, tc.logFile)
-			if len(steps) != 2 {
-				t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+			if len(steps) != 1 {
+				t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 			}
 
 			// Check the main execution step
@@ -248,8 +248,8 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the main execution step
@@ -282,8 +282,8 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the main execution step
@@ -306,8 +306,8 @@ func TestClaudeEngineWithNilConfig(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the main execution step
@@ -387,8 +387,8 @@ func TestClaudeEngineWithMCPServers(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the main execution step
@@ -421,8 +421,8 @@ func TestClaudeEngineWithSafeOutputs(t *testing.T) {
 	}
 
 	steps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(steps) != 2 {
-		t.Fatalf("Expected 2 steps (execution + log capture), got %d", len(steps))
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step (execution only, log capture is added by compiler), got %d", len(steps))
 	}
 
 	// Check the main execution step
