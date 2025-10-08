@@ -240,6 +240,7 @@ func updateRequiredVersion(runtime RuntimeType, newVersion string, requirements 
 }
 
 // compareVersions compares two semantic versions, returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+// Note: Non-numeric version parts (e.g., 'beta', 'alpha') default to 0 for comparison purposes
 func compareVersions(v1, v2 string) int {
 	parts1 := strings.Split(v1, ".")
 	parts2 := strings.Split(v2, ".")
@@ -253,10 +254,10 @@ func compareVersions(v1, v2 string) int {
 		var p1, p2 int
 
 		if i < len(parts1) {
-			_, _ = fmt.Sscanf(parts1[i], "%d", &p1) // Ignore error, defaults to 0
+			_, _ = fmt.Sscanf(parts1[i], "%d", &p1) // Ignore error, defaults to 0 for non-numeric parts
 		}
 		if i < len(parts2) {
-			_, _ = fmt.Sscanf(parts2[i], "%d", &p2) // Ignore error, defaults to 0
+			_, _ = fmt.Sscanf(parts2[i], "%d", &p2) // Ignore error, defaults to 0 for non-numeric parts
 		}
 
 		if p1 > p2 {
