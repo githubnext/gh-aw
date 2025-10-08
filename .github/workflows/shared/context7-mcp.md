@@ -1,7 +1,9 @@
 ---
 mcp-servers:
   context7:
-    url: "https://mcp.context7.com/mcp?apiKey=${{ secrets.CONTEXT7_API_KEY }}"
+    container: "mcp/context7"
+    env:
+      CONTEXT7_API_KEY: "${{ secrets.CONTEXT7_API_KEY }}"
     allowed:
       - get-library-docs
       - resolve-library-id

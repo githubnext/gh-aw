@@ -1255,12 +1255,23 @@ jobs:
           {
             "mcpServers": {
               "context7": {
-                "type": "http",
-                "url": "https://mcp.context7.com/mcp?apiKey=${{ secrets.CONTEXT7_API_KEY }}",
+                "type": "local",
+                "command": "docker",
                 "tools": [
                   "get-library-docs",
                   "resolve-library-id"
-                ]
+                ],
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "-e",
+                  "CONTEXT7_API_KEY",
+                  "mcp/context7"
+                ],
+                "env": {
+                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
+                }
               },
               "deepwiki": {
                 "type": "http",
