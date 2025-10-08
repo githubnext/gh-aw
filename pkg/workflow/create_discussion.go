@@ -9,7 +9,7 @@ type CreateDiscussionsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string `yaml:"title-prefix,omitempty"`
 	CategoryId           string `yaml:"category-id,omitempty"` // Discussion category ID
-	TargetRepoSlug       string `yaml:"target-repo,omitempty"`  // Target repository in format "owner/repo" for cross-repository discussions
+	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository discussions
 }
 
 // parseDiscussionsConfig handles create-discussion configuration

@@ -7,12 +7,12 @@ import (
 
 // AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddLabelsConfig struct {
-	Allowed        []string `yaml:"allowed,omitempty"`        // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	Max            int      `yaml:"max,omitempty"`            // Optional maximum number of labels to add (default: 3)
-	Min            int      `yaml:"min,omitempty"`            // Optional minimum number of labels to add
-	GitHubToken    string   `yaml:"github-token,omitempty"`   // GitHub token for this specific output type
-	Target         string   `yaml:"target,omitempty"`         // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
-	TargetRepoSlug string   `yaml:"target-repo,omitempty"`    // Target repository in format "owner/repo" for cross-repository labels
+	Allowed        []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Max            int      `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
+	Min            int      `yaml:"min,omitempty"`          // Optional minimum number of labels to add
+	GitHubToken    string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	Target         string   `yaml:"target,omitempty"`       // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
+	TargetRepoSlug string   `yaml:"target-repo,omitempty"`  // Target repository in format "owner/repo" for cross-repository labels
 }
 
 // buildCreateOutputLabelJob creates the add_labels job
@@ -58,7 +58,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	
+
 	// Pass target repository - prefer explicit config over trial mode setting
 	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.TargetRepoSlug != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddLabels.TargetRepoSlug))
