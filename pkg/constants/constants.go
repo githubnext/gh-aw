@@ -15,7 +15,13 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.9"
+const DefaultClaudeCodeVersion = "2.0.10"
+
+// DefaultCopilotVersion is the default version of the GitHub Copilot CLI
+const DefaultCopilotVersion = "0.0.336"
+
+// DefaultCodexVersion is the default version of the OpenAI Codex CLI
+const DefaultCodexVersion = "0.45.0"
 
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
@@ -49,6 +55,7 @@ var AllowedExpressions = []string{
 	"github.event.release.id",
 	"github.event.release.tag_name",
 	"github.event.repository.id",
+	"github.event.repository.default_branch",
 	"github.event.review.id",
 	"github.event.review_comment.id",
 	"github.event.sender.id",

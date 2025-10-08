@@ -2745,9 +2745,9 @@ Test workflow with reaction and comment editing.
 		"add_reaction:",
 		"GITHUB_AW_REACTION: eyes",
 		"uses: actions/github-script@v8",
-		"editCommentWithWorkflowLink", // This should be in the new script
-		"runUrl =",                    // This should be in the new script for workflow run URL
-		"Comment update endpoint",     // This should be logged in the new script
+		"addOrEditCommentWithWorkflowLink", // This should be in the new script
+		"runUrl =",                         // This should be in the new script for workflow run URL
+		"Comment endpoint",                 // This should be logged in the new script
 	}
 
 	for _, expected := range expectedStrings {

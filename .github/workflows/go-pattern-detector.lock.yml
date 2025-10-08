@@ -187,7 +187,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.9
+        run: npm install -g @anthropic-ai/claude-code@2.0.10
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/.claude
@@ -2811,7 +2811,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.9
+        run: npm install -g @anthropic-ai/claude-code@2.0.10
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

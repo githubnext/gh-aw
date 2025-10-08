@@ -242,6 +242,15 @@ minor-release:
 
 
 
+# Changeset management targets
+.PHONY: changeset-version
+changeset-version:
+	@node scripts/changeset.js version
+
+.PHONY: changeset-release
+changeset-release:
+	@node scripts/changeset.js release
+
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
 agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile
@@ -275,4 +284,6 @@ help:
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  patch-release    - Create and push patch release (increments patch version)"
 	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"
+	@echo "  changeset-version   - Preview next version from changesets"
+	@echo "  changeset-release   - Create release using changesets"
 	@echo "  help             - Show this help message"

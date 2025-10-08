@@ -32,6 +32,8 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, activationJobCreated 
 
 	outputs := map[string]string{
 		"reaction_id": "${{ steps.react.outputs.reaction-id }}",
+		"comment_id":  "${{ steps.react.outputs.comment-id }}",
+		"comment_url": "${{ steps.react.outputs.comment-url }}",
 	}
 
 	var depends []string
