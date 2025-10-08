@@ -386,6 +386,10 @@ gh aw logs --no-staged               # Filter out staged runs
 # Generate tool usage analysis
 gh aw logs --tool-graph              # Generate Mermaid tool sequence graph
 
+# Parse agent logs with JavaScript parser
+gh aw logs --parse                   # Run JS parser and write log.md
+gh aw logs ci-doctor --parse         # Parse specific workflow logs
+
 # Analyze recent performance with verbose output
 gh aw logs ci-doctor -c 5 --verbose
 ```
@@ -396,6 +400,25 @@ gh aw logs ci-doctor -c 5 --verbose
 - Success/failure rates and error categorization
 - Workflow run frequency and scheduling patterns
 - Resource usage and performance trends
+
+**Log Parsing:**
+
+The `--parse` flag runs the engine-specific JavaScript log parser on downloaded agent logs and generates a formatted markdown summary:
+
+```bash
+# Parse logs for all downloaded runs
+gh aw logs --parse
+
+# Parse logs for specific workflow
+gh aw logs ci-doctor --parse --verbose
+```
+
+When `--parse` is used:
+- Locates `agent_output.json` in each downloaded run directory
+- Automatically selects the appropriate parser based on the engine (Claude, Codex, Copilot)
+- Generates a `log.md` file in each run folder with formatted markdown output
+- The parser extracts tool calls, reasoning, and other structured information from raw logs
+- Mimics the GitHub Actions environment to execute the same parsers used in workflows
 
 ## 🔎 Single Run Audit
 
