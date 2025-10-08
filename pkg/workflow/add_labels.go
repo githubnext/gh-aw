@@ -58,7 +58,10 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	}
 
 	// Get token from config
-	token := data.SafeOutputs.AddLabels.GitHubToken
+	token := ""
+	if data.SafeOutputs.AddLabels != nil {
+		token = data.SafeOutputs.AddLabels.GitHubToken
+	}
 
 	// Build the GitHub Script step using the common helper
 	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
