@@ -28,20 +28,19 @@ permissions:
   issues: write
 engine: claude
 mcp-servers:
-  trello:
-    command: "python"
-    args: ["-m", "trello_mcp"]
-    env:
-      TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
-    allowed: ["list_boards", "create_card"]
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
   
   notion:
-    registry: https://api.mcp.github.com/v0/servers/makenotion/notion-mcp-server
-    command: npx
-    args: ["-y", "@makenotion/notion-mcp-server"]
+    container: "mcp/notion"
     env:
       NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-    allowed: ["search_pages", "create_page"]
+    allowed:
+      - "search_pages"
+      - "get_page"
+      - "get_database"
+      - "query_database"
 ---
 
 # Your workflow content here
@@ -99,13 +98,18 @@ Direct command execution with stdin/stdout communication:
 
 ```yaml
 mcp-servers:
-  python-service:
-    command: "python"
-    args: ["-m", "my_mcp_server"]
-    env:
-      API_KEY: "${{ secrets.MY_API_KEY }}"
-      DEBUG: "false"
-    allowed: ["process_data", "generate_report"]
+  serena:
+    command: "uvx"
+    args:
+      - "--from"
+      - "git+https://github.com/oraios/serena"
+      - "serena"
+      - "start-mcp-server"
+      - "--context"
+      - "codex"
+      - "--project"
+      - "${{ github.workspace }}"
+    allowed: ["*"]
 ```
 
 **Use cases**: Python modules, Node.js scripts, local executables
@@ -116,50 +120,49 @@ Containerized MCP servers for isolation and portability:
 
 ```yaml
 mcp-servers:
-  notion:
-    container: "mcp/notion"
+  ast-grep:
+    container: "mcp/ast-grep"
     version: "latest"
-    env:
-      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-    allowed: ["create_page", "search_pages"]
+    allowed: ["*"]
 ```
 
 The `container` field automatically generates:
 - **Command**: `"docker"`
-- **Args**: `["run", "--rm", "-i", "-e", "NOTION_TOKEN", "mcp/notion:latest"]`
+- **Args**: `["run", "--rm", "-i", "mcp/ast-grep:latest"]`
 
-The `version` field is optional and allows you to specify the container tag separately from the image name. If not provided, you can include the version in the container field directly (e.g., `container: "mcp/notion:latest"`).
+The `version` field is optional and allows you to specify the container tag separately from the image name. If not provided, you can include the version in the container field directly (e.g., `container: "mcp/ast-grep:latest"`).
 
 **Use cases**: Third-party MCP servers, complex dependencies, security isolation
 
-#### Custom Docker Arguments
+#### Custom Docker Configuration
 
-For advanced use cases, you can provide custom Docker arguments such as volume mounts or working directory:
+For advanced use cases, you can configure Docker containers with environment variables and network restrictions:
 
 ```yaml
 mcp-servers:
-  serena:
-    container: "ghcr.io/oraios/serena"
-    version: "latest"
-    args:
-      - "-v"
-      - "${{ github.workspace }}:/workspace:ro"
-      - "-w"
-      - "/workspace"
+  context7:
+    container: "mcp/context7"
     env:
-      SERENA_DOCKER: "1"
-    allowed: ["read_file", "find_symbol"]
+      CONTEXT7_API_KEY: "${{ secrets.CONTEXT7_API_KEY }}"
+    network:
+      allowed:
+        - mcp.context7.com
+    allowed:
+      - get-library-docs
+      - resolve-library-id
 ```
 
-This generates:
+This generates a Docker container with environment variables and network egress controls:
 - **Command**: `"docker"`
-- **Args**: `["run", "--rm", "-i", "-e", "SERENA_DOCKER", "-v", "${{ github.workspace }}:/workspace:ro", "-w", "/workspace", "ghcr.io/oraios/serena:latest"]`
+- **Args**: Includes environment variable flags (e.g., `-e CONTEXT7_API_KEY`) and network proxy configuration
+- **Network**: Squid proxy restricts egress to allowed domains only
 
-The custom args are inserted after environment variable flags but before the container image, allowing you to:
-- Mount volumes with `-v` for file access
-- Set working directory with `-w`
-- Configure network settings
-- Add any other Docker run flags
+The custom configuration allows you to:
+- Set environment variables with `env:` for authentication and configuration (translates to Docker `-e` flags)
+- Configure network egress controls with `network.allowed:` for security
+- Control which tools are accessible with `allowed:` list
+
+For more advanced Docker customization (volume mounts, working directory, etc.), see the [Network Egress Permissions](#network-egress-permissions) section below.
 
 ### 3. HTTP MCP Servers
 
@@ -167,15 +170,23 @@ Remote MCP servers accessible via HTTP (Claude engine only):
 
 ```yaml
 mcp-servers:
-  remote-api:
-    url: "https://api.example.com/mcp"
-    headers:
-      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
-      Content-Type: "application/json"
-    allowed: ["query_data", "update_records"]
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+  
+  deepwiki:
+    url: "https://mcp.deepwiki.com/sse"
+    allowed:
+      - read_wiki_structure
+      - read_wiki_contents
+      - ask_question
+  
+  microsoftdocs:
+    url: "https://learn.microsoft.com/api/mcp"
+    allowed: ["*"]
 ```
 
-**Use cases**: Cloud services, remote APIs, shared infrastructure
+**Use cases**: Cloud services, remote APIs, shared infrastructure, public documentation services
 
 ### 4. Registry-based MCP Servers
 
@@ -185,9 +196,8 @@ MCP servers that reference entries in the GitHub MCP registry:
 mcp-servers:
   markitdown:
     registry: https://api.mcp.github.com/v0/servers/microsoft/markitdown
-    command: npx
-    args: ["-y", "@microsoft/markitdown"]
-    allowed: ["convert_html", "convert_pdf"]
+    container: "ghcr.io/microsoft/markitdown"
+    allowed: ["*"]
 ```
 
 **Registry Reference**: The `registry` field provides metadata about the MCP server's origin and can help with tooling and documentation.
@@ -222,13 +232,15 @@ When using an agentic engine that supports tool allow-listing (e.g. Claude), you
 
 ```yaml
 mcp-servers:
-  custom-server:
-    command: "python"
-    args: ["-m", "my_server"]
-    allowed: ["tool1", "tool2", "tool3"]
+  deepwiki:
+    url: "https://mcp.deepwiki.com/sse"
+    allowed:
+      - read_wiki_structure
+      - read_wiki_contents
+      - ask_question
 ```
 
-When using an agentic engine that supports tool allow-listing (e.g. Claude), this generates tool names: `mcp__servername__tool1`, `mcp__servername__tool2`, etc.
+When using an agentic engine that supports tool allow-listing (e.g. Claude), this generates tool names: `mcp__deepwiki__read_wiki_structure`, `mcp__deepwiki__read_wiki_contents`, etc.
 
 > [!TIP]
 > You can inspect tools available from MCP servers by running: <br/>
@@ -239,13 +251,13 @@ When using an agentic engine that supports tool allow-listing (e.g. Claude), thi
 
 ```yaml
 mcp-servers:
-  custom-server:
-    command: "python"
-    args: ["-m", "my_server"]
+  ast-grep:
+    container: "mcp/ast-grep"
+    version: "latest"
     allowed: ["*"]  # Allow ALL tools from this server
 ```
 
-When using an agentic engine that supports tool allow-listing (e.g. Claude), this generates: `mcp__servername` (access to all server tools)
+When using an agentic engine that supports tool allow-listing (e.g. Claude), this generates: `mcp__ast-grep` (access to all server tools)
 
 ### HTTP Headers
 
@@ -253,12 +265,12 @@ HTTP headers can be configured for remote MCP servers:
 
 ```yaml
 mcp-servers:
-  remote-api:
-    url: "https://api.service.com"
-    headers:
-      Authorization: "Bearer ${{ secrets.API_TOKEN }}"
-      X-Custom-Key: "${{ secrets.CUSTOM_KEY }}"
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
 ```
+
+For services that require authentication headers, you can configure them in the URL parameters (as shown above) or use dedicated header fields when needed.
 
 ## Network Egress Permissions
 
@@ -266,12 +278,16 @@ Restrict outbound network access for containerized MCP servers using a per‑too
 
 ```yaml
 mcp-servers:
-  fetch:
-    container: mcp/fetch
+  context7:
+    container: "mcp/context7"
+    env:
+      CONTEXT7_API_KEY: "${{ secrets.CONTEXT7_API_KEY }}"
     network:
       allowed:
-        - "example.com"
-    allowed: ["fetch"]
+        - mcp.context7.com
+    allowed:
+      - get-library-docs
+      - resolve-library-id
 ```
 
 Enforcement in compiled workflows:
