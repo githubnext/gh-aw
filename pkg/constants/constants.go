@@ -23,6 +23,27 @@ const DefaultCopilotVersion = "0.0.336"
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.45.0"
 
+// DefaultNodeVersion is the default version of Node.js for runtime setup
+const DefaultNodeVersion = "24"
+
+// DefaultPythonVersion is the default version of Python for runtime setup
+const DefaultPythonVersion = "3.12"
+
+// DefaultRubyVersion is the default version of Ruby for runtime setup
+const DefaultRubyVersion = "3.3"
+
+// DefaultDotNetVersion is the default version of .NET for runtime setup
+const DefaultDotNetVersion = "8.0"
+
+// DefaultJavaVersion is the default version of Java for runtime setup
+const DefaultJavaVersion = "21"
+
+// DefaultElixirVersion is the default version of Elixir for runtime setup
+const DefaultElixirVersion = "1.17"
+
+// DefaultHaskellVersion is the default version of GHC for runtime setup
+const DefaultHaskellVersion = "9.10"
+
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
 var DefaultAllowedDomains = []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}

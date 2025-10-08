@@ -2078,6 +2078,19 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Add automatic runtime setup steps if needed
+	// This detects runtimes from custom steps and MCP configs
+	// Must be added BEFORE custom steps so the runtimes are available
+	if !ShouldSkipRuntimeSetup(data) {
+		runtimeRequirements := DetectRuntimeRequirements(data)
+		runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements)
+		for _, step := range runtimeSetupSteps {
+			for _, line := range step {
+				yaml.WriteString(line + "\n")
+			}
+		}
+	}
+
 	// Add custom steps if present
 	if data.CustomSteps != "" {
 		// Remove "steps:" line and adjust indentation

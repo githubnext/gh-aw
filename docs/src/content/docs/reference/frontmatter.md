@@ -694,11 +694,8 @@ Add custom steps before the agentic execution step using GitHub Actions standard
 
 ```yaml
 steps:
-  - name: Custom setup
-    run: echo "Custom step before agentic execution"
-  - uses: actions/setup-node@v4
-    with:
-      node-version: '18'
+  - name: Install dependencies
+    run: npm ci
 ```
 
 If no custom steps are specified, a default step to checkout the repository is added automatically.

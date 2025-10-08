@@ -78,10 +78,6 @@ The YAML frontmatter supports these fields:
       max-turns: 10                     # Optional: maximum iterations (for consistency)
       max-concurrency: 5                # Optional: max concurrent workflows (for consistency)
       steps:                            # Required: array of custom GitHub Actions steps
-        - name: Setup Node.js
-          uses: actions/setup-node@v4
-          with:
-            node-version: "18"
         - name: Run tests
           run: npm test
     ```

@@ -136,11 +136,8 @@ engine: custom
 engine:
   id: custom
   steps:
-    - name: Custom step
-      run: echo "Custom logic here"
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '18'
+    - name: Install dependencies
+      run: npm ci
 ```
 
 **Features:**
