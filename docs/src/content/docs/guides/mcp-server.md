@@ -125,5 +125,4 @@ Logs are in `/tmp/aw-mcp/logs` for analysis.
 
 ## Related Documentation
 
-- [MCP Integration Guide](/gh-aw/guides/mcps/) - Using MCP servers in workflows
 - [CLI Commands](/gh-aw/tools/cli/) - Complete CLI reference
