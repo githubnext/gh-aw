@@ -362,6 +362,9 @@ func AddSafeOutputsEnvToMap(env map[string]string, workflowData *WorkflowData, u
 	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 	}
+	if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
+		env["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
+	}
 
 	// Add branch name if upload assets is configured
 	if workflowData.SafeOutputs.UploadAssets != nil {
@@ -407,6 +410,9 @@ func AddSafeOutputsEnvToLines(stepLines *[]string, workflowData *WorkflowData) {
 	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 		*stepLines = append(*stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
 	}
+	if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q", workflowData.TrialTargetRepo))
+	}
 
 	// Add branch name if upload assets is configured
 	if workflowData.SafeOutputs.UploadAssets != nil {
@@ -446,6 +452,9 @@ func AddSafeOutputsEnvToAnyMap(env map[string]any, workflowData *WorkflowData) {
 	// Add staged flag if specified
 	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+	}
+	if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
+		env["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
 	}
 
 	// Add branch name if upload assets is configured

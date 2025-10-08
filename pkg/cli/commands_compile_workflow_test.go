@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestCompileWorkflow(t *testing.T) {
@@ -32,7 +34,7 @@ permissions:
 
 This is a test workflow for compilation.
 `
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				err := os.MkdirAll(workflowsDir, 0755)
 				if err != nil {
 					return "", err
@@ -62,7 +64,7 @@ permissions:
 
 Test workflow with verbose compilation.
 `
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				err := os.MkdirAll(workflowsDir, 0755)
 				if err != nil {
 					return "", err
@@ -92,7 +94,7 @@ permissions:
 
 Test compilation with specific engine.
 `
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				err := os.MkdirAll(workflowsDir, 0755)
 				if err != nil {
 					return "", err
@@ -117,7 +119,7 @@ invalid yaml: [unclosed
 
 This workflow has invalid frontmatter.
 `
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				err := os.MkdirAll(workflowsDir, 0755)
 				if err != nil {
 					return "", err
@@ -158,7 +160,7 @@ permissions:
 
 Test compilation with invalid engine.
 `
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				err := os.MkdirAll(workflowsDir, 0755)
 				if err != nil {
 					return "", err
@@ -245,7 +247,7 @@ func TestStageWorkflowChanges(t *testing.T) {
 				}
 
 				// Create workflows directory with test files
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 					return err
 				}
@@ -266,7 +268,7 @@ func TestStageWorkflowChanges(t *testing.T) {
 			name: "staging in non-git directory falls back gracefully",
 			setupRepo: func(tmpDir string) error {
 				// Don't initialize git repo - should use fallback
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 					return err
 				}
@@ -425,7 +427,7 @@ permissions:
 
 This is a test workflow for compilation.
 `
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				err := os.MkdirAll(workflowsDir, 0755)
 				if err != nil {
 					return err
@@ -441,7 +443,7 @@ This is a test workflow for compilation.
 			workflowID: "nonexistent",
 			setupWorkflow: func(tmpDir string) error {
 				// Create workflows directory but no file
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				return os.MkdirAll(workflowsDir, 0755)
 			},
 			expectError:   true,
@@ -464,7 +466,7 @@ permissions:
 
 This is a test workflow for backward compatibility.
 `
-				workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 				err := os.MkdirAll(workflowsDir, 0755)
 				if err != nil {
 					return err
@@ -539,7 +541,7 @@ This is a test workflow for backward compatibility.
 				}
 
 				// Verify the lock file was created
-				expectedLockFile := filepath.Join(".github", "workflows", "test-workflow.lock.yml")
+				expectedLockFile := filepath.Join(constants.GetWorkflowDir(), "test-workflow.lock.yml")
 				if _, err := os.Stat(expectedLockFile); os.IsNotExist(err) {
 					t.Errorf("Expected lock file %s to be created", expectedLockFile)
 				}

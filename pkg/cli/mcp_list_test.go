@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestListWorkflowMCP(t *testing.T) {
 	// Create a temporary directory for test workflows
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -86,7 +88,7 @@ This is a test workflow.`
 func TestListWorkflowsWithMCPServers(t *testing.T) {
 	// Create a temporary directory for test workflows
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -160,12 +162,6 @@ func TestNewMCPListSubcommand(t *testing.T) {
 
 	if cmd.Short != "List MCP servers defined in agentic workflows" {
 		t.Errorf("Expected Short description, got %s", cmd.Short)
-	}
-
-	// Check that verbose flag exists
-	flag := cmd.Flags().Lookup("verbose")
-	if flag == nil {
-		t.Error("Expected verbose flag to exist")
 	}
 
 	// Check that the command accepts 0 or 1 arguments

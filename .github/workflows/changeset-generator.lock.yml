@@ -3140,6 +3140,7 @@ jobs:
           script: |
             const fs = require("fs");
             async function main() {
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
@@ -3225,7 +3226,7 @@ jobs:
                 return;
               }
               core.info("Found push-to-pull-request-branch item");
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+              if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
                 summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
                 summaryContent += `**Target:** ${target}\n\n`;

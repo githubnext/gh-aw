@@ -9,10 +9,10 @@ import (
 //go:embed js/create_pull_request.cjs
 var createPullRequestScript string
 
-//go:embed js/create_issue.js
+//go:embed js/create_issue.cjs
 var createIssueScript string
 
-//go:embed js/create_discussion.js
+//go:embed js/create_discussion.cjs
 var createDiscussionScript string
 
 //go:embed js/add_comment.cjs
@@ -27,10 +27,10 @@ var createCodeScanningAlertScript string
 //go:embed js/compute_text.cjs
 var computeTextScript string
 
-//go:embed js/collect_ndjson_output.js
+//go:embed js/collect_ndjson_output.cjs
 var collectJSONLOutputScript string
 
-//go:embed js/add_labels.js
+//go:embed js/add_labels.cjs
 var addLabelsScript string
 
 //go:embed js/update_issue.cjs

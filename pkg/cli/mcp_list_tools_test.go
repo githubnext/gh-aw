@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -13,7 +14,7 @@ import (
 func TestListToolsForMCP(t *testing.T) {
 	// Create a temporary directory for test workflows
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -140,7 +141,7 @@ This workflow has no GitHub MCP server.`
 func TestFindWorkflowsWithMCPServer(t *testing.T) {
 	// Create a temporary directory for test workflows
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
@@ -323,16 +324,5 @@ func TestNewMCPListToolsSubcommand(t *testing.T) {
 
 	if cmd.Short != "List available tools for a specific MCP server" {
 		t.Errorf("Expected Short description, got: %s", cmd.Short)
-	}
-
-	// Check that the command has the verbose flag
-	verboseFlag := cmd.Flags().Lookup("verbose")
-	if verboseFlag == nil {
-		t.Error("Expected --verbose flag to be defined")
-		return
-	}
-
-	if verboseFlag.Shorthand != "v" {
-		t.Errorf("Expected verbose flag shorthand to be 'v', got: %s", verboseFlag.Shorthand)
 	}
 }

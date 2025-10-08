@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestResolveWorkflowPath(t *testing.T) {
@@ -26,7 +28,7 @@ func TestResolveWorkflowPath(t *testing.T) {
 	}
 
 	// Create .github/workflows directory
-	workflowsDir := filepath.Join(".github", "workflows")
+	workflowsDir := filepath.Join(constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}

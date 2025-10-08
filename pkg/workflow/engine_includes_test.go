@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestEngineInheritanceFromIncludes(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +81,7 @@ This should inherit the engine from the included file.
 func TestEngineConflictDetection(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +135,7 @@ This should fail due to multiple engine specifications.
 func TestEngineObjectFormatInIncludes(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +191,7 @@ This should inherit the claude engine from the included file.
 func TestNoEngineSpecifiedAnywhere(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +255,7 @@ This should use the default engine.
 func TestMainEngineWithoutIncludes(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +302,7 @@ This workflow specifies claude engine directly without any includes.
 func TestMultipleIncludesWithEnginesFailure(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +372,7 @@ This should fail due to multiple engine specifications in includes.
 func TestImportedEngineWithCustomSteps(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	sharedDir := filepath.Join(workflowsDir, "shared")
 	if err := os.MkdirAll(sharedDir, 0755); err != nil {
 		t.Fatal(err)
@@ -458,7 +460,7 @@ This workflow imports a custom engine with steps.
 func TestImportedEngineWithEnvVars(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	sharedDir := filepath.Join(workflowsDir, "shared")
 	if err := os.MkdirAll(sharedDir, 0755); err != nil {
 		t.Fatal(err)
