@@ -35,20 +35,6 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 	return steps
 }
 
-// generateRoleCheckScript generates JavaScript code to check user permissions
-func (c *Compiler) generateRoleCheckScript(requiredPermissions []string) string {
-	// If "all" is specified, no checks needed (this shouldn't happen since needsRoleCheck would return false)
-	if len(requiredPermissions) == 1 && requiredPermissions[0] == "all" {
-		return `
-core.setOutput("is_team_member", "true");
-console.log("Permission check skipped - 'roles: all' specified");`
-	}
-
-	// Use the embedded check_permissions.cjs script
-	// The GITHUB_AW_REQUIRED_ROLES environment variable is set via the env field
-	return checkPermissionsScript
-}
-
 // generateMembershipCheckScript generates JavaScript code to check user permissions (output-only version)
 func (c *Compiler) generateMembershipCheckScript(requiredPermissions []string) string {
 	// If "all" is specified, no checks needed (this shouldn't happen since needsRoleCheck would return false)

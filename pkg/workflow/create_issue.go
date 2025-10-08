@@ -71,26 +71,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Add permission checks if no task job was created but permission checks are needed
 	if !taskJobCreated && c.needsRoleCheck(data, frontmatter) {
-		// Add team member check step
-		steps = append(steps, "      - name: Check team membership for workflow\n")
-		steps = append(steps, "        id: check-team-member\n")
-		steps = append(steps, "        uses: actions/github-script@v8\n")
-
-		// Add environment variables for permission check
-		steps = append(steps, "        env:\n")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REQUIRED_ROLES: %s\n", strings.Join(data.Roles, ",")))
-
-		steps = append(steps, "        with:\n")
-		steps = append(steps, "          script: |\n")
-
-		// Generate the JavaScript code for the permission check
-		scriptContent := c.generateRoleCheckScript(data.Roles)
-		scriptLines := strings.Split(scriptContent, "\n")
-		for _, line := range scriptLines {
-			if strings.TrimSpace(line) != "" {
-				steps = append(steps, fmt.Sprintf("            %s\n", line))
-			}
-		}
+		return nil, fmt.Errorf("internal error: permission checks required but no task job created")
 	}
 
 	// Build custom environment variables specific to create-issue
