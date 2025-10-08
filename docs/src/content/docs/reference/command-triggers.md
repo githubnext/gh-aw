@@ -191,9 +191,14 @@ When someone mentions `/my-bot` in a comment, the workflow will:
 1. Add the emoji reaction (👀 by default, or your custom choice) to the comment
 2. Automatically edit the comment to include a link to the workflow run
 
+**Note**: For non-command workflows triggered by `issues` or `pull_request` events with reactions enabled, the behavior is slightly different:
+- A reaction is added to the issue/PR
+- A new comment is created with the workflow run link (instead of editing an existing comment)
+- The comment ID and URL are exposed as job outputs (`comment_id` and `comment_url`)
+
 This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution.
 
-See [Reactions](/gh-aw/reference/frontmatter/) for the complete list of available reactions.
+See [Reactions](/gh-aw/reference/frontmatter/) for the complete list of available reactions and detailed behavior.
 
 ## Related Documentation
 

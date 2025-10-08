@@ -89,6 +89,16 @@ on:
   reaction: "eyes"
 ```
 
+**Behavior:**
+- **For `issues` and `pull_request` events**: Adds the emoji reaction AND creates a comment with a link to the workflow run
+- **For comment events** (`issue_comment`, `pull_request_review_comment`): Adds the emoji reaction and edits the comment to include the workflow run link (command workflows only)
+
+**Outputs:**
+The `add_reaction` job exposes the following outputs for use by downstream jobs:
+- `reaction_id`: The ID of the created reaction
+- `comment_id`: The ID of the created comment (for `issues`/`pull_request` events)
+- `comment_url`: The URL of the created comment (for `issues`/`pull_request` events)
+
 **Available reactions:**
 - `+1` (👍)
 - `-1` (👎)
