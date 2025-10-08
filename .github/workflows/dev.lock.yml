@@ -1145,6 +1145,13 @@ jobs:
                   "${{ github.workspace }}:/workspace:ro",
                   "-w",
                   "/workspace",
+                  "--network",
+                  "host",
+                  "--entrypoint",
+                  "serena",
+                  "start-mcp-server",
+                  "--transport",
+                  "stdio",
                   "ghcr.io/oraios/serena:latest"
                 ],
                 "env": {
@@ -1165,6 +1172,8 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           ### Serana Tools
           Serana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**
+          
+          
           
           Use serena to count lines of code in the repository.
           Fail if serena mCP server is not available.
@@ -2739,7 +2748,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "### Serana Tools\nSerana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**\n\nUse serena to count lines of code in the repository.\nFail if serena mCP server is not available.\n"
+          WORKFLOW_MARKDOWN: "### Serana Tools\nSerana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\nUse serena to count lines of code in the repository.\nFail if serena mCP server is not available.\n"
         with:
           script: |
             const fs = require('fs');

@@ -8,6 +8,13 @@ mcp-servers:
       - "${{ github.workspace }}:/workspace:ro"
       - "-w"
       - "/workspace"
+      - "--network"
+      - "host"
+      - "--entrypoint"
+      - "serena"
+      - "start-mcp-server"
+      - "--transport"
+      - "stdio"
     env:
       SERENA_DOCKER: "1"
       SERENA_PORT: "9121"
@@ -28,3 +35,9 @@ mcp-servers:
 
 ### Serana Tools
 Serana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**
+
+<!--
+
+  # https://github.com/mcp/oraios/serena#using-docker-experimental
+
+-->
