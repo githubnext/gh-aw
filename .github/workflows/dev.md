@@ -1,19 +1,22 @@
 ---
-name: Dev
 on: 
   workflow_dispatch:
   push:
     branches:
-      - serana*
-engine: codex
+      - copilot/*
+name: Dev
+engine: claude
 safe-outputs:
     staged: true
     create-issue:
 timeout_minutes: 10
 strict: true
 imports:
-  - shared/serena-mcp.md
+  - shared/gh-aw-mcp.md
 ---
 
-Use serena to count lines of code in the repository.
-Fail if serena mCP server is not available.
+- Report the status of the github agentic workflows in this repository.
+
+If status fails, give up.
+
+- Summarize the logs information for the last 24h of activity in agentic workflows.
