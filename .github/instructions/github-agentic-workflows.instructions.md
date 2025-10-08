@@ -352,11 +352,9 @@ on:
 
 ## GitHub Context Expression Interpolation
 
-Use GitHub Actions context expressions throughout the workflow content. **Note: For security reasons, only specific expressions are allowed in the markdown content that gets passed to the AI agent.**
+Use GitHub Actions context expressions throughout the workflow content. **Note: For security reasons, only specific expressions are allowed.**
 
-**Important**: The `if` field in the frontmatter can use any GitHub Actions expression since it's evaluated by GitHub Actions itself and not passed to the agent. Expression restrictions only apply to `${{}}` expressions embedded in the markdown content.
-
-### Allowed Context Variables (for Markdown Content)
+### Allowed Context Variables
 - **`${{ github.event.after }}`** - SHA of the most recent commit after the push
 - **`${{ github.event.before }}`** - SHA of the most recent commit before the push
 - **`${{ github.event.check_run.id }}`** - ID of the check run
