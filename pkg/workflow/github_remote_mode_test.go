@@ -110,6 +110,50 @@ tools:
 			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
 			engineType:    "copilot",
 		},
+		{
+			name: "Codex remote mode with default token",
+			frontmatter: `---
+engine: codex
+tools:
+  github:
+    mode: remote
+    allowed: [list_issues, create_issue]
+---`,
+			expectedType:  "remote",
+			expectedURL:   "https://api.githubcopilot.com/mcp/",
+			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			engineType:    "codex",
+		},
+		{
+			name: "Codex remote mode with custom token",
+			frontmatter: `---
+engine: codex
+tools:
+  github:
+    mode: remote
+    github-token: "${{ secrets.CUSTOM_PAT }}"
+    allowed: [list_issues, create_issue]
+---`,
+			expectedType:  "remote",
+			expectedURL:   "https://api.githubcopilot.com/mcp/",
+			expectedToken: "${{ secrets.CUSTOM_PAT }}",
+			engineType:    "codex",
+		},
+		{
+			name: "Codex remote mode with read-only",
+			frontmatter: `---
+engine: codex
+tools:
+  github:
+    mode: remote
+    read-only: true
+    allowed: [list_issues]
+---`,
+			expectedType:  "remote",
+			expectedURL:   "https://api.githubcopilot.com/mcp/",
+			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			engineType:    "codex",
+		},
 	}
 
 	for _, tt := range tests {
@@ -145,27 +189,53 @@ This is a test workflow for GitHub remote mode configuration.
 			// Check the MCP configuration based on expected type
 			switch tt.expectedType {
 			case "remote":
-				// Should contain HTTP configuration
-				if !strings.Contains(lockContent, `"type": "http"`) {
-					t.Errorf("Expected HTTP configuration but didn't find 'type: http' in:\n%s", lockContent)
-				}
-				if tt.expectedURL != "" && !strings.Contains(lockContent, tt.expectedURL) {
-					t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
-				}
-				if tt.expectedToken != "" {
-					if !strings.Contains(lockContent, `"Authorization": "Bearer `+tt.expectedToken) {
-						t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
+				// Codex uses TOML format, others use JSON
+				if tt.engineType == "codex" {
+					// Check for TOML format
+					if !strings.Contains(lockContent, `type = "http"`) {
+						t.Errorf("Expected HTTP configuration but didn't find 'type = \"http\"' in:\n%s", lockContent)
 					}
-				}
-				// Check for X-MCP-Readonly header if this is a read-only test
-				if strings.Contains(tt.name, "read-only") {
-					if !strings.Contains(lockContent, `"X-MCP-Readonly": "true"`) {
-						t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
+					if tt.expectedURL != "" && !strings.Contains(lockContent, `url = "`+tt.expectedURL+`"`) {
+						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
-				}
-				// Should NOT contain Docker configuration
-				if strings.Contains(lockContent, `"command": "docker"`) {
-					t.Errorf("Expected no Docker command but found it in:\n%s", lockContent)
+					if tt.expectedToken != "" {
+						if !strings.Contains(lockContent, `"Authorization" = "Bearer `+tt.expectedToken+`"`) {
+							t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
+						}
+					}
+					// Check for X-MCP-Readonly header if this is a read-only test
+					if strings.Contains(tt.name, "read-only") {
+						if !strings.Contains(lockContent, `"X-MCP-Readonly" = "true"`) {
+							t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
+						}
+					}
+					// Should NOT contain Docker configuration
+					if strings.Contains(lockContent, `command = "docker"`) {
+						t.Errorf("Expected no Docker command but found it in:\n%s", lockContent)
+					}
+				} else {
+					// Check for JSON format
+					if !strings.Contains(lockContent, `"type": "http"`) {
+						t.Errorf("Expected HTTP configuration but didn't find 'type: http' in:\n%s", lockContent)
+					}
+					if tt.expectedURL != "" && !strings.Contains(lockContent, tt.expectedURL) {
+						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
+					}
+					if tt.expectedToken != "" {
+						if !strings.Contains(lockContent, `"Authorization": "Bearer `+tt.expectedToken) {
+							t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
+						}
+					}
+					// Check for X-MCP-Readonly header if this is a read-only test
+					if strings.Contains(tt.name, "read-only") {
+						if !strings.Contains(lockContent, `"X-MCP-Readonly": "true"`) {
+							t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
+						}
+					}
+					// Should NOT contain Docker configuration
+					if strings.Contains(lockContent, `"command": "docker"`) {
+						t.Errorf("Expected no Docker command but found it in:\n%s", lockContent)
+					}
 				}
 			case "local":
 				// Should contain Docker or local configuration
@@ -173,18 +243,29 @@ This is a test workflow for GitHub remote mode configuration.
 					if !strings.Contains(lockContent, `"type": "local"`) {
 						t.Errorf("Expected Copilot local type but didn't find it in:\n%s", lockContent)
 					}
+				} else if tt.engineType == "codex" {
+					// Codex uses TOML format for Docker
+					if !strings.Contains(lockContent, `command = "docker"`) {
+						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
+					}
 				} else {
 					// For Claude, check for Docker command
 					if !strings.Contains(lockContent, `"command": "docker"`) {
 						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
 					}
 				}
-				if !strings.Contains(lockContent, `"ghcr.io/github/github-mcp-server:sha-09deac4"`) {
+				if !strings.Contains(lockContent, `ghcr.io/github/github-mcp-server:sha-09deac4`) {
 					t.Errorf("Expected Docker image but didn't find it in:\n%s", lockContent)
 				}
 				// Should NOT contain HTTP type
-				if strings.Contains(lockContent, `"type": "http"`) {
-					t.Errorf("Expected no HTTP type but found it in:\n%s", lockContent)
+				if tt.engineType == "codex" {
+					if strings.Contains(lockContent, `type = "http"`) {
+						t.Errorf("Expected no HTTP type but found it in:\n%s", lockContent)
+					}
+				} else {
+					if strings.Contains(lockContent, `"type": "http"`) {
+						t.Errorf("Expected no HTTP type but found it in:\n%s", lockContent)
+					}
 				}
 			}
 		})

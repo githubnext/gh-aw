@@ -49,7 +49,7 @@ func NewCodexEngine() *CodexEngine {
 			description:            "Uses OpenAI Codex CLI with MCP server support",
 			experimental:           true,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  false, // Codex only supports stdio transport
+			supportsHTTPTransport:  true,  // Codex now supports HTTP transport for remote MCP servers
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
 			supportsWebSearch:      true,  // Codex has built-in web-search support
@@ -470,10 +470,10 @@ func (e *CodexEngine) extractCodexTokenUsage(line string) int {
 }
 
 // renderGitHubCodexMCPConfig generates GitHub MCP server configuration for codex config.toml
-// Always uses Docker MCP as the default
+// Supports both local (Docker) and remote (hosted) modes
 func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTool any, workflowData *WorkflowData) {
-	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-	customArgs := getGitHubCustomArgs(githubTool)
+	githubType := getGitHubType(githubTool)
+	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 
 	yaml.WriteString("          \n")
@@ -492,26 +492,56 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 
-	// Always use Docker-based GitHub MCP server (services mode has been removed)
-	yaml.WriteString("          command = \"docker\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"run\",\n")
-	yaml.WriteString("            \"-i\",\n")
-	yaml.WriteString("            \"--rm\",\n")
-	yaml.WriteString("            \"-e\",\n")
-	yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-	if readOnly {
+	// Check if remote mode is enabled
+	if githubType == "remote" {
+		// Remote mode - use hosted GitHub MCP server
+		yaml.WriteString("          type = \"http\"\n")
+		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
+
+		// Add authorization header
+		if customGitHubToken != "" {
+			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer " + customGitHubToken + "\"")
+		} else {
+			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
+		}
+
+		// Add X-MCP-Readonly header if read-only mode is enabled
+		if readOnly {
+			yaml.WriteString(", \"X-MCP-Readonly\" = \"true\" }\n")
+		} else {
+			yaml.WriteString(" }\n")
+		}
+	} else {
+		// Local mode - use Docker-based GitHub MCP server (default)
+		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+		customArgs := getGitHubCustomArgs(githubTool)
+
+		yaml.WriteString("          command = \"docker\"\n")
+		yaml.WriteString("          args = [\n")
+		yaml.WriteString("            \"run\",\n")
+		yaml.WriteString("            \"-i\",\n")
+		yaml.WriteString("            \"--rm\",\n")
 		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
+		yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+		if readOnly {
+			yaml.WriteString("            \"-e\",\n")
+			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
+		}
+		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+
+		// Append custom args if present
+		writeArgsToYAML(yaml, customArgs, "            ")
+
+		yaml.WriteString("\n")
+		yaml.WriteString("          ]\n")
+
+		// Use custom token if specified, otherwise use default
+		if customGitHubToken != "" {
+			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"" + customGitHubToken + "\" }\n")
+		} else {
+			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\" }\n")
+		}
 	}
-	yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-
-	// Append custom args if present
-	writeArgsToYAML(yaml, customArgs, "            ")
-
-	yaml.WriteString("\n")
-	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\" }\n")
 }
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
