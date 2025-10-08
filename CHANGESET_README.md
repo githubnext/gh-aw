@@ -15,11 +15,6 @@ node changeset.js release
 # Or use make target
 make changeset-release
 
-# Preview release without modifying files (dry-run)
-node changeset.js release --dry-run
-# Or use make target
-make changeset-dry-run
-
 # Create specific release type
 node changeset.js release patch
 node changeset.js release minor
@@ -53,20 +48,10 @@ node changeset.js release minor
 ```
 
 This command:
-- Checks prerequisites (clean tree, main branch) - unless using --dry-run
+- Checks prerequisites (clean tree, main branch)
 - Updates `CHANGELOG.md` with the new version and changes
 - Deletes processed changeset files
 - Provides next steps for committing and tagging
-
-**With --dry-run flag:**
-```bash
-node changeset.js release --dry-run
-```
-
-Shows what would be changed without modifying any files. Useful for:
-- Previewing the CHANGELOG entry before committing
-- Checking which changeset files would be deleted
-- Testing from any branch or with uncommitted changes
 
 ## Changeset File Format
 
@@ -87,12 +72,10 @@ Brief description of the change
 
 ## Prerequisites for Release
 
-When running `node changeset.js release` (without `--dry-run`), the script checks:
+When running `node changeset.js release`, the script checks:
 
 1. **Clean working tree**: All changes must be committed or stashed
 2. **On main branch**: Must be on the `main` branch to create a release
-
-These checks are skipped in dry-run mode to allow previewing from any branch or state.
 
 Example error when not on main branch:
 ```bash
@@ -137,7 +120,7 @@ $ node changeset.js release
 5. **Create and push tag:**
    ```bash
    git tag -a v0.15.0 -m "Release v0.15.0"
-   git push origin main v0.15.0
+   git push origin v0.15.0
    ```
 
 ## Features
