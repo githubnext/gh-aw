@@ -7,16 +7,17 @@ import (
 
 // AddLabelsConfig holds configuration for adding labels to issues/PRs from agent output
 type AddLabelsConfig struct {
-	Allowed     []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
-	Max         int      `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
-	Min         int      `yaml:"min,omitempty"`          // Optional minimum number of labels to add
-	GitHubToken string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
-	Target      string   `yaml:"target,omitempty"`       // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
+	Allowed        []string `yaml:"allowed,omitempty"`      // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
+	Max            int      `yaml:"max,omitempty"`          // Optional maximum number of labels to add (default: 3)
+	Min            int      `yaml:"min,omitempty"`          // Optional minimum number of labels to add
+	GitHubToken    string   `yaml:"github-token,omitempty"` // GitHub token for this specific output type
+	Target         string   `yaml:"target,omitempty"`       // Target for labels: "triggering" (default), "*" (any issue/PR), or explicit issue/PR number
+	TargetRepoSlug string   `yaml:"target-repo,omitempty"`  // Target repository in format "owner/repo" for cross-repository labels
 }
 
-// buildCreateOutputLabelJob creates the add_labels job
-func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil {
+// buildAddLabelsJob creates the add_labels job
+func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.AddLabels == nil {
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
 
@@ -25,13 +26,11 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	maxCount := 3
 	minValue := 0
 
-	if data.SafeOutputs.AddLabels != nil {
-		allowedLabels = data.SafeOutputs.AddLabels.Allowed
-		if data.SafeOutputs.AddLabels.Max > 0 {
-			maxCount = data.SafeOutputs.AddLabels.Max
-		}
-		minValue = data.SafeOutputs.AddLabels.Min
+	allowedLabels = data.SafeOutputs.AddLabels.Allowed
+	if data.SafeOutputs.AddLabels.Max > 0 {
+		maxCount = data.SafeOutputs.AddLabels.Max
 	}
+	minValue = data.SafeOutputs.AddLabels.Min
 
 	var steps []string
 	steps = append(steps, "      - name: Add Labels\n")
@@ -49,7 +48,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
 	// Pass the target configuration
-	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.Target != "" {
+	if data.SafeOutputs.AddLabels.Target != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
 	}
 
@@ -57,8 +56,12 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q\n", c.trialTargetRepoSlug))
+
+	// Pass target repository - prefer explicit config over trial mode setting
+	if data.SafeOutputs.AddLabels.TargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddLabels.TargetRepoSlug))
+	} else if c.trialMode && c.trialTargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
 	// Add custom environment variables from safe-outputs.env
@@ -66,10 +69,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	var token string
-	if data.SafeOutputs.AddLabels != nil {
-		token = data.SafeOutputs.AddLabels.GitHubToken
-	}
+	token := data.SafeOutputs.AddLabels.GitHubToken
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
@@ -83,7 +83,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	}
 
 	var jobCondition = BuildSafeOutputType("add-labels", minValue)
-	if data.SafeOutputs.AddLabels == nil || data.SafeOutputs.AddLabels.Target == "" {
+	if data.SafeOutputs.AddLabels.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),
 			BuildPropertyAccess("github.event.pull_request.number"),

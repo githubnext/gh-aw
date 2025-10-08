@@ -61,8 +61,6 @@ func TestLogsOverviewIncludesMissingTools(t *testing.T) {
 // TestWorkflowRunStructHasMissingToolCount verifies that WorkflowRun has the MissingToolCount field
 func TestWorkflowRunStructHasMissingToolCount(t *testing.T) {
 	run := WorkflowRun{
-		DatabaseID:       12345,
-		WorkflowName:     "Test",
 		MissingToolCount: 5,
 	}
 

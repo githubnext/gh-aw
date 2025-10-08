@@ -21,6 +21,12 @@ make recompile     # Ensures JavaScript is properly formatted and workflows are 
 
 **NEVER ADD LOCK FILES TO .GITIGNORE** - `.lock.yml` files are compiled workflows that must be tracked.
 
+**ALWAYS REBUILD AFTER SCHEMA CHANGES:**
+```bash
+make build       # Rebuild gh-aw after modifying JSON schemas in pkg/parser/schemas/
+```
+Schema files are embedded in the binary using `//go:embed` directives, so changes require rebuilding the binary.
+
 ## Quick Setup
 
 ```bash
@@ -109,6 +115,13 @@ For JavaScript files in `pkg/workflow/js/*.cjs`:
 - Use `core.setOutput`, `core.getInput`, `core.setFailed`
 - Avoid `any` type, use specific types or `unknown`
 - Run `make js` and `make lint-cjs` for validation
+
+### Schema Changes
+When modifying JSON schemas in `pkg/parser/schemas/`:
+- Schema files are embedded using `//go:embed` directives
+- **MUST rebuild the binary** with `make build` for changes to take effect
+- Test changes by compiling a workflow: `./gh-aw compile test-workflow.md`
+- Schema changes typically require corresponding Go struct updates
 
 ### Build Times (Don't Cancel)
 - `make agent-finish`: ~10-15s
