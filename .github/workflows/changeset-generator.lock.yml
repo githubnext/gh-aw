@@ -19,7 +19,6 @@ run-name: "Changeset Generator"
 
 jobs:
   check-membership:
-    if: github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -110,8 +109,7 @@ jobs:
 
   activation:
     needs: check-membership
-    if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (github.event.pull_request.base.ref == github.event.repository.default_branch)
+    if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     outputs:
       text: ${{ steps.compute-text.outputs.text }}

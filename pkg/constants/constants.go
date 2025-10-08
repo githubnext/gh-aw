@@ -45,7 +45,6 @@ var AllowedExpressions = []string{
 	"github.event.project_card.id",
 	"github.event.project_column.id",
 	"github.event.pull_request.number",
-	"github.event.pull_request.base.ref",
 	"github.event.release.assets[0].id",
 	"github.event.release.id",
 	"github.event.release.tag_name",
