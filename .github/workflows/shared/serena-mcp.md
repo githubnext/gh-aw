@@ -15,6 +15,10 @@ steps:
     uses: actions/setup-python@v6
     with:
       python-version: "3.13"
+  - name: Install uv
+    uses: astral-sh/setup-uv@v6
+  - name: Verify uv
+    run: uv --version      
 ---
 
 Activate the current dir as project using serena.
