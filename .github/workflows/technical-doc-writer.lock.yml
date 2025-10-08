@@ -28,7 +28,7 @@ jobs:
       result: ${{ steps.check-membership.outputs.result }}
       user_permission: ${{ steps.check-membership.outputs.user_permission }}
     steps:
-      - name: Check team membership for workflow
+      - name: Check team membership
         id: check-membership
         uses: actions/github-script@v8
         env:
