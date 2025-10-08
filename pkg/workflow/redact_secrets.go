@@ -35,7 +35,7 @@ func CollectSecretReferences(yamlContent string) []string {
 }
 
 // generateSecretRedactionStep generates a workflow step that redacts secrets from files in /tmp
-func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, yamlContent string) {
+func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlContent string) {
 	// Extract secret references from the generated YAML
 	secretReferences := CollectSecretReferences(yamlContent)
 

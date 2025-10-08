@@ -137,7 +137,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 		}
 		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-			env["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
+			env["GITHUB_AW_TARGET_REPO_SLUG"] = workflowData.TrialTargetRepo
 		}
 
 		// Add branch name if upload assets is configured

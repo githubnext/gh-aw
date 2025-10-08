@@ -1507,6 +1507,10 @@
                   "minimum": 0,
                   "maximum": 100
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository issue creation. Takes precedence over trial target repo settings."
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1546,6 +1550,10 @@
                   "minimum": 0,
                   "maximum": 100
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository discussion creation. Takes precedence over trial target repo settings."
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1580,6 +1588,10 @@
                 "target": {
                   "type": "string",
                   "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository comments. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
                   "type": "string",
@@ -1624,6 +1636,10 @@
                   ],
                   "description": "Behavior when no changes to push: 'warn' (default - log warning but succeed), 'error' (fail the action), or 'ignore' (silent success)"
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository pull request creation. Takes precedence over trial target repo settings."
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1666,6 +1682,10 @@
                 "target": {
                   "type": "string",
                   "description": "Target for review comments: 'triggering' (default, only on triggering PR), '*' (any PR, requires pull_request_number in agent output), or explicit PR number"
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository PR review comments. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
                   "type": "string",
@@ -1746,6 +1766,10 @@
                   "type": "string",
                   "description": "Target for labels: 'triggering' (default), '*' (any issue/PR), or explicit issue/PR number"
                 },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository label addition. Takes precedence over trial target repo settings."
+                },
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
@@ -1788,6 +1812,10 @@
                   "description": "Minimum number of issues to update (default: 0 - no requirement)",
                   "minimum": 0,
                   "maximum": 100
+                },
+                "target-repo": {
+                  "type": "string",
+                  "description": "Target repository in format 'owner/repo' for cross-repository issue updates. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
                   "type": "string",

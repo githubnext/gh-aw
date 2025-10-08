@@ -198,7 +198,7 @@ func resolveLatestRef(repo, currentRef string, allowMajor, verbose bool) (string
 	}
 
 	// Check if current ref is a branch by checking if it exists as a branch
-	isBranch, err := isBranchRef(repo, currentRef, verbose)
+	isBranch, err := isBranchRef(repo, currentRef)
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check if ref is branch: %v", err)))
@@ -278,7 +278,7 @@ func resolveLatestRelease(repo, currentRef string, allowMajor, verbose bool) (st
 }
 
 // isBranchRef checks if a ref is a branch in the repository
-func isBranchRef(repo, ref string, verbose bool) (bool, error) {
+func isBranchRef(repo, ref string) (bool, error) {
 	// Use gh CLI to list branches
 	cmd := exec.Command("gh", "api", fmt.Sprintf("/repos/%s/branches", repo), "--jq", ".[].name")
 	output, err := cmd.Output()

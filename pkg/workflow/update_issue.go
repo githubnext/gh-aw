@@ -7,10 +7,11 @@ import (
 // UpdateIssuesConfig holds configuration for updating GitHub issues from agent output
 type UpdateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Status               *bool  `yaml:"status,omitempty"` // Allow updating issue status (open/closed) - presence indicates field can be updated
-	Target               string `yaml:"target,omitempty"` // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
-	Title                *bool  `yaml:"title,omitempty"`  // Allow updating issue title - presence indicates field can be updated
-	Body                 *bool  `yaml:"body,omitempty"`   // Allow updating issue body - presence indicates field can be updated
+	Status               *bool  `yaml:"status,omitempty"`      // Allow updating issue status (open/closed) - presence indicates field can be updated
+	Target               string `yaml:"target,omitempty"`      // Target for updates: "triggering" (default), "*" (any issue), or explicit issue number
+	Title                *bool  `yaml:"title,omitempty"`       // Allow updating issue title - presence indicates field can be updated
+	Body                 *bool  `yaml:"body,omitempty"`        // Allow updating issue body - presence indicates field can be updated
+	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository issue updates
 }
 
 // buildCreateOutputUpdateIssueJob creates the update_issue job
@@ -41,8 +42,12 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q\n", c.trialTargetRepoSlug))
+
+	// Pass target repository - prefer explicit config over trial mode setting
+	if data.SafeOutputs.UpdateIssues.TargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.UpdateIssues.TargetRepoSlug))
+	} else if c.trialMode && c.trialTargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
 	// Add custom environment variables from safe-outputs.env
@@ -101,6 +106,13 @@ func (c *Compiler) parseUpdateIssuesConfig(outputMap map[string]any) *UpdateIssu
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
 					updateIssuesConfig.Target = targetStr
+				}
+			}
+
+			// Parse target-repo
+			if targetRepo, exists := configMap["target-repo"]; exists {
+				if targetRepoStr, ok := targetRepo.(string); ok {
+					updateIssuesConfig.TargetRepoSlug = targetRepoStr
 				}
 			}
 

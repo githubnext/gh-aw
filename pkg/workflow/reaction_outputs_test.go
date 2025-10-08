@@ -81,3 +81,84 @@ This workflow should generate add_reaction job with comment outputs.
 		t.Error("Generated YAML should contain comment-url output reference")
 	}
 }
+
+// TestReactionJobWorkflowName tests that the add_reaction job includes GITHUB_AW_WORKFLOW_NAME environment variable
+func TestReactionJobWorkflowName(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "reaction-workflow-name-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test markdown file with reaction and a specific workflow name
+	testContent := `---
+name: Test Workflow Name
+on:
+  issues:
+    types: [opened]
+  reaction: rocket
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+---
+
+# Test Workflow
+
+This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME environment variable.
+`
+
+	testFile := filepath.Join(tmpDir, "test-reaction-workflow-name.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Parse the workflow
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	// Generate YAML
+	yamlContent, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// Check that GITHUB_AW_WORKFLOW_NAME is set in the add_reaction job
+	if !strings.Contains(yamlContent, "GITHUB_AW_WORKFLOW_NAME:") {
+		t.Error("Generated YAML should contain GITHUB_AW_WORKFLOW_NAME environment variable in add_reaction job")
+	}
+
+	// Verify the workflow name is correctly set
+	if !strings.Contains(yamlContent, `GITHUB_AW_WORKFLOW_NAME: "Test Workflow Name"`) {
+		t.Error("Generated YAML should contain the correct workflow name value")
+	}
+
+	// Ensure it's in the add_reaction job section
+	// Find the add_reaction job section
+	reactionJobStart := strings.Index(yamlContent, "add_reaction:")
+	if reactionJobStart == -1 {
+		t.Fatal("Could not find add_reaction job in generated YAML")
+	}
+
+	// Find the next job or end of file
+	nextJobStart := len(yamlContent)
+	lines := strings.Split(yamlContent[reactionJobStart:], "\n")
+	for i, line := range lines[1:] {
+		if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
+			nextJobStart = reactionJobStart + strings.Index(yamlContent[reactionJobStart:], lines[i+1])
+			break
+		}
+	}
+
+	reactionJobSection := yamlContent[reactionJobStart:nextJobStart]
+
+	// Verify GITHUB_AW_WORKFLOW_NAME is in the add_reaction job section
+	if !strings.Contains(reactionJobSection, "GITHUB_AW_WORKFLOW_NAME:") {
+		t.Errorf("GITHUB_AW_WORKFLOW_NAME should be in the add_reaction job section\n%s", reactionJobSection)
+	}
+}

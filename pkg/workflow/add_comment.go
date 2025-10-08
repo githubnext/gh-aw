@@ -12,7 +12,8 @@ type AddCommentConfig struct {
 // AddCommentsConfig holds configuration for creating GitHub issue/PR comments from agent output
 type AddCommentsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Target               string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
+	Target               string `yaml:"target,omitempty"`      // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
+	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository comments
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
@@ -47,8 +48,11 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q\n", c.trialTargetRepoSlug))
+	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
+	if data.SafeOutputs.AddComments.TargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddComments.TargetRepoSlug))
+	} else if c.trialMode && c.trialTargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
 	// Add custom environment variables from safe-outputs.env
@@ -110,6 +114,17 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 			if target, exists := configMap["target"]; exists {
 				if targetStr, ok := target.(string); ok {
 					commentsConfig.Target = targetStr
+				}
+			}
+
+			// Parse target-repo
+			if targetRepoSlug, exists := configMap["target-repo"]; exists {
+				if targetRepoStr, ok := targetRepoSlug.(string); ok {
+					// Validate that target-repo is not "*" - only definite strings are allowed
+					if targetRepoStr == "*" {
+						return nil // Invalid configuration, return nil to cause validation error
+					}
+					commentsConfig.TargetRepoSlug = targetRepoStr
 				}
 			}
 		}

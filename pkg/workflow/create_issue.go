@@ -10,6 +10,7 @@ type CreateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository issues
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -36,6 +37,17 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 						}
 					}
 					issuesConfig.Labels = labelStrings
+				}
+			}
+
+			// Parse target-repo
+			if targetRepoSlug, exists := configMap["target-repo"]; exists {
+				if targetRepoStr, ok := targetRepoSlug.(string); ok {
+					// Validate that target-repo is not "*" - only definite strings are allowed
+					if targetRepoStr == "*" {
+						return nil // Invalid configuration, return nil to cause validation error
+					}
+					issuesConfig.TargetRepoSlug = targetRepoStr
 				}
 			}
 
@@ -103,8 +115,11 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q\n", c.trialTargetRepoSlug))
+	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
+	if data.SafeOutputs.CreateIssues.TargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreateIssues.TargetRepoSlug))
+	} else if c.trialMode && c.trialTargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
 	// Add custom environment variables from safe-outputs.env

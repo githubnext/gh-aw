@@ -22,6 +22,7 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, activationJobCreated 
 	if data.Command != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMAND: %s\n", data.Command))
 	}
+	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
 
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          script: |\n")

@@ -1576,13 +1576,14 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 }
 
 // isActivationJobNeeded determines if the activation job is required
-func (c *Compiler) isActivationJobNeeded(data *WorkflowData, needsPermissionCheck bool) bool {
-	// Activation job is needed if:
+func (c *Compiler) isActivationJobNeeded() bool {
+	// Activation job is always needed to perform the timestamp check
+	// It also handles:
 	// 1. Command is configured (for team member checking)
 	// 2. Text output is needed (for compute-text action)
 	// 3. If condition is specified (to handle runtime conditions)
 	// 4. Permission checks are needed (consolidated team member validation)
-	return data.Command != "" || data.NeedsTextOutput || data.If != "" || needsPermissionCheck
+	return true
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager
@@ -1618,7 +1619,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	// If check-membership job exists, activation job is ALWAYS created and depends on it
 	var activationJobCreated bool
 
-	if c.isActivationJobNeeded(data, needsPermissionCheck) {
+	if c.isActivationJobNeeded() {
 		activationJob, err := c.buildActivationJob(data, needsPermissionCheck)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
@@ -1795,7 +1796,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build add_labels job if output.add-labels is configured (including null/empty)
 	if data.SafeOutputs.AddLabels != nil {
-		addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
+		addLabelsJob, err := c.buildAddLabelsJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build add_labels job: %w", err)
 		}
@@ -1903,6 +1904,23 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 
 	// Team member check is now handled by the separate check-membership job
 	// No inline role checks needed in the task job anymore
+
+	// Add timestamp check for lock file vs source file
+	steps = append(steps, "      - name: Check workflow file timestamps\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          WORKFLOW_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$(basename \"$GITHUB_WORKFLOW\" .lock.yml).md\"\n")
+	steps = append(steps, "          LOCK_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW\"\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          if [ -f \"$WORKFLOW_FILE\" ] && [ -f \"$LOCK_FILE\" ]; then\n")
+	steps = append(steps, "            if [ \"$WORKFLOW_FILE\" -nt \"$LOCK_FILE\" ]; then\n")
+	steps = append(steps, "              echo \"🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.\" >&2\n")
+	steps = append(steps, "              echo \"## ⚠️ Workflow Lock File Warning\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"🔴🔴🔴 **WARNING**: Lock file \\`$LOCK_FILE\\` is outdated!\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"The workflow file \\`$WORKFLOW_FILE\\` has been modified more recently.\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"Run \\`gh aw compile\\` to regenerate the lock file.\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "            fi\n")
+	steps = append(steps, "          fi\n")
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {
@@ -2141,7 +2159,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add engine-declared output files collection (if any)
 	if len(engine.GetDeclaredOutputFiles()) > 0 {
-		c.generateEngineOutputCollection(yaml, engine, data)
+		c.generateEngineOutputCollection(yaml, engine)
 	}
 
 	// Extract and upload squid access logs (if any proxy tools were used)
