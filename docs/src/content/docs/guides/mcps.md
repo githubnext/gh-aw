@@ -112,7 +112,7 @@ mcp-servers:
     allowed: ["*"]
 ```
 
-**Use cases**: Python modules, Node.js scripts, local executables, language servers
+**Use cases**: Python modules, Node.js scripts, local executables
 
 ### 2. Docker Container MCP Servers
 
@@ -136,38 +136,33 @@ The `version` field is optional and allows you to specify the container tag sepa
 
 #### Custom Docker Arguments
 
-For advanced use cases, you can provide custom Docker arguments such as volume mounts or working directory:
+For advanced use cases, you can provide custom Docker arguments such as environment variables and network restrictions:
 
 ```yaml
 mcp-servers:
-  markitdown:
-    container: "ghcr.io/microsoft/markitdown"
-    allowed: ["*"]
+  context7:
+    container: "mcp/context7"
+    env:
+      CONTEXT7_API_KEY: "${{ secrets.CONTEXT7_API_KEY }}"
+    network:
+      allowed:
+        - mcp.context7.com
+    allowed:
+      - get-library-docs
+      - resolve-library-id
 ```
 
-This generates a simple Docker container configuration. For more complex setups with custom arguments, see the serena configuration:
+This generates a Docker container with environment variables and network egress controls:
+- **Command**: `"docker"`
+- **Args**: Includes environment variable flags and network proxy configuration
+- **Network**: Squid proxy restricts egress to allowed domains only
 
-```yaml
-mcp-servers:
-  serena:
-    command: "uvx"
-    args:
-      - "--from"
-      - "git+https://github.com/oraios/serena"
-      - "serena"
-      - "start-mcp-server"
-      - "--context"
-      - "codex"
-      - "--project"
-      - "${{ github.workspace }}"
-    allowed: ["*"]
-```
-
-The custom args allow you to:
-- Configure command-line tools with specific parameters
-- Set working directory or project context
-- Configure tool-specific settings
-- Add any other tool-specific flags
+The custom configuration allows you to:
+- Set environment variables with `-e` flags for authentication
+- Configure network egress controls for security
+- Mount volumes with `-v` for file access (if needed)
+- Set working directory with `-w` (if needed)
+- Add any other Docker run flags as needed
 
 ### 3. HTTP MCP Servers
 
