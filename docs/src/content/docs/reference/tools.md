@@ -95,6 +95,20 @@ tools:
 
 **Important**: The hosted GitHub MCP server does **not** support the default GitHub Actions `GITHUB_TOKEN`. You must provide a custom Personal Access Token (PAT) using the `github-token` field.
 
+#### Required PAT Permissions
+
+The custom PAT needs appropriate scopes depending on the operations you want to perform:
+
+**For read-only access:**
+- `repo` (read access to code, commit statuses, and repository metadata)
+- `read:org` (read organization membership)
+
+**For write operations (creating/updating issues, PRs, etc.):**
+- `repo` (full control of private repositories)
+- `write:org` (write access to organization membership)
+
+You can create a fine-grained PAT with specific permissions at: [GitHub Settings > Developer Settings > Personal Access Tokens](https://github.com/settings/tokens)
+
 #### HTTP Mode Configuration
 
 - **`url`**: URL of the hosted GitHub MCP server
