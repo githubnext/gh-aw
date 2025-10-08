@@ -142,6 +142,8 @@ jobs:
         uses: astral-sh/setup-uv@v6
       - name: Verify uv
         run: uv --version
+      - name: Install Go language service
+        run: go install golang.org/x/tools/gopls@latest
 
       - name: Configure Git credentials
         run: |
