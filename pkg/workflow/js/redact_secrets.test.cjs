@@ -201,11 +201,7 @@ describe("redact_secrets.cjs", () => {
       await eval(`(async () => { ${modifiedScript} })()`);
 
       // Check that no mock call contains the actual secret value
-      const allCalls = [
-        ...mockCore.debug.mock.calls,
-        ...mockCore.info.mock.calls,
-        ...mockCore.warning.mock.calls,
-      ];
+      const allCalls = [...mockCore.debug.mock.calls, ...mockCore.info.mock.calls, ...mockCore.warning.mock.calls];
 
       for (const call of allCalls) {
         const callString = JSON.stringify(call);

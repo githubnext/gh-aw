@@ -10,9 +10,9 @@ import (
 
 func TestCollectSecretsPattern(t *testing.T) {
 	tests := []struct {
-		name       string
-		engineID   string
-		wantMatch  []string
+		name        string
+		engineID    string
+		wantMatch   []string
 		wantNoMatch []string
 	}{
 		{
@@ -30,8 +30,8 @@ func TestCollectSecretsPattern(t *testing.T) {
 			name:     "Copilot engine patterns",
 			engineID: "copilot",
 			wantMatch: []string{
-				"ghp_" + strings.Repeat("a", 36),                      // Classic PAT
-				"github_pat_" + strings.Repeat("a", 82),               // Fine-grained PAT
+				"ghp_" + strings.Repeat("a", 36),        // Classic PAT
+				"github_pat_" + strings.Repeat("a", 82), // Fine-grained PAT
 			},
 			wantNoMatch: []string{
 				"ghp_short", // Too short
@@ -42,8 +42,8 @@ func TestCollectSecretsPattern(t *testing.T) {
 			name:     "Codex engine patterns",
 			engineID: "codex",
 			wantMatch: []string{
-				"sk-" + strings.Repeat("a", 32),          // OpenAI key
-				"sk-proj-" + strings.Repeat("a", 20),     // Project key
+				"sk-" + strings.Repeat("a", 32),      // OpenAI key
+				"sk-proj-" + strings.Repeat("a", 20), // Project key
 			},
 			wantNoMatch: []string{
 				"sk-short", // Too short

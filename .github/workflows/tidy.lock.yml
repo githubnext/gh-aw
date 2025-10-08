@@ -2244,7 +2244,7 @@ jobs:
             function redactSecrets(content, secretPattern) {
               let redactionCount = 0;
 
-              const redacted = content.replace(secretPattern, (match) => {
+              const redacted = content.replace(secretPattern, match => {
                 redactionCount++;
                 core.debug(`Redacted secret occurrence #${redactionCount}`);
                 return "***REDACTED***";
