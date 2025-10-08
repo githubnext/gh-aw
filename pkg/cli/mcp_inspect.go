@@ -28,6 +28,68 @@ func filterOutSafeOutputs(configs []parser.MCPServerConfig) []parser.MCPServerCo
 	return filteredConfigs
 }
 
+// applyImportsToFrontmatter merges imported MCP servers and tools into frontmatter
+// Returns a new frontmatter map with imports applied
+func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser.ImportsResult) (map[string]any, error) {
+	// Create a copy of the frontmatter to avoid modifying the original
+	result := make(map[string]any)
+	for k, v := range frontmatter {
+		result[k] = v
+	}
+
+	// If there are no imported MCP servers or tools, return as-is
+	if importsResult.MergedMCPServers == "" && importsResult.MergedTools == "" {
+		return result, nil
+	}
+
+	// Get existing mcp-servers from frontmatter
+	var existingMCPServers map[string]any
+	if mcpServersSection, exists := result["mcp-servers"]; exists {
+		if mcpServers, ok := mcpServersSection.(map[string]any); ok {
+			existingMCPServers = mcpServers
+		}
+	}
+	if existingMCPServers == nil {
+		existingMCPServers = make(map[string]any)
+	}
+
+	// Merge imported MCP servers using the workflow compiler's merge logic
+	compiler := workflow.NewCompiler(false, "", "")
+	mergedMCPServers, err := compiler.MergeMCPServers(existingMCPServers, importsResult.MergedMCPServers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge imported MCP servers: %w", err)
+	}
+
+	// Update mcp-servers in the result
+	if len(mergedMCPServers) > 0 {
+		result["mcp-servers"] = mergedMCPServers
+	}
+
+	// Get existing tools from frontmatter
+	var existingTools map[string]any
+	if toolsSection, exists := result["tools"]; exists {
+		if tools, ok := toolsSection.(map[string]any); ok {
+			existingTools = tools
+		}
+	}
+	if existingTools == nil {
+		existingTools = make(map[string]any)
+	}
+
+	// Merge imported tools using the workflow compiler's merge logic
+	mergedTools, err := compiler.MergeTools(existingTools, importsResult.MergedTools)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge imported tools: %w", err)
+	}
+
+	// Update tools in the result
+	if len(mergedTools) > 0 {
+		result["tools"] = mergedTools
+	}
+
+	return result, nil
+}
+
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
 func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool) error {
 	workflowsDir := getWorkflowsDir()
@@ -79,8 +141,21 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Frontmatter validation passed"))
 	}
 
+	// Process imports from frontmatter to merge imported MCP servers
+	markdownDir := filepath.Dir(workflowPath)
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir)
+	if err != nil {
+		return fmt.Errorf("failed to process imports from frontmatter: %w", err)
+	}
+
+	// Apply imported MCP servers to frontmatter
+	frontmatterWithImports, err := applyImportsToFrontmatter(workflowData.Frontmatter, importsResult)
+	if err != nil {
+		return fmt.Errorf("failed to apply imports: %w", err)
+	}
+
 	// Validate MCP configurations specifically using compiler validation
-	if toolsSection, hasTools := workflowData.Frontmatter["tools"]; hasTools {
+	if toolsSection, hasTools := frontmatterWithImports["tools"]; hasTools {
 		if tools, ok := toolsSection.(map[string]any); ok {
 			if err := workflow.ValidateMCPConfigs(tools); err != nil {
 				if verbose {
@@ -95,8 +170,8 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		}
 	}
 
-	// Extract MCP configurations
-	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, serverFilter)
+	// Extract MCP configurations from frontmatter with imports applied
+	mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterWithImports, serverFilter)
 	if err != nil {
 		return fmt.Errorf("failed to extract MCP configurations: %w", err)
 	}
@@ -313,8 +388,21 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 			return err
 		}
 
-		// Extract MCP configurations
-		mcpConfigs, err = parser.ExtractMCPConfigurations(workflowData.Frontmatter, serverFilter)
+		// Process imports from frontmatter to merge imported MCP servers
+		markdownDir := filepath.Dir(workflowPath)
+		importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir)
+		if err != nil {
+			return fmt.Errorf("failed to process imports from frontmatter: %w", err)
+		}
+
+		// Apply imported MCP servers to frontmatter
+		frontmatterWithImports, err := applyImportsToFrontmatter(workflowData.Frontmatter, importsResult)
+		if err != nil {
+			return fmt.Errorf("failed to apply imports: %w", err)
+		}
+
+		// Extract MCP configurations from frontmatter with imports applied
+		mcpConfigs, err = parser.ExtractMCPConfigurations(frontmatterWithImports, serverFilter)
 		if err != nil {
 			return err
 		}

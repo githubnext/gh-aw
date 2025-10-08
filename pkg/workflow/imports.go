@@ -8,9 +8,9 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
-// mergeTools merges two tools maps, combining allowed arrays when keys coincide
+// MergeTools merges two tools maps, combining allowed arrays when keys coincide
 // Handles newline-separated JSON objects from multiple imports/includes
-func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
+func (c *Compiler) MergeTools(topTools map[string]any, includedToolsJSON string) (map[string]any, error) {
 	if includedToolsJSON == "" || includedToolsJSON == "{}" {
 		return topTools, nil
 	}
@@ -44,9 +44,9 @@ func (c *Compiler) mergeTools(topTools map[string]any, includedToolsJSON string)
 	return result, nil
 }
 
-// mergeMCPServers merges mcp-servers from imports with top-level mcp-servers
+// MergeMCPServers merges mcp-servers from imports with top-level mcp-servers
 // Takes object maps and merges them directly
-func (c *Compiler) mergeMCPServers(topMCPServers map[string]any, importedMCPServersJSON string) (map[string]any, error) {
+func (c *Compiler) MergeMCPServers(topMCPServers map[string]any, importedMCPServersJSON string) (map[string]any, error) {
 	if importedMCPServersJSON == "" || importedMCPServersJSON == "{}" {
 		return topMCPServers, nil
 	}

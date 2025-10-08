@@ -596,7 +596,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	allMCPServers := mcpServers
 	if importsResult.MergedMCPServers != "" {
 		// Parse and merge imported MCP servers
-		mergedMCPServers, err := c.mergeMCPServers(mcpServers, importsResult.MergedMCPServers)
+		mergedMCPServers, err := c.MergeMCPServers(mcpServers, importsResult.MergedMCPServers)
 		if err != nil {
 			return nil, fmt.Errorf("failed to merge imported mcp-servers: %w", err)
 		}
