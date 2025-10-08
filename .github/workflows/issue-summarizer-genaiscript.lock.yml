@@ -1199,7 +1199,7 @@ jobs:
         run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
-          GITHUB_AW_AGENT_VERSION: 1.140.0
+          GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1212,7 +1212,7 @@ jobs:
           echo "Generated GenAI prompt file"
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
-          GITHUB_AW_AGENT_VERSION: 1.140.0
+          GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1233,7 +1233,7 @@ jobs:
           fi
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
-          GITHUB_AW_AGENT_VERSION: 1.140.0
+          GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2066,7 +2066,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Issue Summarizer (GenAIScript)"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using microsoft/genaiscript.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/genaiscript.md\n---\n```\n\n**Requirements:**\n- The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is converted to GenAI markdown format (prompt.genai.md)\n- GenAIScript is executed with MCP server configuration if available\n- Output is captured in the agent log file\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `1.140.0`)\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)\n- MCP server configuration is automatically passed if configured in the workflow\n-->\n\n# Issue Summarizer\n\nYou are an intelligent issue analysis assistant. Your task is to:\n\n1. **Analyze the issue**: Read and understand the issue content below\n2. **Summarize**: Create a concise summary of the key points in the issue\n3. **Categorize**: Identify if this is a bug report, feature request, question, or documentation update\n4. **Provide recommendations**: Suggest next steps or relevant labels that should be applied\n\nIssue #${{ github.event.issue.number }} in repository ${{ github.repository }}:\n\n```\n${{ needs.activation.outputs.text }}\n```\n\nCreate a comment with your analysis in the following format:\n\n## Issue Summary\n\n[Your concise summary here]\n\n## Category\n\n[Bug Report | Feature Request | Question | Documentation]\n\n## Recommendations\n\n- [List your recommendations here]\n- [Include suggested labels if applicable]\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using microsoft/genaiscript.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/genaiscript.md\n---\n```\n\n**Requirements:**\n- The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is converted to GenAI markdown format (prompt.genai.md)\n- GenAIScript is executed with MCP server configuration if available\n- Output is captured in the agent log file\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `2.5.1`)\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)\n- MCP server configuration is automatically passed if configured in the workflow\n-->\n\n# Issue Summarizer\n\nYou are an intelligent issue analysis assistant. Your task is to:\n\n1. **Analyze the issue**: Read and understand the issue content below\n2. **Summarize**: Create a concise summary of the key points in the issue\n3. **Categorize**: Identify if this is a bug report, feature request, question, or documentation update\n4. **Provide recommendations**: Suggest next steps or relevant labels that should be applied\n\nIssue #${{ github.event.issue.number }} in repository ${{ github.repository }}:\n\n```\n${{ needs.activation.outputs.text }}\n```\n\nCreate a comment with your analysis in the following format:\n\n## Issue Summary\n\n[Your concise summary here]\n\n## Category\n\n[Bug Report | Feature Request | Question | Documentation]\n\n## Recommendations\n\n- [List your recommendations here]\n- [Include suggested labels if applicable]\n"
         with:
           script: |
             const fs = require('fs');
@@ -2151,7 +2151,7 @@ jobs:
         run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
-          GITHUB_AW_AGENT_VERSION: 1.140.0
+          GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2164,7 +2164,7 @@ jobs:
           echo "Generated GenAI prompt file"
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
-          GITHUB_AW_AGENT_VERSION: 1.140.0
+          GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2185,7 +2185,7 @@ jobs:
           fi
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
-          GITHUB_AW_AGENT_VERSION: 1.140.0
+          GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
