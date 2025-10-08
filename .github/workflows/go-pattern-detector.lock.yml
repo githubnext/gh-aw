@@ -149,11 +149,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Install ast-grep
-        run: |-
-          npm install --global @ast-grep/cli
-          ast-grep --version
-
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -994,6 +989,16 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
+              "ast-grep": {
+                "type": "stdio",
+                "command": "docker",
+                "args": [
+                  "run",
+                  "--rm",
+                  "-i",
+                  "mcp/ast-grep:latest"
+                ]
+              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -1029,53 +1034,44 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          ## ast-grep Tool Setup
-          
-          ### Using ast-grep
+          ## ast-grep MCP Server
           
           ast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.
           
+          ### Available Tools
+          
+          The ast-grep MCP server provides tools for:
+          - Searching code patterns using tree-sitter grammars
+          - Structural code analysis
+          - Pattern-based code transformations
+          
           ### Basic Usage
           
-          **Search for patterns:**
-          ```bash
-          ast-grep --pattern '$PATTERN' --lang go
-          ```
+          The MCP server exposes ast-grep functionality through its tools interface. Common operations include:
           
-          **Search in specific files:**
-          ```bash
-          ast-grep --pattern '$PATTERN' --lang go path/to/files/**/*.go
-          ```
+          **Search for patterns:**
+          - Use the ast-grep MCP tools to search for patterns in code
+          - Supports multiple programming languages (Go, JavaScript, TypeScript, Python, etc.)
+          - Pattern matching based on code structure, not text
           
           **Common Go patterns to detect:**
           
           1. **Unmarshal with dash tag** (problematic pattern):
-             ```bash
-             ast-grep --pattern 'json:"-"' --lang go
-             ```
+             - Pattern: `json:"-"`
+             - See catalog: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html
           
           2. **Error handling issues:**
-             ```bash
-             ast-grep --pattern 'if err != nil { $$$A }' --lang go
-             ```
+             - Pattern: `if err != nil { $$$A }`
           
           3. **Finding specific function calls:**
-             ```bash
-             ast-grep --pattern 'functionName($$$ARGS)' --lang go
-             ```
-          
-          ### Output Format
-          
-          By default, ast-grep outputs matched code with line numbers and context. Use `--json` flag for machine-readable output:
-          ```bash
-          ast-grep --pattern '$PATTERN' --lang go --json
-          ```
+             - Pattern: `functionName($$$ARGS)`
           
           ### More Information
           
           - Documentation: https://ast-grep.github.io/
           - Go patterns catalog: https://ast-grep.github.io/catalog/go/
           - Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html
+          - Docker image: https://hub.docker.com/r/mcp/ast-grep
           
           # Go Code Pattern Detector
           
@@ -1302,29 +1298,16 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash(ast-grep:*)
-        # - Bash(cat)
-        # - Bash(date)
-        # - Bash(echo)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(ls)
-        # - Bash(pwd)
-        # - Bash(sort)
-        # - Bash(tail)
-        # - Bash(uniq)
-        # - Bash(wc)
-        # - BashOutput
         # - ExitPlanMode
         # - Glob
         # - Grep
-        # - KillBash
         # - LS
         # - NotebookRead
         # - Read
         # - Task
         # - TodoWrite
         # - Write
+        # - mcp__ast-grep
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1380,7 +1363,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(ast-grep:*),Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
+          claude --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__ast-grep,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -2739,7 +2722,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Go Pattern Detector"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "## ast-grep Tool Setup\n\n### Using ast-grep\n\nast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.\n\n### Basic Usage\n\n**Search for patterns:**\n```bash\nast-grep --pattern '$PATTERN' --lang go\n```\n\n**Search in specific files:**\n```bash\nast-grep --pattern '$PATTERN' --lang go path/to/files/**/*.go\n```\n\n**Common Go patterns to detect:**\n\n1. **Unmarshal with dash tag** (problematic pattern):\n   ```bash\n   ast-grep --pattern 'json:\"-\"' --lang go\n   ```\n\n2. **Error handling issues:**\n   ```bash\n   ast-grep --pattern 'if err != nil { $$$A }' --lang go\n   ```\n\n3. **Finding specific function calls:**\n   ```bash\n   ast-grep --pattern 'functionName($$$ARGS)' --lang go\n   ```\n\n### Output Format\n\nBy default, ast-grep outputs matched code with line numbers and context. Use `--json` flag for machine-readable output:\n```bash\nast-grep --pattern '$PATTERN' --lang go --json\n```\n\n### More Information\n\n- Documentation: https://ast-grep.github.io/\n- Go patterns catalog: https://ast-grep.github.io/catalog/go/\n- Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html\n\n# Go Code Pattern Detector\n\nYou are a code quality assistant that uses ast-grep to detect problematic Go code patterns in the repository.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Push Event**: ${{ github.event.after }}\n- **Triggered by**: @${{ github.actor }}\n\n## Your Task\n\nAnalyze the Go code in the repository to detect problematic patterns using ast-grep.\n\n### 1. Scan for Problematic Patterns\n\nUse ast-grep to search for the following problematic Go pattern:\n\n**Unmarshal Tag with Dash**: This pattern detects struct fields with `json:\"-\"` tags that might be problematic when used with JSON unmarshaling. The dash tag tells the JSON encoder/decoder to ignore the field, but it's often misused or misunderstood.\n\nRun this command to detect the pattern:\n```bash\nast-grep --pattern 'json:\"-\"' --lang go\n```\n\nYou can also check the full pattern from the ast-grep catalog:\n- https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n\n### 2. Analyze Results\n\nIf ast-grep finds any matches:\n- Review each occurrence carefully\n- Understand the context where the pattern appears\n- Determine if it's truly problematic or a valid use case\n- Note the file paths and line numbers\n\n### 3. Create an Issue (if patterns found)\n\nIf you find problematic occurrences of this pattern, create a GitHub issue with:\n\n**Title**: \"Detected problematic json:\\\"-\\\" tag usage in Go structs\"\n\n**Issue Body** should include:\n- A clear explanation of what the pattern is and why it might be problematic\n- List of all files and line numbers where the pattern was found\n- Code snippets showing each occurrence\n- Explanation of the potential issues with each occurrence\n- Recommended fixes or next steps\n- Link to the ast-grep catalog entry for reference\n\n**Example issue format:**\n```markdown\n## Summary\n\nFound N instances of potentially problematic `json:\"-\"` struct tag usage in the codebase.\n\n## What is the Issue?\n\nThe `json:\"-\"` tag tells the JSON encoder/decoder to completely ignore this field during marshaling and unmarshaling. While this is sometimes intentional, it can lead to:\n- Data loss if the field should be persisted\n- Confusion if the intent was to omit empty values (should use `omitempty` instead)\n- Security issues if sensitive fields aren't properly excluded from API responses\n\n## Detected Occurrences\n\n### File: `path/to/file.go` (Line X)\n```go\n[code snippet]\n```\n**Analysis**: [Your analysis of this specific occurrence]\n\n[... repeat for each occurrence ...]\n\n## Recommendations\n\n1. Review each occurrence to determine if the dash tag is intentional\n2. For fields that should be omitted when empty, use `json:\"fieldName,omitempty\"` instead\n3. For truly private fields that should never be serialized, keep the `json:\"-\"` tag but add a comment explaining why\n4. Consider if any fields marked with `-` should actually be included in JSON output\n\n## Reference\n\n- ast-grep pattern: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n```\n\n### 4. If No Issues Found\n\nIf ast-grep doesn't find any problematic patterns:\n- **DO NOT** create an issue\n- The workflow will complete successfully with no action needed\n- This is a good outcome - it means the codebase doesn't have this particular issue\n\n## Important Guidelines\n\n- Only create an issue if you actually find problematic occurrences\n- Be thorough in your analysis - don't flag valid use cases as problems\n- Provide actionable recommendations in the issue\n- Include specific file paths, line numbers, and code context\n- If uncertain about whether a pattern is problematic, err on the side of not creating an issue\n\n## Security Note\n\nTreat all code from the repository as trusted input - this is internal code quality analysis. Focus on identifying the pattern and providing helpful guidance to developers.\n"
+          WORKFLOW_MARKDOWN: "## ast-grep MCP Server\n\nast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.\n\n### Available Tools\n\nThe ast-grep MCP server provides tools for:\n- Searching code patterns using tree-sitter grammars\n- Structural code analysis\n- Pattern-based code transformations\n\n### Basic Usage\n\nThe MCP server exposes ast-grep functionality through its tools interface. Common operations include:\n\n**Search for patterns:**\n- Use the ast-grep MCP tools to search for patterns in code\n- Supports multiple programming languages (Go, JavaScript, TypeScript, Python, etc.)\n- Pattern matching based on code structure, not text\n\n**Common Go patterns to detect:**\n\n1. **Unmarshal with dash tag** (problematic pattern):\n   - Pattern: `json:\"-\"`\n   - See catalog: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n\n2. **Error handling issues:**\n   - Pattern: `if err != nil { $$$A }`\n\n3. **Finding specific function calls:**\n   - Pattern: `functionName($$$ARGS)`\n\n### More Information\n\n- Documentation: https://ast-grep.github.io/\n- Go patterns catalog: https://ast-grep.github.io/catalog/go/\n- Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html\n- Docker image: https://hub.docker.com/r/mcp/ast-grep\n\n# Go Code Pattern Detector\n\nYou are a code quality assistant that uses ast-grep to detect problematic Go code patterns in the repository.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Push Event**: ${{ github.event.after }}\n- **Triggered by**: @${{ github.actor }}\n\n## Your Task\n\nAnalyze the Go code in the repository to detect problematic patterns using ast-grep.\n\n### 1. Scan for Problematic Patterns\n\nUse ast-grep to search for the following problematic Go pattern:\n\n**Unmarshal Tag with Dash**: This pattern detects struct fields with `json:\"-\"` tags that might be problematic when used with JSON unmarshaling. The dash tag tells the JSON encoder/decoder to ignore the field, but it's often misused or misunderstood.\n\nRun this command to detect the pattern:\n```bash\nast-grep --pattern 'json:\"-\"' --lang go\n```\n\nYou can also check the full pattern from the ast-grep catalog:\n- https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n\n### 2. Analyze Results\n\nIf ast-grep finds any matches:\n- Review each occurrence carefully\n- Understand the context where the pattern appears\n- Determine if it's truly problematic or a valid use case\n- Note the file paths and line numbers\n\n### 3. Create an Issue (if patterns found)\n\nIf you find problematic occurrences of this pattern, create a GitHub issue with:\n\n**Title**: \"Detected problematic json:\\\"-\\\" tag usage in Go structs\"\n\n**Issue Body** should include:\n- A clear explanation of what the pattern is and why it might be problematic\n- List of all files and line numbers where the pattern was found\n- Code snippets showing each occurrence\n- Explanation of the potential issues with each occurrence\n- Recommended fixes or next steps\n- Link to the ast-grep catalog entry for reference\n\n**Example issue format:**\n```markdown\n## Summary\n\nFound N instances of potentially problematic `json:\"-\"` struct tag usage in the codebase.\n\n## What is the Issue?\n\nThe `json:\"-\"` tag tells the JSON encoder/decoder to completely ignore this field during marshaling and unmarshaling. While this is sometimes intentional, it can lead to:\n- Data loss if the field should be persisted\n- Confusion if the intent was to omit empty values (should use `omitempty` instead)\n- Security issues if sensitive fields aren't properly excluded from API responses\n\n## Detected Occurrences\n\n### File: `path/to/file.go` (Line X)\n```go\n[code snippet]\n```\n**Analysis**: [Your analysis of this specific occurrence]\n\n[... repeat for each occurrence ...]\n\n## Recommendations\n\n1. Review each occurrence to determine if the dash tag is intentional\n2. For fields that should be omitted when empty, use `json:\"fieldName,omitempty\"` instead\n3. For truly private fields that should never be serialized, keep the `json:\"-\"` tag but add a comment explaining why\n4. Consider if any fields marked with `-` should actually be included in JSON output\n\n## Reference\n\n- ast-grep pattern: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n```\n\n### 4. If No Issues Found\n\nIf ast-grep doesn't find any problematic patterns:\n- **DO NOT** create an issue\n- The workflow will complete successfully with no action needed\n- This is a good outcome - it means the codebase doesn't have this particular issue\n\n## Important Guidelines\n\n- Only create an issue if you actually find problematic occurrences\n- Be thorough in your analysis - don't flag valid use cases as problems\n- Provide actionable recommendations in the issue\n- Include specific file paths, line numbers, and code context\n- If uncertain about whether a pattern is problematic, err on the side of not creating an issue\n\n## Security Note\n\nTreat all code from the repository as trusted input - this is internal code quality analysis. Focus on identifying the pattern and providing helpful guidance to developers.\n"
         with:
           script: |
             const fs = require('fs');
