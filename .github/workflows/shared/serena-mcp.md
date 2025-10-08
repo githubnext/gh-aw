@@ -1,4 +1,4 @@
----
+---  
 mcp-servers:
   serena:
     command: "uvx"
@@ -29,7 +29,9 @@ steps:
     run: gopls version
 ---
 
-Activate the current dir as project using serena.
+## Serena configuration
+
+The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/cache-memory/serena).
 
 <!--
 
