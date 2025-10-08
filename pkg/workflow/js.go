@@ -75,6 +75,9 @@ var renderTemplateScript string
 //go:embed js/checkout_pr_branch.cjs
 var checkoutPRBranchScript string
 
+//go:embed js/redact_secrets.cjs
+var redactSecretsScript string
+
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {
