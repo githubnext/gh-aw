@@ -486,7 +486,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@latest
+        run: npm install -g @github/copilot@0.0.336
       - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
           echo "Generating proxy configuration files for MCP tools with network restrictions..."
@@ -3437,7 +3437,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@latest
+        run: npm install -g @github/copilot@0.0.336
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         timeout-minutes: 5
