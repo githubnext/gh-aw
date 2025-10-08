@@ -25,3 +25,6 @@ mcp-servers:
       - list_dir
       - find_file
 ---
+
+### Serana Tools
+Serana is enabled through MCP tools. **DO NOT ATTEMPT TO DOWNLOAD OR LAUNCH DOCKER CONTAINERS MANUALLY.**
