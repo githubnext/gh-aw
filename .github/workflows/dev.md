@@ -7,6 +7,8 @@ on:
       - serena*
 name: Dev
 engine: codex
+tools:
+  cache-memory: true
 safe-outputs:
     staged: true
     create-issue:

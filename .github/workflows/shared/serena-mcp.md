@@ -1,4 +1,4 @@
----
+---  
 mcp-servers:
   serena:
     command: "uvx"
@@ -28,6 +28,10 @@ steps:
   - name: Check gopls version
     run: gopls version
 ---
+
+## Serena configuration
+
+The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/cache-memory/serena).
 
 <!--
 
