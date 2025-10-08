@@ -460,17 +460,17 @@ function showHelp() {
   console.log('Changeset CLI - Manage version releases');
   console.log('');
   console.log('Usage:');
-  console.log('  node changeset.js version      - Preview next version from changesets');
-  console.log('  node changeset.js release [type] - Create release and update CHANGELOG');
+  console.log('  node scripts/changeset.js version      - Preview next version from changesets');
+  console.log('  node scripts/changeset.js release [type] - Create release and update CHANGELOG');
   console.log('');
   console.log('Release types: patch, minor, major');
   console.log('');
   console.log('Examples:');
-  console.log('  node changeset.js version');
-  console.log('  node changeset.js release');
-  console.log('  node changeset.js release patch');
-  console.log('  node changeset.js release minor');
-  console.log('  node changeset.js release major');
+  console.log('  node scripts/changeset.js version');
+  console.log('  node scripts/changeset.js release');
+  console.log('  node scripts/changeset.js release patch');
+  console.log('  node scripts/changeset.js release minor');
+  console.log('  node scripts/changeset.js release major');
 }
 
 // Main entry point

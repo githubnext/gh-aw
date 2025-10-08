@@ -6,19 +6,19 @@ A minimalistic implementation for managing version releases, inspired by `@chang
 
 ```bash
 # Preview next version from changesets (always read-only)
-node changeset.js version
+node scripts/changeset.js version
 # Or use make target
 make changeset-version
 
 # Create release and update CHANGELOG
-node changeset.js release
+node scripts/changeset.js release
 # Or use make target
 make changeset-release
 
 # Create specific release type
-node changeset.js release patch
-node changeset.js release minor
-node changeset.js release major
+node scripts/changeset.js release patch
+node scripts/changeset.js release minor
+node scripts/changeset.js release major
 ```
 
 ## Commands
@@ -28,7 +28,7 @@ node changeset.js release major
 The `version` command always operates in preview mode and never modifies files. It shows what the next version would be based on the changesets.
 
 ```bash
-node changeset.js version
+node scripts/changeset.js version
 ```
 
 This command:
@@ -42,9 +42,9 @@ This command:
 The `release` command creates an actual release by updating files.
 
 ```bash
-node changeset.js release
+node scripts/changeset.js release
 # Or specify type explicitly
-node changeset.js release minor
+node scripts/changeset.js release minor
 ```
 
 This command:
@@ -79,7 +79,7 @@ When running `node changeset.js release`, the script checks:
 
 Example error when not on main branch:
 ```bash
-$ node changeset.js release
+$ node scripts/changeset.js release
 ✗ Must be on 'main' branch to create a release (currently on 'feature-branch')
 ```
 
@@ -99,12 +99,12 @@ $ node changeset.js release
 
 2. **Preview the release:**
    ```bash
-   node changeset.js version
+   node scripts/changeset.js version
    ```
 
 3. **Create the release:**
    ```bash
-   node changeset.js release
+   node scripts/changeset.js release
    ```
 
 4. **Review and commit:**

@@ -245,11 +245,11 @@ minor-release:
 # Changeset management targets
 .PHONY: changeset-version
 changeset-version:
-	@node changeset.js version
+	@node scripts/changeset.js version
 
 .PHONY: changeset-release
 changeset-release:
-	@node changeset.js release
+	@node scripts/changeset.js release
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
