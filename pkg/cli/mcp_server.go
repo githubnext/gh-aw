@@ -121,14 +121,14 @@ func runMCPServer() error {
 
 	// Add logs tool
 	type logsArgs struct {
-		WorkflowName  string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
-		Count         int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
-		StartDate     string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		EndDate       string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
-		Engine        string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
-		Branch        string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
-		AfterRunID    int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
-		BeforeRunID   int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
+		WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
+		Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
+		StartDate    string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		EndDate      string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		Engine       string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
+		Branch       string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
+		AfterRunID   int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
+		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "logs",
