@@ -261,6 +261,7 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
+			parse, _ := cmd.Flags().GetBool("parse")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -300,7 +301,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -321,12 +322,13 @@ Examples:
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
+	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent_output.json and write markdown to log.md")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -492,6 +494,19 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
+
+			// If --parse flag is set, parse the agent log and write to log.md
+			if parse {
+				// Get the engine from aw_info.json
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+				
+				if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
+					}
+				}
+			}
 		}
 
 		if verbose {
@@ -1965,4 +1980,126 @@ func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
 			}
 		}
 	}
+}
+
+// parseAgentLog runs the JavaScript log parser on agent_output.json and writes markdown to log.md
+func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
+	// Find the agent_output.json file
+	agentOutputPath, found := findAgentOutputFile(runDir)
+	if !found {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent_output.json found in %s, skipping log parsing", runDir)))
+		}
+		return nil
+	}
+
+	// Determine which parser script to use based on the engine
+	if engine == nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No engine detected, skipping log parsing"))
+		}
+		return nil
+	}
+
+	parserScriptName := engine.GetLogParserScriptId()
+	if parserScriptName == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log parser available for engine %s, skipping", engine.GetID())))
+		}
+		return nil
+	}
+
+	jsScript := workflow.GetLogParserScript(parserScriptName)
+	if jsScript == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get log parser script %s", parserScriptName)))
+		}
+		return nil
+	}
+
+	// Read the log content
+	logContent, err := os.ReadFile(agentOutputPath)
+	if err != nil {
+		return fmt.Errorf("failed to read agent log file: %w", err)
+	}
+
+	// Create a temporary directory for running the parser
+	tempDir, err := os.MkdirTemp("", "log_parser")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Write the log content to a temporary file
+	logFile := filepath.Join(tempDir, "agent.log")
+	if err := os.WriteFile(logFile, logContent, 0644); err != nil {
+		return fmt.Errorf("failed to write log file: %w", err)
+	}
+
+	// Create a Node.js script that mimics the GitHub Actions environment
+	nodeScript := fmt.Sprintf(`
+const fs = require('fs');
+
+// Mock @actions/core for the parser
+const core = {
+	summary: {
+		addRaw: function(content) {
+			this._content = content;
+			return this;
+		},
+		write: function() {
+			console.log(this._content);
+		},
+		_content: ''
+	},
+	setFailed: function(message) {
+		console.error('FAILED:', message);
+		process.exit(1);
+	},
+	info: function(message) {
+		// Silent in CLI mode
+	}
+};
+
+// Set up environment
+process.env.GITHUB_AW_AGENT_OUTPUT = '%s';
+
+// Override require to provide our mock
+const originalRequire = require;
+require = function(name) {
+	if (name === '@actions/core') {
+		return core;
+	}
+	return originalRequire.apply(this, arguments);
+};
+
+// Execute the parser script
+%s
+`, logFile, jsScript)
+
+	// Write the Node.js script
+	nodeFile := filepath.Join(tempDir, "parser.js")
+	if err := os.WriteFile(nodeFile, []byte(nodeScript), 0644); err != nil {
+		return fmt.Errorf("failed to write node script: %w", err)
+	}
+
+	// Execute the Node.js script
+	cmd := exec.Command("node", "parser.js")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute parser script: %w\nOutput: %s", err, string(output))
+	}
+
+	// Write the output to log.md in the run directory
+	logMdPath := filepath.Join(runDir, "log.md")
+	if err := os.WriteFile(logMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
+		return fmt.Errorf("failed to write log.md: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Wrote parsed log to %s", logMdPath)))
+	}
+
+	return nil
 }
