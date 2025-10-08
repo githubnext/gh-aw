@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 const logsFolder = "/tmp/.copilot/logs/"
@@ -35,8 +37,8 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	// Determine version
-	version := "latest"
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := constants.DefaultCopilotVersion
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
 	}

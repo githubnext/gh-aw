@@ -142,6 +142,8 @@ jobs:
       pull-requests: write
       contents: read
     outputs:
+      comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
       - name: Add eyes reaction to the triggering item
@@ -183,7 +185,8 @@ jobs:
                       return;
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    shouldEditComment = false;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+                    shouldEditComment = true;
                     break;
                   case "issue_comment":
                     const commentId = context.payload?.comment?.id;
@@ -202,7 +205,8 @@ jobs:
                       return;
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    shouldEditComment = false;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
+                    shouldEditComment = true;
                     break;
                   case "pull_request_review_comment":
                     const reviewCommentId = context.payload?.comment?.id;
@@ -221,13 +225,13 @@ jobs:
                 core.info(`Reaction API endpoint: ${reactionEndpoint}`);
                 await addReaction(reactionEndpoint, reaction);
                 if (shouldEditComment && commentUpdateEndpoint) {
-                  core.info(`Comment update endpoint: ${commentUpdateEndpoint}`);
-                  await editCommentWithWorkflowLink(commentUpdateEndpoint, runUrl);
+                  core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
+                  await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
                 } else {
                   if (!command && commentUpdateEndpoint) {
                     core.info("Skipping comment edit - only available for command workflows");
                   } else {
-                    core.info(`Skipping comment edit for event type: ${eventName}`);
+                    core.info(`Skipping comment for event type: ${eventName}`);
                   }
                 }
               } catch (error) {
@@ -252,32 +256,48 @@ jobs:
                 core.setOutput("reaction-id", "");
               }
             }
-            async function editCommentWithWorkflowLink(endpoint, runUrl) {
+            async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
-                const getResponse = await github.request("GET " + endpoint, {
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                const originalBody = getResponse.data.body || "";
-                const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
-                if (originalBody.includes("> Agentic [workflow run](")) {
-                  core.info("Comment already contains a workflow run link, skipping edit");
-                  return;
+                const isCreateComment = eventName === "issues" || eventName === "pull_request";
+                if (isCreateComment) {
+                  const workflowLinkText = `> Agentic [workflow run](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
+                  const createResponse = await github.request("POST " + endpoint, {
+                    body: workflowLinkText,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully created comment with workflow link`);
+                  core.info(`Comment ID: ${createResponse.data.id}`);
+                  core.info(`Comment URL: ${createResponse.data.html_url}`);
+                  core.setOutput("comment-id", createResponse.data.id.toString());
+                  core.setOutput("comment-url", createResponse.data.html_url);
+                } else {
+                  const getResponse = await github.request("GET " + endpoint, {
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  const originalBody = getResponse.data.body || "";
+                  const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
+                  if (originalBody.includes("> Agentic [workflow run](")) {
+                    core.info("Comment already contains a workflow run link, skipping edit");
+                    return;
+                  }
+                  const updatedBody = originalBody + workflowLinkText;
+                  const updateResponse = await github.request("PATCH " + endpoint, {
+                    body: updatedBody,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment with workflow link`);
+                  core.info(`Comment ID: ${updateResponse.data.id}`);
                 }
-                const updatedBody = originalBody + workflowLinkText;
-                const updateResponse = await github.request("PATCH " + endpoint, {
-                  body: updatedBody,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                core.info(`Successfully updated comment with workflow link`);
-                core.info(`Comment ID: ${updateResponse.data.id}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.warning(
-                  "Failed to edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
+                  "Failed to add/edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
                 );
               }
             }
@@ -360,7 +380,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@latest
+        run: npm install -g @github/copilot@0.0.336
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
@@ -3231,7 +3251,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@latest
+        run: npm install -g @github/copilot@0.0.336
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         timeout-minutes: 5
