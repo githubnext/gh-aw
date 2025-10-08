@@ -93,9 +93,9 @@ The theme package has been updated with new color tokens to support these varian
 ```
 
 ### Version Bump Types
-- **patch**: Bug fixes, documentation updates, refactoring (0.0.X)
-- **minor**: New features, non-breaking additions (0.X.0)  
-- **major**: Breaking changes (X.0.0)
+- **patch**: Bug fixes, documentation updates, refactoring, non-breaking additions, new shared workflows (0.0.X)
+- **minor**: Breaking changes in the cli (0.X.0)
+- **major**: Major breaking changes. Very unlikely to be used often (X.0.0). You should be very careful when using this, it's probably a **minor**.
 
 ## Guidelines
 
