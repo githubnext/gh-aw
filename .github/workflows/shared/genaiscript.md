@@ -12,14 +12,10 @@ engine:
     
     - name: Convert prompt to GenAI format
       run: |
-        if [ ! -f "$GITHUB_AW_PROMPT" ]; then
-          echo "Error: Prompt file not found at $GITHUB_AW_PROMPT"
-          exit 1
-        fi
-        echo '---' > /tmp/aw-prompts/prompt.genai.md
-        echo "model: ${GITHUB_AW_AGENT_MODEL_VERSION}" >> /tmp/aw-prompts/prompt.genai.md
-        echo '---' >> /tmp/aw-prompts/prompt.genai.md
-        cat "$GITHUB_AW_PROMPT" >> /tmp/aw-prompts/prompt.genai.md
+        cp "$GITHUB_AW_PROMPT" /tmp/aw-prompts/prompt.genai.md
+        sed -i '1i ---' /tmp/aw-prompts/prompt.genai.md
+        sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/aw-prompts/prompt.genai.md
+        sed -i '3i ---' /tmp/aw-prompts/prompt.genai.md
         echo "Generated GenAI prompt file"
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
