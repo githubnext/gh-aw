@@ -9,6 +9,8 @@ mcp-servers:
       - "start-mcp-server"
       - "--context"
       - "codex"
+      - "--project"
+      - "${{ github.workspace }}"
     allowed: ["*"]
 steps:
   - name: Setup python

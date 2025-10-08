@@ -905,6 +905,8 @@ jobs:
             "start-mcp-server",
             "--context",
             "codex",
+            "--project",
+            "${{ github.workspace }}",
           ]
           EOF
       - name: Create prompt
