@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - serana*
-engine: claude
+engine: copilot
 safe-outputs:
     staged: true
     create-issue:
