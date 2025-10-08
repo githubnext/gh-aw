@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // convertToIdentifier converts a workflow name to a valid identifier format
@@ -57,8 +59,8 @@ func NewCodexEngine() *CodexEngine {
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	// Determine version
-	version := "latest"
+	// Use version from engine config if provided, otherwise default to pinned version
+	version := constants.DefaultCodexVersion
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
 		version = workflowData.EngineConfig.Version
 	}
