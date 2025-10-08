@@ -42,7 +42,9 @@ Your task is to:
 3. **Determine the Change Type**:
    - **major**: Breaking changes (indicated by "BREAKING CHANGE" in PR or major API changes)
    - **minor**: New features, enhancements (look for "feat:", "feature:", "add:", etc.)
-   - **patch**: Bug fixes, documentation, refactoring (look for "fix:", "bug:", "docs:", etc.)
+   - **patch**: Bug fixes, documentation, refactoring, internal changes, tooling changes (look for "fix:", "bug:", "docs:", "chore:", "refactor:", "test:", etc.)
+   
+   **Important**: Always treat internal changes, tooling changes, and documentation changes as "patch" level only, even if they might seem like features. These changes don't affect the public API or user-facing functionality.
 
 4. **Generate the Changeset File**:
    - Create a file in the `.changeset/` directory with a descriptive kebab-case name
