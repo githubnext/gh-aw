@@ -2619,7 +2619,7 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Upload agent logs
+      - name: Upload agent output
         uses: actions/upload-artifact@v4
         with:
           name: agent_outputs

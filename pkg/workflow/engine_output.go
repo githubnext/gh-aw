@@ -40,7 +40,7 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 
 	// Create a single upload step that handles all declared output files
 	// The action will ignore missing files automatically with if-no-files-found: ignore
-	yaml.WriteString("      - name: Upload agent logs\n")
+	yaml.WriteString("      - name: Upload agent output\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: agent_outputs\n")
