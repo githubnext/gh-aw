@@ -20,17 +20,9 @@ safe-outputs:
     draft: true
 timeout_minutes: 20
 strict: true
-steps:
-  - name: Set up Go
-    uses: actions/setup-go@v5
-    with:
-      go-version-file: go.mod
-      cache: true
-  - name: Build gh-aw CLI
-    run: make build
+imports:
+  - shared/gh-aw-mcp.md
 ---
-
-{{#import shared/gh-aw-mcp.md}}
 
 # Agentic Workflow Audit Agent
 
