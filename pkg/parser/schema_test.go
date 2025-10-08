@@ -700,6 +700,94 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "valid frontmatter with cache-memory as boolean true",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": true,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with cache-memory as boolean false",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": false,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with cache-memory as nil",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with cache-memory as object with key",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": map[string]any{
+						"key": "custom-memory-${{ github.workflow }}",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with cache-memory with all options",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": map[string]any{
+						"key":            "custom-key",
+						"retention-days": 30,
+						"docker-image":   "custom/memory:latest",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid cache-memory with invalid retention-days (too low)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": map[string]any{
+						"retention-days": 0,
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "got 0, want 1",
+		},
+		{
+			name: "invalid cache-memory with invalid retention-days (too high)",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": map[string]any{
+						"retention-days": 91,
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "got 91, want 90",
+		},
+		{
+			name: "invalid cache-memory with additional property",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"cache-memory": map[string]any{
+						"key":            "custom-key",
+						"invalid_option": "value",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "additional properties 'invalid_option' not allowed",
+		},
 	}
 
 	for _, tt := range tests {
