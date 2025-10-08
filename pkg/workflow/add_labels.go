@@ -15,9 +15,9 @@ type AddLabelsConfig struct {
 	TargetRepoSlug string   `yaml:"target-repo,omitempty"`  // Target repository in format "owner/repo" for cross-repository labels
 }
 
-// buildCreateOutputLabelJob creates the add_labels job
-func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil {
+// buildAddLabelsJob creates the add_labels job
+func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*Job, error) {
+	if data.SafeOutputs == nil || data.SafeOutputs.AddLabels == nil {
 		return nil, fmt.Errorf("safe-outputs configuration is required")
 	}
 
@@ -26,13 +26,11 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	maxCount := 3
 	minValue := 0
 
-	if data.SafeOutputs.AddLabels != nil {
-		allowedLabels = data.SafeOutputs.AddLabels.Allowed
-		if data.SafeOutputs.AddLabels.Max > 0 {
-			maxCount = data.SafeOutputs.AddLabels.Max
-		}
-		minValue = data.SafeOutputs.AddLabels.Min
+	allowedLabels = data.SafeOutputs.AddLabels.Allowed
+	if data.SafeOutputs.AddLabels.Max > 0 {
+		maxCount = data.SafeOutputs.AddLabels.Max
 	}
+	minValue = data.SafeOutputs.AddLabels.Min
 
 	var steps []string
 	steps = append(steps, "      - name: Add Labels\n")
@@ -50,7 +48,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
 	// Pass the target configuration
-	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.Target != "" {
+	if data.SafeOutputs.AddLabels.Target != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
 	}
 
@@ -60,7 +58,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	}
 
 	// Pass target repository - prefer explicit config over trial mode setting
-	if data.SafeOutputs.AddLabels != nil && data.SafeOutputs.AddLabels.TargetRepoSlug != "" {
+	if data.SafeOutputs.AddLabels.TargetRepoSlug != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddLabels.TargetRepoSlug))
 	} else if c.trialMode && c.trialTargetRepoSlug != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
@@ -71,10 +69,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 
 	steps = append(steps, "        with:\n")
 	// Add github-token if specified
-	var token string
-	if data.SafeOutputs.AddLabels != nil {
-		token = data.SafeOutputs.AddLabels.GitHubToken
-	}
+	token := data.SafeOutputs.AddLabels.GitHubToken
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
 	steps = append(steps, "          script: |\n")
 
@@ -88,7 +83,7 @@ func (c *Compiler) buildCreateOutputLabelJob(data *WorkflowData, mainJobName str
 	}
 
 	var jobCondition = BuildSafeOutputType("add-labels", minValue)
-	if data.SafeOutputs.AddLabels == nil || data.SafeOutputs.AddLabels.Target == "" {
+	if data.SafeOutputs.AddLabels.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),
 			BuildPropertyAccess("github.event.pull_request.number"),

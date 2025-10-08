@@ -1796,7 +1796,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build add_labels job if output.add-labels is configured (including null/empty)
 	if data.SafeOutputs.AddLabels != nil {
-		addLabelsJob, err := c.buildCreateOutputLabelJob(data, jobName)
+		addLabelsJob, err := c.buildAddLabelsJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build add_labels job: %w", err)
 		}

@@ -18,7 +18,7 @@ func TestAddLabelsJobWithStagedFlag(t *testing.T) {
 		},
 	}
 
-	job, err := c.buildCreateOutputLabelJob(workflowData, "main_job")
+	job, err := c.buildAddLabelsJob(workflowData, "main_job")
 	if err != nil {
 		t.Fatalf("Unexpected error building add labels job: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestAddLabelsJobWithStagedFlag(t *testing.T) {
 	// Test with staged: false
 	workflowData.SafeOutputs.Staged = false
 
-	job, err = c.buildCreateOutputLabelJob(workflowData, "main_job")
+	job, err = c.buildAddLabelsJob(workflowData, "main_job")
 	if err != nil {
 		t.Fatalf("Unexpected error building add labels job: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestAddLabelsJobWithNilSafeOutputs(t *testing.T) {
 		SafeOutputs: nil,
 	}
 
-	_, err := c.buildCreateOutputLabelJob(workflowData, "main_job")
+	_, err := c.buildAddLabelsJob(workflowData, "main_job")
 	if err == nil {
 		t.Error("Expected error when SafeOutputs is nil")
 	}
@@ -83,7 +83,7 @@ func TestAddLabelsJobWithNilAddLabelsConfig(t *testing.T) {
 		},
 	}
 
-	job, err := c.buildCreateOutputLabelJob(workflowData, "main_job")
+	job, err := c.buildAddLabelsJob(workflowData, "main_job")
 	if err != nil {
 		t.Fatalf("Expected no error when AddLabels is nil (should use defaults): %v", err)
 	}
