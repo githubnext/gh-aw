@@ -71,9 +71,9 @@ Check the failed workflow and provide analysis.`
 		t.Error("Activation job should contain steps section")
 	}
 
-	// Test 4: Verify the dummy step has the run command (no name field anymore)
-	if !strings.Contains(lockContentStr, "run: echo \"Activation success\"") {
-		t.Error("Activation job should contain the dummy step run command")
+	// Test 4: Verify the timestamp check step is present (replaces dummy step)
+	if !strings.Contains(lockContentStr, "Check workflow file timestamps") {
+		t.Error("Activation job should contain the timestamp check step")
 	}
 
 	// Test 5: Verify no name field is present for the step (we removed it)

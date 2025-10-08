@@ -17,10 +17,9 @@ func TestTaskJobGenerationFix(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	t.Run("no_task_job_for_safe_events_and_roles_all", func(t *testing.T) {
-		// This workflow should NOT generate a task job because:
-		// 1. Uses only safe events (workflow_dispatch)
-		// 2. Has roles: all (no permission checks needed)
-		// 3. No command, no if condition, no text output needed
+		// This workflow should now ALWAYS generate an activation job because:
+		// 1. Activation jobs are now always emitted to perform timestamp checks
+		// 2. Even with safe events and roles: all, we still want the timestamp check
 		workflowContent := `---
 on:
   workflow_dispatch:
@@ -54,9 +53,9 @@ Do some simple work.`
 
 		lockContentStr := string(lockContent)
 
-		// Verify that NO task job is generated
-		if strings.Contains(lockContentStr, "task:") {
-			t.Error("Expected NO task job for safe events with roles: all")
+		// Verify that activation job IS generated (new behavior - always emit activation job)
+		if !strings.Contains(lockContentStr, "activation:") {
+			t.Error("Expected activation job to be generated for timestamp check")
 		}
 
 		// Verify that the main job exists (should be named after the workflow)
@@ -64,9 +63,14 @@ Do some simple work.`
 			t.Error("Expected jobs section to be present")
 		}
 
-		// Verify main job doesn't have "needs: activation"
-		if strings.Contains(lockContentStr, "needs: activation") {
-			t.Error("Main job should not depend on activation job when activation job is not generated")
+		// Verify main job has "needs: activation" since activation job is now always generated
+		if !strings.Contains(lockContentStr, "needs: activation") {
+			t.Error("Main job should depend on activation job since activation job is now always generated")
+		}
+
+		// Verify activation job contains timestamp check
+		if !strings.Contains(lockContentStr, "Check workflow file timestamps") {
+			t.Error("Activation job should contain timestamp check step")
 		}
 	})
 
