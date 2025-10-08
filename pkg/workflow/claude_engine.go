@@ -646,36 +646,62 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 }
 
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration
-// Always uses Docker MCP as the default
+// Supports both Docker mode (default) and HTTP mode (when url is specified)
 func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
-	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-	customArgs := getGitHubCustomArgs(githubTool)
-	readOnly := getGitHubReadOnly(githubTool)
-
+	githubURL := getGitHubURL(githubTool)
+	customGitHubToken := getGitHubToken(githubTool)
+	
 	yaml.WriteString("              \"github\": {\n")
-
-	// Always use Docker-based GitHub MCP server (services mode has been removed)
-	yaml.WriteString("                \"command\": \"docker\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"run\",\n")
-	yaml.WriteString("                  \"-i\",\n")
-	yaml.WriteString("                  \"--rm\",\n")
-	yaml.WriteString("                  \"-e\",\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-	if readOnly {
+	
+	// Check if HTTP mode is enabled (url field is specified)
+	if githubURL != "" {
+		// HTTP mode - use hosted GitHub MCP server
+		yaml.WriteString("                \"type\": \"http\",\n")
+		yaml.WriteString(fmt.Sprintf("                \"url\": \"%s\"", githubURL))
+		
+		// Add custom github-token if specified
+		if customGitHubToken != "" {
+			yaml.WriteString(",\n")
+			yaml.WriteString("                \"headers\": {\n")
+			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"\n", customGitHubToken))
+			yaml.WriteString("                }\n")
+		} else {
+			yaml.WriteString("\n")
+		}
+	} else {
+		// Docker mode - use Docker-based GitHub MCP server (default)
+		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+		customArgs := getGitHubCustomArgs(githubTool)
+		readOnly := getGitHubReadOnly(githubTool)
+		
+		yaml.WriteString("                \"command\": \"docker\",\n")
+		yaml.WriteString("                \"args\": [\n")
+		yaml.WriteString("                  \"run\",\n")
+		yaml.WriteString("                  \"-i\",\n")
+		yaml.WriteString("                  \"--rm\",\n")
 		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+		if readOnly {
+			yaml.WriteString("                  \"-e\",\n")
+			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
+		}
+		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
+
+		// Append custom args if present
+		writeArgsToYAML(yaml, customArgs, "                  ")
+
+		yaml.WriteString("\n")
+		yaml.WriteString("                ],\n")
+		yaml.WriteString("                \"env\": {\n")
+		
+		// Use custom token if specified, otherwise use default
+		if customGitHubToken != "" {
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"\n", customGitHubToken))
+		} else {
+			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
+		}
+		yaml.WriteString("                }\n")
 	}
-	yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
-
-	// Append custom args if present
-	writeArgsToYAML(yaml, customArgs, "                  ")
-
-	yaml.WriteString("\n")
-	yaml.WriteString("                ],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
-	yaml.WriteString("                }\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")
