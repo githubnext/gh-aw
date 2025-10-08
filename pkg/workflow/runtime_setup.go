@@ -79,9 +79,9 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromEngineSteps(workflowData.EngineConfig.Steps, requirements)
 	}
 
-	// Convert map to sorted slice
+	// Convert map to sorted slice (alphabetically by runtime name)
 	var result []RuntimeRequirement
-	runtimeOrder := []RuntimeType{RuntimeNode, RuntimePython, RuntimeGo, RuntimeRuby, RuntimeDotNet, RuntimeJava, RuntimeElixir, RuntimeHaskell, RuntimeUV}
+	runtimeOrder := []RuntimeType{RuntimeDotNet, RuntimeElixir, RuntimeGo, RuntimeHaskell, RuntimeJava, RuntimeNode, RuntimePython, RuntimeRuby, RuntimeUV}
 	for _, rt := range runtimeOrder {
 		if version, exists := requirements[rt]; exists {
 			result = append(result, RuntimeRequirement{
