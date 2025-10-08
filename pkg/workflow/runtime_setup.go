@@ -13,7 +13,7 @@ type Runtime struct {
 	ID              string            // Unique identifier (e.g., "node", "python")
 	Name            string            // Display name (e.g., "Node.js", "Python")
 	ActionRepo      string            // GitHub Actions repository (e.g., "actions/setup-node")
-	ActionVersion   string            // Action version (e.g., "@v4")
+	ActionVersion   string            // Action version (e.g., "v4", without @ prefix)
 	VersionField    string            // Field name for version in action (e.g., "node-version")
 	DefaultVersion  string            // Default version to use
 	Commands        []string          // Commands that indicate this runtime is needed
@@ -32,7 +32,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "dotnet",
 		Name:           ".NET",
 		ActionRepo:     "actions/setup-dotnet",
-		ActionVersion:  "@v4",
+		ActionVersion:  "v4",
 		VersionField:   "dotnet-version",
 		DefaultVersion: constants.DefaultDotNetVersion,
 		Commands:       []string{"dotnet"},
@@ -41,7 +41,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "elixir",
 		Name:           "Elixir",
 		ActionRepo:     "erlef/setup-beam",
-		ActionVersion:  "@v1",
+		ActionVersion:  "v1",
 		VersionField:   "elixir-version",
 		DefaultVersion: constants.DefaultElixirVersion,
 		Commands:       []string{"elixir", "mix", "iex"},
@@ -53,7 +53,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "go",
 		Name:           "Go",
 		ActionRepo:     "actions/setup-go",
-		ActionVersion:  "@v5",
+		ActionVersion:  "v5",
 		VersionField:   "go-version",
 		DefaultVersion: "", // Special handling: uses go.mod
 		Commands:       []string{"go"},
@@ -62,7 +62,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "haskell",
 		Name:           "Haskell",
 		ActionRepo:     "haskell-actions/setup",
-		ActionVersion:  "@v2",
+		ActionVersion:  "v2",
 		VersionField:   "ghc-version",
 		DefaultVersion: constants.DefaultHaskellVersion,
 		Commands:       []string{"ghc", "ghci", "cabal", "stack"},
@@ -71,7 +71,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "java",
 		Name:           "Java",
 		ActionRepo:     "actions/setup-java",
-		ActionVersion:  "@v4",
+		ActionVersion:  "v4",
 		VersionField:   "java-version",
 		DefaultVersion: constants.DefaultJavaVersion,
 		Commands:       []string{"java", "javac", "mvn", "gradle"},
@@ -83,7 +83,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "node",
 		Name:           "Node.js",
 		ActionRepo:     "actions/setup-node",
-		ActionVersion:  "@v4",
+		ActionVersion:  "v4",
 		VersionField:   "node-version",
 		DefaultVersion: constants.DefaultNodeVersion,
 		Commands:       []string{"node", "npm", "npx", "yarn", "pnpm"},
@@ -92,7 +92,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "python",
 		Name:           "Python",
 		ActionRepo:     "actions/setup-python",
-		ActionVersion:  "@v5",
+		ActionVersion:  "v5",
 		VersionField:   "python-version",
 		DefaultVersion: constants.DefaultPythonVersion,
 		Commands:       []string{"python", "python3", "pip", "pip3"},
@@ -101,7 +101,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "ruby",
 		Name:           "Ruby",
 		ActionRepo:     "ruby/setup-ruby",
-		ActionVersion:  "@v1",
+		ActionVersion:  "v1",
 		VersionField:   "ruby-version",
 		DefaultVersion: constants.DefaultRubyVersion,
 		Commands:       []string{"ruby", "gem", "bundle"},
@@ -110,7 +110,7 @@ var knownRuntimes = []*Runtime{
 		ID:             "uv",
 		Name:           "uv",
 		ActionRepo:     "astral-sh/setup-uv",
-		ActionVersion:  "@v5",
+		ActionVersion:  "v5",
 		VersionField:   "version",
 		DefaultVersion: "", // Uses latest
 		Commands:       []string{"uv", "uvx"},
@@ -346,7 +346,7 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 
 	step := GitHubActionStep{
 		fmt.Sprintf("      - name: Setup %s", runtime.Name),
-		fmt.Sprintf("        uses: %s%s", runtime.ActionRepo, runtime.ActionVersion),
+		fmt.Sprintf("        uses: %s@%s", runtime.ActionRepo, runtime.ActionVersion),
 	}
 
 	// Special handling for Go when no version is specified
