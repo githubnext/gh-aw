@@ -500,7 +500,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				// Get the engine from aw_info.json
 				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
 				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
-				
+
 				if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
 					if verbose {
 						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
