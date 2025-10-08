@@ -498,13 +498,11 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	// Check if remote mode is enabled
 	if githubType == "remote" {
 		// Remote mode - use hosted GitHub MCP server
-		yaml.WriteString("          type = \"http\"\n")
 		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/")
-
 		if readOnly {
 			yaml.WriteString("/readonly")
 		}
-		yaml.WriteString("\n")
+		yaml.WriteString("\"\n")
 
 		// Add authorization header
 		if customGitHubToken != "" {
