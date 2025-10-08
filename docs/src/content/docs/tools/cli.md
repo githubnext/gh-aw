@@ -367,6 +367,9 @@ Bump types: `patch` (bug fixes), `minor` (new features), `major` (breaking chang
 # Analyze changesets and preview next version
 node changeset.js version
 
+# Preview without modifying files (dry-run)
+node changeset.js version --dry-run
+
 # This will:
 # - Read all changeset files from .changeset/
 # - Determine version bump (highest priority: major > minor > patch)
@@ -379,9 +382,12 @@ node changeset.js version
 # Create release with automatic version determination
 node changeset.js release
 
+# Preview release without modifying files (dry-run)
+node changeset.js release --dry-run
+
 # Create specific release type
 node changeset.js release patch
-node changeset.js release minor
+node changeset.js release minor --dry-run
 
 # This will:
 # - Update CHANGELOG.md with new version and changes
@@ -389,9 +395,21 @@ node changeset.js release minor
 # - Provide next steps for committing and tagging
 ```
 
+**Dry-Run Mode:**
+
+The `--dry-run` flag allows previewing changes without modifying files. Useful for:
+- Previewing CHANGELOG entries before committing
+- Checking which changeset files would be deleted
+- Verifying the version bump is correct
+
+```bash
+node changeset.js release --dry-run
+# Shows what would be changed without modifying files
+```
+
 **Release Workflow:**
 1. Add changeset files to `.changeset/` directory for each change
-2. Run `node changeset.js version` to preview the release
+2. Run `node changeset.js version --dry-run` to preview the release
 3. Run `node changeset.js release` to prepare the release
 4. Review CHANGELOG.md
 5. Commit changes: `git add CHANGELOG.md .changeset/ && git commit -m "Release vX.Y.Z"`

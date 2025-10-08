@@ -239,8 +239,10 @@ function extractFirstLine(text) {
  * Update CHANGELOG.md with new version and changes
  * @param {string} version - Version string
  * @param {Array} changesets - Array of changesets
+ * @param {boolean} dryRun - If true, preview changes without writing
+ * @returns {string} The new changelog entry or full content
  */
-function updateChangelog(version, changesets) {
+function updateChangelog(version, changesets, dryRun = false) {
   const changelogPath = 'CHANGELOG.md';
   
   // Read existing changelog or create header
@@ -296,24 +298,38 @@ function updateChangelog(version, changesets) {
     updatedContent = existingContent.substring(0, headerEnd + 1) + newEntry + existingContent.substring(headerEnd + 1);
   }
   
+  if (dryRun) {
+    // Return the new entry for preview
+    return newEntry;
+  }
+  
   // Write updated changelog
   fs.writeFileSync(changelogPath, updatedContent, 'utf8');
+  return newEntry;
 }
 
 /**
  * Delete changeset files
  * @param {Array} changesets - Array of changesets to delete
+ * @param {boolean} dryRun - If true, preview what would be deleted
  */
-function deleteChangesetFiles(changesets) {
+function deleteChangesetFiles(changesets, dryRun = false) {
+  if (dryRun) {
+    // Just return the list of files that would be deleted
+    return changesets.map(cs => cs.filePath);
+  }
+  
   for (const cs of changesets) {
     fs.unlinkSync(cs.filePath);
   }
+  return [];
 }
 
 /**
  * Run the version command
+ * @param {boolean} dryRun - If true, preview changes without writing
  */
-function runVersion() {
+function runVersion(dryRun = false) {
   const changesets = readChangesets();
   
   if (changesets.length === 0) {
@@ -326,6 +342,11 @@ function runVersion() {
   const nextVersion = bumpVersion(currentVersion, bumpType);
   const versionString = formatVersion(nextVersion);
   
+  if (dryRun) {
+    console.log(formatInfoMessage('🔍 DRY RUN MODE - No files will be modified'));
+    console.log('');
+  }
+  
   console.log(formatInfoMessage(`Current version: ${formatVersion(currentVersion)}`));
   console.log(formatInfoMessage(`Bump type: ${bumpType}`));
   console.log(formatInfoMessage(`Next version: ${versionString}`));
@@ -336,17 +357,25 @@ function runVersion() {
   }
   
   // Update changelog
-  updateChangelog(versionString, changesets);
+  const changelogEntry = updateChangelog(versionString, changesets, dryRun);
   
   console.log('');
-  console.log(formatSuccessMessage('Updated CHANGELOG.md'));
+  if (dryRun) {
+    console.log(formatInfoMessage('Would add to CHANGELOG.md:'));
+    console.log('---');
+    console.log(changelogEntry);
+    console.log('---');
+  } else {
+    console.log(formatSuccessMessage('Updated CHANGELOG.md'));
+  }
 }
 
 /**
  * Run the release command
  * @param {string} releaseType - Optional release type (patch, minor, major)
+ * @param {boolean} dryRun - If true, preview changes without writing
  */
-function runRelease(releaseType) {
+function runRelease(releaseType, dryRun = false) {
   const changesets = readChangesets();
   
   if (changesets.length === 0) {
@@ -370,17 +399,37 @@ function runRelease(releaseType) {
   const nextVersion = bumpVersion(currentVersion, bumpType);
   const versionString = formatVersion(nextVersion);
   
+  if (dryRun) {
+    console.log(formatInfoMessage('🔍 DRY RUN MODE - No files will be modified'));
+    console.log('');
+  }
+  
   console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
   
   // Update changelog
-  updateChangelog(versionString, changesets);
+  const changelogEntry = updateChangelog(versionString, changesets, dryRun);
   
   // Delete changeset files
-  deleteChangesetFiles(changesets);
+  const filesToDelete = deleteChangesetFiles(changesets, dryRun);
   
-  console.log(formatSuccessMessage('Updated CHANGELOG.md'));
-  console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
-  console.log(formatInfoMessage('\nNext steps:'));
+  console.log('');
+  if (dryRun) {
+    console.log(formatInfoMessage('Would add to CHANGELOG.md:'));
+    console.log('---');
+    console.log(changelogEntry);
+    console.log('---');
+    console.log('');
+    console.log(formatInfoMessage(`Would remove ${changesets.length} changeset file(s):`));
+    for (const file of filesToDelete) {
+      console.log(`  - ${file}`);
+    }
+  } else {
+    console.log(formatSuccessMessage('Updated CHANGELOG.md'));
+    console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
+  }
+  
+  console.log('');
+  console.log(formatInfoMessage('Next steps:'));
   console.log('  1. Review CHANGELOG.md');
   console.log(`  2. Commit changes: git add CHANGELOG.md .changeset/ && git commit -m "Release ${versionString}"`);
   console.log(`  3. Create tag: git tag -a ${versionString} -m "Release ${versionString}"`);
@@ -394,16 +443,21 @@ function showHelp() {
   console.log('Changeset CLI - Manage version releases');
   console.log('');
   console.log('Usage:');
-  console.log('  node changeset.js version           - Preview next version from changesets');
-  console.log('  node changeset.js release [type]    - Create release and update CHANGELOG');
+  console.log('  node changeset.js version [--dry-run]      - Preview next version from changesets');
+  console.log('  node changeset.js release [type] [--dry-run] - Create release and update CHANGELOG');
   console.log('');
   console.log('Release types: patch, minor, major');
   console.log('');
+  console.log('Flags:');
+  console.log('  --dry-run    Preview changes without modifying files');
+  console.log('');
   console.log('Examples:');
   console.log('  node changeset.js version');
+  console.log('  node changeset.js version --dry-run');
   console.log('  node changeset.js release');
+  console.log('  node changeset.js release --dry-run');
   console.log('  node changeset.js release patch');
-  console.log('  node changeset.js release minor');
+  console.log('  node changeset.js release minor --dry-run');
   console.log('  node changeset.js release major');
 }
 
@@ -416,15 +470,21 @@ function main() {
     return;
   }
   
-  const command = args[0];
+  // Check for --dry-run flag
+  const dryRunIndex = args.indexOf('--dry-run');
+  const dryRun = dryRunIndex !== -1;
+  
+  // Remove --dry-run from args
+  const cleanArgs = args.filter(arg => arg !== '--dry-run');
+  const command = cleanArgs[0];
   
   try {
     switch (command) {
       case 'version':
-        runVersion();
+        runVersion(dryRun);
         break;
       case 'release':
-        runRelease(args[1]);
+        runRelease(cleanArgs[1], dryRun);
         break;
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));

@@ -8,13 +8,53 @@ A minimalistic implementation for managing version releases, inspired by `@chang
 # Preview next version from changesets
 node changeset.js version
 
+# Preview without modifying files (dry-run)
+node changeset.js version --dry-run
+
 # Create release and update CHANGELOG
 node changeset.js release
+
+# Preview release without modifying files (dry-run)
+node changeset.js release --dry-run
 
 # Create specific release type
 node changeset.js release patch
 node changeset.js release minor
 node changeset.js release major
+
+# Dry-run for specific release type
+node changeset.js release minor --dry-run
+```
+
+## Dry-Run Mode
+
+The `--dry-run` flag allows you to preview what changes would be made without actually modifying any files. This is useful for:
+
+- Previewing the CHANGELOG entry before committing
+- Checking which changeset files would be deleted
+- Verifying the version bump is correct
+
+Example output:
+```bash
+$ node changeset.js release --dry-run
+ℹ 🔍 DRY RUN MODE - No files will be modified
+
+ℹ Creating minor release: v0.15.0
+
+ℹ Would add to CHANGELOG.md:
+---
+## v0.15.0 - 2025-10-08
+
+### Features
+- New feature description
+
+### Bug Fixes
+- Bug fix description
+---
+
+ℹ Would remove 3 changeset file(s):
+  - .changeset/minor-feature.md
+  - .changeset/patch-bugfix.md
 ```
 
 ## Changeset File Format
