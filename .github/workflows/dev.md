@@ -4,18 +4,14 @@ on:
   push:
     branches:
       - copilot/*
-      - serena*
+      - compiler*
 name: Dev
-engine: codex
-tools:
-  cache-memory: true
+engine: copilot
 safe-outputs:
     staged: true
     create-issue:
 timeout_minutes: 10
 strict: true
-imports:
-  - shared/serena-mcp.md
 ---
 
-Use serena to count methods in go sources.
+Write a poem.
