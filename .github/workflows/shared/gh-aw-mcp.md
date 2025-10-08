@@ -1,10 +1,8 @@
 ---
 mcp-servers:
   gh-aw:
-    command: "./gh-aw"
-    args: ["mcp-server"]
-    env:
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+    type: http
+    url: http://localhost:8765
 steps:
   - name: Set up Go
     uses: actions/setup-go@v5
@@ -15,6 +13,8 @@ steps:
     run: make deps-dev
   - name: Install binary as 'gh-aw'
     run: make install
+  - name: Start MCP server
+    run: gh-aw mcp-server --port 8765 &
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ---

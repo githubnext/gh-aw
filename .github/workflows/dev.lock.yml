@@ -138,10 +138,12 @@ jobs:
           go-version-file: go.mod
       - name: Install dependencies
         run: make deps-dev
+      - name: Install binary as 'gh-aw'
+        run: make install
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Install binary as 'gh-aw'
-        run: make install
+        name: Start MCP server
+        run: gh-aw mcp-server --port 8765 &
 
       - name: Configure Git credentials
         run: |
@@ -984,14 +986,8 @@ jobs:
           {
             "mcpServers": {
               "gh-aw": {
-                "type": "stdio",
-                "command": "./gh-aw",
-                "args": [
-                  "mcp-server"
-                ],
-                "env": {
-                  "GH_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
-                }
+                "type": "http",
+                "url": "http://localhost:8765"
               },
               "github": {
                 "command": "docker",
