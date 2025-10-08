@@ -491,7 +491,10 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
+	yaml.WriteString("          startup_timeout_sec = 120\n")
+	yaml.WriteString("          tool_timeout_sec = 120\n")
 
+	// https://developers.openai.com/codex/mcp
 	// Check if remote mode is enabled
 	if githubType == "remote" {
 		// Remote mode - use hosted GitHub MCP server
@@ -500,9 +503,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 
 		// Add authorization header
 		if customGitHubToken != "" {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer " + customGitHubToken + "\"")
+			yaml.WriteString("          bearer_token = \"Bearer " + customGitHubToken + "\"")
 		} else {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
+			yaml.WriteString("          bearer_token = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
 		}
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
