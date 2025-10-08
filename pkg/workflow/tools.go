@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -160,6 +161,16 @@ func extractMCPServersFromFrontmatter(frontmatter map[string]any) map[string]any
 	return make(map[string]any)
 }
 
+// extractRuntimesFromFrontmatter extracts runtimes section from frontmatter map
+func extractRuntimesFromFrontmatter(frontmatter map[string]any) map[string]any {
+	if runtimes, exists := frontmatter["runtimes"]; exists {
+		if runtimesMap, ok := runtimes.(map[string]any); ok {
+			return runtimesMap
+		}
+	}
+	return make(map[string]any)
+}
+
 // mergeToolsAndMCPServers merges tools, mcp-servers, and included tools
 func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, includedTools string) (map[string]any, error) {
 	// Start with top-level tools
@@ -175,4 +186,37 @@ func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, 
 
 	// Merge included tools
 	return c.MergeTools(result, includedTools)
+}
+
+// mergeRuntimes merges runtime configurations from frontmatter and imports
+func mergeRuntimes(topRuntimes map[string]any, importedRuntimesJSON string) (map[string]any, error) {
+	result := make(map[string]any)
+
+	// Start with top-level runtimes
+	for id, config := range topRuntimes {
+		result[id] = config
+	}
+
+	// Merge imported runtimes (newline-separated JSON objects)
+	if importedRuntimesJSON != "" {
+		lines := strings.Split(strings.TrimSpace(importedRuntimesJSON), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || line == "{}" {
+				continue
+			}
+
+			var importedRuntimes map[string]any
+			if err := json.Unmarshal([]byte(line), &importedRuntimes); err != nil {
+				return nil, fmt.Errorf("failed to parse imported runtimes JSON: %w", err)
+			}
+
+			// Merge imported runtimes - later imports override earlier ones
+			for id, config := range importedRuntimes {
+				result[id] = config
+			}
+		}
+	}
+
+	return result, nil
 }

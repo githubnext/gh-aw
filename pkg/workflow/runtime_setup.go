@@ -158,6 +158,11 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		detectFromEngineSteps(workflowData.EngineConfig.Steps, requirements)
 	}
 
+	// Apply runtime overrides from frontmatter
+	if workflowData.Runtimes != nil {
+		applyRuntimeOverrides(workflowData.Runtimes, requirements)
+	}
+
 	// Convert map to sorted slice (alphabetically by runtime ID)
 	var result []RuntimeRequirement
 	var runtimeIDs []string
@@ -367,4 +372,63 @@ func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
 	}
 
 	return false
+}
+
+// applyRuntimeOverrides applies runtime version overrides from frontmatter
+func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*RuntimeRequirement) {
+	for runtimeID, configAny := range runtimes {
+		// Parse runtime configuration
+		configMap, ok := configAny.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Extract version from config
+		versionAny, hasVersion := configMap["version"]
+		if !hasVersion {
+			continue
+		}
+
+		// Convert version to string (handle both string and numeric types)
+		var version string
+		switch v := versionAny.(type) {
+		case string:
+			version = v
+		case int:
+			version = fmt.Sprintf("%d", v)
+		case float64:
+			// Check if it's a whole number
+			if v == float64(int(v)) {
+				version = fmt.Sprintf("%d", int(v))
+			} else {
+				version = fmt.Sprintf("%g", v)
+			}
+		default:
+			continue
+		}
+
+		// Find or create runtime requirement
+		if existing, exists := requirements[runtimeID]; exists {
+			// Override version for existing requirement
+			existing.Version = version
+		} else {
+			// Check if this is a known runtime
+			var runtime *Runtime
+			for _, knownRuntime := range knownRuntimes {
+				if knownRuntime.ID == runtimeID {
+					runtime = knownRuntime
+					break
+				}
+			}
+
+			// If runtime is known, create a new requirement
+			if runtime != nil {
+				requirements[runtimeID] = &RuntimeRequirement{
+					Runtime: runtime,
+					Version: version,
+				}
+			}
+			// If runtime is unknown, skip it (user might have typo or custom runtime)
+		}
+	}
 }
