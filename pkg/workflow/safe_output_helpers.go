@@ -41,9 +41,7 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", config.MainJobName))
 
 	// Add custom environment variables specific to this safe output type
-	for _, envVar := range config.CustomEnvVars {
-		steps = append(steps, envVar)
-	}
+	steps = append(steps, config.CustomEnvVars...)
 
 	// Add custom environment variables from safe-outputs.env
 	c.addCustomSafeOutputEnvVars(&steps, data)
