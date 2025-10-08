@@ -3,8 +3,9 @@ package cli
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
+	"os/exec"
+	"strconv"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -18,7 +19,12 @@ func NewMCPServerCommand() *cobra.Command {
 		Short: "Run an MCP (Model Context Protocol) server exposing gh-aw commands as tools",
 		Long: `Run an MCP server that exposes gh-aw CLI commands as MCP tools.
 
-This command starts a stdio-based MCP server that provides the following tools:
+This command starts a stdio-based MCP server that wraps the gh-aw CLI,
+spawning subprocess calls for each tool invocation. This design ensures
+that GitHub tokens and other secrets are not shared with the MCP server
+process itself.
+
+The server provides the following tools:
   - status   - Show status of agentic workflow files
   - compile  - Compile markdown workflow files to YAML
   - logs     - Download and analyze workflow logs
@@ -74,25 +80,20 @@ func runMCPServer() error {
 		Name:        "status",
 		Description: "Show status of agentic workflow files and workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
-		// Capture stdout to return as tool result
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
+		// Build command arguments
+		cmdArgs := []string{"aw", "status"}
+		if args.Pattern != "" {
+			cmdArgs = append(cmdArgs, args.Pattern)
+		}
 
-		// Run status command
-		err := StatusWorkflows(args.Pattern, false)
-
-		// Restore stdout
-		w.Close()
-		os.Stdout = oldStdout
-
-		// Read captured output
-		output, _ := io.ReadAll(r)
+		// Execute the CLI command
+		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		output, err := cmd.CombinedOutput()
 
 		if err != nil {
 			return &mcp.CallToolResult{
 				Content: []mcp.Content{
-					&mcp.TextContent{Text: fmt.Sprintf("Error: %v", err)},
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
 				},
 			}, nil, nil
 		}
@@ -114,33 +115,19 @@ func runMCPServer() error {
 		Name:        "compile",
 		Description: "Compile markdown workflow files to YAML workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
-		// Capture stdout to return as tool result
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		config := CompileConfig{
-			MarkdownFiles:    args.Workflows,
-			Verbose:          false,
-			EngineOverride:   args.Engine,
-			Validate:         args.Validate,
-			Watch:            false,
-			WorkflowDir:      "",
-			SkipInstructions: false,
-			NoEmit:           false,
-			Purge:            false,
-			TrialMode:        false,
-			Strict:           false,
+		// Build command arguments
+		cmdArgs := []string{"aw", "compile"}
+		if args.Engine != "" {
+			cmdArgs = append(cmdArgs, "--engine", args.Engine)
 		}
+		if !args.Validate {
+			cmdArgs = append(cmdArgs, "--validate=false")
+		}
+		cmdArgs = append(cmdArgs, args.Workflows...)
 
-		_, err := CompileWorkflows(config)
-
-		// Restore stdout
-		w.Close()
-		os.Stdout = oldStdout
-
-		// Read captured output
-		output, _ := io.ReadAll(r)
+		// Execute the CLI command
+		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		output, err := cmd.CombinedOutput()
 
 		if err != nil {
 			return &mcp.CallToolResult{
@@ -167,29 +154,21 @@ func runMCPServer() error {
 		Name:        "logs",
 		Description: "Download and analyze workflow logs",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
-		// Capture stdout to return as tool result
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputDir := args.OutputDir
-		if outputDir == "" {
-			outputDir = "./logs"
+		// Build command arguments
+		cmdArgs := []string{"aw", "logs"}
+		if args.WorkflowName != "" {
+			cmdArgs = append(cmdArgs, args.WorkflowName)
+		}
+		if args.Count > 0 {
+			cmdArgs = append(cmdArgs, "-c", strconv.Itoa(args.Count))
+		}
+		if args.OutputDir != "" {
+			cmdArgs = append(cmdArgs, "-o", args.OutputDir)
 		}
 
-		count := args.Count
-		if count == 0 {
-			count = 5
-		}
-
-		err := DownloadWorkflowLogs(args.WorkflowName, count, "", "", outputDir, "", "", 0, 0, false, false, false)
-
-		// Restore stdout
-		w.Close()
-		os.Stdout = oldStdout
-
-		// Read captured output
-		output, _ := io.ReadAll(r)
+		// Execute the CLI command
+		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		output, err := cmd.CombinedOutput()
 
 		if err != nil {
 			return &mcp.CallToolResult{
@@ -215,24 +194,15 @@ func runMCPServer() error {
 		Name:        "audit",
 		Description: "Investigate a workflow run and generate a concise report",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
-		// Capture stdout to return as tool result
-		oldStdout := os.Stdout
-		r, w, _ := os.Pipe()
-		os.Stdout = w
-
-		outputDir := args.OutputDir
-		if outputDir == "" {
-			outputDir = "./logs"
+		// Build command arguments
+		cmdArgs := []string{"aw", "audit", strconv.FormatInt(args.RunID, 10)}
+		if args.OutputDir != "" {
+			cmdArgs = append(cmdArgs, "-o", args.OutputDir)
 		}
 
-		err := AuditWorkflowRun(args.RunID, outputDir, false)
-
-		// Restore stdout
-		w.Close()
-		os.Stdout = oldStdout
-
-		// Read captured output
-		output, _ := io.ReadAll(r)
+		// Execute the CLI command
+		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		output, err := cmd.CombinedOutput()
 
 		if err != nil {
 			return &mcp.CallToolResult{
