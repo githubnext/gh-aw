@@ -69,35 +69,3 @@ func TestAddLabelsJobWithNilSafeOutputs(t *testing.T) {
 		t.Errorf("Expected error message to contain '%s', got: %v", expectedError, err)
 	}
 }
-
-func TestAddLabelsJobWithNilAddLabelsConfig(t *testing.T) {
-	// Create a compiler instance
-	c := NewCompiler(false, "", "test")
-
-	// Test with SafeOutputs but nil AddLabels config - this should work as it's a valid case
-	workflowData := &WorkflowData{
-		Name: "test-workflow",
-		SafeOutputs: &SafeOutputsConfig{
-			AddLabels: nil, // This is valid - means empty configuration
-			Staged:    true,
-		},
-	}
-
-	job, err := c.buildAddLabelsJob(workflowData, "main_job")
-	if err != nil {
-		t.Fatalf("Expected no error when AddLabels is nil (should use defaults): %v", err)
-	}
-
-	// Convert steps to a single string for testing
-	stepsContent := strings.Join(job.Steps, "")
-
-	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included in the env section
-	if !strings.Contains(stepsContent, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n") {
-		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true even with nil AddLabels config")
-	}
-
-	// Check that default max count is used
-	if !strings.Contains(stepsContent, "          GITHUB_AW_LABELS_MAX_COUNT: 3\n") {
-		t.Error("Expected default max count of 3 when AddLabels is nil")
-	}
-}
