@@ -76,26 +76,6 @@ async function main() {
         shouldEditComment = command ? true : false;
         break;
 
-      case "discussion":
-        const discussionNumber = context.payload?.discussion?.number;
-        if (!discussionNumber) {
-          core.setFailed("Discussion number not found in event payload");
-          return;
-        }
-        // Note: Discussions don't support reactions via REST API, only GraphQL
-        core.info("Discussion reactions are not supported via REST API - skipping reaction");
-        return;
-
-      case "discussion_comment":
-        const discussionCommentId = context.payload?.comment?.id;
-        if (!discussionCommentId) {
-          core.setFailed("Discussion comment ID not found in event payload");
-          return;
-        }
-        // Note: Discussion comments don't support reactions via REST API, only GraphQL
-        core.info("Discussion comment reactions are not supported via REST API - skipping reaction");
-        return;
-
       default:
         core.setFailed(`Unsupported event type: ${eventName}`);
         return;
