@@ -2141,7 +2141,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add engine-declared output files collection (if any)
 	if len(engine.GetDeclaredOutputFiles()) > 0 {
-		c.generateEngineOutputCollection(yaml, engine)
+		c.generateEngineOutputCollection(yaml, engine, data)
 	}
 
 	// Extract and upload squid access logs (if any proxy tools were used)
