@@ -15,4 +15,6 @@ steps:
     run: make deps-dev
   - name: Build gh-aw CLI
     run: make build
+  - name: Install binary as 'gh-aw'
+    run: make install
 ---
