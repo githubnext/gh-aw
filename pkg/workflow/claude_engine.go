@@ -86,19 +86,8 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	var steps []GitHubActionStep
-
 	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-	}
+	steps := ProcessCustomEngineSteps(workflowData, e)
 
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string

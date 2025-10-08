@@ -64,19 +64,8 @@ func (e *CopilotEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	var steps []GitHubActionStep
-
 	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-	}
+	steps := ProcessCustomEngineSteps(workflowData, e)
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs = []string{"--add-dir", "/tmp/", "--log-level", "all", "--log-dir", logsFolder}
@@ -115,37 +104,14 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		env["GITHUB_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
 	}
 
-	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
-	hasOutput := workflowData.SafeOutputs != nil
-	if hasOutput {
-		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+	// Add safe outputs environment variables
+	SetupSafeOutputsEnv(env, workflowData)
 
-		// Add staged flag if specified
-		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
-		}
-		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-			env["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
-		}
-
-		// Add branch name if upload assets is configured
-		if workflowData.SafeOutputs.UploadAssets != nil {
-			env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", workflowData.SafeOutputs.UploadAssets.BranchName)
-			env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
-		}
-	}
-
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
-		env["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
-	}
+	// Add max-turns environment variable
+	AddMaxTurnsEnv(env, workflowData.EngineConfig)
 
 	// Add custom environment variables from engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		for key, value := range workflowData.EngineConfig.Env {
-			env[key] = value
-		}
-	}
+	AddCustomEngineEnv(env, workflowData.EngineConfig)
 
 	// Generate the step for Copilot CLI execution
 	stepName := "Execute GitHub Copilot CLI"
