@@ -3,10 +3,8 @@
  * This script processes all .txt, .json, .log files under /tmp and redacts
  * any strings matching the actual secret values provided via environment variables.
  */
-
 const fs = require("fs");
 const path = require("path");
-
 /**
  * Recursively finds all files matching the specified extensions
  * @param {string} dir - Directory to search
@@ -15,17 +13,13 @@ const path = require("path");
  */
 function findFiles(dir, extensions) {
   const results = [];
-
   try {
     if (!fs.existsSync(dir)) {
       return results;
     }
-
     const entries = fs.readdirSync(dir, { withFileTypes: true });
-
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-
       if (entry.isDirectory()) {
         // Recursively search subdirectories
         results.push(...findFiles(fullPath, extensions));
@@ -40,7 +34,6 @@ function findFiles(dir, extensions) {
   } catch (error) {
     core.warning(`Failed to scan directory ${dir}: ${error instanceof Error ? error.message : String(error)}`);
   }
-
   return results;
 }
 
@@ -53,16 +46,13 @@ function findFiles(dir, extensions) {
 function redactSecrets(content, secretValues) {
   let redactionCount = 0;
   let redacted = content;
-
   // Sort secret values by length (longest first) to handle overlapping secrets
   const sortedSecrets = secretValues.slice().sort((a, b) => b.length - a.length);
-
   for (const secretValue of sortedSecrets) {
     // Skip empty or very short values (likely not actual secrets)
     if (!secretValue || secretValue.length < 8) {
       continue;
     }
-
     // Count occurrences before replacement
     // Use split and join for exact string matching (not regex)
     // This is safer than regex as it doesn't interpret special characters
@@ -72,14 +62,12 @@ function redactSecrets(content, secretValues) {
     const replacement = prefix + asterisks;
     const parts = redacted.split(secretValue);
     const occurrences = parts.length - 1;
-
     if (occurrences > 0) {
       redacted = parts.join(replacement);
       redactionCount += occurrences;
       core.debug(`Redacted ${occurrences} occurrence(s) of a secret`);
     }
   }
-
   return { content: redacted, redactionCount };
 }
 
@@ -93,12 +81,10 @@ function processFile(filePath, secretValues) {
   try {
     const content = fs.readFileSync(filePath, "utf8");
     const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
-
     if (redactionCount > 0) {
       fs.writeFileSync(filePath, redactedContent, "utf8");
       core.debug(`Processed ${filePath}: ${redactionCount} redaction(s)`);
     }
-
     return redactionCount;
   } catch (error) {
     core.warning(`Failed to process file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
@@ -112,45 +98,34 @@ function processFile(filePath, secretValues) {
 async function main() {
   // Get the list of secret names from environment variable
   const secretNames = process.env.GITHUB_AW_SECRET_NAMES;
-
   if (!secretNames) {
     core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
     return;
   }
-
   core.info("Starting secret redaction in /tmp directory");
-
   try {
     // Parse the comma-separated list of secret names
     const secretNameList = secretNames.split(",").filter(name => name.trim());
-
     // Collect the actual secret values from environment variables
     const secretValues = [];
     for (const secretName of secretNameList) {
       const envVarName = `SECRET_${secretName}`;
       const secretValue = process.env[envVarName];
-
       if (secretValue && secretValue.trim()) {
         secretValues.push(secretValue.trim());
       }
     }
-
     if (secretValues.length === 0) {
       core.info("No secret values found to redact");
       return;
     }
-
     core.info(`Found ${secretValues.length} secret(s) to redact`);
-
     // Find all target files in /tmp directory
     const targetExtensions = [".txt", ".json", ".log"];
     const files = findFiles("/tmp", targetExtensions);
-
     core.info(`Found ${files.length} file(s) to scan for secrets`);
-
     let totalRedactions = 0;
     let filesWithRedactions = 0;
-
     // Process each file
     for (const file of files) {
       const redactionCount = processFile(file, secretValues);
@@ -159,7 +134,6 @@ async function main() {
         totalRedactions += redactionCount;
       }
     }
-
     if (totalRedactions > 0) {
       core.info(`Secret redaction complete: ${totalRedactions} redaction(s) in ${filesWithRedactions} file(s)`);
     } else {
@@ -169,5 +143,4 @@ async function main() {
     core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
-
 await main();
