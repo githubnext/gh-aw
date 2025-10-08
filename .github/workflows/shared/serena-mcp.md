@@ -29,8 +29,6 @@ steps:
     run: gopls version
 ---
 
-Activate the current dir as project using serena.
-
 <!--
 
   # https://github.com/mcp/oraios/serena#using-docker-experimental
