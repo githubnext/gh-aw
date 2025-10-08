@@ -13,16 +13,8 @@ mcp-servers:
       - "${{ github.workspace }}"
     allowed: ["*"]
 steps:
-  - name: Setup python
-    uses: actions/setup-python@v6
-    with:
-      python-version: "3.13"
-  - name: Install uv
-    uses: astral-sh/setup-uv@v6
   - name: Verify uv
     run: uv --version
-  - name: Setup go
-    uses: actions/setup-go@v4
   - name: Install Go language service
     run: go install golang.org/x/tools/gopls@latest
   - name: Check gopls version
