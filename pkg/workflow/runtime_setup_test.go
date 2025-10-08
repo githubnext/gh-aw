@@ -104,9 +104,9 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 
 func TestDetectFromCustomSteps(t *testing.T) {
 	tests := []struct {
-		name         string
-		customSteps  string
-		expected     []RuntimeType
+		name           string
+		customSteps    string
+		expected       []RuntimeType
 		skipIfHasSetup bool
 	}{
 		{
@@ -148,7 +148,7 @@ func TestDetectFromCustomSteps(t *testing.T) {
       node-version: '20'
   - name: Install
     run: npm install`,
-			expected: []RuntimeType{},
+			expected:       []RuntimeType{},
 			skipIfHasSetup: true,
 		},
 		{
@@ -428,11 +428,11 @@ func TestShouldSkipRuntimeSetup(t *testing.T) {
 
 // Helper function to check if a string contains a substring
 func runtimeContainsString(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && 
-		(s == substr || len(s) > len(substr) && 
-		(s[:len(substr)] == substr || 
-		s[len(s)-len(substr):] == substr || 
-		runtimeFindSubstring(s, substr)))
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr || len(s) > len(substr) &&
+			(s[:len(substr)] == substr ||
+				s[len(s)-len(substr):] == substr ||
+				runtimeFindSubstring(s, substr)))
 }
 
 func runtimeFindSubstring(s, substr string) bool {

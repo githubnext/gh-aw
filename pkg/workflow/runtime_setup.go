@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/goccy/go-yaml"
@@ -27,29 +26,21 @@ type RuntimeRequirement struct {
 
 // commandPatterns maps command patterns to runtime types
 var commandPatterns = map[string]RuntimeType{
-	"node":   RuntimeNode,
-	"npm":    RuntimeNode,
-	"npx":    RuntimeNode,
-	"yarn":   RuntimeNode,
-	"pnpm":   RuntimeNode,
-	"python": RuntimePython,
+	"node":    RuntimeNode,
+	"npm":     RuntimeNode,
+	"npx":     RuntimeNode,
+	"yarn":    RuntimeNode,
+	"pnpm":    RuntimeNode,
+	"python":  RuntimePython,
 	"python3": RuntimePython,
-	"pip":    RuntimePython,
-	"pip3":   RuntimePython,
-	"uvx":    RuntimeUV,
-	"uv":     RuntimeUV,
-	"go":     RuntimeGo,
-	"ruby":   RuntimeRuby,
-	"gem":    RuntimeRuby,
-	"bundle": RuntimeRuby,
-}
-
-// versionPatterns maps runtime types to regex patterns for extracting versions from YAML
-var versionPatterns = map[RuntimeType]*regexp.Regexp{
-	RuntimeNode:   regexp.MustCompile(`node-version:\s*['"]?(\d+(?:\.\d+)?(?:\.\d+)?)['"]?`),
-	RuntimePython: regexp.MustCompile(`python-version:\s*['"]?(\d+(?:\.\d+)?(?:\.\d+)?)['"]?`),
-	RuntimeGo:     regexp.MustCompile(`go-version:\s*['"]?(\d+(?:\.\d+)?(?:\.\d+)?)['"]?`),
-	RuntimeRuby:   regexp.MustCompile(`ruby-version:\s*['"]?(\d+(?:\.\d+)?(?:\.\d+)?)['"]?`),
+	"pip":     RuntimePython,
+	"pip3":    RuntimePython,
+	"uvx":     RuntimeUV,
+	"uv":      RuntimeUV,
+	"go":      RuntimeGo,
+	"ruby":    RuntimeRuby,
+	"gem":     RuntimeRuby,
+	"bundle":  RuntimeRuby,
 }
 
 // DetectRuntimeRequirements analyzes workflow data to detect required runtimes
@@ -95,10 +86,10 @@ func detectFromCustomSteps(customSteps string, requirements map[RuntimeType]stri
 
 	lines := strings.Split(customSteps, "\n")
 	currentStepRun := ""
-	
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		
+
 		// Accumulate run command lines
 		if strings.HasPrefix(trimmed, "run:") {
 			currentStepRun = strings.TrimPrefix(trimmed, "run:")
@@ -111,7 +102,7 @@ func detectFromCustomSteps(customSteps string, requirements map[RuntimeType]stri
 			analyzeCommand(currentStepRun, requirements)
 			currentStepRun = ""
 		}
-		
+
 		// Also check if it's a single-line run
 		if strings.HasPrefix(trimmed, "run:") && !strings.HasSuffix(trimmed, "|") && !strings.HasSuffix(trimmed, ">") {
 			cmd := strings.TrimPrefix(trimmed, "run:")
@@ -119,7 +110,7 @@ func detectFromCustomSteps(customSteps string, requirements map[RuntimeType]stri
 			analyzeCommand(cmd, requirements)
 		}
 	}
-	
+
 	// Analyze final run command if any
 	if currentStepRun != "" {
 		analyzeCommand(currentStepRun, requirements)
@@ -159,7 +150,7 @@ func detectFromEngineSteps(steps []map[string]any, requirements map[RuntimeType]
 				analyzeCommand(runStr, requirements)
 			}
 		}
-		
+
 		// Check for 'uses' field to see if setup actions are present
 		if uses, hasUses := step["uses"]; hasUses {
 			if usesStr, ok := uses.(string); ok {
@@ -179,38 +170,38 @@ func detectFromEngineSteps(steps []map[string]any, requirements map[RuntimeType]
 func analyzeCommand(command string, requirements map[RuntimeType]string) {
 	// Split command into tokens
 	tokens := strings.Fields(command)
-	
+
 	// Track if we've seen uv, since "uv pip" shouldn't also trigger pip detection
 	uvSeen := false
-	
+
 	for i, token := range tokens {
 		// Remove common shell operators and get base command
 		baseCmd := strings.TrimLeft(token, "&|;")
 		baseCmd = strings.Split(baseCmd, "=")[0] // Handle VAR=value cases
-		
+
 		// Check if this matches a runtime command
 		if runtime, found := commandPatterns[baseCmd]; found {
 			// Special case: if this is "pip" and we previously saw "uv", skip it
 			if (baseCmd == "pip" || baseCmd == "pip3") && uvSeen {
 				continue
 			}
-			
+
 			// Track if we see uv
 			if baseCmd == "uv" || baseCmd == "uvx" {
 				uvSeen = true
 			}
-			
+
 			if _, alreadyHas := requirements[runtime]; !alreadyHas {
 				requirements[runtime] = "" // No specific version from command
 			}
 		}
-		
+
 		// Also check the previous token for context (e.g., "uv pip" pattern)
 		if i > 0 {
 			prevToken := tokens[i-1]
 			prevBaseCmd := strings.TrimLeft(prevToken, "&|;")
 			prevBaseCmd = strings.Split(prevBaseCmd, "=")[0]
-			
+
 			// If previous was "uv" and current is "pip", we already marked uv, so continue
 			if (prevBaseCmd == "uv") && (baseCmd == "pip" || baseCmd == "pip3") {
 				continue
@@ -231,17 +222,17 @@ func hasExistingSetupAction(customSteps string) bool {
 // updateRequiredVersion updates the version requirement, choosing the highest version
 func updateRequiredVersion(runtime RuntimeType, newVersion string, requirements map[RuntimeType]string) {
 	existing, exists := requirements[runtime]
-	
+
 	if !exists || existing == "" {
 		requirements[runtime] = newVersion
 		return
 	}
-	
+
 	// If new version is empty, keep existing
 	if newVersion == "" {
 		return
 	}
-	
+
 	// Compare versions and keep the higher one
 	if compareVersions(newVersion, existing) > 0 {
 		requirements[runtime] = newVersion
@@ -252,36 +243,36 @@ func updateRequiredVersion(runtime RuntimeType, newVersion string, requirements 
 func compareVersions(v1, v2 string) int {
 	parts1 := strings.Split(v1, ".")
 	parts2 := strings.Split(v2, ".")
-	
+
 	maxLen := len(parts1)
 	if len(parts2) > maxLen {
 		maxLen = len(parts2)
 	}
-	
+
 	for i := 0; i < maxLen; i++ {
 		var p1, p2 int
-		
+
 		if i < len(parts1) {
-			fmt.Sscanf(parts1[i], "%d", &p1)
+			_, _ = fmt.Sscanf(parts1[i], "%d", &p1) // Ignore error, defaults to 0
 		}
 		if i < len(parts2) {
-			fmt.Sscanf(parts2[i], "%d", &p2)
+			_, _ = fmt.Sscanf(parts2[i], "%d", &p2) // Ignore error, defaults to 0
 		}
-		
+
 		if p1 > p2 {
 			return 1
 		} else if p1 < p2 {
 			return -1
 		}
 	}
-	
+
 	return 0
 }
 
 // GenerateRuntimeSetupSteps creates GitHub Actions steps for runtime setup
 func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubActionStep {
 	var steps []GitHubActionStep
-	
+
 	for _, req := range requirements {
 		switch req.Type {
 		case RuntimeNode:
@@ -296,7 +287,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 			steps = append(steps, generateUVSetup(req.Version))
 		}
 	}
-	
+
 	return steps
 }
 
@@ -332,7 +323,7 @@ func generateGoSetup(version string) GitHubActionStep {
 		"      - name: Setup Go",
 		"        uses: actions/setup-go@v5",
 	}
-	
+
 	if version != "" {
 		step = append(step, "        with:")
 		step = append(step, fmt.Sprintf("          go-version: '%s'", version))
@@ -342,7 +333,7 @@ func generateGoSetup(version string) GitHubActionStep {
 		step = append(step, "          go-version-file: go.mod")
 		step = append(step, "          cache: true")
 	}
-	
+
 	return step
 }
 
@@ -365,12 +356,12 @@ func generateUVSetup(version string) GitHubActionStep {
 		"      - name: Setup uv",
 		"        uses: astral-sh/setup-uv@v5",
 	}
-	
+
 	if version != "" {
 		step = append(step, "        with:")
 		step = append(step, fmt.Sprintf("          version: '%s'", version))
 	}
-	
+
 	return step
 }
 
@@ -380,7 +371,7 @@ func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
 	if workflowData.CustomSteps != "" && hasExistingSetupAction(workflowData.CustomSteps) {
 		return true
 	}
-	
+
 	// Also check engine steps
 	if workflowData.EngineConfig != nil {
 		for _, step := range workflowData.EngineConfig.Steps {
@@ -397,19 +388,19 @@ func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
 // ExtractVersionFromSteps tries to extract version requirements from existing setup actions
 func ExtractVersionFromSteps(customSteps string) map[RuntimeType]string {
 	versions := make(map[RuntimeType]string)
-	
+
 	// Parse YAML to extract version information
 	var stepsWrapper struct {
 		Steps []map[string]any `yaml:"steps"`
 	}
-	
+
 	if err := yaml.Unmarshal([]byte(customSteps), &stepsWrapper); err == nil {
 		for _, step := range stepsWrapper.Steps {
 			if uses, hasUses := step["uses"]; hasUses {
@@ -452,6 +443,6 @@ func ExtractVersionFromSteps(customSteps string) map[RuntimeType]string {
 			}
 		}
 	}
-	
+
 	return versions
 }
