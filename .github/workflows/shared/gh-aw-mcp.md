@@ -13,8 +13,8 @@ steps:
       cache: true
   - name: Install dependencies
     run: make deps-dev
-  - name: Build gh-aw CLI
-    run: make build
   - name: Install binary as 'gh-aw'
     run: make install
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ---

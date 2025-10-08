@@ -3,9 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - copilot*
-      - detection
-      - codex*
+      - copilot/*
 name: Dev
 engine: claude
 safe-outputs:

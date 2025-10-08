@@ -11,9 +11,7 @@ name: "Dev"
 on:
   push:
     branches:
-    - copilot*
-    - detection
-    - codex*
+    - copilot/*
   workflow_dispatch: null
 
 permissions: {}
@@ -140,9 +138,9 @@ jobs:
           go-version-file: go.mod
       - name: Install dependencies
         run: make deps-dev
-      - name: Build gh-aw CLI
-        run: make build
-      - name: Install binary as 'gh-aw'
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Install binary as 'gh-aw'
         run: make install
 
       - name: Configure Git credentials
