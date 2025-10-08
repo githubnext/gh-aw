@@ -499,20 +499,18 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	if githubType == "remote" {
 		// Remote mode - use hosted GitHub MCP server
 		yaml.WriteString("          type = \"http\"\n")
-		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
+		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/")
+
+		if readOnly {
+			yaml.WriteString("/readonly")
+		}
+		yaml.WriteString("\n")
 
 		// Add authorization header
 		if customGitHubToken != "" {
-			yaml.WriteString("          bearer_token = \"Bearer " + customGitHubToken + "\"")
+			yaml.WriteString("          bearer_token = \"Bearer " + customGitHubToken + "\"\n")
 		} else {
-			yaml.WriteString("          bearer_token = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
-		}
-
-		// Add X-MCP-Readonly header if read-only mode is enabled
-		if readOnly {
-			yaml.WriteString(", \"X-MCP-Readonly\" = \"true\" }\n")
-		} else {
-			yaml.WriteString(" }\n")
+			yaml.WriteString("          bearer_token = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"\n")
 		}
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)

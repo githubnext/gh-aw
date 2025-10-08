@@ -879,8 +879,8 @@ jobs:
           startup_timeout_sec = 120
           tool_timeout_sec = 120
           type = "http"
-          url = "https://api.githubcopilot.com/mcp/"
-          bearer_token = "Bearer ${{ secrets.COPILOT_CLI_TOKEN }}" }
+          url = "https://api.githubcopilot.com/mcp/
+          bearer_token = "Bearer ${{ secrets.COPILOT_CLI_TOKEN }}"
           
           [mcp_servers.safe_outputs]
           command = "node"
