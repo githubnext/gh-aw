@@ -540,4 +540,7 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-main();
+// Only run main if this script is executed directly, not when imported for testing
+if (typeof module === "undefined" || require.main === module) {
+  main();
+}

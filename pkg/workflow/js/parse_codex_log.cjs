@@ -287,4 +287,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = { parseCodexLog, formatBashCommand, truncateString };
 }
 
-main();
+// Only run main if this script is executed directly, not when imported for testing
+if (typeof module === "undefined" || require.main === module) {
+  main();
+}
