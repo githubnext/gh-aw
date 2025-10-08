@@ -35,10 +35,7 @@ Your task is to:
 
 1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.
 
-2. **Determine the Package Name**: 
-   - Check if this is a monorepo with multiple packages in `package.json` files
-   - If it's a single package repo, use the package name from the root `package.json`
-   - If no package.json exists, use the repository name as the package identifier
+2. **use the repository name as the package identifier**
 
 3. **Determine the Change Type**:
    - **major**: Breaking changes (indicated by "BREAKING CHANGE" in PR or major API changes)
@@ -96,9 +93,9 @@ The theme package has been updated with new color tokens to support these varian
 ```
 
 ### Version Bump Types
-- **patch**: Bug fixes, documentation updates, refactoring (0.0.X)
-- **minor**: New features, non-breaking additions (0.X.0)  
-- **major**: Breaking changes (X.0.0)
+- **patch**: Bug fixes, documentation updates, refactoring, non-breaking additions, new shared workflows (0.0.X)
+- **minor**: Breaking changes in the cli (0.X.0)
+- **major**: Major breaking changes. Very unlikely to be used often (X.0.0). You should be very careful when using this, it's probably a **minor**.
 
 ## Guidelines
 
@@ -116,22 +113,3 @@ The theme package has been updated with new color tokens to support these varian
 - The changeset filename should be unique and descriptive
 - Use quotes around package names in the YAML frontmatter
 - The changeset description should be based on the PR title and body
-
-## Example Workflow
-
-1. Read the PR title: "Add support for custom themes"
-2. Determine this is a new feature → `minor` bump
-3. Check for package.json to get package name
-4. Create `.changeset/minor-add-custom-theme-support.md`:
-```markdown
----
-"gh-aw": minor
----
-
-Add support for custom themes
-
-This PR adds the ability to configure custom themes for the CLI output.
-```
-5. Add and commit the file to the current PR branch, then push using the safe-outputs tool
-
-Start by checking the repository structure and analyzing the current PR to generate an appropriate changeset.
