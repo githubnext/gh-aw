@@ -192,16 +192,16 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
-// getGitHubURL extracts the URL from GitHub tool configuration for HTTP mode
-func getGitHubURL(githubTool any) string {
+// getGitHubType extracts the mode from GitHub tool configuration (local or remote)
+func getGitHubType(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
-		if urlSetting, exists := toolConfig["url"]; exists {
-			if stringValue, ok := urlSetting.(string); ok {
+		if modeSetting, exists := toolConfig["mode"]; exists {
+			if stringValue, ok := modeSetting.(string); ok {
 				return stringValue
 			}
 		}
 	}
-	return ""
+	return "local" // default to local (Docker)
 }
 
 // getGitHubToken extracts the custom github-token from GitHub tool configuration

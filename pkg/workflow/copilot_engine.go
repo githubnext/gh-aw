@@ -275,34 +275,42 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 }
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI
-// Supports both Docker mode (default) and HTTP mode (when url is specified)
+// Supports both local (Docker) and remote (hosted) modes
 func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
-	githubURL := getGitHubURL(githubTool)
+	githubType := getGitHubType(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
+	readOnly := getGitHubReadOnly(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
-	// Check if HTTP mode is enabled (url field is specified)
-	if githubURL != "" {
-		// HTTP mode - use hosted GitHub MCP server
+	// Check if remote mode is enabled (type: remote)
+	if githubType == "remote" {
+		// Remote mode - use hosted GitHub MCP server
 		yaml.WriteString("                \"type\": \"http\",\n")
-		yaml.WriteString(fmt.Sprintf("                \"url\": \"%s\"", githubURL))
+		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
+		yaml.WriteString("                \"headers\": {\n")
 
-		// Add custom github-token if specified
+		// Add custom github-token if specified, otherwise use GITHUB_MCP_TOKEN
 		if customGitHubToken != "" {
-			yaml.WriteString(",\n")
-			yaml.WriteString("                \"headers\": {\n")
-			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"\n", customGitHubToken))
-			yaml.WriteString("                },\n")
+			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"", customGitHubToken))
 		} else {
-			yaml.WriteString(",\n")
+			yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
 		}
+
+		// Add X-MCP-Readonly header if read-only mode is enabled
+		if readOnly {
+			yaml.WriteString(",\n")
+			yaml.WriteString("                  \"X-MCP-Readonly\": \"true\"\n")
+		} else {
+			yaml.WriteString("\n")
+		}
+
+		yaml.WriteString("                },\n")
 		yaml.WriteString("                \"tools\": [\"*\"]\n")
 	} else {
-		// Docker mode - use Docker-based GitHub MCP server (default)
+		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
-		readOnly := getGitHubReadOnly(githubTool)
 
 		yaml.WriteString("                \"type\": \"local\",\n")
 

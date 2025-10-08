@@ -243,17 +243,16 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 	}
 
 	if toolName == "github" {
-		// Check for custom GitHub configuration to determine mode (HTTP vs Docker)
-		var useHTTP bool
-		var githubURL string
+		// Check for custom GitHub configuration to determine mode (local vs remote)
+		var useRemote bool
 		var customGitHubToken string
+		var readOnly bool
 
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check if URL is specified (HTTP mode)
-			if url, hasURL := toolConfig["url"]; hasURL {
-				if urlStr, ok := url.(string); ok {
-					useHTTP = true
-					githubURL = urlStr
+			// Check if mode is specified (remote or local)
+			if modeField, hasMode := toolConfig["mode"]; hasMode {
+				if modeStr, ok := modeField.(string); ok && modeStr == "remote" {
+					useRemote = true
 				}
 			}
 
@@ -263,16 +262,23 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 					customGitHubToken = tokenStr
 				}
 			}
+
+			// Check for read-only mode
+			if readOnlyField, hasReadOnly := toolConfig["read-only"]; hasReadOnly {
+				if readOnlyBool, ok := readOnlyField.(bool); ok {
+					readOnly = readOnlyBool
+				}
+			}
 		}
 
 		var config MCPServerConfig
 
-		if useHTTP {
-			// Handle GitHub MCP server in HTTP mode (hosted)
+		if useRemote {
+			// Handle GitHub MCP server in remote mode (hosted)
 			config = MCPServerConfig{
 				Name:    "github",
 				Type:    "http",
-				URL:     githubURL,
+				URL:     "https://api.githubcopilot.com/mcp/",
 				Headers: make(map[string]string),
 				Env:     make(map[string]string),
 			}
@@ -281,8 +287,13 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 			if customGitHubToken != "" {
 				config.Env["GITHUB_TOKEN"] = customGitHubToken
 			}
+
+			// Add X-MCP-Readonly header if read-only mode is enabled
+			if readOnly {
+				config.Headers["X-MCP-Readonly"] = "true"
+			}
 		} else {
-			// Handle GitHub MCP server - use Docker by default
+			// Handle GitHub MCP server - use local/Docker by default
 			config = MCPServerConfig{
 				Name:    "github",
 				Type:    "docker", // GitHub defaults to Docker (local containerized)
@@ -306,14 +317,10 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 
 		// Check for custom GitHub configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check for read-only mode (only applicable in Docker mode)
-			if !useHTTP {
-				if readOnly, hasReadOnly := toolConfig["read-only"]; hasReadOnly {
-					if readOnlyBool, ok := readOnly.(bool); ok && readOnlyBool {
-						// When read-only is true, inline GITHUB_READ_ONLY=1 in docker args
-						config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
-					}
-				}
+			// Check for read-only mode (only applicable in local/Docker mode)
+			if !useRemote && readOnly {
+				// When read-only is true, inline GITHUB_READ_ONLY=1 in docker args
+				config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
 			}
 
 			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
@@ -326,8 +333,8 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				}
 			}
 
-			// Check for custom Docker image version (only applicable in Docker mode)
-			if !useHTTP {
+			// Check for custom Docker image version (only applicable in local/Docker mode)
+			if !useRemote {
 				if version, exists := toolConfig["version"]; exists {
 					if versionStr, ok := version.(string); ok {
 						dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
@@ -341,7 +348,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 					}
 				}
 
-				// Check for custom args (only applicable in Docker mode)
+				// Check for custom args (only applicable in local/Docker mode)
 				if argsValue, exists := toolConfig["args"]; exists {
 					// Handle []any format
 					if argsSlice, ok := argsValue.([]any); ok {
