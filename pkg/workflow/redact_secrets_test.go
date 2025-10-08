@@ -119,7 +119,7 @@ t.Fatalf("Failed to read lock file: %v", err)
 lockStr := string(lockContent)
 
 // Verify the redaction step is present (copilot engine has declared output files)
-if !strings.Contains(lockStr, "Redact secrets from files in /tmp") {
+if !strings.Contains(lockStr, "Redact secrets in logs") {
 t.Error("Expected redaction step in generated workflow")
 }
 
@@ -139,7 +139,7 @@ t.Error("Expected redaction step to use actions/github-script@v8")
 }
 
 // Verify the redaction step runs with if: always()
-redactionStepIdx := strings.Index(lockStr, "Redact secrets from files in /tmp")
+redactionStepIdx := strings.Index(lockStr, "Redact secrets in logs")
 if redactionStepIdx == -1 {
 t.Fatal("Redaction step not found")
 }

@@ -44,7 +44,7 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowDa
 		return
 	}
 
-	yaml.WriteString("      - name: Redact secrets from files in /tmp\n")
+	yaml.WriteString("      - name: Redact secrets in logs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        with:\n")
