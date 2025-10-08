@@ -134,9 +134,9 @@ The `version` field is optional and allows you to specify the container tag sepa
 
 **Use cases**: Third-party MCP servers, complex dependencies, security isolation
 
-#### Custom Docker Arguments
+#### Custom Docker Configuration
 
-For advanced use cases, you can provide custom Docker arguments such as environment variables and network restrictions:
+For advanced use cases, you can configure Docker containers with environment variables and network restrictions:
 
 ```yaml
 mcp-servers:
@@ -158,11 +158,11 @@ This generates a Docker container with environment variables and network egress 
 - **Network**: Squid proxy restricts egress to allowed domains only
 
 The custom configuration allows you to:
-- Set environment variables with `-e` flags for authentication
-- Configure network egress controls for security
-- Mount volumes with `-v` for file access (if needed)
-- Set working directory with `-w` (if needed)
-- Add any other Docker run flags as needed
+- Set environment variables with `env:` for authentication and configuration
+- Configure network egress controls with `network.allowed:` for security
+- Control which tools are accessible with `allowed:` list
+
+For more advanced Docker customization (volume mounts, working directory, etc.), refer to the Docker container documentation.
 
 ### 3. HTTP MCP Servers
 
