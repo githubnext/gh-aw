@@ -2485,7 +2485,10 @@ jobs:
                 // Count occurrences before replacement
                 // Use split and join for exact string matching (not regex)
                 // This is safer than regex as it doesn't interpret special characters
-                const replacement = "***REDACTED***";
+                // Show first 3 letters followed by asterisks for the remaining length
+                const prefix = secretValue.substring(0, 3);
+                const asterisks = "*".repeat(Math.max(0, secretValue.length - 3));
+                const replacement = prefix + asterisks;
                 const parts = redacted.split(secretValue);
                 const occurrences = parts.length - 1;
 

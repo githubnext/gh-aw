@@ -100,7 +100,8 @@ describe("redact_secrets.cjs", () => {
 
       // Read the file and check if secrets were redacted
       const redactedContent = fs.readFileSync(testFile, "utf8");
-      expect(redactedContent).toBe("Secret: ***REDACTED*** and another ***REDACTED***");
+      // ghp_1234567890abcdefghijklmnopqrstuvwxyz (40 chars) -> ghp + 37 asterisks
+      expect(redactedContent).toBe("Secret: ghp************************************* and another ghp*************************************");
 
       // Check that info was logged
       expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp directory");
@@ -126,9 +127,10 @@ describe("redact_secrets.cjs", () => {
       await eval(`(async () => { ${modifiedScript} })()`);
 
       // Check all files were redacted
-      expect(fs.readFileSync(path.join(tempDir, "test1.txt"), "utf8")).toBe("Secret: ***REDACTED***");
-      expect(fs.readFileSync(path.join(tempDir, "test2.json"), "utf8")).toBe('{"key": "***REDACTED***"}');
-      expect(fs.readFileSync(path.join(tempDir, "test3.log"), "utf8")).toBe("Log: ***REDACTED***");
+      // api-key-123 (11 chars) -> api + 8 asterisks
+      expect(fs.readFileSync(path.join(tempDir, "test1.txt"), "utf8")).toBe("Secret: api********");
+      expect(fs.readFileSync(path.join(tempDir, "test2.json"), "utf8")).toBe('{"key": "api********"}');
+      expect(fs.readFileSync(path.join(tempDir, "test3.log"), "utf8")).toBe("Log: api********");
     });
 
     it("should use core.debug for logging hits", async () => {
@@ -211,7 +213,11 @@ describe("redact_secrets.cjs", () => {
       await eval(`(async () => { ${modifiedScript} })()`);
 
       const redacted = fs.readFileSync(testFile, "utf8");
-      expect(redacted).toBe("Token1: ***REDACTED***\nToken2: ***REDACTED***\nToken1 again: ***REDACTED***");
+      // ghp_1234567890abcdefghijklmnopqrstuvwxyz (40 chars) -> ghp + 37 asterisks
+      // sk-proj-abcdef1234567890 (24 chars) -> sk- + 21 asterisks
+      expect(redacted).toBe(
+        "Token1: ghp*************************************\nToken2: sk-*********************\nToken1 again: ghp*************************************"
+      );
     });
 
     it("should handle empty secret values gracefully", async () => {
