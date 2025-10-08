@@ -68,14 +68,14 @@ Trial results are saved both locally (in trials/ directory) and in the trial rep
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			workflowSpecs := args
-			targetRepo, _ := cmd.Flags().GetString("target-repo")
+			targetRepoSlug, _ := cmd.Flags().GetString("simulated-host-repo")
 			trialRepo, _ := cmd.Flags().GetString("trial-repo")
 			deleteRepo, _ := cmd.Flags().GetBool("delete-trial-repo")
 			quiet, _ := cmd.Flags().GetBool("quiet")
 			timeout, _ := cmd.Flags().GetInt("timeout")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
-			if err := RunWorkflowTrials(workflowSpecs, targetRepo, trialRepo, deleteRepo, quiet, timeout, verbose); err != nil {
+			if err := RunWorkflowTrials(workflowSpecs, targetRepoSlug, trialRepo, deleteRepo, quiet, timeout, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -83,7 +83,7 @@ Trial results are saved both locally (in trials/ directory) and in the trial rep
 	}
 
 	// Add flags
-	cmd.Flags().StringP("target-repo", "t", "", "Target repository for the trial (defaults to current repository)")
+	cmd.Flags().StringP("simulated-host-repo", "", "", "The repo we're simulating the execution for, as if the workflow was installed in that repo (defaults to current repository)")
 
 	// Get current username for default trial repo description
 	username, _ := getCurrentGitHubUsername()
@@ -391,7 +391,7 @@ func getCurrentGitHubUsername() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []*WorkflowSpec, targetRepo, trialRepoSlug string, deleteRepo bool) error {
+func showTrialConfirmation(parsedSpecs []*WorkflowSpec, targetRepoSlug, trialRepoSlug string, deleteRepo bool) error {
 	trialRepoURL := fmt.Sprintf("https://github.com/%s", trialRepoSlug)
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Trial Execution Plan ==="))
@@ -403,7 +403,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, targetRepo, trialRepoSlu
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  - %s (from %s)\n"), spec.WorkflowName, spec.Repo)
 		}
 	}
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Target Repository: %s\n"), targetRepo)
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Target Repository: %s\n"), targetRepoSlug)
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Trial Repository: %s (%s)\n"), trialRepoSlug, trialRepoURL)
 
 	if deleteRepo {
@@ -415,7 +415,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, targetRepo, trialRepoSlu
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This will:"))
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("1. Create a private trial repository at %s\n"), trialRepoURL)
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("2. Install and compile the specified workflows in trial mode against %s\n"), targetRepo)
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("2. Install and compile the specified workflows in trial mode against %s\n"), targetRepoSlug)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("3. Execute each workflow and collect any safe outputs"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("4. Display the results from each workflow execution"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("5. Clean up API key secrets from the trial repository"))
@@ -805,7 +805,7 @@ func addEngineSecret(secretName, trialRepoSlug string, verbose bool) error {
 }
 
 // modifyWorkflowForTrialMode modifies the workflow to work in trial mode
-func modifyWorkflowForTrialMode(tempDir, workflowName, targetRepo string, verbose bool) error {
+func modifyWorkflowForTrialMode(tempDir, workflowName, targetRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Modifying workflow for trial mode"))
 	}
@@ -822,12 +822,12 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, targetRepo string, verbos
 	modifiedContent := string(content)
 
 	// Replace github.repository references to point to target repo
-	modifiedContent = strings.ReplaceAll(modifiedContent, "${{ github.repository }}", targetRepo)
+	modifiedContent = strings.ReplaceAll(modifiedContent, "${{ github.repository }}", targetRepoSlug)
 
 	// Also replace any hardcoded checkout actions to use the target repo
 	checkoutPattern := regexp.MustCompile(`uses: actions/checkout@[^\s]*`)
 	modifiedContent = checkoutPattern.ReplaceAllStringFunc(modifiedContent, func(match string) string {
-		return fmt.Sprintf("%s\n        with:\n          repository: %s", match, targetRepo)
+		return fmt.Sprintf("%s\n        with:\n          repository: %s", match, targetRepoSlug)
 	})
 
 	// Write the modified content back

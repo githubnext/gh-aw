@@ -42,11 +42,11 @@ async function main() {
   // Helper function to get the repository URL for different purposes
   function getRepositoryUrl() {
     // For trial mode, use target repository for issue/PR URLs but execution context for action runs
-    const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
+    const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
 
-    if (targetRepo) {
+    if (targetRepoSlug) {
       // Use target repository for issue/PR URLs in trial mode
-      return `https://github.com/${targetRepo}`;
+      return `https://github.com/${targetRepoSlug}`;
     } else if (context.payload.repository) {
       // Use execution context repository (default behavior)
       return context.payload.repository.html_url;

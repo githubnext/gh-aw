@@ -64,7 +64,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 					envVars["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 				}
 				if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-					envVars["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
+					envVars["GITHUB_AW_TARGET_REPO_SLUG"] = workflowData.TrialTargetRepo
 				}
 
 				// Add branch name if upload assets is configured

@@ -3549,9 +3549,9 @@ jobs:
               }
               core.info(`Found ${commentItems.length} add-comment item(s)`);
               function getRepositoryUrl() {
-                const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
-                if (targetRepo) {
-                  return `https://github.com/${targetRepo}`;
+                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+                if (targetRepoSlug) {
+                  return `https://github.com/${targetRepoSlug}`;
                 } else if (context.payload.repository) {
                   return context.payload.repository.html_url;
                 } else {
