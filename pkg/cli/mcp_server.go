@@ -91,19 +91,16 @@ func runMCPServer() error {
 	type compileArgs struct {
 		Workflows []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
 		Engine    string   `json:"engine,omitempty" jsonschema:"Override AI engine (claude, codex, copilot)"`
-		Validate  bool     `json:"validate" jsonschema:"Enable GitHub Actions workflow schema validation"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "compile",
 		Description: "Compile markdown workflow files to YAML workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
+		// Always validate (validation is enabled by default)
 		cmdArgs := []string{"aw", "compile"}
 		if args.Engine != "" {
 			cmdArgs = append(cmdArgs, "--engine", args.Engine)
-		}
-		if !args.Validate {
-			cmdArgs = append(cmdArgs, "--validate=false")
 		}
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
@@ -128,8 +125,16 @@ func runMCPServer() error {
 
 	// Add logs tool
 	type logsArgs struct {
-		WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
-		Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
+		WorkflowName  string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
+		Count         int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
+		StartDate     string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		EndDate       string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
+		Engine        string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`
+		Branch        string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
+		AfterRunID    int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
+		BeforeRunID   int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
+		ToolGraph     bool   `json:"tool_graph,omitempty" jsonschema:"Generate Mermaid tool sequence graph from agent logs"`
+		NoStaged      bool   `json:"no_staged,omitempty" jsonschema:"Filter out staged workflow runs"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "logs",
@@ -143,6 +148,30 @@ func runMCPServer() error {
 		}
 		if args.Count > 0 {
 			cmdArgs = append(cmdArgs, "-c", strconv.Itoa(args.Count))
+		}
+		if args.StartDate != "" {
+			cmdArgs = append(cmdArgs, "--start-date", args.StartDate)
+		}
+		if args.EndDate != "" {
+			cmdArgs = append(cmdArgs, "--end-date", args.EndDate)
+		}
+		if args.Engine != "" {
+			cmdArgs = append(cmdArgs, "--engine", args.Engine)
+		}
+		if args.Branch != "" {
+			cmdArgs = append(cmdArgs, "--branch", args.Branch)
+		}
+		if args.AfterRunID > 0 {
+			cmdArgs = append(cmdArgs, "--after-run-id", strconv.FormatInt(args.AfterRunID, 10))
+		}
+		if args.BeforeRunID > 0 {
+			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
+		}
+		if args.ToolGraph {
+			cmdArgs = append(cmdArgs, "--tool-graph")
+		}
+		if args.NoStaged {
+			cmdArgs = append(cmdArgs, "--no-staged")
 		}
 
 		// Execute the CLI command
@@ -166,18 +195,15 @@ func runMCPServer() error {
 
 	// Add audit tool
 	type auditArgs struct {
-		RunID     int64  `json:"run_id" jsonschema:"GitHub Actions workflow run ID to audit"`
-		OutputDir string `json:"output_dir,omitempty" jsonschema:"Output directory for audit report"`
+		RunID int64 `json:"run_id" jsonschema:"GitHub Actions workflow run ID to audit"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "audit",
 		Description: "Investigate a workflow run and generate a concise report",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
-		cmdArgs := []string{"aw", "audit", strconv.FormatInt(args.RunID, 10)}
-		if args.OutputDir != "" {
-			cmdArgs = append(cmdArgs, "-o", args.OutputDir)
-		}
+		// Force output directory to /tmp/aw-mcp/logs for MCP server (same as logs)
+		cmdArgs := []string{"aw", "audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/aw-mcp/logs"}
 
 		// Execute the CLI command
 		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
