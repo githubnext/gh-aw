@@ -287,6 +287,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REACTION: eyes
+          GITHUB_AW_WORKFLOW_NAME: "Issue Classifier"
         with:
           script: |
             async function main() {
