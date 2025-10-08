@@ -422,9 +422,10 @@ jobs:
             }
             async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
+                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 const isCreateComment = eventName === "issues" || eventName === "pull_request";
                 if (isCreateComment) {
-                  const workflowLinkText = `> Agentic [workflow run](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
                   const createResponse = await github.request("POST " + endpoint, {
                     body: workflowLinkText,
                     headers: {
@@ -443,8 +444,8 @@ jobs:
                     },
                   });
                   const originalBody = getResponse.data.body || "";
-                  const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
-                  if (originalBody.includes("> Agentic [workflow run](")) {
+                  const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
+                  if (originalBody.includes("Agentic [") && originalBody.includes("](") && originalBody.includes("triggered by this comment")) {
                     core.info("Comment already contains a workflow run link, skipping edit");
                     return;
                   }

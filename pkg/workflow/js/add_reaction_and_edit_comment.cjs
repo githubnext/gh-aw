@@ -137,13 +137,16 @@ async function addReaction(endpoint, reaction) {
  */
 async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   try {
+    // Get workflow name from environment variable
+    const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+
     // For issues and pull_request events, create a new comment
     // For comment events (issue_comment, pull_request_review_comment), edit the existing comment
     const isCreateComment = eventName === "issues" || eventName === "pull_request";
 
     if (isCreateComment) {
       // Create a new comment
-      const workflowLinkText = `> Agentic [workflow run](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
+      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
 
       const createResponse = await github.request("POST " + endpoint, {
         body: workflowLinkText,
@@ -167,10 +170,10 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       });
 
       const originalBody = getResponse.data.body || "";
-      const workflowLinkText = `\n\n> Agentic [workflow run](${runUrl}) triggered by this comment`;
+      const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
 
       // Check if we've already added a workflow link to avoid duplicates
-      if (originalBody.includes("> Agentic [workflow run](")) {
+      if (originalBody.includes("Agentic [") && originalBody.includes("](") && originalBody.includes("triggered by this comment")) {
         core.info("Comment already contains a workflow run link, skipping edit");
         return;
       }
