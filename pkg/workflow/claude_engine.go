@@ -224,7 +224,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
 		}
 		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q", workflowData.TrialTargetRepo))
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q", workflowData.TrialTargetRepo))
 		}
 
 		// Add branch name if upload assets is configured

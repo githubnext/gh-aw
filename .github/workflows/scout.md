@@ -17,6 +17,7 @@ imports:
   - shared/tavily-mcp.md
   - shared/microsoftdocs-mcp.md
   - shared/deepwiki-mcp.md
+  - shared/context7-mcp.md
 tools:
   cache-memory:
     retention-days: 7
@@ -63,6 +64,7 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
   - **Tavily**: Web search for technical documentation, best practices, recent developments
   - **DeepWiki**: GitHub repository documentation and Q&A for specific projects
   - **Microsoft Docs**: Official Microsoft documentation and guides
+  - **Context7**: Semantic search over stored knowledge and documentation
 - Conduct multiple searches from different angles if needed
 
 ### 3. Deep Investigation

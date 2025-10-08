@@ -7,8 +7,9 @@ import (
 // CreatePullRequestReviewCommentsConfig holds configuration for creating GitHub pull request review comments from agent output
 type CreatePullRequestReviewCommentsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
-	Side                 string `yaml:"side,omitempty"`   // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
-	Target               string `yaml:"target,omitempty"` // Target for comments: "triggering" (default), "*" (any PR), or explicit PR number
+	Side                 string `yaml:"side,omitempty"`        // Side of the diff: "LEFT" or "RIGHT" (default: "RIGHT")
+	Target               string `yaml:"target,omitempty"`      // Target for comments: "triggering" (default), "*" (any PR), or explicit PR number
+	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository PR review comments
 }
 
 // buildCreateOutputPullRequestReviewCommentJob creates the create_pr_review_comment job
@@ -39,8 +40,11 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q\n", c.trialTargetRepoSlug))
+	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
+	if data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug))
+	} else if c.trialMode && c.trialTargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
 	// Add custom environment variables from safe-outputs.env
@@ -120,6 +124,17 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 		if target, exists := configMap["target"]; exists {
 			if targetStr, ok := target.(string); ok {
 				prReviewCommentsConfig.Target = targetStr
+			}
+		}
+
+		// Parse target-repo
+		if targetRepoSlug, exists := configMap["target-repo"]; exists {
+			if targetRepoStr, ok := targetRepoSlug.(string); ok {
+				// Validate that target-repo is not "*" - only definite strings are allowed
+				if targetRepoStr == "*" {
+					return nil // Invalid configuration, return nil to cause validation error
+				}
+				prReviewCommentsConfig.TargetRepoSlug = targetRepoStr
 			}
 		}
 	}

@@ -32,7 +32,7 @@ func generateCleanupStep(outputFiles []string) (string, bool) {
 }
 
 // generateEngineOutputCollection generates a step that collects engine-declared output files as artifacts
-func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine CodingAgentEngine, workflowData *WorkflowData) {
+func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine CodingAgentEngine) {
 	outputFiles := engine.GetDeclaredOutputFiles()
 	if len(outputFiles) == 0 {
 		return
@@ -40,7 +40,7 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 
 	// Add secret redaction step before uploading artifacts
 	// Pass the current YAML content to scan for secret references
-	c.generateSecretRedactionStep(yaml, workflowData, engine, yaml.String())
+	c.generateSecretRedactionStep(yaml, yaml.String())
 
 	// Create a single upload step that handles all declared output files
 	// The action will ignore missing files automatically with if-no-files-found: ignore

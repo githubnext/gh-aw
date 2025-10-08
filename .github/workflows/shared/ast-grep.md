@@ -1,57 +1,41 @@
 ---
-tools:
-  bash: ["ast-grep:*"]
-steps:
-  - name: Install ast-grep
-    run: |
-      npm install --global @ast-grep/cli
-      ast-grep --version
+mcp-servers:
+  ast-grep:
+    container: "mcp/ast-grep"
+    version: "latest"
+    allowed: ["*"]
 ---
 
-## ast-grep Tool Setup
-
-### Using ast-grep
+## ast-grep MCP Server
 
 ast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.
 
+### Available Tools
+
+The ast-grep MCP server provides MCP tools for structural code analysis. The specific tools exposed by the server can be discovered using the MCP protocol. This server enables:
+- Searching code patterns using tree-sitter grammars
+- Structural code analysis
+- Pattern-based code transformations
+
 ### Basic Usage
 
-**Search for patterns:**
-```bash
-ast-grep --pattern '$PATTERN' --lang go
-```
+The MCP server exposes ast-grep functionality through its MCP tools interface. When using ast-grep in your workflow, you can perform structural searches across multiple programming languages (Go, JavaScript, TypeScript, Python, etc.) with pattern matching based on code structure rather than text.
 
-**Search in specific files:**
-```bash
-ast-grep --pattern '$PATTERN' --lang go path/to/files/**/*.go
-```
+**Example patterns that can be searched:**
 
-**Common Go patterns to detect:**
+1. **Unmarshal with dash tag** (problematic Go pattern):
+   - Pattern: `json:"-"`
+   - Reference: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html
 
-1. **Unmarshal with dash tag** (problematic pattern):
-   ```bash
-   ast-grep --pattern 'json:"-"' --lang go
-   ```
+2. **Error handling patterns:**
+   - Pattern: `if err != nil { $$$A }`
 
-2. **Error handling issues:**
-   ```bash
-   ast-grep --pattern 'if err != nil { $$$A }' --lang go
-   ```
-
-3. **Finding specific function calls:**
-   ```bash
-   ast-grep --pattern 'functionName($$$ARGS)' --lang go
-   ```
-
-### Output Format
-
-By default, ast-grep outputs matched code with line numbers and context. Use `--json` flag for machine-readable output:
-```bash
-ast-grep --pattern '$PATTERN' --lang go --json
-```
+3. **Function call patterns:**
+   - Pattern: `functionName($$$ARGS)`
 
 ### More Information
 
 - Documentation: https://ast-grep.github.io/
 - Go patterns catalog: https://ast-grep.github.io/catalog/go/
 - Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html
+- Docker image: https://hub.docker.com/r/mcp/ast-grep
