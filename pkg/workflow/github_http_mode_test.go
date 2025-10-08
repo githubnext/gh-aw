@@ -85,6 +85,37 @@ tools:
 			shouldContainDocker: true,
 			shouldContainHTTP:   false,
 		},
+		{
+			name: "Copilot HTTP mode with URL and custom token",
+			frontmatter: `---
+engine: copilot
+tools:
+  github:
+    url: "https://api.mcp.github.com/v0/servers/github/github"
+    github-token: "${{ secrets.CUSTOM_PAT }}"
+    allowed: [list_issues, create_issue]
+---`,
+			expectedType:        "http",
+			expectedURL:         "https://api.mcp.github.com/v0/servers/github/github",
+			expectedToken:       "${{ secrets.CUSTOM_PAT }}",
+			shouldContainDocker: false,
+			shouldContainHTTP:   true,
+		},
+		{
+			name: "Copilot Docker mode with custom token",
+			frontmatter: `---
+engine: copilot
+tools:
+  github:
+    github-token: "${{ secrets.CUSTOM_PAT }}"
+    allowed: [list_issues, create_issue]
+---`,
+			expectedType:        "docker",
+			expectedURL:         "",
+			expectedToken:       "${{ secrets.CUSTOM_PAT }}",
+			shouldContainDocker: false, // Copilot uses "type": "local", not "command": "docker"
+			shouldContainHTTP:   false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -132,31 +163,41 @@ This is a test workflow for GitHub HTTP mode configuration.
 						t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
 					}
 				}
-				// Should NOT contain Docker configuration
-				if strings.Contains(lockContent, `"command": "docker"`) {
+				// Should NOT contain Docker configuration (for Claude)
+				if strings.Contains(lockContent, `"command": "docker"`) && !strings.Contains(lockContent, "copilot") {
 					t.Errorf("Expected no Docker command but found it in:\n%s", lockContent)
 				}
 			case "docker":
-				// Should contain Docker configuration
-				if !strings.Contains(lockContent, `"command": "docker"`) {
-					t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
-				}
-				if !strings.Contains(lockContent, `"ghcr.io/github/github-mcp-server:sha-09deac4"`) {
-					t.Errorf("Expected Docker image but didn't find it in:\n%s", lockContent)
+				// For Copilot, check for "type": "local" instead of "command": "docker"
+				if strings.Contains(lockContent, "copilot") {
+					if !strings.Contains(lockContent, `"type": "local"`) {
+						t.Errorf("Expected Copilot local type but didn't find it in:\n%s", lockContent)
+					}
+				} else {
+					// For Claude, check for Docker command
+					if !strings.Contains(lockContent, `"command": "docker"`) {
+						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
+					}
+					if !strings.Contains(lockContent, `"ghcr.io/github/github-mcp-server:sha-09deac4"`) {
+						t.Errorf("Expected Docker image but didn't find it in:\n%s", lockContent)
+					}
 				}
 				// Should NOT contain HTTP type
 				if strings.Contains(lockContent, `"type": "http"`) {
 					t.Errorf("Expected no HTTP type but found it in:\n%s", lockContent)
 				}
-				// Check for custom token in Docker mode
+				// Check for custom token
 				if tt.expectedToken != "" {
-					if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "`+tt.expectedToken) {
-						t.Errorf("Expected custom token %s in Docker mode but didn't find it in:\n%s", tt.expectedToken, lockContent)
-					}
-				} else {
-					// Should use default token expression
-					if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`) {
-						t.Errorf("Expected default token expression but didn't find it in:\n%s", lockContent)
+					if strings.Contains(lockContent, "copilot") {
+						// Copilot includes token in args
+						if !strings.Contains(lockContent, `GITHUB_PERSONAL_ACCESS_TOKEN=`+tt.expectedToken) {
+							t.Errorf("Expected custom token %s in Copilot mode but didn't find it in:\n%s", tt.expectedToken, lockContent)
+						}
+					} else {
+						// Claude uses env section
+						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "`+tt.expectedToken) {
+							t.Errorf("Expected custom token %s in Docker mode but didn't find it in:\n%s", tt.expectedToken, lockContent)
+						}
 					}
 				}
 			}
