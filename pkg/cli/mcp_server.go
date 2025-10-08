@@ -130,22 +130,19 @@ func runMCPServer() error {
 	type logsArgs struct {
 		WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
 		Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
-		OutputDir    string `json:"output_dir,omitempty" jsonschema:"Output directory for logs"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "logs",
 		Description: "Download and analyze workflow logs",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
-		cmdArgs := []string{"aw", "logs"}
+		// Force output directory to /tmp/aw-mcp/logs for MCP server
+		cmdArgs := []string{"aw", "logs", "-o", "/tmp/aw-mcp/logs"}
 		if args.WorkflowName != "" {
 			cmdArgs = append(cmdArgs, args.WorkflowName)
 		}
 		if args.Count > 0 {
 			cmdArgs = append(cmdArgs, "-c", strconv.Itoa(args.Count))
-		}
-		if args.OutputDir != "" {
-			cmdArgs = append(cmdArgs, "-o", args.OutputDir)
 		}
 
 		// Execute the CLI command
