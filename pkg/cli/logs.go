@@ -502,8 +502,12 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
 
 				if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
+				} else {
+					// Always show success message for parsing, not just in verbose mode
+					logMdPath := filepath.Join(result.LogsPath, "log.md")
+					if _, err := os.Stat(logMdPath); err == nil {
+						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
 					}
 				}
 			}
@@ -1987,25 +1991,19 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 	// Find the agent_output.json file
 	agentOutputPath, found := findAgentOutputFile(runDir)
 	if !found {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent_output.json found in %s, skipping log parsing", runDir)))
-		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent_output.json found in %s, skipping log parsing", filepath.Base(runDir))))
 		return nil
 	}
 
 	// Determine which parser script to use based on the engine
 	if engine == nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No engine detected, skipping log parsing"))
-		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No engine detected in %s, skipping log parsing", filepath.Base(runDir))))
 		return nil
 	}
 
 	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log parser available for engine %s, skipping", engine.GetID())))
-		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log parser available for engine %s in %s, skipping", engine.GetID(), filepath.Base(runDir))))
 		return nil
 	}
 
@@ -2095,10 +2093,6 @@ require = function(name) {
 	logMdPath := filepath.Join(runDir, "log.md")
 	if err := os.WriteFile(logMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
 		return fmt.Errorf("failed to write log.md: %w", err)
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Wrote parsed log to %s", logMdPath)))
 	}
 
 	return nil
