@@ -110,6 +110,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 type WorkflowData struct {
 	Name               string
 	TrialMode          bool     // whether the workflow is running in trial mode
+	TrialTargetRepo    string   // target repository slug for trial mode (owner/repo)
 	FrontmatterName    string   // name field from frontmatter (for code scanning alert driver default)
 	Description        string   // optional description rendered as comment in lock file
 	Source             string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
@@ -118,7 +119,7 @@ type WorkflowData struct {
 	On                 string
 	Permissions        string
 	Network            string // top-level network permissions configuration
-	Concurrency        string
+	Concurrency        string // workflow-level concurrency configuration
 	RunName            string
 	Env                string
 	If                 string
@@ -454,6 +455,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		}
 	}
 
+	// Save the initial strict mode state to restore it after this workflow is processed
+	// This ensures that strict mode from one workflow doesn't affect other workflows
+	initialStrictMode := c.strictMode
+
 	// Check if strict mode is enabled in frontmatter
 	// If strict is true in frontmatter, enable strict mode for this workflow
 	// This allows declarative strict mode control per workflow
@@ -469,8 +474,14 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Perform strict mode validations
 	if err := c.validateStrictMode(result.Frontmatter, networkPermissions); err != nil {
+		// Restore strict mode before returning error
+		c.strictMode = initialStrictMode
 		return nil, err
 	}
+
+	// Restore the initial strict mode state after validation
+	// This ensures strict mode doesn't leak to other workflows being compiled
+	c.strictMode = initialStrictMode
 
 	// Validate that @include/@import directives are not used inside template regions
 	if err := validateNoIncludesInTemplateRegions(result.Markdown); err != nil {
@@ -525,6 +536,12 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		engineSetting = defaultEngine.GetID()
 		if c.verbose {
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("NOTE: No 'engine:' setting found, defaulting to: %s", engineSetting)))
+		}
+		// Create a default EngineConfig with the default engine ID if not already set
+		if engineConfig == nil {
+			engineConfig = &EngineConfig{ID: engineSetting}
+		} else if engineConfig.ID == "" {
+			engineConfig.ID = engineSetting
 		}
 	}
 
@@ -708,6 +725,41 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.If = c.extractIfCondition(result.Frontmatter)
 	workflowData.TimeoutMinutes = c.extractTopLevelYAMLSection(result.Frontmatter, "timeout_minutes")
 	workflowData.CustomSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "steps")
+
+	// Merge imported steps if any
+	if importsResult.MergedSteps != "" {
+		// Parse imported steps from YAML array
+		var importedSteps []any
+		if err := yaml.Unmarshal([]byte(importsResult.MergedSteps), &importedSteps); err == nil {
+			// If there are main workflow steps, parse and merge them
+			if workflowData.CustomSteps != "" {
+				// Parse main workflow steps (format: "steps:\n  - ...")
+				var mainStepsWrapper map[string]any
+				if err := yaml.Unmarshal([]byte(workflowData.CustomSteps), &mainStepsWrapper); err == nil {
+					if mainStepsVal, hasSteps := mainStepsWrapper["steps"]; hasSteps {
+						if mainSteps, ok := mainStepsVal.([]any); ok {
+							// Prepend imported steps to main steps
+							allSteps := append(importedSteps, mainSteps...)
+							// Convert back to YAML with "steps:" wrapper
+							stepsWrapper := map[string]any{"steps": allSteps}
+							stepsYAML, err := yaml.Marshal(stepsWrapper)
+							if err == nil {
+								workflowData.CustomSteps = string(stepsYAML)
+							}
+						}
+					}
+				}
+			} else {
+				// Only imported steps exist, wrap in "steps:" format
+				stepsWrapper := map[string]any{"steps": importedSteps}
+				stepsYAML, err := yaml.Marshal(stepsWrapper)
+				if err == nil {
+					workflowData.CustomSteps = string(stepsYAML)
+				}
+			}
+		}
+	}
+
 	workflowData.PostSteps = c.extractTopLevelYAMLSection(result.Frontmatter, "post-steps")
 	workflowData.RunsOn = c.extractTopLevelYAMLSection(result.Frontmatter, "runs-on")
 	workflowData.Environment = c.extractTopLevelYAMLSection(result.Frontmatter, "environment")
@@ -732,9 +784,23 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract safe-jobs from the new location (safe-outputs.jobs) or old location (safe-jobs) for backwards compatibility
 	topSafeJobs := extractSafeJobsFromFrontmatter(result.Frontmatter)
 
-	// Process @include directives to extract additional safe-jobs (reuse the same includedTools JSON)
-	// Since ExpandIncludes extracts all frontmatter as JSON, we can use the same result
-	includedSafeJobs, err := c.mergeSafeJobsFromIncludes(topSafeJobs, includedTools)
+	// Process @include directives to extract additional safe-outputs configurations
+	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(result.Markdown, markdownDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
+	}
+
+	// Combine imported safe-outputs with included safe-outputs
+	var allSafeOutputsConfigs []string
+	if len(importsResult.MergedSafeOutputs) > 0 {
+		allSafeOutputsConfigs = append(allSafeOutputsConfigs, importsResult.MergedSafeOutputs...)
+	}
+	if len(includedSafeOutputsConfigs) > 0 {
+		allSafeOutputsConfigs = append(allSafeOutputsConfigs, includedSafeOutputsConfigs...)
+	}
+
+	// Merge safe-jobs from all safe-outputs configurations (imported and included)
+	includedSafeJobs, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, allSafeOutputsConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
@@ -1198,6 +1264,40 @@ func (c *Compiler) mergeSafeJobsFromIncludes(topSafeJobs map[string]*SafeJobConf
 	}
 
 	return mergedSafeJobs, nil
+}
+
+// mergeSafeJobsFromIncludedConfigs merges safe-jobs from included safe-outputs configurations
+func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*SafeJobConfig, includedConfigs []string) (map[string]*SafeJobConfig, error) {
+	result := topSafeJobs
+	if result == nil {
+		result = make(map[string]*SafeJobConfig)
+	}
+
+	for _, configJSON := range includedConfigs {
+		if configJSON == "" || configJSON == "{}" {
+			continue
+		}
+
+		// Parse the safe-outputs configuration
+		var safeOutputsConfig map[string]any
+		if err := json.Unmarshal([]byte(configJSON), &safeOutputsConfig); err != nil {
+			continue // Skip invalid JSON
+		}
+
+		// Extract safe-jobs from the safe-outputs.jobs field
+		includedSafeJobs := extractSafeJobsFromFrontmatter(map[string]any{
+			"safe-outputs": safeOutputsConfig,
+		})
+
+		// Merge with conflict detection
+		var err error
+		result, err = mergeSafeJobs(result, includedSafeJobs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
+		}
+	}
+
+	return result, nil
 }
 
 // applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
@@ -1917,6 +2017,9 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		}
 	}
 
+	// Generate agent concurrency configuration
+	agentConcurrency := GenerateJobConcurrencyConfig(data)
+
 	job := &Job{
 		Name:        constants.AgentJobName,
 		If:          jobCondition,
@@ -1925,6 +2028,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Container:   c.indentYAMLLines(data.Container, "    "),
 		Services:    c.indentYAMLLines(data.Services, "    "),
 		Permissions: c.indentYAMLLines(data.Permissions, "    "),
+		Concurrency: c.indentYAMLLines(agentConcurrency, "    "),
 		Env:         env,
 		Steps:       steps,
 		Needs:       depends,
@@ -1954,9 +2058,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			}
 			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
-
-		// Add step to checkout PR branch if the event is a comment on a PR
-		c.generatePRBranchCheckout(yaml, data)
 	}
 
 	// Add custom steps if present
@@ -1983,8 +2084,14 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add cache-memory steps if cache-memory configuration is present
 	generateCacheMemorySteps(yaml, data)
 
-	// Configure git credentials if git operations will be needed
-	// Note: Git configuration is handled by token in checkout step when in trial mode
+	// Configure git credentials for agentic workflows
+	gitConfigSteps := c.generateGitConfigurationSteps()
+	for _, line := range gitConfigSteps {
+		yaml.WriteString(line)
+	}
+
+	// Add step to checkout PR branch if the event is pull_request
+	c.generatePRReadyForReviewCheckout(yaml, data)
 
 	// Add Node.js setup if the engine requires it and it's not already set up in custom steps
 	engine, err := c.getAgenticEngine(data.AI)
@@ -2034,7 +2141,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add engine-declared output files collection (if any)
 	if len(engine.GetDeclaredOutputFiles()) > 0 {
-		c.generateEngineOutputCollection(yaml, engine)
+		c.generateEngineOutputCollection(yaml, engine, data)
 	}
 
 	// Extract and upload squid access logs (if any proxy tools were used)
@@ -2512,6 +2619,10 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
+	// Set trial mode information before calling engine
+	data.TrialMode = c.trialMode
+	data.TrialTargetRepo = c.trialTargetRepoSlug
+
 	steps := engine.GetExecutionSteps(data, logFile)
 
 	for _, step := range steps {
@@ -2752,6 +2863,16 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 	if len(data.SafeOutputs.Jobs) > 0 {
 		for jobName, jobConfig := range data.SafeOutputs.Jobs {
 			safeJobConfig := map[string]any{}
+
+			// Add description if present
+			if jobConfig.Description != "" {
+				safeJobConfig["description"] = jobConfig.Description
+			}
+
+			// Add output if present
+			if jobConfig.Output != "" {
+				safeJobConfig["output"] = jobConfig.Output
+			}
 
 			// Add inputs information
 			if len(jobConfig.Inputs) > 0 {

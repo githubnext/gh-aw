@@ -51,6 +51,7 @@ func NewCodexEngine() *CodexEngine {
 			supportsMaxTurns:       false, // Codex does not support max-turns feature
 			supportsWebFetch:       false, // Codex does not have built-in web-fetch support
 			supportsWebSearch:      true,  // Codex has built-in web-search support
+			hasDefaultConcurrency:  false, // Codex does NOT have default concurrency enabled
 		},
 	}
 }
@@ -132,6 +133,9 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		// Add staged flag if specified
 		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		}
+		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
+			env["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
 		}
 
 		// Add branch name if upload assets is configured

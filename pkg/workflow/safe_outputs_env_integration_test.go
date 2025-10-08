@@ -288,7 +288,7 @@ This workflow tests that custom environment variables work with staged mode.
 	}
 
 	// Verify staged mode is enabled
-	if workflowData.SafeOutputs.Staged == nil || !*workflowData.SafeOutputs.Staged {
+	if !workflowData.SafeOutputs.Staged {
 		t.Error("Expected staged mode to be enabled")
 	}
 

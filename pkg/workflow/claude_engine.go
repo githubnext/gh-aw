@@ -26,10 +26,11 @@ func NewClaudeEngine() *ClaudeEngine {
 			description:            "Uses Claude Code with full MCP tool support and allow-listing",
 			experimental:           false,
 			supportsToolsAllowlist: true,
-			supportsHTTPTransport:  true, // Claude supports both stdio and HTTP transport
-			supportsMaxTurns:       true, // Claude supports max-turns feature
-			supportsWebFetch:       true, // Claude has built-in WebFetch support
-			supportsWebSearch:      true, // Claude has built-in WebSearch support
+			supportsHTTPTransport:  true,  // Claude supports both stdio and HTTP transport
+			supportsMaxTurns:       true,  // Claude supports max-turns feature
+			supportsWebFetch:       true,  // Claude has built-in WebFetch support
+			supportsWebSearch:      true,  // Claude has built-in WebSearch support
+			hasDefaultConcurrency:  false, // Claude does NOT have default concurrency enabled
 		},
 	}
 }
@@ -221,6 +222,9 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// Add staged flag if specified
 		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
+		}
+		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
+			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q", workflowData.TrialTargetRepo))
 		}
 
 		// Add branch name if upload assets is configured

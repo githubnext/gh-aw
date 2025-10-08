@@ -2,6 +2,9 @@
 const fs = require("fs");
 
 async function main() {
+  // Check if we're in staged mode
+  const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+
   // Environment validation - fail early if required variables are missing
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   if (outputContent.trim() === "") {
@@ -115,7 +118,7 @@ async function main() {
   core.info("Found push-to-pull-request-branch item");
 
   // If in staged mode, emit step summary instead of pushing changes
-  if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+  if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
     summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
 

@@ -644,7 +644,7 @@ function formatToolUseWithDetails(toolUse, toolResult) {
     // Truncate details if too long
     const maxDetailsLength = 500;
     const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-    return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\n${truncatedDetails}\n\`\`\`\n</details>\n\n`;
+    return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
   } else {
     // No details, just show summary
     return `${summary}\n\n`;

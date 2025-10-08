@@ -348,6 +348,7 @@ engine:
   version: latest                   # Optional: version of the action
   model: gpt-5                      # Optional: specific LLM model (for copilot)
   max-turns: 5                      # Optional: maximum chat iterations per run (for claude)
+  max-concurrency: 3                # Optional: max concurrent workflows across all workflows (default: 3)
   env:                              # Optional: custom environment variables
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com
@@ -363,6 +364,7 @@ engine:
 - **`version`** (optional): Action version (`beta`, `stable`)
 - **`model`** (optional): Specific LLM model to use
 - **`max-turns`** (optional): Maximum number of chat iterations per run (cost-control option)
+- **`max-concurrency`** (optional): Maximum number of concurrent workflows across all workflows (default: 3)
 - **`env`** (optional): Custom environment variables to pass to the agentic engine as key-value pairs
 - **`config`** (optional): Additional TOML configuration text appended to generated config.toml (codex engine only)
 
@@ -463,6 +465,84 @@ engine:
 3. Helps prevent runaway chat loops and control costs
 4. Only applies to engines that support turn limiting (currently Claude)
 
+### Agent Job Concurrency
+
+The `concurrency` field in the engine configuration controls how many agent jobs can run concurrently. It uses GitHub Actions concurrency syntax:
+
+```yaml
+engine:
+  id: claude
+  concurrency:
+    group: "custom-group-${{ github.workflow }}"
+    cancel-in-progress: true
+```
+
+**Default Behavior:** Single job per engine across all workflows (group: `gh-aw-{engine-id}`)
+
+**How it works:**
+- Creates a concurrency group for the agent job
+- Default pattern: `gh-aw-{engine-id}` ensures one job per engine across all workflows
+- Supports full GitHub Actions concurrency syntax (group + optional cancel-in-progress)
+- Different engines (claude, copilot, codex) can run concurrently without interfering
+
+**Simple string format:**
+```yaml
+engine:
+  id: claude
+  concurrency: "my-custom-group-${{ github.ref }}"
+```
+
+This is converted to:
+```yaml
+concurrency:
+  group: "my-custom-group-${{ github.ref }}"
+```
+
+**Object format (full control):**
+```yaml
+engine:
+  id: claude
+  concurrency:
+    group: "my-group-${{ github.workflow }}-${{ github.ref }}"
+    cancel-in-progress: true
+```
+
+**Example configurations:**
+
+```yaml
+# Default: single job per engine across all workflows
+engine:
+  id: claude
+  # No concurrency specified, uses gh-aw-claude
+```
+
+```yaml
+# Allow multiple concurrent jobs with different workflow names
+engine:
+  id: claude
+  concurrency:
+    group: "gh-aw-claude-${{ github.workflow }}"
+```
+
+```yaml
+# Per-branch concurrency
+engine:
+  id: copilot
+  concurrency:
+    group: "gh-aw-copilot-${{ github.ref }}"
+    cancel-in-progress: true
+```
+
+**Generated concurrency in agent job:**
+```yaml
+jobs:
+  agent:
+    concurrency:
+      group: "gh-aw-claude"  # Default pattern
+```
+
+The concurrency group applies **only** to the agent job (not the workflow level). This ensures concurrency control for AI execution while allowing activation jobs to run freely.
+
 ## Tools Configuration (`tools:`)
 
 The `tools:` section specifies which tools and MCP (Model Context Protocol) servers are available to the AI engine. This enables integration with GitHub APIs, browser automation, and other external services.
@@ -510,32 +590,36 @@ timeout_minutes: 30                  # Defaults to 15 minutes
 
 ## Concurrency Control (`concurrency:`)
 
-GitHub Agentic Workflows automatically generates enhanced concurrency policies based on workflow trigger types to provide better isolation and resource management. For example, most workflows produce this:
+GitHub Agentic Workflows automatically generates concurrency policies for the agent job to control concurrent execution.
 
+See [Concurrency Control](/gh-aw/reference/concurrency/) for complete documentation on agent concurrency configuration.
+
+**Quick reference:**
+- Configure via `engine.concurrency` field
+- Default: Single job per engine across all workflows (group: `gh-aw-{engine-id}`)
+- Applied at the agent job level only
+- Different engines can run concurrently without interfering
+- Supports full GitHub Actions concurrency syntax
+
+**Example:**
 ```yaml
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+engine:
+  id: claude
+  concurrency:
+    group: "custom-${{ github.workflow }}"
+    cancel-in-progress: true
 ```
 
-Different workflow types receive different concurrency groups and cancellation behavior:
+Generates agent job concurrency:
+```yaml
+jobs:
+  agent:
+    concurrency:
+      group: "custom-${{ github.workflow }}"
+      cancel-in-progress: true
+```
 
-| Trigger Type | Concurrency Group | Cancellation | Description |
-|--------------|-------------------|--------------|-------------|
-| `issues` | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}` | ❌ | Issue workflows include issue number for isolation |
-| `pull_request` | `gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number \|\| github.ref }}` | ✅ | PR workflows include PR number with cancellation |
-| `discussion` | `gh-aw-${{ github.workflow }}-${{ github.event.discussion.number }}` | ❌ | Discussion workflows include discussion number |
-| Mixed issue/PR | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ✅ | Mixed workflows handle both contexts with cancellation |
-| Alias workflows | `gh-aw-${{ github.workflow }}-${{ github.event.issue.number \|\| github.event.pull_request.number }}` | ❌ | Alias workflows handle both contexts without cancellation |
-| Other triggers | `gh-aw-${{ github.workflow }}` | ❌ | Default behavior for schedule, push, etc. |
-
-**Benefits:**
-- **Better Isolation**: Workflows operating on different issues/PRs can run concurrently
-- **Conflict Prevention**: No interference between unrelated workflow executions  
-- **Resource Management**: Pull request workflows can cancel previous runs when updated
-- **Predictable Behavior**: Consistent concurrency rules based on trigger type
-
-If you need custom concurrency behavior, you can override the automatic generation by specifying your own `concurrency` section in the frontmatter.
+You can also override workflow-level concurrency by specifying a custom `concurrency` section in the frontmatter (separate from engine concurrency).
 
 ## Environment Variables (`env:`)
 

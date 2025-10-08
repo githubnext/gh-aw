@@ -87,11 +87,13 @@ type FrontmatterResult struct {
 
 // ImportsResult holds the result of processing imports from frontmatter
 type ImportsResult struct {
-	MergedTools      string   // Merged tools configuration from all imports
-	MergedMCPServers string   // Merged mcp-servers configuration from all imports
-	MergedEngines    []string // Merged engine configurations from all imports
-	MergedMarkdown   string   // Merged markdown content from all imports
-	ImportedFiles    []string // List of imported file paths (for manifest)
+	MergedTools       string   // Merged tools configuration from all imports
+	MergedMCPServers  string   // Merged mcp-servers configuration from all imports
+	MergedEngines     []string // Merged engine configurations from all imports
+	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
+	MergedMarkdown    string   // Merged markdown content from all imports
+	MergedSteps       string   // Merged steps configuration from all imports
+	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
 // ExtractFrontmatterFromContent parses YAML frontmatter from markdown content string
@@ -390,7 +392,9 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var toolsBuilder strings.Builder
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
+	var stepsBuilder strings.Builder
 	var engines []string
+	var safeOutputs []string
 	var processedFiles []string
 
 	for _, importPath := range imports {
@@ -420,14 +424,14 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		processedFiles = append(processedFiles, importPath)
 
 		// Extract tools from imported file
-		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, baseDir, visited)
+		toolsContent, err := processIncludedFileWithVisited(fullPath, sectionName, true, visited)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process imported file '%s': %w", fullPath, err)
 		}
 		toolsBuilder.WriteString(toolsContent + "\n")
 
 		// Extract markdown content from imported file
-		markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, baseDir, visited)
+		markdownContent, err := processIncludedFileWithVisited(fullPath, sectionName, false, visited)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process markdown from imported file '%s': %w", fullPath, err)
 		}
@@ -459,14 +463,28 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && mcpServersContent != "" && mcpServersContent != "{}" {
 			mcpServersBuilder.WriteString(mcpServersContent + "\n")
 		}
+
+		// Extract safe-outputs from imported file
+		safeOutputsContent, err := extractSafeOutputsFromContent(string(content))
+		if err == nil && safeOutputsContent != "" && safeOutputsContent != "{}" {
+			safeOutputs = append(safeOutputs, safeOutputsContent)
+		}
+
+		// Extract steps from imported file
+		stepsContent, err := extractStepsFromContent(string(content))
+		if err == nil && stepsContent != "" {
+			stepsBuilder.WriteString(stepsContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
-		MergedTools:      toolsBuilder.String(),
-		MergedMCPServers: mcpServersBuilder.String(),
-		MergedEngines:    engines,
-		MergedMarkdown:   markdownBuilder.String(),
-		ImportedFiles:    processedFiles,
+		MergedTools:       toolsBuilder.String(),
+		MergedMCPServers:  mcpServersBuilder.String(),
+		MergedEngines:     engines,
+		MergedSafeOutputs: safeOutputs,
+		MergedMarkdown:    markdownBuilder.String(),
+		MergedSteps:       stepsBuilder.String(),
+		ImportedFiles:     processedFiles,
 	}, nil
 }
 
@@ -535,7 +553,7 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 			visited[fullPath] = true
 
 			// Process the included file
-			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, baseDir, visited)
+			includedContent, err := processIncludedFileWithVisited(fullPath, sectionName, extractTools, visited)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return "", fmt.Errorf("failed to process included file '%s': %w", fullPath, err)
@@ -696,7 +714,7 @@ func downloadFileFromGitHub(owner, repo, path, ref string) ([]byte, error) {
 
 // processIncludedFile processes a single included file, optionally extracting a section
 // processIncludedFileWithVisited processes a single included file with cycle detection for nested includes
-func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, baseDir string, visited map[string]bool) (string, error) {
+func processIncludedFileWithVisited(filePath, sectionName string, extractTools bool, visited map[string]bool) (string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read included file %s: %w", filePath, err)
@@ -797,70 +815,104 @@ func processIncludedFileWithVisited(filePath, sectionName string, extractTools b
 	return strings.Trim(markdownContent, "\n") + "\n", nil
 }
 
-// extractToolsFromContent extracts tools section from frontmatter as JSON string
+// extractToolsFromContent extracts tools and mcp-servers sections from frontmatter as merged JSON string
 func extractToolsFromContent(content string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return "{}", nil // Return empty object on error to match bash behavior
 	}
 
-	// Extract tools section
-	tools, exists := result.Frontmatter["tools"]
-	if !exists {
+	// Create a map to hold the merged result
+	extracted := make(map[string]any)
+
+	// Helper function to merge a field into extracted map
+	mergeField := func(fieldName string) {
+		if fieldValue, exists := result.Frontmatter[fieldName]; exists {
+			if fieldMap, ok := fieldValue.(map[string]any); ok {
+				for key, value := range fieldMap {
+					extracted[key] = value
+				}
+			}
+		}
+	}
+
+	// Extract and merge tools section (tools are stored as tool_name: tool_config)
+	mergeField("tools")
+
+	// Extract and merge mcp-servers section (mcp-servers are stored as server_name: server_config)
+	mergeField("mcp-servers")
+
+	// If nothing was extracted, return empty object
+	if len(extracted) == 0 {
 		return "{}", nil
 	}
 
 	// Convert to JSON string
-	toolsJSON, err := json.Marshal(tools)
+	extractedJSON, err := json.Marshal(extracted)
 	if err != nil {
 		return "{}", nil
 	}
 
-	return strings.TrimSpace(string(toolsJSON)), nil
+	return strings.TrimSpace(string(extractedJSON)), nil
+}
+
+// extractSafeOutputsFromContent extracts safe-outputs section from frontmatter as JSON string
+func extractSafeOutputsFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "safe-outputs", "{}")
 }
 
 // extractMCPServersFromContent extracts mcp-servers section from frontmatter as JSON string
 func extractMCPServersFromContent(content string) (string, error) {
-	result, err := ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "{}", nil // Return empty object on error
-	}
-
-	// Extract mcp-servers section
-	mcpServers, exists := result.Frontmatter["mcp-servers"]
-	if !exists {
-		return "{}", nil
-	}
-
-	// Convert to JSON string
-	mcpServersJSON, err := json.Marshal(mcpServers)
-	if err != nil {
-		return "{}", nil
-	}
-
-	return strings.TrimSpace(string(mcpServersJSON)), nil
+	return extractFrontmatterField(content, "mcp-servers", "{}")
 }
 
-// extractEngineFromContent extracts engine section from frontmatter as JSON string
-func extractEngineFromContent(content string) (string, error) {
+// extractStepsFromContent extracts steps section from frontmatter as YAML string
+func extractStepsFromContent(content string) (string, error) {
 	result, err := ExtractFrontmatterFromContent(content)
 	if err != nil {
 		return "", nil // Return empty string on error
 	}
 
-	// Extract engine section
-	engine, exists := result.Frontmatter["engine"]
+	// Extract steps section
+	steps, exists := result.Frontmatter["steps"]
 	if !exists {
 		return "", nil
 	}
 
-	// Convert to JSON string
-	engineJSON, err := json.Marshal(engine)
+	// Convert to YAML string (similar to how CustomSteps are handled in compiler)
+	stepsYAML, err := yaml.Marshal(steps)
 	if err != nil {
 		return "", nil
 	}
 
-	return strings.TrimSpace(string(engineJSON)), nil
+	return strings.TrimSpace(string(stepsYAML)), nil
+}
+
+// extractEngineFromContent extracts engine section from frontmatter as JSON string
+func extractEngineFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "engine", "")
+}
+
+// extractFrontmatterField extracts a specific field from frontmatter as JSON string
+func extractFrontmatterField(content, fieldName, emptyValue string) (string, error) {
+	result, err := ExtractFrontmatterFromContent(content)
+	if err != nil {
+		return emptyValue, nil // Return empty value on error
+	}
+
+	// Extract the requested field
+	fieldValue, exists := result.Frontmatter[fieldName]
+	if !exists {
+		return emptyValue, nil
+	}
+
+	// Convert to JSON string
+	fieldJSON, err := json.Marshal(fieldValue)
+	if err != nil {
+		return emptyValue, nil
+	}
+
+	return strings.TrimSpace(string(fieldJSON)), nil
 }
 
 // ExpandIncludes recursively expands @include and @import directives until no more remain
@@ -924,19 +976,29 @@ func ExpandIncludesWithManifest(content, baseDir string, extractTools bool) (str
 
 // ExpandIncludesForEngines recursively expands @include and @import directives to extract engine configurations
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
+	return expandIncludesForField(content, baseDir, extractEngineFromContent, "")
+}
+
+// ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
+func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
+	return expandIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+}
+
+// expandIncludesForField recursively expands includes to extract a specific frontmatter field
+func expandIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, error) {
 	const maxDepth = 10
-	var engines []string
+	var results []string
 	currentContent := content
 
 	for depth := 0; depth < maxDepth; depth++ {
-		// Process includes in current content to extract engines
-		processedEngines, processedContent, err := ProcessIncludesForEngines(currentContent, baseDir)
+		// Process includes in current content to extract the field
+		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue)
 		if err != nil {
 			return nil, err
 		}
 
-		// Add found engines to the list
-		engines = append(engines, processedEngines...)
+		// Add found results to the list
+		results = append(results, processedResults...)
 
 		// Check if content changed
 		if processedContent == currentContent {
@@ -947,14 +1009,24 @@ func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
 		currentContent = processedContent
 	}
 
-	return engines, nil
+	return results, nil
 }
 
 // ProcessIncludesForEngines processes import directives to extract engine configurations
 func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error) {
+	return processIncludesForField(content, baseDir, extractEngineFromContent, "")
+}
+
+// ProcessIncludesForSafeOutputs processes import directives to extract safe-outputs configurations
+func ProcessIncludesForSafeOutputs(content, baseDir string) ([]string, string, error) {
+	return processIncludesForField(content, baseDir, extractSafeOutputsFromContent, "{}")
+}
+
+// processIncludesForField processes import directives to extract a specific frontmatter field
+func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	var result bytes.Buffer
-	var engines []string
+	var results []string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -965,12 +1037,12 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 			isOptional := directive.IsOptional
 			includePath := directive.Path
 
-			// Handle section references (file.md#Section) - for engines, we ignore sections
+			// Handle section references (file.md#Section) - for frontmatter fields, we ignore sections
 			var filePath string
 			if strings.Contains(includePath, "#") {
 				parts := strings.SplitN(includePath, "#", 2)
 				filePath = parts[0]
-				// Note: section references are ignored for engine extraction since engines are in frontmatter
+				// Note: section references are ignored for frontmatter field extraction
 			} else {
 				filePath = includePath
 			}
@@ -979,28 +1051,28 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 			fullPath, err := resolveIncludePath(filePath, baseDir)
 			if err != nil {
 				if isOptional {
-					// For optional includes, skip engine extraction
+					// For optional includes, skip extraction
 					continue
 				}
 				// For required includes, fail compilation with an error
 				return nil, "", fmt.Errorf("failed to resolve required include '%s': %w", filePath, err)
 			}
 
-			// Extract engine configuration from the included file
-			content, err := os.ReadFile(fullPath)
+			// Read the included file
+			fileContent, err := os.ReadFile(fullPath)
 			if err != nil {
 				// For any processing errors, fail compilation
 				return nil, "", fmt.Errorf("failed to read included file '%s': %w", fullPath, err)
 			}
 
-			// Extract engine configuration
-			engineJSON, err := extractEngineFromContent(string(content))
+			// Extract the field using the provided extraction function
+			fieldJSON, err := extractFunc(string(fileContent))
 			if err != nil {
-				return nil, "", fmt.Errorf("failed to extract engine from '%s': %w", fullPath, err)
+				return nil, "", fmt.Errorf("failed to extract field from '%s': %w", fullPath, err)
 			}
 
-			if engineJSON != "" {
-				engines = append(engines, engineJSON)
+			if fieldJSON != "" && fieldJSON != emptyValue {
+				results = append(results, fieldJSON)
 			}
 		} else {
 			// Regular line, just pass through
@@ -1008,7 +1080,7 @@ func ProcessIncludesForEngines(content, baseDir string) ([]string, string, error
 		}
 	}
 
-	return engines, result.String(), nil
+	return results, result.String(), nil
 }
 
 // mergeToolsFromJSON merges multiple JSON tool objects from content

@@ -36,6 +36,12 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	if data.SafeOutputs.CreatePullRequestReviewComments.Target != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
 	}
+	if c.trialMode || data.SafeOutputs.Staged {
+		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+	}
+	if c.trialMode && c.trialTargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO: %q\n", c.trialTargetRepoSlug))
+	}
 
 	// Add custom environment variables from safe-outputs.env
 	c.addCustomSafeOutputEnvVars(&steps, data)

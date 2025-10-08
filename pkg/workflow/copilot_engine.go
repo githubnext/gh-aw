@@ -29,6 +29,7 @@ func NewCopilotEngine() *CopilotEngine {
 			supportsMaxTurns:       false, // Copilot CLI does not support max-turns feature yet
 			supportsWebFetch:       false, // Copilot CLI does not have built-in web-fetch support
 			supportsWebSearch:      false, // Copilot CLI does not have built-in web-search support
+			hasDefaultConcurrency:  true,  // Copilot HAS default concurrency enabled
 		},
 	}
 }
@@ -122,6 +123,9 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		// Add staged flag if specified
 		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+		}
+		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
+			env["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
 		}
 
 		// Add branch name if upload assets is configured

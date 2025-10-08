@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestPRBranchCheckout verifies that PR branch checkout is added for comment triggers
@@ -86,7 +88,7 @@ Test workflow with command trigger.
 			expectPRPrompt:   true,
 		},
 		{
-			name: "push trigger should NOT add PR checkout",
+			name: "push trigger should add PR checkout (with runtime condition)",
 			workflowContent: `---
 on:
   push:
@@ -99,11 +101,11 @@ engine: claude
 # Test Workflow
 Test workflow with push trigger only.
 `,
-			expectPRCheckout: false,
+			expectPRCheckout: true, // Step is added but runtime condition prevents execution
 			expectPRPrompt:   false,
 		},
 		{
-			name: "pull_request trigger should NOT add PR checkout",
+			name: "pull_request trigger should add PR checkout",
 			workflowContent: `---
 on:
   pull_request:
@@ -116,7 +118,7 @@ engine: claude
 # Test Workflow
 Test workflow with pull_request trigger only.
 `,
-			expectPRCheckout: false,
+			expectPRCheckout: true, // Step is added and will execute for PR events
 			expectPRPrompt:   false,
 		},
 		{
@@ -148,7 +150,7 @@ Test workflow without contents read permission.
 			defer os.RemoveAll(tempDir)
 
 			// Create workflows directory
-			workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+			workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 			if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 				t.Fatalf("Failed to create workflows directory: %v", err)
 			}
@@ -173,8 +175,8 @@ Test workflow without contents read permission.
 			}
 			lockStr := string(lockContent)
 
-			// Check for PR checkout step
-			hasPRCheckout := strings.Contains(lockStr, "Checkout PR branch if applicable")
+			// Check for PR checkout step (now uses JavaScript)
+			hasPRCheckout := strings.Contains(lockStr, "Checkout PR branch")
 			if hasPRCheckout != tt.expectPRCheckout {
 				t.Errorf("Expected PR checkout step: %v, got: %v", tt.expectPRCheckout, hasPRCheckout)
 			}
@@ -185,13 +187,13 @@ Test workflow without contents read permission.
 				t.Errorf("Expected PR context prompt: %v, got: %v", tt.expectPRPrompt, hasPRPrompt)
 			}
 
-			// If PR checkout is expected, verify the conditional logic
+			// If PR checkout is expected, verify it uses JavaScript
 			if tt.expectPRCheckout {
-				if !strings.Contains(lockStr, "github.event_name == 'issue_comment'") {
-					t.Error("PR checkout step should check for issue_comment event")
+				if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
+					t.Error("PR checkout step should use actions/github-script@v8")
 				}
-				if !strings.Contains(lockStr, "github.event.issue.pull_request != null") {
-					t.Error("PR checkout step should check for pull_request field in issue")
+				if !strings.Contains(lockStr, "pullRequest") {
+					t.Error("PR checkout step should reference pullRequest in JavaScript")
 				}
 				if !strings.Contains(lockStr, "gh pr checkout") {
 					t.Error("PR checkout step should use gh pr checkout command")
@@ -236,7 +238,7 @@ Test workflow with multiple comment triggers.
 	defer os.RemoveAll(tempDir)
 
 	// Create workflows directory
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
@@ -261,36 +263,22 @@ Test workflow with multiple comment triggers.
 	}
 	lockStr := string(lockContent)
 
-	// Verify the conditional structure includes all event types
-	expectedConditions := []string{
-		"github.event_name == 'issue_comment'",
-		"github.event.issue.pull_request != null",
-		"github.event_name == 'pull_request_review_comment'",
-		"github.event_name == 'pull_request_review'",
+	// Verify the checkout step uses actions/github-script
+	if !strings.Contains(lockStr, "uses: actions/github-script@v8") {
+		t.Error("Expected PR checkout to use actions/github-script@v8")
 	}
 
-	for _, condition := range expectedConditions {
-		if !strings.Contains(lockStr, condition) {
-			t.Errorf("Expected condition not found: %s", condition)
+	// Verify JavaScript code handles PR checkout
+	expectedPatterns := []string{
+		"pullRequest.head.ref",
+		"exec.exec",
+		"checkout",
+		"gh pr checkout",
+	}
+
+	for _, pattern := range expectedPatterns {
+		if !strings.Contains(lockStr, pattern) {
+			t.Errorf("Expected JavaScript pattern not found: %s", pattern)
 		}
-	}
-
-	// Verify PR number determination logic
-	expectedPRLogic := []string{
-		`if [ "${{ github.event_name }}" = "issue_comment" ]`,
-		`PR_NUMBER="${{ github.event.issue.number }}"`,
-		`elif [ "${{ github.event_name }}" = "pull_request_review_comment" ]`,
-		`PR_NUMBER="${{ github.event.pull_request.number }}"`,
-	}
-
-	for _, logic := range expectedPRLogic {
-		if !strings.Contains(lockStr, logic) {
-			t.Errorf("Expected PR logic not found: %s", logic)
-		}
-	}
-
-	// Verify environment variable for gh token
-	if !strings.Contains(lockStr, "GH_TOKEN: ${{ github.token }}") {
-		t.Error("Expected GH_TOKEN environment variable for gh pr checkout")
 	}
 }

@@ -356,8 +356,18 @@ function formatToolUse(toolUse, toolResult) {
     return "❓"; // Unknown by default
   }
 
-  let markdown = "";
   const statusIcon = getStatusIcon();
+  let summary = "";
+  let details = "";
+
+  // Get tool output from result
+  if (toolResult && toolResult.content) {
+    if (typeof toolResult.content === "string") {
+      details = toolResult.content;
+    } else if (Array.isArray(toolResult.content)) {
+      details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
+    }
+  }
 
   switch (toolName) {
     case "Bash":
@@ -368,15 +378,16 @@ function formatToolUse(toolUse, toolResult) {
       const formattedCommand = formatBashCommand(command);
 
       if (description) {
-        markdown += `${description}:\n\n`;
+        summary = `${statusIcon} ${description}: \`${formattedCommand}\``;
+      } else {
+        summary = `${statusIcon} \`${formattedCommand}\``;
       }
-      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
       break;
 
     case "Read":
       const filePath = input.file_path || input.path || "";
       const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); // Remove /home/runner/work/repo/repo/ prefix
-      markdown += `${statusIcon} Read \`${relativePath}\`\n\n`;
+      summary = `${statusIcon} Read \`${relativePath}\``;
       break;
 
     case "Write":
@@ -384,20 +395,19 @@ function formatToolUse(toolUse, toolResult) {
     case "MultiEdit":
       const writeFilePath = input.file_path || input.path || "";
       const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-
-      markdown += `${statusIcon} Write \`${writeRelativePath}\`\n\n`;
+      summary = `${statusIcon} Write \`${writeRelativePath}\``;
       break;
 
     case "Grep":
     case "Glob":
       const query = input.query || input.pattern || "";
-      markdown += `${statusIcon} Search for \`${truncateString(query, 80)}\`\n\n`;
+      summary = `${statusIcon} Search for \`${truncateString(query, 80)}\``;
       break;
 
     case "LS":
       const lsPath = input.path || "";
       const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      markdown += `${statusIcon} LS: ${lsRelativePath || lsPath}\n\n`;
+      summary = `${statusIcon} LS: ${lsRelativePath || lsPath}`;
       break;
 
     default:
@@ -405,7 +415,7 @@ function formatToolUse(toolUse, toolResult) {
       if (toolName.startsWith("mcp__")) {
         const mcpName = formatMcpName(toolName);
         const params = formatMcpParameters(input);
-        markdown += `${statusIcon} ${mcpName}(${params})\n\n`;
+        summary = `${statusIcon} ${mcpName}(${params})`;
       } else {
         // Generic tool formatting - show the tool name and main parameters
         const keys = Object.keys(input);
@@ -415,17 +425,26 @@ function formatToolUse(toolUse, toolResult) {
           const value = String(input[mainParam] || "");
 
           if (value) {
-            markdown += `${statusIcon} ${toolName}: ${truncateString(value, 100)}\n\n`;
+            summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}`;
           } else {
-            markdown += `${statusIcon} ${toolName}\n\n`;
+            summary = `${statusIcon} ${toolName}`;
           }
         } else {
-          markdown += `${statusIcon} ${toolName}\n\n`;
+          summary = `${statusIcon} ${toolName}`;
         }
       }
   }
 
-  return markdown;
+  // Format with HTML details tag if we have output
+  if (details && details.trim()) {
+    // Truncate details if too long
+    const maxDetailsLength = 500;
+    const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
+    return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
+  } else {
+    // No details, just show summary
+    return `${summary}\n\n`;
+  }
 }
 
 /**

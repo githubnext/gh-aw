@@ -2,34 +2,6 @@ package workflow
 
 import "strings"
 
-// generatePRBranchCheckout generates a step to checkout the PR branch if the event is a comment on a PR
-func (c *Compiler) generatePRBranchCheckout(yaml *strings.Builder, data *WorkflowData) {
-	// Check if any of the workflow's event triggers are comment-related events
-	hasCommentTriggers := c.hasCommentRelatedTriggers(data)
-
-	if !hasCommentTriggers {
-		return // No comment-related triggers, skip PR branch checkout
-	}
-
-	// Check that permissions allow contents read access
-	permParser := NewPermissionsParser(data.Permissions)
-	if !permParser.HasContentsReadAccess() {
-		return // No contents read access, cannot checkout
-	}
-
-	// Add a conditional step that checks out the PR branch if applicable
-	yaml.WriteString("      - name: Checkout PR branch if applicable\n")
-
-	// Use the helper function to render the condition
-	condition := BuildPRCommentCondition()
-	RenderConditionAsIf(yaml, condition, "          ")
-
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, checkoutPRScript, "          ")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GH_TOKEN: ${{ github.token }}\n")
-}
-
 // generatePRContextPromptStep generates a separate step for PR context instructions
 func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *WorkflowData) {
 	// Check if any of the workflow's event triggers are comment-related events
@@ -83,4 +55,29 @@ func (c *Compiler) hasCommentRelatedTriggers(data *WorkflowData) bool {
 	}
 
 	return false
+}
+
+// generatePRReadyForReviewCheckout generates a step to checkout the PR branch when PR context is available
+func (c *Compiler) generatePRReadyForReviewCheckout(yaml *strings.Builder, data *WorkflowData) {
+	// Check that permissions allow contents read access
+	permParser := NewPermissionsParser(data.Permissions)
+	if !permParser.HasContentsReadAccess() {
+		return // No contents read access, cannot checkout
+	}
+
+	// Always add the step with a condition that checks if PR context is available
+	yaml.WriteString("      - name: Checkout PR branch\n")
+
+	// Build condition that checks if github.event.pull_request exists
+	// This will be true for pull_request events and comment events on PRs
+	condition := BuildPropertyAccess("github.event.pull_request")
+	RenderConditionAsIf(yaml, condition, "          ")
+
+	// Use actions/github-script instead of shell script
+	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Add the JavaScript for checking out the PR branch
+	WriteJavaScriptToYAML(yaml, checkoutPRBranchScript)
 }

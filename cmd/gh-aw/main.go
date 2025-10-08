@@ -16,7 +16,7 @@ var (
 )
 
 // Global flags
-var verbose bool
+var verboseFlag bool
 
 // validateEngine validates the engine flag value
 func validateEngine(engine string) error {
@@ -59,6 +59,7 @@ Examples:
 	Run: func(cmd *cobra.Command, args []string) {
 		workflowName := args[0]
 		forceFlag, _ := cmd.Flags().GetBool("force")
+		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := cli.NewWorkflow(workflowName, verbose, forceFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
@@ -90,7 +91,7 @@ var statusCmd = &cobra.Command{
 		if len(args) > 0 {
 			pattern = args[0]
 		}
-		if err := cli.StatusWorkflows(pattern, verbose); err != nil {
+		if err := cli.StatusWorkflows(pattern, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -150,6 +151,7 @@ Examples:
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
 		strict, _ := cmd.Flags().GetBool("strict")
+		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
@@ -197,7 +199,7 @@ Examples:
 	Run: func(cmd *cobra.Command, args []string) {
 		repeatSeconds, _ := cmd.Flags().GetInt("repeat")
 		enable, _ := cmd.Flags().GetBool("enable-if-needed")
-		if err := cli.RunWorkflowsOnGitHub(args, repeatSeconds, enable, verbose); err != nil {
+		if err := cli.RunWorkflowsOnGitHub(args, repeatSeconds, enable, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -218,7 +220,7 @@ var versionCmd = &cobra.Command{
 
 func init() {
 	// Add global verbose flag to root command
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output showing detailed information")
+	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output showing detailed information")
 
 	// Set output to stderr for consistency with CLI logging guidelines
 	rootCmd.SetOut(os.Stderr)
@@ -241,16 +243,16 @@ func init() {
 	})
 
 	// Create and setup add command
-	addCmd := cli.NewAddCommand(verbose, validateEngine)
+	addCmd := cli.NewAddCommand(validateEngine)
 
 	// Create and setup update command
-	updateCmd := cli.NewUpdateCommand(verbose, validateEngine)
+	updateCmd := cli.NewUpdateCommand(validateEngine)
 
 	// Create and setup trial command
-	trialCmd := cli.NewTrialCommand(verbose, validateEngine)
+	trialCmd := cli.NewTrialCommand(validateEngine)
 
 	// Create and setup init command
-	initCmd := NewInitCommand(verbose)
+	initCmd := NewInitCommand()
 
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // Test the CLI functions that are exported from this package
@@ -651,7 +653,7 @@ func TestCleanupOrphanedIncludes(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create .github/workflows directory
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -766,7 +768,7 @@ func TestPreviewOrphanedIncludes(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create .github/workflows directory
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -910,7 +912,7 @@ func TestRemoveWorkflowsWithNoOrphansFlag(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create .github/workflows directory
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatal(err)
 	}

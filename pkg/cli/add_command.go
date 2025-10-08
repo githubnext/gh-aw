@@ -17,7 +17,7 @@ import (
 )
 
 // NewAddCommand creates the add command
-func NewAddCommand(verbose bool, validateEngine func(string) error) *cobra.Command {
+func NewAddCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <workflow>...",
 		Short: "Add one or more workflows from the components to .github/workflows",
@@ -39,24 +39,6 @@ Workflow specifications:
 The -n flag allows you to specify a custom name for the workflow file (only applies to the first workflow when adding multiple).
 The --pr flag automatically creates a pull request with the workflow changes.
 The --force flag overwrites existing workflow files.`,
-		Args: func(cmd *cobra.Command, args []string) error {
-			// If no arguments provided and not in CI, automatically use interactive mode
-			if len(args) == 0 && !IsRunningInCI() {
-				// Auto-enable interactive mode
-				var workflowName = "my-workflow" // Default name
-				if err := CreateWorkflowInteractively(workflowName, verbose, false); err != nil {
-					return fmt.Errorf("failed to create workflow interactively: %w", err)
-				}
-				// Exit successfully after interactive creation
-				os.Exit(0)
-			}
-
-			// Normal mode requires at least one workflow
-			if len(args) < 1 {
-				return fmt.Errorf("requires at least 1 arg(s), received %d", len(args))
-			}
-			return nil
-		},
 		Run: func(cmd *cobra.Command, args []string) {
 			workflows := args
 			numberFlag, _ := cmd.Flags().GetInt("number")
@@ -64,6 +46,19 @@ The --force flag overwrites existing workflow files.`,
 			nameFlag, _ := cmd.Flags().GetString("name")
 			prFlag, _ := cmd.Flags().GetBool("pr")
 			forceFlag, _ := cmd.Flags().GetBool("force")
+			verbose, _ := cmd.Flags().GetBool("verbose")
+
+			// If no arguments provided and not in CI, automatically use interactive mode
+			if len(args) == 0 && !IsRunningInCI() {
+				// Auto-enable interactive mode
+				var workflowName = "my-workflow" // Default name
+				if err := CreateWorkflowInteractively(workflowName, verbose, false); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+					os.Exit(1)
+				}
+				// Exit successfully after interactive creation
+				os.Exit(0)
+			}
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -448,7 +443,7 @@ func addWorkflowWithTracking(workflow *WorkflowSpec, number int, verbose bool, e
 		// Add source field to frontmatter
 		sourceString := buildSourceStringWithCommitSHA(workflow, sourceInfo.CommitSHA)
 		if sourceString != "" {
-			updatedContent, err := addSourceToWorkflow(content, sourceString, verbose)
+			updatedContent, err := addSourceToWorkflow(content, sourceString)
 			if err != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source field: %v", err)))
@@ -656,52 +651,12 @@ func ensureCopilotInstructions(verbose bool, skipInstructions bool) error {
 
 // ensureAgenticWorkflowPrompt ensures that .github/prompts/create-agentic-workflow.prompt.md contains the agentic workflow creation prompt
 func ensureAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
-	if skipInstructions {
-		return nil // Skip writing prompt if flag is set
-	}
+	return ensurePromptFromTemplate("create-agentic-workflow.prompt.md", agenticWorkflowPromptTemplate, verbose, skipInstructions)
+}
 
-	gitRoot, err := findGitRoot()
-	if err != nil {
-		return err // Not in a git repository, skip
-	}
-
-	promptsDir := filepath.Join(gitRoot, ".github", "prompts")
-	agenticWorkflowPromptPath := filepath.Join(promptsDir, "create-agentic-workflow.prompt.md")
-
-	// Ensure the .github/prompts directory exists
-	if err := os.MkdirAll(promptsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .github/prompts directory: %w", err)
-	}
-
-	// Check if the prompt file already exists and matches the template
-	existingContent := ""
-	if content, err := os.ReadFile(agenticWorkflowPromptPath); err == nil {
-		existingContent = string(content)
-	}
-
-	// Check if content matches our expected template
-	expectedContent := strings.TrimSpace(agenticWorkflowPromptTemplate)
-	if strings.TrimSpace(existingContent) == expectedContent {
-		if verbose {
-			fmt.Printf("Agentic workflow prompt is up-to-date: %s\n", agenticWorkflowPromptPath)
-		}
-		return nil
-	}
-
-	// Write the agentic workflow prompt file
-	if err := os.WriteFile(agenticWorkflowPromptPath, []byte(agenticWorkflowPromptTemplate), 0644); err != nil {
-		return fmt.Errorf("failed to write agentic workflow prompt: %w", err)
-	}
-
-	if verbose {
-		if existingContent == "" {
-			fmt.Printf("Created agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
-		} else {
-			fmt.Printf("Updated agentic workflow prompt: %s\n", agenticWorkflowPromptPath)
-		}
-	}
-
-	return nil
+// ensureSharedAgenticWorkflowPrompt ensures that .github/prompts/create-shared-agentic-workflow.prompt.md contains the shared workflow creation prompt
+func ensureSharedAgenticWorkflowPrompt(verbose bool, skipInstructions bool) error {
+	return ensurePromptFromTemplate("create-shared-agentic-workflow.prompt.md", sharedAgenticWorkflowPromptTemplate, verbose, skipInstructions)
 }
 
 // checkCleanWorkingDirectory checks if there are uncommitted changes
@@ -842,7 +797,7 @@ func createPR(branchName, title, body string, verbose bool) error {
 }
 
 // addSourceToWorkflow adds the source field to the workflow's frontmatter
-func addSourceToWorkflow(content, source string, verbose bool) (string, error) {
+func addSourceToWorkflow(content, source string) (string, error) {
 	// Parse frontmatter using parser package
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {

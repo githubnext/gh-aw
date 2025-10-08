@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -183,13 +184,16 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		case "env":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)
-				first := true
-				for envKey, envValue := range mcpConfig.Env {
-					if !first {
+				envKeys := make([]string, 0, len(mcpConfig.Env))
+				for key := range mcpConfig.Env {
+					envKeys = append(envKeys, key)
+				}
+				sort.Strings(envKeys)
+				for i, envKey := range envKeys {
+					if i > 0 {
 						yaml.WriteString(", ")
 					}
-					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, envValue)
-					first = false
+					fmt.Fprintf(yaml, "\"%s\" = \"%s\"", envKey, mcpConfig.Env[envKey])
 				}
 				yaml.WriteString(" }\n")
 			} else {
@@ -202,6 +206,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				for key := range mcpConfig.Env {
 					envKeys = append(envKeys, key)
 				}
+				sort.Strings(envKeys)
 				for envIndex, envKey := range envKeys {
 					envComma := ","
 					if envIndex == len(envKeys)-1 {
@@ -227,6 +232,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			for key := range mcpConfig.Headers {
 				headerKeys = append(headerKeys, key)
 			}
+			sort.Strings(headerKeys)
 			for headerIndex, headerKey := range headerKeys {
 				headerComma := ","
 				if headerIndex == len(headerKeys)-1 {
@@ -348,6 +354,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		"type":       true,
 		"command":    true,
 		"container":  true,
+		"version":    true,
 		"args":       true,
 		"env":        true,
 		"proxy-args": true,
@@ -399,6 +406,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if container, hasContainer := config.GetString("container"); hasContainer {
 			result.Container = container
 		}
+		if version, hasVersion := config.GetString("version"); hasVersion {
+			result.Version = version
+		}
 		if args, hasArgs := config.GetStringArray("args"); hasArgs {
 			result.Args = args
 		}
@@ -428,20 +438,40 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	// Handle container transformation for stdio type
 	if result.Type == "stdio" && result.Container != "" {
+		// Save user-provided args before transforming
+		userProvidedArgs := result.Args
+
 		// Transform container field to docker command and args
 		result.Command = "docker"
 		result.Args = []string{"run", "--rm", "-i"}
 
-		// Add environment variables as -e flags
+		// Add environment variables as -e flags (sorted for deterministic output)
+		envKeys := make([]string, 0, len(result.Env))
 		for envKey := range result.Env {
+			envKeys = append(envKeys, envKey)
+		}
+		sort.Strings(envKeys)
+		for _, envKey := range envKeys {
 			result.Args = append(result.Args, "-e", envKey)
 		}
 
-		// Add the container image as the last argument
-		result.Args = append(result.Args, result.Container)
+		// Insert user-provided args (e.g., volume mounts) before the container image
+		if len(userProvidedArgs) > 0 {
+			result.Args = append(result.Args, userProvidedArgs...)
+		}
 
-		// Clear the container field since it's now part of the command
+		// Build container image with version if provided
+		containerImage := result.Container
+		if result.Version != "" {
+			containerImage = containerImage + ":" + result.Version
+		}
+
+		// Add the container image as the last argument
+		result.Args = append(result.Args, containerImage)
+
+		// Clear the container and version fields since they're now part of the command
 		result.Container = ""
+		result.Version = ""
 	}
 
 	return result, nil
@@ -588,14 +618,10 @@ func hasNetworkPermissions(toolConfig map[string]any) (bool, []string) {
 		return len(domains) > 0, domains
 	}
 
-	// New format: check direct network field under mcp
-	if mcpSection, hasMcp := toolConfig["mcp"]; hasMcp {
-		if m, ok := mcpSection.(map[string]any); ok {
-			if network, hasNetwork := m["network"]; hasNetwork {
-				if ok, domains := extract(network); ok {
-					return true, domains
-				}
-			}
+	// Check direct network field at tool level
+	if network, hasNetwork := toolConfig["network"]; hasNetwork {
+		if ok, domains := extract(network); ok {
+			return true, domains
 		}
 	}
 

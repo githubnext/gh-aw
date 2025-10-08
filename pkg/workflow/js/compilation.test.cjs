@@ -4,9 +4,9 @@ import path from "path";
 
 describe("TypeScript compilation output", () => {
   it("generates JavaScript files with 2-space indentation", () => {
-    const jsFiles = ["add_labels.js", "create_issue.js", "create_discussion.js"];
+    const cjsFiles = ["add_labels.cjs", "create_issue.cjs", "create_discussion.cjs"];
 
-    jsFiles.forEach(fileName => {
+    cjsFiles.forEach(fileName => {
       const filePath = path.join(process.cwd(), fileName);
       if (fs.existsSync(filePath)) {
         const content = fs.readFileSync(filePath, "utf8");
@@ -28,9 +28,9 @@ describe("TypeScript compilation output", () => {
   });
 
   it("uses consistent 2-space indentation pattern", () => {
-    const jsFiles = ["add_labels.js", "create_issue.js", "create_discussion.js"];
+    const cjsFiles = ["add_labels.cjs", "create_issue.cjs", "create_discussion.cjs"];
 
-    jsFiles.forEach(fileName => {
+    cjsFiles.forEach(fileName => {
       const filePath = path.join(process.cwd(), fileName);
       if (fs.existsSync(filePath)) {
         const content = fs.readFileSync(filePath, "utf8");

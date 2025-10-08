@@ -23,6 +23,7 @@ func NewCustomEngine() *CustomEngine {
 			supportsMaxTurns:       true,  // Custom engine supports max-turns for consistency
 			supportsWebFetch:       false, // Custom engine does not have built-in web-fetch support
 			supportsWebSearch:      false, // Custom engine does not have built-in web-search support
+			hasDefaultConcurrency:  false, // Custom engine does NOT have default concurrency enabled
 		},
 	}
 }
@@ -61,6 +62,9 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				// Add staged flag if specified
 				if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 					envVars["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
+				}
+				if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
+					envVars["GITHUB_AW_TARGET_REPO"] = workflowData.TrialTargetRepo
 				}
 
 				// Add branch name if upload assets is configured

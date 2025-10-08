@@ -19,10 +19,49 @@
       },
       "additionalProperties": false
     },
+    "steps": {
+      "description": "Custom workflow steps to be merged with main workflow",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          }
+        }
+      ]
+    },
     "tools": {
       "type": "object",
       "description": "Tools configuration for the included file",
       "properties": {
+        "bash": {
+          "description": "Bash shell command execution tool for running command-line programs and scripts",
+          "oneOf": [
+            {
+              "type": "null",
+              "description": "Enable bash tool with all shell commands allowed"
+            },
+            {
+              "type": "array",
+              "description": "List of allowed bash commands and patterns (e.g., ['ast-grep:*', 'sg:*'])",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
         "github": {
           "description": "GitHub tools configuration",
           "oneOf": [
@@ -165,6 +204,23 @@
         "additionalProperties": false
       }
     ]
+  },
+  "safe-outputs": {
+    "type": "object",
+    "description": "Safe outputs configuration (only jobs allowed in included files)",
+    "properties": {
+      "jobs": {
+        "type": "object",
+        "description": "Custom safe-job definitions",
+        "patternProperties": {
+          "^[a-zA-Z0-9_-]+$": {
+            "$ref": "#/$defs/safe_job"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
   }
 },
 "additionalProperties": false,
@@ -191,8 +247,12 @@
       },
       "container": {
         "type": "string",
-        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/_.-]*$",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$",
         "description": "Container image for stdio MCP connections (alternative to command)"
+      },
+      "version": {
+        "type": "string",
+        "description": "Optional version/tag for the container image (e.g., 'latest', 'v1.0.0')"
       },
       "args": {
         "type": "array",
@@ -324,6 +384,125 @@
     "required": [
       "url"
     ],
+    "additionalProperties": false
+  },
+  "safe_job": {
+    "type": "object",
+    "description": "Custom safe-job configuration",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Display name for the job"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of the safe-job (used in MCP tool registration)"
+      },
+      "runs-on": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Runner type (e.g., 'ubuntu-latest')"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of runner types"
+          }
+        ],
+        "description": "GitHub Actions runner specification"
+      },
+      "if": {
+        "type": "string",
+        "description": "Conditional execution expression"
+      },
+      "needs": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Single job dependency"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of job dependencies"
+          }
+        ]
+      },
+      "steps": {
+        "type": "array",
+        "description": "GitHub Actions steps",
+        "items": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "env": {
+        "type": "object",
+        "description": "Environment variables",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "permissions": {
+        "type": "object",
+        "description": "Job-level permissions",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "inputs": {
+        "type": "object",
+        "description": "Input parameters for the safe-job (required)",
+        "patternProperties": {
+          "^[a-zA-Z0-9_-]+$": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Input description"
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether the input is required"
+              },
+              "default": {
+                "type": "string",
+                "description": "Default value"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["string", "number", "boolean", "choice"],
+                "description": "Input type"
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Options for choice type"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "minProperties": 1,
+        "additionalProperties": false
+      },
+      "github-token": {
+        "type": "string",
+        "description": "Custom GitHub token"
+      },
+      "output": {
+        "type": "string",
+        "description": "Custom output message"
+      }
+    },
+    "required": ["inputs"],
     "additionalProperties": false
   }
 }

@@ -13,7 +13,7 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 		return workflowData.Concurrency
 	}
 
-	// Build concurrency group keys
+	// Build concurrency group keys using the original workflow-specific logic
 	keys := buildConcurrencyGroupKeys(workflowData, isCommandTrigger)
 	groupValue := strings.Join(keys, "-")
 
@@ -24,6 +24,47 @@ func GenerateConcurrencyConfig(workflowData *WorkflowData, isCommandTrigger bool
 	if shouldEnableCancelInProgress(workflowData, isCommandTrigger) {
 		concurrencyConfig += "\n  cancel-in-progress: true"
 	}
+
+	return concurrencyConfig
+}
+
+// GenerateJobConcurrencyConfig generates the agent concurrency configuration
+// for the agent job based on engine.concurrency field
+func GenerateJobConcurrencyConfig(workflowData *WorkflowData) string {
+	// If concurrency is explicitly configured in engine, use it
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Concurrency != "" {
+		return workflowData.EngineConfig.Concurrency
+	}
+
+	// Check if the engine has default concurrency enabled
+	engineID := ""
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+		engineID = workflowData.EngineConfig.ID
+	}
+
+	// Get the engine to check if default concurrency should be applied
+	registry := GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine(engineID)
+
+	// If engine not found or doesn't have default concurrency, return empty string (no concurrency)
+	if err != nil || !engine.HasDefaultConcurrency() {
+		return ""
+	}
+
+	// Default behavior: single job per engine across all workflows
+	// Pattern: gh-aw-{engine-id}
+	var keys []string
+
+	// Prepend with gh-aw- prefix
+	keys = append(keys, "gh-aw")
+
+	// Use engine ID for isolation between different engines
+	keys = append(keys, engineID)
+
+	groupValue := strings.Join(keys, "-")
+
+	// Build the concurrency configuration (no cancel-in-progress at agent level)
+	concurrencyConfig := fmt.Sprintf("concurrency:\n  group: \"%s\"", groupValue)
 
 	return concurrencyConfig
 }

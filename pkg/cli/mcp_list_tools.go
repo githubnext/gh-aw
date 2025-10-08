@@ -292,25 +292,9 @@ The command will:
 
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
-			// Inherit verbose from parent commands
-			if !verbose {
-				if cmd.Parent() != nil {
-					if parentVerbose, _ := cmd.Parent().PersistentFlags().GetBool("verbose"); parentVerbose {
-						verbose = true
-					}
-					if cmd.Parent().Parent() != nil {
-						if rootVerbose, _ := cmd.Parent().Parent().PersistentFlags().GetBool("verbose"); rootVerbose {
-							verbose = true
-						}
-					}
-				}
-			}
-
 			return ListToolsForMCP(workflowFile, mcpServerName, verbose)
 		},
 	}
-
-	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed tool information")
 
 	return cmd
 }

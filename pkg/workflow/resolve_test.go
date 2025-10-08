@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestNormalizeWorkflowName(t *testing.T) {
@@ -57,7 +59,7 @@ func TestNormalizeWorkflowName(t *testing.T) {
 func TestResolveWorkflowName(t *testing.T) {
 	// Create a temporary directory with workflow files
 	tempDir := t.TempDir()
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatal(err)
@@ -166,7 +168,7 @@ func TestResolveWorkflowName(t *testing.T) {
 func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
 	// Create a temporary directory with workflow files
 	tempDir := t.TempDir()
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatal(err)
@@ -208,7 +210,7 @@ func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
 func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
 	// Create a temporary directory with workflow files
 	tempDir := t.TempDir()
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatal(err)
@@ -258,7 +260,7 @@ func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
 func TestResolveWorkflowName_MissingNameField(t *testing.T) {
 	// Create a temporary directory with workflow files
 	tempDir := t.TempDir()
-	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
 	err := os.MkdirAll(workflowsDir, 0755)
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +321,7 @@ func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {
 	// If we're in a subdirectory (like pkg/workflow), go up to find the project root
 	for {
 		if _, err := os.Stat(filepath.Join(projectRoot, "go.mod")); err == nil {
-			if _, err := os.Stat(filepath.Join(projectRoot, ".github", "workflows")); err == nil {
+			if _, err := os.Stat(filepath.Join(projectRoot, constants.GetWorkflowDir())); err == nil {
 				break // Found project root
 			}
 		}

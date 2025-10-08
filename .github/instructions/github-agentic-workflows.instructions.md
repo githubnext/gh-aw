@@ -16,11 +16,10 @@ on:
     types: [opened]
 permissions:
   issues: write
-tools:
-  github:
-    allowed: [add_issue_comment]
 engine: claude
 timeout_minutes: 10
+safe-outputs:
+  create-issue:
 ---
 
 # Workflow Title
@@ -69,13 +68,15 @@ The YAML frontmatter supports these fields:
       version: beta                     # Optional: version of the action (has sensible default)
       model: gpt-5                      # Optional: LLM model to use (has sensible default)
       max-turns: 5                      # Optional: maximum chat iterations per run (has sensible default)
+      max-concurrency: 3                # Optional: max concurrent workflows across all workflows (default: 3)
     ```
-  - **Note**: The `version`, `model`, and `max-turns` fields have sensible defaults and can typically be omitted unless you need specific customization.
+  - **Note**: The `version`, `model`, `max-turns`, and `max-concurrency` fields have sensible defaults and can typically be omitted unless you need specific customization.
   - **Custom engine format** (⚠️ experimental):
     ```yaml
     engine:
       id: custom                        # Required: custom engine identifier
       max-turns: 10                     # Optional: maximum iterations (for consistency)
+      max-concurrency: 5                # Optional: max concurrent workflows (for consistency)
       steps:                            # Required: array of custom GitHub Actions steps
         - name: Setup Node.js
           uses: actions/setup-node@v4
@@ -127,7 +128,7 @@ The YAML frontmatter supports these fields:
   - `playwright:` - Browser automation tools
   - Custom tool names for MCP servers
 
-- **`safe-outputs:`** - Safe output processing configuration
+- **`safe-outputs:`** - Safe output processing configuration (preferred way to handle GitHub API write operations)
   - `create-issue:` - Safe GitHub issue creation
     ```yaml
     safe-outputs:
@@ -458,16 +459,6 @@ Deploy to environment: "${{ github.event.inputs.environment }}"
 
 ## Tool Configuration
 
-### GitHub Tools
-```yaml
-tools:
-  github:
-    allowed: 
-      - add_issue_comment
-      - update_issue
-      - create_issue
-```
-
 ### General Tools
 ```yaml
 tools:
@@ -763,12 +754,14 @@ permissions:
   issues: write
   contents: read
 tools:
-  github:
-    allowed: [create_issue, list_issues, list_commits]
   web-fetch:
   web-search:
   edit:
   bash: ["echo", "ls"]
+safe-outputs:
+  create-issue:
+    title-prefix: "[research] "
+    labels: [weekly, research]
 timeout_minutes: 15
 ---
 
@@ -788,14 +781,13 @@ on:
     name: helper-bot
 permissions:
   issues: write
-tools:
-  github:
-    allowed: [add_issue_comment]
+safe-outputs:
+  add-comment:
 ---
 
 # Helper Bot
 
-Respond to /helper-bot mentions with helpful information.
+Respond to /helper-bot mentions with helpful information realted to ${{ github.repository }}. THe request is "${{ needs.activation.outputs.text }}".
 ```
 
 ## Workflow Monitoring and Analysis

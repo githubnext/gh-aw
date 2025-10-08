@@ -163,7 +163,7 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain 'Execute Claude Code CLI' step but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check for installation step (npm install)
-				if !strings.Contains(lockContent, "npm install -g @anthropic-ai/claude-code@2.0.1") {
+				if !strings.Contains(lockContent, "npm install -g @anthropic-ai/claude-code@2.0.9") {
 					t.Errorf("Expected lock file to contain npm install command but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check for direct claude command (not npx)

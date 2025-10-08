@@ -314,20 +314,6 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verbose, _ := cmd.Flags().GetBool("verbose")
 
-			// Inherit verbose from parent commands
-			if !verbose {
-				if cmd.Parent() != nil {
-					if parentVerbose, _ := cmd.Parent().PersistentFlags().GetBool("verbose"); parentVerbose {
-						verbose = true
-					}
-					if cmd.Parent().Parent() != nil {
-						if rootVerbose, _ := cmd.Parent().Parent().PersistentFlags().GetBool("verbose"); rootVerbose {
-							verbose = true
-						}
-					}
-				}
-			}
-
 			// If no arguments provided, show list of available servers
 			if len(args) == 0 {
 				// Use default registry URL if not provided
@@ -353,7 +339,6 @@ Registry URL defaults to: https://api.mcp.github.com/v0`,
 	cmd.Flags().StringVar(&registryURL, "registry", "", "MCP registry URL (default: https://api.mcp.github.com/v0)")
 	cmd.Flags().StringVar(&transportType, "transport", "", "Preferred transport type (stdio, http, docker)")
 	cmd.Flags().StringVar(&customToolID, "tool-id", "", "Custom tool ID to use in the workflow (default: uses server ID)")
-	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	return cmd
 }

@@ -6,9 +6,6 @@ import (
 	"strings"
 )
 
-//go:embed sh/checkout_pr.sh
-var checkoutPRScript string
-
 //go:embed sh/pr_context_prompt.md
 var prContextPromptText string
 

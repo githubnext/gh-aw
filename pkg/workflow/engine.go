@@ -11,6 +11,7 @@ type EngineConfig struct {
 	Version       string
 	Model         string
 	MaxTurns      string
+	Concurrency   string // Agent job-level concurrency configuration (YAML format)
 	UserAgent     string
 	Env           map[string]string
 	Steps         []map[string]any
@@ -71,6 +72,32 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 					config.MaxTurns = fmt.Sprintf("%d", maxTurnsUint64)
 				} else if maxTurnsStr, ok := maxTurns.(string); ok {
 					config.MaxTurns = maxTurnsStr
+				}
+			}
+
+			// Extract optional 'concurrency' field (string or object format)
+			if concurrency, hasConcurrency := engineObj["concurrency"]; hasConcurrency {
+				if concurrencyStr, ok := concurrency.(string); ok {
+					// Simple string format (group name)
+					config.Concurrency = fmt.Sprintf("concurrency:\n  group: \"%s\"", concurrencyStr)
+				} else if concurrencyObj, ok := concurrency.(map[string]any); ok {
+					// Object format with group and optional cancel-in-progress
+					var parts []string
+					if group, hasGroup := concurrencyObj["group"]; hasGroup {
+						if groupStr, ok := group.(string); ok {
+							parts = append(parts, fmt.Sprintf("concurrency:\n  group: \"%s\"", groupStr))
+						}
+					}
+					if cancel, hasCancel := concurrencyObj["cancel-in-progress"]; hasCancel {
+						if cancelBool, ok := cancel.(bool); ok && cancelBool {
+							if len(parts) > 0 {
+								parts[0] += "\n  cancel-in-progress: true"
+							}
+						}
+					}
+					if len(parts) > 0 {
+						config.Concurrency = parts[0]
+					}
 				}
 			}
 

@@ -11,14 +11,9 @@ var squidConfigContent string
 
 // needsProxy determines if a tool configuration requires proxy setup
 func needsProxy(toolConfig map[string]any) (bool, []string) {
-	// Check if tool has MCP container configuration
-	mcpConfig, err := getMCPConfig(toolConfig, "")
-	if err != nil {
-		return false, nil
-	}
-
-	// Check if it has a container field
-	if mcpConfig.Container == "" {
+	// Check if tool has container configuration (before transformation)
+	_, hasContainer := toolConfig["container"]
+	if !hasContainer {
 		return false, nil
 	}
 
@@ -52,27 +47,53 @@ func (c *Compiler) generateInlineProxyConfig(yaml *strings.Builder, toolName str
 		return
 	}
 
-	// Get container image and environment variables from MCP config
+	// Get container image directly from toolConfig before transformation
+	containerInterface, hasContainer := toolConfig["container"]
+	if !hasContainer {
+		if c.verbose {
+			fmt.Printf("Proxy-enabled tool '%s' missing container field\n", toolName)
+		}
+		return
+	}
+
+	containerStr, ok := containerInterface.(string)
+	if !ok {
+		if c.verbose {
+			fmt.Printf("Proxy-enabled tool '%s' container field is not a string\n", toolName)
+		}
+		return
+	}
+
+	// Get version if specified
+	version := ""
+	if versionInterface, hasVersion := toolConfig["version"]; hasVersion {
+		if versionStr, ok := versionInterface.(string); ok {
+			version = versionStr
+		}
+	}
+
+	// Build full container image with version
+	if version != "" {
+		containerStr = containerStr + ":" + version
+	}
+
+	// Get environment variables
+	envVars := make(map[string]any)
+	if envInterface, hasEnv := toolConfig["env"]; hasEnv {
+		if envMap, ok := envInterface.(map[string]any); ok {
+			for k, v := range envMap {
+				envVars[k] = v
+			}
+		}
+	}
+
+	// Get MCP config for proxy args
 	mcpConfig, err := getMCPConfig(toolConfig, toolName)
 	if err != nil {
 		if c.verbose {
 			fmt.Printf("Error getting MCP config for %s: %v\n", toolName, err)
 		}
 		return
-	}
-
-	if mcpConfig.Container == "" {
-		if c.verbose {
-			fmt.Printf("Proxy-enabled tool '%s' missing container configuration\n", toolName)
-		}
-		return
-	}
-
-	containerStr := mcpConfig.Container
-
-	envVars := make(map[string]any)
-	for k, v := range mcpConfig.Env {
-		envVars[k] = v
 	}
 
 	if c.verbose {

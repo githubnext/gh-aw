@@ -22,6 +22,9 @@ var copilotInstructionsTemplate string
 //go:embed templates/create-agentic-workflow.prompt.md
 var agenticWorkflowPromptTemplate string
 
+//go:embed templates/create-shared-agentic-workflow.prompt.md
+var sharedAgenticWorkflowPromptTemplate string
+
 // SetVersionInfo sets the version information for the CLI
 func SetVersionInfo(v string) {
 	version = v
@@ -101,7 +104,7 @@ func NewWorkflow(workflowName string, verbose bool, force bool) error {
 	}
 
 	// Create .github/workflows directory if it doesn't exist
-	githubWorkflowsDir := filepath.Join(workingDir, ".github", "workflows")
+	githubWorkflowsDir := filepath.Join(workingDir, constants.GetWorkflowDir())
 	if err := os.MkdirAll(githubWorkflowsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create .github/workflows directory: %w", err)
 	}

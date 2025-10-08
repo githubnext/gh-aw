@@ -1,5 +1,7 @@
 package constants
 
+import "path/filepath"
+
 // CLIExtensionPrefix is the prefix used in user-facing output to refer to the CLI extension
 const CLIExtensionPrefix = "gh aw"
 
@@ -13,7 +15,7 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.1"
+const DefaultClaudeCodeVersion = "2.0.9"
 
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
@@ -161,7 +163,7 @@ var DefaultBashTools = []string{
 
 // PriorityStepFields defines the conventional field order for GitHub Actions workflow steps
 // Fields appear in this order first, followed by remaining fields alphabetically
-var PriorityStepFields = []string{"name", "id", "if", "run", "uses", "env", "with"}
+var PriorityStepFields = []string{"name", "id", "if", "run", "uses", "script", "env", "with"}
 
 // PriorityJobFields defines the conventional field order for GitHub Actions workflow jobs
 // Fields appear in this order first, followed by remaining fields alphabetically
@@ -170,3 +172,7 @@ var PriorityJobFields = []string{"name", "runs-on", "needs", "if", "permissions"
 // PriorityWorkflowFields defines the conventional field order for top-level GitHub Actions workflow frontmatter
 // Fields appear in this order first, followed by remaining fields alphabetically
 var PriorityWorkflowFields = []string{"on", "permissions", "if", "network", "imports", "safe-outputs", "steps"}
+
+func GetWorkflowDir() string {
+	return filepath.Join(".github", "workflows")
+}
