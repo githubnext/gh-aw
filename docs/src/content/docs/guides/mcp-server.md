@@ -36,13 +36,8 @@ mcp-servers:
 
 ### HTTP Transport (Workflows)
 
-Start the server on a specific port:
+For workflows, use the shared configuration that builds and starts the MCP server with GITHUB_TOKEN:
 
-```bash
-gh aw mcp-server --port 3000
-```
-
-Configure in your workflow:
 ```yaml
 ---
 on: workflow_dispatch
@@ -51,23 +46,16 @@ permissions:
   actions: read
 engine: claude
 imports:
-  - shared/gh-aw-mcp.md  # Includes server setup and configuration
+  - shared/gh-aw-mcp.md
 ---
 
 # Your workflow instructions here
 ```
 
-The shared configuration (`shared/gh-aw-mcp.md`) automatically:
-- Builds the gh-aw CLI
-- Starts the MCP server on port 3000
-- Configures HTTP transport with GITHUB_TOKEN access
+The shared configuration (`shared/gh-aw-mcp.md`) contains:
 
-### Manual HTTP Configuration
-
-If you need custom setup:
-
+**Steps** (run with GITHUB_TOKEN):
 ```yaml
----
 steps:
   - name: Set up Go
     uses: actions/setup-go@v5
@@ -78,22 +66,24 @@ steps:
   - name: Install dependencies
     run: make deps-dev
   
-  - name: Build gh-aw
-    run: make build
+  - name: Install binary as 'gh-aw'
+    run: make install
   
   - name: Start MCP server
-    run: |
-      ./gh-aw mcp-server --port 3000 &
-      sleep 2
+    run: gh-aw mcp-server --port 8765 &
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+```
 
+**MCP Server Configuration** (HTTP transport, no secret):
+```yaml
 mcp-servers:
   gh-aw:
     type: http
-    url: http://localhost:3000
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
----
+    url: http://localhost:8765
 ```
+
+This pattern keeps the GITHUB_TOKEN isolated in the server process while the workflow accesses it through HTTP transport.
 
 ## Available Tools
 
