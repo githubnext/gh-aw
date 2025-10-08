@@ -147,6 +147,7 @@ type WorkflowData struct {
 	Roles              []string            // permission levels required to trigger workflow
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 	SafetyPrompt       bool                // whether to include XPIA safety prompt (default true)
+	Runtimes           map[string]any      // runtime version overrides from frontmatter
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -613,6 +614,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract safety-prompt setting from tools (defaults to true)
 	safetyPrompt := c.extractSafetyPromptSetting(topTools)
 
+	// Extract and merge runtimes from frontmatter and imports
+	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
+	runtimes, err := mergeRuntimes(topRuntimes, importsResult.MergedRuntimes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge runtimes: %w", err)
+	}
+
 	// Add MCP fetch server if needed (when web-fetch is requested but engine doesn't support it)
 	tools, _ = AddMCPFetchServerIfNeeded(tools, agenticEngine)
 
@@ -706,6 +714,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ImportedFiles:      importsResult.ImportedFiles,
 		IncludedFiles:      allIncludedFiles,
 		Tools:              tools,
+		Runtimes:           runtimes,
 		MarkdownContent:    markdownContent,
 		AI:                 engineSetting,
 		EngineConfig:       engineConfig,
