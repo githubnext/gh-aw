@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -130,6 +131,8 @@ require = function(name) {
 	}
 	return originalRequire.apply(this, arguments);
 };
+// Preserve require.main property
+require.main = originalRequire.main;
 
 // Execute the parser script
 %s
@@ -146,6 +149,11 @@ require = function(name) {
 	cmd.Dir = tempDir
 	output, err := cmd.Output()
 	if err != nil {
+		// Capture stderr too
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return "", fmt.Errorf("failed to execute node script: %v\nStdout: %s\nStderr: %s", err, string(output), string(exitErr.Stderr))
+		}
 		return "", fmt.Errorf("failed to execute node script: %v\nOutput: %s", err, string(output))
 	}
 

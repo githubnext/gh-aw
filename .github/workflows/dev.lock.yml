@@ -2131,7 +2131,9 @@ jobs:
             if (typeof module !== "undefined" && module.exports) {
               module.exports = { parseCodexLog, formatBashCommand, truncateString };
             }
-            main();
+            if (typeof module === "undefined" || require.main === module) {
+              main();
+            }
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
