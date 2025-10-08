@@ -79,7 +79,7 @@ async function main() {
       labels = [...labels, ...createIssueItem.labels];
     }
     labels = labels
-      .filter(label => label != null && label !== false && label !== 0)
+      .filter(label => !!label)
       .map(label => String(label).trim())
       .filter(label => label)
       .map(label => sanitizeLabelContent(label))
