@@ -46,6 +46,16 @@ Please [create a GitHub Personal Access Token (PAT) for an account with a GitHub
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-github-pat>"
 ```
 
+- `GITHUB_MCP_TOKEN` secret (optional) is required when using remote mode for GitHub tools.
+
+If you use `mode: remote` for GitHub tools (for faster startup without Docker), you'll need a separate GitHub Personal Access Token:
+
+```bash
+gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
+```
+
+See [GitHub Tools - Remote Mode](/gh-aw/reference/tools/#github-remote-mode) for more details.
+
 ### Anthropic Claude Code
 
 Claude Code excels at reasoning, code analysis, and understanding complex contexts. It provides robust capabilities for agentic workflows.
@@ -75,6 +85,16 @@ Use this to set the secret for your repo:
 ```bash
 gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
 ```
+
+- `GITHUB_MCP_TOKEN` secret (optional) is required when using remote mode for GitHub tools.
+
+If you use `mode: remote` for GitHub tools (for faster startup without Docker), you'll need a GitHub Personal Access Token:
+
+```bash
+gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
+```
+
+See [GitHub Tools - Remote Mode](/gh-aw/reference/tools/#github-remote-mode) for more details.
 
 ### OpenAI Codex
 

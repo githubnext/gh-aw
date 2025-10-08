@@ -58,6 +58,18 @@ The GitHub MCP server supports two modes:
 1. **Local mode** (default): Runs the GitHub MCP server in a Docker container
 2. **Remote mode**: Uses the hosted GitHub MCP server at `https://api.githubcopilot.com/mcp/`
 
+**When to Use Remote Mode:**
+
+- ✅ **Faster execution**: No Docker container startup overhead
+- ✅ **Simpler setup**: No Docker daemon required
+- ✅ **Recommended for**: Production workflows, frequent executions, or environments without Docker
+
+**When to Use Local Mode:**
+
+- ✅ **Custom versions**: Need specific MCP server versions
+- ✅ **Air-gapped environments**: Running without internet access to the hosted server
+- ✅ **Development**: Testing local changes to the MCP server
+
 **Remote Mode Configuration:**
 
 ```yaml
@@ -72,6 +84,14 @@ tools:
 - **Authentication**: Remote mode uses the `GITHUB_MCP_TOKEN` secret by default (the standard `GITHUB_TOKEN` is not supported by the hosted server)
 - **Performance**: Remote mode eliminates the need for Docker, providing faster startup times
 - **Read-only**: Controlled via the `X-MCP-Readonly: true` header instead of environment variables
+
+**Setting up GITHUB_MCP_TOKEN:**
+
+To use remote mode, you need to set the `GITHUB_MCP_TOKEN` secret. Create a GitHub Personal Access Token and add it to your repository:
+
+```bash
+gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
+```
 
 **Remote Mode with Custom Token:**
 
