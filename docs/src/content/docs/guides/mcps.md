@@ -154,15 +154,15 @@ mcp-servers:
 
 This generates a Docker container with environment variables and network egress controls:
 - **Command**: `"docker"`
-- **Args**: Includes environment variable flags and network proxy configuration
+- **Args**: Includes environment variable flags (e.g., `-e CONTEXT7_API_KEY`) and network proxy configuration
 - **Network**: Squid proxy restricts egress to allowed domains only
 
 The custom configuration allows you to:
-- Set environment variables with `env:` for authentication and configuration
+- Set environment variables with `env:` for authentication and configuration (translates to Docker `-e` flags)
 - Configure network egress controls with `network.allowed:` for security
 - Control which tools are accessible with `allowed:` list
 
-For more advanced Docker customization (volume mounts, working directory, etc.), refer to the Docker container documentation.
+For more advanced Docker customization (volume mounts, working directory, etc.), see the [Network Egress Permissions](#network-egress-permissions) section below.
 
 ### 3. HTTP MCP Servers
 
