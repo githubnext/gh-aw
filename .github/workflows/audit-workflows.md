@@ -40,10 +40,15 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 
 ## Audit Process
 
+### Phase 0: Setup
+
+- DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
+- Do not attempt do download the `gh aw` extension or built it. If the MCP fails, give up.
+- Run the `status` tool of `gh-aw` MCP server to verify configuration. 
+
 ### Phase 1: Collect Workflow Logs
 
 The gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.
-**DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.**
 
 1. **Download Logs from Last 24 Hours**:
    Use the `logs` tool from the gh-aw MCP server:
