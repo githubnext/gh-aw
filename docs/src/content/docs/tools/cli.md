@@ -28,6 +28,10 @@ gh aw run ci-doctor daily-plan             # Execute multiple workflows
 gh aw run ci-doctor --repeat 3600          # Execute workflow every hour
 gh aw logs ci-doctor                             # View execution logs
 gh aw audit 12345678                             # Audit a specific run
+
+# Release management
+gh aw changeset version                          # Preview next version from changesets
+gh aw changeset release                          # Create release and update CHANGELOG
 ```
 
 ## Global Flags
@@ -339,6 +343,63 @@ The `status` command shows comprehensive information about your agentic workflow
 - **`enable`**: Activates workflows in GitHub Actions for automatic execution based on their triggers
 - **`disable`**: Stops workflows from executing automatically and cancels any currently running workflow instances
 - Both commands support pattern matching to operate on multiple workflows at once
+
+## 📦 Release Management with Changesets
+
+The `changeset` command provides a streamlined workflow for managing version releases based on changeset files. Inspired by the popular `@changesets/cli`, it reads markdown files from `.changeset/` directory, determines the appropriate version bump, and updates the CHANGELOG.
+
+**Changeset File Format:**
+
+Changeset files are markdown files in `.changeset/` directory with frontmatter specifying the bump type:
+
+```markdown
+---
+"gh-aw": patch
+---
+
+Brief description of the change
+```
+
+Bump types: `patch` (bug fixes), `minor` (new features), `major` (breaking changes)
+
+**Version Planning:**
+```bash
+# Analyze changesets and preview next version
+gh aw changeset version
+
+# This will:
+# - Read all changeset files from .changeset/
+# - Determine version bump (highest priority: major > minor > patch)
+# - Generate/update CHANGELOG.md with categorized changes
+# - Show preview of version bump and changes
+```
+
+**Creating a Release:**
+```bash
+# Create release with automatic version determination
+gh aw changeset release
+
+# Create specific release type
+gh aw changeset release patch
+gh aw changeset release minor
+
+# This will:
+# - Update CHANGELOG.md with new version and changes
+# - Delete processed changeset files
+# - Provide next steps for committing and tagging
+```
+
+**Release Workflow:**
+1. Add changeset files to `.changeset/` directory for each change
+2. Run `gh aw changeset version` to preview the release
+3. Run `gh aw changeset release` to prepare the release
+4. Review CHANGELOG.md
+5. Commit changes: `git add CHANGELOG.md .changeset/ && git commit -m "Release vX.Y.Z"`
+6. Create tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+7. Push: `git push origin main vX.Y.Z`
+
+> [!NOTE]
+> Major releases must be explicitly specified with `gh aw changeset release` followed by manual version specification for safety. The command will not automatically create major releases.
 
 ## 📊 Log Analysis and Monitoring
 
