@@ -30,8 +30,8 @@ gh aw logs ci-doctor                             # View execution logs
 gh aw audit 12345678                             # Audit a specific run
 
 # Release management
-gh aw changeset version                          # Preview next version from changesets
-gh aw changeset release                          # Create release and update CHANGELOG
+node changeset.js version                        # Preview next version from changesets
+node changeset.js release                        # Create release and update CHANGELOG
 ```
 
 ## Global Flags
@@ -346,7 +346,7 @@ The `status` command shows comprehensive information about your agentic workflow
 
 ## 📦 Release Management with Changesets
 
-The `changeset` command provides a streamlined workflow for managing version releases based on changeset files. Inspired by the popular `@changesets/cli`, it reads markdown files from `.changeset/` directory, determines the appropriate version bump, and updates the CHANGELOG.
+A standalone JavaScript script provides streamlined workflow for managing version releases based on changeset files. Inspired by the popular `@changesets/cli`, it reads markdown files from `.changeset/` directory, determines the appropriate version bump, and updates the CHANGELOG.
 
 **Changeset File Format:**
 
@@ -365,7 +365,7 @@ Bump types: `patch` (bug fixes), `minor` (new features), `major` (breaking chang
 **Version Planning:**
 ```bash
 # Analyze changesets and preview next version
-gh aw changeset version
+node changeset.js version
 
 # This will:
 # - Read all changeset files from .changeset/
@@ -377,11 +377,11 @@ gh aw changeset version
 **Creating a Release:**
 ```bash
 # Create release with automatic version determination
-gh aw changeset release
+node changeset.js release
 
 # Create specific release type
-gh aw changeset release patch
-gh aw changeset release minor
+node changeset.js release patch
+node changeset.js release minor
 
 # This will:
 # - Update CHANGELOG.md with new version and changes
@@ -391,15 +391,15 @@ gh aw changeset release minor
 
 **Release Workflow:**
 1. Add changeset files to `.changeset/` directory for each change
-2. Run `gh aw changeset version` to preview the release
-3. Run `gh aw changeset release` to prepare the release
+2. Run `node changeset.js version` to preview the release
+3. Run `node changeset.js release` to prepare the release
 4. Review CHANGELOG.md
 5. Commit changes: `git add CHANGELOG.md .changeset/ && git commit -m "Release vX.Y.Z"`
 6. Create tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
 7. Push: `git push origin main vX.Y.Z`
 
 > [!NOTE]
-> Major releases are not automatically created when running `gh aw changeset release` without arguments. For safety, major releases must be explicitly specified: `gh aw changeset release major`. When changesets indicate a major bump but no type is specified, the command will fail with a safety error.
+> Major releases are not automatically created when running `node changeset.js release` without arguments. For safety, major releases must be explicitly specified: `node changeset.js release major`. When changesets indicate a major bump but no type is specified, the command will fail with a safety error.
 
 ## 📊 Log Analysis and Monitoring
 
