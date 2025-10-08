@@ -399,7 +399,7 @@ gh aw changeset release minor
 7. Push: `git push origin main vX.Y.Z`
 
 > [!NOTE]
-> Major releases must be explicitly specified with `gh aw changeset release` followed by manual version specification for safety. The command will not automatically create major releases.
+> Major releases are not automatically created when running `gh aw changeset release` without arguments. For safety, major releases must be explicitly specified: `gh aw changeset release major`. When changesets indicate a major bump but no type is specified, the command will fail with a safety error.
 
 ## 📊 Log Analysis and Monitoring
 
