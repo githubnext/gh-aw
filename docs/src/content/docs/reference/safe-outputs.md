@@ -14,6 +14,17 @@ The `safe-outputs:` element of your workflow's frontmatter declares that your ag
 2. The compiler automatically generates additional jobs that read this output and perform the requested actions
 3. Only these generated jobs receive the necessary write permissions
 
+**Cross-Repository Support:**
+Many safe output types support cross-repository operations using the `target-repo` configuration. This enables workflows to create issues, comments, and other outputs in repositories other than the one where the workflow is running:
+
+```yaml
+safe-outputs:
+  create-issue:
+    target-repo: "owner/target-repository"
+```
+
+The `target-repo` field accepts repository identifiers in the format `"owner/repository"` and takes precedence over any trial mode repository settings.
+
 For example:
 
 ```yaml
@@ -25,17 +36,18 @@ This declares that the workflow should create at most one new issue.
 
 ## Available Safe Output Types
 
-| Output Type | Configuration Key | Description | Default Max |
-|-------------|------------------|-------------|-------------|
-| **Create Issue** | `create-issue:` | Create GitHub issues based on workflow output | 1 |
-| **Add Issue Comments** | `add-comment:` | Post comments on issues or pull requests | 1 |
-| **Update Issues** | `update-issue:` | Update issue status, title, or body | 1 |
-| **Add Issue Label** | `add-labels:` | Add labels to issues or pull requests | 3 |
-| **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 |
-| **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 |
-| **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 |
-| **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited |
-| **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality (enabled by default when safe-outputs is configured) | unlimited |
+| Output Type | Configuration Key | Description | Default Max | Cross-Repository |
+|-------------|------------------|-------------|-------------|------------------|
+| **Create Issue** | `create-issue:` | Create GitHub issues based on workflow output | 1 | ✅ |
+| **Add Issue Comments** | `add-comment:` | Post comments on issues or pull requests | 1 | ✅ |
+| **Update Issues** | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
+| **Add Issue Label** | `add-labels:` | Add labels to issues or pull requests | 3 | ✅ |
+| **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
+| **Pull Request Review Comments** | `create-pull-request-review-comment:` | Create review comments on specific lines of code | 1 | ✅ |
+| **Create Discussions** | `create-discussion:` | Create GitHub discussions based on workflow output | 1 | ✅ |
+| **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 | ❌ |
+| **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited | ❌ |
+| **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality (enabled by default when safe-outputs is configured) | unlimited | ❌ |
 
 ### New Issue Creation (`create-issue:`)
 
@@ -54,6 +66,7 @@ safe-outputs:
     title-prefix: "[ai] "            # Optional: prefix for issue titles
     labels: [automation, agentic]    # Optional: labels to attach to issues
     max: 5                           # Optional: maximum number of issues (default: 1)
+    target-repo: "owner/target-repo" # Optional: create issues in a different repository (requires github-token with appropriate permissions)
 ```
 
 The agentic part of your workflow should describe the issue(s) it wants created.
@@ -88,6 +101,7 @@ safe-outputs:
                                     # "triggering" (default) - only comment on triggering issue/PR
                                     # "*" - allow comments on any issue (requires issue_number in agent output)
                                     # explicit number - comment on specific issue number
+    target-repo: "owner/target-repo" # Optional: create comments in a different repository (requires github-token with appropriate permissions)
 ```
 
 The agentic part of your workflow should describe the comment(s) it wants posted.
@@ -136,6 +150,7 @@ safe-outputs:
                                         # "triggering" (default) - only add labels to triggering issue/PR
                                         # "*" - allow labels on any issue (requires issue_number in agent output)
                                         # Explicit number - add labels to specific issue/PR (e.g., "123")
+    target-repo: "owner/target-repo"    # Optional: add labels to issues/PRs in a different repository (requires github-token with appropriate permissions)
 ```
 
 The agentic part of your workflow should analyze the issue content and determine appropriate labels. 
@@ -172,6 +187,7 @@ safe-outputs:
     title:                              # Optional: presence indicates title can be updated
     body:                               # Optional: presence indicates body can be updated
     max: 3                              # Optional: maximum number of issues to update (default: 1)
+    target-repo: "owner/target-repo"    # Optional: update issues in a different repository (requires github-token with appropriate permissions)
 ```
 
 The agentic part of your workflow should analyze the issue and determine what updates to make.
@@ -229,6 +245,7 @@ safe-outputs:
     labels: [automation, agentic]    # Optional: labels to attach to PRs
     draft: true                      # Optional: create as draft PR (defaults to true)
     if-no-changes: "warn"            # Optional: behavior when no changes to commit (defaults to "warn")
+    target-repo: "owner/target-repo" # Optional: create PR in a different repository (requires github-token with appropriate permissions)
 ```
 
 **Fallback Behavior:**
@@ -347,6 +364,7 @@ safe-outputs:
                                     # "triggering" (default) - only comment on triggering PR
                                     # "*" - allow comments on any PR (requires pull_request_number in agent output)
                                     # explicit number - comment on specific PR number
+    target-repo: "owner/target-repo" # Optional: create review comments in a different repository (requires github-token with appropriate permissions)
 ```
 
 The agentic part of your workflow should describe the review comment(s) it wants created with specific file paths and line numbers.
@@ -650,6 +668,7 @@ safe-outputs:
     title-prefix: "[ai] "            # Optional: prefix for discussion titles
     category-id: "DIC_kwDOGFsHUM4BsUn3"  # Optional: specific discussion category ID
     max: 3                           # Optional: maximum number of discussions (default: 1)
+    target-repo: "owner/target-repo" # Optional: create discussions in a different repository (requires github-token with appropriate permissions)
 ```
 
 The agentic part of your workflow should describe the discussion(s) it wants created.
@@ -666,6 +685,66 @@ Create new discussions with your research findings. For each discussion, provide
 The compiled workflow will have additional prompting describing that, to create discussions, it should write the discussion details to a file.
 
 **Note:** If no `category-id` is specified, the workflow will use the first available discussion category in the repository.
+
+## Cross-Repository Operations
+
+Many safe output types support the `target-repo` configuration for cross-repository operations. This enables workflows to create issues, comments, pull requests, and other outputs in repositories other than where the workflow is running.
+
+### Authentication Requirements
+
+Cross-repository operations require proper authentication:
+
+1. **Default Token Limitations**: The standard `GITHUB_TOKEN` only has permissions for the repository where the workflow runs
+2. **Personal Access Token Required**: Use a Personal Access Token (PAT) or GitHub App token with access to target repositories
+3. **Token Configuration**: Configure the token using the `github-token` field or `GH_AW_GITHUB_TOKEN` environment variable
+
+### Example: Multi-Repository Issue Management
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+engine: claude
+safe-outputs:
+  github-token: ${{ secrets.CROSS_REPO_PAT }}  # PAT with access to target repositories
+  create-issue:
+    target-repo: "organization/tracking-repo"
+    title-prefix: "[Cross-Repo] "
+    labels: [automation, cross-repo]
+  add-comment:
+    target-repo: "organization/notifications-repo" 
+    target: "123"  # Comment on issue #123
+  add-labels:
+    target-repo: "organization/metrics-repo"
+    allowed: [processed, analyzed]
+---
+
+# Multi-Repository Issue Processor
+
+When an issue is opened in this repository:
+1. Create a tracking issue in the organization's tracking repository
+2. Add a notification comment to issue #123 in the notifications repository  
+3. Add processed labels to related issues in the metrics repository
+
+Analyze the issue content and determine appropriate actions for each target repository.
+```
+
+### Security Considerations
+
+- **Repository Access**: Ensure the authentication token has appropriate permissions for target repositories
+- **Explicit Targets**: Use specific repository names - wildcard patterns are not supported for security
+- **Least Privilege**: Grant tokens only the minimum permissions needed for the intended operations
+- **Token Scope**: Personal Access Tokens should be scoped to specific repositories when possible
+
+### Error Handling
+
+If cross-repository operations fail due to authentication or permission issues:
+- The workflow job will fail with a clear error message
+- Error details include the target repository and specific permission requirements
+- In staged mode, errors are shown as preview issues instead of failing the workflow
 
 ## Automatically Added Tools
 
@@ -734,8 +813,18 @@ safe-outputs:
 The token precedence system is useful when:
 - **Trial mode execution**: `GH_AW_GITHUB_TOKEN` can be set to test workflows safely
 - **Enhanced permissions**: Override with Personal Access Tokens that have broader scope
-- **Cross-repository operations**: Use tokens with access to multiple repositories
+- **Cross-repository operations**: Use tokens with access to multiple repositories via `target-repo` configuration
 - **Custom authentication flows**: Implement specialized token management strategies
+
+**Cross-Repository Example:**
+```yaml
+safe-outputs:
+  github-token: ${{ secrets.CROSS_REPO_PAT }}  # PAT with multi-repo access
+  create-issue:
+    target-repo: "owner/project-tracker"
+  add-comment:
+    target-repo: "owner/notifications"
+```
 
 This is useful when:
 - You need additional permissions beyond what `GITHUB_TOKEN` provides

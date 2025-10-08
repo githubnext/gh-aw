@@ -12,6 +12,7 @@ type CreatePullRequestsConfig struct {
 	Labels               []string `yaml:"labels,omitempty"`
 	Draft                *bool    `yaml:"draft,omitempty"`         // Pointer to distinguish between unset (nil) and explicitly false
 	IfNoChanges          string   `yaml:"if-no-changes,omitempty"` // Behavior when no changes to push: "warn" (default), "error", or "ignore"
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository pull requests
 }
 
 // buildCreateOutputPullRequestJob creates the create_pull_request job
@@ -83,7 +84,10 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	if c.trialMode && c.trialTargetRepoSlug != "" {
+	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
+	if data.SafeOutputs.CreatePullRequests.TargetRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequests.TargetRepoSlug))
+	} else if c.trialMode && c.trialTargetRepoSlug != "" {
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
@@ -168,6 +172,17 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 		if ifNoChanges, exists := configMap["if-no-changes"]; exists {
 			if ifNoChangesStr, ok := ifNoChanges.(string); ok {
 				pullRequestsConfig.IfNoChanges = ifNoChangesStr
+			}
+		}
+
+		// Parse target-repo
+		if targetRepoSlug, exists := configMap["target-repo"]; exists {
+			if targetRepoStr, ok := targetRepoSlug.(string); ok {
+				// Validate that target-repo is not "*" - only definite strings are allowed
+				if targetRepoStr == "*" {
+					return nil // Invalid configuration, return nil to cause validation error
+				}
+				pullRequestsConfig.TargetRepoSlug = targetRepoStr
 			}
 		}
 
