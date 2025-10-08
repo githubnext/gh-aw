@@ -18,14 +18,12 @@ safe-outputs:
     create-issue:
 timeout_minutes: 10
 strict: true
+imports:
+  - shared/gh-aw-mcp.md
 ---
 
-# Poem Generator
+- Report the status of the github agentic workflows in this repository.
 
-{{#import shared/use-emojis.md}}
+If status fails, give up.
 
-{{#if ${{ github.event.inputs.funny }}}}
-Be funny and creative! Make the poem humorous and entertaining.
-{{/if}}
-
-Write a poem and post it as an issue.
+- Summarize the logs information for the last 24h of activity in agentic workflows.
