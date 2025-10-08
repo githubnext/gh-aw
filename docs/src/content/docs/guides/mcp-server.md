@@ -57,20 +57,12 @@ The shared configuration (`shared/gh-aw-mcp.md`) contains:
 **Steps** (run with GITHUB_TOKEN):
 ```yaml
 steps:
-  - name: Set up Go
-    uses: actions/setup-go@v5
-    with:
-      go-version-file: go.mod
-      cache: true
-  
-  - name: Install dependencies
-    run: make deps-dev
-  
-  - name: Install binary as 'gh-aw'
-    run: make install
-  
+  - name: Install gh-aw
+    run: gh extension install githubnext/gh-aw   
+    env:
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
   - name: Start MCP server
-    run: gh-aw mcp-server --port 8765 &
+    run: gh aw mcp-server --port 8765 &
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ```
@@ -93,8 +85,6 @@ The MCP server provides these tools:
 - **compile** - Compile workflows to GitHub Actions YAML
 - **logs** - Download workflow logs (saved to `/tmp/aw-mcp/logs`)
 - **audit** - Generate detailed workflow run report (saved to `/tmp/aw-mcp/logs`)
-
-See the [CLI documentation](/gh-aw/tools/cli/#mcp-server) for detailed tool parameters.
 
 ## Example Workflow
 
@@ -123,6 +113,3 @@ Check all workflows in this repository:
 Logs are in `/tmp/aw-mcp/logs` for analysis.
 ```
 
-## Related Documentation
-
-- [CLI Commands](/gh-aw/tools/cli/) - Complete CLI reference
