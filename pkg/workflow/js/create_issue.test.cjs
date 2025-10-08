@@ -88,7 +88,7 @@ describe("create_issue.cjs", () => {
     delete global.context.payload.issue;
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "create_issue.js");
+    const scriptPath = path.join(process.cwd(), "create_issue.cjs");
     createIssueScript = fs.readFileSync(scriptPath, "utf8");
     createIssueScript = createIssueScript.replace("export {};", "");
   });
