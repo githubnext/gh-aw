@@ -4,12 +4,10 @@ mcp-servers:
     container: "ghcr.io/oraios/serena"
     version: "latest"
     args:
-      - "-v"
-      - "${{ github.workspace }}:/workspace:ro"
-      - "-w"
-      - "/workspace"
       - "--network"
       - "host"
+      - "-v"
+      - "${{ github.workspace }}:/workspace/projects"
       - "--entrypoint"
       - "serena"
       - "start-mcp-server"
@@ -19,9 +17,6 @@ mcp-servers:
       SERENA_DOCKER: "1"
       SERENA_PORT: "9121"
       SERENA_DASHBOARD_PORT: "24282"
-    network:
-      allowed:
-        - "github.com"
     allowed:
       - activate_project
       - find_symbol
