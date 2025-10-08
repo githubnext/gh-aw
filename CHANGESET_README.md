@@ -5,13 +5,10 @@ A minimalistic implementation for managing version releases, inspired by `@chang
 ## Usage
 
 ```bash
-# Preview next version from changesets
+# Preview next version from changesets (always read-only)
 node changeset.js version
 # Or use make target
 make changeset-version
-
-# Preview without modifying files (dry-run)
-node changeset.js version --dry-run
 
 # Create release and update CHANGELOG
 node changeset.js release
@@ -27,56 +24,49 @@ make changeset-dry-run
 node changeset.js release patch
 node changeset.js release minor
 node changeset.js release major
-
-# Dry-run for specific release type
-node changeset.js release minor --dry-run
 ```
 
-## Prerequisites for Release
+## Commands
 
-When running `node changeset.js release` (without `--dry-run`), the script checks:
+### `version`
 
-1. **Clean working tree**: All changes must be committed or stashed
-2. **On main branch**: Must be on the `main` branch to create a release
+The `version` command always operates in preview mode and never modifies files. It shows what the next version would be based on the changesets.
 
-These checks are skipped in dry-run mode to allow previewing from any branch or state.
-
-Example error when not on main branch:
 ```bash
-$ node changeset.js release
-✗ Must be on 'main' branch to create a release (currently on 'feature-branch')
+node changeset.js version
 ```
 
-## Dry-Run Mode
+This command:
+- Reads all changeset files from `.changeset/` directory
+- Determines the appropriate version bump (major > minor > patch)
+- Shows a preview of the CHANGELOG entry that would be added
+- Never modifies any files
 
-The `--dry-run` flag allows you to preview what changes would be made without actually modifying any files. This is useful for:
+### `release [type]`
 
+The `release` command creates an actual release by updating files.
+
+```bash
+node changeset.js release
+# Or specify type explicitly
+node changeset.js release minor
+```
+
+This command:
+- Checks prerequisites (clean tree, main branch) - unless using --dry-run
+- Updates `CHANGELOG.md` with the new version and changes
+- Deletes processed changeset files
+- Provides next steps for committing and tagging
+
+**With --dry-run flag:**
+```bash
+node changeset.js release --dry-run
+```
+
+Shows what would be changed without modifying any files. Useful for:
 - Previewing the CHANGELOG entry before committing
 - Checking which changeset files would be deleted
-- Verifying the version bump is correct
-
-Example output:
-```bash
-$ node changeset.js release --dry-run
-ℹ 🔍 DRY RUN MODE - No files will be modified
-
-ℹ Creating minor release: v0.15.0
-
-ℹ Would add to CHANGELOG.md:
----
-## v0.15.0 - 2025-10-08
-
-### Features
-- New feature description
-
-### Bug Fixes
-- Bug fix description
----
-
-ℹ Would remove 3 changeset file(s):
-  - .changeset/minor-feature.md
-  - .changeset/patch-bugfix.md
-```
+- Testing from any branch or with uncommitted changes
 
 ## Changeset File Format
 
@@ -95,44 +85,20 @@ Brief description of the change
 - `minor` - New features, backward compatible (0.x.0)
 - `major` - Breaking changes (x.0.0)
 
-## Commands
+## Prerequisites for Release
 
-### `version`
+When running `node changeset.js release` (without `--dry-run`), the script checks:
 
-Analyzes changeset files and previews the next release:
+1. **Clean working tree**: All changes must be committed or stashed
+2. **On main branch**: Must be on the `main` branch to create a release
 
+These checks are skipped in dry-run mode to allow previewing from any branch or state.
+
+Example error when not on main branch:
 ```bash
-node changeset.js version
+$ node changeset.js release
+✗ Must be on 'main' branch to create a release (currently on 'feature-branch')
 ```
-
-This command:
-- Reads all changeset files from `.changeset/` directory
-- Determines the appropriate version bump (major > minor > patch)
-- Generates or updates `CHANGELOG.md` with categorized changes
-- Shows a preview of the version bump and changes
-
-### `release [type]`
-
-Creates a release by updating CHANGELOG and cleaning up changeset files:
-
-```bash
-node changeset.js release
-```
-
-Optional: Specify release type explicitly:
-
-```bash
-node changeset.js release patch
-node changeset.js release minor
-node changeset.js release major
-```
-
-This command:
-- Updates `CHANGELOG.md` with the new version and changes
-- Deletes processed changeset files
-- Provides next steps for committing and tagging
-
-**Safety Note:** Major releases must be explicitly specified. If changesets indicate a major bump but no type is provided, the command will fail with a safety error.
 
 ## Release Workflow
 

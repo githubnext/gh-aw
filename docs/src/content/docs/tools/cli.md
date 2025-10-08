@@ -368,19 +368,16 @@ Bump types: `patch` (bug fixes), `minor` (new features), `major` (breaking chang
 
 **Version Planning:**
 ```bash
-# Analyze changesets and preview next version
+# Analyze changesets and preview next version (always read-only)
 node changeset.js version
 # Or use make target
 make changeset-version
 
-# Preview without modifying files (dry-run)
-node changeset.js version --dry-run
-
 # This will:
 # - Read all changeset files from .changeset/
 # - Determine version bump (highest priority: major > minor > patch)
-# - Generate/update CHANGELOG.md with categorized changes
-# - Show preview of version bump and changes
+# - Show preview of CHANGELOG entry
+# - Never modify any files
 ```
 
 **Creating a Release:**
@@ -397,7 +394,8 @@ make changeset-dry-run
 
 # Create specific release type
 node changeset.js release patch
-node changeset.js release minor --dry-run
+node changeset.js release minor
+node changeset.js release major
 
 # This will:
 # - Check prerequisites (clean tree, main branch)
@@ -408,7 +406,7 @@ node changeset.js release minor --dry-run
 
 **Prerequisites for Release:**
 
-When running without `--dry-run`, the script checks:
+When running `release` without `--dry-run`, the script checks:
 - **Clean working tree**: All changes must be committed or stashed
 - **On main branch**: Must be on the `main` branch
 
@@ -416,11 +414,7 @@ These checks are skipped in dry-run mode.
 
 **Dry-Run Mode:**
 
-The `--dry-run` flag allows previewing changes without modifying files. Useful for:
-- Previewing CHANGELOG entries before committing
-- Checking which changeset files would be deleted
-- Verifying the version bump is correct
-- Testing from any branch or with uncommitted changes
+The `--dry-run` flag (for `release` command only) allows previewing changes without modifying files. The `version` command always operates in preview mode.
 
 ```bash
 node changeset.js release --dry-run
@@ -431,12 +425,12 @@ make changeset-dry-run
 
 **Release Workflow:**
 1. Add changeset files to `.changeset/` directory for each change
-2. Run `node changeset.js version --dry-run` to preview the release
+2. Run `node changeset.js version` to preview the release
 3. Run `node changeset.js release` to prepare the release
 4. Review CHANGELOG.md
 5. Commit changes: `git add CHANGELOG.md .changeset/ && git commit -m "Release vX.Y.Z"`
 6. Create tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
-7. Push: `git push origin main vX.Y.Z`
+7. Push: `git push origin vX.Y.Z`
 
 > [!NOTE]
 > Major releases are not automatically created when running `node changeset.js release` without arguments. For safety, major releases must be explicitly specified: `node changeset.js release major`. When changesets indicate a major bump but no type is specified, the command will fail with a safety error.

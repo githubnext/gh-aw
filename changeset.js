@@ -375,7 +375,7 @@ function deleteChangesetFiles(changesets, dryRun = false) {
 
 /**
  * Run the version command
- * @param {boolean} dryRun - If true, preview changes without writing
+ * @param {boolean} dryRun - If true, preview changes without writing (deprecated, version always previews)
  */
 function runVersion(dryRun = false) {
   const changesets = readChangesets();
@@ -390,11 +390,6 @@ function runVersion(dryRun = false) {
   const nextVersion = bumpVersion(currentVersion, bumpType);
   const versionString = formatVersion(nextVersion);
   
-  if (dryRun) {
-    console.log(formatInfoMessage('🔍 DRY RUN MODE - No files will be modified'));
-    console.log('');
-  }
-  
   console.log(formatInfoMessage(`Current version: ${formatVersion(currentVersion)}`));
   console.log(formatInfoMessage(`Bump type: ${bumpType}`));
   console.log(formatInfoMessage(`Next version: ${versionString}`));
@@ -404,18 +399,14 @@ function runVersion(dryRun = false) {
     console.log(`  [${cs.bumpType}] ${extractFirstLine(cs.description)}`);
   }
   
-  // Update changelog
-  const changelogEntry = updateChangelog(versionString, changesets, dryRun);
+  // Generate changelog preview (never write in version command)
+  const changelogEntry = updateChangelog(versionString, changesets, true);
   
   console.log('');
-  if (dryRun) {
-    console.log(formatInfoMessage('Would add to CHANGELOG.md:'));
-    console.log('---');
-    console.log(changelogEntry);
-    console.log('---');
-  } else {
-    console.log(formatSuccessMessage('Updated CHANGELOG.md'));
-  }
+  console.log(formatInfoMessage('Would add to CHANGELOG.md:'));
+  console.log('---');
+  console.log(changelogEntry);
+  console.log('---');
 }
 
 /**
@@ -484,7 +475,7 @@ function runRelease(releaseType, dryRun = false) {
   console.log('  1. Review CHANGELOG.md');
   console.log(`  2. Commit changes: git add CHANGELOG.md .changeset/ && git commit -m "Release ${versionString}"`);
   console.log(`  3. Create tag: git tag -a ${versionString} -m "Release ${versionString}"`);
-  console.log(`  4. Push: git push origin main ${versionString}`);
+  console.log(`  4. Push: git push origin ${versionString}`);
 }
 
 /**
@@ -494,21 +485,21 @@ function showHelp() {
   console.log('Changeset CLI - Manage version releases');
   console.log('');
   console.log('Usage:');
-  console.log('  node changeset.js version [--dry-run]      - Preview next version from changesets');
-  console.log('  node changeset.js release [type] [--dry-run] - Create release and update CHANGELOG');
+  console.log('  node changeset.js version           - Preview next version from changesets');
+  console.log('  node changeset.js release [type]    - Create release and update CHANGELOG');
+  console.log('  node changeset.js release --dry-run - Preview release without modifying files');
   console.log('');
   console.log('Release types: patch, minor, major');
   console.log('');
   console.log('Flags:');
-  console.log('  --dry-run    Preview changes without modifying files');
+  console.log('  --dry-run    Preview release changes without modifying files (release only)');
   console.log('');
   console.log('Examples:');
   console.log('  node changeset.js version');
-  console.log('  node changeset.js version --dry-run');
   console.log('  node changeset.js release');
   console.log('  node changeset.js release --dry-run');
   console.log('  node changeset.js release patch');
-  console.log('  node changeset.js release minor --dry-run');
+  console.log('  node changeset.js release minor');
   console.log('  node changeset.js release major');
 }
 
