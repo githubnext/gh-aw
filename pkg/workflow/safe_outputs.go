@@ -337,6 +337,13 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 						}
 					}
 
+					// Parse target-repo
+					if targetRepo, exists := labelsMap["target-repo"]; exists {
+						if targetRepoStr, ok := targetRepo.(string); ok {
+							labelConfig.TargetRepoSlug = targetRepoStr
+						}
+					}
+
 					config.AddLabels = labelConfig
 				} else if labels == nil {
 					// Handle null case: create empty config (allows any labels)
