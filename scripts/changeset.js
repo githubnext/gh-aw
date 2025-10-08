@@ -462,13 +462,17 @@ function runRelease(releaseType) {
     console.log(formatInfoMessage('Creating tag...'));
     execSync(`git tag -a ${versionString} -m "Release ${versionString}"`, { encoding: 'utf8' });
     
+    // Push commit to remote
+    console.log(formatInfoMessage('Pushing commit...'));
+    execSync('git push', { encoding: 'utf8' });
+    
     // Push tag
     console.log(formatInfoMessage('Pushing tag...'));
     execSync(`git push origin ${versionString}`, { encoding: 'utf8' });
     
     console.log('');
     console.log(formatSuccessMessage(`Successfully released ${versionString}`));
-    console.log(formatSuccessMessage('Tag pushed to remote'));
+    console.log(formatSuccessMessage('Commit and tag pushed to remote'));
   } catch (error) {
     console.log('');
     console.error(formatErrorMessage('Git operation failed: ' + error.message));
@@ -477,6 +481,7 @@ function runRelease(releaseType) {
     console.log(`  git add CHANGELOG.md .changeset/`);
     console.log(`  git commit -m "Release ${versionString}"`);
     console.log(`  git tag -a ${versionString} -m "Release ${versionString}"`);
+    console.log(`  git push`);
     console.log(`  git push origin ${versionString}`);
     process.exit(1);
   }
