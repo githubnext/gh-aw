@@ -6,58 +6,54 @@ import (
 	"strings"
 )
 
-// CollectSecretsPattern generates a regex pattern that matches all secrets used in the workflow
-// This includes engine-specific secrets and MCP server secrets
-func CollectSecretsPattern(workflowData *WorkflowData, engine CodingAgentEngine) string {
-	secretPatterns := make([]string, 0)
-
-	// Add engine-specific secrets based on engine type
-	engineID := engine.GetID()
-	switch engineID {
-	case "claude":
-		// Match Anthropic API keys
-		// Format: sk-ant-... (actual format from Anthropic)
-		secretPatterns = append(secretPatterns, `sk-ant-[a-zA-Z0-9_-]{95,}`)
-	case "copilot":
-		// Match GitHub PATs (Personal Access Tokens)
-		// Formats: ghp_... (classic), github_pat_... (fine-grained)
-		secretPatterns = append(secretPatterns, `ghp_[a-zA-Z0-9]{36,}`)
-		secretPatterns = append(secretPatterns, `github_pat_[a-zA-Z0-9_]{82,}`)
-	case "codex":
-		// Match OpenAI API keys
-		// Format: sk-... or sk-proj-...
-		secretPatterns = append(secretPatterns, `sk-[a-zA-Z0-9]{32,}`)
-		secretPatterns = append(secretPatterns, `sk-proj-[a-zA-Z0-9]{20,}`)
+// CollectSecretReferences extracts all secret references from the workflow YAML
+// This scans for patterns like ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
+func CollectSecretReferences(yamlContent string) []string {
+	secretsMap := make(map[string]bool)
+	
+	// Pattern to match ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
+	// This matches both with and without the ${{ }} wrapper
+	secretPattern := regexp.MustCompile(`secrets\.([A-Z][A-Z0-9_]*)`)
+	
+	matches := secretPattern.FindAllStringSubmatch(yamlContent, -1)
+	for _, match := range matches {
+		if len(match) > 1 {
+			secretsMap[match[1]] = true
+		}
 	}
-
-	// Add generic GitHub token patterns that might be in MCP configs
-	// These are catch-all patterns for any GitHub tokens
-	secretPatterns = append(secretPatterns, `ghs_[a-zA-Z0-9]{36,}`) // GitHub App installation token
-	secretPatterns = append(secretPatterns, `gho_[a-zA-Z0-9]{36,}`) // GitHub OAuth token
-	secretPatterns = append(secretPatterns, `ghu_[a-zA-Z0-9]{36,}`) // GitHub user-to-server token
-
-	// TODO: Add MCP server-specific secret patterns if they're documented
-	// This would require parsing MCP configurations to find environment variable patterns
-
-	// Combine all patterns into a single alternation regex
-	if len(secretPatterns) == 0 {
-		return ""
+	
+	// Convert map to sorted slice for consistent ordering
+	secrets := make([]string, 0, len(secretsMap))
+	for secret := range secretsMap {
+		secrets = append(secrets, secret)
 	}
+	
+	// Sort for consistent output
+	sortStrings(secrets)
+	
+	return secrets
+}
 
-	// Create a single regex pattern with alternation
-	// We escape any special regex characters in the patterns (though our patterns don't have them)
-	combinedPattern := strings.Join(secretPatterns, "|")
-
-	return combinedPattern
+// sortStrings sorts a slice of strings in place
+func sortStrings(s []string) {
+	// Simple bubble sort for small slices
+	n := len(s)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if s[j] > s[j+1] {
+				s[j], s[j+1] = s[j+1], s[j]
+			}
+		}
+	}
 }
 
 // generateSecretRedactionStep generates a workflow step that redacts secrets from files in /tmp
-func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine) {
-	// Get the combined secrets pattern
-	secretsPattern := CollectSecretsPattern(workflowData, engine)
-
-	// If no secrets pattern, skip the redaction step
-	if secretsPattern == "" {
+func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowData *WorkflowData, engine CodingAgentEngine, yamlContent string) {
+	// Extract secret references from the generated YAML
+	secretReferences := CollectSecretReferences(yamlContent)
+	
+	// If no secrets found, skip the redaction step
+	if len(secretReferences) == 0 {
 		return
 	}
 
@@ -80,13 +76,17 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, workflowDa
 		}
 	}
 
-	// Add environment variable with the secrets pattern
+	// Add environment variables
 	yaml.WriteString("        env:\n")
-
-	// Escape the pattern for YAML (single quotes to avoid interpretation)
-	// We need to be careful with special characters in regex patterns
-	escapedPattern := strings.ReplaceAll(secretsPattern, "'", "''")
-	yaml.WriteString(fmt.Sprintf("          GITHUB_AW_SECRETS_PATTERN: '%s'\n", escapedPattern))
+	
+	// Pass the list of secret names as a comma-separated string
+	yaml.WriteString(fmt.Sprintf("          GITHUB_AW_SECRET_NAMES: '%s'\n", strings.Join(secretReferences, ",")))
+	
+	// Pass the actual secret values as environment variables so they can be redacted
+	// Each secret will be available as an environment variable
+	for _, secretName := range secretReferences {
+		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", secretName, secretName))
+	}
 }
 
 // validateSecretsPattern validates that the generated secrets pattern is a valid regex
@@ -100,5 +100,19 @@ func validateSecretsPattern(pattern string) error {
 		return fmt.Errorf("invalid secrets pattern regex: %w", err)
 	}
 
+	return nil
+}
+
+// validateSecretReferences validates that secret references are valid
+func validateSecretReferences(secrets []string) error {
+	// Secret names must be valid environment variable names
+	secretNamePattern := regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+	
+	for _, secret := range secrets {
+		if !secretNamePattern.MatchString(secret) {
+			return fmt.Errorf("invalid secret name: %s", secret)
+		}
+	}
+	
 	return nil
 }

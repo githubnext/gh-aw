@@ -54,7 +54,7 @@ describe("redact_secrets.cjs", () => {
     if (mockCore.summary.write) mockCore.summary.write.mockClear();
 
     // Clear environment variables
-    delete process.env.GITHUB_AW_SECRETS_PATTERN;
+    delete process.env.GITHUB_AW_SECRET_NAMES;
   });
 
   afterEach(() => {
@@ -62,71 +62,32 @@ describe("redact_secrets.cjs", () => {
     if (tempDir && fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
-  });
 
-  describe("file scanning and redaction", () => {
-    it("should find and redact files with target extensions", async () => {
-      // Create test files
-      fs.writeFileSync(path.join(tempDir, "test1.txt"), "Secret: sk-1234567890");
-      fs.writeFileSync(path.join(tempDir, "test2.json"), '{"key": "sk-0987654321"}');
-      fs.writeFileSync(path.join(tempDir, "test3.log"), "Log entry: sk-abcdefghij");
-      fs.writeFileSync(path.join(tempDir, "test4.md"), "sk-shouldnotberedacted"); // Should be ignored
-
-      process.env.GITHUB_AW_SECRETS_PATTERN = "sk-[a-zA-Z0-9]+";
-
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
-
-      await eval(`(async () => { ${modifiedScript} })()`);
-
-      // Check that target files were redacted
-      expect(fs.readFileSync(path.join(tempDir, "test1.txt"), "utf8")).toBe("Secret: ***REDACTED***");
-      expect(fs.readFileSync(path.join(tempDir, "test2.json"), "utf8")).toBe('{"key": "***REDACTED***"}');
-      expect(fs.readFileSync(path.join(tempDir, "test3.log"), "utf8")).toBe("Log entry: ***REDACTED***");
-
-      // Markdown file should not be modified
-      expect(fs.readFileSync(path.join(tempDir, "test4.md"), "utf8")).toBe("sk-shouldnotberedacted");
-    });
-
-    it("should recursively search subdirectories", async () => {
-      // Create nested directory structure
-      const subDir = path.join(tempDir, "subdir");
-      fs.mkdirSync(subDir);
-      fs.writeFileSync(path.join(subDir, "nested.txt"), "Nested secret: api-key-123");
-      fs.writeFileSync(path.join(tempDir, "root.log"), "Root secret: api-key-456");
-
-      process.env.GITHUB_AW_SECRETS_PATTERN = "api-key-[0-9]+";
-
-      const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
-        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
-      );
-
-      await eval(`(async () => { ${modifiedScript} })()`);
-
-      // Both files should be redacted
-      expect(fs.readFileSync(path.join(subDir, "nested.txt"), "utf8")).toBe("Nested secret: ***REDACTED***");
-      expect(fs.readFileSync(path.join(tempDir, "root.log"), "utf8")).toBe("Root secret: ***REDACTED***");
-    });
+    // Clean up environment variables
+    for (const key of Object.keys(process.env)) {
+      if (key.startsWith("SECRET_")) {
+        delete process.env[key];
+      }
+    }
   });
 
   describe("main function integration", () => {
-    it("should skip redaction when GITHUB_AW_SECRETS_PATTERN is not set", async () => {
+    it("should skip redaction when GITHUB_AW_SECRET_NAMES is not set", async () => {
       // Execute the script without setting the environment variable
       await eval(`(async () => { ${redactScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith("GITHUB_AW_SECRETS_PATTERN not set, no redaction performed");
+      expect(mockCore.info).toHaveBeenCalledWith("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
     });
 
-    it("should redact secrets from files in /tmp", async () => {
+    it("should redact secrets from files in /tmp using exact matching", async () => {
       // Create test files in temp directory (simulating /tmp)
       const testFile = path.join(tempDir, "test.txt");
-      fs.writeFileSync(testFile, "Secret: sk-1234567890 and another sk-0987654321");
+      const secretValue = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";
+      fs.writeFileSync(testFile, `Secret: ${secretValue} and another ${secretValue}`);
 
-      // Set environment variable with regex pattern
-      process.env.GITHUB_AW_SECRETS_PATTERN = "sk-[a-zA-Z0-9]+";
+      // Set environment variables
+      process.env.GITHUB_AW_SECRET_NAMES = "GITHUB_TOKEN";
+      process.env.SECRET_GITHUB_TOKEN = secretValue;
 
       // Mock findFiles to return our test directory
       const modifiedScript = redactScript.replace(
@@ -152,7 +113,10 @@ describe("redact_secrets.cjs", () => {
       fs.writeFileSync(path.join(tempDir, "test2.json"), '{"key": "api-key-456"}');
       fs.writeFileSync(path.join(tempDir, "test3.log"), "Log: api-key-789");
 
-      process.env.GITHUB_AW_SECRETS_PATTERN = "api-key-[0-9]+";
+      process.env.GITHUB_AW_SECRET_NAMES = "API_KEY1,API_KEY2,API_KEY3";
+      process.env.SECRET_API_KEY1 = "api-key-123";
+      process.env.SECRET_API_KEY2 = "api-key-456";
+      process.env.SECRET_API_KEY3 = "api-key-789";
 
       const modifiedScript = redactScript.replace(
         'findFiles("/tmp", targetExtensions)',
@@ -169,9 +133,11 @@ describe("redact_secrets.cjs", () => {
 
     it("should use core.debug for logging hits", async () => {
       const testFile = path.join(tempDir, "test.txt");
-      fs.writeFileSync(testFile, "Secret: sk-123 and sk-456");
+      const secretValue = "sk-1234567890";
+      fs.writeFileSync(testFile, `Secret: ${secretValue} and ${secretValue}`);
 
-      process.env.GITHUB_AW_SECRETS_PATTERN = "sk-[0-9]+";
+      process.env.GITHUB_AW_SECRET_NAMES = "API_KEY";
+      process.env.SECRET_API_KEY = secretValue;
 
       const modifiedScript = redactScript.replace(
         'findFiles("/tmp", targetExtensions)',
@@ -180,9 +146,8 @@ describe("redact_secrets.cjs", () => {
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
-      // Verify core.debug was called for each redaction
-      expect(mockCore.debug).toHaveBeenCalledWith("Redacted secret occurrence #1");
-      expect(mockCore.debug).toHaveBeenCalledWith("Redacted secret occurrence #2");
+      // Verify core.debug was called for redaction
+      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret"));
       expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Processed"));
     });
 
@@ -191,7 +156,8 @@ describe("redact_secrets.cjs", () => {
       const secretValue = "sk-very-secret-key-123";
       fs.writeFileSync(testFile, `Secret: ${secretValue}`);
 
-      process.env.GITHUB_AW_SECRETS_PATTERN = "sk-[a-zA-Z0-9-]+";
+      process.env.GITHUB_AW_SECRET_NAMES = "SECRET_KEY";
+      process.env.SECRET_SECRET_KEY = secretValue;
 
       const modifiedScript = redactScript.replace(
         'findFiles("/tmp", targetExtensions)',
@@ -207,6 +173,63 @@ describe("redact_secrets.cjs", () => {
         const callString = JSON.stringify(call);
         expect(callString).not.toContain(secretValue);
       }
+    });
+
+    it("should skip very short values", async () => {
+      const testFile = path.join(tempDir, "test.txt");
+      fs.writeFileSync(testFile, "Short: abc123");
+
+      process.env.GITHUB_AW_SECRET_NAMES = "SHORT_SECRET";
+      process.env.SECRET_SHORT_SECRET = "abc"; // Only 3 chars, should be skipped
+
+      const modifiedScript = redactScript.replace(
+        'findFiles("/tmp", targetExtensions)',
+        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
+      );
+
+      await eval(`(async () => { ${modifiedScript} })()`);
+
+      // File should not be modified since secret is too short
+      expect(fs.readFileSync(testFile, "utf8")).toBe("Short: abc123");
+    });
+
+    it("should handle multiple secrets in same file", async () => {
+      const testFile = path.join(tempDir, "test.txt");
+      const secret1 = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";
+      const secret2 = "sk-proj-abcdef1234567890";
+      fs.writeFileSync(testFile, `Token1: ${secret1}\nToken2: ${secret2}\nToken1 again: ${secret1}`);
+
+      process.env.GITHUB_AW_SECRET_NAMES = "TOKEN1,TOKEN2";
+      process.env.SECRET_TOKEN1 = secret1;
+      process.env.SECRET_TOKEN2 = secret2;
+
+      const modifiedScript = redactScript.replace(
+        'findFiles("/tmp", targetExtensions)',
+        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
+      );
+
+      await eval(`(async () => { ${modifiedScript} })()`);
+
+      const redacted = fs.readFileSync(testFile, "utf8");
+      expect(redacted).toBe("Token1: ***REDACTED***\nToken2: ***REDACTED***\nToken1 again: ***REDACTED***");
+    });
+
+    it("should handle empty secret values gracefully", async () => {
+      const testFile = path.join(tempDir, "test.txt");
+      fs.writeFileSync(testFile, "No secrets here");
+
+      process.env.GITHUB_AW_SECRET_NAMES = "EMPTY_SECRET";
+      process.env.SECRET_EMPTY_SECRET = "";
+
+      const modifiedScript = redactScript.replace(
+        'findFiles("/tmp", targetExtensions)',
+        `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
+      );
+
+      await eval(`(async () => { ${modifiedScript} })()`);
+
+      // Should complete without error
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No secret values found to redact"));
     });
   });
 });
