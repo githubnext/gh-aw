@@ -7,13 +7,16 @@ permissions:
   contents: read
   actions: read
 engine: claude
+mcp-servers:
+  gh-aw:
+    command: "./gh-aw"
+    args: ["mcp-server"]
+    env:
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 tools:
   cache-memory: true
   bash:
     - "make build"
-    - "./gh-aw logs*"
-    - "./gh-aw status"
-    - "./gh-aw audit*"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -41,36 +44,53 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 - **Triggered by**: ${{ github.actor }}
 - **Run Time**: ${{ github.run_id }}
 
+## Available Tools
+
+You have access to the `gh-aw` MCP server which provides the following tools:
+
+- **status** - Show status of agentic workflow files
+- **compile** - Compile markdown workflow files to YAML
+- **logs** - Download and analyze workflow logs (output forced to `/tmp/aw-mcp/logs`)
+- **audit** - Investigate a workflow run and generate a report (output forced to `/tmp/aw-mcp/logs`)
+
+The MCP server has access to the GITHUB_TOKEN secret, which allows it to interact with the GitHub API to fetch workflow runs, logs, and artifacts without exposing the token to the workflow process.
+
 ## Audit Process
 
-### Phase 1: Build and Prepare
+### Phase 1: Build the MCP Server
 
-1. **Build the CLI**:
+1. **Build the gh-aw CLI**:
    ```bash
    make build
    ```
-   This compiles the `gh-aw` binary needed for log analysis.
+   This compiles the `gh-aw` binary needed for the MCP server.
 
 2. **Verify Build**:
-   - Confirm the binary was created successfully
+   - Confirm the binary was created successfully at `./gh-aw`
    - Check for any build warnings or errors
+
+The workflow will automatically configure the binary as an MCP server once built. The server runs in isolation with access to GITHUB_TOKEN, ensuring secrets are not exposed to the workflow process.
 
 ### Phase 2: Collect Workflow Logs
 
 1. **Download Logs from Last 24 Hours**:
-   ```bash
-   ./gh-aw logs --start-date -1d -o ./audit-logs --verbose
-   ```
-   This downloads all agentic workflow logs from the past 24 hours to the `./audit-logs` directory.
+   Use the `logs` tool from the gh-aw MCP server:
+   - Workflow name: (leave empty to get all workflows)
+   - Count: Set appropriately for 24 hours of activity
+   - Start date: "-1d" (last 24 hours)
+   - Engine: (optional filter by claude, codex, or copilot)
+   - Branch: (optional filter by branch name)
+   
+   The logs will be downloaded to `/tmp/aw-mcp/logs` automatically.
 
 2. **Verify Log Collection**:
-   - Check that logs were downloaded successfully
+   - Check that logs were downloaded successfully in `/tmp/aw-mcp/logs`
    - Note how many workflow runs were found
    - Identify which workflows were active
 
 ### Phase 3: Analyze Logs for Issues
 
-Review the downloaded logs and identify:
+Review the downloaded logs in `/tmp/aw-mcp/logs` and identify:
 
 #### 3.1 Missing Tools Analysis
 - Check for any missing tool reports in the logs
@@ -229,6 +249,24 @@ In this case:
 - Exit gracefully
 
 ## Important Guidelines
+
+### MCP Server Security
+
+The gh-aw MCP server is configured with:
+- **GITHUB_TOKEN access**: The MCP server runs with the GITHUB_TOKEN secret, allowing it to authenticate with GitHub APIs
+- **Process isolation**: The token is only accessible to the MCP server subprocess, not the main workflow process
+- **Fixed output directories**: Logs and audit reports are written to `/tmp/aw-mcp/logs` to prevent directory traversal attacks
+- **Validation always enabled**: The compile tool always validates workflows for security
+
+### Using the MCP Server Tools
+
+When calling MCP tools:
+- **logs**: Downloads workflow logs and artifacts. Supports filtering by date, engine, branch, and run ID.
+- **audit**: Investigates a specific workflow run. Requires the run ID as input.
+- **status**: Shows the status of workflow files. Can filter by pattern.
+- **compile**: Compiles markdown workflows to YAML. Always validates for security.
+
+All downloaded files will be in `/tmp/aw-mcp/logs`. Read files from this directory to perform your analysis.
 
 ### Security and Safety
 - **Never execute untrusted code** from workflow logs
