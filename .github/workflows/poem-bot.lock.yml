@@ -2530,9 +2530,11 @@ jobs:
                 for (const secretName of secretNameList) {
                   const envVarName = `SECRET_${secretName}`;
                   const secretValue = process.env[envVarName];
-                  if (secretValue && secretValue.trim()) {
-                    secretValues.push(secretValue.trim());
+                  // Skip empty or undefined secrets
+                  if (!secretValue || secretValue.trim() === "") {
+                    continue;
                   }
+                  secretValues.push(secretValue.trim());
                 }
                 if (secretValues.length === 0) {
                   core.info("No secret values found to redact");
