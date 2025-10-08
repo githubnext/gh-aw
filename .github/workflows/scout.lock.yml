@@ -158,6 +158,21 @@ jobs:
     outputs:
       text: ${{ steps.compute-text.outputs.text }}
     steps:
+      - name: Check workflow file timestamps
+        run: |
+          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
+          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
+          
+          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
+            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
+              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
+              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
+              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
+              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
+              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
       - name: Compute current body text
         id: compute-text
         uses: actions/github-script@v8
