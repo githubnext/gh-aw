@@ -1,8 +1,11 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestCodexEngine(t *testing.T) {
@@ -92,19 +95,20 @@ func TestCodexEngine(t *testing.T) {
 func TestCodexEngineWithVersion(t *testing.T) {
 	engine := NewCodexEngine()
 
-	// Test installation steps without version (should use 'latest')
+	// Test installation steps without version (should use pinned default version)
 	stepsNoVersion := engine.GetInstallationSteps(&WorkflowData{})
 	foundNoVersionInstall := false
+	expectedVersion := fmt.Sprintf("npm install -g @openai/codex@%s", constants.DefaultCodexVersion)
 	for _, step := range stepsNoVersion {
 		for _, line := range step {
-			if strings.Contains(line, "npm install -g @openai/codex@latest") {
+			if strings.Contains(line, expectedVersion) {
 				foundNoVersionInstall = true
 				break
 			}
 		}
 	}
 	if !foundNoVersionInstall {
-		t.Error("Expected npm install command with @latest when no version specified")
+		t.Errorf("Expected npm install command with @%s when no version specified", constants.DefaultCodexVersion)
 	}
 
 	// Test installation steps with version
