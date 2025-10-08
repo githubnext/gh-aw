@@ -137,6 +137,50 @@ func TestApplyRuntimeOverrides(t *testing.T) {
 				"node": "20",
 			},
 		},
+		{
+			name: "override action-repo",
+			runtimes: map[string]any{
+				"node": map[string]any{
+					"version":        "22",
+					"action-repo":    "custom/setup-node",
+					"action-version": "v5",
+				},
+			},
+			requirements: map[string]*RuntimeRequirement{
+				"node": {
+					Runtime: &Runtime{
+						ID:            "node",
+						ActionRepo:    "actions/setup-node",
+						ActionVersion: "v4",
+					},
+					Version: "20",
+				},
+			},
+			expected: map[string]string{
+				"node": "22",
+			},
+		},
+		{
+			name: "override only action-version",
+			runtimes: map[string]any{
+				"python": map[string]any{
+					"action-version": "v6",
+				},
+			},
+			requirements: map[string]*RuntimeRequirement{
+				"python": {
+					Runtime: &Runtime{
+						ID:            "python",
+						ActionRepo:    "actions/setup-python",
+						ActionVersion: "v5",
+					},
+					Version: "3.11",
+				},
+			},
+			expected: map[string]string{
+				"python": "3.11",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -157,6 +201,27 @@ func TestApplyRuntimeOverrides(t *testing.T) {
 				}
 				if req.Version != expectedVersion {
 					t.Errorf("Expected version %s for %s, got %s", expectedVersion, id, req.Version)
+				}
+			}
+
+			// Additional checks for action-repo and action-version overrides
+			if tt.name == "override action-repo" {
+				req := tt.requirements["node"]
+				if req.Runtime.ActionRepo != "custom/setup-node" {
+					t.Errorf("Expected ActionRepo 'custom/setup-node', got '%s'", req.Runtime.ActionRepo)
+				}
+				if req.Runtime.ActionVersion != "v5" {
+					t.Errorf("Expected ActionVersion 'v5', got '%s'", req.Runtime.ActionVersion)
+				}
+			}
+
+			if tt.name == "override only action-version" {
+				req := tt.requirements["python"]
+				if req.Runtime.ActionVersion != "v6" {
+					t.Errorf("Expected ActionVersion 'v6', got '%s'", req.Runtime.ActionVersion)
+				}
+				if req.Runtime.ActionRepo != "actions/setup-python" {
+					t.Errorf("Expected ActionRepo to remain 'actions/setup-python', got '%s'", req.Runtime.ActionRepo)
 				}
 			}
 		})

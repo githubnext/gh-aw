@@ -275,6 +275,14 @@
                 "description": "Runtime version as a number (e.g., 22, 3.12)"
               }
             ]
+          },
+          "action-repo": {
+            "type": "string",
+            "description": "GitHub Actions repository for setting up the runtime (e.g., 'actions/setup-node', 'custom/setup-runtime'). Overrides the default setup action."
+          },
+          "action-version": {
+            "type": "string",
+            "description": "Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default action version."
           }
         },
         "additionalProperties": false

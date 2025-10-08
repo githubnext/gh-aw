@@ -237,3 +237,61 @@ Test workflow with runtime overrides applied to steps.
 		t.Error("Expected node-version: '22' in lock file")
 	}
 }
+
+func TestCompileWorkflowWithCustomActionRepo(t *testing.T) {
+	// Create temp directory for test
+	tempDir, err := os.MkdirTemp("", "runtime-custom-action-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create workflow with custom action-repo and action-version
+	workflowContent := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+steps:
+  - name: Install dependencies
+    run: npm install
+runtimes:
+  node:
+    version: "22"
+    action-repo: "custom/setup-node"
+    action-version: "v5"
+---
+
+# Test Workflow
+
+Test workflow with custom setup action.
+`
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Verify that custom setup action is used
+	if !strings.Contains(lockStr, "custom/setup-node@v5") {
+		t.Error("Expected custom/setup-node@v5 action in lock file")
+	}
+	if !strings.Contains(lockStr, "node-version: '22'") {
+		t.Error("Expected node-version: '22' in lock file")
+	}
+}
