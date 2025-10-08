@@ -445,12 +445,46 @@ function runRelease(releaseType) {
   console.log(formatSuccessMessage('Updated CHANGELOG.md'));
   console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
   
+  // Execute git operations automatically
   console.log('');
-  console.log(formatInfoMessage('Next steps:'));
-  console.log('  1. Review CHANGELOG.md');
-  console.log(`  2. Commit changes: git add CHANGELOG.md .changeset/ && git commit -m "Release ${versionString}"`);
-  console.log(`  3. Create tag: git tag -a ${versionString} -m "Release ${versionString}"`);
-  console.log(`  4. Push: git push origin ${versionString}`);
+  console.log(formatInfoMessage('Executing git operations...'));
+  
+  try {
+    // Stage changes
+    console.log(formatInfoMessage('Staging changes...'));
+    execSync('git add CHANGELOG.md .changeset/', { encoding: 'utf8' });
+    
+    // Commit changes
+    console.log(formatInfoMessage('Committing changes...'));
+    execSync(`git commit -m "Release ${versionString}"`, { encoding: 'utf8' });
+    
+    // Create tag
+    console.log(formatInfoMessage('Creating tag...'));
+    execSync(`git tag -a ${versionString} -m "Release ${versionString}"`, { encoding: 'utf8' });
+    
+    // Push commit to remote
+    console.log(formatInfoMessage('Pushing commit...'));
+    execSync('git push', { encoding: 'utf8' });
+    
+    // Push tag
+    console.log(formatInfoMessage('Pushing tag...'));
+    execSync(`git push origin ${versionString}`, { encoding: 'utf8' });
+    
+    console.log('');
+    console.log(formatSuccessMessage(`Successfully released ${versionString}`));
+    console.log(formatSuccessMessage('Commit and tag pushed to remote'));
+  } catch (error) {
+    console.log('');
+    console.error(formatErrorMessage('Git operation failed: ' + error.message));
+    console.log('');
+    console.log(formatInfoMessage('You can complete the release manually with:'));
+    console.log(`  git add CHANGELOG.md .changeset/`);
+    console.log(`  git commit -m "Release ${versionString}"`);
+    console.log(`  git tag -a ${versionString} -m "Release ${versionString}"`);
+    console.log(`  git push`);
+    console.log(`  git push origin ${versionString}`);
+    process.exit(1);
+  }
 }
 
 /**

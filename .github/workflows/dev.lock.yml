@@ -4,23 +4,15 @@
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
 # Resolved workflow manifest:
-#   Includes:
-#     - shared/keep-it-short.md
-#     - shared/use-emojis.md
+#   Imports:
+#     - shared/gh-aw-mcp.md
 
 name: "Dev"
 on:
   push:
     branches:
-    - copilot*
-    - detection
-    - codex*
-  workflow_dispatch:
-    inputs:
-      funny:
-        description: Make the poem funny
-        required: false
-        type: boolean
+    - copilot/*
+  workflow_dispatch: null
 
 permissions: {}
 
@@ -139,6 +131,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache: true
+          go-version-file: go.mod
+      - name: Install dependencies
+        run: make deps-dev
+      - name: Install binary as 'gh-aw'
+        run: make install
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: Start MCP server
+        run: gh-aw mcp-server --port 8765 &
+
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -979,6 +985,10 @@ jobs:
           cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
+              "gh-aw": {
+                "type": "http",
+                "url": "http://localhost:8765"
+              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -1014,21 +1024,13 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Poem Generator
           
-          ## Use Emojis
           
-          Use emojis to make your responses more engaging and easier to read. 😊
+          - Report the status of the github agentic workflows in this repository.
           
-          ## Keep It Short
+          If status fails, give up.
           
-          Keep your responses concise and to the point. Avoid unnecessary elaboration.
-          
-          {{#if ${{ github.event.inputs.funny }}}}
-          Be funny and creative! Make the poem humorous and entertaining.
-          {{/if}}
-          
-          Write a poem and post it as an issue.
+          - Summarize the logs information for the last 24h of activity in agentic workflows.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1084,42 +1086,6 @@ jobs:
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
-      - name: Render template conditionals
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-        with:
-          script: |
-            const fs = require("fs");
-            function isTruthy(expr) {
-              const v = expr.trim().toLowerCase();
-              return !(v === "" || v === "false" || v === "0" || v === "null" || v === "undefined");
-            }
-            function renderMarkdownTemplate(markdown) {
-              return markdown.replace(/{{#if\s+([^}]+)}}([\s\S]*?){{\/if}}/g, (_, cond, body) => (isTruthy(cond) ? body : ""));
-            }
-            function main() {
-              try {
-                const promptPath = process.env.GITHUB_AW_PROMPT;
-                if (!promptPath) {
-                  core.setFailed("GITHUB_AW_PROMPT environment variable is not set");
-                  process.exit(1);
-                }
-                const markdown = fs.readFileSync(promptPath, "utf8");
-                const hasConditionals = /{{#if\s+[^}]+}}/.test(markdown);
-                if (!hasConditionals) {
-                  core.info("No conditional blocks found in prompt, skipping template rendering");
-                  process.exit(0);
-                }
-                const rendered = renderMarkdownTemplate(markdown);
-                fs.writeFileSync(promptPath, rendered, "utf8");
-                core.info("Template rendered successfully");
-                core.summary.addHeading("Template Rendering", 3).addRaw("\n").addRaw("Processed conditional blocks in prompt\n").write();
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error.message : String(error));
-              }
-            }
-            main();
       - name: Print prompt to step summary
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -2611,7 +2577,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Poem Generator\n\n## Use Emojis\n\nUse emojis to make your responses more engaging and easier to read. 😊\n\n## Keep It Short\n\nKeep your responses concise and to the point. Avoid unnecessary elaboration.\n\n{{#if ${{ github.event.inputs.funny }}}}\nBe funny and creative! Make the poem humorous and entertaining.\n{{/if}}\n\nWrite a poem and post it as an issue.\n"
+          WORKFLOW_MARKDOWN: "\n\n- Report the status of the github agentic workflows in this repository.\n\nIf status fails, give up.\n\n- Summarize the logs information for the last 24h of activity in agentic workflows.\n"
         with:
           script: |
             const fs = require('fs');

@@ -174,5 +174,5 @@ func (c *Compiler) mergeToolsAndMCPServers(topTools, mcpServers map[string]any, 
 	}
 
 	// Merge included tools
-	return c.mergeTools(result, includedTools)
+	return c.MergeTools(result, includedTools)
 }

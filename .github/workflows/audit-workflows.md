@@ -9,11 +9,6 @@ permissions:
 engine: claude
 tools:
   cache-memory: true
-  bash:
-    - "make build"
-    - "./gh-aw logs*"
-    - "./gh-aw status"
-    - "./gh-aw audit*"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -25,6 +20,8 @@ safe-outputs:
     draft: true
 timeout_minutes: 20
 strict: true
+imports:
+  - shared/gh-aw-mcp.md
 ---
 
 # Agentic Workflow Audit Agent
@@ -43,42 +40,42 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 
 ## Audit Process
 
-### Phase 1: Build and Prepare
+### Phase 0: Setup
 
-1. **Build the CLI**:
-   ```bash
-   make build
-   ```
-   This compiles the `gh-aw` binary needed for log analysis.
+- DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.
+- Do not attempt do download the `gh aw` extension or built it. If the MCP fails, give up.
+- Run the `status` tool of `gh-aw` MCP server to verify configuration. 
 
-2. **Verify Build**:
-   - Confirm the binary was created successfully
-   - Check for any build warnings or errors
+### Phase 1: Collect Workflow Logs
 
-### Phase 2: Collect Workflow Logs
+The gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.
 
 1. **Download Logs from Last 24 Hours**:
-   ```bash
-   ./gh-aw logs --start-date -1d -o ./audit-logs --verbose
-   ```
-   This downloads all agentic workflow logs from the past 24 hours to the `./audit-logs` directory.
+   Use the `logs` tool from the gh-aw MCP server:
+   - Workflow name: (leave empty to get all workflows)
+   - Count: Set appropriately for 24 hours of activity
+   - Start date: "-1d" (last 24 hours)
+   - Engine: (optional filter by claude, codex, or copilot)
+   - Branch: (optional filter by branch name)
+   
+   The logs will be downloaded to `/tmp/aw-mcp/logs` automatically.
 
 2. **Verify Log Collection**:
-   - Check that logs were downloaded successfully
+   - Check that logs were downloaded successfully in `/tmp/aw-mcp/logs`
    - Note how many workflow runs were found
    - Identify which workflows were active
 
-### Phase 3: Analyze Logs for Issues
+### Phase 2: Analyze Logs for Issues
 
-Review the downloaded logs and identify:
+Review the downloaded logs in `/tmp/aw-mcp/logs` and identify:
 
-#### 3.1 Missing Tools Analysis
+#### 2.1 Missing Tools Analysis
 - Check for any missing tool reports in the logs
 - Look for patterns in missing tools across workflows
 - Identify tools that are frequently requested but unavailable
 - Determine if missing tools are legitimate needs or misconfigurations
 
-#### 3.2 Error Detection
+#### 2.2 Error Detection
 - Scan logs for error messages and stack traces
 - Identify failing workflow runs
 - Categorize errors by type:
@@ -89,19 +86,19 @@ Review the downloaded logs and identify:
   - Resource constraints
   - AI model errors
 
-#### 3.3 Performance Metrics
+#### 2.3 Performance Metrics
 - Review token usage and costs
 - Identify workflows with unusually high resource consumption
 - Check for workflows exceeding timeout limits
 - Analyze turn counts and efficiency
 
-#### 3.4 Pattern Recognition
+#### 2.4 Pattern Recognition
 - Identify recurring issues across multiple workflows
 - Detect workflows that frequently fail
 - Find common error signatures
 - Look for trends in tool usage
 
-### Phase 4: Store Analysis in Cache Memory
+### Phase 3: Store Analysis in Cache Memory
 
 Use the cache memory folder `/tmp/cache-memory/` to build persistent knowledge:
 
@@ -120,7 +117,7 @@ Use the cache memory folder `/tmp/cache-memory/` to build persistent knowledge:
    - Identify new issues vs. recurring problems
    - Track improvement or degradation over time
 
-### Phase 5: Decision Making
+### Phase 4: Decision Making
 
 Based on your analysis, decide the appropriate action:
 

@@ -103,6 +103,8 @@ Your research summary should be formatted as a comment with:
 ## Executive Summary
 [Brief overview of key findings]
 
+<details>
+<summary>Click to expand detailed findings</summary>
 ## Research Findings
 
 ### [Topic 1]
@@ -127,7 +129,12 @@ Your research summary should be formatted as a comment with:
 1. [Action item 1]
 2. [Action item 2]
 [...]
+</details>
 ```
+
+## SHORTER IS BETTER
+
+Focus on the most relevant and actionable information. Avoid overwhelming detail. Keep it concise and to the point.
 
 ## Important Notes
 

@@ -51,7 +51,8 @@ This command:
 - Checks prerequisites (clean tree, main branch)
 - Updates `CHANGELOG.md` with the new version and changes
 - Deletes processed changeset files
-- Provides next steps for committing and tagging
+- Automatically commits the changes
+- Creates and pushes a git tag for the release
 
 ## Changeset File Format
 
@@ -106,28 +107,20 @@ $ node scripts/changeset.js release
    ```bash
    node scripts/changeset.js release
    ```
-
-4. **Review and commit:**
-   ```bash
-   # Review the updated CHANGELOG.md
-   cat CHANGELOG.md
    
-   # Commit the changes
-   git add CHANGELOG.md .changeset/
-   git commit -m "Release v0.15.0"
-   ```
-
-5. **Create and push tag:**
-   ```bash
-   git tag -a v0.15.0 -m "Release v0.15.0"
-   git push origin v0.15.0
-   ```
+   This will automatically:
+   - Update CHANGELOG.md
+   - Delete changeset files
+   - Commit the changes
+   - Create a git tag
+   - Push the tag to remote
 
 ## Features
 
 - ✅ **Automatic Version Determination**: Analyzes all changesets and picks the highest priority bump type
 - ✅ **CHANGELOG Generation**: Creates formatted entries with proper categorization (Breaking Changes, Features, Bug Fixes)
 - ✅ **Git Integration**: Reads current version from git tags
+- ✅ **Automated Git Operations**: Automatically commits, tags, and pushes releases
 - ✅ **Safety First**: Requires explicit specification for major releases
 - ✅ **Clean Workflow**: Deletes processed changesets after release
 - ✅ **Zero Dependencies**: Pure Node.js implementation
