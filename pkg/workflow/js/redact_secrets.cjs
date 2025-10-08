@@ -129,7 +129,6 @@ async function main() {
 
       if (secretValue && secretValue.trim()) {
         secretValues.push(secretValue.trim());
-        core.debug(`Collected secret for redaction: ${secretName}`);
       }
     }
 
