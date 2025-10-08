@@ -1,17 +1,12 @@
 ---
-name: Dev
 on: 
   workflow_dispatch:
-    inputs:
-      funny:
-        description: 'Make the poem funny'
-        required: false
-        type: boolean
   push:
     branches:
       - copilot*
       - detection
       - codex*
+name: Dev
 engine: claude
 safe-outputs:
     staged: true

@@ -14,12 +14,7 @@ on:
     - copilot*
     - detection
     - codex*
-  workflow_dispatch:
-    inputs:
-      funny:
-        description: Make the poem funny
-        required: false
-        type: boolean
+  workflow_dispatch: null
 
 permissions: {}
 
