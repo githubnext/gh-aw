@@ -11,7 +11,9 @@ safe-outputs:
     create-issue:
 timeout_minutes: 10
 strict: true
+imports:
+  - shared/serena-mcp.md
 ---
 
 Use serena to count lines of code in the repository.
-Fail if serana mCP server is not available.
+Fail if serena mCP server is not available.
