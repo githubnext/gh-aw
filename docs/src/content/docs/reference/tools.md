@@ -77,6 +77,44 @@ Arguments are appended to the generated MCP server command and properly escaped 
 
 The system automatically includes comprehensive default read-only GitHub tools. These defaults are merged with your custom `allowed` tools, providing comprehensive repository access.
 
+### GitHub HTTP Mode (Hosted MCP Server)
+
+The GitHub tool supports two modes of operation:
+1. **Docker mode** (default): Runs the GitHub MCP server in a Docker container
+2. **HTTP mode**: Uses a hosted GitHub MCP server via HTTP
+
+To enable HTTP mode, specify the `url` field:
+
+```yaml
+tools:
+  github:
+    url: "https://api.mcp.github.com/v0/servers/github/github"
+    github-token: "${{ secrets.CUSTOM_PAT }}"
+    allowed: [list_issues, create_issue]
+```
+
+**Important**: The hosted GitHub MCP server does **not** support the default GitHub Actions `GITHUB_TOKEN`. You must provide a custom Personal Access Token (PAT) using the `github-token` field.
+
+#### HTTP Mode Configuration
+
+- **`url`**: URL of the hosted GitHub MCP server
+- **`github-token`**: Custom GitHub token (required for HTTP mode)
+  - Example: `"${{ secrets.CUSTOM_PAT }}"`
+  - The token is passed as a Bearer token in the Authorization header
+
+#### Docker Mode with Custom Token
+
+You can also use a custom GitHub token with the default Docker mode (without specifying `url`):
+
+```yaml
+tools:
+  github:
+    github-token: "${{ secrets.CUSTOM_PAT }}"
+    allowed: [list_issues, create_issue]
+```
+
+This is useful when the default `GH_AW_GITHUB_TOKEN` or `GITHUB_TOKEN` secrets don't have sufficient permissions for your workflow.
+
 **Default Read-Only Tools**:
 
 **Actions**: `download_workflow_run_artifact`, `get_job_logs`, `get_workflow_run`, `list_workflows`
