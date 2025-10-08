@@ -135,6 +135,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Install ast-grep
         run: |-
           npm install --global @ast-grep/cli
@@ -182,10 +186,6 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
