@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/goccy/go-yaml"
 )
 
@@ -295,7 +296,7 @@ func GenerateRuntimeSetupSteps(requirements []RuntimeRequirement) []GitHubAction
 // generateNodeSetup creates a setup-node step
 func generateNodeSetup(version string) GitHubActionStep {
 	if version == "" {
-		version = "24" // Default Node.js version
+		version = constants.DefaultNodeVersion
 	}
 	return GitHubActionStep{
 		"      - name: Setup Node.js",
@@ -308,7 +309,7 @@ func generateNodeSetup(version string) GitHubActionStep {
 // generatePythonSetup creates a setup-python step
 func generatePythonSetup(version string) GitHubActionStep {
 	if version == "" {
-		version = "3.12" // Default Python version
+		version = constants.DefaultPythonVersion
 	}
 	return GitHubActionStep{
 		"      - name: Setup Python",
@@ -341,7 +342,7 @@ func generateGoSetup(version string) GitHubActionStep {
 // generateRubySetup creates a setup-ruby step
 func generateRubySetup(version string) GitHubActionStep {
 	if version == "" {
-		version = "3.3" // Default Ruby version
+		version = constants.DefaultRubyVersion
 	}
 	return GitHubActionStep{
 		"      - name: Setup Ruby",
