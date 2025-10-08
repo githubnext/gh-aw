@@ -32,10 +32,6 @@
     "removeComments": true
   },
   "include": [
-    "add_labels.ts",
-    "create_discussion.ts",
-    "create_issue.ts",
-    "collect_ndjson_output.ts",
     "types/*.d.ts"
   ],
   "exclude": [

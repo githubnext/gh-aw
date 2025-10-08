@@ -87,7 +87,7 @@ describe("create_discussion.cjs", () => {
     delete process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID;
 
     // Read the script content
-    const scriptPath = path.join(process.cwd(), "create_discussion.js");
+    const scriptPath = path.join(process.cwd(), "create_discussion.cjs");
     createDiscussionScript = fs.readFileSync(scriptPath, "utf8");
     createDiscussionScript = createDiscussionScript.replace("export {};", "");
   });

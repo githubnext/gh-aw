@@ -13,7 +13,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: js fmt-cjs
+build: fmt-cjs
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -138,18 +138,6 @@ fmt:
 fmt-cjs:
 	cd pkg/workflow/js && npm run format:cjs
 
-# Run TypeScript compiler on JavaScript files
-.PHONY: js
-js:
-	echo "Running TypeScript compiler..."; \
-	cd pkg/workflow/js && npm run compile
-
-# Compile TypeScript files to CommonJS
-.PHONY: compile-ts
-compile-ts:
-	echo "Compiling TypeScript files..."; \
-	cd pkg/workflow/js && npm run compile
-
 # Check formatting
 .PHONY: fmt-check
 fmt-check:
@@ -256,7 +244,7 @@ minor-release:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt fmt-cjs lint js compile-ts build test-all recompile
+agent-finish: deps-dev fmt fmt-cjs lint build test-all recompile
 	@echo "Agent finished tasks successfully."
 
 # Help target
@@ -276,7 +264,6 @@ help:
 	@echo "  lint             - Run linter"
 	@echo "  fmt              - Format code"
 	@echo "  fmt-cjs          - Format JavaScript (.cjs and .js) files"
-	@echo "  compile-ts       - Compile TypeScript files to JavaScript (.js)"
 	@echo "  fmt-check        - Check code formatting"
 	@echo "  fmt-check-cjs    - Check JavaScript (.cjs) file formatting"
 	@echo "  lint-cjs         - Lint JavaScript (.cjs) files"
