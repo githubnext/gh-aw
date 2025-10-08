@@ -1,27 +1,32 @@
 ---
 mcp-servers:
   serena:
-    container: "ghcr.io/oraios/serena"
-    version: "latest"
+    command: "uvx"
     args:
-      - "-v"
-      - "${{ github.workspace }}:/workspace:ro"
-      - "-w"
-      - "/workspace"
-    env:
-      SERENA_DOCKER: "1"
-      SERENA_PORT: "9121"
-      SERENA_DASHBOARD_PORT: "24282"
-    network:
-      allowed:
-        - "github.com"
-    allowed:
-      - activate_project
-      - find_symbol
-      - find_referencing_symbols
-      - get_symbols_overview
-      - read_file
-      - search_for_pattern
-      - list_dir
-      - find_file
+      - "--from"
+      - "git+https://github.com/oraios/serena"
+      - "serena"
+      - "start-mcp-server"
+      - "--context"
+      - "codex"
+    allowed: ["*"]
+steps:
+  - name: Setup python
+    uses: actions/setup-python@v6
+    with:
+      python-version: "3.13"
+  - name: Install uv
+    uses: astral-sh/setup-uv@v6
+  - name: Verify uv
+    run: uv --version
+  - name: Install Go language service
+    run: go install golang.org/x/tools/gopls@latest
 ---
+
+Activate the current dir as project using serena.
+
+<!--
+
+  # https://github.com/mcp/oraios/serena#using-docker-experimental
+
+-->
