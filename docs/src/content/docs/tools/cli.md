@@ -470,6 +470,8 @@ The audit command generates a structured markdown report with:
 The `mcp` command provides comprehensive tools for discovering, listing, and inspecting Model Context Protocol (MCP) servers configured in your workflows.
 
 > **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](/gh-aw/guides/mcps/).
+> 
+> **🔧 MCP Server**: To run gh-aw as an MCP server exposing CLI tools, see the [MCP Server Guide](/gh-aw/guides/mcp-server/).
 
 ### MCP Server Discovery
 
@@ -574,6 +576,55 @@ gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
 - Registry integration with GitHub's MCP registry (https://api.mcp.github.com/v0)
 
 For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](/gh-aw/guides/mcps/#debugging-and-troubleshooting).
+
+## 🔧 MCP Server
+
+The `mcp-server` command runs gh-aw as a Model Context Protocol (MCP) server, exposing CLI commands as tools that can be called by AI agents and other MCP clients. This enables secure, isolated access to gh-aw functionality.
+
+> **📘 Complete MCP Server Guide**: For comprehensive setup, security architecture, workflow integration examples, and troubleshooting, see the [MCP Server Guide](/gh-aw/guides/mcp-server/).
+
+**Starting the Server:**
+
+```bash
+# Start with stdio transport (default) - for local CLI usage
+gh aw mcp-server
+
+# Start with HTTP/SSE transport - for workflow integration
+gh aw mcp-server --port 3000
+```
+
+**Available Tools:**
+
+The MCP server exposes four core commands as tools:
+
+- `status` - Show workflow file status with pattern filtering
+- `compile` - Compile markdown workflows to YAML (validation always enabled)
+- `logs` - Download and analyze workflow logs (output forced to `/tmp/aw-mcp/logs`)
+- `audit` - Investigate workflow runs (output forced to `/tmp/aw-mcp/logs`)
+
+**Workflow Integration:**
+
+Use the shared configuration for easy integration in agentic workflows:
+
+```aw
+---
+on: workflow_dispatch
+permissions:
+  contents: read
+  actions: read
+engine: claude
+imports:
+  - shared/gh-aw-mcp.md
+---
+
+# Workflow content with access to gh-aw MCP tools
+```
+
+**Security:**
+
+The MCP server uses a subprocess wrapper architecture where each tool invocation spawns a `gh aw` CLI subprocess. This ensures GitHub tokens and secrets remain isolated from the MCP server process, preventing credential leakage to agentic workflows.
+
+For complete documentation including examples, security details, and troubleshooting, see the [MCP Server Guide](/gh-aw/guides/mcp-server/).
 
 ## 👀 Watch Mode for Development
 The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in VS Code](/gh-aw/tools/vscode/).

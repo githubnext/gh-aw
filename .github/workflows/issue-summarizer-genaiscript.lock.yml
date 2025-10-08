@@ -2,25 +2,26 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/genaiscript.md
 
-name: "Brave Web Search Agent"
+name: "Issue Summarizer (GenAIScript)"
 on:
-  issue_comment:
+  issues:
     types:
-    - created
-    - edited
+    - opened
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Brave Web Search Agent"
+run-name: "Issue Summarizer (GenAIScript)"
 
 jobs:
   check-membership:
-    if: >
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/brave')) && (github.event.issue.pull_request == null))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -28,7 +29,7 @@ jobs:
       result: ${{ steps.check-membership.outputs.result }}
       user_permission: ${{ steps.check-membership.outputs.user_permission }}
     steps:
-      - name: Check team membership for command workflow
+      - name: Check team membership for workflow
         id: check-membership
         uses: actions/github-script@v8
         env:
@@ -111,9 +112,7 @@ jobs:
 
   activation:
     needs: check-membership
-    if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && ((github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/brave')) && (github.event.issue.pull_request == null)))
+    if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     outputs:
       text: ${{ steps.compute-text.outputs.text }}
@@ -269,189 +268,12 @@ jobs:
             }
             await main();
 
-  add_reaction:
-    needs: activation
-    if: >
-      github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' ||
-      (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write  # Required for github.rest.actions.cancelWorkflowRun()
-      issues: write
-      pull-requests: write
-      contents: read
-    outputs:
-      comment_id: ${{ steps.react.outputs.comment-id }}
-      comment_url: ${{ steps.react.outputs.comment-url }}
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-    steps:
-      - name: Add eyes reaction to the triggering item
-        id: react
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REACTION: eyes
-          GITHUB_AW_COMMAND: brave
-        with:
-          script: |
-            async function main() {
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const command = process.env.GITHUB_AW_COMMAND; 
-              const runId = context.runId;
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              core.info(`Reaction type: ${reaction}`);
-              core.info(`Command name: ${command || "none"}`);
-              core.info(`Run ID: ${runId}`);
-              core.info(`Run URL: ${runUrl}`);
-              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-                return;
-              }
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldEditComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-                    shouldEditComment = true;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-                    shouldEditComment = true;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                await addReaction(reactionEndpoint, reaction);
-                if (shouldEditComment && commentUpdateEndpoint) {
-                  core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-                  await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
-                } else {
-                  if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment edit - only available for command workflows");
-                  } else {
-                    core.info(`Skipping comment for event type: ${eventName}`);
-                  }
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
-              }
-            }
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                core.info(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
-              try {
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const isCreateComment = eventName === "issues" || eventName === "pull_request";
-                if (isCreateComment) {
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
-                  const createResponse = await github.request("POST " + endpoint, {
-                    body: workflowLinkText,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully created comment with workflow link`);
-                  core.info(`Comment ID: ${createResponse.data.id}`);
-                  core.info(`Comment URL: ${createResponse.data.html_url}`);
-                  core.setOutput("comment-id", createResponse.data.id.toString());
-                  core.setOutput("comment-url", createResponse.data.html_url);
-                } else {
-                  const getResponse = await github.request("GET " + endpoint, {
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const originalBody = getResponse.data.body || "";
-                  const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
-                  const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
-                  if (duplicatePattern.test(originalBody)) {
-                    core.info("Comment already contains a workflow run link, skipping edit");
-                    return;
-                  }
-                  const updatedBody = originalBody + workflowLinkText;
-                  const updateResponse = await github.request("PATCH " + endpoint, {
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment with workflow link`);
-                  core.info(`Comment ID: ${updateResponse.data.id}`);
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to add/edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
-              }
-            }
-            await main();
-
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
-    concurrency:
-      group: "gh-aw-copilot"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
@@ -503,143 +325,6 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.336
-      - name: Setup Proxy Configuration for MCP Network Restrictions
-        run: |
-          echo "Generating proxy configuration files for MCP tools with network restrictions..."
-          
-          # Generate Squid proxy configuration
-          cat > squid.conf << 'EOF'
-          # Squid configuration for egress traffic control
-          # This configuration implements a allow-list-based proxy
-          
-          # Access log and cache configuration
-          access_log /var/log/squid/access.log squid
-          cache_log /var/log/squid/cache.log
-          cache deny all
-          
-          # Port configuration
-          http_port 3128
-          
-          # ACL definitions for allowed domains
-          acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
-          acl localnet src 10.0.0.0/8
-          acl localnet src 172.16.0.0/12
-          acl localnet src 192.168.0.0/16
-          acl SSL_ports port 443
-          acl Safe_ports port 80
-          acl Safe_ports port 443
-          acl CONNECT method CONNECT
-          
-          # Access rules
-          # Deny requests to unknown domains (not in allow-list)
-          http_access deny !allowed_domains
-          http_access deny !Safe_ports
-          http_access deny CONNECT !SSL_ports
-          http_access allow localnet
-          http_access deny all
-          
-          # Disable caching
-          cache deny all
-          
-          # DNS settings
-          dns_nameservers 8.8.8.8 8.8.4.4
-          
-          # Forwarded headers
-          forwarded_for delete
-          via off
-          
-          # Error page customization
-          error_directory /usr/share/squid/errors/English
-          
-          # Logging
-          logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
-          access_log /var/log/squid/access.log combined
-          
-          # Memory and file descriptor limits
-          cache_mem 64 MB
-          maximum_object_size 0 KB
-          EOF
-          
-          # Generate allowed domains file
-          cat > allowed_domains.txt << 'EOF'
-          # Allowed domains for egress traffic
-          # Add one domain per line
-          search.brave.com
-          api.search.brave.com
-          
-          EOF
-          
-          # Generate Docker Compose configuration for brave-search
-          cat > docker-compose-brave-search.yml << 'EOF'
-          services:
-            squid-proxy:
-              image: ubuntu/squid:latest
-              container_name: squid-proxy-brave-search
-              ports:
-                - "3128:3128"
-              volumes:
-                - ./squid.conf:/etc/squid/squid.conf:ro
-                - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
-                - squid-logs:/var/log/squid
-              healthcheck:
-                test: ["CMD", "squid", "-k", "check"]
-                interval: 30s
-                timeout: 10s
-                retries: 3
-              restart: unless-stopped
-              networks:
-                awproxy-brave-search:
-                  ipv4_address: 172.28.108.10
-          
-            brave-search:
-              image: docker.io/mcp/brave-search
-              container_name: brave-search-mcp
-              stdin_open: true
-              tty: true
-              environment:
-                - PROXY_HOST=squid-proxy
-                - PROXY_PORT=3128
-                - HTTP_PROXY=http://squid-proxy:3128
-                - HTTPS_PROXY=http://squid-proxy:3128
-                - BRAVE_API_KEY=${{ secrets.BRAVE_API_KEY }}
-              networks:
-                - awproxy-brave-search
-              depends_on:
-                squid-proxy:
-                  condition: service_healthy
-          
-          volumes:
-            squid-logs:
-          
-          networks:
-            awproxy-brave-search:
-              driver: bridge
-              ipam:
-                config:
-                  - subnet: 172.28.108.0/24
-          
-          EOF
-          
-          echo "Proxy configuration files generated."
-      - name: Pre-pull images and start Squid proxy
-        run: |
-          set -e
-          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'
-          docker pull ubuntu/squid:latest
-          echo 'Starting squid-proxy service for brave-search'
-          docker compose -f docker-compose-brave-search.yml up -d squid-proxy
-          echo 'Enforcing egress to proxy for brave-search (subnet 172.28.108.0/24, squid 172.28.108.10)'
-          if command -v sudo >/dev/null 2>&1; then SUDO=sudo; else SUDO=; fi
-          $SUDO iptables -C DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 1 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-          $SUDO iptables -C DOCKER-USER -s 172.28.108.10 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 2 -s 172.28.108.10 -j ACCEPT
-          $SUDO iptables -C DOCKER-USER -s 172.28.108.0/24 -d 172.28.108.10 -p tcp --dport 3128 -j ACCEPT 2>/dev/null || $SUDO iptables -I DOCKER-USER 3 -s 172.28.108.0/24 -d 172.28.108.10 -p tcp --dport 3128 -j ACCEPT
-          $SUDO iptables -C DOCKER-USER -s 172.28.108.0/24 -j REJECT 2>/dev/null || $SUDO iptables -A DOCKER-USER -s 172.28.108.0/24 -j REJECT
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/safe-outputs
@@ -1321,61 +1006,37 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << 'EOF'
+          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
-              "brave-search": {
-                "type": "local",
-                "command": "docker",
-                "tools": [
-                  "*"
-                ],
-                "args": [
-                  "run",
-                  "--rm",
-                  "-i",
-                  "-e",
-                  "BRAVE_API_KEY",
-                  "docker.io/mcp/brave-search"
-                ],
-                "env": {
-                  "BRAVE_API_KEY": "${{ secrets.BRAVE_API_KEY }}"
-                }
-              },
               "github": {
-                "type": "local",
                 "command": "docker",
                 "args": [
                   "run",
                   "-i",
                   "--rm",
                   "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "ghcr.io/github/github-mcp-server:sha-09deac4"
                 ],
-                "tools": ["*"]
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+                }
               },
               "safe_outputs": {
-                "type": "local",
                 "command": "node",
                 "args": ["/tmp/safe-outputs/mcp-server.cjs"],
-                "tools": ["*"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
+                  "GITHUB_AW_ASSETS_BRANCH": "${{ env.GITHUB_AW_ASSETS_BRANCH }}",
+                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}",
+                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}"
                 }
               }
             }
           }
           EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -1383,107 +1044,43 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Brave Web Search Agent
           
-          You are the Brave Search agent - an expert research assistant that performs web searches using the Brave search engine.
-          
-          ## Mission
-          
-          When invoked with the `/brave` command in an issue or pull request comment, you must:
-          
-          1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you
-          2. **Identify Search Needs**: Determine what needs to be searched based on the context
-          3. **Conduct Web Search**: Use the Brave MCP search tools to find relevant information
-          4. **Synthesize Results**: Create a well-organized summary of search results
-          
-          ## Current Context
-          
-          - **Repository**: ${{ github.repository }}
-          - **Triggering Content**: "${{ needs.activation.outputs.text }}"
-          - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
-          - **Triggered by**: @${{ github.actor }}
-          
-          ## Search Process
-          
-          ### 1. Context Analysis
-          - Read the issue/PR title and body to understand the topic
-          - Analyze the triggering comment to understand the specific search request
-          - Identify key topics, questions, or problems that need investigation
-          
-          ### 2. Search Strategy
-          - Formulate targeted search queries based on the context
-          - Use Brave search tools to find:
-            - Technical documentation
-            - Best practices and patterns
-            - Related discussions and solutions
-            - Industry standards and recommendations
-            - Recent developments and trends
-          
-          ### 3. Result Evaluation
-          - For each search result, evaluate:
-            - **Relevance**: How directly it addresses the issue
-            - **Authority**: Source credibility and expertise
-            - **Recency**: How current the information is
-            - **Applicability**: How it applies to this specific context
-          
-          ### 4. Synthesis and Reporting
-          Create a search results summary that includes:
-          - **Summary**: Quick overview of what was found
-          - **Key Findings**: Important search results organized by topic
-          - **Recommendations**: Actionable suggestions based on search results
-          - **Sources**: Key references and links for further reading
-          
-          ## Search Guidelines
-          
-          - **Be Focused**: Target searches to the specific request
-          - **Be Critical**: Evaluate source quality
-          - **Be Specific**: Provide concrete examples and links when relevant
-          - **Be Organized**: Structure findings clearly with headers and bullet points
-          - **Be Actionable**: Focus on practical insights
-          - **Cite Sources**: Include links to important references
-          
-          ## Output Format
-          
-          Your search summary should be formatted as a comment with:
-          
-          ```markdown
-          # 🔍 Brave Search Results
-          
-          *Triggered by @${{ github.actor }}*
-          
-          ## Summary
-          [Brief overview of search results]
-          
-          ## Key Findings
-          
-          ### [Topic 1]
-          [Search results with sources and links]
-          
-          ### [Topic 2]
-          [Search results with sources and links]
-          
-          [... additional topics ...]
-          
-          ## Recommendations
-          - [Specific actionable recommendation 1]
-          - [Specific actionable recommendation 2]
-          - [...]
-          
-          ## Sources
-          - [Source 1 with link]
-          - [Source 2 with link]
-          - [...]
+          ```yaml
+          ---
+          imports:
+            - shared/genaiscript.md
+          ---
           ```
           
-          ## Important Notes
+          # Issue Summarizer
           
-          - **Security**: Evaluate all sources critically - never execute untrusted code
-          - **Relevance**: Stay focused on the issue/PR context
-          - **Efficiency**: Balance thoroughness with time constraints
-          - **Clarity**: Write for developers working on this repo
-          - **Attribution**: Always cite your sources with proper links
+          You are an intelligent issue analysis assistant. Your task is to:
           
-          Remember: Your goal is to provide valuable, actionable information from web searches that helps resolve the issue or improve the pull request.
+          1. **Analyze the issue**: Read and understand the issue content below
+          2. **Summarize**: Create a concise summary of the key points in the issue
+          3. **Categorize**: Identify if this is a bug report, feature request, question, or documentation update
+          4. **Provide recommendations**: Suggest next steps or relevant labels that should be applied
+          
+          Issue #${{ github.event.issue.number }} in repository ${{ github.repository }}:
+          
+          ```
+          ${{ needs.activation.outputs.text }}
+          ```
+          
+          Create a comment with your analysis in the following format:
+          
+          ## Issue Summary
+          
+          [Your concise summary here]
+          
+          ## Category
+          
+          [Bug Report | Feature Request | Question | Documentation]
+          
+          ## Recommendations
+          
+          - [List your recommendations here]
+          - [Include suggested labels if applicable]
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1539,28 +1136,6 @@ jobs:
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
-      - name: Append PR context instructions to prompt
-        if: |
-          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
-        env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-        run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
-          
-          ---
-          
-          ## Current Branch Context
-          
-          **IMPORTANT**: This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.
-          
-          ### What This Means
-          
-          - The current working directory contains the code from the pull request branch
-          - Any file operations you perform will be on the PR branch code
-          - You can inspect, analyze, and work with the PR changes directly
-          - The PR branch has been checked out using `gh pr checkout`
-          
-          EOF
       - name: Print prompt to step summary
         env:
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
@@ -1570,13 +1145,8 @@ jobs:
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
+      - name: Set agent version (not available)
+        run: echo "AGENT_VERSION=" >> $GITHUB_ENV
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:
@@ -1584,15 +1154,15 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
+              engine_id: "custom",
+              engine_name: "Custom Steps",
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Brave Web Search Agent",
+              workflow_name: "Issue Summarizer (GenAIScript)",
               experimental: false,
-              supports_tools_allowlist: true,
-              supports_http_transport: true,
+              supports_tools_allowlist: false,
+              supports_http_transport: false,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
@@ -1625,84 +1195,52 @@ jobs:
           name: aw_info.json
           path: /tmp/aw_info.json
           if-no-files-found: warn
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool brave-search
-        # --allow-tool brave-search(*)
-        # --allow-tool github(download_workflow_run_artifact)
-        # --allow-tool github(get_code_scanning_alert)
-        # --allow-tool github(get_commit)
-        # --allow-tool github(get_dependabot_alert)
-        # --allow-tool github(get_discussion)
-        # --allow-tool github(get_discussion_comments)
-        # --allow-tool github(get_file_contents)
-        # --allow-tool github(get_issue)
-        # --allow-tool github(get_issue_comments)
-        # --allow-tool github(get_job_logs)
-        # --allow-tool github(get_latest_release)
-        # --allow-tool github(get_me)
-        # --allow-tool github(get_notification_details)
-        # --allow-tool github(get_pull_request)
-        # --allow-tool github(get_pull_request_comments)
-        # --allow-tool github(get_pull_request_diff)
-        # --allow-tool github(get_pull_request_files)
-        # --allow-tool github(get_pull_request_review_comments)
-        # --allow-tool github(get_pull_request_reviews)
-        # --allow-tool github(get_pull_request_status)
-        # --allow-tool github(get_release_by_tag)
-        # --allow-tool github(get_secret_scanning_alert)
-        # --allow-tool github(get_tag)
-        # --allow-tool github(get_workflow_run)
-        # --allow-tool github(get_workflow_run_logs)
-        # --allow-tool github(get_workflow_run_usage)
-        # --allow-tool github(list_branches)
-        # --allow-tool github(list_code_scanning_alerts)
-        # --allow-tool github(list_commits)
-        # --allow-tool github(list_dependabot_alerts)
-        # --allow-tool github(list_discussion_categories)
-        # --allow-tool github(list_discussions)
-        # --allow-tool github(list_issue_types)
-        # --allow-tool github(list_issues)
-        # --allow-tool github(list_notifications)
-        # --allow-tool github(list_pull_requests)
-        # --allow-tool github(list_releases)
-        # --allow-tool github(list_secret_scanning_alerts)
-        # --allow-tool github(list_starred_repositories)
-        # --allow-tool github(list_sub_issues)
-        # --allow-tool github(list_tags)
-        # --allow-tool github(list_workflow_jobs)
-        # --allow-tool github(list_workflow_run_artifacts)
-        # --allow-tool github(list_workflow_runs)
-        # --allow-tool github(list_workflows)
-        # --allow-tool github(search_code)
-        # --allow-tool github(search_issues)
-        # --allow-tool github(search_orgs)
-        # --allow-tool github(search_pull_requests)
-        # --allow-tool github(search_repositories)
-        # --allow-tool github(search_users)
-        # --allow-tool safe_outputs
-        timeout-minutes: 10
-        run: |
-          set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool brave-search --allow-tool 'brave-search(*)' --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+      - name: Install GenAIScript
+        run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /home/runner
-      - name: Print agent log
-        if: always()
+      - name: Convert prompt to GenAI format
         run: |
+          cp "$GITHUB_AW_PROMPT" /tmp/aw-prompts/prompt.genai.md
+          sed -i '1i ---' /tmp/aw-prompts/prompt.genai.md
+          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/aw-prompts/prompt.genai.md
+          sed -i '3i ---' /tmp/aw-prompts/prompt.genai.md
+          echo "Generated GenAI prompt file"
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Run GenAIScript
+        id: genaiscript
+        run: |
+          MCP_ARG=""
+          if [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
+            echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
+            MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
+          fi
+          genaiscript run /tmp/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/genaiscript-output.md || echo "GenAIScript completed"
+          if [ -f /tmp/genaiscript-output.md ]; then
+            cat /tmp/genaiscript-output.md > /tmp/agent-log.txt
+            echo "GenAIScript execution completed"
+          else
+            echo "GenAIScript execution completed (no output)" > /tmp/agent-log.txt
+          fi
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Ensure log file exists
+        run: |
+          echo "Custom steps execution completed" >> /tmp/agent-stdio.log
           touch /tmp/agent-stdio.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2482,190 +2020,6 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Redact secrets in logs
-        if: always()
-        uses: actions/github-script@v8
-        with:
-          script: |
-            /**
-             * Redacts secrets from files in /tmp directory before uploading artifacts
-             * This script processes all .txt, .json, .log files under /tmp and redacts
-             * any strings matching the actual secret values provided via environment variables.
-             */
-            const fs = require("fs");
-            const path = require("path");
-            /**
-             * Recursively finds all files matching the specified extensions
-             * @param {string} dir - Directory to search
-             * @param {string[]} extensions - File extensions to match (e.g., ['.txt', '.json', '.log'])
-             * @returns {string[]} Array of file paths
-             */
-            function findFiles(dir, extensions) {
-              const results = [];
-              try {
-                if (!fs.existsSync(dir)) {
-                  return results;
-                }
-                const entries = fs.readdirSync(dir, { withFileTypes: true });
-                for (const entry of entries) {
-                  const fullPath = path.join(dir, entry.name);
-                  if (entry.isDirectory()) {
-                    // Recursively search subdirectories
-                    results.push(...findFiles(fullPath, extensions));
-                  } else if (entry.isFile()) {
-                    // Check if file has one of the target extensions
-                    const ext = path.extname(entry.name).toLowerCase();
-                    if (extensions.includes(ext)) {
-                      results.push(fullPath);
-                    }
-                  }
-                }
-              } catch (error) {
-                core.warning(`Failed to scan directory ${dir}: ${error instanceof Error ? error.message : String(error)}`);
-              }
-              return results;
-            }
-
-            /**
-             * Redacts secrets from file content using exact string matching
-             * @param {string} content - File content to process
-             * @param {string[]} secretValues - Array of secret values to redact
-             * @returns {{content: string, redactionCount: number}} Redacted content and count of redactions
-             */
-            function redactSecrets(content, secretValues) {
-              let redactionCount = 0;
-              let redacted = content;
-              // Sort secret values by length (longest first) to handle overlapping secrets
-              const sortedSecrets = secretValues.slice().sort((a, b) => b.length - a.length);
-              for (const secretValue of sortedSecrets) {
-                // Skip empty or very short values (likely not actual secrets)
-                if (!secretValue || secretValue.length < 8) {
-                  continue;
-                }
-                // Count occurrences before replacement
-                // Use split and join for exact string matching (not regex)
-                // This is safer than regex as it doesn't interpret special characters
-                // Show first 3 letters followed by asterisks for the remaining length
-                const prefix = secretValue.substring(0, 3);
-                const asterisks = "*".repeat(Math.max(0, secretValue.length - 3));
-                const replacement = prefix + asterisks;
-                const parts = redacted.split(secretValue);
-                const occurrences = parts.length - 1;
-                if (occurrences > 0) {
-                  redacted = parts.join(replacement);
-                  redactionCount += occurrences;
-                  core.debug(`Redacted ${occurrences} occurrence(s) of a secret`);
-                }
-              }
-              return { content: redacted, redactionCount };
-            }
-
-            /**
-             * Process a single file for secret redaction
-             * @param {string} filePath - Path to the file
-             * @param {string[]} secretValues - Array of secret values to redact
-             * @returns {number} Number of redactions made
-             */
-            function processFile(filePath, secretValues) {
-              try {
-                const content = fs.readFileSync(filePath, "utf8");
-                const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
-                if (redactionCount > 0) {
-                  fs.writeFileSync(filePath, redactedContent, "utf8");
-                  core.debug(`Processed ${filePath}: ${redactionCount} redaction(s)`);
-                }
-                return redactionCount;
-              } catch (error) {
-                core.warning(`Failed to process file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
-                return 0;
-              }
-            }
-
-            /**
-             * Main function
-             */
-            async function main() {
-              // Get the list of secret names from environment variable
-              const secretNames = process.env.GITHUB_AW_SECRET_NAMES;
-              if (!secretNames) {
-                core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
-                return;
-              }
-              core.info("Starting secret redaction in /tmp directory");
-              try {
-                // Parse the comma-separated list of secret names
-                const secretNameList = secretNames.split(",").filter(name => name.trim());
-                // Collect the actual secret values from environment variables
-                const secretValues = [];
-                for (const secretName of secretNameList) {
-                  const envVarName = `SECRET_${secretName}`;
-                  const secretValue = process.env[envVarName];
-                  // Skip empty or undefined secrets
-                  if (!secretValue || secretValue.trim() === "") {
-                    continue;
-                  }
-                  secretValues.push(secretValue.trim());
-                }
-                if (secretValues.length === 0) {
-                  core.info("No secret values found to redact");
-                  return;
-                }
-                core.info(`Found ${secretValues.length} secret(s) to redact`);
-                // Find all target files in /tmp directory
-                const targetExtensions = [".txt", ".json", ".log"];
-                const files = findFiles("/tmp", targetExtensions);
-                core.info(`Found ${files.length} file(s) to scan for secrets`);
-                let totalRedactions = 0;
-                let filesWithRedactions = 0;
-                // Process each file
-                for (const file of files) {
-                  const redactionCount = processFile(file, secretValues);
-                  if (redactionCount > 0) {
-                    filesWithRedactions++;
-                    totalRedactions += redactionCount;
-                  }
-                }
-                if (totalRedactions > 0) {
-                  core.info(`Secret redaction complete: ${totalRedactions} redaction(s) in ${filesWithRedactions} file(s)`);
-                } else {
-                  core.info("Secret redaction complete: no secrets found");
-                }
-              } catch (error) {
-                core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            await main();
-
-        env:
-          GITHUB_AW_SECRET_NAMES: 'BRAVE_API_KEY,COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-          SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload engine output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/.copilot/logs/
-          if-no-files-found: ignore
-      - name: Extract squid access logs
-        if: always()
-        run: |
-          mkdir -p /tmp/access-logs
-          echo 'Extracting access.log from squid-proxy-brave-search container'
-          if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-brave-search$'; then
-            docker cp squid-proxy-brave-search:/var/log/squid/access.log /tmp/access-logs/access-brave-search.log 2>/dev/null || echo 'No access.log found for brave-search'
-          else
-            echo 'Container squid-proxy-brave-search not found'
-          fi
-      - name: Upload squid access logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: access.log
-          path: /tmp/access-logs/
-          if-no-files-found: warn
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -2673,552 +2027,6 @@ jobs:
           name: mcp-logs
           path: /tmp/mcp-logs/
           if-no-files-found: ignore
-      - name: Parse agent logs for step summary
-        if: always()
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
-        with:
-          script: |
-            function main() {
-              const fs = require("fs");
-              try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!logFile) {
-                  core.info("No agent log file specified");
-                  return;
-                }
-                if (!fs.existsSync(logFile)) {
-                  core.info(`Log file not found: ${logFile}`);
-                  return;
-                }
-                const content = fs.readFileSync(logFile, "utf8");
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
-                } else {
-                  core.error("Failed to parse Copilot log");
-                }
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            function parseCopilotLog(logContent) {
-              try {
-                let logEntries;
-                try {
-                  logEntries = JSON.parse(logContent);
-                  if (!Array.isArray(logEntries)) {
-                    throw new Error("Not a JSON array");
-                  }
-                } catch (jsonArrayError) {
-                  const debugLogEntries = parseDebugLogFormat(logContent);
-                  if (debugLogEntries && debugLogEntries.length > 0) {
-                    logEntries = debugLogEntries;
-                  } else {
-                    logEntries = [];
-                    const lines = logContent.split("\n");
-                    for (const line of lines) {
-                      const trimmedLine = line.trim();
-                      if (trimmedLine === "") {
-                        continue; 
-                      }
-                      if (trimmedLine.startsWith("[{")) {
-                        try {
-                          const arrayEntries = JSON.parse(trimmedLine);
-                          if (Array.isArray(arrayEntries)) {
-                            logEntries.push(...arrayEntries);
-                            continue;
-                          }
-                        } catch (arrayParseError) {
-                          continue;
-                        }
-                      }
-                      if (!trimmedLine.startsWith("{")) {
-                        continue;
-                      }
-                      try {
-                        const jsonEntry = JSON.parse(trimmedLine);
-                        logEntries.push(jsonEntry);
-                      } catch (jsonLineError) {
-                        continue;
-                      }
-                    }
-                  }
-                }
-                if (!Array.isArray(logEntries) || logEntries.length === 0) {
-                  return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
-                }
-                let markdown = "";
-                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-                if (initEntry) {
-                  markdown += "## 🚀 Initialization\n\n";
-                  markdown += formatInitializationSummary(initEntry);
-                  markdown += "\n";
-                }
-                markdown += "## 🤖 Commands and Tools\n\n";
-                const toolUsePairs = new Map(); 
-                const commandSummary = []; 
-                for (const entry of logEntries) {
-                  if (entry.type === "user" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_result" && content.tool_use_id) {
-                        toolUsePairs.set(content.tool_use_id, content);
-                      }
-                    }
-                  }
-                }
-                for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_use") {
-                        const toolName = content.name;
-                        const input = content.input || {};
-                        if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-                          continue;
-                        }
-                        const toolResult = toolUsePairs.get(content.id);
-                        let statusIcon = "❓";
-                        if (toolResult) {
-                          statusIcon = toolResult.is_error === true ? "❌" : "✅";
-                        }
-                        if (toolName === "Bash") {
-                          const formattedCommand = formatBashCommand(input.command || "");
-                          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-                        } else if (toolName.startsWith("mcp__")) {
-                          const mcpName = formatMcpName(toolName);
-                          commandSummary.push(`* ${statusIcon} \`${mcpName}(...)\``);
-                        } else {
-                          commandSummary.push(`* ${statusIcon} ${toolName}`);
-                        }
-                      }
-                    }
-                  }
-                }
-                if (commandSummary.length > 0) {
-                  for (const cmd of commandSummary) {
-                    markdown += `${cmd}\n`;
-                  }
-                } else {
-                  markdown += "No commands or tools used.\n";
-                }
-                markdown += "\n## 📊 Information\n\n";
-                const lastEntry = logEntries[logEntries.length - 1];
-                if (lastEntry && (lastEntry.num_turns || lastEntry.duration_ms || lastEntry.total_cost_usd || lastEntry.usage)) {
-                  if (lastEntry.num_turns) {
-                    markdown += `**Turns:** ${lastEntry.num_turns}\n\n`;
-                  }
-                  if (lastEntry.duration_ms) {
-                    const durationSec = Math.round(lastEntry.duration_ms / 1000);
-                    const minutes = Math.floor(durationSec / 60);
-                    const seconds = durationSec % 60;
-                    markdown += `**Duration:** ${minutes}m ${seconds}s\n\n`;
-                  }
-                  if (lastEntry.total_cost_usd) {
-                    markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
-                  }
-                  if (lastEntry.usage) {
-                    const usage = lastEntry.usage;
-                    if (usage.input_tokens || usage.output_tokens) {
-                      markdown += `**Token Usage:**\n`;
-                      if (usage.input_tokens) markdown += `- Input: ${usage.input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_creation_input_tokens) markdown += `- Cache Creation: ${usage.cache_creation_input_tokens.toLocaleString()}\n`;
-                      if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
-                      if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
-                      markdown += "\n";
-                    }
-                  }
-                }
-                markdown += "\n## 🤖 Reasoning\n\n";
-                for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "text" && content.text) {
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + "\n\n";
-                        }
-                      } else if (content.type === "tool_use") {
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUseWithDetails(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
-                        }
-                      }
-                    }
-                  }
-                }
-                return markdown;
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
-              }
-            }
-            function parseDebugLogFormat(logContent) {
-              const entries = [];
-              const lines = logContent.split("\n");
-              let model = "unknown";
-              let sessionId = null;
-              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
-              if (modelMatch) {
-                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
-              }
-              let inDataBlock = false;
-              let currentJsonLines = [];
-              let turnCount = 0;
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (line.includes("[DEBUG] data:")) {
-                  inDataBlock = true;
-                  currentJsonLines = [];
-                  continue;
-                }
-                if (inDataBlock) {
-                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
-                  const hasDebug = line.includes("[DEBUG]");
-                  if (hasTimestamp && !hasDebug) {
-                    if (currentJsonLines.length > 0) {
-                      try {
-                        const jsonStr = currentJsonLines.join("\n");
-                        const jsonData = JSON.parse(jsonStr);
-                        if (jsonData.model) {
-                          model = jsonData.model;
-                        }
-                        if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                          for (const choice of jsonData.choices) {
-                            if (choice.message) {
-                              const message = choice.message;
-                              const content = [];
-                              if (message.content && message.content.trim()) {
-                                content.push({
-                                  type: "text",
-                                  text: message.content,
-                                });
-                              }
-                              if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                                for (const toolCall of message.tool_calls) {
-                                  if (toolCall.function) {
-                                    let toolName = toolCall.function.name;
-                                    let args = {};
-                                    if (toolName.startsWith("github-")) {
-                                      toolName = "mcp__github__" + toolName.substring(7);
-                                    } else if (toolName === "bash") {
-                                      toolName = "Bash";
-                                    }
-                                    try {
-                                      args = JSON.parse(toolCall.function.arguments);
-                                    } catch (e) {
-                                      args = {};
-                                    }
-                                    content.push({
-                                      type: "tool_use",
-                                      id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
-                                      name: toolName,
-                                      input: args,
-                                    });
-                                  }
-                                }
-                              }
-                              if (content.length > 0) {
-                                entries.push({
-                                  type: "assistant",
-                                  message: { content },
-                                });
-                                turnCount++;
-                              }
-                            }
-                          }
-                          if (jsonData.usage) {
-                            const resultEntry = {
-                              type: "result",
-                              num_turns: turnCount,
-                              usage: jsonData.usage,
-                            };
-                            entries._lastResult = resultEntry;
-                          }
-                        }
-                      } catch (e) {
-                      }
-                    }
-                    inDataBlock = false;
-                    currentJsonLines = [];
-                  } else {
-                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
-                    currentJsonLines.push(cleanLine);
-                  }
-                }
-              }
-              if (inDataBlock && currentJsonLines.length > 0) {
-                try {
-                  const jsonStr = currentJsonLines.join("\n");
-                  const jsonData = JSON.parse(jsonStr);
-                  if (jsonData.model) {
-                    model = jsonData.model;
-                  }
-                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                    for (const choice of jsonData.choices) {
-                      if (choice.message) {
-                        const message = choice.message;
-                        const content = [];
-                        if (message.content && message.content.trim()) {
-                          content.push({
-                            type: "text",
-                            text: message.content,
-                          });
-                        }
-                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                          for (const toolCall of message.tool_calls) {
-                            if (toolCall.function) {
-                              let toolName = toolCall.function.name;
-                              let args = {};
-                              if (toolName.startsWith("github-")) {
-                                toolName = "mcp__github__" + toolName.substring(7);
-                              } else if (toolName === "bash") {
-                                toolName = "Bash";
-                              }
-                              try {
-                                args = JSON.parse(toolCall.function.arguments);
-                              } catch (e) {
-                                args = {};
-                              }
-                              content.push({
-                                type: "tool_use",
-                                id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
-                                name: toolName,
-                                input: args,
-                              });
-                            }
-                          }
-                        }
-                        if (content.length > 0) {
-                          entries.push({
-                            type: "assistant",
-                            message: { content },
-                          });
-                          turnCount++;
-                        }
-                      }
-                    }
-                    if (jsonData.usage) {
-                      const resultEntry = {
-                        type: "result",
-                        num_turns: turnCount,
-                        usage: jsonData.usage,
-                      };
-                      entries._lastResult = resultEntry;
-                    }
-                  }
-                } catch (e) {
-                }
-              }
-              if (entries.length > 0) {
-                const initEntry = {
-                  type: "system",
-                  subtype: "init",
-                  session_id: sessionId,
-                  model: model,
-                  tools: [], 
-                };
-                entries.unshift(initEntry);
-                if (entries._lastResult) {
-                  entries.push(entries._lastResult);
-                  delete entries._lastResult;
-                }
-              }
-              return entries;
-            }
-            function formatInitializationSummary(initEntry) {
-              let markdown = "";
-              if (initEntry.model) {
-                markdown += `**Model:** ${initEntry.model}\n\n`;
-              }
-              if (initEntry.session_id) {
-                markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
-              }
-              if (initEntry.cwd) {
-                const cleanCwd = initEntry.cwd.replace(/^\/home\/runner\/work\/[^\/]+\/[^\/]+/, ".");
-                markdown += `**Working Directory:** ${cleanCwd}\n\n`;
-              }
-              if (initEntry.mcp_servers && Array.isArray(initEntry.mcp_servers)) {
-                markdown += "**MCP Servers:**\n";
-                for (const server of initEntry.mcp_servers) {
-                  const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
-                  markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
-                }
-                markdown += "\n";
-              }
-              if (initEntry.tools && Array.isArray(initEntry.tools)) {
-                markdown += "**Available Tools:**\n";
-                const categories = {
-                  Core: [],
-                  "File Operations": [],
-                  "Git/GitHub": [],
-                  MCP: [],
-                  Other: [],
-                };
-                for (const tool of initEntry.tools) {
-                  if (["Task", "Bash", "BashOutput", "KillBash", "ExitPlanMode"].includes(tool)) {
-                    categories["Core"].push(tool);
-                  } else if (["Read", "Edit", "MultiEdit", "Write", "LS", "Grep", "Glob", "NotebookEdit"].includes(tool)) {
-                    categories["File Operations"].push(tool);
-                  } else if (tool.startsWith("mcp__github__")) {
-                    categories["Git/GitHub"].push(formatMcpName(tool));
-                  } else if (tool.startsWith("mcp__") || ["ListMcpResourcesTool", "ReadMcpResourceTool"].includes(tool)) {
-                    categories["MCP"].push(tool.startsWith("mcp__") ? formatMcpName(tool) : tool);
-                  } else {
-                    categories["Other"].push(tool);
-                  }
-                }
-                for (const [category, tools] of Object.entries(categories)) {
-                  if (tools.length > 0) {
-                    markdown += `- **${category}:** ${tools.length} tools\n`;
-                    if (tools.length <= 5) {
-                      markdown += `  - ${tools.join(", ")}\n`;
-                    } else {
-                      markdown += `  - ${tools.slice(0, 3).join(", ")}, and ${tools.length - 3} more\n`;
-                    }
-                  }
-                }
-                markdown += "\n";
-              }
-              return markdown;
-            }
-            function formatToolUseWithDetails(toolUse, toolResult) {
-              const toolName = toolUse.name;
-              const input = toolUse.input || {};
-              if (toolName === "TodoWrite") {
-                return "";
-              }
-              function getStatusIcon() {
-                if (toolResult) {
-                  return toolResult.is_error === true ? "❌" : "✅";
-                }
-                return "❓"; 
-              }
-              const statusIcon = getStatusIcon();
-              let summary = "";
-              let details = "";
-              if (toolResult && toolResult.content) {
-                if (typeof toolResult.content === "string") {
-                  details = toolResult.content;
-                } else if (Array.isArray(toolResult.content)) {
-                  details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
-                }
-              }
-              switch (toolName) {
-                case "Bash":
-                  const command = input.command || "";
-                  const description = input.description || "";
-                  const formattedCommand = formatBashCommand(command);
-                  if (description) {
-                    summary = `${statusIcon} ${description}: \`${formattedCommand}\``;
-                  } else {
-                    summary = `${statusIcon} \`${formattedCommand}\``;
-                  }
-                  break;
-                case "Read":
-                  const filePath = input.file_path || input.path || "";
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} Read \`${relativePath}\``;
-                  break;
-                case "Write":
-                case "Edit":
-                case "MultiEdit":
-                  const writeFilePath = input.file_path || input.path || "";
-                  const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} Write \`${writeRelativePath}\``;
-                  break;
-                case "Grep":
-                case "Glob":
-                  const query = input.query || input.pattern || "";
-                  summary = `${statusIcon} Search for \`${truncateString(query, 80)}\``;
-                  break;
-                case "LS":
-                  const lsPath = input.path || "";
-                  const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}`;
-                  break;
-                default:
-                  if (toolName.startsWith("mcp__")) {
-                    const mcpName = formatMcpName(toolName);
-                    const params = formatMcpParameters(input);
-                    summary = `${statusIcon} ${mcpName}(${params})`;
-                  } else {
-                    const keys = Object.keys(input);
-                    if (keys.length > 0) {
-                      const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
-                      const value = String(input[mainParam] || "");
-                      if (value) {
-                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}`;
-                      } else {
-                        summary = `${statusIcon} ${toolName}`;
-                      }
-                    } else {
-                      summary = `${statusIcon} ${toolName}`;
-                    }
-                  }
-              }
-              if (details && details.trim()) {
-                const maxDetailsLength = 500;
-                const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-                return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
-              } else {
-                return `${summary}\n\n`;
-              }
-            }
-            function formatMcpName(toolName) {
-              if (toolName.startsWith("mcp__")) {
-                const parts = toolName.split("__");
-                if (parts.length >= 3) {
-                  const provider = parts[1];
-                  const method = parts.slice(2).join("_");
-                  return `${provider}::${method}`;
-                }
-              }
-              return toolName;
-            }
-            function formatMcpParameters(input) {
-              const keys = Object.keys(input);
-              if (keys.length === 0) return "";
-              const paramStrs = [];
-              for (const key of keys.slice(0, 4)) {
-                const value = String(input[key] || "");
-                paramStrs.push(`${key}: ${truncateString(value, 40)}`);
-              }
-              if (keys.length > 4) {
-                paramStrs.push("...");
-              }
-              return paramStrs.join(", ");
-            }
-            function formatBashCommand(command) {
-              if (!command) return "";
-              let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
-              formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
-              if (formatted.length > maxLength) {
-                formatted = formatted.substring(0, maxLength) + "...";
-              }
-              return formatted;
-            }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                parseCopilotLog,
-                formatInitializationSummary,
-                formatToolUseWithDetails,
-                formatBashCommand,
-                truncateString,
-                formatMcpName,
-                formatMcpParameters,
-              };
-            }
-            main();
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
@@ -3226,126 +2034,11 @@ jobs:
           name: agent-stdio.log
           path: /tmp/agent-stdio.log
           if-no-files-found: warn
-      - name: Validate agent logs for errors
-        if: always()
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"authentication failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Authentication failure with Copilot CLI\"},{\"pattern\":\"error.*token.*invalid\",\"level_group\":0,\"message_group\":0,\"description\":\"Invalid token error with Copilot CLI (requires error context)\"},{\"pattern\":\"not authorized.*copilot\",\"level_group\":0,\"message_group\":0,\"description\":\"Not authorized for Copilot CLI access\"},{\"pattern\":\"command not found:\\\\s*(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error\"},{\"pattern\":\"(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (alternate format)\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (sh format)\"},{\"pattern\":\"bash:\\\\s*(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Bash command not found error\"},{\"pattern\":\"permission denied and could not request permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied error\"},{\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"pattern\":\"Error:\\\\s*Cannot find module\\\\s*'(.+)'\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*Permission denied\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell permission denied error\"}]"
-        with:
-          script: |
-            function main() {
-              const fs = require("fs");
-              try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!logFile) {
-                  throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
-                }
-                if (!fs.existsSync(logFile)) {
-                  throw new Error(`Log file not found: ${logFile}`);
-                }
-                const patterns = getErrorPatternsFromEnv();
-                if (patterns.length === 0) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
-                }
-                const content = fs.readFileSync(logFile, "utf8");
-                const hasErrors = validateErrors(content, patterns);
-                if (hasErrors) {
-                  core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
-                } else {
-                  core.info("Error validation completed successfully");
-                }
-              } catch (error) {
-                console.debug(error);
-                core.error(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            function getErrorPatternsFromEnv() {
-              const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
-              if (!patternsEnv) {
-                throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
-              }
-              try {
-                const patterns = JSON.parse(patternsEnv);
-                if (!Array.isArray(patterns)) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
-                }
-                return patterns;
-              } catch (e) {
-                throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
-              }
-            }
-            function validateErrors(logContent, patterns) {
-              const lines = logContent.split("\n");
-              let hasErrors = false;
-              for (const pattern of patterns) {
-                let regex;
-                try {
-                  regex = new RegExp(pattern.pattern, "g");
-                } catch (e) {
-                  core.error(`invalid error regex pattern: ${pattern.pattern}`);
-                  continue;
-                }
-                for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-                  const line = lines[lineIndex];
-                  let match;
-                  while ((match = regex.exec(line)) !== null) {
-                    const level = extractLevel(match, pattern);
-                    const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
-                    if (level.toLowerCase() === "error") {
-                      core.error(errorMessage);
-                      hasErrors = true;
-                    } else {
-                      core.warning(errorMessage);
-                    }
-                  }
-                }
-              }
-              return hasErrors;
-            }
-            function extractLevel(match, pattern) {
-              if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
-                return match[pattern.level_group];
-              }
-              const fullMatch = match[0];
-              if (fullMatch.toLowerCase().includes("error")) {
-                return "error";
-              } else if (fullMatch.toLowerCase().includes("warn")) {
-                return "warning";
-              }
-              return "unknown";
-            }
-            function extractMessage(match, pattern, fullLine) {
-              if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
-                return match[pattern.message_group].trim();
-              }
-              return match[0] || fullLine.trim();
-            }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                validateErrors,
-                extractLevel,
-                extractMessage,
-                getErrorPatternsFromEnv,
-                truncateString,
-              };
-            }
-            if (typeof module === "undefined" || require.main === module) {
-              main();
-            }
 
   detection:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
-    concurrency:
-      group: "gh-aw-copilot"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact
@@ -3371,9 +2064,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Brave Web Search Agent"
+          WORKFLOW_NAME: "Issue Summarizer (GenAIScript)"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Brave Web Search Agent\n\nYou are the Brave Search agent - an expert research assistant that performs web searches using the Brave search engine.\n\n## Mission\n\nWhen invoked with the `/brave` command in an issue or pull request comment, you must:\n\n1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you\n2. **Identify Search Needs**: Determine what needs to be searched based on the context\n3. **Conduct Web Search**: Use the Brave MCP search tools to find relevant information\n4. **Synthesize Results**: Create a well-organized summary of search results\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggering Content**: \"${{ needs.activation.outputs.text }}\"\n- **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}\n- **Triggered by**: @${{ github.actor }}\n\n## Search Process\n\n### 1. Context Analysis\n- Read the issue/PR title and body to understand the topic\n- Analyze the triggering comment to understand the specific search request\n- Identify key topics, questions, or problems that need investigation\n\n### 2. Search Strategy\n- Formulate targeted search queries based on the context\n- Use Brave search tools to find:\n  - Technical documentation\n  - Best practices and patterns\n  - Related discussions and solutions\n  - Industry standards and recommendations\n  - Recent developments and trends\n\n### 3. Result Evaluation\n- For each search result, evaluate:\n  - **Relevance**: How directly it addresses the issue\n  - **Authority**: Source credibility and expertise\n  - **Recency**: How current the information is\n  - **Applicability**: How it applies to this specific context\n\n### 4. Synthesis and Reporting\nCreate a search results summary that includes:\n- **Summary**: Quick overview of what was found\n- **Key Findings**: Important search results organized by topic\n- **Recommendations**: Actionable suggestions based on search results\n- **Sources**: Key references and links for further reading\n\n## Search Guidelines\n\n- **Be Focused**: Target searches to the specific request\n- **Be Critical**: Evaluate source quality\n- **Be Specific**: Provide concrete examples and links when relevant\n- **Be Organized**: Structure findings clearly with headers and bullet points\n- **Be Actionable**: Focus on practical insights\n- **Cite Sources**: Include links to important references\n\n## Output Format\n\nYour search summary should be formatted as a comment with:\n\n```markdown\n# 🔍 Brave Search Results\n\n*Triggered by @${{ github.actor }}*\n\n## Summary\n[Brief overview of search results]\n\n## Key Findings\n\n### [Topic 1]\n[Search results with sources and links]\n\n### [Topic 2]\n[Search results with sources and links]\n\n[... additional topics ...]\n\n## Recommendations\n- [Specific actionable recommendation 1]\n- [Specific actionable recommendation 2]\n- [...]\n\n## Sources\n- [Source 1 with link]\n- [Source 2 with link]\n- [...]\n```\n\n## Important Notes\n\n- **Security**: Evaluate all sources critically - never execute untrusted code\n- **Relevance**: Stay focused on the issue/PR context\n- **Efficiency**: Balance thoroughness with time constraints\n- **Clarity**: Write for developers working on this repo\n- **Attribution**: Always cite your sources with proper links\n\nRemember: Your goal is to provide valuable, actionable information from web searches that helps resolve the issue or improve the pull request.\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using microsoft/genaiscript.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/genaiscript.md\n---\n```\n\n**Requirements:**\n- The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is converted to GenAI markdown format (prompt.genai.md)\n- GenAIScript is executed with MCP server configuration if available\n- Output is captured in the agent log file\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `2.5.1`)\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)\n- MCP server configuration is automatically passed if configured in the workflow\n-->\n\n# Issue Summarizer\n\nYou are an intelligent issue analysis assistant. Your task is to:\n\n1. **Analyze the issue**: Read and understand the issue content below\n2. **Summarize**: Create a concise summary of the key points in the issue\n3. **Categorize**: Identify if this is a bug report, feature request, question, or documentation update\n4. **Provide recommendations**: Suggest next steps or relevant labels that should be applied\n\nIssue #${{ github.event.issue.number }} in repository ${{ github.repository }}:\n\n```\n${{ needs.activation.outputs.text }}\n```\n\nCreate a comment with your analysis in the following format:\n\n## Issue Summary\n\n[Your concise summary here]\n\n## Category\n\n[Bug Report | Feature Request | Question | Documentation]\n\n## Recommendations\n\n- [List your recommendations here]\n- [Include suggested labels if applicable]\n"
         with:
           script: |
             const fs = require('fs');
@@ -3454,33 +2147,52 @@ jobs:
         run: |
           mkdir -p /tmp/threat-detection
           touch /tmp/threat-detection/detection.log
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.336
-      - name: Execute GitHub Copilot CLI
-        id: agentic_execution
-        timeout-minutes: 5
-        run: |
-          set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+      - name: Install GenAIScript
+        run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /home/runner
-      - name: Print agent log
-        if: always()
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Convert prompt to GenAI format
         run: |
+          cp "$GITHUB_AW_PROMPT" /tmp/aw-prompts/prompt.genai.md
+          sed -i '1i ---' /tmp/aw-prompts/prompt.genai.md
+          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/aw-prompts/prompt.genai.md
+          sed -i '3i ---' /tmp/aw-prompts/prompt.genai.md
+          echo "Generated GenAI prompt file"
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Run GenAIScript
+        id: genaiscript
+        run: |
+          MCP_ARG=""
+          if [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
+            echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
+            MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
+          fi
+          genaiscript run /tmp/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/genaiscript-output.md || echo "GenAIScript completed"
+          if [ -f /tmp/genaiscript-output.md ]; then
+            cat /tmp/genaiscript-output.md > /tmp/agent-log.txt
+            echo "GenAIScript execution completed"
+          else
+            echo "GenAIScript execution completed (no output)" > /tmp/agent-log.txt
+          fi
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Ensure log file exists
+        run: |
+          echo "Custom steps execution completed" >> /tmp/threat-detection/detection.log
           touch /tmp/threat-detection/detection.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:
@@ -3553,7 +2265,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Brave Web Search Agent"
+          GITHUB_AW_WORKFLOW_NAME: "Issue Summarizer (GenAIScript)"
         with:
           script: |
             async function main() {
@@ -3586,9 +2298,9 @@ jobs:
               }
               core.info(`Found ${commentItems.length} add-comment item(s)`);
               function getRepositoryUrl() {
-                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
-                if (targetRepoSlug) {
-                  return `https://github.com/${targetRepoSlug}`;
+                const targetRepo = process.env.GITHUB_AW_TARGET_REPO;
+                if (targetRepo) {
+                  return `https://github.com/${targetRepo}`;
                 } else if (context.payload.repository) {
                   return context.payload.repository.html_url;
                 } else {

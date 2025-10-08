@@ -1,0 +1,150 @@
+package cli
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+// TestMCPServer_ListTools tests that the MCP server exposes the expected tools
+func TestMCPServer_ListTools(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(binaryPath, "mcp-server")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// List tools
+	result, err := session.ListTools(ctx, &mcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("Failed to list tools: %v", err)
+	}
+
+	// Verify expected tools are present
+	expectedTools := []string{"status", "compile", "logs", "audit"}
+	toolNames := make(map[string]bool)
+	for _, tool := range result.Tools {
+		toolNames[tool.Name] = true
+	}
+
+	for _, expected := range expectedTools {
+		if !toolNames[expected] {
+			t.Errorf("Expected tool '%s' not found in MCP server tools", expected)
+		}
+	}
+
+	// Verify we have exactly the expected number of tools
+	if len(result.Tools) != len(expectedTools) {
+		t.Errorf("Expected %d tools, got %d", len(expectedTools), len(result.Tools))
+	}
+}
+
+// TestMCPServer_StatusTool tests the status tool
+func TestMCPServer_StatusTool(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Create a temporary directory with a workflow file
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create a test workflow file
+	workflowContent := `---
+on: push
+engine: copilot
+---
+# Test Workflow
+
+This is a test workflow.
+`
+	workflowPath := filepath.Join(workflowsDir, "test.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Change to the temporary directory
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	os.Chdir(tmpDir)
+
+	// Initialize git repository in the temp directory
+	initCmd := exec.Command("git", "init")
+	initCmd.Dir = tmpDir
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repository: %v", err)
+	}
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	serverCmd.Dir = tmpDir
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// Call status tool
+	params := &mcp.CallToolParams{
+		Name:      "status",
+		Arguments: map[string]any{},
+	}
+	result, err := session.CallTool(ctx, params)
+	if err != nil {
+		t.Fatalf("Failed to call status tool: %v", err)
+	}
+
+	// Verify result is not empty
+	if len(result.Content) == 0 {
+		t.Error("Expected non-empty result from status tool")
+	}
+
+	// Verify result contains text content
+	if textContent, ok := result.Content[0].(*mcp.TextContent); ok {
+		if textContent.Text == "" {
+			t.Error("Expected non-empty text content from status tool")
+		}
+	} else {
+		t.Error("Expected text content from status tool")
+	}
+}
