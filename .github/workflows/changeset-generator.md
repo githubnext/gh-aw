@@ -3,6 +3,7 @@ name: Changeset Generator
 on:
   pull_request:
     types: [ready_for_review]
+if: github.event.pull_request.base.ref == github.event.repository.default_branch
 permissions:
   contents: read
   pull-requests: read
