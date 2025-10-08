@@ -4,7 +4,7 @@ mcp-servers:
     command: "./gh-aw"
     args: ["mcp-server"]
     env:
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 steps:
   - name: Set up Go
     uses: actions/setup-go@v5
