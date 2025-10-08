@@ -7,16 +7,8 @@ permissions:
   contents: read
   actions: read
 engine: claude
-mcp-servers:
-  gh-aw:
-    command: "./gh-aw"
-    args: ["mcp-server"]
-    env:
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 tools:
   cache-memory: true
-  bash:
-    - "make build"
 safe-outputs:
   create-issue:
     title-prefix: "[audit] "
@@ -28,7 +20,17 @@ safe-outputs:
     draft: true
 timeout_minutes: 20
 strict: true
+steps:
+  - name: Set up Go
+    uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
+      cache: true
+  - name: Build gh-aw CLI
+    run: make build
 ---
+
+{{#import shared/gh-aw-mcp.md}}
 
 # Agentic Workflow Audit Agent
 
@@ -44,34 +46,11 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 - **Triggered by**: ${{ github.actor }}
 - **Run Time**: ${{ github.run_id }}
 
-## Available Tools
-
-You have access to the `gh-aw` MCP server which provides the following tools:
-
-- **status** - Show status of agentic workflow files
-- **compile** - Compile markdown workflow files to YAML
-- **logs** - Download and analyze workflow logs (output forced to `/tmp/aw-mcp/logs`)
-- **audit** - Investigate a workflow run and generate a report (output forced to `/tmp/aw-mcp/logs`)
-
-The MCP server has access to the GITHUB_TOKEN secret, which allows it to interact with the GitHub API to fetch workflow runs, logs, and artifacts without exposing the token to the workflow process.
-
 ## Audit Process
 
-### Phase 1: Build the MCP Server
+### Phase 1: Collect Workflow Logs
 
-1. **Build the gh-aw CLI**:
-   ```bash
-   make build
-   ```
-   This compiles the `gh-aw` binary needed for the MCP server.
-
-2. **Verify Build**:
-   - Confirm the binary was created successfully at `./gh-aw`
-   - Check for any build warnings or errors
-
-The workflow will automatically configure the binary as an MCP server once built. The server runs in isolation with access to GITHUB_TOKEN, ensuring secrets are not exposed to the workflow process.
-
-### Phase 2: Collect Workflow Logs
+The gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.
 
 1. **Download Logs from Last 24 Hours**:
    Use the `logs` tool from the gh-aw MCP server:
@@ -88,17 +67,17 @@ The workflow will automatically configure the binary as an MCP server once built
    - Note how many workflow runs were found
    - Identify which workflows were active
 
-### Phase 3: Analyze Logs for Issues
+### Phase 2: Analyze Logs for Issues
 
 Review the downloaded logs in `/tmp/aw-mcp/logs` and identify:
 
-#### 3.1 Missing Tools Analysis
+#### 2.1 Missing Tools Analysis
 - Check for any missing tool reports in the logs
 - Look for patterns in missing tools across workflows
 - Identify tools that are frequently requested but unavailable
 - Determine if missing tools are legitimate needs or misconfigurations
 
-#### 3.2 Error Detection
+#### 2.2 Error Detection
 - Scan logs for error messages and stack traces
 - Identify failing workflow runs
 - Categorize errors by type:
@@ -109,19 +88,19 @@ Review the downloaded logs in `/tmp/aw-mcp/logs` and identify:
   - Resource constraints
   - AI model errors
 
-#### 3.3 Performance Metrics
+#### 2.3 Performance Metrics
 - Review token usage and costs
 - Identify workflows with unusually high resource consumption
 - Check for workflows exceeding timeout limits
 - Analyze turn counts and efficiency
 
-#### 3.4 Pattern Recognition
+#### 2.4 Pattern Recognition
 - Identify recurring issues across multiple workflows
 - Detect workflows that frequently fail
 - Find common error signatures
 - Look for trends in tool usage
 
-### Phase 4: Store Analysis in Cache Memory
+### Phase 3: Store Analysis in Cache Memory
 
 Use the cache memory folder `/tmp/cache-memory/` to build persistent knowledge:
 
@@ -140,7 +119,7 @@ Use the cache memory folder `/tmp/cache-memory/` to build persistent knowledge:
    - Identify new issues vs. recurring problems
    - Track improvement or degradation over time
 
-### Phase 5: Decision Making
+### Phase 4: Decision Making
 
 Based on your analysis, decide the appropriate action:
 
@@ -249,24 +228,6 @@ In this case:
 - Exit gracefully
 
 ## Important Guidelines
-
-### MCP Server Security
-
-The gh-aw MCP server is configured with:
-- **GITHUB_TOKEN access**: The MCP server runs with the GITHUB_TOKEN secret, allowing it to authenticate with GitHub APIs
-- **Process isolation**: The token is only accessible to the MCP server subprocess, not the main workflow process
-- **Fixed output directories**: Logs and audit reports are written to `/tmp/aw-mcp/logs` to prevent directory traversal attacks
-- **Validation always enabled**: The compile tool always validates workflows for security
-
-### Using the MCP Server Tools
-
-When calling MCP tools:
-- **logs**: Downloads workflow logs and artifacts. Supports filtering by date, engine, branch, and run ID.
-- **audit**: Investigates a specific workflow run. Requires the run ID as input.
-- **status**: Shows the status of workflow files. Can filter by pattern.
-- **compile**: Compiles markdown workflows to YAML. Always validates for security.
-
-All downloaded files will be in `/tmp/aw-mcp/logs`. Read files from this directory to perform your analysis.
 
 ### Security and Safety
 - **Never execute untrusted code** from workflow logs
