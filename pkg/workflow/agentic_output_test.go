@@ -198,13 +198,17 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Error("Codex workflow should have job output declaration for 'output' (GITHUB_AW_SAFE_OUTPUTS)")
 	}
 
-	// Verify that Codex workflow now HAS engine output collection steps (for log collection)
-	if !strings.Contains(lockContent, "- name: Upload engine output files") {
-		t.Error("Codex workflow should have 'Upload engine output files' step (for collecting logs)")
+	// Verify that Codex workflow does NOT have engine output collection steps
+	if strings.Contains(lockContent, "- name: Collect engine output files") {
+		t.Error("Codex workflow should NOT have 'Collect engine output files' step")
 	}
 
-	if !strings.Contains(lockContent, "name: agent_outputs") {
-		t.Error("Codex workflow should reference 'agent_outputs' artifact (for collecting logs)")
+	if strings.Contains(lockContent, "- name: Upload engine output files") {
+		t.Error("Codex workflow should NOT have 'Upload engine output files' step")
+	}
+
+	if strings.Contains(lockContent, "name: agent_outputs") {
+		t.Error("Codex workflow should NOT reference 'agent_outputs' artifact")
 	}
 
 	// Verify that the Codex execution step is still present
@@ -224,16 +228,12 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 		t.Errorf("Claude engine should declare no output files (Claude CLI no longer produces output.txt), got: %v", claudeOutputFiles)
 	}
 
-	// Test Codex engine declares output files (logs directory)
+	// Test Codex engine declares no output files
 	codexEngine := NewCodexEngine()
 	codexOutputFiles := codexEngine.GetDeclaredOutputFiles()
 
-	if len(codexOutputFiles) != 1 {
-		t.Errorf("Codex engine should declare one output file path (log directory), got: %v", codexOutputFiles)
-	}
-
-	if len(codexOutputFiles) > 0 && codexOutputFiles[0] != "/tmp/gh-aw/.codex/log/" {
-		t.Errorf("Codex engine should declare /tmp/gh-aw/.codex/log/, got: %v", codexOutputFiles[0])
+	if len(codexOutputFiles) != 0 {
+		t.Errorf("Codex engine should declare no output files, got: %v", codexOutputFiles)
 	}
 
 	t.Logf("Claude engine declares: %v", claudeOutputFiles)

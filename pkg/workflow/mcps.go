@@ -175,13 +175,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		}
 	}
 	yaml.WriteString("        run: |\n")
-	// Create directory for MCP config based on engine type
-	// Codex uses /tmp/gh-aw/.codex, others use /tmp/gh-aw/mcp-config
-	if engine.GetID() == "codex" {
-		yaml.WriteString("          mkdir -p /tmp/gh-aw/.codex\n")
-	} else {
-		yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
-	}
+	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 

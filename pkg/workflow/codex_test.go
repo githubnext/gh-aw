@@ -128,11 +128,11 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain 'CODEX_API_KEY' for codex but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that CODEX_HOME is set
-				if !strings.Contains(lockContent, "export CODEX_HOME=/tmp/gh-aw/.codex") {
-					t.Errorf("Expected lock file to contain 'export CODEX_HOME=/tmp/gh-aw/.codex' but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "export CODEX_HOME=/tmp/gh-aw/mcp-config") {
+					t.Errorf("Expected lock file to contain 'export CODEX_HOME=/tmp/gh-aw/mcp-config' but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that config.toml is generated (not mcp-servers.json)
-				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/.codex/config.toml") {
+				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/config.toml") {
 					t.Errorf("Expected lock file to contain config.toml generation for codex but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "[mcp_servers.github]") {
@@ -394,7 +394,7 @@ This is a test workflow for MCP configuration with different AI engines.
 
 			// Test config.toml generation
 			if tt.expectConfigToml {
-				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/.codex/config.toml") {
+				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/config.toml") {
 					t.Errorf("Expected config.toml generation but didn't find it in:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "[mcp_servers.github]") {
@@ -453,7 +453,7 @@ This is a test workflow for MCP configuration with different AI engines.
 
 			// Test CODEX_HOME setting
 			if tt.expectCodexHome {
-				if !strings.Contains(lockContent, "export CODEX_HOME=/tmp/gh-aw/.codex") {
+				if !strings.Contains(lockContent, "export CODEX_HOME=/tmp/gh-aw/mcp-config") {
 					t.Errorf("Expected CODEX_HOME export but didn't find it in:\n%s", lockContent)
 				}
 			} else {
@@ -570,7 +570,7 @@ This is a test workflow for testing the config field functionality.
 			lockContent := string(content)
 
 			// Test that config.toml is generated for codex
-			if !strings.Contains(lockContent, "cat > /tmp/gh-aw/.codex/config.toml") {
+			if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/config.toml") {
 				t.Errorf("Expected config.toml generation but didn't find it in:\n%s", lockContent)
 			}
 

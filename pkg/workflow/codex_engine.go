@@ -58,15 +58,6 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
-// GetDeclaredOutputFiles returns the output files that Codex may produce
-// Codex (written in Rust) writes logs to ~/.codex/log/codex-tui.log
-func (e *CodexEngine) GetDeclaredOutputFiles() []string {
-	// Return the Codex log directory for artifact collection
-	return []string{
-		"/tmp/gh-aw/.codex/log/",
-	}
-}
-
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	// Use version from engine config if provided, otherwise default to pinned version
 	version := constants.DefaultCodexVersion
@@ -122,8 +113,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-export CODEX_HOME=/tmp/gh-aw/.codex
-mkdir -p /tmp/gh-aw/.codex/log
+export CODEX_HOME=/tmp/gh-aw/mcp-config
+mkdir -p /tmp/gh-aw/mcp-config
 mkdir -p /tmp/gh-aw/aw-logs
 which codex
 codex --version
@@ -133,9 +124,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/.codex/config.toml",
-		"CODEX_HOME":           "/tmp/gh-aw/.codex",
-		"RUST_LOG":             "TRACE", // Enable maximum logging for Codex (written in Rust)
+		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
@@ -240,7 +229,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/gh-aw/.codex/config.toml << EOF\n")
+	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")
