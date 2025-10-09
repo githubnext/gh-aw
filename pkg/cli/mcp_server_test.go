@@ -148,3 +148,68 @@ This is a test workflow.
 		t.Error("Expected text content from status tool")
 	}
 }
+
+// TestMCPServer_AuditTool tests the audit tool
+func TestMCPServer_AuditTool(t *testing.T) {
+	// Skip if the binary doesn't exist
+	binaryPath := "../../gh-aw"
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
+	}
+
+	// Get the current directory for proper path resolution
+	originalDir, _ := os.Getwd()
+
+	// Create MCP client
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "test-client",
+		Version: "1.0.0",
+	}, nil)
+
+	// Start the MCP server as a subprocess
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
+	transport := &mcp.CommandTransport{Command: serverCmd}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	session, err := client.Connect(ctx, transport, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect to MCP server: %v", err)
+	}
+	defer session.Close()
+
+	// Call audit tool with an invalid run ID
+	// We use an invalid ID to test that the tool is callable and handles errors properly
+	// The tool should return a result with an error message rather than crashing
+	params := &mcp.CallToolParams{
+		Name: "audit",
+		Arguments: map[string]any{
+			"run_id": int64(1),
+		},
+	}
+	result, err := session.CallTool(ctx, params)
+	if err != nil {
+		t.Fatalf("Failed to call audit tool: %v", err)
+	}
+
+	// Verify result is not empty
+	if len(result.Content) == 0 {
+		t.Error("Expected non-empty result from audit tool")
+	}
+
+	// Verify result contains text content
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("Expected text content from audit tool")
+	}
+
+	if textContent.Text == "" {
+		t.Error("Expected non-empty text content from audit tool")
+	}
+
+	// The audit command should fail with an invalid run ID, but should return
+	// a proper error message rather than crashing
+	// We just verify that we got some output (either error or success)
+	t.Logf("Audit tool output: %s", textContent.Text)
+}

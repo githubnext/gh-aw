@@ -13,7 +13,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: fmt-cjs
+build:
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms

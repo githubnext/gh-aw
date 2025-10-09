@@ -75,18 +75,10 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 
 		// Verify patterns have expected content
-		foundStreamError := false
 		foundError := false
 		foundWarning := false
 
 		for _, pattern := range patterns {
-			if pattern.Description == "Codex stream errors with timestamp" {
-				foundStreamError = true
-				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
-					t.Errorf("Stream error pattern has incorrect groups: level=%d, message=%d",
-						pattern.LevelGroup, pattern.MessageGroup)
-				}
-			}
 			if pattern.Description == "Codex ERROR messages with timestamp" {
 				foundError = true
 			}
@@ -95,9 +87,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 			}
 		}
 
-		if !foundStreamError {
-			t.Error("Missing stream error pattern")
-		}
 		if !foundError {
 			t.Error("Missing ERROR pattern")
 		}
@@ -255,19 +244,14 @@ func TestErrorPatternSerialization(t *testing.T) {
 
 func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 	// Test case for GitHub issue #668: Codex fails to report failure if unauthorised
+	// Updated to test new Rust format
 	engine := NewCodexEngine()
 	patterns := engine.GetErrorPatterns()
 
-	// Log content from issue #668
-	logContent := `[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…
-[2025-09-10T17:54:54] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 2/5 in 414ms…
-[2025-09-10T17:54:58] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 3/5 in 821ms…
-[2025-09-10T17:55:03] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 4/5 in 1.611s…
-[2025-09-10T17:55:08] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 5/5 in 3.039s…
-[2025-09-10T17:55:15] ERROR: exceeded retry limit, last status: 401 Unauthorized`
+	// Log content in new Rust format (converted from issue #668)
+	logContent := `2025-09-10T17:55:15.123Z ERROR exceeded retry limit, last status: 401 Unauthorized`
 
 	// Test that patterns can detect the errors
-	foundStreamErrors := 0
 	foundErrorMessages := 0
 
 	for _, pattern := range patterns {
@@ -279,36 +263,30 @@ func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 
 		matches := regex.FindAllString(logContent, -1)
 		if len(matches) > 0 {
-			if pattern.Description == "Codex stream errors with timestamp" {
-				foundStreamErrors = len(matches)
-			}
 			if pattern.Description == "Codex ERROR messages with timestamp" {
 				foundErrorMessages = len(matches)
 			}
 		}
 	}
 
-	// Should detect 5 stream errors and 1 ERROR message from issue #668
-	if foundStreamErrors != 5 {
-		t.Errorf("Expected 5 stream errors from issue #668, found %d", foundStreamErrors)
-	}
+	// Should detect 1 ERROR message from issue #668
 	if foundErrorMessages != 1 {
 		t.Errorf("Expected 1 ERROR message from issue #668, found %d", foundErrorMessages)
 	}
 
 	// Verify the patterns specifically match 401 unauthorized content
-	streamPattern := patterns[0] // Stream error pattern
-	regex, _ := regexp.Compile(streamPattern.Pattern)
-	match := regex.FindStringSubmatch("[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…")
+	errorPattern := patterns[0] // ERROR pattern (first pattern in new format)
+	regex, _ := regexp.Compile(errorPattern.Pattern)
+	match := regex.FindStringSubmatch("2025-09-10T17:55:15.123Z ERROR exceeded retry limit, last status: 401 Unauthorized")
 
 	if len(match) < 4 {
-		t.Error("Stream error pattern should capture timestamp, level, and message groups")
+		t.Error("ERROR pattern should capture timestamp, level, and message groups")
 	} else {
-		if match[streamPattern.LevelGroup] != "error" {
-			t.Errorf("Expected level 'error', got '%s'", match[streamPattern.LevelGroup])
+		if match[errorPattern.LevelGroup] != "ERROR" {
+			t.Errorf("Expected level 'ERROR', got '%s'", match[errorPattern.LevelGroup])
 		}
-		if !strings.Contains(match[streamPattern.MessageGroup], "401 Unauthorized") {
-			t.Errorf("Expected message to contain '401 Unauthorized', got '%s'", match[streamPattern.MessageGroup])
+		if !strings.Contains(match[errorPattern.MessageGroup], "401 Unauthorized") {
+			t.Errorf("Expected message to contain '401 Unauthorized', got '%s'", match[errorPattern.MessageGroup])
 		}
 	}
 }
