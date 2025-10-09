@@ -91,7 +91,7 @@ describe("redact_secrets.cjs", () => {
 
       // Mock findFiles to return our test directory
       const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
+        'findFiles("/tmp/gh-aw", targetExtensions)',
         `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
       );
 
@@ -104,7 +104,7 @@ describe("redact_secrets.cjs", () => {
       expect(redactedContent).toBe("Secret: ghp************************************* and another ghp*************************************");
 
       // Check that info was logged
-      expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp directory");
+      expect(mockCore.info).toHaveBeenCalledWith("Starting secret redaction in /tmp/gh-aw directory");
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Secret redaction complete"));
     });
 
@@ -120,7 +120,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_API_KEY3 = "api-key-789";
 
       const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
+        'findFiles("/tmp/gh-aw", targetExtensions)',
         `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
       );
 
@@ -142,7 +142,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_API_KEY = secretValue;
 
       const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
+        'findFiles("/tmp/gh-aw", targetExtensions)',
         `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
       );
 
@@ -162,7 +162,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_SECRET_KEY = secretValue;
 
       const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
+        'findFiles("/tmp/gh-aw", targetExtensions)',
         `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
       );
 
@@ -185,7 +185,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_SHORT_SECRET = "abc"; // Only 3 chars, should be skipped
 
       const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
+        'findFiles("/tmp/gh-aw", targetExtensions)',
         `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
       );
 
@@ -206,7 +206,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_TOKEN2 = secret2;
 
       const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
+        'findFiles("/tmp/gh-aw", targetExtensions)',
         `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
       );
 
@@ -228,7 +228,7 @@ describe("redact_secrets.cjs", () => {
       process.env.SECRET_EMPTY_SECRET = "";
 
       const modifiedScript = redactScript.replace(
-        'findFiles("/tmp", targetExtensions)',
+        'findFiles("/tmp/gh-aw", targetExtensions)',
         `findFiles("${tempDir.replace(/\\/g, "\\\\")}", targetExtensions)`
       );
 

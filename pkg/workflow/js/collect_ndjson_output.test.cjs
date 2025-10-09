@@ -70,7 +70,7 @@ describe("collect_ndjson_output.cjs", () => {
 
   afterEach(() => {
     // Clean up any test files
-    const testFiles = ["/tmp/test-ndjson-output.txt", "/tmp/agent_output.json"];
+    const testFiles = ["/tmp/test-ndjson-output.txt", "/tmp/gh-aw/agent_output.json"];
     testFiles.forEach(file => {
       try {
         if (fs.existsSync(file)) {
@@ -1300,10 +1300,10 @@ Line 3"}
     await eval(`(async () => { ${collectScript} })()`);
 
     // Verify agent_output.json file was created
-    expect(fs.existsSync("/tmp/agent_output.json")).toBe(true);
+    expect(fs.existsSync("/tmp/gh-aw/agent_output.json")).toBe(true);
 
     // Verify the content of agent_output.json
-    const agentOutputContent = fs.readFileSync("/tmp/agent_output.json", "utf8");
+    const agentOutputContent = fs.readFileSync("/tmp/gh-aw/agent_output.json", "utf8");
     const agentOutputJson = JSON.parse(agentOutputContent);
 
     expect(agentOutputJson.items).toHaveLength(2);
@@ -1312,7 +1312,7 @@ Line 3"}
     expect(agentOutputJson.errors).toHaveLength(0);
 
     // Verify GITHUB_AW_AGENT_OUTPUT environment variable was set
-    expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_AGENT_OUTPUT", "/tmp/agent_output.json");
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_AGENT_OUTPUT", "/tmp/gh-aw/agent_output.json");
 
     // Verify existing functionality still works (core.setOutput calls)
     const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1335,7 +1335,7 @@ Line 3"}
     // Mock fs.writeFileSync to throw an error for the agent_output.json file
     const originalWriteFileSync = fs.writeFileSync;
     fs.writeFileSync = vi.fn((filePath, content, options) => {
-      if (filePath === "/tmp/agent_output.json") {
+      if (filePath === "/tmp/gh-aw/agent_output.json") {
         throw new Error("Permission denied");
       }
       return originalWriteFileSync(filePath, content, options);
