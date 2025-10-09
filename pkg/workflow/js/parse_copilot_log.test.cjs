@@ -279,7 +279,7 @@ describe("parse_copilot_log.cjs", () => {
 
       // Parameters should be formatted as JSON
       expect(result).toContain("``````json");
-      
+
       // Verify the structure contains both parameter and response sections
       const detailsMatch = result.match(/<details>[\s\S]*?<\/details>/);
       expect(detailsMatch).toBeDefined();

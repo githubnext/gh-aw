@@ -711,7 +711,7 @@ function formatToolUseWithDetails(toolUse, toolResult) {
   if (details && details.trim()) {
     // Build the details content with tool input parameters and response
     let detailsContent = "";
-    
+
     // Add parameters section if we have input
     const inputKeys = Object.keys(input);
     if (inputKeys.length > 0) {
@@ -720,13 +720,13 @@ function formatToolUseWithDetails(toolUse, toolResult) {
       detailsContent += JSON.stringify(input, null, 2);
       detailsContent += "\n``````\n\n";
     }
-    
+
     // Add response section
     detailsContent += "**Response:**\n\n";
     detailsContent += "``````\n";
     detailsContent += details;
     detailsContent += "\n``````";
-    
+
     return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
   } else {
     // No details, just show summary
