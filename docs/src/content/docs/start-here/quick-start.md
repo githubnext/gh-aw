@@ -47,6 +47,16 @@ For GitHub Copilot CLI please [create a GitHub Fine-Grained Personal Access Toke
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-personal-access-token>"
 ```
 
+**Optional: Add GITHUB_MCP_TOKEN for Remote GitHub Tools**
+
+If you plan to use the remote GitHub MCP server (faster, no Docker required) with `mode: remote`, you'll need to set the `GITHUB_MCP_TOKEN` secret. This is a GitHub Personal Access Token with appropriate repository permissions:
+
+```bash
+gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
+```
+
+See [GitHub Tools configuration](/gh-aw/reference/tools/#github-remote-mode) for more details on remote mode.
+
 For Claude and Codex, see the instructions in [AI Engines](/gh-aw/reference/engines/).
 
 **Step 4 — Trigger a run of the workflow in GitHub Actions**
