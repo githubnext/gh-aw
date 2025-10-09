@@ -181,7 +181,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolset": []string{"repos", "issues"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS" = "repos,issues"`,
+				`GITHUB_TOOLSETS = "repos,issues"`,
 			},
 			notInYAML: []string{},
 		},

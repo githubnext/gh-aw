@@ -539,16 +539,20 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("\n")
 		yaml.WriteString("          ]\n")
 
+		// Use TOML section syntax for environment variables
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [mcp_servers.github.env]\n")
+
 		// Use custom token if specified, otherwise use default
-		// Add toolsets if configured
-		if customGitHubToken != "" && toolsets != "" {
-			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"" + customGitHubToken + "\", \"GITHUB_TOOLSETS\" = \"" + toolsets + "\" }\n")
-		} else if customGitHubToken != "" {
-			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"" + customGitHubToken + "\" }\n")
-		} else if toolsets != "" {
-			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\", \"GITHUB_TOOLSETS\" = \"" + toolsets + "\" }\n")
+		if customGitHubToken != "" {
+			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + customGitHubToken + "\"\n")
 		} else {
-			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\" }\n")
+			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
+		}
+
+		// Add toolsets if configured
+		if toolsets != "" {
+			yaml.WriteString("          GITHUB_TOOLSETS = \"" + toolsets + "\"\n")
 		}
 	}
 }

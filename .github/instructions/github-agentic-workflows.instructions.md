@@ -123,11 +123,11 @@ The YAML frontmatter supports these fields:
     - `args:` - Additional command-line arguments (local mode only)
     - `read-only:` - Restrict to read-only operations (boolean)
     - `github-token:` - Custom GitHub token
-    - `toolset:` - Enable specific GitHub toolset groups (string or array)
+    - `toolset:` - Enable specific GitHub toolset groups (array only)
       - Available toolsets: `context`, `repos`, `issues`, `pull_requests`, `actions`, `code_security`, `dependabot`, `discussions`, `experiments`, `gists`, `labels`, `notifications`, `orgs`, `projects`, `secret_protection`, `security_advisories`, `stargazers`, `users`
       - Default toolsets (if not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
-      - Use `all` to enable all available toolsets
-      - Example: `toolset: "repos,issues,pull_requests"` or `toolset: [repos, issues, actions]`
+      - Use `[all]` to enable all available toolsets
+      - Example: `toolset: [repos, issues, pull_requests]` or `toolset: [all]`
   - `edit:` - File editing tools
   - `web-fetch:` - Web content fetching tools
   - `web-search:` - Web search tools
