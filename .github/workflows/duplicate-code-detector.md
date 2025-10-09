@@ -48,6 +48,7 @@ Activate the project in Serena:
 
 Identify and analyze modified files:
 - Determine files changed in the recent commits
+- **Exclude test files** from analysis (files matching patterns: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or located in directories named `test`, `tests`, `__tests__`, or `spec`)
 - Use `get_symbols_overview` to understand file structure
 - Use `read_file` to examine modified file contents
 
@@ -113,14 +114,15 @@ Create an issue if significant duplication is found (threshold: >10 lines of dup
 
 - Standard boilerplate code (imports, exports, etc.)
 - Test setup/teardown code (acceptable duplication in tests)
+- **All test files** (files matching: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or in `test/`, `tests/`, `__tests__/`, `spec/` directories)
 - Configuration files with similar structure
 - Language-specific patterns (constructors, getters/setters)
 - Small code snippets (<5 lines) unless highly repetitive
 
 ### Analysis Depth
 
-- **Primary Focus**: All files changed in the current push
-- **Secondary Analysis**: Check for duplication with existing codebase
+- **Primary Focus**: All files changed in the current push (excluding test files)
+- **Secondary Analysis**: Check for duplication with existing codebase (excluding test files)
 - **Cross-Reference**: Look for patterns across the repository
 - **Historical Context**: Consider if duplication is new or existing
 
