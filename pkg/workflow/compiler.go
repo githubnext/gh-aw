@@ -2377,6 +2377,9 @@ func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[st
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, extractSquidLogsSetupScript, "          ")
 
+	// Sort proxy tools for consistent ordering
+	sort.Strings(proxyTools)
+
 	for _, toolName := range proxyTools {
 		// Use template and replace TOOLNAME with actual toolName
 		scriptForTool := strings.ReplaceAll(extractSquidLogPerToolScript, "TOOLNAME", toolName)

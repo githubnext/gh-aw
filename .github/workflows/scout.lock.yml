@@ -2960,17 +2960,17 @@ jobs:
         if: always()
         run: |
           mkdir -p /tmp/gh-aw/access-logs
-          echo 'Extracting access.log from squid-proxy-context7 container'
-          if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-context7$'; then
-            docker cp squid-proxy-context7:/var/log/squid/access.log /tmp/gh-aw/access-logs/access-context7.log 2>/dev/null || echo 'No access.log found for context7'
-          else
-            echo 'Container squid-proxy-context7 not found'
-          fi
           echo 'Extracting access.log from squid-proxy-arxiv container'
           if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-arxiv$'; then
             docker cp squid-proxy-arxiv:/var/log/squid/access.log /tmp/gh-aw/access-logs/access-arxiv.log 2>/dev/null || echo 'No access.log found for arxiv'
           else
             echo 'Container squid-proxy-arxiv not found'
+          fi
+          echo 'Extracting access.log from squid-proxy-context7 container'
+          if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-context7$'; then
+            docker cp squid-proxy-context7:/var/log/squid/access.log /tmp/gh-aw/access-logs/access-context7.log 2>/dev/null || echo 'No access.log found for context7'
+          else
+            echo 'Container squid-proxy-context7 not found'
           fi
       - name: Upload squid access logs
         if: always()
