@@ -21,6 +21,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// defaultAgentStdioLogPath is the default log file path for agent stdout/stderr
+	defaultAgentStdioLogPath = "/tmp/gh-aw/agent-stdio.log"
+)
+
 // WorkflowRun represents a GitHub Actions workflow run with metrics
 type WorkflowRun struct {
 	DatabaseID       int64     `json:"databaseId"`
@@ -1407,7 +1412,7 @@ func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string,
 
 	// If the engine specifies a log file that isn't the default agent-stdio.log,
 	// look in the agent_output artifact directory
-	if logFileForParsing != "" && logFileForParsing != "/tmp/gh-aw/agent-stdio.log" {
+	if logFileForParsing != "" && logFileForParsing != defaultAgentStdioLogPath {
 		// Check for agent_output directory (artifact)
 		agentOutputDir := filepath.Join(logDir, "agent_output")
 		if dirExists(agentOutputDir) {
