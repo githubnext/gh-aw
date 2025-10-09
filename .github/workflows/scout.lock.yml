@@ -3489,9 +3489,19 @@ jobs:
                   }
               }
               if (details && details.trim()) {
-                const maxDetailsLength = 500;
-                const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-                return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
+                let detailsContent = "";
+                const inputKeys = Object.keys(input);
+                if (inputKeys.length > 0) {
+                  detailsContent += "**Parameters:**\n\n";
+                  detailsContent += "``````json\n";
+                  detailsContent += JSON.stringify(input, null, 2);
+                  detailsContent += "\n``````\n\n";
+                }
+                detailsContent += "**Response:**\n\n";
+                detailsContent += "``````\n";
+                detailsContent += details;
+                detailsContent += "\n``````";
+                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
               } else {
                 return `${summary}\n\n`;
               }
