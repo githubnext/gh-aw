@@ -1,8 +1,26 @@
 function main() {
   const fs = require("fs");
+  const path = require("path");
 
   try {
     const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+    const declaredOutputFiles = process.env.GITHUB_AW_DECLARED_OUTPUT_FILES;
+
+    // Try to find agentic output in declared output files first
+    if (declaredOutputFiles) {
+      const outputPaths = declaredOutputFiles.split("\n").filter(p => p.trim());
+      const agenticOutput = findAgenticOutputInPaths(outputPaths);
+
+      if (agenticOutput) {
+        // Found agentic output, use it instead of parsing log
+        core.info("Found agentic output in declared output files");
+        core.summary.addRaw(agenticOutput).write();
+        core.info("Agentic output processed successfully");
+        return;
+      }
+    }
+
+    // Fall back to parsing log file if no agentic output found
     if (!logFile) {
       core.info("No agent log file specified");
       return;
@@ -26,6 +44,54 @@ function main() {
   } catch (error) {
     core.setFailed(error instanceof Error ? error : String(error));
   }
+}
+
+/**
+ * Search for agentic output files in the declared output paths
+ * @param {string[]} outputPaths - Array of file or directory paths
+ * @returns {string|null} The content of the first agentic output file found, or null
+ */
+function findAgenticOutputInPaths(outputPaths) {
+  const fs = require("fs");
+  const path = require("path");
+
+  // Common agentic output file names to search for
+  const outputFileNames = ["agentic-output.md", "output.md", "agentic-output.txt", "output.txt"];
+
+  for (const outputPath of outputPaths) {
+    if (!outputPath || !outputPath.trim()) {
+      continue;
+    }
+
+    const trimmedPath = outputPath.trim();
+
+    try {
+      const stats = fs.statSync(trimmedPath);
+
+      if (stats.isDirectory()) {
+        // Search for common output file names in the directory
+        for (const fileName of outputFileNames) {
+          const filePath = path.join(trimmedPath, fileName);
+          if (fs.existsSync(filePath)) {
+            core.info(`Found agentic output file: ${filePath}`);
+            return fs.readFileSync(filePath, "utf8");
+          }
+        }
+      } else if (stats.isFile()) {
+        // If it's a file, check if it's one of the expected output files
+        const fileName = path.basename(trimmedPath);
+        if (outputFileNames.includes(fileName)) {
+          core.info(`Found agentic output file: ${trimmedPath}`);
+          return fs.readFileSync(trimmedPath, "utf8");
+        }
+      }
+    } catch (error) {
+      // Path doesn't exist or can't be accessed, continue to next path
+      continue;
+    }
+  }
+
+  return null;
 }
 
 /**

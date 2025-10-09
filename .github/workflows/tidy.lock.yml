@@ -2403,12 +2403,26 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GITHUB_AW_DECLARED_OUTPUT_FILES: |
+            /tmp/gh-aw/.copilot/logs/
         with:
           script: |
             function main() {
               const fs = require("fs");
+              const path = require("path");
               try {
                 const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+                const declaredOutputFiles = process.env.GITHUB_AW_DECLARED_OUTPUT_FILES;
+                if (declaredOutputFiles) {
+                  const outputPaths = declaredOutputFiles.split("\n").filter(p => p.trim());
+                  const agenticOutput = findAgenticOutputInPaths(outputPaths);
+                  if (agenticOutput) {
+                    core.info("Found agentic output in declared output files");
+                    core.summary.addRaw(agenticOutput).write();
+                    core.info("Agentic output processed successfully");
+                    return;
+                  }
+                }
                 if (!logFile) {
                   core.info("No agent log file specified");
                   return;
@@ -2429,6 +2443,38 @@ jobs:
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
               }
+            }
+            function findAgenticOutputInPaths(outputPaths) {
+              const fs = require("fs");
+              const path = require("path");
+              const outputFileNames = ["agentic-output.md", "output.md", "agentic-output.txt", "output.txt"];
+              for (const outputPath of outputPaths) {
+                if (!outputPath || !outputPath.trim()) {
+                  continue;
+                }
+                const trimmedPath = outputPath.trim();
+                try {
+                  const stats = fs.statSync(trimmedPath);
+                  if (stats.isDirectory()) {
+                    for (const fileName of outputFileNames) {
+                      const filePath = path.join(trimmedPath, fileName);
+                      if (fs.existsSync(filePath)) {
+                        core.info(`Found agentic output file: ${filePath}`);
+                        return fs.readFileSync(filePath, "utf8");
+                      }
+                    }
+                  } else if (stats.isFile()) {
+                    const fileName = path.basename(trimmedPath);
+                    if (outputFileNames.includes(fileName)) {
+                      core.info(`Found agentic output file: ${trimmedPath}`);
+                      return fs.readFileSync(trimmedPath, "utf8");
+                    }
+                  }
+                } catch (error) {
+                  continue;
+                }
+              }
+              return null;
             }
             function parseCopilotLog(logContent) {
               try {

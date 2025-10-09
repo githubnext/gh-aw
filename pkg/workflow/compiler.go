@@ -2258,6 +2258,16 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
+
+	// Add declared output files as environment variable if the engine declares any
+	declaredOutputFiles := engine.GetDeclaredOutputFiles()
+	if len(declaredOutputFiles) > 0 {
+		fmt.Fprintf(yaml, "          GITHUB_AW_DECLARED_OUTPUT_FILES: |\n")
+		for _, file := range declaredOutputFiles {
+			fmt.Fprintf(yaml, "            %s\n", file)
+		}
+	}
+
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
