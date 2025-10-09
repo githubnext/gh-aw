@@ -68,6 +68,9 @@ describe("parse_copilot_log.cjs", () => {
       if (module === "fs") {
         return fs;
       }
+      if (module === "path") {
+        return path;
+      }
       if (module === "@actions/core") {
         return mockCore;
       }
@@ -519,6 +522,166 @@ describe("parse_copilot_log.cjs", () => {
       const result = parseCopilotLog(logWithMcpTool);
 
       expect(result).toContain("github::create_pull_request");
+    });
+  });
+
+  describe("declared output files", () => {
+    let tempDir;
+
+    beforeEach(() => {
+      // Create a temp directory for test files
+      tempDir = path.join(process.cwd(), `test_output_${Date.now()}`);
+      fs.mkdirSync(tempDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      // Clean up environment variables
+      delete process.env.GITHUB_AW_DECLARED_OUTPUT_FILES;
+
+      // Clean up temp directory
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it("should find agentic output in a file path", async () => {
+      const outputContent = "# Agentic Output\n\nThis is the final output from the agent.";
+      const outputFile = path.join(tempDir, "agentic-output.md");
+      fs.writeFileSync(outputFile, outputContent);
+
+      // Set the declared output files environment variable
+      process.env.GITHUB_AW_DECLARED_OUTPUT_FILES = outputFile;
+
+      // Extract main function and run it directly
+      const scriptWithExport = parseCopilotLogScript.replace("main();", "global.testMain = main;");
+      const scriptFunction = new Function(scriptWithExport);
+      scriptFunction();
+      await global.testMain();
+
+      // Verify that the agentic output was found and used
+      expect(mockCore.info).toHaveBeenCalledWith("Found agentic output in declared output files");
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(outputContent);
+      expect(mockCore.summary.write).toHaveBeenCalled();
+    });
+
+    it("should find agentic output in a directory path", async () => {
+      const outputContent = "# Agent Summary\n\nTask completed successfully.";
+      const outputFile = path.join(tempDir, "output.md");
+      fs.writeFileSync(outputFile, outputContent);
+
+      // Set the declared output files environment variable to the directory
+      process.env.GITHUB_AW_DECLARED_OUTPUT_FILES = tempDir;
+
+      // Extract main function and run it directly
+      const scriptWithExport = parseCopilotLogScript.replace("main();", "global.testMain = main;");
+      const scriptFunction = new Function(scriptWithExport);
+      scriptFunction();
+      await global.testMain();
+
+      // Verify that the agentic output was found and used
+      expect(mockCore.info).toHaveBeenCalledWith("Found agentic output in declared output files");
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(outputContent);
+    });
+
+    it("should search multiple declared paths and stop at first match", async () => {
+      const outputContent1 = "# First Output\n\nThis is from the first path.";
+      const outputContent2 = "# Second Output\n\nThis should not be used.";
+
+      const dir1 = path.join(tempDir, "dir1");
+      const dir2 = path.join(tempDir, "dir2");
+      fs.mkdirSync(dir1);
+      fs.mkdirSync(dir2);
+
+      const outputFile1 = path.join(dir1, "agentic-output.md");
+      const outputFile2 = path.join(dir2, "agentic-output.md");
+      fs.writeFileSync(outputFile1, outputContent1);
+      fs.writeFileSync(outputFile2, outputContent2);
+
+      // Set multiple paths (newline separated)
+      process.env.GITHUB_AW_DECLARED_OUTPUT_FILES = `${dir1}\n${dir2}`;
+
+      // Extract main function and run it directly
+      const scriptWithExport = parseCopilotLogScript.replace("main();", "global.testMain = main;");
+      const scriptFunction = new Function(scriptWithExport);
+      scriptFunction();
+      await global.testMain();
+
+      // Verify that only the first output was used
+      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(outputContent1);
+      expect(mockCore.summary.addRaw).not.toHaveBeenCalledWith(outputContent2);
+    });
+
+    it("should fall back to log parsing when no agentic output found", async () => {
+      const validLog = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "fallback-test",
+          tools: ["Bash"],
+          model: "gpt-5",
+        },
+        {
+          type: "result",
+          total_cost_usd: 0.001,
+          usage: { input_tokens: 50, output_tokens: 25 },
+          num_turns: 1,
+        },
+      ]);
+
+      // Create a log file
+      const tempLogFile = path.join(tempDir, "agent.log");
+      fs.writeFileSync(tempLogFile, validLog);
+      process.env.GITHUB_AW_AGENT_OUTPUT = tempLogFile;
+
+      // Set declared output files to a directory without any output files
+      process.env.GITHUB_AW_DECLARED_OUTPUT_FILES = tempDir;
+
+      // Extract main function and run it directly
+      const scriptWithExport = parseCopilotLogScript.replace("main();", "global.testMain = main;");
+      const scriptFunction = new Function(scriptWithExport);
+      scriptFunction();
+      await global.testMain();
+
+      // Verify that log parsing was used as fallback
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("🚀 Initialization");
+      expect(summaryCall).toContain("fallback-test");
+
+      // Clean up
+      if (fs.existsSync(tempLogFile)) {
+        fs.unlinkSync(tempLogFile);
+      }
+    });
+
+    it("should handle empty declared output files gracefully", async () => {
+      const validLog = JSON.stringify([
+        {
+          type: "result",
+          total_cost_usd: 0.001,
+        },
+      ]);
+
+      const tempLogFile = path.join(tempDir, "agent.log");
+      fs.writeFileSync(tempLogFile, validLog);
+      process.env.GITHUB_AW_AGENT_OUTPUT = tempLogFile;
+
+      // Set empty declared output files
+      process.env.GITHUB_AW_DECLARED_OUTPUT_FILES = "";
+
+      // Extract main function and run it directly
+      const scriptWithExport = parseCopilotLogScript.replace("main();", "global.testMain = main;");
+      const scriptFunction = new Function(scriptWithExport);
+      scriptFunction();
+      await global.testMain();
+
+      // Should fall back to log parsing
+      expect(mockCore.summary.write).toHaveBeenCalled();
+
+      // Clean up
+      if (fs.existsSync(tempLogFile)) {
+        fs.unlinkSync(tempLogFile);
+      }
     });
   });
 });
