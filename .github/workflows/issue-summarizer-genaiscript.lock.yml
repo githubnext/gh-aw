@@ -1247,7 +1247,7 @@ jobs:
             echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
             MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
           fi
-          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
+          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --out /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
           if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
             cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
             echo "GenAIScript execution completed"
@@ -2200,7 +2200,7 @@ jobs:
             echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
             MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
           fi
-          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
+          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --out /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
           if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
             cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
             echo "GenAIScript execution completed"
