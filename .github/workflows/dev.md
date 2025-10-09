@@ -3,9 +3,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - copilot/*
+      - copilot/update-dev-md-genaiscript-workflow
 name: Dev
-engine: claude
+imports:
+  - shared/genaiscript.md
 tools:
   github:
     mode: remote

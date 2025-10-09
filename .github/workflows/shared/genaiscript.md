@@ -37,6 +37,7 @@ engine:
           echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
         fi
       env:
+        DEBUG: genaiscript:*
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
         GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
 ---
