@@ -54,8 +54,8 @@ func TestCodexEngine(t *testing.T) {
 		Name: "test-workflow",
 	}
 	execSteps := engine.GetExecutionSteps(workflowData, "test-log")
-	if len(execSteps) != 2 {
-		t.Fatalf("Expected 2 steps for Codex execution (execution + log capture), got %d", len(execSteps))
+	if len(execSteps) != 1 {
+		t.Fatalf("Expected 1 step for Codex execution, got %d", len(execSteps))
 	}
 
 	// Check the execution step

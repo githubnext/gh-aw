@@ -4,12 +4,11 @@ on:
   push:
     branches:
       - copilot/*
+      - codex*
 name: Dev
-engine: claude
+engine: codex
 tools:
   github:
-    mode: remote
-    github-token: "${{ secrets.COPILOT_CLI_TOKEN }}"
     allowed: [list_pull_requests, get_pull_request]
 safe-outputs:
     staged: true
@@ -18,4 +17,5 @@ timeout_minutes: 10
 strict: true
 ---
 
-List the last 5 merged pull requests in this repository.
+List the last 5 merged pull requests (use `github list_pull_requests`) in this repository
+and open an issue with the list.`

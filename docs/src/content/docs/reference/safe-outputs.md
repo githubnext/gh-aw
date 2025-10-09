@@ -887,6 +887,17 @@ In staged mode, this shows as a preview error rather than failing the workflow.
 - Ensure manageable code review sizes
 - Control CI/CD resource usage
 
+## Custom runner image
+
+You can specify the `runs-on` field in the `safe-outputs:` section to use a custom GitHub Actions runner image for all safe output jobs.
+
+```yaml
+safe-outputs:
+  runs-on: ubuntu-22.04                # Optional: custom runner image for all safe output jobs
+  create-issue:
+  add-comment:
+```
+
 ## Related Documentation
 
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options for workflows
