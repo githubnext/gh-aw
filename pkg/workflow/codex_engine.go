@@ -358,6 +358,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		counts := CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 		metrics.ErrorCount = counts.ErrorCount
 		metrics.WarningCount = counts.WarningCount
+		metrics.Errors = counts.Errors // Copy individual error details
 	}
 
 	// Detect permission errors and create missing-tool entries

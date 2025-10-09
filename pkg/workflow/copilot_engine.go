@@ -499,6 +499,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		counts := CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 		metrics.ErrorCount = counts.ErrorCount
 		metrics.WarningCount = counts.WarningCount
+		metrics.Errors = counts.Errors // Copy individual error details
 	}
 
 	// Detect permission errors and create missing-tool entries

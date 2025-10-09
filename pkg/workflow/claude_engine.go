@@ -827,7 +827,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	// Process line by line for error counting and fallback parsing
 	lines := strings.Split(logContent, "\n")
 
-	for _, line := range lines {
+	for lineNum, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -858,13 +858,31 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			}
 		}
 
-		// Count errors and warnings
+		// Count errors and warnings and collect individual error details
 		lowerLine := strings.ToLower(line)
 		if strings.Contains(lowerLine, "error") {
 			metrics.ErrorCount++
+			// Extract error message (remove timestamp and common prefixes)
+			message := extractErrorMessage(line)
+			if message != "" {
+				metrics.Errors = append(metrics.Errors, LogError{
+					Line:    lineNum + 1, // 1-based line numbering
+					Type:    "error",
+					Message: message,
+				})
+			}
 		}
 		if strings.Contains(lowerLine, "warning") {
 			metrics.WarningCount++
+			// Extract warning message (remove timestamp and common prefixes)
+			message := extractErrorMessage(line)
+			if message != "" {
+				metrics.Errors = append(metrics.Errors, LogError{
+					Line:    lineNum + 1, // 1-based line numbering
+					Type:    "warning",
+					Message: message,
+				})
+			}
 		}
 	}
 
