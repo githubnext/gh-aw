@@ -500,7 +500,7 @@ npm warn exec The following package was not found
       expect(result.markdown).toContain("</details>");
 
       // Summary should contain the tool description and command
-      expect(result.markdown).toContain("List files: `ls -la`");
+      expect(result.markdown).toContain("List files: <code>ls -la</code>");
 
       // Details should contain the output in a code block
       expect(result.markdown).toContain("```");

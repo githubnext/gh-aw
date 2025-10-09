@@ -378,16 +378,16 @@ function formatToolUse(toolUse, toolResult) {
       const formattedCommand = formatBashCommand(command);
 
       if (description) {
-        summary = `${statusIcon} ${description}: \`${formattedCommand}\``;
+        summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>`;
       } else {
-        summary = `${statusIcon} \`${formattedCommand}\``;
+        summary = `${statusIcon} <code>${formattedCommand}</code>`;
       }
       break;
 
     case "Read":
       const filePath = input.file_path || input.path || "";
       const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); // Remove /home/runner/work/repo/repo/ prefix
-      summary = `${statusIcon} Read \`${relativePath}\``;
+      summary = `${statusIcon} Read <code>${relativePath}</code>`;
       break;
 
     case "Write":
@@ -395,13 +395,13 @@ function formatToolUse(toolUse, toolResult) {
     case "MultiEdit":
       const writeFilePath = input.file_path || input.path || "";
       const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Write \`${writeRelativePath}\``;
+      summary = `${statusIcon} Write <code>${writeRelativePath}</code>`;
       break;
 
     case "Grep":
     case "Glob":
       const query = input.query || input.pattern || "";
-      summary = `${statusIcon} Search for \`${truncateString(query, 80)}\``;
+      summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>`;
       break;
 
     case "LS":
