@@ -1169,7 +1169,28 @@
                       "description": "Array of toolset names to enable",
                       "items": {
                         "type": "string",
-                        "description": "Toolset name (e.g., 'repos', 'issues', 'pull_requests', 'actions', 'code_security', 'all')"
+                        "description": "Toolset name",
+                        "enum": [
+                          "all",
+                          "context",
+                          "repos",
+                          "issues",
+                          "pull_requests",
+                          "actions",
+                          "code_security",
+                          "dependabot",
+                          "discussions",
+                          "experiments",
+                          "gists",
+                          "labels",
+                          "notifications",
+                          "orgs",
+                          "projects",
+                          "secret_protection",
+                          "security_advisories",
+                          "stargazers",
+                          "users"
+                        ]
                       }
                     }
                   ]
