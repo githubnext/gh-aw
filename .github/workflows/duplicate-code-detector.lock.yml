@@ -2276,7 +2276,24 @@ jobs:
                 const commandSummary = [];
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
-                  if (line.includes("] tool ") && line.includes("(")) {
+                  const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
+                  if (toolCallMatch) {
+                    const server = toolCallMatch[1];
+                    const toolName = toolCallMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + 50, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
+                  }
+                  else if (line.includes("] tool ") && line.includes("(")) {
                     const toolMatch = line.match(/\] tool ([^(]+)\(/);
                     if (toolMatch) {
                       const toolName = toolMatch[1];
@@ -2328,20 +2345,33 @@ jobs:
                 }
                 markdown += "\n## 📊 Information\n\n";
                 let totalTokens = 0;
-                const tokenMatches = logContent.match(/tokens used: (\d+)/g);
-                if (tokenMatches) {
-                  for (const match of tokenMatches) {
-                    const numberMatch = match.match(/(\d+)/);
-                    if (numberMatch) {
-                      const tokens = parseInt(numberMatch[1]);
-                      totalTokens += tokens;
+                const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
+                for (const match of tokenCountMatches) {
+                  const tokens = parseInt(match[1]);
+                  totalTokens = Math.max(totalTokens, tokens); 
+                }
+                if (totalTokens === 0) {
+                  const tokenMatches = logContent.match(/tokens used: (\d+)/g);
+                  if (tokenMatches) {
+                    for (const match of tokenMatches) {
+                      const numberMatch = match.match(/(\d+)/);
+                      if (numberMatch) {
+                        const tokens = parseInt(numberMatch[1]);
+                        totalTokens += tokens;
+                      }
                     }
                   }
+                }
+                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+                if (finalTokensMatch) {
+                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
                 }
                 if (totalTokens > 0) {
                   markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
                 }
-                const toolCalls = (logContent.match(/\] tool /g) || []).length;
+                const newToolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+                const oldToolCalls = (logContent.match(/\] tool /g) || []).length;
+                const toolCalls = newToolCalls + oldToolCalls;
                 const execCommands = (logContent.match(/\] exec /g) || []).length;
                 if (toolCalls > 0) {
                   markdown += `**Tool Calls:** ${toolCalls}\n\n`;
@@ -2363,12 +2393,38 @@ jobs:
                     line.includes("sandbox:") ||
                     line.includes("reasoning effort:") ||
                     line.includes("reasoning summaries:") ||
-                    line.includes("tokens used:")
+                    line.includes("tokens used:") ||
+                    line.includes("DEBUG codex") ||
+                    line.includes("INFO codex") ||
+                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
                   ) {
+                    continue;
+                  }
+                  if (line.trim() === "thinking") {
+                    inThinkingSection = true;
                     continue;
                   }
                   if (line.includes("] thinking")) {
                     inThinkingSection = true;
+                    continue;
+                  }
+                  const newToolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (newToolMatch) {
+                    inThinkingSection = false;
+                    const server = newToolMatch[1];
+                    const toolName = newToolMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + 50, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
                     continue;
                   }
                   if (line.includes("] tool ") && line.includes("(")) {
@@ -2418,7 +2474,7 @@ jobs:
                     }
                     continue;
                   }
-                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
+                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-") && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
                     const trimmed = line.trim();
                     markdown += `${trimmed}\n\n`;
                   }
