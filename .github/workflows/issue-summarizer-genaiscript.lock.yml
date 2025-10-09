@@ -1255,6 +1255,7 @@ jobs:
             echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
           fi
         env:
+          DEBUG: genaiscript:*
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
           GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
@@ -2207,6 +2208,7 @@ jobs:
             echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
           fi
         env:
+          DEBUG: genaiscript:*
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
           GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json

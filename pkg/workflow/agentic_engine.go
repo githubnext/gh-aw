@@ -311,19 +311,3 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 
 	return result.String(), nil
 }
-
-// generateLogCaptureStep creates a shared log capture step for any engine
-// This reduces code duplication across engines and ensures consistency
-func generateLogCaptureStep(logFile string) GitHubActionStep {
-	logCaptureLines := []string{
-		"      - name: Print agent log",
-		"        if: always()",
-		"        run: |",
-		"          touch " + logFile,
-		"          echo \"## Agent Log\" >> $GITHUB_STEP_SUMMARY",
-		"          echo '```markdown' >> $GITHUB_STEP_SUMMARY",
-		fmt.Sprintf("          cat %s >> $GITHUB_STEP_SUMMARY", logFile),
-		"          echo '```' >> $GITHUB_STEP_SUMMARY",
-	}
-	return GitHubActionStep(logCaptureLines)
-}
