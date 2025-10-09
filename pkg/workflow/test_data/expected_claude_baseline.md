@@ -98,7 +98,7 @@ The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of 
      7→1. ✓ Check for existing plan (found previous attempt)
      8→2. ✓ Read existing plan
      9→3. ✓ Confirm tool is missing (attempted call - tool does not exist)
-    10→4. ✓ Report missing tool ...
+    10→4. ✓ Report missing...
 `````
 </details>
 
