@@ -446,7 +446,9 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 		maxList := 100
 		shown := 0
 		for _, e := range entries {
-			if shown >= maxList { break }
+			if shown >= maxList {
+				break
+			}
 			name := e.Name()
 			full := filepath.Join(run.LogsPath, name)
 			var sizeInfo string
