@@ -80,6 +80,16 @@ func (e *CodexEngine) GetVersionCommand() string {
 	return "codex --version"
 }
 
+// GetDeclaredOutputFiles returns the output files that Codex may produce
+// Codex (written in Rust) writes logs to ~/.codex/log/codex-tui.log
+func (e *CodexEngine) GetDeclaredOutputFiles() []string {
+	// Return the Codex log directory for artifact collection
+	// Using mcp-config folder structure for consistency with other engines
+	return []string{
+		"/tmp/gh-aw/mcp-config/logs/",
+	}
+}
+
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
@@ -112,12 +122,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
 
 	command := fmt.Sprintf(`set -o pipefail
-INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-export CODEX_HOME=/tmp/gh-aw/mcp-config
-mkdir -p /tmp/gh-aw/mcp-config
-mkdir -p /tmp/gh-aw/aw-logs
-which codex
-codex --version
+INSTRUCTION=$(cat $GITHUB_AW_PROMPT)
+mkdir -p /tmp/gh-aw/mcp-config/logs
 codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
@@ -125,6 +131,8 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
+		"CODEX_HOME":           "/tmp/gh-aw/mcp-config",
+		"RUST_LOG":             "TRACE",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed

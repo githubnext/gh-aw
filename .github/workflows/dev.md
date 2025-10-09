@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - copilot/*
+      - codex*
 name: Dev
-engine: claude
+engine: codex
 tools:
   github:
     mode: remote
