@@ -115,15 +115,15 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 			engine := &ClaudeEngine{}
 			var yaml strings.Builder
 			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true)
-			
+
 			result := yaml.String()
-			
+
 			for _, expected := range tt.expectedInYAML {
 				if !strings.Contains(result, expected) {
 					t.Errorf("Expected YAML to contain %q, but it didn't.\nYAML:\n%s", expected, result)
 				}
 			}
-			
+
 			for _, notExpected := range tt.notInYAML {
 				if strings.Contains(result, notExpected) {
 					t.Errorf("Expected YAML to NOT contain %q, but it did.\nYAML:\n%s", notExpected, result)
@@ -177,15 +177,15 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 			engine := &CopilotEngine{}
 			var yaml strings.Builder
 			engine.renderGitHubCopilotMCPConfig(&yaml, tt.githubTool, true)
-			
+
 			result := yaml.String()
-			
+
 			for _, expected := range tt.expectedInYAML {
 				if !strings.Contains(result, expected) {
 					t.Errorf("Expected YAML to contain %q, but it didn't.\nYAML:\n%s", expected, result)
 				}
 			}
-			
+
 			for _, notExpected := range tt.notInYAML {
 				if strings.Contains(result, notExpected) {
 					t.Errorf("Expected YAML to NOT contain %q, but it did.\nYAML:\n%s", notExpected, result)
@@ -240,15 +240,15 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 			var yaml strings.Builder
 			workflowData := &WorkflowData{Name: "test-workflow"}
 			engine.renderGitHubCodexMCPConfig(&yaml, tt.githubTool, workflowData)
-			
+
 			result := yaml.String()
-			
+
 			for _, expected := range tt.expectedInYAML {
 				if !strings.Contains(result, expected) {
 					t.Errorf("Expected YAML to contain %q, but it didn't.\nYAML:\n%s", expected, result)
 				}
 			}
-			
+
 			for _, notExpected := range tt.notInYAML {
 				if strings.Contains(result, notExpected) {
 					t.Errorf("Expected YAML to NOT contain %q, but it did.\nYAML:\n%s", notExpected, result)
@@ -307,9 +307,9 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 			engine := &ClaudeEngine{}
 			var yaml strings.Builder
 			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true)
-			
+
 			result := yaml.String()
-			
+
 			for _, expected := range tt.expectedInYAML {
 				if !strings.Contains(result, expected) {
 					t.Errorf("Expected YAML to contain %q, but it didn't.\nYAML:\n%s", expected, result)

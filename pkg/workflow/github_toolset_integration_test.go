@@ -123,36 +123,36 @@ This workflow combines toolsets with read-only mode.
 			// Create temporary directory for test
 			tempDir := t.TempDir()
 			mdPath := filepath.Join(tempDir, "test-workflow.md")
-			
+
 			// Write workflow file
 			err := os.WriteFile(mdPath, []byte(tt.workflowMD), 0644)
 			if err != nil {
 				t.Fatalf("Failed to write test workflow: %v", err)
 			}
-			
+
 			// Compile the workflow
 			compiler := NewCompiler(false, "", "test")
 			compileErr := compiler.CompileWorkflow(mdPath)
 			if compileErr != nil {
 				t.Fatalf("Failed to compile workflow: %v", compileErr)
 			}
-			
+
 			// Read the generated YAML (same directory, .lock.yml extension)
 			yamlPath := strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
 			yamlContent, err := os.ReadFile(yamlPath)
 			if err != nil {
 				t.Fatalf("Failed to read generated YAML: %v", err)
 			}
-			
+
 			yamlStr := string(yamlContent)
-			
+
 			// Check expected strings
 			for _, expected := range tt.expectedInYAML {
 				if !strings.Contains(yamlStr, expected) {
 					t.Errorf("Expected YAML to contain %q, but it didn't.\nGenerated YAML:\n%s", expected, yamlStr)
 				}
 			}
-			
+
 			// Check strings that should not be present
 			for _, notExpected := range tt.notInYAML {
 				if strings.Contains(yamlStr, notExpected) {
@@ -177,33 +177,33 @@ tools:
 
 This workflow tests remote mode (no toolsets in remote mode).
 `
-	
+
 	// Create temporary directory for test
 	tempDir := t.TempDir()
 	mdPath := filepath.Join(tempDir, "test-workflow.md")
-	
+
 	// Write workflow file
 	err := os.WriteFile(mdPath, []byte(workflowMD), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write test workflow: %v", err)
 	}
-	
+
 	// Compile the workflow
 	compiler := NewCompiler(false, "", "test")
 	compileErr := compiler.CompileWorkflow(mdPath)
 	if compileErr != nil {
 		t.Fatalf("Failed to compile workflow: %v", compileErr)
 	}
-	
+
 	// Read the generated YAML (same directory, .lock.yml extension)
 	yamlPath := strings.TrimSuffix(mdPath, ".md") + ".lock.yml"
 	yamlContent, readErr := os.ReadFile(yamlPath)
 	if readErr != nil {
 		t.Fatalf("Failed to read generated YAML: %v", readErr)
 	}
-	
+
 	yamlStr := string(yamlContent)
-	
+
 	// In remote mode, toolsets are not currently supported via environment variables
 	// The remote server might have different configuration mechanism
 	// For now, we verify the workflow compiles successfully
