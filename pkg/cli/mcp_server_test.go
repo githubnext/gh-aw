@@ -157,6 +157,9 @@ func TestMCPServer_AuditTool(t *testing.T) {
 		t.Skip("Skipping test: gh-aw binary not found. Run 'make build' first.")
 	}
 
+	// Get the current directory for proper path resolution
+	originalDir, _ := os.Getwd()
+
 	// Create MCP client
 	client := mcp.NewClient(&mcp.Implementation{
 		Name:    "test-client",
@@ -164,10 +167,10 @@ func TestMCPServer_AuditTool(t *testing.T) {
 	}, nil)
 
 	// Start the MCP server as a subprocess
-	serverCmd := exec.Command(binaryPath, "mcp-server")
+	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	session, err := client.Connect(ctx, transport, nil)
