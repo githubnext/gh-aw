@@ -197,7 +197,8 @@ metrics including duration, token usage, and cost information.
 Downloaded artifacts include:
 - aw_info.json: Engine configuration and workflow metadata
 - safe_output.jsonl: Agent's final output content (available when non-empty)
-- agent_output.json: Full/raw agent output (if the workflow uploaded this artifact)
+- agent_output/: Agent logs directory (if the workflow produced logs)
+- agent-stdio.log: Agent standard output/error logs
 - aw.patch: Git patch of changes made during execution
 - Various log files with execution details and metrics
 
@@ -322,7 +323,7 @@ Examples:
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
-	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent_output.json and write markdown to log.md")
+	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
 
 	return logsCmd
 }
@@ -1393,6 +1394,66 @@ func findAgentOutputFile(logDir string) (string, bool) {
 	return foundPath, true
 }
 
+// findAgentLogFile searches for agent logs within the logDir.
+// It looks for:
+// 1. Any file in the "agent_output" artifact directory (if present)
+// 2. The "agent-stdio.log" artifact file (if agent_output not present)
+// Returns the first path found and a boolean indicating success.
+func findAgentLogFile(logDir string) (string, bool) {
+	// First, check for agent_output directory (artifact)
+	agentOutputDir := filepath.Join(logDir, "agent_output")
+	if dirExists(agentOutputDir) {
+		// Find the first file in this directory
+		var foundFile string
+		_ = filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info == nil {
+				return nil
+			}
+			if !info.IsDir() && foundFile == "" {
+				foundFile = path
+				return errors.New("stop") // sentinel to stop walking early
+			}
+			return nil
+		})
+		if foundFile != "" {
+			return foundFile, true
+		}
+	}
+
+	// If agent_output directory doesn't exist or is empty, check for agent-stdio.log
+	agentStdioLog := filepath.Join(logDir, "agent-stdio.log")
+	if fileExists(agentStdioLog) {
+		return agentStdioLog, true
+	}
+
+	// Also check for nested agent-stdio.log in case it's in a subdirectory
+	var foundPath string
+	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
+		if !info.IsDir() && info.Name() == "agent-stdio.log" {
+			foundPath = path
+			return errors.New("stop") // sentinel to stop walking early
+		}
+		return nil
+	})
+	if foundPath != "" {
+		return foundPath, true
+	}
+
+	return "", false
+}
+
+// fileExists checks if a file exists
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
 // copyFileSimple copies a file from src to dst using buffered IO.
 func copyFileSimple(src, dst string) error {
 	in, err := os.Open(src)
@@ -1986,12 +2047,12 @@ func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
 	}
 }
 
-// parseAgentLog runs the JavaScript log parser on agent_output.json and writes markdown to log.md
+// parseAgentLog runs the JavaScript log parser on agent logs and writes markdown to log.md
 func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
-	// Find the agent_output.json file
-	agentOutputPath, found := findAgentOutputFile(runDir)
+	// Find the agent log file - either in agent_output artifact directory or agent-stdio.log file
+	agentLogPath, found := findAgentLogFile(runDir)
 	if !found {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent_output.json found in %s, skipping log parsing", filepath.Base(runDir))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
 		return nil
 	}
 
@@ -2016,7 +2077,7 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 	}
 
 	// Read the log content
-	logContent, err := os.ReadFile(agentOutputPath)
+	logContent, err := os.ReadFile(agentLogPath)
 	if err != nil {
 		return fmt.Errorf("failed to read agent log file: %w", err)
 	}

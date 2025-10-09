@@ -12,15 +12,15 @@ func TestParseAgentLog(t *testing.T) {
 	// Create a temporary directory for the test
 	tempDir := t.TempDir()
 
-	// Create a mock agent_output.json file with Claude log format
-	agentOutputPath := filepath.Join(tempDir, "agent_output.json")
+	// Create a mock agent-stdio.log file with Claude log format
+	agentStdioPath := filepath.Join(tempDir, "agent-stdio.log")
 	mockLogContent := `[
 		{"type": "text", "text": "Starting task"},
 		{"type": "tool_use", "id": "1", "name": "bash", "input": {"command": "echo hello"}},
 		{"type": "tool_result", "tool_use_id": "1", "content": "hello"}
 	]`
-	if err := os.WriteFile(agentOutputPath, []byte(mockLogContent), 0644); err != nil {
-		t.Fatalf("Failed to create mock agent_output.json: %v", err)
+	if err := os.WriteFile(agentStdioPath, []byte(mockLogContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock agent-stdio.log: %v", err)
 	}
 
 	// Create a mock aw_info.json with Claude engine
@@ -66,8 +66,65 @@ func TestParseAgentLog(t *testing.T) {
 	}
 }
 
+func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
+	// Create a temporary directory for the test
+	tempDir := t.TempDir()
+
+	// Create a mock agent_output directory with a log file
+	agentOutputDir := filepath.Join(tempDir, "agent_output")
+	if err := os.MkdirAll(agentOutputDir, 0755); err != nil {
+		t.Fatalf("Failed to create agent_output directory: %v", err)
+	}
+
+	agentLogPath := filepath.Join(agentOutputDir, "output.log")
+	mockLogContent := `[
+		{"type": "text", "text": "Testing agent_output directory"},
+		{"type": "tool_use", "id": "2", "name": "edit", "input": {"path": "test.txt"}},
+		{"type": "tool_result", "tool_use_id": "2", "content": "File created"}
+	]`
+	if err := os.WriteFile(agentLogPath, []byte(mockLogContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock log in agent_output: %v", err)
+	}
+
+	// Create a mock aw_info.json with Claude engine
+	awInfoPath := filepath.Join(tempDir, "aw_info.json")
+	awInfoContent := `{"engine_id": "claude"}`
+	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock aw_info.json: %v", err)
+	}
+
+	// Get the Claude engine
+	registry := workflow.GetGlobalEngineRegistry()
+	engine, err := registry.GetEngine("claude")
+	if err != nil {
+		t.Fatalf("Failed to get Claude engine: %v", err)
+	}
+
+	// Run the parser
+	err = parseAgentLog(tempDir, engine, true)
+	if err != nil {
+		t.Fatalf("parseAgentLog failed: %v", err)
+	}
+
+	// Check that log.md was created
+	logMdPath := filepath.Join(tempDir, "log.md")
+	if _, err := os.Stat(logMdPath); os.IsNotExist(err) {
+		t.Fatalf("log.md was not created")
+	}
+
+	// Read the content and verify it's not empty
+	content, err := os.ReadFile(logMdPath)
+	if err != nil {
+		t.Fatalf("Failed to read log.md: %v", err)
+	}
+
+	if len(content) == 0 {
+		t.Fatalf("log.md is empty")
+	}
+}
+
 func TestParseAgentLogNoAgentOutput(t *testing.T) {
-	// Create a temporary directory without agent_output.json
+	// Create a temporary directory without agent logs
 	tempDir := t.TempDir()
 
 	// Get the Claude engine
@@ -80,23 +137,23 @@ func TestParseAgentLogNoAgentOutput(t *testing.T) {
 	// Run the parser - should not fail, just skip
 	err = parseAgentLog(tempDir, engine, true)
 	if err != nil {
-		t.Fatalf("parseAgentLog should not fail when agent_output.json is missing: %v", err)
+		t.Fatalf("parseAgentLog should not fail when agent logs are missing: %v", err)
 	}
 
 	// Check that log.md was NOT created
 	logMdPath := filepath.Join(tempDir, "log.md")
 	if _, err := os.Stat(logMdPath); !os.IsNotExist(err) {
-		t.Fatalf("log.md should not be created when agent_output.json is missing")
+		t.Fatalf("log.md should not be created when agent logs are missing")
 	}
 }
 
 func TestParseAgentLogNoEngine(t *testing.T) {
-	// Create a temporary directory with agent_output.json
+	// Create a temporary directory with agent-stdio.log
 	tempDir := t.TempDir()
 
-	agentOutputPath := filepath.Join(tempDir, "agent_output.json")
-	if err := os.WriteFile(agentOutputPath, []byte("[]"), 0644); err != nil {
-		t.Fatalf("Failed to create mock agent_output.json: %v", err)
+	agentStdioPath := filepath.Join(tempDir, "agent-stdio.log")
+	if err := os.WriteFile(agentStdioPath, []byte("[]"), 0644); err != nil {
+		t.Fatalf("Failed to create mock agent-stdio.log: %v", err)
 	}
 
 	// Run the parser with nil engine - should skip gracefully

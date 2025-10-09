@@ -414,7 +414,9 @@ gh aw logs ci-doctor --parse --verbose
 ```
 
 When `--parse` is used:
-- Locates `agent_output.json` in each downloaded run directory
+- Locates agent logs in each downloaded run directory:
+  - First checks for files in the `agent_output` artifact directory
+  - Falls back to `agent-stdio.log` artifact if `agent_output` doesn't exist
 - Automatically selects the appropriate parser based on the engine (Claude, Codex, Copilot)
 - Generates a `log.md` file in each run folder with formatted markdown output
 - The parser extracts tool calls, reasoning, and other structured information from raw logs
