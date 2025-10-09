@@ -189,7 +189,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.45.0
+        run: npm install -g @openai/codex@0.46.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -2289,7 +2289,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Codex
-        run: npm install -g @openai/codex@0.45.0
+        run: npm install -g @openai/codex@0.46.0
       - name: Run Codex
         run: |
           set -o pipefail
