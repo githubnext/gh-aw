@@ -5,12 +5,10 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/serena.md
+#     - shared/genaiscript.md
 
-name: "Duplicate Code Detector"
+name: "Smoke GenAIScript"
 on:
-  schedule:
-  - cron: 0 11 * * *
   workflow_dispatch: null
 
 permissions: {}
@@ -18,7 +16,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Duplicate Code Detector"
+run-name: "Smoke GenAIScript"
 
 jobs:
   check-membership:
@@ -134,32 +132,20 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
+    permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1,\"min\":1},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          go-version-file: go.mod
-          cache: true
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
-      - name: Verify uv
-        run: uv --version
-      - name: Install Go language service
-        run: go install golang.org/x/tools/gopls@latest
-      - name: Check gopls version
-        run: gopls version
-
+          node-version: '24'
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw
@@ -206,17 +192,11 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install Codex
-        run: npm install -g @openai/codex@0.46.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create-issue":{"max":1},"missing-tool":{}}
+          {"create-issue":{"max":1,"min":1},"missing-tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -890,47 +870,39 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1,\"min\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
-          [history]
-          persistence = "none"
-          
-          [mcp_servers.github]
-          user_agent = "duplicate-code-detector"
-          startup_timeout_sec = 120
-          tool_timeout_sec = 120
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "ghcr.io/github/github-mcp-server:sha-09deac4"
-          ]
-          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}" }
-          
-          [mcp_servers.safe_outputs]
-          command = "node"
-          args = [
-            "/tmp/gh-aw/safe-outputs/mcp-server.cjs",
-          ]
-          env = { "GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", "GITHUB_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_AW_ASSETS_BRANCH" = "${{ env.GITHUB_AW_ASSETS_BRANCH }}", "GITHUB_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}", "GITHUB_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}" }
-          
-          [mcp_servers.serena]
-          command = "uvx"
-          args = [
-            "--from",
-            "git+https://github.com/oraios/serena",
-            "serena",
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
-            "${{ github.workspace }}",
-          ]
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
+          {
+            "mcpServers": {
+              "github": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+                }
+              },
+              "safe_outputs": {
+                "command": "node",
+                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
+                "env": {
+                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
+                  "GITHUB_AW_ASSETS_BRANCH": "${{ env.GITHUB_AW_ASSETS_BRANCH }}",
+                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}",
+                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}"
+                }
+              }
+            }
+          }
           EOF
       - name: Create prompt
         env:
@@ -939,218 +911,15 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-          
-          
-          
-          # Duplicate Code Detection
-          
-          Analyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.
-          
-          ## Task
-          
-          Detect and report code duplication by:
-          
-          1. **Analyzing Recent Commits**: Review changes in the latest commits
-          2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis
-          3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)
-          
-          ## Context
-          
-          - **Repository**: ${{ github.repository }}
-          - **Commit ID**: ${{ github.event.head_commit.id }}
-          - **Triggered by**: @${{ github.actor }}
-          
-          ## Analysis Workflow
-          
-          ### 1. Project Activation
-          
-          Activate the project in Serena:
-          - Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)
-          - This sets up the semantic code analysis environment
-          
-          ### 2. Changed Files Analysis
-          
-          Identify and analyze modified files:
-          - Determine files changed in the recent commits
-          - Use `get_symbols_overview` to understand file structure
-          - Use `read_file` to examine modified file contents
-          
-          ### 3. Duplicate Detection
-          
-          Apply semantic code analysis to find duplicates:
-          
-          **Symbol-Level Analysis**:
-          - For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols
-          - Use `find_referencing_symbols` to understand usage patterns
-          - Identify functions with similar names in different files (e.g., `processData` across modules)
-          
-          **Pattern Search**:
-          - Use `search_for_pattern` to find similar code patterns
-          - Search for duplication indicators:
-            - Similar function signatures
-            - Repeated logic blocks
-            - Similar variable naming patterns
-            - Near-identical code blocks
-          
-          **Structural Analysis**:
-          - Use `list_dir` and `find_file` to identify files with similar names or purposes
-          - Compare symbol overviews across files for structural similarities
-          
-          ### 4. Duplication Evaluation
-          
-          Assess findings to identify true code duplication:
-          
-          **Duplication Types**:
-          - **Exact Duplication**: Identical code blocks in multiple locations
-          - **Structural Duplication**: Same logic with minor variations (different variable names, etc.)
-          - **Functional Duplication**: Different implementations of the same functionality
-          - **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities
-          
-          **Assessment Criteria**:
-          - **Severity**: Amount of duplicated code (lines of code, number of occurrences)
-          - **Impact**: Where duplication occurs (critical paths, frequently called code)
-          - **Maintainability**: How duplication affects code maintainability
-          - **Refactoring Opportunity**: Whether duplication can be easily refactored
-          
-          ### 5. Issue Reporting
-          
-          Create an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):
-          
-          **Issue Contents**:
-          - **Executive Summary**: Brief description of duplication found
-          - **Duplication Details**: Specific locations and code blocks
-          - **Severity Assessment**: Impact and maintainability concerns
-          - **Refactoring Recommendations**: Suggested approaches to eliminate duplication
-          - **Code Examples**: Concrete examples with file paths and line numbers
-          
-          ## Detection Scope
-          
-          ### Report These Issues
-          
-          - Identical or nearly identical functions in different files
-          - Repeated code blocks that could be extracted to utilities
-          - Similar classes or modules with overlapping functionality
-          - Copy-pasted code with minor modifications
-          - Duplicated business logic across components
-          
-          ### Skip These Patterns
-          
-          - Standard boilerplate code (imports, exports, etc.)
-          - Test setup/teardown code (acceptable duplication in tests)
-          - Configuration files with similar structure
-          - Language-specific patterns (constructors, getters/setters)
-          - Small code snippets (<5 lines) unless highly repetitive
-          
-          ### Analysis Depth
-          
-          - **Primary Focus**: All files changed in the current push
-          - **Secondary Analysis**: Check for duplication with existing codebase
-          - **Cross-Reference**: Look for patterns across the repository
-          - **Historical Context**: Consider if duplication is new or existing
-          
-          ## Issue Template
-          
-          If duplication is found, create an issue using this structure:
-          
-          ```markdown
-          # 🔍 Duplicate Code Detected
-          
-          *Analysis of commit ${{ github.event.head_commit.id }}*
-          
-          **Assignee**: @copilot
-          
-          ## Summary
-          
-          [Brief overview of duplication findings]
-          
-          ## Duplication Details
-          
-          ### Pattern 1: [Description]
-          - **Severity**: High/Medium/Low
-          - **Occurrences**: [Number of instances]
-          - **Locations**:
-            - `path/to/file1.ext` (lines X-Y)
-            - `path/to/file2.ext` (lines A-B)
-          - **Code Sample**:
-            ```[language]
-            [Example of duplicated code]
-            ```
-          
-          ### Pattern 2: [Description]
-          [... additional patterns ...]
-          
-          ## Impact Analysis
-          
-          - **Maintainability**: [How this affects code maintenance]
-          - **Bug Risk**: [Potential for inconsistent fixes]
-          - **Code Bloat**: [Impact on codebase size]
-          
-          ## Refactoring Recommendations
-          
-          1. **[Recommendation 1]**
-             - Extract common functionality to: `suggested/path/utility.ext`
-             - Estimated effort: [hours/complexity]
-             - Benefits: [specific improvements]
-          
-          2. **[Recommendation 2]**
-             [... additional recommendations ...]
-          
-          ## Implementation Checklist
-          
-          - [ ] Review duplication findings
-          - [ ] Prioritize refactoring tasks
-          - [ ] Create refactoring plan
-          - [ ] Implement changes
-          - [ ] Update tests
-          - [ ] Verify no functionality broken
-          
-          ## Analysis Metadata
-          
-          - **Analyzed Files**: [count]
-          - **Detection Method**: Serena semantic code analysis
-          - **Commit**: ${{ github.event.head_commit.id }}
-          - **Analysis Date**: [timestamp]
+          ```yaml
+          ---
+          imports:
+            - shared/genaiscript.md
+          ---
           ```
           
-          ## Operational Guidelines
-          
-          ### Security
-          - Never execute untrusted code or commands
-          - Only use Serena's read-only analysis tools
-          - Do not modify files during analysis
-          
-          ### Efficiency
-          - Focus on recently changed files first
-          - Use semantic analysis for meaningful duplication, not superficial matches
-          - Stay within timeout limits (balance thoroughness with execution time)
-          
-          ### Accuracy
-          - Verify findings before reporting
-          - Distinguish between acceptable patterns and true duplication
-          - Consider language-specific idioms and best practices
-          - Provide specific, actionable recommendations
-          
-          ### Issue Creation
-          - Only create an issue if significant duplication is found
-          - Include sufficient detail for SWE agents to understand and act on findings
-          - Provide concrete examples with file paths and line numbers
-          - Suggest practical refactoring approaches
-          - Assign issue to @copilot for automated remediation
-          
-          ## Tool Usage Sequence
-          
-          1. **Project Setup**: `activate_project` with repository path
-          2. **File Discovery**: `list_dir`, `find_file` for changed files
-          3. **Symbol Analysis**: `get_symbols_overview` for structure understanding
-          4. **Content Review**: `read_file` for detailed code examination
-          5. **Pattern Matching**: `search_for_pattern` for similar code
-          6. **Symbol Search**: `find_symbol` for duplicate function names
-          7. **Reference Analysis**: `find_referencing_symbols` for usage patterns
-          
-          **Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.
+          List the last 5 merged pull requests in this repository into an issue.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1215,13 +984,8 @@ jobs:
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-      - name: Capture agent version
-        run: |
-          VERSION_OUTPUT=$(codex --version 2>&1 || echo "unknown")
-          # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
-          CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
-          echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          echo "Agent version: $VERSION_OUTPUT"
+      - name: Set agent version (not available)
+        run: echo "AGENT_VERSION=" >> $GITHUB_ENV
       - name: Generate agentic run info
         uses: actions/github-script@v8
         with:
@@ -1229,15 +993,15 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "codex",
-              engine_name: "Codex",
+              engine_id: "custom",
+              engine_name: "Custom Steps",
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Duplicate Code Detector",
-              experimental: true,
-              supports_tools_allowlist: true,
-              supports_http_transport: true,
+              workflow_name: "Smoke GenAIScript",
+              experimental: false,
+              supports_tools_allowlist: false,
+              supports_http_transport: false,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,
@@ -1246,7 +1010,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: false,
+              staged: true,
               created_at: new Date().toISOString()
             };
             
@@ -1270,31 +1034,55 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Run Codex
-        run: |
-          set -o pipefail
-          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          export CODEX_HOME=/tmp/gh-aw/mcp-config
-          mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /tmp/gh-aw/aw-logs
-          which codex
-          codex --version
-          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+      - name: Install GenAIScript
+        run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-      - name: Print agent log
-        if: always()
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Convert prompt to GenAI format
         run: |
+          cp "$GITHUB_AW_PROMPT" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '1i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+          echo "Generated GenAI prompt file"
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Run GenAIScript
+        id: genaiscript
+        run: |
+          MCP_ARG=""
+          if [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
+            echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
+            MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
+          fi
+          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
+          if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
+            cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
+            echo "GenAIScript execution completed"
+          else
+            echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
+          fi
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Ensure log file exists
+        run: |
+          echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log
           touch /tmp/gh-aw/agent-stdio.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1325,7 +1113,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1,\"min\":1},\"missing-tool\":{}}"
         with:
           script: |
             async function main() {
@@ -2081,222 +1869,6 @@ jobs:
           name: mcp-logs
           path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
-      - name: Parse agent logs for step summary
-        if: always()
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-        with:
-          script: |
-            function main() {
-              const fs = require("fs");
-              try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!logFile) {
-                  core.info("No agent log file specified");
-                  return;
-                }
-                if (!fs.existsSync(logFile)) {
-                  core.info(`Log file not found: ${logFile}`);
-                  return;
-                }
-                const content = fs.readFileSync(logFile, "utf8");
-                const parsedLog = parseCodexLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Codex log parsed successfully");
-                } else {
-                  core.error("Failed to parse Codex log");
-                }
-              } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
-              }
-            }
-            function parseCodexLog(logContent) {
-              try {
-                const lines = logContent.split("\n");
-                let markdown = "## 🤖 Commands and Tools\n\n";
-                const commandSummary = [];
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  if (line.includes("] tool ") && line.includes("(")) {
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
-                      } else {
-                        commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
-                      }
-                    }
-                  } else if (line.includes("] exec ")) {
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-                    }
-                  }
-                }
-                if (commandSummary.length > 0) {
-                  for (const cmd of commandSummary) {
-                    markdown += `${cmd}\n`;
-                  }
-                } else {
-                  markdown += "No commands or tools used.\n";
-                }
-                markdown += "\n## 📊 Information\n\n";
-                let totalTokens = 0;
-                const tokenMatches = logContent.match(/tokens used: (\d+)/g);
-                if (tokenMatches) {
-                  for (const match of tokenMatches) {
-                    const numberMatch = match.match(/(\d+)/);
-                    if (numberMatch) {
-                      const tokens = parseInt(numberMatch[1]);
-                      totalTokens += tokens;
-                    }
-                  }
-                }
-                if (totalTokens > 0) {
-                  markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
-                }
-                const toolCalls = (logContent.match(/\] tool /g) || []).length;
-                const execCommands = (logContent.match(/\] exec /g) || []).length;
-                if (toolCalls > 0) {
-                  markdown += `**Tool Calls:** ${toolCalls}\n\n`;
-                }
-                if (execCommands > 0) {
-                  markdown += `**Commands Executed:** ${execCommands}\n\n`;
-                }
-                markdown += "\n## 🤖 Reasoning\n\n";
-                let inThinkingSection = false;
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  if (
-                    line.includes("OpenAI Codex") ||
-                    line.startsWith("--------") ||
-                    line.includes("workdir:") ||
-                    line.includes("model:") ||
-                    line.includes("provider:") ||
-                    line.includes("approval:") ||
-                    line.includes("sandbox:") ||
-                    line.includes("reasoning effort:") ||
-                    line.includes("reasoning summaries:") ||
-                    line.includes("tokens used:")
-                  ) {
-                    continue;
-                  }
-                  if (line.includes("] thinking")) {
-                    inThinkingSection = true;
-                    continue;
-                  }
-                  if (line.includes("] tool ") && line.includes("(")) {
-                    inThinkingSection = false;
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
-                      } else {
-                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
-                      }
-                    }
-                    continue;
-                  }
-                  if (line.includes("] exec ")) {
-                    inThinkingSection = false;
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-                    }
-                    continue;
-                  }
-                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
-                    const trimmed = line.trim();
-                    markdown += `${trimmed}\n\n`;
-                  }
-                }
-                return markdown;
-              } catch (error) {
-                core.error(`Error parsing Codex log: ${error}`);
-                return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
-              }
-            }
-            function formatBashCommand(command) {
-              if (!command) return "";
-              let formatted = command
-                .replace(/\n/g, " ") 
-                .replace(/\r/g, " ") 
-                .replace(/\t/g, " ") 
-                .replace(/\s+/g, " ") 
-                .trim(); 
-              formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
-              if (formatted.length > maxLength) {
-                formatted = formatted.substring(0, maxLength) + "...";
-              }
-              return formatted;
-            }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = { parseCodexLog, formatBashCommand, truncateString };
-            }
-            main();
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
@@ -2304,119 +1876,6 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
-      - name: Validate agent logs for errors
-        if: always()
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"failed in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool failed due to permission error\"},{\"pattern\":\"error in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool error due to permission issue\"}]"
-        with:
-          script: |
-            function main() {
-              const fs = require("fs");
-              try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!logFile) {
-                  throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
-                }
-                if (!fs.existsSync(logFile)) {
-                  throw new Error(`Log file not found: ${logFile}`);
-                }
-                const patterns = getErrorPatternsFromEnv();
-                if (patterns.length === 0) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
-                }
-                const content = fs.readFileSync(logFile, "utf8");
-                const hasErrors = validateErrors(content, patterns);
-                if (hasErrors) {
-                  core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
-                } else {
-                  core.info("Error validation completed successfully");
-                }
-              } catch (error) {
-                console.debug(error);
-                core.error(`Error validating log: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            function getErrorPatternsFromEnv() {
-              const patternsEnv = process.env.GITHUB_AW_ERROR_PATTERNS;
-              if (!patternsEnv) {
-                throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required");
-              }
-              try {
-                const patterns = JSON.parse(patternsEnv);
-                if (!Array.isArray(patterns)) {
-                  throw new Error("GITHUB_AW_ERROR_PATTERNS must be a JSON array");
-                }
-                return patterns;
-              } catch (e) {
-                throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
-              }
-            }
-            function validateErrors(logContent, patterns) {
-              const lines = logContent.split("\n");
-              let hasErrors = false;
-              for (const pattern of patterns) {
-                let regex;
-                try {
-                  regex = new RegExp(pattern.pattern, "g");
-                } catch (e) {
-                  core.error(`invalid error regex pattern: ${pattern.pattern}`);
-                  continue;
-                }
-                for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-                  const line = lines[lineIndex];
-                  let match;
-                  while ((match = regex.exec(line)) !== null) {
-                    const level = extractLevel(match, pattern);
-                    const message = extractMessage(match, pattern, line);
-                    const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
-                    if (level.toLowerCase() === "error") {
-                      core.error(errorMessage);
-                      hasErrors = true;
-                    } else {
-                      core.warning(errorMessage);
-                    }
-                  }
-                }
-              }
-              return hasErrors;
-            }
-            function extractLevel(match, pattern) {
-              if (pattern.level_group && pattern.level_group > 0 && match[pattern.level_group]) {
-                return match[pattern.level_group];
-              }
-              const fullMatch = match[0];
-              if (fullMatch.toLowerCase().includes("error")) {
-                return "error";
-              } else if (fullMatch.toLowerCase().includes("warn")) {
-                return "warning";
-              }
-              return "unknown";
-            }
-            function extractMessage(match, pattern, fullLine) {
-              if (pattern.message_group && pattern.message_group > 0 && match[pattern.message_group]) {
-                return match[pattern.message_group].trim();
-              }
-              return match[0] || fullLine.trim();
-            }
-            function truncateString(str, maxLength) {
-              if (!str) return "";
-              if (str.length <= maxLength) return str;
-              return str.substring(0, maxLength) + "...";
-            }
-            if (typeof module !== "undefined" && module.exports) {
-              module.exports = {
-                validateErrors,
-                extractLevel,
-                extractMessage,
-                getErrorPatternsFromEnv,
-                truncateString,
-              };
-            }
-            if (typeof module === "undefined" || require.main === module) {
-              main();
-            }
 
   detection:
     needs: agent
@@ -2447,9 +1906,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Duplicate Code Detector"
+          WORKFLOW_NAME: "Smoke GenAIScript"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "## Serena configuration\n\nThe active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\n# Duplicate Code Detection\n\nAnalyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.\n\n## Task\n\nDetect and report code duplication by:\n\n1. **Analyzing Recent Commits**: Review changes in the latest commits\n2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis\n3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)\n\n## Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit ID**: ${{ github.event.head_commit.id }}\n- **Triggered by**: @${{ github.actor }}\n\n## Analysis Workflow\n\n### 1. Project Activation\n\nActivate the project in Serena:\n- Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)\n- This sets up the semantic code analysis environment\n\n### 2. Changed Files Analysis\n\nIdentify and analyze modified files:\n- Determine files changed in the recent commits\n- Use `get_symbols_overview` to understand file structure\n- Use `read_file` to examine modified file contents\n\n### 3. Duplicate Detection\n\nApply semantic code analysis to find duplicates:\n\n**Symbol-Level Analysis**:\n- For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols\n- Use `find_referencing_symbols` to understand usage patterns\n- Identify functions with similar names in different files (e.g., `processData` across modules)\n\n**Pattern Search**:\n- Use `search_for_pattern` to find similar code patterns\n- Search for duplication indicators:\n  - Similar function signatures\n  - Repeated logic blocks\n  - Similar variable naming patterns\n  - Near-identical code blocks\n\n**Structural Analysis**:\n- Use `list_dir` and `find_file` to identify files with similar names or purposes\n- Compare symbol overviews across files for structural similarities\n\n### 4. Duplication Evaluation\n\nAssess findings to identify true code duplication:\n\n**Duplication Types**:\n- **Exact Duplication**: Identical code blocks in multiple locations\n- **Structural Duplication**: Same logic with minor variations (different variable names, etc.)\n- **Functional Duplication**: Different implementations of the same functionality\n- **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities\n\n**Assessment Criteria**:\n- **Severity**: Amount of duplicated code (lines of code, number of occurrences)\n- **Impact**: Where duplication occurs (critical paths, frequently called code)\n- **Maintainability**: How duplication affects code maintainability\n- **Refactoring Opportunity**: Whether duplication can be easily refactored\n\n### 5. Issue Reporting\n\nCreate an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):\n\n**Issue Contents**:\n- **Executive Summary**: Brief description of duplication found\n- **Duplication Details**: Specific locations and code blocks\n- **Severity Assessment**: Impact and maintainability concerns\n- **Refactoring Recommendations**: Suggested approaches to eliminate duplication\n- **Code Examples**: Concrete examples with file paths and line numbers\n\n## Detection Scope\n\n### Report These Issues\n\n- Identical or nearly identical functions in different files\n- Repeated code blocks that could be extracted to utilities\n- Similar classes or modules with overlapping functionality\n- Copy-pasted code with minor modifications\n- Duplicated business logic across components\n\n### Skip These Patterns\n\n- Standard boilerplate code (imports, exports, etc.)\n- Test setup/teardown code (acceptable duplication in tests)\n- Configuration files with similar structure\n- Language-specific patterns (constructors, getters/setters)\n- Small code snippets (<5 lines) unless highly repetitive\n\n### Analysis Depth\n\n- **Primary Focus**: All files changed in the current push\n- **Secondary Analysis**: Check for duplication with existing codebase\n- **Cross-Reference**: Look for patterns across the repository\n- **Historical Context**: Consider if duplication is new or existing\n\n## Issue Template\n\nIf duplication is found, create an issue using this structure:\n\n```markdown\n# 🔍 Duplicate Code Detected\n\n*Analysis of commit ${{ github.event.head_commit.id }}*\n\n**Assignee**: @copilot\n\n## Summary\n\n[Brief overview of duplication findings]\n\n## Duplication Details\n\n### Pattern 1: [Description]\n- **Severity**: High/Medium/Low\n- **Occurrences**: [Number of instances]\n- **Locations**:\n  - `path/to/file1.ext` (lines X-Y)\n  - `path/to/file2.ext` (lines A-B)\n- **Code Sample**:\n  ```[language]\n  [Example of duplicated code]\n  ```\n\n### Pattern 2: [Description]\n[... additional patterns ...]\n\n## Impact Analysis\n\n- **Maintainability**: [How this affects code maintenance]\n- **Bug Risk**: [Potential for inconsistent fixes]\n- **Code Bloat**: [Impact on codebase size]\n\n## Refactoring Recommendations\n\n1. **[Recommendation 1]**\n   - Extract common functionality to: `suggested/path/utility.ext`\n   - Estimated effort: [hours/complexity]\n   - Benefits: [specific improvements]\n\n2. **[Recommendation 2]**\n   [... additional recommendations ...]\n\n## Implementation Checklist\n\n- [ ] Review duplication findings\n- [ ] Prioritize refactoring tasks\n- [ ] Create refactoring plan\n- [ ] Implement changes\n- [ ] Update tests\n- [ ] Verify no functionality broken\n\n## Analysis Metadata\n\n- **Analyzed Files**: [count]\n- **Detection Method**: Serena semantic code analysis\n- **Commit**: ${{ github.event.head_commit.id }}\n- **Analysis Date**: [timestamp]\n```\n\n## Operational Guidelines\n\n### Security\n- Never execute untrusted code or commands\n- Only use Serena's read-only analysis tools\n- Do not modify files during analysis\n\n### Efficiency\n- Focus on recently changed files first\n- Use semantic analysis for meaningful duplication, not superficial matches\n- Stay within timeout limits (balance thoroughness with execution time)\n\n### Accuracy\n- Verify findings before reporting\n- Distinguish between acceptable patterns and true duplication\n- Consider language-specific idioms and best practices\n- Provide specific, actionable recommendations\n\n### Issue Creation\n- Only create an issue if significant duplication is found\n- Include sufficient detail for SWE agents to understand and act on findings\n- Provide concrete examples with file paths and line numbers\n- Suggest practical refactoring approaches\n- Assign issue to @copilot for automated remediation\n\n## Tool Usage Sequence\n\n1. **Project Setup**: `activate_project` with repository path\n2. **File Discovery**: `list_dir`, `find_file` for changed files\n3. **Symbol Analysis**: `get_symbols_overview` for structure understanding\n4. **Content Review**: `read_file` for detailed code examination\n5. **Pattern Matching**: `search_for_pattern` for similar code\n6. **Symbol Search**: `find_symbol` for duplicate function names\n7. **Reference Analysis**: `find_referencing_symbols` for usage patterns\n\n**Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using microsoft/genaiscript.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/genaiscript.md\n---\n```\n\n**Requirements:**\n- The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is converted to GenAI markdown format (prompt.genai.md)\n- GenAIScript is executed with MCP server configuration if available\n- Output is captured in the agent log file\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `2.5.1`)\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)\n- MCP server configuration is automatically passed if configured in the workflow\n-->\n\nList the last 5 merged pull requests in this repository into an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2530,36 +1989,55 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install Codex
-        run: npm install -g @openai/codex@0.46.0
-      - name: Run Codex
-        run: |
-          set -o pipefail
-          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          export CODEX_HOME=/tmp/gh-aw/mcp-config
-          mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /tmp/gh-aw/aw-logs
-          which codex
-          codex --version
-          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+      - name: Install GenAIScript
+        run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
         env:
-          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-      - name: Print agent log
-        if: always()
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Convert prompt to GenAI format
         run: |
+          cp "$GITHUB_AW_PROMPT" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '1i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+          echo "Generated GenAI prompt file"
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Run GenAIScript
+        id: genaiscript
+        run: |
+          MCP_ARG=""
+          if [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
+            echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
+            MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
+          fi
+          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
+          if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
+            cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
+            echo "GenAIScript execution completed"
+          else
+            echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
+          fi
+        env:
+          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_VERSION: 2.5.1
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+      - name: Ensure log file exists
+        run: |
+          echo "Custom steps execution completed" >> /tmp/gh-aw/threat-detection/detection.log
           touch /tmp/gh-aw/threat-detection/detection.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/gh-aw/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:
@@ -2607,7 +2085,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2622,9 +2100,8 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Duplicate Code Detector"
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[duplicate-code] "
-          GITHUB_AW_ISSUE_LABELS: "code-quality,automated-analysis"
+          GITHUB_AW_WORKFLOW_NAME: "Smoke GenAIScript"
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             function sanitizeLabelContent(content) {

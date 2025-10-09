@@ -2,15 +2,9 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
-#
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mcp/serena.md
 
-name: "Duplicate Code Detector"
+name: "Smoke Codex"
 on:
-  schedule:
-  - cron: 0 11 * * *
   workflow_dispatch: null
 
 permissions: {}
@@ -18,7 +12,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Duplicate Code Detector"
+run-name: "Smoke Codex"
 
 jobs:
   check-membership:
@@ -134,32 +128,16 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
+    permissions: read-all
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1,\"min\":1},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
-      - name: Verify uv
-        run: uv --version
-      - name: Install Go language service
-        run: go install golang.org/x/tools/gopls@latest
-      - name: Check gopls version
-        run: gopls version
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw
@@ -216,7 +194,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create-issue":{"max":1},"missing-tool":{}}
+          {"create-issue":{"max":1,"min":1},"missing-tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -890,7 +868,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1,\"min\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/config.toml << EOF
@@ -898,7 +876,7 @@ jobs:
           persistence = "none"
           
           [mcp_servers.github]
-          user_agent = "duplicate-code-detector"
+          user_agent = "smoke-codex"
           startup_timeout_sec = 120
           tool_timeout_sec = 120
           command = "docker"
@@ -918,19 +896,6 @@ jobs:
             "/tmp/gh-aw/safe-outputs/mcp-server.cjs",
           ]
           env = { "GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", "GITHUB_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_AW_ASSETS_BRANCH" = "${{ env.GITHUB_AW_ASSETS_BRANCH }}", "GITHUB_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}", "GITHUB_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}" }
-          
-          [mcp_servers.serena]
-          command = "uvx"
-          args = [
-            "--from",
-            "git+https://github.com/oraios/serena",
-            "serena",
-            "start-mcp-server",
-            "--context",
-            "codex",
-            "--project",
-            "${{ github.workspace }}",
-          ]
           EOF
       - name: Create prompt
         env:
@@ -939,218 +904,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          ## Serena configuration
-          
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
-          
-          
-          
-          # Duplicate Code Detection
-          
-          Analyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.
-          
-          ## Task
-          
-          Detect and report code duplication by:
-          
-          1. **Analyzing Recent Commits**: Review changes in the latest commits
-          2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis
-          3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)
-          
-          ## Context
-          
-          - **Repository**: ${{ github.repository }}
-          - **Commit ID**: ${{ github.event.head_commit.id }}
-          - **Triggered by**: @${{ github.actor }}
-          
-          ## Analysis Workflow
-          
-          ### 1. Project Activation
-          
-          Activate the project in Serena:
-          - Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)
-          - This sets up the semantic code analysis environment
-          
-          ### 2. Changed Files Analysis
-          
-          Identify and analyze modified files:
-          - Determine files changed in the recent commits
-          - Use `get_symbols_overview` to understand file structure
-          - Use `read_file` to examine modified file contents
-          
-          ### 3. Duplicate Detection
-          
-          Apply semantic code analysis to find duplicates:
-          
-          **Symbol-Level Analysis**:
-          - For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols
-          - Use `find_referencing_symbols` to understand usage patterns
-          - Identify functions with similar names in different files (e.g., `processData` across modules)
-          
-          **Pattern Search**:
-          - Use `search_for_pattern` to find similar code patterns
-          - Search for duplication indicators:
-            - Similar function signatures
-            - Repeated logic blocks
-            - Similar variable naming patterns
-            - Near-identical code blocks
-          
-          **Structural Analysis**:
-          - Use `list_dir` and `find_file` to identify files with similar names or purposes
-          - Compare symbol overviews across files for structural similarities
-          
-          ### 4. Duplication Evaluation
-          
-          Assess findings to identify true code duplication:
-          
-          **Duplication Types**:
-          - **Exact Duplication**: Identical code blocks in multiple locations
-          - **Structural Duplication**: Same logic with minor variations (different variable names, etc.)
-          - **Functional Duplication**: Different implementations of the same functionality
-          - **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities
-          
-          **Assessment Criteria**:
-          - **Severity**: Amount of duplicated code (lines of code, number of occurrences)
-          - **Impact**: Where duplication occurs (critical paths, frequently called code)
-          - **Maintainability**: How duplication affects code maintainability
-          - **Refactoring Opportunity**: Whether duplication can be easily refactored
-          
-          ### 5. Issue Reporting
-          
-          Create an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):
-          
-          **Issue Contents**:
-          - **Executive Summary**: Brief description of duplication found
-          - **Duplication Details**: Specific locations and code blocks
-          - **Severity Assessment**: Impact and maintainability concerns
-          - **Refactoring Recommendations**: Suggested approaches to eliminate duplication
-          - **Code Examples**: Concrete examples with file paths and line numbers
-          
-          ## Detection Scope
-          
-          ### Report These Issues
-          
-          - Identical or nearly identical functions in different files
-          - Repeated code blocks that could be extracted to utilities
-          - Similar classes or modules with overlapping functionality
-          - Copy-pasted code with minor modifications
-          - Duplicated business logic across components
-          
-          ### Skip These Patterns
-          
-          - Standard boilerplate code (imports, exports, etc.)
-          - Test setup/teardown code (acceptable duplication in tests)
-          - Configuration files with similar structure
-          - Language-specific patterns (constructors, getters/setters)
-          - Small code snippets (<5 lines) unless highly repetitive
-          
-          ### Analysis Depth
-          
-          - **Primary Focus**: All files changed in the current push
-          - **Secondary Analysis**: Check for duplication with existing codebase
-          - **Cross-Reference**: Look for patterns across the repository
-          - **Historical Context**: Consider if duplication is new or existing
-          
-          ## Issue Template
-          
-          If duplication is found, create an issue using this structure:
-          
-          ```markdown
-          # 🔍 Duplicate Code Detected
-          
-          *Analysis of commit ${{ github.event.head_commit.id }}*
-          
-          **Assignee**: @copilot
-          
-          ## Summary
-          
-          [Brief overview of duplication findings]
-          
-          ## Duplication Details
-          
-          ### Pattern 1: [Description]
-          - **Severity**: High/Medium/Low
-          - **Occurrences**: [Number of instances]
-          - **Locations**:
-            - `path/to/file1.ext` (lines X-Y)
-            - `path/to/file2.ext` (lines A-B)
-          - **Code Sample**:
-            ```[language]
-            [Example of duplicated code]
-            ```
-          
-          ### Pattern 2: [Description]
-          [... additional patterns ...]
-          
-          ## Impact Analysis
-          
-          - **Maintainability**: [How this affects code maintenance]
-          - **Bug Risk**: [Potential for inconsistent fixes]
-          - **Code Bloat**: [Impact on codebase size]
-          
-          ## Refactoring Recommendations
-          
-          1. **[Recommendation 1]**
-             - Extract common functionality to: `suggested/path/utility.ext`
-             - Estimated effort: [hours/complexity]
-             - Benefits: [specific improvements]
-          
-          2. **[Recommendation 2]**
-             [... additional recommendations ...]
-          
-          ## Implementation Checklist
-          
-          - [ ] Review duplication findings
-          - [ ] Prioritize refactoring tasks
-          - [ ] Create refactoring plan
-          - [ ] Implement changes
-          - [ ] Update tests
-          - [ ] Verify no functionality broken
-          
-          ## Analysis Metadata
-          
-          - **Analyzed Files**: [count]
-          - **Detection Method**: Serena semantic code analysis
-          - **Commit**: ${{ github.event.head_commit.id }}
-          - **Analysis Date**: [timestamp]
-          ```
-          
-          ## Operational Guidelines
-          
-          ### Security
-          - Never execute untrusted code or commands
-          - Only use Serena's read-only analysis tools
-          - Do not modify files during analysis
-          
-          ### Efficiency
-          - Focus on recently changed files first
-          - Use semantic analysis for meaningful duplication, not superficial matches
-          - Stay within timeout limits (balance thoroughness with execution time)
-          
-          ### Accuracy
-          - Verify findings before reporting
-          - Distinguish between acceptable patterns and true duplication
-          - Consider language-specific idioms and best practices
-          - Provide specific, actionable recommendations
-          
-          ### Issue Creation
-          - Only create an issue if significant duplication is found
-          - Include sufficient detail for SWE agents to understand and act on findings
-          - Provide concrete examples with file paths and line numbers
-          - Suggest practical refactoring approaches
-          - Assign issue to @copilot for automated remediation
-          
-          ## Tool Usage Sequence
-          
-          1. **Project Setup**: `activate_project` with repository path
-          2. **File Discovery**: `list_dir`, `find_file` for changed files
-          3. **Symbol Analysis**: `get_symbols_overview` for structure understanding
-          4. **Content Review**: `read_file` for detailed code examination
-          5. **Pattern Matching**: `search_for_pattern` for similar code
-          6. **Symbol Search**: `find_symbol` for duplicate function names
-          7. **Reference Analysis**: `find_referencing_symbols` for usage patterns
-          
-          **Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.
+          List the last 5 merged pull requests in this repository into an issue.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1234,7 +988,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Duplicate Code Detector",
+              workflow_name: "Smoke Codex",
               experimental: true,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1246,7 +1000,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: false,
+              staged: true,
               created_at: new Date().toISOString()
             };
             
@@ -1285,7 +1039,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
       - name: Print agent log
         if: always()
@@ -1325,7 +1079,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1,\"min\":1},\"missing-tool\":{}}"
         with:
           script: |
             async function main() {
@@ -2447,9 +2201,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Duplicate Code Detector"
+          WORKFLOW_NAME: "Smoke Codex"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "## Serena configuration\n\nThe active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\n# Duplicate Code Detection\n\nAnalyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.\n\n## Task\n\nDetect and report code duplication by:\n\n1. **Analyzing Recent Commits**: Review changes in the latest commits\n2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis\n3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)\n\n## Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit ID**: ${{ github.event.head_commit.id }}\n- **Triggered by**: @${{ github.actor }}\n\n## Analysis Workflow\n\n### 1. Project Activation\n\nActivate the project in Serena:\n- Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)\n- This sets up the semantic code analysis environment\n\n### 2. Changed Files Analysis\n\nIdentify and analyze modified files:\n- Determine files changed in the recent commits\n- Use `get_symbols_overview` to understand file structure\n- Use `read_file` to examine modified file contents\n\n### 3. Duplicate Detection\n\nApply semantic code analysis to find duplicates:\n\n**Symbol-Level Analysis**:\n- For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols\n- Use `find_referencing_symbols` to understand usage patterns\n- Identify functions with similar names in different files (e.g., `processData` across modules)\n\n**Pattern Search**:\n- Use `search_for_pattern` to find similar code patterns\n- Search for duplication indicators:\n  - Similar function signatures\n  - Repeated logic blocks\n  - Similar variable naming patterns\n  - Near-identical code blocks\n\n**Structural Analysis**:\n- Use `list_dir` and `find_file` to identify files with similar names or purposes\n- Compare symbol overviews across files for structural similarities\n\n### 4. Duplication Evaluation\n\nAssess findings to identify true code duplication:\n\n**Duplication Types**:\n- **Exact Duplication**: Identical code blocks in multiple locations\n- **Structural Duplication**: Same logic with minor variations (different variable names, etc.)\n- **Functional Duplication**: Different implementations of the same functionality\n- **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities\n\n**Assessment Criteria**:\n- **Severity**: Amount of duplicated code (lines of code, number of occurrences)\n- **Impact**: Where duplication occurs (critical paths, frequently called code)\n- **Maintainability**: How duplication affects code maintainability\n- **Refactoring Opportunity**: Whether duplication can be easily refactored\n\n### 5. Issue Reporting\n\nCreate an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):\n\n**Issue Contents**:\n- **Executive Summary**: Brief description of duplication found\n- **Duplication Details**: Specific locations and code blocks\n- **Severity Assessment**: Impact and maintainability concerns\n- **Refactoring Recommendations**: Suggested approaches to eliminate duplication\n- **Code Examples**: Concrete examples with file paths and line numbers\n\n## Detection Scope\n\n### Report These Issues\n\n- Identical or nearly identical functions in different files\n- Repeated code blocks that could be extracted to utilities\n- Similar classes or modules with overlapping functionality\n- Copy-pasted code with minor modifications\n- Duplicated business logic across components\n\n### Skip These Patterns\n\n- Standard boilerplate code (imports, exports, etc.)\n- Test setup/teardown code (acceptable duplication in tests)\n- Configuration files with similar structure\n- Language-specific patterns (constructors, getters/setters)\n- Small code snippets (<5 lines) unless highly repetitive\n\n### Analysis Depth\n\n- **Primary Focus**: All files changed in the current push\n- **Secondary Analysis**: Check for duplication with existing codebase\n- **Cross-Reference**: Look for patterns across the repository\n- **Historical Context**: Consider if duplication is new or existing\n\n## Issue Template\n\nIf duplication is found, create an issue using this structure:\n\n```markdown\n# 🔍 Duplicate Code Detected\n\n*Analysis of commit ${{ github.event.head_commit.id }}*\n\n**Assignee**: @copilot\n\n## Summary\n\n[Brief overview of duplication findings]\n\n## Duplication Details\n\n### Pattern 1: [Description]\n- **Severity**: High/Medium/Low\n- **Occurrences**: [Number of instances]\n- **Locations**:\n  - `path/to/file1.ext` (lines X-Y)\n  - `path/to/file2.ext` (lines A-B)\n- **Code Sample**:\n  ```[language]\n  [Example of duplicated code]\n  ```\n\n### Pattern 2: [Description]\n[... additional patterns ...]\n\n## Impact Analysis\n\n- **Maintainability**: [How this affects code maintenance]\n- **Bug Risk**: [Potential for inconsistent fixes]\n- **Code Bloat**: [Impact on codebase size]\n\n## Refactoring Recommendations\n\n1. **[Recommendation 1]**\n   - Extract common functionality to: `suggested/path/utility.ext`\n   - Estimated effort: [hours/complexity]\n   - Benefits: [specific improvements]\n\n2. **[Recommendation 2]**\n   [... additional recommendations ...]\n\n## Implementation Checklist\n\n- [ ] Review duplication findings\n- [ ] Prioritize refactoring tasks\n- [ ] Create refactoring plan\n- [ ] Implement changes\n- [ ] Update tests\n- [ ] Verify no functionality broken\n\n## Analysis Metadata\n\n- **Analyzed Files**: [count]\n- **Detection Method**: Serena semantic code analysis\n- **Commit**: ${{ github.event.head_commit.id }}\n- **Analysis Date**: [timestamp]\n```\n\n## Operational Guidelines\n\n### Security\n- Never execute untrusted code or commands\n- Only use Serena's read-only analysis tools\n- Do not modify files during analysis\n\n### Efficiency\n- Focus on recently changed files first\n- Use semantic analysis for meaningful duplication, not superficial matches\n- Stay within timeout limits (balance thoroughness with execution time)\n\n### Accuracy\n- Verify findings before reporting\n- Distinguish between acceptable patterns and true duplication\n- Consider language-specific idioms and best practices\n- Provide specific, actionable recommendations\n\n### Issue Creation\n- Only create an issue if significant duplication is found\n- Include sufficient detail for SWE agents to understand and act on findings\n- Provide concrete examples with file paths and line numbers\n- Suggest practical refactoring approaches\n- Assign issue to @copilot for automated remediation\n\n## Tool Usage Sequence\n\n1. **Project Setup**: `activate_project` with repository path\n2. **File Discovery**: `list_dir`, `find_file` for changed files\n3. **Symbol Analysis**: `get_symbols_overview` for structure understanding\n4. **Content Review**: `read_file` for detailed code examination\n5. **Pattern Matching**: `search_for_pattern` for similar code\n6. **Symbol Search**: `find_symbol` for duplicate function names\n7. **Reference Analysis**: `find_referencing_symbols` for usage patterns\n\n**Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.\n"
+          WORKFLOW_MARKDOWN: "List the last 5 merged pull requests in this repository into an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2550,7 +2304,6 @@ jobs:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
       - name: Print agent log
         if: always()
@@ -2607,7 +2360,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2622,9 +2375,8 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Duplicate Code Detector"
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[duplicate-code] "
-          GITHUB_AW_ISSUE_LABELS: "code-quality,automated-analysis"
+          GITHUB_AW_WORKFLOW_NAME: "Smoke Codex"
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
             function sanitizeLabelContent(content) {

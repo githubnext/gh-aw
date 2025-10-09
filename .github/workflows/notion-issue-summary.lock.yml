@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/notion.md
+#     - shared/mcp/notion.md
 
 name: "Issue Summary to Notion"
 on:
@@ -355,7 +355,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.10
+        run: npm install -g @anthropic-ai/claude-code@2.0.11
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1227,7 +1227,7 @@ jobs:
           
           1. Add `NOTION_TOKEN` secret to your repository with a Notion integration token
           2. Grant the integration access to the pages/databases you want to interact with
-          3. Include this configuration in your workflow: `@include shared/notion.md`
+          3. Include this configuration in your workflow: `@include shared/mcp/notion.md`
           
           # Issue Summary to Notion
           

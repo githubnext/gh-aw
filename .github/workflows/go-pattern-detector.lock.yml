@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/ast-grep.md
+#     - shared/mcp/ast-grep.md
 
 name: "Go Pattern Detector"
 on:
@@ -200,7 +200,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.10
+        run: npm install -g @anthropic-ai/claude-code@2.0.11
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -2807,7 +2807,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.10
+        run: npm install -g @anthropic-ai/claude-code@2.0.11
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

@@ -26,6 +26,6 @@ mcp-servers:
 #
 # Usage:
 #   imports:
-#     - shared/context7-mcp.md
+#     - shared/mcp/context7.md
 
 -->

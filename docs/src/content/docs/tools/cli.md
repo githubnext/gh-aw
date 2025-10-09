@@ -652,7 +652,7 @@ permissions:
   actions: read
 engine: claude
 imports:
-  - shared/gh-aw-mcp.md
+  - shared/mcp/gh-aw.md
 ---
 
 # Workflow content with access to gh-aw MCP tools

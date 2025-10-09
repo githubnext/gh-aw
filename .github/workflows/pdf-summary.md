@@ -25,7 +25,7 @@ permissions:
 engine: copilot
 
 imports:
-  - shared/markitdown-mcp.md
+  - shared/mcp/markitdown.md
 
 tools:
   cache-memory: true
