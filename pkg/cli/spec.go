@@ -65,6 +65,9 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 //   - https://github.com/owner/repo/blob/main/workflows/workflow.md
 //   - https://github.com/owner/repo/tree/branch/path/to/workflow.md
 //   - https://github.com/owner/repo/raw/branch/path/to/workflow.md
+//   - https://raw.githubusercontent.com/owner/repo/refs/heads/branch/path/to/workflow.md
+//   - https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/path/to/workflow.md
+//   - https://raw.githubusercontent.com/owner/repo/refs/tags/tag/path/to/workflow.md
 func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	// Parse the URL
 	parsedURL, err := url.Parse(spec)
@@ -72,9 +75,14 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 
+	// Check for raw.githubusercontent.com URLs
+	if parsedURL.Host == "raw.githubusercontent.com" {
+		return parseRawGitHubURL(parsedURL)
+	}
+
 	// Must be a GitHub URL
 	if parsedURL.Host != "github.com" {
-		return nil, fmt.Errorf("URL must be from github.com")
+		return nil, fmt.Errorf("URL must be from github.com or raw.githubusercontent.com")
 	}
 
 	// Parse the path: /owner/repo/{blob|tree|raw}/ref/path/to/file
@@ -120,6 +128,68 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 	}, nil
 }
 
+// parseRawGitHubURL parses raw.githubusercontent.com URLs
+// Supports URLs like:
+//   - https://raw.githubusercontent.com/owner/repo/refs/heads/branch/path/to/workflow.md
+//   - https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/path/to/workflow.md
+//   - https://raw.githubusercontent.com/owner/repo/refs/tags/tag/path/to/workflow.md
+func parseRawGitHubURL(parsedURL *url.URL) (*WorkflowSpec, error) {
+	// Parse the path: /owner/repo/ref-or-sha/path/to/file
+	// or /owner/repo/refs/heads/branch/path/to/file
+	// or /owner/repo/refs/tags/tag/path/to/file
+	pathParts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
+
+	// Need at least: owner, repo, ref-or-sha, and filename
+	if len(pathParts) < 4 {
+		return nil, fmt.Errorf("invalid raw.githubusercontent.com URL format: path too short")
+	}
+
+	owner := pathParts[0]
+	repo := pathParts[1]
+
+	// Determine the reference and file path based on the third part
+	var ref string
+	var filePath string
+
+	if pathParts[2] == "refs" {
+		// Format: /owner/repo/refs/heads/branch/path/to/file
+		// or /owner/repo/refs/tags/tag/path/to/file
+		if len(pathParts) < 5 {
+			return nil, fmt.Errorf("invalid raw.githubusercontent.com URL format: refs path too short")
+		}
+		// pathParts[3] is "heads" or "tags"
+		ref = pathParts[4] // branch or tag name
+		filePath = strings.Join(pathParts[5:], "/")
+	} else {
+		// Format: /owner/repo/COMMIT_SHA/path/to/file or /owner/repo/branch/path/to/file
+		ref = pathParts[2]
+		filePath = strings.Join(pathParts[3:], "/")
+	}
+
+	// Ensure the file path ends with .md
+	if !strings.HasSuffix(filePath, ".md") {
+		return nil, fmt.Errorf("raw.githubusercontent.com URL must point to a .md file")
+	}
+
+	// Validate owner and repo
+	if owner == "" || repo == "" {
+		return nil, fmt.Errorf("invalid raw.githubusercontent.com URL: owner and repo cannot be empty")
+	}
+
+	if !isValidGitHubIdentifier(owner) || !isValidGitHubIdentifier(repo) {
+		return nil, fmt.Errorf("invalid raw.githubusercontent.com URL: '%s/%s' does not look like a valid GitHub repository", owner, repo)
+	}
+
+	return &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			Repo:    fmt.Sprintf("%s/%s", owner, repo),
+			Version: ref,
+		},
+		WorkflowPath: filePath,
+		WorkflowName: strings.TrimSuffix(filepath.Base(filePath), ".md"),
+	}, nil
+}
+
 // parseWorkflowSpec parses a workflow specification in the new format
 // Format: owner/repo/workflows/workflow-name[@version] or owner/repo/workflow-name[@version]
 // Also supports full GitHub URLs like https://github.com/owner/repo/blob/branch/path/to/workflow.md
@@ -147,7 +217,24 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	owner := slashParts[0]
 	repo := slashParts[1]
-	workflowPath := strings.Join(slashParts[2:], "/")
+
+	// Check if this is a /files/REF/ format (e.g., owner/repo/files/main/path.md)
+	// This is the format used when copying file paths from GitHub UI
+	var workflowPath string
+	if len(slashParts) >= 4 && slashParts[2] == "files" {
+		// Extract the ref (branch/tag/commit) from slashParts[3]
+		ref := slashParts[3]
+		// The file path is everything after /files/REF/
+		workflowPath = strings.Join(slashParts[4:], "/")
+
+		// If version was not explicitly provided via @, use the ref from /files/REF/
+		if version == "" {
+			version = ref
+		}
+	} else {
+		// Standard format: owner/repo/path or owner/repo/workflow-name
+		workflowPath = strings.Join(slashParts[2:], "/")
+	}
 
 	// Validate owner and repo parts are not empty
 	if owner == "" || repo == "" {
