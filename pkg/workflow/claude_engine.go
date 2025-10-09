@@ -648,6 +648,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	githubType := getGitHubType(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -701,10 +702,18 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 		// Use custom token if specified, otherwise use default
 		if customGitHubToken != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"\n", customGitHubToken))
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", customGitHubToken))
 		} else {
-			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
+			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"")
 		}
+
+		// Add GITHUB_TOOLSETS environment variable if toolsets are configured
+		if toolsets != "" {
+			yaml.WriteString(",\n")
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS\": \"%s\"", toolsets))
+		}
+
+		yaml.WriteString("\n")
 		yaml.WriteString("                }\n")
 	}
 

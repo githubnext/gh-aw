@@ -888,7 +888,9 @@ jobs:
             "GITHUB_PERSONAL_ACCESS_TOKEN",
             "ghcr.io/github/github-mcp-server:sha-09deac4"
           ]
-          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}" }
+          
+          [mcp_servers.github.env]
+          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
           
           [mcp_servers.safe_outputs]
           command = "node"
@@ -904,7 +906,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          List the last 5 merged pull requests in this repository into an issue.
+          Review the last 5 merged pull requests in this repository and post summary in an issue.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -2291,7 +2293,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Smoke Codex"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "List the last 5 merged pull requests in this repository into an issue.\n"
+          WORKFLOW_MARKDOWN: "Review the last 5 merged pull requests in this repository and post summary in an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2395,6 +2397,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            const fs = require('fs');
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
               const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';

@@ -892,7 +892,9 @@ jobs:
             "GITHUB_PERSONAL_ACCESS_TOKEN",
             "ghcr.io/github/github-mcp-server:sha-09deac4"
           ]
-          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}" }
+          
+          [mcp_servers.github.env]
+          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
           
           [mcp_servers.safe_outputs]
           command = "node"
@@ -2400,6 +2402,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            const fs = require('fs');
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
               const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';

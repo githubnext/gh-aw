@@ -277,6 +277,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 	githubType := getGitHubType(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -330,6 +331,13 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 			yaml.WriteString("                  \"-e\",\n")
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 		}
+
+		// Add GITHUB_TOOLSETS environment variable if toolsets are configured
+		if toolsets != "" {
+			yaml.WriteString("                  \"-e\",\n")
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
+		}
+
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present
