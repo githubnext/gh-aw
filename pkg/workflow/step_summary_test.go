@@ -61,11 +61,6 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Error("Did not expect 'Print sanitized agent output' step (should be in JavaScript now)")
 	}
 
-	// Verify that the step includes the original JSONL output section
-	if !strings.Contains(lockContent, "## Safe Outputs (JSONL)") {
-		t.Error("Expected '## Safe Outputs (JSONL)' section in step summary")
-	}
-
 	// Verify that the JavaScript code includes the new processed output section via core.summary
 	if !strings.Contains(lockContent, "## Processed Output") {
 		t.Error("Expected '## Processed Output' section in JavaScript code")
@@ -81,7 +76,7 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Error("Expected at least 2 '.addRaw(' calls in JavaScript code for summary building")
 	}
 
-	t.Log("Step summary correctly includes both JSONL and processed output sections")
+	t.Log("Step summary correctly includes processed output sections")
 }
 
 func TestStepSummaryIncludesAgenticRunInfo(t *testing.T) {
@@ -139,30 +134,19 @@ This workflow tests that the step summary includes agentic run information.
 		t.Error("Expected 'Generate agentic run info' step")
 	}
 
-	// Verify that the step includes the "Agentic Run Information" section in step summary
-	if !strings.Contains(lockContent, "## Agentic Run Information") {
-		t.Error("Expected '## Agentic Run Information' section in step summary")
+	// Verify that the step does NOT include the "Agentic Run Information" section in step summary
+	if strings.Contains(lockContent, "## Agentic Run Information") {
+		t.Error("Did not expect '## Agentic Run Information' section in step summary (it should only be in action logs)")
 	}
 
-	// Verify that the step uses core.summary for step summary output
-	if !strings.Contains(lockContent, "core.summary") {
-		t.Error("Expected 'core.summary' usage for step summary output")
+	// Verify that the aw_info.json file is still created and logged to console
+	if !strings.Contains(lockContent, "aw_info.json") {
+		t.Error("Expected 'aw_info.json' to be created")
 	}
 
-	// Verify that the step includes addRaw method calls
-	if !strings.Contains(lockContent, ".addRaw(") {
-		t.Error("Expected '.addRaw(' method calls for step summary content")
+	if !strings.Contains(lockContent, "console.log('Generated aw_info.json at:', tmpPath);") {
+		t.Error("Expected console.log output for aw_info.json")
 	}
 
-	// Verify that the step includes JSON code block markers in the summary
-	if !strings.Contains(lockContent, "```json") {
-		t.Error("Expected '```json' code block markers in step summary")
-	}
-
-	// Verify that the step includes write() call to finalize summary
-	if !strings.Contains(lockContent, ".write();") {
-		t.Error("Expected '.write();' call to finalize step summary")
-	}
-
-	t.Log("Step summary correctly includes agentic run information")
+	t.Log("Step correctly creates aw_info.json without adding to step summary")
 }

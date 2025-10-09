@@ -1,14 +1,15 @@
 function main() {
   const fs = require("fs");
+  const path = require("path");
 
   try {
-    const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-    if (!logFile) {
+    const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+    if (!logPath) {
       throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
     }
 
-    if (!fs.existsSync(logFile)) {
-      throw new Error(`Log file not found: ${logFile}`);
+    if (!fs.existsSync(logPath)) {
+      throw new Error(`Log path not found: ${logPath}`);
     }
 
     // Get error patterns from environment variables
@@ -17,7 +18,38 @@ function main() {
       throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
     }
 
-    const content = fs.readFileSync(logFile, "utf8");
+    let content = "";
+
+    // Check if logPath is a directory or a file
+    const stat = fs.statSync(logPath);
+    if (stat.isDirectory()) {
+      // Read all log files from the directory and concatenate them
+      const files = fs.readdirSync(logPath);
+      const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+
+      if (logFiles.length === 0) {
+        core.info(`No log files found in directory: ${logPath}`);
+        return;
+      }
+
+      // Sort log files by name to ensure consistent ordering
+      logFiles.sort();
+
+      // Concatenate all log files
+      for (const file of logFiles) {
+        const filePath = path.join(logPath, file);
+        const fileContent = fs.readFileSync(filePath, "utf8");
+        content += fileContent;
+        // Add a newline between files if the previous file doesn't end with one
+        if (content.length > 0 && !content.endsWith("\n")) {
+          content += "\n";
+        }
+      }
+    } else {
+      // Read the single log file
+      content = fs.readFileSync(logPath, "utf8");
+    }
+
     const hasErrors = validateErrors(content, patterns);
 
     if (hasErrors) {
