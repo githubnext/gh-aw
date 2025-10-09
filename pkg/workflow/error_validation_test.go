@@ -171,6 +171,11 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		foundBracketedError := false
 		foundGenericError := false
 		foundNpmError := false
+		foundRateLimitError := false
+		foundTimeoutError := false
+		foundNetworkError := false
+		foundTokenExpiredError := false
+		foundMemoryError := false
 
 		for _, pattern := range patterns {
 			switch pattern.Description {
@@ -199,6 +204,16 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 				if pattern.LevelGroup != 0 || pattern.MessageGroup != 1 {
 					t.Errorf("Copilot npm error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
 				}
+			case "Rate limit exceeded error":
+				foundRateLimitError = true
+			case "Timeout or deadline exceeded error":
+				foundTimeoutError = true
+			case "Network connection error":
+				foundNetworkError = true
+			case "Token expired error":
+				foundTokenExpiredError = true
+			case "Memory or resource exhaustion error":
+				foundMemoryError = true
 			}
 		}
 
@@ -216,6 +231,52 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 		if !foundNpmError {
 			t.Error("CopilotEngine should have npm error pattern")
+		}
+		if !foundRateLimitError {
+			t.Error("CopilotEngine should have rate limit error pattern")
+		}
+		if !foundTimeoutError {
+			t.Error("CopilotEngine should have timeout error pattern")
+		}
+		if !foundNetworkError {
+			t.Error("CopilotEngine should have network error pattern")
+		}
+		if !foundTokenExpiredError {
+			t.Error("CopilotEngine should have token expired error pattern")
+		}
+		if !foundMemoryError {
+			t.Error("CopilotEngine should have memory error pattern")
+		}
+	})
+
+	// Test new error patterns with real-world examples
+	t.Run("CopilotEngine_detects_new_error_types", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		patterns := engine.GetErrorPatterns()
+
+		// Test logs with new error types
+		testLogs := []string{
+			"Error: API rate limit exceeded, please try again later",
+			"Error: Too many requests (429)",
+			"Error: Request timeout after 30 seconds",
+			"Error: Operation timed out",
+			"Error: deadline exceeded",
+			"Error: Connection refused: ECONNREFUSED",
+			"Error: connection failed to api.github.com",
+			"Error: Network error: ETIMEDOUT",
+			"Error: DNS resolution failed: ENOTFOUND",
+			"Error: token expired, please refresh your credentials",
+			"Error: Fatal error: maximum call stack size exceeded",
+			"Error: heap out of memory",
+			"Error: spawn ENOMEM: not enough memory",
+			"Error: quota exceeded for API calls",
+		}
+
+		for _, logLine := range testLogs {
+			counts := CountErrorsAndWarningsWithPatterns(logLine, patterns)
+			if counts.ErrorCount == 0 {
+				t.Errorf("Failed to detect error in log line: %q", logLine)
+			}
 		}
 	})
 }
