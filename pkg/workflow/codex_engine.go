@@ -112,10 +112,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
 
 	command := fmt.Sprintf(`set -o pipefail
-INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-export CODEX_HOME=/tmp/mcp-config
-mkdir -p /tmp/mcp-config
-mkdir -p /tmp/aw-logs
+INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+export CODEX_HOME=/tmp/gh-aw/mcp-config
+mkdir -p /tmp/gh-aw/mcp-config
+mkdir -p /tmp/gh-aw/aw-logs
 which codex
 codex --version
 codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
@@ -229,7 +229,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/config.toml << EOF\n")
+	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")

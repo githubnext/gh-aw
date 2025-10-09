@@ -8,7 +8,7 @@ import (
 func TestParseClaudeLogNewFormat(t *testing.T) {
 	// Test with the new format that includes debug entries and JSON
 	newFormatLog := `npm warn exec The following package was not found and will be installed: @anthropic-ai/claude-code@1.0.115
-[DEBUG] Watching for changes in setting files /tmp/.claude/settings.json...
+[DEBUG] Watching for changes in setting files /tmp/gh-aw/.claude/settings.json...
 [ERROR] Failed to save config with lock: Error: ENOENT: no such file or directory, lstat '/home/runner/.claude.json'
 [DEBUG] Writing to temp file: /home/runner/.claude.json.tmp.2123.1757985980850
 [DEBUG] Temp file written successfully, size: 103 bytes

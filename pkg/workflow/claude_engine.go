@@ -175,7 +175,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Use claude command directly (installed via npm install -g)
 	commandParts := []string{"claude"}
 	commandParts = append(commandParts, claudeArgs...)
-	commandParts = append(commandParts, "$(cat /tmp/aw-prompts/prompt.txt)")
+	commandParts = append(commandParts, "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")
 
 	// Join command parts with proper escaping for complex arguments
 	command := ""
@@ -206,11 +206,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          DISABLE_BUG_COMMAND: \"1\"")
 
 	// Always add GITHUB_AW_PROMPT for agentic workflows
-	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
+	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
 
 	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Set MCP_TIMEOUT to 60000ms for MCP server communication

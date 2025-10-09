@@ -556,7 +556,7 @@ func TestBuildUploadDetectionLogStep(t *testing.T) {
 		"if: always()",
 		"uses: actions/upload-artifact@v4",
 		"name: threat-detection.log",
-		"path: /tmp/threat-detection/detection.log",
+		"path: /tmp/gh-aw/threat-detection/detection.log",
 		"if-no-files-found: ignore",
 	}
 

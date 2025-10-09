@@ -893,7 +893,7 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/config.toml << EOF
+          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
           [history]
           persistence = "none"
           
@@ -1271,10 +1271,10 @@ jobs:
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          export CODEX_HOME=/tmp/mcp-config
-          mkdir -p /tmp/mcp-config
-          mkdir -p /tmp/aw-logs
+          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/aw-logs
           which codex
           codex --version
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
@@ -2536,10 +2536,10 @@ jobs:
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          export CODEX_HOME=/tmp/mcp-config
-          mkdir -p /tmp/mcp-config
-          mkdir -p /tmp/aw-logs
+          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/aw-logs
           which codex
           codex --version
           codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log

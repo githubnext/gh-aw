@@ -76,8 +76,8 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected artifact name 'mcp-logs' in upload step")
 	}
 
-	if !strings.Contains(lockContentStr, "path: /tmp/mcp-logs/") {
-		t.Error("Expected artifact path '/tmp/mcp-logs/' in upload step")
+	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/mcp-logs/") {
+		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in upload step")
 	}
 
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {
@@ -183,8 +183,8 @@ This workflow does not use Playwright but should still have MCP logs upload.
 	}
 
 	// Verify the artifact upload configuration
-	if !strings.Contains(lockContentStr, "path: /tmp/mcp-logs/") {
-		t.Error("Expected artifact path '/tmp/mcp-logs/' in upload step")
+	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/mcp-logs/") {
+		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in upload step")
 	}
 
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {

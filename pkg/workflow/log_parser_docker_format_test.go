@@ -8,7 +8,7 @@ import (
 func TestParseClaudeLogDockerPullFormat(t *testing.T) {
 	// Test with the complex format that includes docker pull output
 	dockerPullLog := `npm warn exec The following package was not found and will be installed: @anthropic-ai/claude-code@1.0.115
-[DEBUG] Watching for changes in setting files /tmp/.claude/settings.json...
+[DEBUG] Watching for changes in setting files /tmp/gh-aw/.claude/settings.json...
 [ERROR] Failed to save config with lock: Error: ENOENT: no such file or directory, lstat '/home/runner/.claude.json'
 [ERROR] MCP server "github" Server stderr: Unable to find image 'ghcr.io/github/github-mcp-server:sha-09deac4' locally
 [DEBUG] Shell snapshot created successfully (242917 bytes)
