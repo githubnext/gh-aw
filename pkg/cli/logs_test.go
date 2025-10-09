@@ -628,6 +628,71 @@ tokens used: 15234
 	}
 }
 
+func TestParseLogFileWithCodexMixedFormats(t *testing.T) {
+	// Create a temporary log file with mixed old TypeScript and new Rust formats
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-codex-mixed.log")
+
+	// Mix both formats to test backward compatibility
+	logContent := `[2025-08-13T00:24:45] Starting Codex workflow execution
+[2025-08-13T00:24:50] thinking
+Old format thinking section
+[2025-08-13T00:24:50] tool github.list_repos({"org": "test"})
+[2025-08-13T00:24:51] codex
+Response from old format
+2025-01-15T10:30:00.123456Z  INFO codex: Starting execution
+thinking
+New Rust format thinking section
+tool github.create_issue({"title": "Test", "body": "Body"})
+2025-01-15T10:30:05.567890Z  INFO codex: github.create_issue(...) success in 1.2s
+[2025-08-13T00:24:52] tokens used: 5000
+tokens used: 10000
+2025-01-15T10:30:10.234567Z  INFO codex: Execution complete`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	// Test with Codex engine to parse mixed formats
+	codexEngine := workflow.NewCodexEngine()
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	if err != nil {
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
+	}
+
+	// Check token usage is summed from both formats
+	expectedTokens := 15000 // 5000 + 10000
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (summed from both formats), got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Check turns from both formats
+	expectedTurns := 2 // One from old format, one from new format
+	if metrics.Turns != expectedTurns {
+		t.Errorf("Expected turns %d (from both formats), got %d", expectedTurns, metrics.Turns)
+	}
+
+	// Check tool calls from both formats
+	expectedToolCount := 2
+	if len(metrics.ToolCalls) != expectedToolCount {
+		t.Errorf("Expected %d tool calls, got %d", expectedToolCount, len(metrics.ToolCalls))
+	}
+
+	// Verify the specific tools were detected from both formats
+	toolNames := make(map[string]bool)
+	for _, tool := range metrics.ToolCalls {
+		toolNames[tool.Name] = true
+	}
+
+	expectedTools := []string{"github_list_repos", "github_create_issue"}
+	for _, expectedTool := range expectedTools {
+		if !toolNames[expectedTool] {
+			t.Errorf("Expected tool %s not found in tool calls", expectedTool)
+		}
+	}
+}
+
 func TestParseLogFileWithMixedTokenFormats(t *testing.T) {
 	// Create a temporary log file with mixed token formats
 	tmpDir := t.TempDir()
