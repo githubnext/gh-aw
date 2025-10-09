@@ -1107,7 +1107,7 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}"
                 }
               }
             }

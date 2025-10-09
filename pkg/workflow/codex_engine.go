@@ -618,7 +618,7 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 		yaml.WriteString("          args = [\n")
 		yaml.WriteString("            \"/tmp/gh-aw/safe-outputs/mcp-server.cjs\",\n")
 		yaml.WriteString("          ]\n")
-		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, \"GITHUB_AW_ASSETS_BRANCH\" = \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\", \"GITHUB_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\", \"GITHUB_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
+		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}\", \"GITHUB_AW_ASSETS_BRANCH\" = \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\", \"GITHUB_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\", \"GITHUB_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
 	}
 }
 

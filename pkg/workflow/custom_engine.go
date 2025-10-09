@@ -298,7 +298,7 @@ func (e *CustomEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast 
 	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\"\n")

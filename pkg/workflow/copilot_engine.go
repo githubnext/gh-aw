@@ -395,7 +395,7 @@ func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder,
 	yaml.WriteString("                \"tools\": [\"*\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS_CONFIG }}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {
