@@ -2257,7 +2257,14 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_STDIO: %s\n", logFileFull)
+	outputFiles := engine.GetDeclaredOutputFiles()
+	if len(outputFiles) > 0 {
+		filesJSON, err := json.Marshal(outputFiles)
+		if err == nil {
+			fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT_FILES: %q\n", string(filesJSON))
+		}
+	}
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 

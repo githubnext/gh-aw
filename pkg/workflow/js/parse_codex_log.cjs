@@ -2,26 +2,42 @@ function main() {
   const fs = require("fs");
 
   try {
-    const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-    if (!logFile) {
-      core.info("No agent log file specified");
-      return;
+    const logPaths = [];
+    const logFile = process.env.c;
+    if (logFile) logPaths.push(logFile);
+    const outputFiles = process.env.GITHUB_AW_AGENT_OUTPUT_FILES;
+    if (outputFiles) {
+      try {
+        const files = JSON.parse(outputFiles);
+        if (Array.isArray(files)) {
+          for (const file of files) {
+            if (typeof file === "string") {
+              logPaths.push(file);
+            }
+          }
+        }
+      } catch (e) {
+        core.error(`Failed to parse GITHUB_AW_AGENT_OUTPUT_FILES: ${e}`);
+      }
     }
-
-    if (!fs.existsSync(logFile)) {
-      core.info(`Log file not found: ${logFile}`);
-      return;
-    }
-
-    const content = fs.readFileSync(logFile, "utf8");
-    const parsedLog = parseCodexLog(content);
-
-    if (parsedLog) {
-      core.info(parsedLog);
-      core.summary.addRaw(parsedLog).write();
-      core.info("Codex log parsed successfully");
-    } else {
-      core.error("Failed to parse Codex log");
+    core.info(`Searching for Codex logs in paths: ${logPaths.join(",\n")}`);
+    for (const logPath of logPaths) {
+      if (!fs.existsSync(logPath)) continue;
+      const stat = fs.statSync(logPath);
+      if (stat.isDirectory()) {
+        logPaths.push(...fs.readdirSync(logPath).map(f => `${logPath}/${f}`));
+      } else if (stat.isFile()) {
+        const content = fs.readFileSync(logPath, "utf8");
+        const parsedLog = parseCodexLog(content);
+        if (parsedLog) {
+          core.info(parsedLog);
+          core.summary.addRaw(parsedLog).write();
+          core.info("Codex log parsed successfully");
+          break;
+        } else {
+          core.error("Failed to parse Codex log");
+        }
+      }
     }
   } catch (error) {
     core.setFailed(error instanceof Error ? error : String(error));

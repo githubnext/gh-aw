@@ -2245,13 +2245,13 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GITHUB_AW_AGENT_STDIO: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function main() {
               const fs = require("fs");
               try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+                const logFile = process.env.GITHUB_AW_AGENT_STDIO;
                 if (!logFile) {
                   core.info("No agent log file specified");
                   return;
