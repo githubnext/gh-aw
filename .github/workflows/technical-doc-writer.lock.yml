@@ -1489,14 +1489,6 @@ jobs:
           GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
-      - name: Print agent log
-        if: always()
-        run: |
-          touch /tmp/gh-aw/agent-stdio.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Clean up network proxy hook files
         if: always()
         run: |
@@ -3043,14 +3035,6 @@ jobs:
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           MCP_TIMEOUT: "60000"
-      - name: Print agent log
-        if: always()
-        run: |
-          touch /tmp/gh-aw/threat-detection/detection.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/gh-aw/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:

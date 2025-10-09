@@ -194,9 +194,6 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 
 	steps = append(steps, GitHubActionStep(stepLines))
 
-	// Add the log capture step using shared helper function
-	steps = append(steps, generateLogCaptureStep(logFile))
-
 	return steps
 }
 

@@ -1284,14 +1284,6 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: TRACE
-      - name: Print agent log
-        if: always()
-        run: |
-          touch /tmp/gh-aw/agent-stdio.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2713,14 +2705,6 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: TRACE
-      - name: Print agent log
-        if: always()
-        run: |
-          touch /tmp/gh-aw/threat-detection/detection.log
-          echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/gh-aw/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:
