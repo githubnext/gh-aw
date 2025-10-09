@@ -61,11 +61,6 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Error("Did not expect 'Print sanitized agent output' step (should be in JavaScript now)")
 	}
 
-	// Verify that the step includes the original JSONL output section
-	if !strings.Contains(lockContent, "## Safe Outputs (JSONL)") {
-		t.Error("Expected '## Safe Outputs (JSONL)' section in step summary")
-	}
-
 	// Verify that the JavaScript code includes the new processed output section via core.summary
 	if !strings.Contains(lockContent, "## Processed Output") {
 		t.Error("Expected '## Processed Output' section in JavaScript code")
@@ -81,7 +76,7 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Error("Expected at least 2 '.addRaw(' calls in JavaScript code for summary building")
 	}
 
-	t.Log("Step summary correctly includes both JSONL and processed output sections")
+	t.Log("Step summary correctly includes processed output sections")
 }
 
 func TestStepSummaryIncludesAgenticRunInfo(t *testing.T) {

@@ -2944,12 +2944,6 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Print Safe Outputs\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, printSafeOutputsSummaryScript, "          ")
-
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
