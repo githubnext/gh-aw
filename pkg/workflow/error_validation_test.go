@@ -288,7 +288,7 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 
 		for _, logLine := range testLogs {
 			counts := CountErrorsAndWarningsWithPatterns(logLine, patterns)
-			if counts.ErrorCount == 0 {
+			if CountErrors(counts) == 0 {
 				t.Errorf("Failed to detect error in log line: %q", logLine)
 			}
 		}
@@ -309,7 +309,7 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 
 		for _, text := range informationalText {
 			counts := CountErrorsAndWarningsWithPatterns(text, patterns)
-			if counts.ErrorCount > 0 {
+			if CountErrors(counts) > 0 {
 				t.Errorf("Pattern incorrectly matched informational text: %q", text)
 			}
 		}
