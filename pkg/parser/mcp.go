@@ -243,35 +243,84 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 	}
 
 	if toolName == "github" {
-		// Handle GitHub MCP server - always use Docker by default
-		config := MCPServerConfig{
-			Name:    "github",
-			Type:    "docker", // GitHub defaults to Docker (local containerized)
-			Command: "docker",
-			Args: []string{
-				"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-				"ghcr.io/github/github-mcp-server:sha-09deac4",
-			},
-			Env: make(map[string]string),
+		// Check for custom GitHub configuration to determine mode (local vs remote)
+		var useRemote bool
+		var customGitHubToken string
+		var readOnly bool
+
+		if toolConfig, ok := toolValue.(map[string]any); ok {
+			// Check if mode is specified (remote or local)
+			if modeField, hasMode := toolConfig["mode"]; hasMode {
+				if modeStr, ok := modeField.(string); ok && modeStr == "remote" {
+					useRemote = true
+				}
+			}
+
+			// Check for custom github-token
+			if token, hasToken := toolConfig["github-token"]; hasToken {
+				if tokenStr, ok := token.(string); ok {
+					customGitHubToken = tokenStr
+				}
+			}
+
+			// Check for read-only mode
+			if readOnlyField, hasReadOnly := toolConfig["read-only"]; hasReadOnly {
+				if readOnlyBool, ok := readOnlyField.(bool); ok {
+					readOnly = readOnlyBool
+				}
+			}
 		}
 
-		// Try to get GitHub token, but don't fail if it's not available
-		// This allows tests to run without GitHub authentication
-		if githubToken, err := GetGitHubToken(); err == nil {
-			config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
+		var config MCPServerConfig
+
+		if useRemote {
+			// Handle GitHub MCP server in remote mode (hosted)
+			config = MCPServerConfig{
+				Name:    "github",
+				Type:    "http",
+				URL:     "https://api.githubcopilot.com/mcp/",
+				Headers: make(map[string]string),
+				Env:     make(map[string]string),
+			}
+
+			// Store custom token for later use in workflow generation
+			if customGitHubToken != "" {
+				config.Env["GITHUB_TOKEN"] = customGitHubToken
+			}
+
+			// Add X-MCP-Readonly header if read-only mode is enabled
+			if readOnly {
+				config.Headers["X-MCP-Readonly"] = "true"
+			}
 		} else {
-			// Set a placeholder that will be validated later during connection
-			config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
+			// Handle GitHub MCP server - use local/Docker by default
+			config = MCPServerConfig{
+				Name:    "github",
+				Type:    "docker", // GitHub defaults to Docker (local containerized)
+				Command: "docker",
+				Args: []string{
+					"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+					"ghcr.io/github/github-mcp-server:sha-09deac4",
+				},
+				Env: make(map[string]string),
+			}
+
+			// Try to get GitHub token, but don't fail if it's not available
+			// This allows tests to run without GitHub authentication
+			if githubToken, err := GetGitHubToken(); err == nil {
+				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = githubToken
+			} else {
+				// Set a placeholder that will be validated later during connection
+				config.Env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${GITHUB_TOKEN_REQUIRED}"
+			}
 		}
 
 		// Check for custom GitHub configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
-			// Check for read-only mode
-			if readOnly, hasReadOnly := toolConfig["read-only"]; hasReadOnly {
-				if readOnlyBool, ok := readOnly.(bool); ok && readOnlyBool {
-					// When read-only is true, inline GITHUB_READ_ONLY=1 in docker args
-					config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
-				}
+			// Check for read-only mode (only applicable in local/Docker mode)
+			if !useRemote && readOnly {
+				// When read-only is true, inline GITHUB_READ_ONLY=1 in docker args
+				config.Args = append(config.Args[:5], append([]string{"-e", "GITHUB_READ_ONLY=1"}, config.Args[5:]...)...)
 			}
 
 			if allowed, hasAllowed := toolConfig["allowed"]; hasAllowed {
@@ -284,33 +333,35 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				}
 			}
 
-			// Check for custom Docker image version
-			if version, exists := toolConfig["version"]; exists {
-				if versionStr, ok := version.(string); ok {
-					dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
-					// Update the Docker image in args
-					for i, arg := range config.Args {
-						if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
-							config.Args[i] = dockerImage
-							break
+			// Check for custom Docker image version (only applicable in local/Docker mode)
+			if !useRemote {
+				if version, exists := toolConfig["version"]; exists {
+					if versionStr, ok := version.(string); ok {
+						dockerImage := "ghcr.io/github/github-mcp-server:" + versionStr
+						// Update the Docker image in args
+						for i, arg := range config.Args {
+							if strings.HasPrefix(arg, "ghcr.io/github/github-mcp-server:") {
+								config.Args[i] = dockerImage
+								break
+							}
 						}
 					}
 				}
-			}
 
-			// Check for custom args
-			if argsValue, exists := toolConfig["args"]; exists {
-				// Handle []any format
-				if argsSlice, ok := argsValue.([]any); ok {
-					for _, arg := range argsSlice {
-						if argStr, ok := arg.(string); ok {
-							config.Args = append(config.Args, argStr)
+				// Check for custom args (only applicable in local/Docker mode)
+				if argsValue, exists := toolConfig["args"]; exists {
+					// Handle []any format
+					if argsSlice, ok := argsValue.([]any); ok {
+						for _, arg := range argsSlice {
+							if argStr, ok := arg.(string); ok {
+								config.Args = append(config.Args, argStr)
+							}
 						}
 					}
-				}
-				// Handle []string format
-				if argsSlice, ok := argsValue.([]string); ok {
-					config.Args = append(config.Args, argsSlice...)
+					// Handle []string format
+					if argsSlice, ok := argsValue.([]string); ok {
+						config.Args = append(config.Args, argsSlice...)
+					}
 				}
 			}
 		}

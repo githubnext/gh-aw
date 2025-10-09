@@ -1133,13 +1133,18 @@
                     "type": "string"
                   }
                 },
+                "mode": {
+                  "type": "string",
+                  "enum": ["local", "remote"],
+                  "description": "MCP server mode: 'local' (Docker-based, default) or 'remote' (hosted at api.githubcopilot.com)"
+                },
                 "version": {
                   "type": "string",
-                  "description": "Optional version specification for the GitHub MCP server"
+                  "description": "Optional version specification for the GitHub MCP server (used with 'local' type)"
                 },
                 "args": {
                   "type": "array",
-                  "description": "Optional additional arguments to append to the generated MCP server command",
+                  "description": "Optional additional arguments to append to the generated MCP server command (used with 'local' type)",
                   "items": {
                     "type": "string"
                   }
@@ -1147,6 +1152,10 @@
                 "read-only": {
                   "type": "boolean",
                   "description": "Enable read-only mode to restrict GitHub MCP server to read-only operations only"
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GITHUB_MCP_TOKEN if not specified."
                 }
               },
               "additionalProperties": false
