@@ -74,11 +74,11 @@ on: issues
 engine: copilot
 ---
 
-@import shared/tavily-mcp.md  # Adds Tavily MCP server
+@import shared/mcp/tavily-mcp.md  # Adds Tavily MCP server
 ```
 
 ```aw wrap
-# shared/tavily-mcp.md
+# shared/mcp/tavily-mcp.md
 ---
 mcp-servers:
   tavily:

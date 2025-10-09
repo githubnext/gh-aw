@@ -15,7 +15,7 @@ engine: claude
 timeout_minutes: 10
 
 imports:
-  - shared/ast-grep.md
+  - shared/mcp/ast-grep.md
 
 safe-outputs:
   create-issue:

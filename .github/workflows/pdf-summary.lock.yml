@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/markitdown-mcp.md
+#     - shared/mcp/markitdown-mcp.md
 
 name: "Resource Summarizer Agent"
 on:

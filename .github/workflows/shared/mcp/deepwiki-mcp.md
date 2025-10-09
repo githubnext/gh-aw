@@ -12,7 +12,7 @@
 #
 # Usage:
 #   imports:
-#     - shared/deepwiki-mcp.md
+#     - shared/mcp/deepwiki-mcp.md
 
 mcp-servers:
   deepwiki:

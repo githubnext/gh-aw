@@ -46,13 +46,13 @@ permissions:
   actions: read
 engine: claude
 imports:
-  - shared/gh-aw-mcp.md
+  - shared/mcp/gh-aw-mcp.md
 ---
 
 # Your workflow instructions here
 ```
 
-The shared configuration (`shared/gh-aw-mcp.md`) contains:
+The shared configuration (`shared/mcp/gh-aw-mcp.md`) contains:
 
 **Steps** (run with GITHUB_TOKEN):
 ```yaml
@@ -98,7 +98,7 @@ permissions:
   actions: read
 engine: claude
 imports:
-  - shared/gh-aw-mcp.md
+  - shared/mcp/gh-aw-mcp.md
 ---
 
 # Weekly Workflow Audit

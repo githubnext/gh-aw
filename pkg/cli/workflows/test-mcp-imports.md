@@ -6,7 +6,7 @@ permissions:
 engine: copilot
 
 imports:
-  - shared/test-mcp-server.md
+  - shared/mcp/test-mcp-server.md
 
 tools:
   github:

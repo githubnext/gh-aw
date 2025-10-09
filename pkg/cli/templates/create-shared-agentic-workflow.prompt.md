@@ -163,7 +163,7 @@ Create a comment header explaining:
 #
 # Usage in workflows:
 #   imports:
-#     - shared/deepwiki-mcp.md
+#     - shared/mcp/deepwiki-mcp.md
 
 mcp-servers:
   deepwiki:
@@ -191,7 +191,7 @@ Based on https://docs.devin.ai/work-with-devin/deepwiki-mcp:
 #
 # Usage:
 #   imports:
-#     - shared/deepwiki-mcp.md
+#     - shared/mcp/deepwiki-mcp.md
 
 mcp-servers:
   deepwiki:
@@ -214,8 +214,8 @@ permissions:
   contents: read
 engine: copilot
 imports:
-  - shared/deepwiki-mcp.md
-  - shared/tavily-mcp.md
+  - shared/mcp/deepwiki-mcp.md
+  - shared/mcp/tavily-mcp.md
 safe-outputs:
   add-comment:
     max: 1
