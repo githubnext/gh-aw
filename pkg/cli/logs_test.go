@@ -360,40 +360,42 @@ func TestDownloadRunArtifactsVerboseLogging(t *testing.T) {
 	runID := int64(12345)
 	outputDir := filepath.Join(tmpDir, "run-12345")
 
-	// Test 1: Verbose mode with directory creation
-	// This will fail because the gh CLI command will fail, but we can verify
-	// the verbose logging behavior doesn't cause panics or errors before the gh command runs
-	err := downloadRunArtifacts(runID, outputDir, true)
+	t.Run("verbose mode with directory creation", func(t *testing.T) {
+		// This will fail because the gh CLI command will fail, but we can verify
+		// the verbose logging behavior doesn't cause panics or errors before the gh command runs
+		err := downloadRunArtifacts(runID, outputDir, true)
 
-	// The function should fail because we're not actually running against GitHub
-	// but it shouldn't panic and should have created the directory
-	if err == nil {
-		// If there's no error, that's unexpected (would only happen if gh CLI succeeds)
-		t.Log("Unexpected success - gh CLI command succeeded")
-	}
+		// The function should fail because we're not actually running against GitHub
+		// but it shouldn't panic and should have created the directory
+		if err == nil {
+			// If there's no error, that's unexpected (would only happen if gh CLI succeeds)
+			t.Log("Unexpected success - gh CLI command succeeded")
+		}
 
-	// Verify directory was created
-	if !dirExists(outputDir) {
-		t.Error("Expected output directory to be created")
-	}
+		// Verify directory was created
+		if !dirExists(outputDir) {
+			t.Error("Expected output directory to be created")
+		}
+	})
 
-	// Test 2: Test with existing artifacts (should skip download)
-	// Create a dummy file in the output directory
-	dummyFile := filepath.Join(outputDir, "test-artifact.txt")
-	if err := os.WriteFile(dummyFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("Failed to create dummy file: %v", err)
-	}
+	t.Run("skip download when artifacts already exist", func(t *testing.T) {
+		// Create a dummy file in the output directory
+		dummyFile := filepath.Join(outputDir, "test-artifact.txt")
+		if err := os.WriteFile(dummyFile, []byte("test"), 0644); err != nil {
+			t.Fatalf("Failed to create dummy file: %v", err)
+		}
 
-	// Now calling downloadRunArtifacts again should skip the download
-	err = downloadRunArtifacts(runID, outputDir, true)
-	if err != nil {
-		t.Errorf("Expected no error when artifacts already exist, got: %v", err)
-	}
+		// Now calling downloadRunArtifacts again should skip the download
+		err := downloadRunArtifacts(runID, outputDir, true)
+		if err != nil {
+			t.Errorf("Expected no error when artifacts already exist, got: %v", err)
+		}
 
-	// Verify the dummy file still exists (wasn't overwritten)
-	if _, err := os.Stat(dummyFile); os.IsNotExist(err) {
-		t.Error("Expected dummy file to still exist after skipping download")
-	}
+		// Verify the dummy file still exists (wasn't overwritten)
+		if _, err := os.Stat(dummyFile); os.IsNotExist(err) {
+			t.Error("Expected dummy file to still exist after skipping download")
+		}
+	})
 }
 
 func TestListWorkflowRunsWithPagination(t *testing.T) {
