@@ -268,7 +268,7 @@ function parseCodexLog(logContent) {
  * @returns {string} Formatted HTML details string
  */
 function formatCodexToolCall(server, toolName, params, response, statusIcon) {
-  const summary = `${statusIcon} ${server}::${toolName}`;
+  const summary = `${statusIcon} <code>${server}::${toolName}</code>`;
 
   // If no response, just show the summary
   if (!response || response.trim() === "") {
@@ -306,7 +306,7 @@ function formatCodexToolCall(server, toolName, params, response, statusIcon) {
  * @returns {string} Formatted HTML details string
  */
 function formatCodexBashCall(command, response, statusIcon) {
-  const summary = `${statusIcon} bash: ${truncateString(command, 60)}`;
+  const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>`;
 
   // If no response, just show the summary
   if (!response || response.trim() === "") {

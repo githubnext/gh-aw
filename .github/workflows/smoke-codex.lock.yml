@@ -2180,7 +2180,7 @@ jobs:
               }
             }
             function formatCodexToolCall(server, toolName, params, response, statusIcon) {
-              const summary = `${statusIcon} ${server}::${toolName}`;
+              const summary = `${statusIcon} <code>${server}::${toolName}</code>`;
               if (!response || response.trim() === "") {
                 return `${summary}\n\n`;
               }
@@ -2200,7 +2200,7 @@ jobs:
               return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
             }
             function formatCodexBashCall(command, response, statusIcon) {
-              const summary = `${statusIcon} bash: ${truncateString(command, 60)}`;
+              const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>`;
               if (!response || response.trim() === "") {
                 return `${summary}\n\n`;
               }
