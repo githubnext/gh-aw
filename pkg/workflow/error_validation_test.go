@@ -172,6 +172,8 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		foundGenericError := false
 		foundNpmError := false
 		foundRateLimitError := false
+		foundHTTP429Error := false
+		foundQuotaError := false
 		foundTimeoutError := false
 		foundNetworkError := false
 		foundTokenExpiredError := false
@@ -206,6 +208,10 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 				}
 			case "Rate limit exceeded error":
 				foundRateLimitError = true
+			case "HTTP 429 Too Many Requests status code":
+				foundHTTP429Error = true
+			case "Quota exceeded error":
+				foundQuotaError = true
 			case "Timeout or deadline exceeded error":
 				foundTimeoutError = true
 			case "Network connection error":
@@ -235,6 +241,12 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		if !foundRateLimitError {
 			t.Error("CopilotEngine should have rate limit error pattern")
 		}
+		if !foundHTTP429Error {
+			t.Error("CopilotEngine should have HTTP 429 error pattern")
+		}
+		if !foundQuotaError {
+			t.Error("CopilotEngine should have quota exceeded error pattern")
+		}
 		if !foundTimeoutError {
 			t.Error("CopilotEngine should have timeout error pattern")
 		}
@@ -257,7 +269,9 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		// Test logs with new error types
 		testLogs := []string{
 			"Error: API rate limit exceeded, please try again later",
-			"Error: Too many requests (429)",
+			"Error: Too many requests",
+			"Error: received 429 status code",
+			"Error: quota exceeded for API calls",
 			"Error: Request timeout after 30 seconds",
 			"Error: Operation timed out",
 			"Error: deadline exceeded",
@@ -269,13 +283,33 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 			"Error: Fatal error: maximum call stack size exceeded",
 			"Error: heap out of memory",
 			"Error: spawn ENOMEM: not enough memory",
-			"Error: quota exceeded for API calls",
 		}
 
 		for _, logLine := range testLogs {
 			counts := CountErrorsAndWarningsWithPatterns(logLine, patterns)
 			if counts.ErrorCount == 0 {
 				t.Errorf("Failed to detect error in log line: %q", logLine)
+			}
+		}
+	})
+
+	// Test that patterns don't match informational text
+	t.Run("CopilotEngine_does_not_match_informational_quota_and_timeout_text", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		patterns := engine.GetErrorPatterns()
+
+		// These should NOT match because they lack error context
+		informationalText := []string{
+			"quota will be exceeded tomorrow",
+			"avoid timeout issues by increasing the limit",
+			"timeout configuration is set to 30 seconds",
+			"the deadline is next week",
+		}
+
+		for _, text := range informationalText {
+			counts := CountErrorsAndWarningsWithPatterns(text, patterns)
+			if counts.ErrorCount > 0 {
+				t.Errorf("Pattern incorrectly matched informational text: %q", text)
 			}
 		}
 	})

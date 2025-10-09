@@ -892,20 +892,26 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 		},
 		// Rate limiting and quota errors
 		{
-			Pattern:      `(?i)(rate limit|too many requests|429)`,
+			Pattern:      `(?i)(rate limit|too many requests)`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Rate limit exceeded error",
 		},
 		{
-			Pattern:      `(?i)quota.*exceeded`,
+			Pattern:      `(?i)(429|HTTP.*429)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "HTTP 429 Too Many Requests status code",
+		},
+		{
+			Pattern:      `(?i)error.*quota.*exceeded`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Quota exceeded error",
 		},
 		// Timeout and deadline errors
 		{
-			Pattern:      `(?i)(timeout|timed out|deadline exceeded)`,
+			Pattern:      `(?i)error.*(timeout|timed out|deadline exceeded)`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Timeout or deadline exceeded error",
