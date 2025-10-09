@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/serena-mcp.md
+#     - shared/mcp/serena.md
 
 name: "Duplicate Code Detector"
 on:

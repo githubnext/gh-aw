@@ -9,7 +9,7 @@ permissions:
   actions: read
 engine: codex
 imports:
-  - shared/serena-mcp.md
+  - shared/mcp/serena.md
 safe-outputs:
   create-issue:
     title-prefix: "[duplicate-code] "

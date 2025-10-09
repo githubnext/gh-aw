@@ -21,7 +21,7 @@ safe-outputs:
 timeout_minutes: 20
 strict: true
 imports:
-  - shared/gh-aw-mcp.md
+  - shared/mcp/gh-aw.md
 ---
 
 # Agentic Workflow Audit Agent
