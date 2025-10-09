@@ -802,6 +802,9 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create run output directory: %w", err)
 	}
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Created output directory %s", outputDir)))
+	}
 
 	args := []string{"run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir}
 
@@ -831,6 +834,9 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		if strings.Contains(string(output), "no valid artifacts") || strings.Contains(string(output), "not found") {
 			// Clean up empty directory
 			os.RemoveAll(outputDir)
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No artifacts found for run %d (gh run download reported none)", runID)))
+			}
 			return ErrNoArtifacts
 		}
 		// Check for authentication errors
@@ -842,6 +848,36 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 
 	if verbose {
 		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", runID, outputDir)))
+		// Enumerate created files (shallow + summary) for immediate visibility
+		var fileCount int
+		var firstFiles []string
+		_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				return nil
+			}
+			fileCount++
+			if len(firstFiles) < 12 { // capture a reasonable preview
+				rel, relErr := filepath.Rel(outputDir, path)
+				if relErr == nil {
+					firstFiles = append(firstFiles, rel)
+				}
+			}
+			return nil
+		})
+		if fileCount == 0 {
+			fmt.Println(console.FormatWarningMessage("Download completed but no artifact files were created (empty run)"))
+		} else {
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Artifact file count: %d", fileCount)))
+			for _, f := range firstFiles {
+				fmt.Println(console.FormatVerboseMessage("  • " + f))
+			}
+			if fileCount > len(firstFiles) {
+				fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("  … %d more files omitted", fileCount-len(firstFiles))))
+			}
+		}
 	}
 
 	return nil
@@ -850,6 +886,9 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 // extractLogMetrics extracts metrics from downloaded log files
 func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 	var metrics LogMetrics
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Beginning metric extraction in %s", logDir)))
+	}
 
 	// First check for aw_info.json to determine the engine
 	var detectedEngine workflow.CodingAgentEngine
