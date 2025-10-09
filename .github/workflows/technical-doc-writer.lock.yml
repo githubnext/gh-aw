@@ -2702,19 +2702,40 @@ jobs:
           script: |
             function main() {
               const fs = require("fs");
+              const path = require("path");
               try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!logFile) {
+                const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+                if (!logPath) {
                   throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
-                if (!fs.existsSync(logFile)) {
-                  throw new Error(`Log file not found: ${logFile}`);
+                if (!fs.existsSync(logPath)) {
+                  throw new Error(`Log path not found: ${logPath}`);
                 }
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
                   throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
-                const content = fs.readFileSync(logFile, "utf8");
+                let content = "";
+                const stat = fs.statSync(logPath);
+                if (stat.isDirectory()) {
+                  const files = fs.readdirSync(logPath);
+                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+                  if (logFiles.length === 0) {
+                    core.info(`No log files found in directory: ${logPath}`);
+                    return;
+                  }
+                  logFiles.sort();
+                  for (const file of logFiles) {
+                    const filePath = path.join(logPath, file);
+                    const fileContent = fs.readFileSync(filePath, "utf8");
+                    content += fileContent;
+                    if (content.length > 0 && !content.endsWith("\n")) {
+                      content += "\n";
+                    }
+                  }
+                } else {
+                  content = fs.readFileSync(logPath, "utf8");
+                }
                 const hasErrors = validateErrors(content, patterns);
                 if (hasErrors) {
                   core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");

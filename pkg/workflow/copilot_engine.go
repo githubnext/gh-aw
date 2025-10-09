@@ -547,6 +547,13 @@ func (e *CopilotEngine) GetLogParserScriptId() string {
 	return "parse_copilot_log"
 }
 
+// GetLogFileForParsing returns the log directory for Copilot CLI logs
+// Copilot writes detailed debug logs to /tmp/gh-aw/.copilot/logs/ which should be parsed
+// instead of the agent-stdio.log file
+func (e *CopilotEngine) GetLogFileForParsing() string {
+	return logsFolder
+}
+
 // computeCopilotToolArguments generates Copilot CLI tool permission arguments from workflow tools configuration
 func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOutputs *SafeOutputsConfig) []string {
 	if tools == nil {
