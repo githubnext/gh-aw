@@ -20,9 +20,7 @@ imports:
   - shared/context7-mcp.md
   - shared/arxiv-mcp.md
 tools:
-  cache-memory:
-    key: arxiv
-    retention-days: 60
+  cache-memory: true
 safe-outputs:
   add-comment:
     max: 1
