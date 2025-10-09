@@ -118,7 +118,7 @@ This workflow tests the agentic output collection functionality.
 	t.Log("Claude workflow correctly includes both GITHUB_AW_SAFE_OUTPUTS and engine output collection")
 }
 
-func TestCodexEngineNoOutputSteps(t *testing.T) {
+func TestCodexEngineWithOutputSteps(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "codex-no-output-test")
 	if err != nil {
@@ -198,17 +198,14 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Error("Codex workflow should have job output declaration for 'output' (GITHUB_AW_SAFE_OUTPUTS)")
 	}
 
-	// Verify that Codex workflow does NOT have engine output collection steps
-	if strings.Contains(lockContent, "- name: Collect engine output files") {
-		t.Error("Codex workflow should NOT have 'Collect engine output files' step")
+	// Verify that Codex workflow DOES have engine output collection steps
+	// (because GetDeclaredOutputFiles returns a non-empty list)
+	if !strings.Contains(lockContent, "- name: Upload engine output files") {
+		t.Error("Codex workflow should have 'Upload engine output files' step")
 	}
 
-	if strings.Contains(lockContent, "- name: Upload engine output files") {
-		t.Error("Codex workflow should NOT have 'Upload engine output files' step")
-	}
-
-	if strings.Contains(lockContent, "name: agent_outputs") {
-		t.Error("Codex workflow should NOT reference 'agent_outputs' artifact")
+	if !strings.Contains(lockContent, "name: agent_outputs") {
+		t.Error("Codex workflow should reference 'agent_outputs' artifact")
 	}
 
 	// Verify that the Codex execution step is still present
@@ -216,7 +213,7 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Error("Expected 'Run Codex' step to be in generated workflow")
 	}
 
-	t.Log("Codex workflow correctly includes GITHUB_AW_SAFE_OUTPUTS functionality but excludes engine output collection")
+	t.Log("Codex workflow correctly includes both GITHUB_AW_SAFE_OUTPUTS functionality and engine output collection")
 }
 
 func TestEngineOutputFileDeclarations(t *testing.T) {
@@ -228,12 +225,16 @@ func TestEngineOutputFileDeclarations(t *testing.T) {
 		t.Errorf("Claude engine should declare no output files (Claude CLI no longer produces output.txt), got: %v", claudeOutputFiles)
 	}
 
-	// Test Codex engine declares no output files
+	// Test Codex engine declares output files for log collection
 	codexEngine := NewCodexEngine()
 	codexOutputFiles := codexEngine.GetDeclaredOutputFiles()
 
-	if len(codexOutputFiles) != 0 {
-		t.Errorf("Codex engine should declare no output files, got: %v", codexOutputFiles)
+	if len(codexOutputFiles) == 0 {
+		t.Errorf("Codex engine should declare output files for log collection, got: %v", codexOutputFiles)
+	}
+
+	if len(codexOutputFiles) > 0 && codexOutputFiles[0] != "/tmp/gh-aw/mcp-config/logs/" {
+		t.Errorf("Codex engine should declare /tmp/gh-aw/mcp-config/logs/, got: %v", codexOutputFiles[0])
 	}
 
 	t.Logf("Claude engine declares: %v", claudeOutputFiles)
