@@ -40,6 +40,11 @@ function parseCodexLog(logContent) {
 
     const commandSummary = [];
 
+    // Look-ahead window sizes for finding tool results
+    // New format has more verbose debug logs, so requires larger window
+    const NEW_FORMAT_LOOKAHEAD = 50;
+    const OLD_FORMAT_LOOKAHEAD = 5;
+
     // First pass: collect commands for summary
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -52,7 +57,7 @@ function parseCodexLog(logContent) {
 
         // Look ahead to find the result status
         let statusIcon = "❓"; // Unknown by default
-        for (let j = i + 1; j < Math.min(i + 50, lines.length); j++) {
+        for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
           const nextLine = lines[j];
           if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
             statusIcon = "✅";
@@ -74,7 +79,7 @@ function parseCodexLog(logContent) {
 
           // Look ahead to find the result status
           let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
             const nextLine = lines[j];
             if (nextLine.includes("success in")) {
               statusIcon = "✅";
@@ -103,7 +108,7 @@ function parseCodexLog(logContent) {
 
           // Look ahead to find the result status
           let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
             const nextLine = lines[j];
             if (nextLine.includes("succeeded in")) {
               statusIcon = "✅";
@@ -228,7 +233,7 @@ function parseCodexLog(logContent) {
 
         // Look ahead to find the result status
         let statusIcon = "❓"; // Unknown by default
-        for (let j = i + 1; j < Math.min(i + 50, lines.length); j++) {
+        for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
           const nextLine = lines[j];
           if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
             statusIcon = "✅";
@@ -252,7 +257,7 @@ function parseCodexLog(logContent) {
 
           // Look ahead to find the result status
           let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
             const nextLine = lines[j];
             if (nextLine.includes("success in")) {
               statusIcon = "✅";
@@ -284,7 +289,7 @@ function parseCodexLog(logContent) {
 
           // Look ahead to find the result status
           let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
             const nextLine = lines[j];
             if (nextLine.includes("succeeded in")) {
               statusIcon = "✅";

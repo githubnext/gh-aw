@@ -2034,6 +2034,8 @@ jobs:
                 const lines = logContent.split("\n");
                 let markdown = "## 🤖 Commands and Tools\n\n";
                 const commandSummary = [];
+                const NEW_FORMAT_LOOKAHEAD = 50;
+                const OLD_FORMAT_LOOKAHEAD = 5;
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
                   const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
@@ -2041,7 +2043,7 @@ jobs:
                     const server = toolCallMatch[1];
                     const toolName = toolCallMatch[2];
                     let statusIcon = "❓"; 
-                    for (let j = i + 1; j < Math.min(i + 50, lines.length); j++) {
+                    for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
                       const nextLine = lines[j];
                       if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
                         statusIcon = "✅";
@@ -2058,7 +2060,7 @@ jobs:
                     if (toolMatch) {
                       const toolName = toolMatch[1];
                       let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("success in")) {
                           statusIcon = "✅";
@@ -2082,7 +2084,7 @@ jobs:
                     if (execMatch) {
                       const formattedCommand = formatBashCommand(execMatch[1]);
                       let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("succeeded in")) {
                           statusIcon = "✅";
@@ -2174,7 +2176,7 @@ jobs:
                     const server = newToolMatch[1];
                     const toolName = newToolMatch[2];
                     let statusIcon = "❓"; 
-                    for (let j = i + 1; j < Math.min(i + 50, lines.length); j++) {
+                    for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
                       const nextLine = lines[j];
                       if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
                         statusIcon = "✅";
@@ -2193,7 +2195,7 @@ jobs:
                     if (toolMatch) {
                       const toolName = toolMatch[1];
                       let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("success in")) {
                           statusIcon = "✅";
@@ -2220,7 +2222,7 @@ jobs:
                     if (execMatch) {
                       const formattedCommand = formatBashCommand(execMatch[1]);
                       let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
                         const nextLine = lines[j];
                         if (nextLine.includes("succeeded in")) {
                           statusIcon = "✅";
