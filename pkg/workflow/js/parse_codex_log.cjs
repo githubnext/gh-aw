@@ -48,35 +48,11 @@ function parseCodexLog(logContent) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // Old TypeScript format: ToolCall: github__list_pull_requests {...}
+      // ToolCall: github__list_pull_requests {...}
       const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
       if (toolCallMatch) {
         const server = toolCallMatch[1];
         const toolName = toolCallMatch[2];
-
-        // Look ahead to find the result status
-        let statusIcon = "❓"; // Unknown by default
-        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
-          const nextLine = lines[j];
-          if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
-            statusIcon = "✅";
-            break;
-          } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
-            statusIcon = "❌";
-            break;
-          }
-        }
-
-        commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
-        continue;
-      }
-
-      // New Rust format: tool github.list_pull_requests(...)
-      const trimmedLine = line.trim();
-      const rustToolMatch = trimmedLine.match(/^tool\s+(\w+)\.(\w+)\(/);
-      if (rustToolMatch) {
-        const server = rustToolMatch[1];
-        const toolName = rustToolMatch[2];
 
         // Look ahead to find the result status
         let statusIcon = "❓"; // Unknown by default
@@ -110,35 +86,26 @@ function parseCodexLog(logContent) {
     // Extract metadata from Codex logs
     let totalTokens = 0;
 
-    // Old TypeScript format: TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
+    // TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
     const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
     for (const match of tokenCountMatches) {
       const tokens = parseInt(match[1]);
       totalTokens = Math.max(totalTokens, tokens); // Use the highest value (final total)
     }
 
-    // New Rust format: "tokens used: <number>" or "tokens used\n<number>"
-    // Check for inline format first: "tokens used: 15234"
-    const inlineTokensMatch = logContent.match(/tokens used:\s*([\d,]+)/);
-    if (inlineTokensMatch) {
-      totalTokens = parseInt(inlineTokensMatch[1].replace(/,/g, ""));
-    } else {
-      // Fallback to newline format: "tokens used\n<number>"
-      const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
-      if (finalTokensMatch) {
-        // Remove commas before parsing
-        totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
-      }
+    // Also check for "tokens used\n<number>" at the end (number may have commas)
+    const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+    if (finalTokensMatch) {
+      // Remove commas before parsing
+      totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
     }
 
     if (totalTokens > 0) {
       markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
     }
 
-    // Count tool calls (support both old and new formats)
-    const oldFormatToolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
-    const newFormatToolCalls = (logContent.match(/^tool\s+\w+\.\w+\(/gm) || []).length;
-    const toolCalls = oldFormatToolCalls + newFormatToolCalls;
+    // Count tool calls
+    const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
 
     if (toolCalls > 0) {
       markdown += `**Tool Calls:** ${toolCalls}\n\n`;
