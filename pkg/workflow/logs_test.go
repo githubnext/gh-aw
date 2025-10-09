@@ -48,8 +48,8 @@ This is a test workflow.`
 	result := string(lockContent)
 
 	expected := []string{
-		"touch /tmp/agent-stdio.log",
-		"cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY",
+		"touch /tmp/gh-aw/agent-stdio.log",
+		"cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY",
 	}
 
 	for _, expected := range expected {

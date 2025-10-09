@@ -114,14 +114,14 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	steps = append(steps, "        uses: actions/download-artifact@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: safe-outputs-assets\n")
-	steps = append(steps, "          path: /tmp/safe-outputs/assets/\n")
+	steps = append(steps, "          path: /tmp/gh-aw/safe-outputs/assets/\n")
 
 	// list files
 	steps = append(steps, "      - name: List downloaded asset files\n")
 	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          echo \"Downloaded asset files:\"\n")
-	steps = append(steps, "          ls -la /tmp/safe-outputs/assets/\n")
+	steps = append(steps, "          ls -la /tmp/gh-aw/safe-outputs/assets/\n")
 
 	// Step 4: Upload assets to orphaned branch using custom script
 	steps = append(steps, "      - name: Upload Assets to Orphaned Branch\n")

@@ -50,7 +50,7 @@
 I'll help you try to call the `draw_pelican` tool. Let me first check if there's an existing execution plan, then attempt to call the tool.
 
 <details>
-<summary>✅ Read `/tmp/cache-memory/plan.md`</summary>
+<summary>✅ Read `/tmp/gh-aw/cache-memory/plan.md`</summary>
 
 `````
      1→# Execution Plan: Draw Pelican Tool
@@ -85,10 +85,10 @@ success
 Now let me update the execution plan to reflect the current attempt:
 
 <details>
-<summary>✅ Write `/tmp/cache-memory/plan.md`</summary>
+<summary>✅ Write `/tmp/gh-aw/cache-memory/plan.md`</summary>
 
 `````
-The file /tmp/cache-memory/plan.md has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
      1→# Execution Plan: Draw Pelican Tool
      2→
      3→## Objective
@@ -98,7 +98,7 @@ The file /tmp/cache-memory/plan.md has been updated. Here's the result of runnin
      7→1. ✓ Check for existing plan (found previous attempt)
      8→2. ✓ Read existing plan
      9→3. ✓ Confirm tool is missing (attempted call - tool does not exist)
-    10→4. ✓ Report missing tool ...
+    10→4. ✓ Report missing...
 `````
 </details>
 

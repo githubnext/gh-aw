@@ -160,7 +160,7 @@ func TestGenerateAuditReport(t *testing.T) {
 		Turns:         5,
 		ErrorCount:    0,
 		WarningCount:  1,
-		LogsPath:      "/tmp/test-logs",
+		LogsPath:      "/tmp/gh-aw/test-logs",
 	}
 
 	metrics := LogMetrics{
@@ -261,7 +261,7 @@ func TestGenerateAuditReportMinimal(t *testing.T) {
 		Event:        "workflow_dispatch",
 		HeadBranch:   "feature",
 		URL:          "https://github.com/org/repo/actions/runs/789",
-		LogsPath:     "/tmp/minimal-logs",
+		LogsPath:     "/tmp/gh-aw/minimal-logs",
 	}
 
 	metrics := LogMetrics{}
@@ -314,7 +314,7 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 		URL:          "https://github.com/org/repo/actions/runs/999",
 		ErrorCount:   3,
 		WarningCount: 2,
-		LogsPath:     "/tmp/error-logs",
+		LogsPath:     "/tmp/gh-aw/error-logs",
 	}
 
 	metrics := LogMetrics{

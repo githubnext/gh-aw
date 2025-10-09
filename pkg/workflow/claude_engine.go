@@ -118,7 +118,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add MCP configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Add allowed tools configuration
@@ -141,7 +141,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add network settings if configured
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
+		claudeArgs = append(claudeArgs, "--settings", "/tmp/gh-aw/.claude/settings.json")
 	}
 
 	var stepLines []string
@@ -175,7 +175,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Use claude command directly (installed via npm install -g)
 	commandParts := []string{"claude"}
 	commandParts = append(commandParts, claudeArgs...)
-	commandParts = append(commandParts, "$(cat /tmp/aw-prompts/prompt.txt)")
+	commandParts = append(commandParts, "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)")
 
 	// Join command parts with proper escaping for complex arguments
 	command := ""
@@ -206,11 +206,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, "          DISABLE_BUG_COMMAND: \"1\"")
 
 	// Always add GITHUB_AW_PROMPT for agentic workflows
-	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt")
+	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
 
 	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json")
+		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Set MCP_TIMEOUT to 60000ms for MCP server communication
@@ -496,9 +496,9 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		} else {
 			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
-				// Cache-memory now provides simple file share access at /tmp/cache-memory/
+				// Cache-memory now provides simple file share access at /tmp/gh-aw/cache-memory/
 				// Add path-specific Read and Write tools for the cache directory only
-				cacheDirPattern := "/tmp/cache-memory/*"
+				cacheDirPattern := "/tmp/gh-aw/cache-memory/*"
 
 				// Add path-specific tools for cache directory access
 				if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
@@ -602,7 +602,7 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 }
 
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
+	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -729,7 +729,7 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
 	yaml.WriteString("                  \"--output-dir\",\n")
-	yaml.WriteString("                  \"/tmp/mcp-logs/playwright\"")
+	yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"--allowed-origins\",\n")
@@ -777,7 +777,7 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 // Cache-memory is now a simple file share, not an MCP server
 func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 	// Cache-memory no longer uses MCP server mounting
-	// The cache folder is available as a simple file share at /tmp/cache-memory/
+	// The cache folder is available as a simple file share at /tmp/gh-aw/cache-memory/
 	// The folder is created by the cache step and is accessible to all tools
 	// No MCP configuration is needed for simple file access
 }
@@ -786,7 +786,7 @@ func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 func (e *ClaudeEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 	yaml.WriteString("              \"safe_outputs\": {\n")
 	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")

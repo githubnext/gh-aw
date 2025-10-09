@@ -2034,7 +2034,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		env = make(map[string]string)
 
 		// Set GITHUB_AW_SAFE_OUTPUTS to fixed path
-		env["GITHUB_AW_SAFE_OUTPUTS"] = "/tmp/safe-outputs/outputs.jsonl"
+		env["GITHUB_AW_SAFE_OUTPUTS"] = "/tmp/gh-aw/safe-outputs/outputs.jsonl"
 
 		// Set GITHUB_AW_SAFE_OUTPUTS_CONFIG with the safe outputs configuration
 		safeOutputConfig := c.generateSafeOutputsConfig(data)
@@ -2118,6 +2118,11 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		}
 	}
 
+	// Create /tmp/gh-aw/ base directory for all temporary files
+	yaml.WriteString("      - name: Create gh-aw temp directory\n")
+	yaml.WriteString("        run: |\n")
+	WriteShellScriptToYAML(yaml, createGhAwTmpDirScript, "          ")
+
 	// Add cache steps if cache configuration is present
 	generateCacheSteps(yaml, data, c.verbose)
 
@@ -2160,7 +2165,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generatePrompt(yaml, data)
 
 	logFile := "agent-stdio"
-	logFileFull := "/tmp/agent-stdio.log"
+	logFileFull := "/tmp/gh-aw/agent-stdio.log"
 
 	// Capture agent version if engine supports it
 	c.generateAgentVersionCapture(yaml, engine)
@@ -2231,7 +2236,7 @@ func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: safe-outputs-assets\n")
-	yaml.WriteString("          path: /tmp/safe-outputs/assets/\n")
+	yaml.WriteString("          path: /tmp/gh-aw/safe-outputs/assets/\n")
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
@@ -2346,7 +2351,7 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
-	yaml.WriteString("          path: /tmp/aw_info.json\n")
+	yaml.WriteString("          path: /tmp/gh-aw/aw_info.json\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
@@ -2401,7 +2406,7 @@ func (c *Compiler) generateUploadAccessLogs(yaml *strings.Builder, tools map[str
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: access.log\n")
-	yaml.WriteString("          path: /tmp/access-logs/\n")
+	yaml.WriteString("          path: /tmp/gh-aw/access-logs/\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 
@@ -2411,7 +2416,7 @@ func (c *Compiler) generateUploadMCPLogs(yaml *strings.Builder) {
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: mcp-logs\n")
-	yaml.WriteString("          path: /tmp/mcp-logs/\n")
+	yaml.WriteString("          path: /tmp/gh-aw/mcp-logs/\n")
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
@@ -2464,7 +2469,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Create the initial prompt file step
 	yaml.WriteString("      - name: Create prompt\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	if data.SafeOutputs != nil {
 		yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 	}
@@ -2486,7 +2491,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		stepNum := i + 2
 		yaml.WriteString(fmt.Sprintf("      - name: Append prompt (part %d)\n", stepNum))
 		yaml.WriteString("        env:\n")
-		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 		for _, line := range strings.Split(chunk, "\n") {
@@ -2513,7 +2518,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add step to print prompt to GitHub step summary for debugging
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	WriteShellScriptToYAML(yaml, printPromptSummaryScript, "          ")
 }
@@ -2526,7 +2531,7 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 
 	yaml.WriteString("      - name: Append cache memory instructions to prompt\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 	generateCacheMemoryPromptSection(yaml, config)
@@ -2541,7 +2546,7 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 
 	yaml.WriteString("      - name: Append safe outputs instructions to prompt\n")
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 	generateSafeOutputsPromptSection(yaml, safeOutputs)
@@ -2754,8 +2759,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 
 	yaml.WriteString("            };\n")
 	yaml.WriteString("            \n")
-	yaml.WriteString("            // Write to /tmp directory to avoid inclusion in PR\n")
-	yaml.WriteString("            const tmpPath = '/tmp/aw_info.json';\n")
+	yaml.WriteString("            // Write to /tmp/gh-aw directory to avoid inclusion in PR\n")
+	yaml.WriteString("            const tmpPath = '/tmp/gh-aw/aw_info.json';\n")
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")

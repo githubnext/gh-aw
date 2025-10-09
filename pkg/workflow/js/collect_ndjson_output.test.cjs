@@ -70,7 +70,7 @@ describe("collect_ndjson_output.cjs", () => {
 
   afterEach(() => {
     // Clean up any test files
-    const testFiles = ["/tmp/test-ndjson-output.txt", "/tmp/agent_output.json"];
+    const testFiles = ["/tmp/gh-aw/test-ndjson-output.txt", "/tmp/gh-aw/agent_output.json"];
     testFiles.forEach(file => {
       try {
         if (fs.existsSync(file)) {
@@ -103,16 +103,16 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should handle missing output file", async () => {
-    process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/nonexistent-file.txt";
+    process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/gh-aw/nonexistent-file.txt";
 
     await eval(`(async () => { ${collectScript} })()`);
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
-    expect(mockCore.info).toHaveBeenCalledWith("Output file does not exist: /tmp/nonexistent-file.txt");
+    expect(mockCore.info).toHaveBeenCalledWith("Output file does not exist: /tmp/gh-aw/nonexistent-file.txt");
   });
 
   it("should handle empty output file", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     fs.writeFileSync(testFile, "");
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
@@ -123,7 +123,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should validate and parse valid JSONL content", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
 {"type": "add-comment", "body": "Test comment"}`;
 
@@ -145,7 +145,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should reject items with unexpected output types", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
 {"type": "unexpected-type", "data": "some data"}`;
 
@@ -167,7 +167,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should validate required fields for create-issue type", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue"}
 {"type": "create-issue", "body": "Test body"}`;
 
@@ -190,7 +190,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should validate required fields for add-labels type", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "enhancement"]}
 {"type": "add-labels", "labels": "not-an-array"}
 {"type": "add-labels", "labels": [1, 2, 3]}`;
@@ -212,7 +212,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should validate required fields for create-pull-request type", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-pull-request", "title": "Test PR"}
 {"type": "create-pull-request", "body": "Test body"}
 {"type": "create-pull-request", "branch": "test-branch"}
@@ -240,7 +240,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should handle invalid JSON lines", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
 {invalid json}
 {"type": "add-comment", "body": "Test comment"}`;
@@ -262,7 +262,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should allow multiple items of supported types up to limits", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
@@ -282,7 +282,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should respect max limits from config", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
 {"type": "create-issue", "title": "Second Issue", "body": "Second body"}
 {"type": "create-issue", "title": "Third Issue", "body": "Third body"}`;
@@ -307,7 +307,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should validate required fields for create-discussion type", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-discussion", "title": "Test Discussion"}
 {"type": "create-discussion", "body": "Test body"}
 {"type": "create-discussion", "title": "Valid Discussion", "body": "Valid body"}`;
@@ -332,7 +332,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should skip empty lines", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
 
 {"type": "add-comment", "body": "Test comment"}
@@ -354,7 +354,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should validate required fields for create-pull-request-review-comment type", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": 10, "body": "Good code"}
 {"type": "create-pull-request-review-comment", "path": "src/file.js", "line": "invalid", "body": "Comment"}
 {"type": "create-pull-request-review-comment", "path": "src/file.js", "body": "Missing line"}
@@ -384,7 +384,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should validate optional fields for create-pull-request-review-comment type", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": 20, "start_line": 15, "side": "LEFT", "body": "Multi-line comment"}
 {"type": "create-pull-request-review-comment", "path": "src/file.js", "line": 25, "side": "INVALID", "body": "Invalid side"}`;
 
@@ -407,7 +407,7 @@ describe("collect_ndjson_output.cjs", () => {
   });
 
   it("should respect max limits for create-pull-request-review-comment from config", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const items = [];
     for (let i = 1; i <= 12; i++) {
       items.push(`{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": ${i}, "body": "Comment ${i}"}`);
@@ -435,7 +435,7 @@ describe("collect_ndjson_output.cjs", () => {
 
   describe("JSON repair functionality", () => {
     it("should repair JSON with unescaped quotes in string values", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Issue with "quotes" inside", "body": "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -455,7 +455,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with missing quotes around object keys", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: "create-issue", title: "Test Issue", body: "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -475,7 +475,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with trailing commas", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -495,7 +495,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with single quotes", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{'type': 'create-issue', 'title': 'Test Issue', 'body': 'Test body'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -515,7 +515,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with missing closing braces", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -535,7 +535,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with missing opening braces", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `"type": "create-issue", "title": "Test Issue", "body": "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -555,7 +555,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with newlines in string values", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Real JSONL would have actual \n in the string, not real newlines
       const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Line 1\\nLine 2\\nLine 3"}`;
 
@@ -576,7 +576,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with tabs and special characters", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Test	Issue", "body": "Test\tbody"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -596,7 +596,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should repair JSON with array syntax issues", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "enhancement",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -616,7 +616,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should handle complex repair scenarios with multiple issues", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Make this a more realistic test case for JSON repair without real newlines breaking JSONL
       const ndjsonContent = `{type: 'create-issue', title: 'Issue with "quotes" and trailing,', body: 'Multi\\nline\\ntext',`;
 
@@ -637,7 +637,7 @@ describe("collect_ndjson_output.cjs", () => {
     });
 
     it("should handle JSON broken across multiple lines (real multiline scenario)", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // This simulates what happens when LLMs output JSON with actual newlines
       // The parser should treat this as one broken JSON item, not multiple lines
       // For now, we'll test that it fails gracefully and reports an error
@@ -665,7 +665,7 @@ Line 3"}
     });
 
     it("should still report error if repair fails completely", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{completely broken json with no hope: of repair [[[}}}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -686,7 +686,7 @@ Line 3"}
     });
 
     it("should preserve valid JSON without modification", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Perfect JSON", "body": "This should not be modified"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -707,7 +707,7 @@ Line 3"}
     });
 
     it("should repair mixed quote types in same object", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": 'create-issue', "title": 'Mixed quotes', 'body': "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -728,7 +728,7 @@ Line 3"}
     });
 
     it("should repair arrays ending with wrong bracket type", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature", "enhancement"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -748,7 +748,7 @@ Line 3"}
     });
 
     it("should handle simple missing closing brackets with graceful repair", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -776,7 +776,7 @@ Line 3"}
     });
 
     it("should repair nested objects with multiple issues", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'create-issue', title: 'Nested test', body: 'Body text', labels: ['bug', 'priority',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -797,7 +797,7 @@ Line 3"}
     });
 
     it("should repair JSON with Unicode characters and escape sequences", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'create-issue', title: 'Unicode test \u00e9\u00f1', body: 'Body with \\u0040 symbols',`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -818,7 +818,7 @@ Line 3"}
     });
 
     it("should repair JSON with control characters (null, backspace, form feed)", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test with actual control characters: null (\x00), backspace (\x08), form feed (\x0C)
       const ndjsonContent = `{"type": "create-issue", "title": "Test\x00Issue", "body": "Body\x08with\x0Ccontrol\x07chars"}`;
 
@@ -842,7 +842,7 @@ Line 3"}
     });
 
     it("should repair JSON with device control characters", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test with device control characters: DC1 (\x11), DC4 (\x14), NAK (\x15)
       const ndjsonContent = `{"type": "create-issue", "title": "Device\x11Control\x14Test", "body": "Text\x15here"}`;
 
@@ -866,7 +866,7 @@ Line 3"}
     });
 
     it("should repair JSON preserving valid escape sequences (newline, tab, carriage return)", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test that valid control characters (tab, newline, carriage return) are properly handled
       // Note: These should be properly escaped in the JSON to avoid breaking the JSONL format
       const ndjsonContent = `{"type": "create-issue", "title": "Valid\\tTab", "body": "Line1\\nLine2\\rCarriage"}`;
@@ -891,7 +891,7 @@ Line 3"}
     });
 
     it("should repair JSON with mixed control characters and regular escape sequences", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test mixing regular escapes with control characters - simplified to avoid quote issues
       const ndjsonContent = `{"type": "create-issue", "title": "Mixed\x00test\\nwith text", "body": "Body\x02with\\ttab\x03end"}`;
 
@@ -915,7 +915,7 @@ Line 3"}
     });
 
     it("should repair JSON with DEL character (0x7F) and other high control chars", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // DEL (0x7F) should be handled by sanitizeContent, other control chars by repairJson
       const ndjsonContent = `{"type": "create-issue", "title": "Test\x7FDel", "body": "Body\x1Fwith\x01control"}`;
 
@@ -939,7 +939,7 @@ Line 3"}
     });
 
     it("should repair JSON with all ASCII control characters in sequence", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test simpler case to verify control character handling works
       const ndjsonContent = `{"type": "create-issue", "title": "Control test\x00\x01\x02\\t\\n", "body": "End of test"}`;
 
@@ -966,7 +966,7 @@ Line 3"}
     });
 
     it("should test control character repair in isolation using the repair function", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test malformed JSON that needs both control char repair and other repairs
       const ndjsonContent = `{type: "create-issue", title: 'Test\x00with\x08control\x0Cchars', body: 'Body\x01text',}`;
 
@@ -991,7 +991,7 @@ Line 3"}
     });
 
     it("should test repair function behavior with specific control character scenarios", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test case where control characters would break JSON but repair fixes them
       const ndjsonContent = `{"type": "create-issue", "title": "Control\x00\x07\x1A", "body": "Test\x08\x1Fend"}`;
 
@@ -1015,7 +1015,7 @@ Line 3"}
     });
 
     it("should repair JSON with numbers, booleans, and null values", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'create-issue', title: 'Complex types test', body: 'Body text', priority: 5, urgent: true, assignee: null,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1038,7 +1038,7 @@ Line 3"}
     });
 
     it("should attempt repair but fail gracefully with excessive malformed JSON", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{,type: 'create-issue',, title: 'Extra commas', body: 'Test',, labels: ['bug',,],}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1059,7 +1059,7 @@ Line 3"}
     });
 
     it("should repair very long strings with multiple issues", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const longBody =
         'This is a very long body text that contains "quotes" and other\\nspecial characters including tabs\\t and newlines\\r\\n and more text that goes on and on.';
       const ndjsonContent = `{type: 'create-issue', title: 'Long string test', body: '${longBody}',}`;
@@ -1082,7 +1082,7 @@ Line 3"}
     });
 
     it("should repair deeply nested structures", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'create-issue', title: 'Nested test', body: 'Body', metadata: {project: 'test', tags: ['important', 'urgent',}, version: 1.0,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1105,7 +1105,7 @@ Line 3"}
     });
 
     it("should handle complex backslash scenarios with graceful failure", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'create-issue', title: 'Escape test with "quotes" and \\\\backslashes', body: 'Test body',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1134,7 +1134,7 @@ Line 3"}
     });
 
     it("should repair JSON with carriage returns and form feeds", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'create-issue', title: 'Special chars', body: 'Text with\\rcarriage\\fform feed',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1154,7 +1154,7 @@ Line 3"}
     });
 
     it("should gracefully handle repair attempts on fundamentally broken JSON", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{{{[[[type]]]}}} === "broken" &&& title ??? 'impossible to repair' @@@ body`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1175,7 +1175,7 @@ Line 3"}
     });
 
     it("should handle repair of JSON with missing property separators", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type 'create-issue', title 'Missing colons', body 'Test body'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1196,7 +1196,7 @@ Line 3"}
     });
 
     it("should repair arrays with mixed bracket types in complex structures", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: 'add-labels', labels: ['priority', 'bug', 'urgent'}, extra: ['data', 'here'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1217,7 +1217,7 @@ Line 3"}
     });
 
     it("should gracefully handle cases with multiple trailing commas", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Test", "body": "Test body",,,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1245,7 +1245,7 @@ Line 3"}
     });
 
     it("should repair JSON with simple missing closing brackets", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1266,7 +1266,7 @@ Line 3"}
     });
 
     it("should repair combination of unquoted keys and trailing commas", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{type: "create-issue", title: "Combined issues", body: "Test body", priority: 1,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1289,7 +1289,7 @@ Line 3"}
   });
 
   it("should store validated output in agent_output.json file and set GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
 {"type": "add-comment", "body": "Test comment"}`;
 
@@ -1300,10 +1300,10 @@ Line 3"}
     await eval(`(async () => { ${collectScript} })()`);
 
     // Verify agent_output.json file was created
-    expect(fs.existsSync("/tmp/agent_output.json")).toBe(true);
+    expect(fs.existsSync("/tmp/gh-aw/agent_output.json")).toBe(true);
 
     // Verify the content of agent_output.json
-    const agentOutputContent = fs.readFileSync("/tmp/agent_output.json", "utf8");
+    const agentOutputContent = fs.readFileSync("/tmp/gh-aw/agent_output.json", "utf8");
     const agentOutputJson = JSON.parse(agentOutputContent);
 
     expect(agentOutputJson.items).toHaveLength(2);
@@ -1312,7 +1312,7 @@ Line 3"}
     expect(agentOutputJson.errors).toHaveLength(0);
 
     // Verify GITHUB_AW_AGENT_OUTPUT environment variable was set
-    expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_AGENT_OUTPUT", "/tmp/agent_output.json");
+    expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_AGENT_OUTPUT", "/tmp/gh-aw/agent_output.json");
 
     // Verify existing functionality still works (core.setOutput calls)
     const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1325,7 +1325,7 @@ Line 3"}
   });
 
   it("should handle errors when writing agent_output.json file gracefully", async () => {
-    const testFile = "/tmp/test-ndjson-output.txt";
+    const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
@@ -1335,7 +1335,7 @@ Line 3"}
     // Mock fs.writeFileSync to throw an error for the agent_output.json file
     const originalWriteFileSync = fs.writeFileSync;
     fs.writeFileSync = vi.fn((filePath, content, options) => {
-      if (filePath === "/tmp/agent_output.json") {
+      if (filePath === "/tmp/gh-aw/agent_output.json") {
         throw new Error("Permission denied");
       }
       return originalWriteFileSync(filePath, content, options);
@@ -1364,7 +1364,7 @@ Line 3"}
 
   describe("create-code-scanning-alert validation", () => {
     it("should validate valid code scanning alert entries", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/auth.js", "line": 42, "severity": "error", "message": "SQL injection vulnerability"}
 {"type": "create-code-scanning-alert", "file": "src/utils.js", "line": 25, "severity": "warning", "message": "XSS vulnerability", "column": 10, "ruleIdSuffix": "xss-check"}
 {"type": "create-code-scanning-alert", "file": "src/complete.js", "line": "30", "severity": "NOTE", "message": "Complete example", "column": "5", "ruleIdSuffix": "complete-rule"}`;
@@ -1416,7 +1416,7 @@ Line 3"}
     });
 
     it("should reject code scanning alert entries with missing required fields", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-code-scanning-alert", "severity": "error", "message": "Missing file field"}
 {"type": "create-code-scanning-alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
 {"type": "create-code-scanning-alert", "file": "src/missing2.js", "line": 10, "message": "Missing severity field"}
@@ -1443,7 +1443,7 @@ Line 3"}
     });
 
     it("should reject code scanning alert entries with invalid field types", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-code-scanning-alert", "file": 123, "line": 10, "severity": "error", "message": "File should be string"}
 {"type": "create-code-scanning-alert", "file": "src/test.js", "line": null, "severity": "error", "message": "Line should be number or string"}
 {"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": 123, "message": "Severity should be string"}
@@ -1470,7 +1470,7 @@ Line 3"}
     });
 
     it("should reject code scanning alert entries with invalid severity levels", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "invalid-level", "message": "Invalid severity"}
 {"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 15, "severity": "critical", "message": "Unsupported severity"}`;
 
@@ -1492,7 +1492,7 @@ Line 3"}
     });
 
     it("should reject code scanning alert entries with invalid optional fields", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "error", "message": "Test", "column": "invalid"}
 {"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 15, "severity": "error", "message": "Test", "ruleIdSuffix": 123}
 {"type": "create-code-scanning-alert", "file": "src/test3.js", "line": 20, "severity": "error", "message": "Test", "ruleIdSuffix": "bad rule!@#"}`;
@@ -1519,7 +1519,7 @@ Line 3"}
     });
 
     it("should handle mixed valid and invalid code scanning alert entries", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/valid.js", "line": 10, "severity": "error", "message": "Valid entry"}
 {"type": "create-code-scanning-alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
 {"type": "create-code-scanning-alert", "file": "src/valid2.js", "line": 20, "severity": "warning", "message": "Another valid entry", "column": 5}`;
@@ -1543,7 +1543,7 @@ Line 3"}
     });
 
     it("should reject code scanning alert entries with invalid line and column values", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": "invalid", "severity": "error", "message": "Invalid line string"}
 {"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 0, "severity": "error", "message": "Zero line number"}
 {"type": "create-code-scanning-alert", "file": "src/test3.js", "line": -5, "severity": "error", "message": "Negative line number"}
@@ -1574,7 +1574,7 @@ Line 3"}
 
   describe("Content sanitization functionality", () => {
     it("should preserve command-line flags with colons", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Test issue", "body": "Use z3 -v:10 and z3 -memory:high for performance monitoring"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1593,7 +1593,7 @@ Line 3"}
     });
 
     it("should preserve various command-line flag patterns", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "CLI Flags Test", "body": "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1611,7 +1611,7 @@ Line 3"}
     });
 
     it("should redact non-https protocols while preserving command flags", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Protocol Test", "body": "Use https://github.com/repo for code, avoid ftp://example.com/file and git://example.com/repo, but z3 -v:10 should work"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1629,7 +1629,7 @@ Line 3"}
     });
 
     it("should handle mixed protocols and command flags in complex text", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Complex Test", "body": "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid ssh://git.example.com/repo.git or file://localhost/path"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1647,7 +1647,7 @@ Line 3"}
     });
 
     it("should preserve allowed domains while redacting unknown ones", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Domain Test", "body": "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: https://example.com/page"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1665,7 +1665,7 @@ Line 3"}
     });
 
     it("should handle @mentions neutralization", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "@mention Test", "body": "Hey @username and @org/team, check this out! But preserve email@domain.com"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1681,7 +1681,7 @@ Line 3"}
     });
 
     it("should neutralize bot trigger phrases", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Bot Trigger Test", "body": "This fixes #123 and closes #456, also resolves #789"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1697,7 +1697,7 @@ Line 3"}
     });
 
     it("should remove ANSI escape sequences", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Use actual ANSI escape sequences
       const bodyWithAnsi = "\u001b[31mRed text\u001b[0m and \u001b[1mBold text\u001b[m";
       const ndjsonContent = JSON.stringify({
@@ -1722,7 +1722,7 @@ Line 3"}
       // Set custom allowed domains
       process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,test.org";
 
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Custom Domains", "body": "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: https://github.com/repo, https://blocked.com/page"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1743,7 +1743,7 @@ Line 3"}
     });
 
     it("should handle edge cases with colons in different contexts", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Colon Edge Cases", "body": "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1762,7 +1762,7 @@ Line 3"}
     });
 
     it("should truncate excessively long content", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const longBody = "x".repeat(600000); // 600KB, exceeds 512KB limit
       const ndjsonContent = `{"type": "create-issue", "title": "Long Content Test", "body": "${longBody}"}`;
 
@@ -1780,7 +1780,7 @@ Line 3"}
     });
 
     it("should truncate content with too many lines", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const manyLines = Array(66000).fill("line").join("\n"); // Exceeds 65K line limit
       const ndjsonContent = JSON.stringify({
         type: "create-issue",
@@ -1804,7 +1804,7 @@ Line 3"}
     });
 
     it("should preserve backticks and code blocks", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Code Test", "body": "Use \`z3 -v:10\` in terminal. Code block:\\n\`\`\`\\nz3 -memory:high input.smt2\\nftp://should-not-be-redacted-in-code\\n\`\`\`"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1822,7 +1822,7 @@ Line 3"}
     });
 
     it("should handle sanitization across multiple field types", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-pull-request", "title": "PR with z3 -v:10 flag", "body": "Testing https://github.com/repo and ftp://example.com", "branch": "feature/z3-timeout:5000", "labels": ["bug", "z3:solver"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1841,7 +1841,7 @@ Line 3"}
     });
 
     it("should remove XML comments to prevent content hiding", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "XML Comment Test", "body": "This is visible <!-- This is hidden content --> more visible text <!--- This is also hidden ---> and more text <!--- malformed comment --!> final text"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1859,7 +1859,7 @@ Line 3"}
 
   describe("Min validation tests", () => {
     it("should pass when min requirement is met", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
 {"type": "create-issue", "title": "Second Issue", "body": "Second body"}
 {"type": "create-issue", "title": "Third Issue", "body": "Third body"}`;
@@ -1881,7 +1881,7 @@ Line 3"}
     });
 
     it("should fail when min requirement is not met", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Only Issue", "body": "Only body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1902,7 +1902,7 @@ Line 3"}
     });
 
     it("should handle multiple types with different min requirements", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Issue 1", "body": "Body 1"}
 {"type": "create-issue", "title": "Issue 2", "body": "Body 2"}
 {"type": "add-comment", "body": "Comment 1"}`;
@@ -1925,7 +1925,7 @@ Line 3"}
     });
 
     it("should ignore min when set to 0", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Issue", "body": "Body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1945,7 +1945,7 @@ Line 3"}
     });
 
     it("should work when no min is specified (defaults to 0)", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create-issue", "title": "Issue", "body": "Body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1965,7 +1965,7 @@ Line 3"}
     });
 
     it("should validate min even when no items are present", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = ``; // Empty file
 
       fs.writeFileSync(testFile, ndjsonContent);
@@ -1986,7 +1986,7 @@ Line 3"}
     });
 
     it("should work with different safe output types", async () => {
-      const testFile = "/tmp/test-ndjson-output.txt";
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "add-comment", "body": "Comment"}
 {"type": "create-discussion", "title": "Discussion", "body": "Discussion body"}
 {"type": "create-discussion", "title": "Discussion 2", "body": "Discussion body 2"}`;

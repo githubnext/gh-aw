@@ -462,7 +462,7 @@ jobs:
       contents: read
       pull-requests: read
     env:
-      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -470,6 +470,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw
+          echo "Created /tmp/gh-aw directory for agentic workflow temporary files"
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -520,8 +524,8 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.0.10
       - name: Generate Claude Settings
         run: |
-          mkdir -p /tmp/.claude
-          cat > /tmp/.claude/settings.json << 'EOF'
+          mkdir -p /tmp/gh-aw/.claude
+          cat > /tmp/gh-aw/.claude/settings.json << 'EOF'
           {
             "hooks": {
               "PreToolUse": [
@@ -628,11 +632,11 @@ jobs:
           chmod +x .claude/hooks/network_permissions.py
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safe-outputs
+          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
           {"missing-tool":{},"push-to-pull-request-branch":{}}
           EOF
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
@@ -643,7 +647,7 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
               debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -676,7 +680,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
             if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
               debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -814,7 +818,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -1299,15 +1303,15 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
         run: |
-          mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
+          mkdir -p /tmp/gh-aw/mcp-config
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
               "github": {
@@ -1326,7 +1330,7 @@ jobs:
               },
               "safe_outputs": {
                 "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
                   "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
@@ -1340,7 +1344,7 @@ jobs:
           EOF
       - name: Create prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
@@ -1447,7 +1451,7 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1479,7 +1483,7 @@ jobs:
           EOF
       - name: Append safe outputs instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1503,7 +1507,7 @@ jobs:
           EOF
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1545,8 +1549,8 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            // Write to /tmp directory to avoid inclusion in PR
-            const tmpPath = '/tmp/aw_info.json';
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
@@ -1563,7 +1567,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw_info.json
-          path: /tmp/aw_info.json
+          path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Execute Claude Code CLI
         id: agentic_execution
@@ -1656,23 +1660,23 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/.claude/settings.json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/agent-stdio.log
+          touch /tmp/gh-aw/agent-stdio.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Clean up network proxy hook files
         if: always()
@@ -2422,7 +2426,7 @@ jobs:
                 items: parsedItems,
                 errors: errors,
               };
-              const agentOutputFile = "/tmp/agent_output.json";
+              const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
                 fs.mkdirSync("/tmp", { recursive: true });
@@ -2464,13 +2468,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mcp-logs
-          path: /tmp/mcp-logs/
+          path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function main() {
@@ -2868,13 +2872,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-stdio.log
-          path: /tmp/agent-stdio.log
+          path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
         with:
           script: |
@@ -3046,20 +3050,20 @@ jobs:
                 echo "Using merge-base as base: $BASE_REF"
               fi
               # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
               echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
             else
               echo "Branch $BRANCH_NAME does not exist, no patch"
             fi
           fi
           # Show patch info if it exists
-          if [ -f /tmp/aw.patch ]; then
-            ls -la /tmp/aw.patch
+          if [ -f /tmp/gh-aw/aw.patch ]; then
+            ls -la /tmp/gh-aw/aw.patch
             # Show the first 50 lines of the patch for review
             echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
             echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
             echo '...' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
@@ -3069,7 +3073,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw.patch
-          path: /tmp/aw.patch
+          path: /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
   detection:
@@ -3083,13 +3087,13 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
           name: aw.patch
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Echo agent outputs
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
@@ -3107,7 +3111,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const patchPath = '/tmp/threat-detection/aw.patch';
+            const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
               try {
@@ -3171,9 +3175,9 @@ jobs:
             if (customPrompt) {
               promptContent += '\n\n## Additional Instructions\n\n' + customPrompt;
             }
-            fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
-            fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
-            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+            fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
+            fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
+            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
               .addHeading('Threat Detection Prompt', 2)
               .addRaw('\n')
@@ -3182,8 +3186,8 @@ jobs:
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log
         run: |
-          mkdir -p /tmp/threat-detection
-          touch /tmp/threat-detection/detection.log
+          mkdir -p /tmp/gh-aw/threat-detection
+          touch /tmp/gh-aw/threat-detection/detection.log
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -3205,21 +3209,21 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/threat-detection/detection.log
+          claude --print --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           MCP_TIMEOUT: "60000"
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/threat-detection/detection.log
+          touch /tmp/gh-aw/threat-detection/detection.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
@@ -3227,7 +3231,7 @@ jobs:
           script: |
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
-              const outputPath = '/tmp/threat-detection/agent_output.json';
+              const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
               if (fs.existsSync(outputPath)) {
                 const outputContent = fs.readFileSync(outputPath, 'utf8');
                 const lines = outputContent.split('\n');
@@ -3261,7 +3265,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: threat-detection.log
-          path: /tmp/threat-detection/detection.log
+          path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
   push_to_pull_request_branch:
@@ -3288,7 +3292,7 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: aw.patch
-          path: /tmp/
+          path: /tmp/gh-aw/
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
@@ -3318,7 +3322,7 @@ jobs:
               }
               const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
               const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/aw.patch")) {
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
                 const message = "No patch file found - cannot push without changes";
                 switch (ifNoChanges) {
                   case "error":
@@ -3332,7 +3336,7 @@ jobs:
                     return;
                 }
               }
-              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
               if (patchContent.includes("Failed to generate patch")) {
                 const message = "Patch file contains error message - cannot push without changes";
                 switch (ifNoChanges) {
@@ -3403,8 +3407,8 @@ jobs:
                 if (pushItem.commit_message) {
                   summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
                 }
-                if (fs.existsSync("/tmp/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
                     summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -3507,7 +3511,7 @@ jobs:
               if (!isEmpty) {
                 core.info("Applying patch...");
                 try {
-                  await exec.exec("git am /tmp/aw.patch");
+                  await exec.exec("git am /tmp/gh-aw/aw.patch");
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
                   core.info(`Changes committed and pushed to branch: ${branchName}`);

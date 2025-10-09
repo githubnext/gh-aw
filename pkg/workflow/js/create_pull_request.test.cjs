@@ -214,7 +214,7 @@ describe("create_pull_request.cjs", () => {
     expect(global.exec.exec).toHaveBeenCalledWith("git fetch origin");
     expect(global.exec.exec).toHaveBeenCalledWith("git checkout main");
     expect(global.exec.exec).toHaveBeenCalledWith("git checkout -b test-workflow-1234567890abcdef");
-    expect(global.exec.exec).toHaveBeenCalledWith("git am /tmp/aw.patch");
+    expect(global.exec.exec).toHaveBeenCalledWith("git am /tmp/gh-aw/aw.patch");
     expect(global.exec.exec).toHaveBeenCalledWith("git push origin test-workflow-1234567890abcdef");
 
     // Verify PR creation

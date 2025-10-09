@@ -110,7 +110,7 @@ func TestCustomEngineGetExecutionSteps(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// Custom engine without steps should return just the log step
 	if len(steps) != 1 {
@@ -148,7 +148,7 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// Test with engine config - steps should be populated (2 custom steps + 1 log step)
 	if len(steps) != 3 {
@@ -164,11 +164,11 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		if !strings.Contains(firstStepContent, "continue-on-error: true") {
 			t.Errorf("Expected first step to contain 'continue-on-error: true', got:\n%s", firstStepContent)
 		}
-		if !strings.Contains(firstStepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
-			t.Errorf("Expected first step to contain 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt', got:\n%s", firstStepContent)
+		if !strings.Contains(firstStepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected first step to contain 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", firstStepContent)
 		}
-		if !strings.Contains(firstStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
-			t.Errorf("Expected first step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json', got:\n%s", firstStepContent)
+		if !strings.Contains(firstStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected first step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", firstStepContent)
 		}
 	}
 
@@ -181,11 +181,11 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		if !strings.Contains(secondStepContent, "continue-on-error: \"false\"") {
 			t.Errorf("Expected second step to contain 'continue-on-error: \"false\"', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
 		}
 	}
 }
@@ -216,7 +216,7 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
-	config := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	config := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// Test with engine config - steps should be populated (2 custom steps + 1 log step)
 	if len(config) != 3 {
@@ -243,11 +243,11 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		if !strings.Contains(secondStepContent, "run:") && !strings.Contains(secondStepContent, "npm test") {
 			t.Errorf("Expected second step to contain run command 'npm test', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+			t.Errorf("Expected second step to contain 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt', got:\n%s", secondStepContent)
 		}
-		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json") {
-			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
+		if !strings.Contains(secondStepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json") {
+			t.Errorf("Expected second step to contain 'GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json', got:\n%s", secondStepContent)
 		}
 	}
 }
@@ -260,7 +260,7 @@ func TestCustomEngineRenderMCPConfig(t *testing.T) {
 	engine.RenderMCPConfig(&yaml, map[string]any{}, []string{}, nil)
 
 	output := yaml.String()
-	expectedPrefix := "          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'"
+	expectedPrefix := "          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'"
 	if !strings.Contains(output, expectedPrefix) {
 		t.Errorf("Expected MCP config to contain setup prefix, got '%s'", output)
 	}

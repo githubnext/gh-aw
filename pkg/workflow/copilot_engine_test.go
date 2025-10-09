@@ -59,7 +59,7 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	if len(steps) != 2 {
 		t.Fatalf("Expected 2 steps (copilot execution + log capture), got %d", len(steps))
@@ -72,11 +72,11 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 		t.Errorf("Expected step name 'Execute GitHub Copilot CLI' in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "copilot --add-dir /tmp/ --log-level all --log-dir") {
-		t.Errorf("Expected command to contain 'copilot --add-dir /tmp/ --log-level all --log-dir' in step content:\n%s", stepContent)
+	if !strings.Contains(stepContent, "copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir") {
+		t.Errorf("Expected command to contain 'copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir' in step content:\n%s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "/tmp/test.log") {
+	if !strings.Contains(stepContent, "/tmp/gh-aw/test.log") {
 		t.Errorf("Expected command to contain log file name in step content:\n%s", stepContent)
 	}
 
@@ -96,7 +96,7 @@ func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {
 		Name:        "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{}, // Non-nil to trigger output handling
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	if len(steps) != 2 {
 		t.Fatalf("Expected 2 steps (copilot execution + log capture) with output, got %d", len(steps))
@@ -378,7 +378,7 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 			"edit": nil,
 		},
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	if len(steps) != 2 {
 		t.Fatalf("Expected 2 steps (copilot execution + log capture), got %d", len(steps))
@@ -422,7 +422,7 @@ func TestCopilotEngineShellEscaping(t *testing.T) {
 			"bash": []any{"git add:*", "git commit:*"},
 		},
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	if len(steps) != 2 {
 		t.Fatalf("Expected 2 steps, got %d", len(steps))
@@ -467,7 +467,7 @@ func TestCopilotEngineInstructionPromptNotEscaped(t *testing.T) {
 			"bash": []any{"git status"},
 		},
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	if len(steps) != 2 {
 		t.Fatalf("Expected 2 steps, got %d", len(steps))
@@ -659,7 +659,7 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 			},
 		},
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	if len(steps) != 2 {
 		t.Fatalf("Expected 2 steps, got %d", len(steps))

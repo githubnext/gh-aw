@@ -26,8 +26,8 @@ npm install -g @github/copilot
 
 **Environment Variables:**
 - `GITHUB_TOKEN` or `COPILOT_CLI_TOKEN`: GitHub token for authentication
-- `XDG_CONFIG_HOME`: Configuration directory (defaults to `/tmp/.copilot/`)
-- `XDG_STATE_HOME`: State/cache directory (defaults to `/tmp/.copilot/`)
+- `XDG_CONFIG_HOME`: Configuration directory (defaults to `/tmp/gh-aw/.copilot/`)
+- `XDG_STATE_HOME`: State/cache directory (defaults to `/tmp/gh-aw/.copilot/`)
 
 ## Core Command Structure
 
@@ -40,7 +40,7 @@ copilot --prompt "your natural language instruction"
 ```bash
 copilot --add-dir /path/to/project \
         --log-level debug \
-        --log-dir /tmp/logs \
+        --log-dir /tmp/gh-aw/logs \
         --model gpt-5 \
         --prompt "instruction"
 ```
@@ -54,7 +54,7 @@ copilot --add-dir /path/to/project \
 
 ## MCP Server Configuration
 
-Copilot CLI supports MCP servers via JSON configuration at `/tmp/.copilot/mcp-config.json`:
+Copilot CLI supports MCP servers via JSON configuration at `/tmp/gh-aw/.copilot/mcp-config.json`:
 
 ```json
 {
@@ -187,9 +187,9 @@ copilot --add-dir /repo --prompt "Create an issue summarizing the recent changes
 
 ### With Logging
 ```bash
-copilot --add-dir /tmp/ \
+copilot --add-dir /tmp/gh-aw \
         --log-level debug \
-        --log-dir /tmp/logs \
+        --log-dir /tmp/gh-aw/logs \
         --prompt "Review the code and suggest optimizations"
 ```
 

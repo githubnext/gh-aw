@@ -707,7 +707,7 @@ async function main() {
     items: parsedItems,
     errors: errors,
   };
-  const agentOutputFile = "/tmp/agent_output.json";
+  const agentOutputFile = "/tmp/gh-aw/agent_output.json";
   const validatedOutputJson = JSON.stringify(validatedOutput);
   try {
     fs.mkdirSync("/tmp", { recursive: true });

@@ -22,7 +22,7 @@ func TestLogsOverviewIncludesMissingTools(t *testing.T) {
 				ErrorCount:       0,
 				WarningCount:     2,
 				MissingToolCount: 1,
-				LogsPath:         "/tmp/run-12345",
+				LogsPath:         "/tmp/gh-aw/run-12345",
 			},
 			MissingTools: []MissingToolReport{
 				{Tool: "terraform", Reason: "Infrastructure automation needed"},
@@ -42,7 +42,7 @@ func TestLogsOverviewIncludesMissingTools(t *testing.T) {
 				ErrorCount:       1,
 				WarningCount:     0,
 				MissingToolCount: 3,
-				LogsPath:         "/tmp/run-67890",
+				LogsPath:         "/tmp/gh-aw/run-67890",
 			},
 			MissingTools: []MissingToolReport{
 				{Tool: "kubectl", Reason: "K8s management"},
@@ -128,7 +128,7 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 						DatabaseID:       1,
 						WorkflowName:     "Clean Workflow",
 						MissingToolCount: 0,
-						LogsPath:         "/tmp/run-1",
+						LogsPath:         "/tmp/gh-aw/run-1",
 					},
 					MissingTools: []MissingToolReport{},
 				},
@@ -143,7 +143,7 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 						DatabaseID:       2,
 						WorkflowName:     "Workflow with One Missing",
 						MissingToolCount: 1,
-						LogsPath:         "/tmp/run-2",
+						LogsPath:         "/tmp/gh-aw/run-2",
 					},
 					MissingTools: []MissingToolReport{
 						{Tool: "terraform", Reason: "Need IaC"},
@@ -160,7 +160,7 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 						DatabaseID:       3,
 						WorkflowName:     "Workflow with Multiple Missing",
 						MissingToolCount: 5,
-						LogsPath:         "/tmp/run-3",
+						LogsPath:         "/tmp/gh-aw/run-3",
 					},
 					MissingTools: []MissingToolReport{
 						{Tool: "terraform", Reason: "IaC"},
@@ -181,7 +181,7 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 						DatabaseID:       4,
 						WorkflowName:     "Workflow A",
 						MissingToolCount: 0,
-						LogsPath:         "/tmp/run-4",
+						LogsPath:         "/tmp/gh-aw/run-4",
 					},
 					MissingTools: []MissingToolReport{},
 				},
@@ -190,7 +190,7 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 						DatabaseID:       5,
 						WorkflowName:     "Workflow B",
 						MissingToolCount: 2,
-						LogsPath:         "/tmp/run-5",
+						LogsPath:         "/tmp/gh-aw/run-5",
 					},
 					MissingTools: []MissingToolReport{
 						{Tool: "kubectl", Reason: "K8s"},
@@ -202,7 +202,7 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 						DatabaseID:       6,
 						WorkflowName:     "Workflow C",
 						MissingToolCount: 1,
-						LogsPath:         "/tmp/run-6",
+						LogsPath:         "/tmp/gh-aw/run-6",
 					},
 					MissingTools: []MissingToolReport{
 						{Tool: "helm", Reason: "Packages"},
@@ -230,10 +230,10 @@ func TestDisplayLogsOverviewWithVariousMissingToolCounts(t *testing.T) {
 // TestTotalMissingToolsCalculation verifies totals are calculated correctly
 func TestTotalMissingToolsCalculation(t *testing.T) {
 	runs := []WorkflowRun{
-		{DatabaseID: 1, MissingToolCount: 2, LogsPath: "/tmp/run-1"},
-		{DatabaseID: 2, MissingToolCount: 0, LogsPath: "/tmp/run-2"},
-		{DatabaseID: 3, MissingToolCount: 5, LogsPath: "/tmp/run-3"},
-		{DatabaseID: 4, MissingToolCount: 1, LogsPath: "/tmp/run-4"},
+		{DatabaseID: 1, MissingToolCount: 2, LogsPath: "/tmp/gh-aw/run-1"},
+		{DatabaseID: 2, MissingToolCount: 0, LogsPath: "/tmp/gh-aw/run-2"},
+		{DatabaseID: 3, MissingToolCount: 5, LogsPath: "/tmp/gh-aw/run-3"},
+		{DatabaseID: 4, MissingToolCount: 1, LogsPath: "/tmp/gh-aw/run-4"},
 	}
 
 	expectedTotal := 2 + 0 + 5 + 1 // = 8
@@ -267,7 +267,7 @@ func TestOverviewDisplayConsistency(t *testing.T) {
 				WarningCount:     3,
 				MissingToolCount: 2,
 				CreatedAt:        time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
-				LogsPath:         "/tmp/run-99999",
+				LogsPath:         "/tmp/gh-aw/run-99999",
 			},
 			MissingTools: []MissingToolReport{
 				{Tool: "terraform", Reason: "IaC"},

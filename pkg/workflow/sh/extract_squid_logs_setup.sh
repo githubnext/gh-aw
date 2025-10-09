@@ -1,1 +1,1 @@
-mkdir -p /tmp/access-logs
+mkdir -p /tmp/gh-aw/access-logs

@@ -16,6 +16,6 @@ func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw.patch\n")
-	yaml.WriteString("          path: /tmp/aw.patch\n")
+	yaml.WriteString("          path: /tmp/gh-aw/aw.patch\n")
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }

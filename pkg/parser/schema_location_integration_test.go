@@ -23,7 +23,7 @@ timeout_minutes: 30
 
 # Test workflow content`
 
-	tempFile := "/tmp/test_precise_location.md"
+	tempFile := "/tmp/gh-aw/th-aw/test_precise_location.md"
 	err := os.WriteFile(tempFile, []byte(testContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)

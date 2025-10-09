@@ -33,6 +33,9 @@ var extractSquidLogPerToolScript string
 //go:embed sh/create_cache_memory_dir.sh
 var createCacheMemoryDirScript string
 
+//go:embed sh/create_gh_aw_tmp_dir.sh
+var createGhAwTmpDirScript string
+
 //go:embed sh/xpia_prompt.md
 var xpiaPromptText string
 

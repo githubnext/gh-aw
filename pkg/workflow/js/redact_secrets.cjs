@@ -1,6 +1,6 @@
 /**
- * Redacts secrets from files in /tmp directory before uploading artifacts
- * This script processes all .txt, .json, .log files under /tmp and redacts
+ * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
+ * This script processes all .txt, .json, .log files under /tmp/gh-aw and redacts
  * any strings matching the actual secret values provided via environment variables.
  */
 const fs = require("fs");
@@ -102,7 +102,7 @@ async function main() {
     core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
     return;
   }
-  core.info("Starting secret redaction in /tmp directory");
+  core.info("Starting secret redaction in /tmp/gh-aw directory");
   try {
     // Parse the comma-separated list of secret names
     const secretNameList = secretNames.split(",").filter(name => name.trim());
@@ -122,9 +122,9 @@ async function main() {
       return;
     }
     core.info(`Found ${secretValues.length} secret(s) to redact`);
-    // Find all target files in /tmp directory
+    // Find all target files in /tmp/gh-aw directory
     const targetExtensions = [".txt", ".json", ".log"];
-    const files = findFiles("/tmp", targetExtensions);
+    const files = findFiles("/tmp/gh-aw", targetExtensions);
     core.info(`Found ${files.length} file(s) to scan for secrets`);
     let totalRedactions = 0;
     let filesWithRedactions = 0;

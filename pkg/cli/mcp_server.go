@@ -154,8 +154,8 @@ func createMCPServer() *mcp.Server {
 		Description: "Download and analyze workflow logs",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
-		// Force output directory to /tmp/aw-mcp/logs for MCP server
-		cmdArgs := []string{"aw", "logs", "-o", "/tmp/aw-mcp/logs"}
+		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
+		cmdArgs := []string{"aw", "logs", "-o", "/tmp/gh-aw/aw-mcp/logs"}
 		if args.WorkflowName != "" {
 			cmdArgs = append(cmdArgs, args.WorkflowName)
 		}
@@ -209,8 +209,8 @@ func createMCPServer() *mcp.Server {
 		Description: "Investigate a workflow run and generate a concise report",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
-		// Force output directory to /tmp/aw-mcp/logs for MCP server (same as logs)
-		cmdArgs := []string{"aw", "audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/aw-mcp/logs"}
+		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
+		cmdArgs := []string{"aw", "audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/gh-aw/aw-mcp/logs"}
 
 		// Execute the CLI command
 		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)

@@ -10,7 +10,7 @@ import (
 
 func TestFrontmatterLocationIntegration(t *testing.T) {
 	// Create a temporary file with frontmatter that has additional properties
-	tempFile := "/tmp/test_frontmatter_location.md"
+	tempFile := "/tmp/gh-aw/th-aw/test_frontmatter_location.md"
 	content := `---
 name: Test Workflow
 on: push
@@ -74,7 +74,7 @@ This is a test workflow with invalid additional properties in frontmatter.
 
 func TestFrontmatterOffsetCalculation(t *testing.T) {
 	// Test frontmatter at the beginning of the file
-	tempFile := "/tmp/test_frontmatter_offset.md"
+	tempFile := "/tmp/gh-aw/th-aw/test_frontmatter_offset.md"
 	content := `---
 name: Test Workflow
 invalid_prop: bad

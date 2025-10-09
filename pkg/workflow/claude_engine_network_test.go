@@ -43,7 +43,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		if !strings.Contains(settingsStepStr, "Generate Claude Settings") {
 			t.Error("Third step should generate Claude settings")
 		}
-		if !strings.Contains(settingsStepStr, "/tmp/.claude/settings.json") {
+		if !strings.Contains(settingsStepStr, "/tmp/gh-aw/.claude/settings.json") {
 			t.Error("Third step should create settings file")
 		}
 
@@ -113,7 +113,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify settings parameter is present
-		if !strings.Contains(stepYAML, "--settings /tmp/.claude/settings.json") {
+		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
 			t.Error("Settings parameter should be present with network permissions")
 		}
 
@@ -142,7 +142,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		stepYAML := strings.Join(steps[0], "\n")
 
 		// Verify settings parameter is present even with deny-all policy
-		if !strings.Contains(stepYAML, "--settings /tmp/.claude/settings.json") {
+		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
 			t.Error("Settings parameter should be present with deny-all network permissions")
 		}
 	})
@@ -209,7 +209,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		stepYAML := strings.Join(execSteps[0], "\n")
 
 		// Verify settings is configured
-		if !strings.Contains(stepYAML, "--settings /tmp/.claude/settings.json") {
+		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
 			t.Error("Settings parameter should be present")
 		}
 

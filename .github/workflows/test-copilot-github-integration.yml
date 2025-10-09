@@ -36,7 +36,7 @@ jobs:
       
       - name: Create prompt file
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
@@ -47,7 +47,7 @@ jobs:
       
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -61,10 +61,10 @@ jobs:
         run: |
           set -o pipefail
           
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
           
           # Run copilot CLI with log capture
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --prompt "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -75,7 +75,7 @@ jobs:
         if: always()
         run: |
           echo "=== Last 20 lines of Copilot execution log ==="
-          tail -20 /tmp/agent-stdio.log || echo "No log content available"
+          tail -20 /tmp/gh-aw/agent-stdio.log || echo "No log content available"
       
       - name: Upload execution logs
         if: always()
@@ -83,6 +83,6 @@ jobs:
         with:
           name: copilot-logs
           path: |
-            /tmp/agent-stdio.log
-            /tmp/.copilot/logs/
+            /tmp/gh-aw/agent-stdio.log
+            /tmp/gh-aw/.copilot/logs/
           if-no-files-found: ignore

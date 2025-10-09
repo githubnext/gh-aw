@@ -136,13 +136,13 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 		"        uses: actions/download-artifact@v5\n",
 		"        with:\n",
 		"          name: agent_output.json\n",
-		"          path: /tmp/threat-detection/\n",
+		"          path: /tmp/gh-aw/threat-detection/\n",
 		"      - name: Download patch artifact\n",
 		"        continue-on-error: true\n",
 		"        uses: actions/download-artifact@v5\n",
 		"        with:\n",
 		"          name: aw.patch\n",
-		"          path: /tmp/threat-detection/\n",
+		"          path: /tmp/gh-aw/threat-detection/\n",
 	}
 }
 
@@ -195,8 +195,8 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 	steps = append(steps, []string{
 		"      - name: Ensure threat-detection directory and log\n",
 		"        run: |\n",
-		"          mkdir -p /tmp/threat-detection\n",
-		"          touch /tmp/threat-detection/detection.log\n",
+		"          mkdir -p /tmp/gh-aw/threat-detection\n",
+		"          touch /tmp/gh-aw/threat-detection/detection.log\n",
 	}...)
 
 	// Add engine execution steps
@@ -213,7 +213,7 @@ func (c *Compiler) buildSetupScript() string {
 	return fmt.Sprintf(`const fs = require('fs');
 
 // Check if patch file exists
-const patchPath = '/tmp/threat-detection/aw.patch';
+const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
 let patchFileInfo = 'No patch file found';
 if (fs.existsSync(patchPath)) {
   try {
@@ -243,11 +243,11 @@ if (customPrompt) {
 }
 
 // Write prompt file
-fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
-fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
-core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
+fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
+core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
 
-// Note: creation of /tmp/threat-detection and detection.log is handled by a separate shell step
+// Note: creation of /tmp/gh-aw/threat-detection and detection.log is handled by a separate shell step
 
 // Write rendered prompt to step summary
 await core.summary
@@ -311,7 +311,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	}
 
 	// Add engine execution steps
-	logFile := "/tmp/threat-detection/detection.log"
+	logFile := "/tmp/gh-aw/threat-detection/detection.log"
 	executionSteps := engine.GetExecutionSteps(threatDetectionData, logFile)
 	for _, step := range executionSteps {
 		for _, line := range step {
@@ -376,7 +376,7 @@ func (c *Compiler) buildResultsParsingScript() string {
 let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
 
 try {
-  const outputPath = '/tmp/threat-detection/agent_output.json';
+  const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
   if (fs.existsSync(outputPath)) {
     const outputContent = fs.readFileSync(outputPath, 'utf8');
     const lines = outputContent.split('\n');
@@ -434,7 +434,7 @@ func (c *Compiler) buildUploadDetectionLogStep() []string {
 		"        uses: actions/upload-artifact@v4\n",
 		"        with:\n",
 		"          name: threat-detection.log\n",
-		"          path: /tmp/threat-detection/detection.log\n",
+		"          path: /tmp/gh-aw/threat-detection/detection.log\n",
 		"          if-no-files-found: ignore\n",
 	}
 }

@@ -19,7 +19,7 @@ safe-outputs:
             type: string
         steps:
           - name: See artifacts
-            run: cd /tmp/safe-jobs && ls -lR
+            run: cd /tmp/gh-aw/safe-jobs && ls -lR
           - name: print message
             run: |
               if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then

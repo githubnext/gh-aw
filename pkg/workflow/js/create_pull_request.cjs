@@ -26,7 +26,7 @@ async function main() {
   const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
 
   // Check if patch file exists and has valid content
-  if (!fs.existsSync("/tmp/aw.patch")) {
+  if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
     const message = "No patch file found - cannot create pull request without changes";
 
     // If in staged mode, still show preview
@@ -55,7 +55,7 @@ async function main() {
     }
   }
 
-  const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
@@ -177,8 +177,8 @@ async function main() {
       summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
     }
 
-    if (fs.existsSync("/tmp/aw.patch")) {
-      const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
       if (patchStats.trim()) {
         summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
         summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -268,7 +268,7 @@ async function main() {
   if (!isEmpty) {
     core.info("Applying patch...");
     // Patches are created with git format-patch, so use git am to apply them
-    await exec.exec("git am /tmp/aw.patch");
+    await exec.exec("git am /tmp/gh-aw/aw.patch");
     core.info("Patch applied successfully");
 
     // Push the applied commits to the branch (with fallback to issue creation on failure)

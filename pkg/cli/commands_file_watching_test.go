@@ -178,7 +178,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 	t.Run("compile all handles glob error", func(t *testing.T) {
 		// Use a malformed glob pattern that will cause filepath.Glob to error
-		invalidDir := "/tmp/[invalid"
+		invalidDir := "/tmp/gh-aw/[invalid"
 
 		compiler := &workflow.Compiler{}
 

@@ -1,6 +1,6 @@
 const { spawn } = require("child_process");
 const path = require("path");
-const serverPath = path.join("/tmp/safe-outputs/mcp-server.cjs");
+const serverPath = path.join("/tmp/gh-aw/safe-outputs/mcp-server.cjs");
 const { GITHUB_AW_SAFE_OUTPUTS_TOOL_CALLS } = process.env;
 function parseJsonl(input) {
   if (!input) return [];

@@ -57,8 +57,8 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected Playwright MCP configuration to include '--output-dir' argument")
 	}
 
-	if !strings.Contains(lockContentStr, "\"/tmp/mcp-logs/playwright\"") {
-		t.Error("Expected Playwright MCP configuration to include '/tmp/mcp-logs/playwright' path")
+	if !strings.Contains(lockContentStr, "\"/tmp/gh-aw/mcp-logs/playwright\"") {
+		t.Error("Expected Playwright MCP configuration to include '/tmp/gh-aw/mh-aw/mcp-logs/playwright' path")
 	}
 
 	// Verify MCP logs upload step exists
@@ -76,8 +76,8 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected artifact name 'mcp-logs' in upload step")
 	}
 
-	if !strings.Contains(lockContentStr, "path: /tmp/mcp-logs/") {
-		t.Error("Expected artifact path '/tmp/mcp-logs/' in upload step")
+	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/mcp-logs/") {
+		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in upload step")
 	}
 
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {
@@ -183,8 +183,8 @@ This workflow does not use Playwright but should still have MCP logs upload.
 	}
 
 	// Verify the artifact upload configuration
-	if !strings.Contains(lockContentStr, "path: /tmp/mcp-logs/") {
-		t.Error("Expected artifact path '/tmp/mcp-logs/' in upload step")
+	if !strings.Contains(lockContentStr, "path: /tmp/gh-aw/mcp-logs/") {
+		t.Error("Expected artifact path '/tmp/gh-aw/mcp-logs/' in upload step")
 	}
 
 	if !strings.Contains(lockContentStr, "if-no-files-found: ignore") {

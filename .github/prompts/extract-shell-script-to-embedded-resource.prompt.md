@@ -45,7 +45,7 @@ Look for code like:
 
 ```go
 yaml.WriteString("        run: |\n")
-yaml.WriteString("          mkdir -p /tmp/something\n")
+yaml.WriteString("          mkdir -p /tmp/gh-aw/something\n")
 yaml.WriteString("          echo 'Doing something...'\n")
 yaml.WriteString("          command --option value\n")
 ```
@@ -109,7 +109,7 @@ For scripts with a few dynamic parameters, use placeholder replacement:
 ```bash
 echo 'Extracting access.log from squid-proxy-TOOLNAME container'
 if docker ps -a --format '{{.Names}}' | grep -q '^squid-proxy-TOOLNAME$'; then
-  docker cp squid-proxy-TOOLNAME:/var/log/squid/access.log /tmp/access-logs/access-TOOLNAME.log 2>/dev/null
+  docker cp squid-proxy-TOOLNAME:/var/log/squid/access.log /tmp/gh-aw/access-logs/access-TOOLNAME.log 2>/dev/null
 else
   echo 'Container squid-proxy-TOOLNAME not found'
 fi

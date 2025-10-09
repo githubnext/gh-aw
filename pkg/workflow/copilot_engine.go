@@ -12,7 +12,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-const logsFolder = "/tmp/.copilot/logs/"
+const logsFolder = "/tmp/gh-aw/.copilot/logs/"
 
 // CopilotEngine represents the GitHub Copilot CLI agentic engine
 type CopilotEngine struct {
@@ -81,7 +81,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	}
 
 	// Build copilot CLI arguments based on configuration
-	var copilotArgs = []string{"--add-dir", "/tmp/", "--log-level", "all", "--log-dir", logsFolder}
+	var copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
 
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
@@ -94,12 +94,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 
 	// if cache-memory tool is used, --add-dir
 	if workflowData.CacheMemoryConfig != nil {
-		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/cache-memory/")
+		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/gh-aw/cache-memory/")
 	}
 
 	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
 	command := fmt.Sprintf(`set -o pipefail
-COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
+COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/ah-aw/aw-prompts/prompt.txt)
 copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
@@ -110,7 +110,7 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 	}
 
 	// Always add GITHUB_AW_PROMPT for agentic workflows
-	env["GITHUB_AW_PROMPT"] = "/tmp/aw-prompts/prompt.txt"
+	env["GITHUB_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
 	// Add GITHUB_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
@@ -362,7 +362,7 @@ func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, 
 	yaml.WriteString("              \"playwright\": {\n")
 	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"npx\",\n")
-	yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/mcp-logs/playwright\"")
+	yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
 
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
@@ -386,7 +386,7 @@ func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder,
 	yaml.WriteString("              \"safe_outputs\": {\n")
 	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"tools\": [\"*\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")

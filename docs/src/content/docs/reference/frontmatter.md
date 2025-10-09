@@ -424,7 +424,7 @@ engine:
     
     [logging]
     level = "debug"
-    file = "/tmp/custom.log"
+    file = "/tmp/gh-aw/custom.log"
 ```
 
 **Key Features:**
@@ -454,7 +454,7 @@ retries = 3
 
 [logging]
 level = "debug"
-file = "/tmp/custom.log"
+file = "/tmp/gh-aw/custom.log"
 ```
 
 This feature enables advanced customization scenarios not covered by the standard engine configuration options.

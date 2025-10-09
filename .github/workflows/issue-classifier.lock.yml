@@ -464,7 +464,7 @@ jobs:
       contents: read
       models: read
     env:
-      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-labels\":{\"allowed\":[\"bug\",\"feature\",\"enhancement\",\"documentation\"],\"max\":1},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -472,6 +472,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw
+          echo "Created /tmp/gh-aw directory for agentic workflow temporary files"
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -516,11 +520,11 @@ jobs:
             });
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safe-outputs
+          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
           {"add-labels":{"allowed":["bug","feature","enhancement","documentation"],"max":1},"missing-tool":{}}
           EOF
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
@@ -531,7 +535,7 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
               debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -564,7 +568,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
             if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
               debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -702,7 +706,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -1187,15 +1191,15 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-labels\":{\"allowed\":[\"bug\",\"feature\",\"enhancement\",\"documentation\"],\"max\":1},\"missing-tool\":{}}"
         run: |
-          mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'
+          mkdir -p /tmp/gh-aw/mcp-config
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
               "github": {
@@ -1214,7 +1218,7 @@ jobs:
               },
               "safe_outputs": {
                 "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
                   "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
@@ -1228,7 +1232,7 @@ jobs:
           EOF
       - name: Create prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
@@ -1275,7 +1279,7 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1307,7 +1311,7 @@ jobs:
           EOF
       - name: Append safe outputs instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1328,7 +1332,7 @@ jobs:
           EOF
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1365,8 +1369,8 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            // Write to /tmp directory to avoid inclusion in PR
-            const tmpPath = '/tmp/aw_info.json';
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
@@ -1383,13 +1387,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw_info.json
-          path: /tmp/aw_info.json
+          path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Run AI Inference
         uses: actions/ai-inference@v1
         env:
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         with:
           enable-github-mcp: ${{ secrets.GITHUB_MCP_TOKEN != '' }}
@@ -1398,8 +1402,8 @@ jobs:
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
       - name: Ensure log file exists
         run: |
-          echo "Custom steps execution completed" >> /tmp/agent-stdio.log
-          touch /tmp/agent-stdio.log
+          echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log
+          touch /tmp/gh-aw/agent-stdio.log
       - name: Print Safe Outputs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2142,7 +2146,7 @@ jobs:
                 items: parsedItems,
                 errors: errors,
               };
-              const agentOutputFile = "/tmp/agent_output.json";
+              const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
                 fs.mkdirSync("/tmp", { recursive: true });
@@ -2184,14 +2188,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mcp-logs
-          path: /tmp/mcp-logs/
+          path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: agent-stdio.log
-          path: /tmp/agent-stdio.log
+          path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
 
   detection:
@@ -2205,13 +2209,13 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
           name: aw.patch
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Echo agent outputs
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
@@ -2229,7 +2233,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const patchPath = '/tmp/threat-detection/aw.patch';
+            const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
               try {
@@ -2293,9 +2297,9 @@ jobs:
             if (customPrompt) {
               promptContent += '\n\n## Additional Instructions\n\n' + customPrompt;
             }
-            fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
-            fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
-            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+            fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
+            fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
+            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
               .addHeading('Threat Detection Prompt', 2)
               .addRaw('\n')
@@ -2304,13 +2308,13 @@ jobs:
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log
         run: |
-          mkdir -p /tmp/threat-detection
-          touch /tmp/threat-detection/detection.log
+          mkdir -p /tmp/gh-aw/threat-detection
+          touch /tmp/gh-aw/threat-detection/detection.log
       - name: Run AI Inference
         uses: actions/ai-inference@v1
         env:
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/mcp-servers.json
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
           enable-github-mcp: ${{ secrets.GITHUB_MCP_TOKEN != '' }}
           github-mcp-token: ${{ secrets.GITHUB_MCP_TOKEN }}
@@ -2318,15 +2322,15 @@ jobs:
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
       - name: Ensure log file exists
         run: |
-          echo "Custom steps execution completed" >> /tmp/threat-detection/detection.log
-          touch /tmp/threat-detection/detection.log
+          echo "Custom steps execution completed" >> /tmp/gh-aw/threat-detection/detection.log
+          touch /tmp/gh-aw/threat-detection/detection.log
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:
           script: |
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
-              const outputPath = '/tmp/threat-detection/agent_output.json';
+              const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
               if (fs.existsSync(outputPath)) {
                 const outputContent = fs.readFileSync(outputPath, 'utf8');
                 const lines = outputContent.split('\n');
@@ -2360,7 +2364,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: threat-detection.log
-          path: /tmp/threat-detection/detection.log
+          path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
   add_labels:

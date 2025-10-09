@@ -138,7 +138,7 @@ jobs:
       actions: read
       contents: read
     env:
-      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -160,6 +160,10 @@ jobs:
       - name: Check gopls version
         run: gopls version
 
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw
+          echo "Created /tmp/gh-aw directory for agentic workflow temporary files"
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -210,11 +214,11 @@ jobs:
         run: npm install -g @openai/codex@0.45.0
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safe-outputs
+          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
           {"create-issue":{"max":1},"missing-tool":{}}
           EOF
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
@@ -225,7 +229,7 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
               debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -258,7 +262,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
             if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
               debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -396,7 +400,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -881,15 +885,15 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
         run: |
-          mkdir -p /tmp/mcp-config
-          cat > /tmp/mcp-config/config.toml << EOF
+          mkdir -p /tmp/gh-aw/mcp-config
+          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
           [history]
           persistence = "none"
           
@@ -911,7 +915,7 @@ jobs:
           [mcp_servers.safe_outputs]
           command = "node"
           args = [
-            "/tmp/safe-outputs/mcp-server.cjs",
+            "/tmp/gh-aw/safe-outputs/mcp-server.cjs",
           ]
           env = { "GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", "GITHUB_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_AW_ASSETS_BRANCH" = "${{ env.GITHUB_AW_ASSETS_BRANCH }}", "GITHUB_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}", "GITHUB_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}" }
           
@@ -930,14 +934,14 @@ jobs:
           EOF
       - name: Create prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           ## Serena configuration
           
-          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/cache-memory/serena).
+          The active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).
           
           
           
@@ -1151,7 +1155,7 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1183,7 +1187,7 @@ jobs:
           EOF
       - name: Append safe outputs instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1204,7 +1208,7 @@ jobs:
           EOF
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1246,8 +1250,8 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            // Write to /tmp directory to avoid inclusion in PR
-            const tmpPath = '/tmp/aw_info.json';
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
@@ -1264,31 +1268,31 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw_info.json
-          path: /tmp/aw_info.json
+          path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          export CODEX_HOME=/tmp/mcp-config
-          mkdir -p /tmp/mcp-config
-          mkdir -p /tmp/aw-logs
+          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/aw-logs
           which codex
           codex --version
-          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/agent-stdio.log
+          touch /tmp/gh-aw/agent-stdio.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Print Safe Outputs
         env:
@@ -2032,7 +2036,7 @@ jobs:
                 items: parsedItems,
                 errors: errors,
               };
-              const agentOutputFile = "/tmp/agent_output.json";
+              const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
                 fs.mkdirSync("/tmp", { recursive: true });
@@ -2074,13 +2078,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mcp-logs
-          path: /tmp/mcp-logs/
+          path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function main() {
@@ -2297,13 +2301,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-stdio.log
-          path: /tmp/agent-stdio.log
+          path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"failed in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool failed due to permission error\"},{\"pattern\":\"error in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool error due to permission issue\"}]"
         with:
           script: |
@@ -2424,13 +2428,13 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
           name: aw.patch
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Echo agent outputs
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
@@ -2444,11 +2448,11 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Duplicate Code Detector"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "## Serena configuration\n\nThe active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/cache-memory/serena).\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\n# Duplicate Code Detection\n\nAnalyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.\n\n## Task\n\nDetect and report code duplication by:\n\n1. **Analyzing Recent Commits**: Review changes in the latest commits\n2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis\n3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)\n\n## Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit ID**: ${{ github.event.head_commit.id }}\n- **Triggered by**: @${{ github.actor }}\n\n## Analysis Workflow\n\n### 1. Project Activation\n\nActivate the project in Serena:\n- Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)\n- This sets up the semantic code analysis environment\n\n### 2. Changed Files Analysis\n\nIdentify and analyze modified files:\n- Determine files changed in the recent commits\n- Use `get_symbols_overview` to understand file structure\n- Use `read_file` to examine modified file contents\n\n### 3. Duplicate Detection\n\nApply semantic code analysis to find duplicates:\n\n**Symbol-Level Analysis**:\n- For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols\n- Use `find_referencing_symbols` to understand usage patterns\n- Identify functions with similar names in different files (e.g., `processData` across modules)\n\n**Pattern Search**:\n- Use `search_for_pattern` to find similar code patterns\n- Search for duplication indicators:\n  - Similar function signatures\n  - Repeated logic blocks\n  - Similar variable naming patterns\n  - Near-identical code blocks\n\n**Structural Analysis**:\n- Use `list_dir` and `find_file` to identify files with similar names or purposes\n- Compare symbol overviews across files for structural similarities\n\n### 4. Duplication Evaluation\n\nAssess findings to identify true code duplication:\n\n**Duplication Types**:\n- **Exact Duplication**: Identical code blocks in multiple locations\n- **Structural Duplication**: Same logic with minor variations (different variable names, etc.)\n- **Functional Duplication**: Different implementations of the same functionality\n- **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities\n\n**Assessment Criteria**:\n- **Severity**: Amount of duplicated code (lines of code, number of occurrences)\n- **Impact**: Where duplication occurs (critical paths, frequently called code)\n- **Maintainability**: How duplication affects code maintainability\n- **Refactoring Opportunity**: Whether duplication can be easily refactored\n\n### 5. Issue Reporting\n\nCreate an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):\n\n**Issue Contents**:\n- **Executive Summary**: Brief description of duplication found\n- **Duplication Details**: Specific locations and code blocks\n- **Severity Assessment**: Impact and maintainability concerns\n- **Refactoring Recommendations**: Suggested approaches to eliminate duplication\n- **Code Examples**: Concrete examples with file paths and line numbers\n\n## Detection Scope\n\n### Report These Issues\n\n- Identical or nearly identical functions in different files\n- Repeated code blocks that could be extracted to utilities\n- Similar classes or modules with overlapping functionality\n- Copy-pasted code with minor modifications\n- Duplicated business logic across components\n\n### Skip These Patterns\n\n- Standard boilerplate code (imports, exports, etc.)\n- Test setup/teardown code (acceptable duplication in tests)\n- Configuration files with similar structure\n- Language-specific patterns (constructors, getters/setters)\n- Small code snippets (<5 lines) unless highly repetitive\n\n### Analysis Depth\n\n- **Primary Focus**: All files changed in the current push\n- **Secondary Analysis**: Check for duplication with existing codebase\n- **Cross-Reference**: Look for patterns across the repository\n- **Historical Context**: Consider if duplication is new or existing\n\n## Issue Template\n\nIf duplication is found, create an issue using this structure:\n\n```markdown\n# 🔍 Duplicate Code Detected\n\n*Analysis of commit ${{ github.event.head_commit.id }}*\n\n**Assignee**: @copilot\n\n## Summary\n\n[Brief overview of duplication findings]\n\n## Duplication Details\n\n### Pattern 1: [Description]\n- **Severity**: High/Medium/Low\n- **Occurrences**: [Number of instances]\n- **Locations**:\n  - `path/to/file1.ext` (lines X-Y)\n  - `path/to/file2.ext` (lines A-B)\n- **Code Sample**:\n  ```[language]\n  [Example of duplicated code]\n  ```\n\n### Pattern 2: [Description]\n[... additional patterns ...]\n\n## Impact Analysis\n\n- **Maintainability**: [How this affects code maintenance]\n- **Bug Risk**: [Potential for inconsistent fixes]\n- **Code Bloat**: [Impact on codebase size]\n\n## Refactoring Recommendations\n\n1. **[Recommendation 1]**\n   - Extract common functionality to: `suggested/path/utility.ext`\n   - Estimated effort: [hours/complexity]\n   - Benefits: [specific improvements]\n\n2. **[Recommendation 2]**\n   [... additional recommendations ...]\n\n## Implementation Checklist\n\n- [ ] Review duplication findings\n- [ ] Prioritize refactoring tasks\n- [ ] Create refactoring plan\n- [ ] Implement changes\n- [ ] Update tests\n- [ ] Verify no functionality broken\n\n## Analysis Metadata\n\n- **Analyzed Files**: [count]\n- **Detection Method**: Serena semantic code analysis\n- **Commit**: ${{ github.event.head_commit.id }}\n- **Analysis Date**: [timestamp]\n```\n\n## Operational Guidelines\n\n### Security\n- Never execute untrusted code or commands\n- Only use Serena's read-only analysis tools\n- Do not modify files during analysis\n\n### Efficiency\n- Focus on recently changed files first\n- Use semantic analysis for meaningful duplication, not superficial matches\n- Stay within timeout limits (balance thoroughness with execution time)\n\n### Accuracy\n- Verify findings before reporting\n- Distinguish between acceptable patterns and true duplication\n- Consider language-specific idioms and best practices\n- Provide specific, actionable recommendations\n\n### Issue Creation\n- Only create an issue if significant duplication is found\n- Include sufficient detail for SWE agents to understand and act on findings\n- Provide concrete examples with file paths and line numbers\n- Suggest practical refactoring approaches\n- Assign issue to @copilot for automated remediation\n\n## Tool Usage Sequence\n\n1. **Project Setup**: `activate_project` with repository path\n2. **File Discovery**: `list_dir`, `find_file` for changed files\n3. **Symbol Analysis**: `get_symbols_overview` for structure understanding\n4. **Content Review**: `read_file` for detailed code examination\n5. **Pattern Matching**: `search_for_pattern` for similar code\n6. **Symbol Search**: `find_symbol` for duplicate function names\n7. **Reference Analysis**: `find_referencing_symbols` for usage patterns\n\n**Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.\n"
+          WORKFLOW_MARKDOWN: "## Serena configuration\n\nThe active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\n# Duplicate Code Detection\n\nAnalyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.\n\n## Task\n\nDetect and report code duplication by:\n\n1. **Analyzing Recent Commits**: Review changes in the latest commits\n2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis\n3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)\n\n## Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit ID**: ${{ github.event.head_commit.id }}\n- **Triggered by**: @${{ github.actor }}\n\n## Analysis Workflow\n\n### 1. Project Activation\n\nActivate the project in Serena:\n- Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)\n- This sets up the semantic code analysis environment\n\n### 2. Changed Files Analysis\n\nIdentify and analyze modified files:\n- Determine files changed in the recent commits\n- Use `get_symbols_overview` to understand file structure\n- Use `read_file` to examine modified file contents\n\n### 3. Duplicate Detection\n\nApply semantic code analysis to find duplicates:\n\n**Symbol-Level Analysis**:\n- For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols\n- Use `find_referencing_symbols` to understand usage patterns\n- Identify functions with similar names in different files (e.g., `processData` across modules)\n\n**Pattern Search**:\n- Use `search_for_pattern` to find similar code patterns\n- Search for duplication indicators:\n  - Similar function signatures\n  - Repeated logic blocks\n  - Similar variable naming patterns\n  - Near-identical code blocks\n\n**Structural Analysis**:\n- Use `list_dir` and `find_file` to identify files with similar names or purposes\n- Compare symbol overviews across files for structural similarities\n\n### 4. Duplication Evaluation\n\nAssess findings to identify true code duplication:\n\n**Duplication Types**:\n- **Exact Duplication**: Identical code blocks in multiple locations\n- **Structural Duplication**: Same logic with minor variations (different variable names, etc.)\n- **Functional Duplication**: Different implementations of the same functionality\n- **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities\n\n**Assessment Criteria**:\n- **Severity**: Amount of duplicated code (lines of code, number of occurrences)\n- **Impact**: Where duplication occurs (critical paths, frequently called code)\n- **Maintainability**: How duplication affects code maintainability\n- **Refactoring Opportunity**: Whether duplication can be easily refactored\n\n### 5. Issue Reporting\n\nCreate an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):\n\n**Issue Contents**:\n- **Executive Summary**: Brief description of duplication found\n- **Duplication Details**: Specific locations and code blocks\n- **Severity Assessment**: Impact and maintainability concerns\n- **Refactoring Recommendations**: Suggested approaches to eliminate duplication\n- **Code Examples**: Concrete examples with file paths and line numbers\n\n## Detection Scope\n\n### Report These Issues\n\n- Identical or nearly identical functions in different files\n- Repeated code blocks that could be extracted to utilities\n- Similar classes or modules with overlapping functionality\n- Copy-pasted code with minor modifications\n- Duplicated business logic across components\n\n### Skip These Patterns\n\n- Standard boilerplate code (imports, exports, etc.)\n- Test setup/teardown code (acceptable duplication in tests)\n- Configuration files with similar structure\n- Language-specific patterns (constructors, getters/setters)\n- Small code snippets (<5 lines) unless highly repetitive\n\n### Analysis Depth\n\n- **Primary Focus**: All files changed in the current push\n- **Secondary Analysis**: Check for duplication with existing codebase\n- **Cross-Reference**: Look for patterns across the repository\n- **Historical Context**: Consider if duplication is new or existing\n\n## Issue Template\n\nIf duplication is found, create an issue using this structure:\n\n```markdown\n# 🔍 Duplicate Code Detected\n\n*Analysis of commit ${{ github.event.head_commit.id }}*\n\n**Assignee**: @copilot\n\n## Summary\n\n[Brief overview of duplication findings]\n\n## Duplication Details\n\n### Pattern 1: [Description]\n- **Severity**: High/Medium/Low\n- **Occurrences**: [Number of instances]\n- **Locations**:\n  - `path/to/file1.ext` (lines X-Y)\n  - `path/to/file2.ext` (lines A-B)\n- **Code Sample**:\n  ```[language]\n  [Example of duplicated code]\n  ```\n\n### Pattern 2: [Description]\n[... additional patterns ...]\n\n## Impact Analysis\n\n- **Maintainability**: [How this affects code maintenance]\n- **Bug Risk**: [Potential for inconsistent fixes]\n- **Code Bloat**: [Impact on codebase size]\n\n## Refactoring Recommendations\n\n1. **[Recommendation 1]**\n   - Extract common functionality to: `suggested/path/utility.ext`\n   - Estimated effort: [hours/complexity]\n   - Benefits: [specific improvements]\n\n2. **[Recommendation 2]**\n   [... additional recommendations ...]\n\n## Implementation Checklist\n\n- [ ] Review duplication findings\n- [ ] Prioritize refactoring tasks\n- [ ] Create refactoring plan\n- [ ] Implement changes\n- [ ] Update tests\n- [ ] Verify no functionality broken\n\n## Analysis Metadata\n\n- **Analyzed Files**: [count]\n- **Detection Method**: Serena semantic code analysis\n- **Commit**: ${{ github.event.head_commit.id }}\n- **Analysis Date**: [timestamp]\n```\n\n## Operational Guidelines\n\n### Security\n- Never execute untrusted code or commands\n- Only use Serena's read-only analysis tools\n- Do not modify files during analysis\n\n### Efficiency\n- Focus on recently changed files first\n- Use semantic analysis for meaningful duplication, not superficial matches\n- Stay within timeout limits (balance thoroughness with execution time)\n\n### Accuracy\n- Verify findings before reporting\n- Distinguish between acceptable patterns and true duplication\n- Consider language-specific idioms and best practices\n- Provide specific, actionable recommendations\n\n### Issue Creation\n- Only create an issue if significant duplication is found\n- Include sufficient detail for SWE agents to understand and act on findings\n- Provide concrete examples with file paths and line numbers\n- Suggest practical refactoring approaches\n- Assign issue to @copilot for automated remediation\n\n## Tool Usage Sequence\n\n1. **Project Setup**: `activate_project` with repository path\n2. **File Discovery**: `list_dir`, `find_file` for changed files\n3. **Symbol Analysis**: `get_symbols_overview` for structure understanding\n4. **Content Review**: `read_file` for detailed code examination\n5. **Pattern Matching**: `search_for_pattern` for similar code\n6. **Symbol Search**: `find_symbol` for duplicate function names\n7. **Reference Analysis**: `find_referencing_symbols` for usage patterns\n\n**Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.\n"
         with:
           script: |
             const fs = require('fs');
-            const patchPath = '/tmp/threat-detection/aw.patch';
+            const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
               try {
@@ -2512,9 +2516,9 @@ jobs:
             if (customPrompt) {
               promptContent += '\n\n## Additional Instructions\n\n' + customPrompt;
             }
-            fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
-            fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
-            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+            fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
+            fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
+            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
               .addHeading('Threat Detection Prompt', 2)
               .addRaw('\n')
@@ -2523,8 +2527,8 @@ jobs:
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log
         run: |
-          mkdir -p /tmp/threat-detection
-          touch /tmp/threat-detection/detection.log
+          mkdir -p /tmp/gh-aw/threat-detection
+          touch /tmp/gh-aw/threat-detection/detection.log
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -2534,25 +2538,25 @@ jobs:
       - name: Run Codex
         run: |
           set -o pipefail
-          INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          export CODEX_HOME=/tmp/mcp-config
-          mkdir -p /tmp/mcp-config
-          mkdir -p /tmp/aw-logs
+          INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          export CODEX_HOME=/tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
+          mkdir -p /tmp/gh-aw/aw-logs
           which codex
           codex --version
-          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/threat-detection/detection.log
+          touch /tmp/gh-aw/threat-detection/detection.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
@@ -2560,7 +2564,7 @@ jobs:
           script: |
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
-              const outputPath = '/tmp/threat-detection/agent_output.json';
+              const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
               if (fs.existsSync(outputPath)) {
                 const outputContent = fs.readFileSync(outputPath, 'utf8');
                 const lines = outputContent.split('\n');
@@ -2594,7 +2598,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: threat-detection.log
-          path: /tmp/threat-detection/detection.log
+          path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
   create_issue:

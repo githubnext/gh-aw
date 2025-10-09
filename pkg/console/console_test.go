@@ -229,7 +229,7 @@ func TestToRelativePath(t *testing.T) {
 		},
 		{
 			name: "absolute path converted to relative",
-			path: "/tmp/test.md",
+			path: "/tmp/gh-aw/test.md",
 			expectedFunc: func(result, expected string) bool {
 				// Should be a relative path that doesn't start with /
 				return !strings.HasPrefix(result, "/") && strings.HasSuffix(result, "test.md")

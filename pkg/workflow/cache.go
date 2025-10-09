@@ -216,7 +216,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	builder.WriteString("        uses: actions/cache@v4\n")
 	builder.WriteString("        with:\n")
 	fmt.Fprintf(builder, "          key: %s\n", cacheKey)
-	builder.WriteString("          path: /tmp/cache-memory\n")
+	builder.WriteString("          path: /tmp/gh-aw/cache-memory\n")
 	builder.WriteString("          restore-keys: |\n")
 	for _, key := range restoreKeys {
 		fmt.Fprintf(builder, "            %s\n", key)
@@ -227,7 +227,7 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	builder.WriteString("        uses: actions/upload-artifact@v4\n")
 	builder.WriteString("        with:\n")
 	builder.WriteString("          name: cache-memory\n")
-	builder.WriteString("          path: /tmp/cache-memory\n")
+	builder.WriteString("          path: /tmp/gh-aw/cache-memory\n")
 	// Add retention-days if configured
 	if data.CacheMemoryConfig.RetentionDays != nil {
 		fmt.Fprintf(builder, "          retention-days: %d\n", *data.CacheMemoryConfig.RetentionDays)
@@ -246,7 +246,7 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 	yaml.WriteString("          \n")
 	yaml.WriteString("          ## Cache Folder Available\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.\n")
+	yaml.WriteString("          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
 	yaml.WriteString("          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache\n")
@@ -254,10 +254,10 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 	yaml.WriteString("          - **File Share**: Use this as a simple file share - organize files as you see fit\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          Examples of what you can store:\n")
-	yaml.WriteString("          - `/tmp/cache-memory/notes.txt` - general notes and observations\n")
-	yaml.WriteString("          - `/tmp/cache-memory/preferences.json` - user preferences and settings\n")
-	yaml.WriteString("          - `/tmp/cache-memory/history.log` - activity history and logs\n")
-	yaml.WriteString("          - `/tmp/cache-memory/state/` - organized state files in subdirectories\n")
+	yaml.WriteString("          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations\n")
+	yaml.WriteString("          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings\n")
+	yaml.WriteString("          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs\n")
+	yaml.WriteString("          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories\n")
 	yaml.WriteString("          \n")
 	yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
 }

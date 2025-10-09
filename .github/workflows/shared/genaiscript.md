@@ -12,10 +12,10 @@ engine:
     
     - name: Convert prompt to GenAI format
       run: |
-        cp "$GITHUB_AW_PROMPT" /tmp/aw-prompts/prompt.genai.md
-        sed -i '1i ---' /tmp/aw-prompts/prompt.genai.md
-        sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/aw-prompts/prompt.genai.md
-        sed -i '3i ---' /tmp/aw-prompts/prompt.genai.md
+        cp "$GITHUB_AW_PROMPT" /tmp/gh-aw/aw-prompts/prompt.genai.md
+        sed -i '1i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+        sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/gh-aw/aw-prompts/prompt.genai.md
+        sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
         echo "Generated GenAI prompt file"
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
@@ -29,12 +29,12 @@ engine:
           echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
           MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
         fi
-        genaiscript run /tmp/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/genaiscript-output.md || echo "GenAIScript completed"
-        if [ -f /tmp/genaiscript-output.md ]; then
-          cat /tmp/genaiscript-output.md > /tmp/agent-log.txt
+        genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
+        if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
+          cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
           echo "GenAIScript execution completed"
         else
-          echo "GenAIScript execution completed (no output)" > /tmp/agent-log.txt
+          echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
         fi
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}

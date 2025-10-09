@@ -213,7 +213,7 @@ engine:
     # Custom logging configuration
     [logging]
     level = "debug"
-    file = "/tmp/codex-debug.log"
+    file = "/tmp/gh-aw/codex-debug.log"
     
     # Server timeout settings
     [server]
@@ -243,7 +243,7 @@ env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
 # Custom configuration
 [logging]
 level = "debug"
-file = "/tmp/codex-debug.log"
+file = "/tmp/gh-aw/codex-debug.log"
 
 [server]
 timeout = 120
