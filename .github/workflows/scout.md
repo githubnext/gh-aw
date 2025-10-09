@@ -18,9 +18,11 @@ imports:
   - shared/microsoftdocs-mcp.md
   - shared/deepwiki-mcp.md
   - shared/context7-mcp.md
+  - shared/arxiv-mcp.md
 tools:
   cache-memory:
-    retention-days: 7
+    key: arxiv
+    retention-days: 60
 safe-outputs:
   add-comment:
     max: 1
@@ -65,6 +67,7 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
   - **DeepWiki**: GitHub repository documentation and Q&A for specific projects
   - **Microsoft Docs**: Official Microsoft documentation and guides
   - **Context7**: Semantic search over stored knowledge and documentation
+  - **arXiv**: Academic research papers and preprints for scientific and technical topics
 - Conduct multiple searches from different angles if needed
 
 ### 3. Deep Investigation
