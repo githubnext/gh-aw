@@ -372,7 +372,8 @@ func (c *Compiler) formatStringAsJavaScriptLiteral(s string) string {
 
 // buildResultsParsingScript creates the results parsing portion
 func (c *Compiler) buildResultsParsingScript() string {
-	return `// Parse threat detection results
+	return `const fs = require('fs');
+// Parse threat detection results
 let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
 
 try {

@@ -3028,6 +3028,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            const fs = require('fs');
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
               const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
