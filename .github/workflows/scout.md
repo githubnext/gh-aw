@@ -14,10 +14,10 @@ permissions:
 roles: [admin, maintainer, write]
 engine: copilot
 imports:
-  - shared/tavily-mcp.md
-  - shared/microsoftdocs-mcp.md
-  - shared/deepwiki-mcp.md
-  - shared/context7-mcp.md
+  - shared/mcp/tavily.md
+  - shared/mcp/microsoftdocs.md
+  - shared/mcp/deepwiki.md
+  - shared/mcp/context7.md
 tools:
   cache-memory:
     retention-days: 7

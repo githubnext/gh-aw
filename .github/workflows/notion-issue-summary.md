@@ -13,7 +13,7 @@ permissions:
   actions: read
 engine: claude
 imports:
-  - shared/notion.md
+  - shared/mcp/notion.md
 timeout_minutes: 10
 strict: true
 ---
