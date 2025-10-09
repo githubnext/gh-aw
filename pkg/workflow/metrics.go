@@ -292,7 +292,7 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 			matches := regex.FindAllStringSubmatch(line, -1)
 			for _, match := range matches {
 				level := extractLevelFromMatch(match, pattern)
-				
+
 				// Extract message using the pattern's MessageGroup or full match
 				message := ""
 				if pattern.MessageGroup > 0 && pattern.MessageGroup < len(match) && match[pattern.MessageGroup] != "" {
@@ -300,7 +300,7 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 				} else if len(match) > 0 {
 					message = match[0]
 				}
-				
+
 				// Clean up the message
 				message = extractErrorMessage(message)
 

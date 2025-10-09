@@ -375,7 +375,7 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 	if !strings.Contains(report, "Deprecated API usage") {
 		t.Error("Report should contain warning message")
 	}
-	
+
 	// Verify the format includes file and line information
 	if !strings.Contains(report, "agent.log:10:") {
 		t.Error("Report should contain file:line format for first error")

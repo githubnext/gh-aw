@@ -990,7 +990,7 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Aggregate tool sequences and tool calls
 			metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
 			metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
-			
+
 			// Aggregate errors and set file path
 			for _, logErr := range fileMetrics.Errors {
 				logErr.File = path // Set the file path for this error

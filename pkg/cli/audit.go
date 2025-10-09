@@ -427,7 +427,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 			report.WriteString(fmt.Sprintf("This run had **%d warning(s)**. ", run.WarningCount))
 		}
 		report.WriteString("\n\n")
-		
+
 		// Display individual errors and warnings using compiler error format
 		if len(metrics.Errors) > 0 {
 			report.WriteString("### Errors and Warnings\n\n")
