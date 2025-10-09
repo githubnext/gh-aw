@@ -858,10 +858,9 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			}
 		}
 
-		// Count errors and warnings and collect individual error details
+		// Collect individual error and warning details
 		lowerLine := strings.ToLower(line)
 		if strings.Contains(lowerLine, "error") {
-			metrics.ErrorCount++
 			// Extract error message (remove timestamp and common prefixes)
 			message := extractErrorMessage(line)
 			if message != "" {
@@ -873,7 +872,6 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			}
 		}
 		if strings.Contains(lowerLine, "warning") {
-			metrics.WarningCount++
 			// Extract warning message (remove timestamp and common prefixes)
 			message := extractErrorMessage(line)
 			if message != "" {

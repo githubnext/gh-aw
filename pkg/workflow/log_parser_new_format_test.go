@@ -37,8 +37,9 @@ func TestParseClaudeLogNewFormat(t *testing.T) {
 	}
 
 	// Check that error count includes the [ERROR] line
-	if metrics.ErrorCount == 0 {
-		t.Errorf("Expected at least 1 error (from [ERROR] line), got %d", metrics.ErrorCount)
+	errorCount := CountErrors(metrics.Errors)
+	if errorCount == 0 {
+		t.Errorf("Expected at least 1 error (from [ERROR] line), got %d", errorCount)
 	}
 }
 

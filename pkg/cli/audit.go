@@ -202,8 +202,8 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 	run.TokenUsage = metrics.TokenUsage
 	run.EstimatedCost = metrics.EstimatedCost
 	run.Turns = metrics.Turns
-	run.ErrorCount = metrics.ErrorCount
-	run.WarningCount = metrics.WarningCount
+	run.ErrorCount = workflow.CountErrors(metrics.Errors)
+	run.WarningCount = workflow.CountWarnings(metrics.Errors)
 	run.LogsPath = runOutputDir
 
 	// Calculate duration

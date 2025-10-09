@@ -496,10 +496,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	// Count errors and warnings using pattern matching for better accuracy
 	errorPatterns := e.GetErrorPatterns()
 	if len(errorPatterns) > 0 {
-		counts := CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
-		metrics.ErrorCount = counts.ErrorCount
-		metrics.WarningCount = counts.WarningCount
-		metrics.Errors = counts.Errors // Copy individual error details
+		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 	}
 
 	// Detect permission errors and create missing-tool entries

@@ -69,11 +69,13 @@ Line 5`,
 				metrics := engine.ParseLogMetrics(tt.logContent, tt.verbose)
 
 				// Basic validation - should return valid struct
-				if metrics.ErrorCount < 0 {
-					t.Errorf("ErrorCount should not be negative, got %d", metrics.ErrorCount)
+				errorCount := CountErrors(metrics.Errors)
+				if errorCount < 0 {
+					t.Errorf("ErrorCount should not be negative, got %d", errorCount)
 				}
-				if metrics.WarningCount < 0 {
-					t.Errorf("WarningCount should not be negative, got %d", metrics.WarningCount)
+				warningCount := CountWarnings(metrics.Errors)
+				if warningCount < 0 {
+					t.Errorf("WarningCount should not be negative, got %d", warningCount)
 				}
 				if metrics.TokenUsage < 0 {
 					t.Errorf("TokenUsage should not be negative, got %d", metrics.TokenUsage)
@@ -253,11 +255,13 @@ Line 5`,
 				metrics := engine.ParseLogMetrics(tt.logContent, tt.verbose)
 
 				// Basic validation - should return valid struct
-				if metrics.ErrorCount < 0 {
-					t.Errorf("ErrorCount should not be negative, got %d", metrics.ErrorCount)
+				errorCount := CountErrors(metrics.Errors)
+				if errorCount < 0 {
+					t.Errorf("ErrorCount should not be negative, got %d", errorCount)
 				}
-				if metrics.WarningCount < 0 {
-					t.Errorf("WarningCount should not be negative, got %d", metrics.WarningCount)
+				warningCount := CountWarnings(metrics.Errors)
+				if warningCount < 0 {
+					t.Errorf("WarningCount should not be negative, got %d", warningCount)
 				}
 				if metrics.TokenUsage < 0 {
 					t.Errorf("TokenUsage should not be negative, got %d", metrics.TokenUsage)

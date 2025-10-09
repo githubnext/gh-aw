@@ -149,8 +149,9 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 
 		for _, logLine := range testLogs {
-			counts := CountErrorsAndWarningsWithPatterns(logLine, patterns)
-			if counts.ErrorCount == 0 {
+			errors := CountErrorsAndWarningsWithPatterns(logLine, patterns)
+			errorCount := CountErrors(errors)
+			if errorCount == 0 {
 				t.Errorf("Failed to detect error in log line: %q", logLine)
 			}
 		}

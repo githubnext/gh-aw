@@ -167,8 +167,14 @@ func TestGenerateAuditReport(t *testing.T) {
 		TokenUsage:    1500,
 		EstimatedCost: 0.025,
 		Turns:         5,
-		ErrorCount:    0,
-		WarningCount:  1,
+		Errors: []workflow.LogError{
+			{
+				File:    "/tmp/gh-aw/logs/agent.log",
+				Line:    42,
+				Type:    "warning",
+				Message: "Example warning message",
+			},
+		},
 		ToolCalls: []workflow.ToolCallInfo{
 			{
 				Name:          "github_get_issue",
@@ -318,8 +324,6 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 	}
 
 	metrics := LogMetrics{
-		ErrorCount:   3,
-		WarningCount: 2,
 		Errors: []workflow.LogError{
 			{
 				File:    "/tmp/gh-aw/error-logs/agent.log",
@@ -335,9 +339,21 @@ func TestGenerateAuditReportWithErrors(t *testing.T) {
 			},
 			{
 				File:    "/tmp/gh-aw/error-logs/agent.log",
+				Line:    102,
+				Type:    "error",
+				Message: "Permission denied",
+			},
+			{
+				File:    "/tmp/gh-aw/error-logs/agent.log",
 				Line:    20,
 				Type:    "warning",
 				Message: "Deprecated API usage",
+			},
+			{
+				File:    "/tmp/gh-aw/error-logs/agent.log",
+				Line:    156,
+				Type:    "warning",
+				Message: "Resource limit approaching",
 			},
 		},
 	}

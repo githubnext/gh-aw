@@ -25,12 +25,32 @@ type LogError struct {
 	Message string // Error/warning message
 }
 
+// CountErrors counts the number of errors in the slice
+func CountErrors(errors []LogError) int {
+	count := 0
+	for _, err := range errors {
+		if err.Type == "error" {
+			count++
+		}
+	}
+	return count
+}
+
+// CountWarnings counts the number of warnings in the slice
+func CountWarnings(errors []LogError) int {
+	count := 0
+	for _, err := range errors {
+		if err.Type == "warning" {
+			count++
+		}
+	}
+	return count
+}
+
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
 	TokenUsage    int
 	EstimatedCost float64
-	ErrorCount    int
-	WarningCount  int
 	Errors        []LogError     // Individual error and warning details
 	Turns         int            // Number of turns needed to complete the task
 	ToolCalls     []ToolCallInfo // Tool call statistics
@@ -263,20 +283,13 @@ func ExtractMCPServer(toolName string) string {
 	return toolName
 }
 
-// ErrorWarningCounts represents the counts of errors and warnings
-type ErrorWarningCounts struct {
-	ErrorCount   int
-	WarningCount int
-	Errors       []LogError // Individual error and warning details
-}
-
-// CountErrorsAndWarningsWithPatterns counts errors and warnings using regex patterns
+// CountErrorsAndWarningsWithPatterns extracts errors and warnings using regex patterns
 // This is more accurate than simple string matching and uses the same logic as validate_errors.cjs
-func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPattern) ErrorWarningCounts {
-	counts := ErrorWarningCounts{}
+func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPattern) []LogError {
+	var errors []LogError
 
 	if len(patterns) == 0 {
-		return counts
+		return errors
 	}
 
 	lines := strings.Split(logContent, "\n")
@@ -305,18 +318,16 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 				message = extractErrorMessage(message)
 
 				if strings.ToLower(level) == "error" {
-					counts.ErrorCount++
 					if message != "" {
-						counts.Errors = append(counts.Errors, LogError{
+						errors = append(errors, LogError{
 							Line:    lineNum + 1, // 1-based line numbering
 							Type:    "error",
 							Message: message,
 						})
 					}
 				} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
-					counts.WarningCount++
 					if message != "" {
-						counts.Errors = append(counts.Errors, LogError{
+						errors = append(errors, LogError{
 							Line:    lineNum + 1, // 1-based line numbering
 							Type:    "warning",
 							Message: message,
@@ -327,7 +338,7 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 		}
 	}
 
-	return counts
+	return errors
 }
 
 // extractLevelFromMatch extracts the error level from a regex match using the pattern configuration

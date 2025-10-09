@@ -1107,7 +1107,9 @@ Now I'll implement the solution.
 		t.Errorf("Expected token usage 5000 from Codex-style logs, got %d", metrics.TokenUsage)
 	}
 
-	// Test Case 3: Generic logs (fallback)
+	// Test Case 3: Generic logs (fallback - no error detection)
+	// Custom engine no longer has its own error detection patterns
+	// It relies on Claude/Codex parsers which don't match plain text logs
 	genericLogContent := `2025-08-13T00:24:45 Starting workflow
 2025-08-13T00:24:50 Processing request
 2025-08-13T00:24:52 Warning: Something happened
@@ -1116,18 +1118,21 @@ Now I'll implement the solution.
 
 	metrics = customEngine.ParseLogMetrics(genericLogContent, false)
 
-	// Should fall back to basic parsing
+	// Should fall back to basic parsing (no metrics extracted)
 	if metrics.Turns != 0 {
 		t.Errorf("Expected turns 0 from generic logs, got %d", metrics.Turns)
 	}
 	if metrics.TokenUsage != 0 {
 		t.Errorf("Expected token usage 0 from generic logs, got %d", metrics.TokenUsage)
 	}
-	if metrics.WarningCount != 1 {
-		t.Errorf("Expected warning count 1 from generic logs, got %d", metrics.WarningCount)
+	// Custom engine has no error patterns, so it won't detect errors in plain text
+	warningCount := workflow.CountWarnings(metrics.Errors)
+	if warningCount != 0 {
+		t.Errorf("Expected warning count 0 from generic logs (custom engine has no error patterns), got %d", warningCount)
 	}
-	if metrics.ErrorCount != 1 {
-		t.Errorf("Expected error count 1 from generic logs, got %d", metrics.ErrorCount)
+	errorCount := workflow.CountErrors(metrics.Errors)
+	if errorCount != 0 {
+		t.Errorf("Expected error count 0 from generic logs (custom engine has no error patterns), got %d", errorCount)
 	}
 }
 
