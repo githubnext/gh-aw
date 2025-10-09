@@ -630,37 +630,18 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 // GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{
-		// Legacy TypeScript format patterns (with brackets) - kept first for backward compatibility
+		// Rust format patterns (without brackets, with milliseconds and Z timezone)
 		{
-			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+stream\s+(error):\s+(.+)`,
-			LevelGroup:   2, // "error" is in the second capture group
-			MessageGroup: 3, // error message is in the third capture group
-			Description:  "Codex stream errors with timestamp",
-		},
-		{
-			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)`,
+			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(ERROR)\s+(.+)`,
 			LevelGroup:   2, // "ERROR" is in the second capture group
 			MessageGroup: 3, // error message is in the third capture group
 			Description:  "Codex ERROR messages with timestamp",
 		},
 		{
-			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(WARN|WARNING):\s+(.+)`,
-			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
-			MessageGroup: 3, // warning message is in the third capture group
-			Description:  "Codex warning messages with timestamp",
-		},
-		// New Rust format patterns (without brackets, with milliseconds and Z timezone)
-		{
-			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(ERROR)\s+(.+)`,
-			LevelGroup:   2, // "ERROR" is in the second capture group
-			MessageGroup: 3, // error message is in the third capture group
-			Description:  "Codex ERROR messages with timestamp (Rust format)",
-		},
-		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(WARN|WARNING)\s+(.+)`,
 			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
 			MessageGroup: 3, // warning message is in the third capture group
-			Description:  "Codex warning messages with timestamp (Rust format)",
+			Description:  "Codex warning messages with timestamp",
 		},
 		// Specific, contextual permission error patterns - these are precise and unlikely to match informational text
 		{
