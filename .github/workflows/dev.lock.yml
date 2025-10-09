@@ -883,9 +883,16 @@ jobs:
           user_agent = "dev"
           startup_timeout_sec = 120
           tool_timeout_sec = 120
-          type = "http"
-          url = "https://api.githubcopilot.com/mcp/"
-          headers = { "Authorization" = "Bearer ${{ secrets.COPILOT_CLI_TOKEN }}" }
+          command = "docker"
+          args = [
+            "run",
+            "-i",
+            "--rm",
+            "-e",
+            "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "ghcr.io/github/github-mcp-server:sha-09deac4"
+          ]
+          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}" }
           
           [mcp_servers.safe_outputs]
           command = "node"
@@ -1978,9 +1985,10 @@ jobs:
             await main();
 
         env:
-          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,COPILOT_CLI_TOKEN,OPENAI_API_KEY'
+          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
           SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
