@@ -32,50 +32,46 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	}
 	minValue = data.SafeOutputs.AddLabels.Min
 
-	var steps []string
-	steps = append(steps, "      - name: Add Labels\n")
-	steps = append(steps, "        id: add_labels\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	// Build custom environment variables specific to add-labels
+	var customEnvVars []string
 	// Pass the allowed labels list (empty string if no restrictions)
 	allowedLabelsStr := strings.Join(allowedLabels, ",")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_ALLOWED: %q\n", allowedLabelsStr))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_LABELS_ALLOWED: %q\n", allowedLabelsStr))
 	// Pass the max limit
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_LABELS_MAX_COUNT: %d\n", maxCount))
 
 	// Pass the target configuration
 	if data.SafeOutputs.AddLabels.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
 	}
 
 	// Pass the staged flag if it's set to true
 	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 
 	// Pass target repository - prefer explicit config over trial mode setting
 	if data.SafeOutputs.AddLabels.TargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddLabels.TargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddLabels.TargetRepoSlug))
 	} else if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
+	// Get token from config
+	token := ""
+	if data.SafeOutputs.AddLabels != nil {
+		token = data.SafeOutputs.AddLabels.GitHubToken
+	}
 
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
-	token := data.SafeOutputs.AddLabels.GitHubToken
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
-
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(addLabelsScript)
-	steps = append(steps, formattedScript...)
+	// Build the GitHub Script step using the common helper
+	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Add Labels",
+		StepID:        "add_labels",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        addLabelsScript,
+		Token:         token,
+	})
 
 	// Create outputs for the job
 	outputs := map[string]string{

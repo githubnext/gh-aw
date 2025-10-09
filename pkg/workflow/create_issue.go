@@ -93,50 +93,44 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		}
 	}
 
-	steps = append(steps, "      - name: Create Output Issue\n")
-	steps = append(steps, "        id: create_issue\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	// Pass the workflow name for footer generation
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Build custom environment variables specific to create-issue
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
 	if data.SafeOutputs.CreateIssues.TitlePrefix != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateIssues.TitlePrefix))
 	}
 	if len(data.SafeOutputs.CreateIssues.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.CreateIssues.Labels, ",")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_ISSUE_LABELS: %q\n", labelsStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_LABELS: %q\n", labelsStr))
 	}
 
 	// Pass the staged flag if it's set to true
 	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if data.SafeOutputs.CreateIssues.TargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreateIssues.TargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreateIssues.TargetRepoSlug))
 	} else if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
+	// Get token from config
 	var token string
 	if data.SafeOutputs.CreateIssues != nil {
 		token = data.SafeOutputs.CreateIssues.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createIssueScript)
-	steps = append(steps, formattedScript...)
+	// Build the GitHub Script step using the common helper and append to existing steps
+	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Create Output Issue",
+		StepID:        "create_issue",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        createIssueScript,
+		Token:         token,
+	})
+	steps = append(steps, scriptSteps...)
 
 	// Create outputs for the job
 	outputs := map[string]string{

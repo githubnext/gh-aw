@@ -2259,6 +2259,40 @@
     "strict": {
       "type": "boolean",
       "description": "Enable strict mode validation: require timeout, refuse write permissions, require network configuration. Defaults to false."
+    },
+    "runtimes": {
+      "type": "object",
+      "description": "Runtime environment version overrides. Allows customizing runtime versions (e.g., Node.js, Python) or defining new runtimes. Runtimes from imported shared workflows are also merged.",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*$": {
+          "type": "object",
+          "description": "Runtime configuration object identified by runtime ID (e.g., 'node', 'python', 'go')",
+          "properties": {
+            "version": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Runtime version as a string (e.g., '22', '3.12', 'latest')"
+                },
+                {
+                  "type": "number",
+                  "description": "Runtime version as a number (e.g., 22, 3.12)"
+                }
+              ]
+            },
+            "action-repo": {
+              "type": "string",
+              "description": "GitHub Actions repository for setting up the runtime (e.g., 'actions/setup-node', 'custom/setup-runtime'). Overrides the default setup action."
+            },
+            "action-version": {
+              "type": "string",
+              "description": "Version of the setup action to use (e.g., 'v4', 'v5'). Overrides the default action version."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false,

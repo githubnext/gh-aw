@@ -18,50 +18,42 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 		return nil, fmt.Errorf("safe-outputs.create-pull-request-review-comment configuration is required")
 	}
 
-	var steps []string
-	steps = append(steps, "      - name: Create PR Review Comment\n")
-	steps = append(steps, "        id: create_pr_review_comment\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	// Pass the workflow name for footer generation
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Build custom environment variables specific to create-pull-request-review-comment
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
 	}
 	// Pass the target configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_TARGET: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Target))
 	}
 	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
 	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug))
 	} else if c.trialMode && c.trialTargetRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
 	}
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
+	// Get token from config
 	var token string
 	if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 		token = data.SafeOutputs.CreatePullRequestReviewComments.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(createPRReviewCommentScript)
-	steps = append(steps, formattedScript...)
+	// Build the GitHub Script step using the common helper
+	steps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Create PR Review Comment",
+		StepID:        "create_pr_review_comment",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        createPRReviewCommentScript,
+		Token:         token,
+	})
 
 	// Create outputs for the job
 	outputs := map[string]string{

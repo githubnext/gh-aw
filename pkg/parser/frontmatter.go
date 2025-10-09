@@ -93,6 +93,7 @@ type ImportsResult struct {
 	MergedSafeOutputs []string // Merged safe-outputs configurations from all imports
 	MergedMarkdown    string   // Merged markdown content from all imports
 	MergedSteps       string   // Merged steps configuration from all imports
+	MergedRuntimes    string   // Merged runtimes configuration from all imports
 	ImportedFiles     []string // List of imported file paths (for manifest)
 }
 
@@ -393,6 +394,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 	var mcpServersBuilder strings.Builder
 	var markdownBuilder strings.Builder
 	var stepsBuilder strings.Builder
+	var runtimesBuilder strings.Builder
 	var engines []string
 	var safeOutputs []string
 	var processedFiles []string
@@ -475,6 +477,12 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		if err == nil && stepsContent != "" {
 			stepsBuilder.WriteString(stepsContent + "\n")
 		}
+
+		// Extract runtimes from imported file
+		runtimesContent, err := extractRuntimesFromContent(string(content))
+		if err == nil && runtimesContent != "" && runtimesContent != "{}" {
+			runtimesBuilder.WriteString(runtimesContent + "\n")
+		}
 	}
 
 	return &ImportsResult{
@@ -484,6 +492,7 @@ func ProcessImportsFromFrontmatterWithManifest(frontmatter map[string]any, baseD
 		MergedSafeOutputs: safeOutputs,
 		MergedMarkdown:    markdownBuilder.String(),
 		MergedSteps:       stepsBuilder.String(),
+		MergedRuntimes:    runtimesBuilder.String(),
 		ImportedFiles:     processedFiles,
 	}, nil
 }
@@ -891,6 +900,11 @@ func extractStepsFromContent(content string) (string, error) {
 // extractEngineFromContent extracts engine section from frontmatter as JSON string
 func extractEngineFromContent(content string) (string, error) {
 	return extractFrontmatterField(content, "engine", "")
+}
+
+// extractRuntimesFromContent extracts runtimes section from frontmatter as JSON string
+func extractRuntimesFromContent(content string) (string, error) {
+	return extractFrontmatterField(content, "runtimes", "{}")
 }
 
 // extractFrontmatterField extracts a specific field from frontmatter as JSON string
