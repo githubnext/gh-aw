@@ -919,7 +919,7 @@ jobs:
           ---
           ```
           
-          List the last 5 merged pull requests in this repository into an issue.
+          Review the last 5 merged pull requests in this repository and post summary in an issue.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1909,7 +1909,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Smoke GenAIScript"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using microsoft/genaiscript.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/genaiscript.md\n---\n```\n\n**Requirements:**\n- The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is converted to GenAI markdown format (prompt.genai.md)\n- GenAIScript is executed with MCP server configuration if available\n- Output is captured in the agent log file\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `2.5.1`)\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)\n- MCP server configuration is automatically passed if configured in the workflow\n-->\n\nList the last 5 merged pull requests in this repository into an issue.\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using microsoft/genaiscript.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/genaiscript.md\n---\n```\n\n**Requirements:**\n- The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is converted to GenAI markdown format (prompt.genai.md)\n- GenAIScript is executed with MCP server configuration if available\n- Output is captured in the agent log file\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `2.5.1`)\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)\n- MCP server configuration is automatically passed if configured in the workflow\n-->\n\nReview the last 5 merged pull requests in this repository and post summary in an issue.\n"
         with:
           script: |
             const fs = require('fs');

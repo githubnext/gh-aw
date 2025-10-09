@@ -1017,7 +1017,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          List the last 5 merged pull requests in this repository into an issue.
+          Review the last 5 merged pull requests in this repository and post summary in an issue.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -2556,7 +2556,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Smoke Claude"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "List the last 5 merged pull requests in this repository into an issue.\n"
+          WORKFLOW_MARKDOWN: "Review the last 5 merged pull requests in this repository and post summary in an issue.\n"
         with:
           script: |
             const fs = require('fs');
