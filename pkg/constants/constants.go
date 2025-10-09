@@ -21,7 +21,7 @@ const DefaultClaudeCodeVersion = "2.0.10"
 const DefaultCopilotVersion = "0.0.336"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion = "0.45.0"
+const DefaultCodexVersion = "0.46.0"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"

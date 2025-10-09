@@ -511,16 +511,18 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	if githubType == "remote" {
 		// Remote mode - use hosted GitHub MCP server
 		yaml.WriteString("          type = \"http\"\n")
-		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
+
+		// Use /readonly endpoint for read-only mode
+		// See https://github.com/github/github-mcp-server/blob/dee59272ae560a73f1bad704f57fc49af2fbc7d1/docs/remote-server.md#L22
+		if readOnly {
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/readonly\"\n")
+		} else {
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
+		}
 
 		// Use bearer_token_env_var instead of inline bearer token
 		// See https://github.com/openai/codex/commit/a43ae86b6c072a962120460e5f4386cbcbc35b27
 		yaml.WriteString("          bearer_token_env_var = \"GITHUB_MCP_TOKEN\"\n")
-
-		// Add X-MCP-Readonly header if read-only mode is enabled
-		if readOnly {
-			yaml.WriteString("          headers = { \"X-MCP-Readonly\" = \"true\" }\n")
-		}
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)

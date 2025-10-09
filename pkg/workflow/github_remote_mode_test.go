@@ -151,7 +151,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			expectedType:  "remote",
-			expectedURL:   "https://api.githubcopilot.com/mcp/",
+			expectedURL:   "https://api.githubcopilot.com/mcp/readonly",
 			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
 			engineType:    "codex",
 		},
@@ -208,12 +208,6 @@ This is a test workflow for GitHub remote mode configuration.
 						expectedEnvVar := fmt.Sprintf("GITHUB_MCP_TOKEN: %s", tt.expectedToken)
 						if !strings.Contains(lockContent, expectedEnvVar) {
 							t.Errorf("Expected GITHUB_MCP_TOKEN environment variable with value %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
-						}
-					}
-					// Check for X-MCP-Readonly header if this is a read-only test
-					if strings.Contains(tt.name, "read-only") {
-						if !strings.Contains(lockContent, `"X-MCP-Readonly" = "true"`) {
-							t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
 						}
 					}
 					// Should NOT contain Docker configuration
