@@ -5,7 +5,7 @@ on:
     branches:
       - copilot/*
 name: Dev
-engine: claude
+engine: codex
 tools:
   github:
     mode: remote
