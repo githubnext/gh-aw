@@ -2279,7 +2279,7 @@ jobs:
                 const LOOKAHEAD_WINDOW = 50;
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
-                  const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
+                  const toolCallMatch = line.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tool\s+(\w+)\.(\w+)\(/);
                   if (toolCallMatch) {
                     const server = toolCallMatch[1];
                     const toolName = toolCallMatch[2];
@@ -2296,6 +2296,22 @@ jobs:
                     }
                     commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
                   }
+                  const bashExecMatch = line.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+exec\s+(bash\s+-lc\s+'[^']+')/);
+                  if (bashExecMatch) {
+                    const command = bashExecMatch[1];
+                    let statusIcon = "❓";
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes("bash -lc") && nextLine.includes("succeeded in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes("bash -lc") && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    commandSummary.push(`* ${statusIcon} \`${command}\``);
+                  }
                 }
                 if (commandSummary.length > 0) {
                   for (const cmd of commandSummary) {
@@ -2306,21 +2322,21 @@ jobs:
                 }
                 markdown += "\n## 📊 Information\n\n";
                 let totalTokens = 0;
-                const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
-                for (const match of tokenCountMatches) {
+                const tokenMatches = logContent.matchAll(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tokens used:\s*(\d+)/g);
+                for (const match of tokenMatches) {
                   const tokens = parseInt(match[1]);
-                  totalTokens = Math.max(totalTokens, tokens); 
-                }
-                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
-                if (finalTokensMatch) {
-                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+                  totalTokens += tokens; 
                 }
                 if (totalTokens > 0) {
                   markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
                 }
-                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+                const toolCalls = (logContent.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tool\s+\w+\.\w+\(/g) || []).length;
                 if (toolCalls > 0) {
                   markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+                }
+                const bashCommands = (logContent.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+exec\s+bash\s+-lc/g) || []).length;
+                if (bashCommands > 0) {
+                  markdown += `**Commands Executed:** ${bashCommands}\n\n`;
                 }
                 markdown += "\n## 🤖 Reasoning\n\n";
                 let inThinkingSection = false;
@@ -2337,17 +2353,16 @@ jobs:
                     line.includes("reasoning effort:") ||
                     line.includes("reasoning summaries:") ||
                     line.includes("tokens used:") ||
-                    line.includes("DEBUG codex") ||
-                    line.includes("INFO codex") ||
-                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
+                    line.includes("User instructions:") ||
+                    line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+(DEBUG|INFO|WARN|ERROR)/)
                   ) {
                     continue;
                   }
-                  if (line.trim() === "thinking") {
+                  if (line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+thinking$/)) {
                     inThinkingSection = true;
                     continue;
                   }
-                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  const toolMatch = line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tool\s+(\w+)\.(\w+)\(/);
                   if (toolMatch) {
                     inThinkingSection = false;
                     const server = toolMatch[1];
@@ -2366,7 +2381,25 @@ jobs:
                     markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
                     continue;
                   }
-                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                  const bashMatch = line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+exec\s+(bash\s+-lc\s+'[^']+')/);
+                  if (bashMatch) {
+                    inThinkingSection = false;
+                    const command = bashMatch[1];
+                    let statusIcon = "❓";
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes("bash -lc") && nextLine.includes("succeeded in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes("bash -lc") && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    markdown += `${statusIcon} \`${command}\`\n\n`;
+                    continue;
+                  }
+                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\[\d{4}-\d{2}-\d{2}T/) && !line.match(/^\s*[\{\[]/)) {
                     const trimmed = line.trim();
                     markdown += `${trimmed}\n\n`;
                   }

@@ -48,8 +48,9 @@ function parseCodexLog(logContent) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // ToolCall: github__list_pull_requests {...}
-      const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
+      // New Rust format: tool github.list_pull_requests(...)
+      // Match lines like: [2025-08-31T12:37:33] tool time.get_current_time({"timezone":"UTC"})
+      const toolCallMatch = line.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tool\s+(\w+)\.(\w+)\(/);
       if (toolCallMatch) {
         const server = toolCallMatch[1];
         const toolName = toolCallMatch[2];
@@ -69,6 +70,27 @@ function parseCodexLog(logContent) {
 
         commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
       }
+
+      // Bash command execution: [2025-08-31T12:37:55] exec bash -lc 'git remote -v' in /path
+      const bashExecMatch = line.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+exec\s+(bash\s+-lc\s+'[^']+')/);
+      if (bashExecMatch) {
+        const command = bashExecMatch[1];
+
+        // Look ahead to find the result status
+        let statusIcon = "❓";
+        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+          const nextLine = lines[j];
+          if (nextLine.includes("bash -lc") && nextLine.includes("succeeded in")) {
+            statusIcon = "✅";
+            break;
+          } else if (nextLine.includes("bash -lc") && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+            statusIcon = "❌";
+            break;
+          }
+        }
+
+        commandSummary.push(`* ${statusIcon} \`${command}\``);
+      }
     }
 
     // Add command summary
@@ -86,29 +108,30 @@ function parseCodexLog(logContent) {
     // Extract metadata from Codex logs
     let totalTokens = 0;
 
-    // TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
-    const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
-    for (const match of tokenCountMatches) {
+    // New Rust format: [2025-08-31T12:37:33] tokens used: 14582
+    // Sum all token usage entries
+    const tokenMatches = logContent.matchAll(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tokens used:\s*(\d+)/g);
+    for (const match of tokenMatches) {
       const tokens = parseInt(match[1]);
-      totalTokens = Math.max(totalTokens, tokens); // Use the highest value (final total)
-    }
-
-    // Also check for "tokens used\n<number>" at the end (number may have commas)
-    const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
-    if (finalTokensMatch) {
-      // Remove commas before parsing
-      totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+      totalTokens += tokens; // Sum all token entries
     }
 
     if (totalTokens > 0) {
       markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
     }
 
-    // Count tool calls
-    const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+    // Count tool calls (new Rust format)
+    const toolCalls = (logContent.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tool\s+\w+\.\w+\(/g) || []).length;
 
     if (toolCalls > 0) {
       markdown += `**Tool Calls:** ${toolCalls}\n\n`;
+    }
+
+    // Count bash exec commands
+    const bashCommands = (logContent.match(/\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+exec\s+bash\s+-lc/g) || []).length;
+
+    if (bashCommands > 0) {
+      markdown += `**Commands Executed:** ${bashCommands}\n\n`;
     }
 
     markdown += "\n## 🤖 Reasoning\n\n";
@@ -119,7 +142,7 @@ function parseCodexLog(logContent) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // Skip metadata lines (including Rust debug lines)
+      // Skip metadata lines (including Rust debug lines and user instructions)
       if (
         line.includes("OpenAI Codex") ||
         line.startsWith("--------") ||
@@ -131,21 +154,20 @@ function parseCodexLog(logContent) {
         line.includes("reasoning effort:") ||
         line.includes("reasoning summaries:") ||
         line.includes("tokens used:") ||
-        line.includes("DEBUG codex") ||
-        line.includes("INFO codex") ||
-        line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
+        line.includes("User instructions:") ||
+        line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+(DEBUG|INFO|WARN|ERROR)/)
       ) {
         continue;
       }
 
-      // Thinking section starts with standalone "thinking" line
-      if (line.trim() === "thinking") {
+      // Thinking section starts with timestamped "thinking" line: [2025-08-31T12:38:35] thinking
+      if (line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+thinking$/)) {
         inThinkingSection = true;
         continue;
       }
 
-      // Tool call line "tool github.list_pull_requests(...)"
-      const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+      // Tool call line: [2025-08-31T12:37:33] tool github.list_pull_requests(...)
+      const toolMatch = line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+tool\s+(\w+)\.(\w+)\(/);
       if (toolMatch) {
         inThinkingSection = false;
         const server = toolMatch[1];
@@ -168,8 +190,31 @@ function parseCodexLog(logContent) {
         continue;
       }
 
-      // Process thinking content (filter out timestamp lines and very short lines)
-      if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      // Bash execution line: [2025-08-31T12:37:55] exec bash -lc 'git remote -v' in /path
+      const bashMatch = line.match(/^\[\d{4}-\d{2}-\d{2}T[\d:.]+\]\s+exec\s+(bash\s+-lc\s+'[^']+')/);
+      if (bashMatch) {
+        inThinkingSection = false;
+        const command = bashMatch[1];
+
+        // Look ahead to find the result status
+        let statusIcon = "❓";
+        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+          const nextLine = lines[j];
+          if (nextLine.includes("bash -lc") && nextLine.includes("succeeded in")) {
+            statusIcon = "✅";
+            break;
+          } else if (nextLine.includes("bash -lc") && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+            statusIcon = "❌";
+            break;
+          }
+        }
+
+        markdown += `${statusIcon} \`${command}\`\n\n`;
+        continue;
+      }
+
+      // Process thinking content (filter out JSON content and very short lines)
+      if (inThinkingSection && line.trim().length > 20 && !line.match(/^\[\d{4}-\d{2}-\d{2}T/) && !line.match(/^\s*[\{\[]/)) {
         const trimmed = line.trim();
         // Add thinking content directly
         markdown += `${trimmed}\n\n`;
