@@ -110,4 +110,4 @@ Please add a summary comment to the Notion page with ID "abc123" using the notio
 
 1. Add `NOTION_TOKEN` secret to your repository with a Notion integration token
 2. Grant the integration access to the pages/databases you want to interact with
-3. Include this configuration in your workflow: `@include shared/notion.md`
+3. Include this configuration in your workflow: `@include shared/mcp/notion.md`

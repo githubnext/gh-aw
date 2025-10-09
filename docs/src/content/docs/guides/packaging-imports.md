@@ -336,11 +336,11 @@ on: issues
 engine: copilot
 ---
 
-{{#import: shared/tavily-mcp.md}}  # Adds Tavily MCP server
+{{#import: shared/mcp/tavily.md}}  # Adds Tavily MCP server
 ```
 
 ```aw wrap
-# shared/tavily-mcp.md
+# shared/mcp/tavily.md
 ---
 mcp-servers:
   tavily:
@@ -378,7 +378,7 @@ The `imports:` field in frontmatter provides an alternative way to import files,
 imports:
   - shared/common-tools.md
   - shared/security-setup.md
-  - shared/tavily-mcp.md
+  - shared/mcp/tavily.md
 ---
 ```
 
@@ -458,7 +458,7 @@ gh aw update experimental
 Create a shared MCP server configuration:
 
 ```aw wrap
-# .github/workflows/shared/tavily-mcp.md
+# .github/workflows/shared/mcp/tavily.md
 ---
 mcp-servers:
   tavily:
@@ -477,7 +477,7 @@ on:
     types: [opened]
 
 imports:
-  - shared/tavily-mcp.md
+  - shared/mcp/tavily.md
 
 tools:
   github:

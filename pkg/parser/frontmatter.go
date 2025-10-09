@@ -635,6 +635,11 @@ func isWorkflowSpec(path string) bool {
 		return false
 	}
 
+	// Reject paths that start with "shared/" (local shared files)
+	if strings.HasPrefix(cleanPath, "shared/") {
+		return false
+	}
+
 	// Reject absolute paths
 	if strings.HasPrefix(cleanPath, "/") {
 		return false

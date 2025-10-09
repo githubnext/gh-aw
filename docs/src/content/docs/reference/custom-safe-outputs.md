@@ -172,7 +172,7 @@ permissions:
   actions: read
 engine: claude
 imports:
-  - shared/notion.md
+  - shared/mcp/notion.md
 ---
 
 # Issue Summary to Notion
@@ -263,7 +263,7 @@ inputs:
 
 ### Notion Integration
 
-**File:** `.github/workflows/shared/notion.md`
+**File:** `.github/workflows/shared/mcp/notion.md`
 
 ```aw wrap
 ---
