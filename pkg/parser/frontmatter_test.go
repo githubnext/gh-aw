@@ -1868,6 +1868,21 @@ func TestIsWorkflowSpec(t *testing.T) {
 			path: "./file.md",
 			want: false,
 		},
+		{
+			name: "shared path with 2 parts",
+			path: "shared/file.md",
+			want: false,
+		},
+		{
+			name: "shared path with 3 parts (mcp subdirectory)",
+			path: "shared/mcp/gh-aw-mcp.md",
+			want: false,
+		},
+		{
+			name: "shared path with ref",
+			path: "shared/mcp/tavily-mcp.md@main",
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
