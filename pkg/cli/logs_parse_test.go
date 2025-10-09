@@ -77,27 +77,23 @@ func TestParseAgentLogWithAgentOutputDir(t *testing.T) {
 	}
 
 	agentLogPath := filepath.Join(agentOutputDir, "output.log")
-	mockLogContent := `[
-		{"type": "text", "text": "Testing agent_output directory"},
-		{"type": "tool_use", "id": "2", "name": "edit", "input": {"path": "test.txt"}},
-		{"type": "tool_result", "tool_use_id": "2", "content": "File created"}
-	]`
+	mockLogContent := `Testing Copilot CLI log output with timestamps and debug info`
 	if err := os.WriteFile(agentLogPath, []byte(mockLogContent), 0644); err != nil {
 		t.Fatalf("Failed to create mock log in agent_output: %v", err)
 	}
 
-	// Create a mock aw_info.json with Claude engine
+	// Create a mock aw_info.json with Copilot engine
 	awInfoPath := filepath.Join(tempDir, "aw_info.json")
-	awInfoContent := `{"engine_id": "claude"}`
+	awInfoContent := `{"engine_id": "copilot"}`
 	if err := os.WriteFile(awInfoPath, []byte(awInfoContent), 0644); err != nil {
 		t.Fatalf("Failed to create mock aw_info.json: %v", err)
 	}
 
-	// Get the Claude engine
+	// Get the Copilot engine
 	registry := workflow.GetGlobalEngineRegistry()
-	engine, err := registry.GetEngine("claude")
+	engine, err := registry.GetEngine("copilot")
 	if err != nil {
-		t.Fatalf("Failed to get Claude engine: %v", err)
+		t.Fatalf("Failed to get Copilot engine: %v", err)
 	}
 
 	// Run the parser
