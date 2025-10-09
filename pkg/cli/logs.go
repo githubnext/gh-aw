@@ -1607,12 +1607,42 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 	// Look for the safe output artifact file that contains structured JSON with items array
 	// This file is created by the collect_ndjson_output.cjs script during workflow execution
 	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
-	if _, err := os.Stat(agentOutputPath); err == nil {
+
+	// Support both file and directory forms of agent_output.json artifact (directory contains nested agent_output.json file)
+	// Also fall back to searching the tree if neither form exists at root.
+	var resolvedAgentOutputFile string
+	if stat, err := os.Stat(agentOutputPath); err == nil {
+		if stat.IsDir() {
+			// Directory form – look for nested file
+			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+			if _, nestedErr := os.Stat(nested); nestedErr == nil {
+				resolvedAgentOutputFile = nested
+				if verbose {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("agent_output.json is a directory; using nested file %s", nested)))
+				}
+			} else if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+			}
+		} else {
+			// Regular file
+			resolvedAgentOutputFile = agentOutputPath
+		}
+	} else {
+		// Not present at root – search recursively (depth-first) for a file named agent_output.json
+		if found, ok := findAgentOutputFile(runDir); ok {
+			resolvedAgentOutputFile = found
+			if verbose && found != agentOutputPath {
+				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found agent_output.json at %s", found)))
+			}
+		}
+	}
+
+	if resolvedAgentOutputFile != "" {
 		// Read the safe output artifact file
-		content, readErr := os.ReadFile(agentOutputPath)
+		content, readErr := os.ReadFile(resolvedAgentOutputFile)
 		if readErr != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", agentOutputPath, readErr)))
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", resolvedAgentOutputFile, readErr)))
 			}
 			return missingTools, nil // Continue processing without this file
 		}
@@ -1625,7 +1655,7 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 
 		if err := json.Unmarshal(content, &safeOutput); err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", agentOutputPath, err)))
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", resolvedAgentOutputFile, err)))
 			}
 			return missingTools, nil // Continue processing without this file
 		}
@@ -1668,10 +1698,8 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool) ([
 		if verbose && len(missingTools) > 0 {
 			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d missing tool reports in safe output artifact for run %d", len(missingTools), run.DatabaseID)))
 		}
-	} else {
-		if verbose {
-			fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
-		}
+	} else if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputPath, run.DatabaseID)))
 	}
 
 	return missingTools, nil

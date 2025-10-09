@@ -439,13 +439,13 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 		artifacts = append(artifacts, "aw_info.json (engine configuration)")
 	}
 	if _, err := os.Stat(filepath.Join(run.LogsPath, "safe_output.jsonl")); err == nil {
-		artifacts = append(artifacts, "safe_output.jsonl (agent output)")
+		artifacts = append(artifacts, "safe_output.jsonl (safe outputs)")
 	}
 	if _, err := os.Stat(filepath.Join(run.LogsPath, "aw.patch")); err == nil {
 		artifacts = append(artifacts, "aw.patch (code changes)")
 	}
 	if _, err := os.Stat(filepath.Join(run.LogsPath, constants.AgentOutputArtifactName)); err == nil {
-		artifacts = append(artifacts, "agent_output.json (full agent output)")
+		artifacts = append(artifacts, "agent_output.json (validated safe outputs)")
 	}
 
 	if len(artifacts) > 0 {
