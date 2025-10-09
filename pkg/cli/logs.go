@@ -799,8 +799,16 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 		return nil
 	}
 
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Checking output directory: %s", outputDir)))
+	}
+
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create run output directory: %w", err)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Created output directory: %s", outputDir)))
 	}
 
 	args := []string{"run", "download", strconv.FormatInt(runID, 10), "--dir", outputDir}
@@ -824,23 +832,34 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	}
 	if err != nil {
 		if verbose {
-			fmt.Println(console.FormatVerboseMessage(string(output)))
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Command failed with error: %v", err)))
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Command output:\n%s", string(output))))
 		}
 
 		// Check if it's because there are no artifacts
 		if strings.Contains(string(output), "no valid artifacts") || strings.Contains(string(output), "not found") {
+			if verbose {
+				fmt.Println(console.FormatVerboseMessage("No artifacts found for this run, cleaning up empty directory"))
+			}
 			// Clean up empty directory
 			os.RemoveAll(outputDir)
 			return ErrNoArtifacts
 		}
 		// Check for authentication errors
 		if strings.Contains(err.Error(), "exit status 4") {
+			if verbose {
+				fmt.Println(console.FormatVerboseMessage("Authentication error detected (exit status 4)"))
+			}
 			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
 	}
 
 	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Command completed successfully")))
+		if len(output) > 0 {
+			fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Command output:\n%s", string(output))))
+		}
 		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts for run %d to %s", runID, outputDir)))
 	}
 
