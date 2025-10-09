@@ -268,6 +268,26 @@ describe("parse_copilot_log.cjs", () => {
 
       // Details should contain the output
       expect(result).toContain("Project Title");
+
+      // Should use 6 backticks (not 5) for code blocks
+      expect(result).toContain("``````json");
+      expect(result).toMatch(/``````\n#/); // Response content should start after 6 backticks
+
+      // Should have Parameters and Response sections
+      expect(result).toContain("**Parameters:**");
+      expect(result).toContain("**Response:**");
+
+      // Parameters should be formatted as JSON
+      expect(result).toContain("``````json");
+      
+      // Verify the structure contains both parameter and response sections
+      const detailsMatch = result.match(/<details>[\s\S]*?<\/details>/);
+      expect(detailsMatch).toBeDefined();
+      const detailsContent = detailsMatch[0];
+      expect(detailsContent).toContain("**Parameters:**");
+      expect(detailsContent).toContain("**Response:**");
+      expect(detailsContent).toContain('"command": "cat README.md"');
+      expect(detailsContent).toContain("Project description here");
     });
 
     it("should handle MCP tools", () => {

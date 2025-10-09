@@ -709,10 +709,25 @@ function formatToolUseWithDetails(toolUse, toolResult) {
 
   // Format with HTML details tag if we have output
   if (details && details.trim()) {
-    // Truncate details if too long
-    const maxDetailsLength = 500;
-    const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-    return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
+    // Build the details content with tool input parameters and response
+    let detailsContent = "";
+    
+    // Add parameters section if we have input
+    const inputKeys = Object.keys(input);
+    if (inputKeys.length > 0) {
+      detailsContent += "**Parameters:**\n\n";
+      detailsContent += "``````json\n";
+      detailsContent += JSON.stringify(input, null, 2);
+      detailsContent += "\n``````\n\n";
+    }
+    
+    // Add response section
+    detailsContent += "**Response:**\n\n";
+    detailsContent += "``````\n";
+    detailsContent += details;
+    detailsContent += "\n``````";
+    
+    return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
   } else {
     // No details, just show summary
     return `${summary}\n\n`;
