@@ -58,6 +58,15 @@ func NewCodexEngine() *CodexEngine {
 	}
 }
 
+// GetDeclaredOutputFiles returns the output files that Codex may produce
+// Codex (written in Rust) writes logs to ~/.codex/log/codex-tui.log
+func (e *CodexEngine) GetDeclaredOutputFiles() []string {
+	// Return the Codex log directory for artifact collection
+	return []string{
+		"/tmp/gh-aw/.codex/log/",
+	}
+}
+
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	// Use version from engine config if provided, otherwise default to pinned version
 	version := constants.DefaultCodexVersion
@@ -113,7 +122,8 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-export CODEX_HOME=/tmp/gh-aw/mcp-config
+export CODEX_HOME=/tmp/gh-aw/.codex
+mkdir -p /tmp/gh-aw/.codex/log
 mkdir -p /tmp/gh-aw/mcp-config
 mkdir -p /tmp/gh-aw/aw-logs
 which codex
@@ -125,6 +135,8 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
+		"CODEX_HOME":           "/tmp/gh-aw/.codex",
+		"RUST_LOG":             "TRACE", // Enable maximum logging for Codex (written in Rust)
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
