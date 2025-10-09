@@ -3191,6 +3191,7 @@ jobs:
                             if (choice.message) {
                               const message = choice.message;
                               const content = [];
+                              const toolResults = []; 
                               if (message.content && message.content.trim()) {
                                 content.push({
                                   type: "text",
@@ -3212,11 +3213,18 @@ jobs:
                                     } catch (e) {
                                       args = {};
                                     }
+                                    const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                                     content.push({
                                       type: "tool_use",
-                                      id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                                      id: toolId,
                                       name: toolName,
                                       input: args,
+                                    });
+                                    toolResults.push({
+                                      type: "tool_result",
+                                      tool_use_id: toolId,
+                                      content: "", 
+                                      is_error: false, 
                                     });
                                   }
                                 }
@@ -3227,6 +3235,12 @@ jobs:
                                   message: { content },
                                 });
                                 turnCount++;
+                                if (toolResults.length > 0) {
+                                  entries.push({
+                                    type: "user",
+                                    message: { content: toolResults },
+                                  });
+                                }
                               }
                             }
                           }
@@ -3262,6 +3276,7 @@ jobs:
                       if (choice.message) {
                         const message = choice.message;
                         const content = [];
+                        const toolResults = []; 
                         if (message.content && message.content.trim()) {
                           content.push({
                             type: "text",
@@ -3283,11 +3298,18 @@ jobs:
                               } catch (e) {
                                 args = {};
                               }
+                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                               content.push({
                                 type: "tool_use",
-                                id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                                id: toolId,
                                 name: toolName,
                                 input: args,
+                              });
+                              toolResults.push({
+                                type: "tool_result",
+                                tool_use_id: toolId,
+                                content: "", 
+                                is_error: false, 
                               });
                             }
                           }
@@ -3298,6 +3320,12 @@ jobs:
                             message: { content },
                           });
                           turnCount++;
+                          if (toolResults.length > 0) {
+                            entries.push({
+                              type: "user",
+                              message: { content: toolResults },
+                            });
+                          }
                         }
                       }
                     }
