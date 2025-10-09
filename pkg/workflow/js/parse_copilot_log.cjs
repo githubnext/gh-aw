@@ -319,6 +319,7 @@ function parseDebugLogFormat(logContent) {
 
                   // Create an assistant entry
                   const content = [];
+                  const toolResults = []; // Collect tool calls to create results
 
                   if (message.content && message.content.trim()) {
                     content.push({
@@ -347,11 +348,20 @@ function parseDebugLogFormat(logContent) {
                           args = {};
                         }
 
+                        const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                         content.push({
                           type: "tool_use",
-                          id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                          id: toolId,
                           name: toolName,
                           input: args,
+                        });
+
+                        // Create a corresponding tool result (assume success since we don't have actual results in debug logs)
+                        toolResults.push({
+                          type: "tool_result",
+                          tool_use_id: toolId,
+                          content: "", // No actual output available in debug logs
+                          is_error: false, // Assume success
                         });
                       }
                     }
@@ -363,6 +373,14 @@ function parseDebugLogFormat(logContent) {
                       message: { content },
                     });
                     turnCount++;
+
+                    // Add tool results as a user message if we have any
+                    if (toolResults.length > 0) {
+                      entries.push({
+                        type: "user",
+                        message: { content: toolResults },
+                      });
+                    }
                   }
                 }
               }
@@ -409,6 +427,7 @@ function parseDebugLogFormat(logContent) {
           if (choice.message) {
             const message = choice.message;
             const content = [];
+            const toolResults = []; // Collect tool calls to create results
 
             if (message.content && message.content.trim()) {
               content.push({
@@ -435,11 +454,20 @@ function parseDebugLogFormat(logContent) {
                     args = {};
                   }
 
+                  const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                   content.push({
                     type: "tool_use",
-                    id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                    id: toolId,
                     name: toolName,
                     input: args,
+                  });
+
+                  // Create a corresponding tool result (assume success since we don't have actual results in debug logs)
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: toolId,
+                    content: "", // No actual output available in debug logs
+                    is_error: false, // Assume success
                   });
                 }
               }
@@ -451,6 +479,14 @@ function parseDebugLogFormat(logContent) {
                 message: { content },
               });
               turnCount++;
+
+              // Add tool results as a user message if we have any
+              if (toolResults.length > 0) {
+                entries.push({
+                  type: "user",
+                  message: { content: toolResults },
+                });
+              }
             }
           }
         }
