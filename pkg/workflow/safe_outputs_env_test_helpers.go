@@ -22,6 +22,8 @@ func assertEnvVarsInSteps(t *testing.T, steps []string, expectedEnvVars []string
 // parseWorkflowFromContent creates a temporary workflow file, writes the content,
 // and parses it using the compiler. Returns the parsed WorkflowData.
 // This is a helper function to reduce duplication in integration tests.
+//
+//nolint:unused // Used in integration tests with build tags
 func parseWorkflowFromContent(t *testing.T, workflowContent, filename string) *WorkflowData {
 	t.Helper()
 
