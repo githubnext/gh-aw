@@ -893,7 +893,7 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/config.toml << EOF
+          cat > /tmp/gh-aw/.codex/config.toml << EOF
           [history]
           persistence = "none"
           
@@ -1276,7 +1276,6 @@ jobs:
           INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
           export CODEX_HOME=/tmp/gh-aw/.codex
           mkdir -p /tmp/gh-aw/.codex/log
-          mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /tmp/gh-aw/aw-logs
           which codex
           codex --version
@@ -1284,7 +1283,7 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/.codex
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/.codex/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -2757,7 +2756,6 @@ jobs:
           INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
           export CODEX_HOME=/tmp/gh-aw/.codex
           mkdir -p /tmp/gh-aw/.codex/log
-          mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /tmp/gh-aw/aw-logs
           which codex
           codex --version
@@ -2765,7 +2763,7 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/.codex
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/.codex/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: TRACE

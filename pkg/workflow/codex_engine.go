@@ -124,7 +124,6 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
 export CODEX_HOME=/tmp/gh-aw/.codex
 mkdir -p /tmp/gh-aw/.codex/log
-mkdir -p /tmp/gh-aw/mcp-config
 mkdir -p /tmp/gh-aw/aw-logs
 which codex
 codex --version
@@ -134,7 +133,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
 		"GITHUB_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
-		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
+		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/.codex/config.toml",
 		"CODEX_HOME":           "/tmp/gh-aw/.codex",
 		"RUST_LOG":             "TRACE", // Enable maximum logging for Codex (written in Rust)
 	}
@@ -241,7 +240,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
+	yaml.WriteString("          cat > /tmp/gh-aw/.codex/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence
 	yaml.WriteString("          [history]\n")

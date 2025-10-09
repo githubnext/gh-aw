@@ -132,7 +132,7 @@ This is a test workflow.
 					t.Errorf("Expected lock file to contain 'export CODEX_HOME=/tmp/gh-aw/.codex' but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that config.toml is generated (not mcp-servers.json)
-				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/config.toml") {
+				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/.codex/config.toml") {
 					t.Errorf("Expected lock file to contain config.toml generation for codex but it didn't.\nContent:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "[mcp_servers.github]") {
@@ -394,7 +394,7 @@ This is a test workflow for MCP configuration with different AI engines.
 
 			// Test config.toml generation
 			if tt.expectConfigToml {
-				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/config.toml") {
+				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/.codex/config.toml") {
 					t.Errorf("Expected config.toml generation but didn't find it in:\n%s", lockContent)
 				}
 				if !strings.Contains(lockContent, "[mcp_servers.github]") {
@@ -570,7 +570,7 @@ This is a test workflow for testing the config field functionality.
 			lockContent := string(content)
 
 			// Test that config.toml is generated for codex
-			if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/config.toml") {
+			if !strings.Contains(lockContent, "cat > /tmp/gh-aw/.codex/config.toml") {
 				t.Errorf("Expected config.toml generation but didn't find it in:\n%s", lockContent)
 			}
 

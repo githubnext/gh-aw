@@ -202,7 +202,7 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 		if strings.Contains(stepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
 			foundPromptEnv = true
 		}
-		if strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml") {
+		if strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/.codex/config.toml") {
 			foundMCPConfigEnv = true
 		}
 	}
@@ -287,7 +287,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github"},
 			expected: []string{
-				"cat > /tmp/gh-aw/mcp-config/config.toml << EOF",
+				"cat > /tmp/gh-aw/.codex/config.toml << EOF",
 				"[history]",
 				"persistence = \"none\"",
 				"",
