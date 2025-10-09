@@ -58,16 +58,16 @@ The gh-aw binary has been built and configured as an MCP server. You can now use
    - Engine: (optional filter by claude, codex, or copilot)
    - Branch: (optional filter by branch name)
    
-   The logs will be downloaded to `/tmp/aw-mcp/logs` automatically.
+   The logs will be downloaded to `/tmp/gh-aw/aw-mcp/logs` automatically.
 
 2. **Verify Log Collection**:
-   - Check that logs were downloaded successfully in `/tmp/aw-mcp/logs`
+   - Check that logs were downloaded successfully in `/tmp/gh-aw/aw-mcp/logs`
    - Note how many workflow runs were found
    - Identify which workflows were active
 
 ### Phase 2: Analyze Logs for Issues
 
-Review the downloaded logs in `/tmp/aw-mcp/logs` and identify:
+Review the downloaded logs in `/tmp/gh-aw/aw-mcp/logs` and identify:
 
 #### 2.1 Missing Tools Analysis
 - Check for any missing tool reports in the logs
@@ -100,16 +100,16 @@ Review the downloaded logs in `/tmp/aw-mcp/logs` and identify:
 
 ### Phase 3: Store Analysis in Cache Memory
 
-Use the cache memory folder `/tmp/cache-memory/` to build persistent knowledge:
+Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowledge:
 
 1. **Create Investigation Index**:
-   - Save a summary of today's findings to `/tmp/cache-memory/audits/<date>.json`
-   - Maintain an index of all audits in `/tmp/cache-memory/audits/index.json`
+   - Save a summary of today's findings to `/tmp/gh-aw/cache-memory/audits/<date>.json`
+   - Maintain an index of all audits in `/tmp/gh-aw/cache-memory/audits/index.json`
 
 2. **Update Pattern Database**:
-   - Store detected error patterns in `/tmp/cache-memory/patterns/errors.json`
-   - Track missing tool requests in `/tmp/cache-memory/patterns/missing-tools.json`
-   - Record MCP server failures in `/tmp/cache-memory/patterns/mcp-failures.json`
+   - Store detected error patterns in `/tmp/gh-aw/cache-memory/patterns/errors.json`
+   - Track missing tool requests in `/tmp/gh-aw/cache-memory/patterns/missing-tools.json`
+   - Record MCP server failures in `/tmp/gh-aw/cache-memory/patterns/mcp-failures.json`
 
 3. **Maintain Historical Context**:
    - Read previous audit data from cache
@@ -247,10 +247,10 @@ In this case:
 
 ### Cache Memory Structure
 
-Organize your persistent data in `/tmp/cache-memory/`:
+Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
 
 ```
-/tmp/cache-memory/
+/tmp/gh-aw/cache-memory/
 ├── audits/
 │   ├── index.json              # Master index of all audits
 │   ├── 2024-01-15.json         # Daily audit summaries

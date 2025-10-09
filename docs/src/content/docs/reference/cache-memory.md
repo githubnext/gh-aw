@@ -19,9 +19,9 @@ Cache Memory provides:
 
 When `cache-memory` is enabled, the workflow compiler automatically:
 
-1. **Creates Cache Directory**: Sets up `/tmp/cache-memory/` directory for file storage
+1. **Creates Cache Directory**: Sets up `/tmp/gh-aw/cache-memory/` directory for file storage
 2. **Creates Cache Steps**: Adds GitHub Actions cache steps to restore and save data
-3. **Persistent Storage**: Maps `/tmp/cache-memory/` to store user data files
+3. **Persistent Storage**: Maps `/tmp/gh-aw/cache-memory/` to store user data files
 4. **Cache Key Management**: Generates intelligent cache keys with progressive fallback
 5. **Prompts LLM**: Informs the AI agent about the available cache folder
 
@@ -42,7 +42,7 @@ tools:
 This uses:
 - **Default cache key**: `memory-${{ github.workflow }}-${{ github.run_id }}`
 - **Simple file access**: Uses standard file operations for read/write
-- **Default storage path**: `/tmp/cache-memory/` for data files
+- **Default storage path**: `/tmp/gh-aw/cache-memory/` for data files
 
 ## Using the Cache Folder
 
@@ -155,10 +155,10 @@ The cache folder provides standard file system access:
 
 ### File Operations
 ```
-/tmp/cache-memory/notes.txt           # Simple text files
-/tmp/cache-memory/config.json         # Structured data
-/tmp/cache-memory/logs/activity.log   # Organized in subdirectories
-/tmp/cache-memory/state/session.yaml  # State management
+/tmp/gh-aw/cache-memory/notes.txt           # Simple text files
+/tmp/gh-aw/cache-memory/config.json         # Structured data
+/tmp/gh-aw/cache-memory/logs/activity.log   # Organized in subdirectories
+/tmp/gh-aw/cache-memory/state/session.yaml  # State management
 ```
 
 ### Best Practices for File Organization
@@ -166,7 +166,7 @@ The cache folder provides standard file system access:
 Use descriptive file names and directory structures:
 
 ```
-/tmp/cache-memory/
+/tmp/gh-aw/cache-memory/
 ├── preferences/
 │   ├── user-settings.json
 │   └── workflow-config.yaml
@@ -213,13 +213,13 @@ Be mindful of cache usage:
 
 #### Files Not Persisting
 - **Check Cache Keys**: Ensure keys are consistent between runs
-- **Verify Paths**: Confirm `/tmp/cache-memory/` directory exists
+- **Verify Paths**: Confirm `/tmp/gh-aw/cache-memory/` directory exists
 - **Review Logs**: Check workflow logs for cache restore/save messages
 
 #### File Access Issues
 - **Directory Creation**: Ensure subdirectories are created before use
 - **Permissions**: Verify file write permissions in the cache folder
-- **Path Resolution**: Use absolute paths within `/tmp/cache-memory/`
+- **Path Resolution**: Use absolute paths within `/tmp/gh-aw/cache-memory/`
 
 #### Cache Size Issues
 - **Monitor Usage**: Track cache size growth over time
@@ -335,7 +335,7 @@ If migrating from the previous MCP memory server approach:
 ### Changes
 - **No MCP server**: Cache-memory no longer uses `@modelcontextprotocol/server-memory`
 - **File operations**: Use standard file read/write instead of memory tools
-- **Direct access**: Access files directly at `/tmp/cache-memory/`
+- **Direct access**: Access files directly at `/tmp/gh-aw/cache-memory/`
 - **No tools**: No `mcp__memory` tool is provided
 
 ### Migration Steps

@@ -248,7 +248,7 @@ func TestEngineOutputCleanupExcludesTmpFiles(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create a test markdown file with Copilot engine (which declares /tmp/.copilot/logs/ as output file)
+	// Create a test markdown file with Copilot engine (which declares /tmp/gh-aw/.h-aw/.copilot/logs/ as output file)
 	testContent := `---
 on: push
 permissions:
@@ -261,7 +261,7 @@ engine: copilot
 
 # Test Engine Output Cleanup
 
-This workflow tests that /tmp/ files are excluded from cleanup.
+This workflow tests that /tmp/gh-aw/ h-aw/ files are excluded from cleanup.
 `
 
 	testFile := filepath.Join(tmpDir, "test-engine-output-cleanup.md")
@@ -317,7 +317,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 			},
 		}
 
-		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		steps := engine.GetExecutionSteps(data, "/tmp/gh-aw/th-aw/test.log")
 
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder
@@ -365,7 +365,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 			},
 		}
 
-		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		steps := engine.GetExecutionSteps(data, "/tmp/gh-aw/th-aw/test.log")
 
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder
@@ -392,7 +392,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 			NetworkPermissions: nil, // No network permissions
 		}
 
-		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		steps := engine.GetExecutionSteps(data, "/tmp/gh-aw/th-aw/test.log")
 
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder
@@ -421,7 +421,7 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 			},
 		}
 
-		steps := engine.GetExecutionSteps(data, "/tmp/test.log")
+		steps := engine.GetExecutionSteps(data, "/tmp/gh-aw/th-aw/test.log")
 
 		// Convert all steps to string for analysis
 		var allStepsStr strings.Builder

@@ -83,8 +83,8 @@ The MCP server provides these tools:
 
 - **status** - List workflows with optional pattern filter
 - **compile** - Compile workflows to GitHub Actions YAML
-- **logs** - Download workflow logs (saved to `/tmp/aw-mcp/logs`)
-- **audit** - Generate detailed workflow run report (saved to `/tmp/aw-mcp/logs`)
+- **logs** - Download workflow logs (saved to `/tmp/gh-aw/aw-mcp/logs`)
+- **audit** - Generate detailed workflow run report (saved to `/tmp/gh-aw/aw-mcp/logs`)
 
 ## Example Workflow
 
@@ -110,6 +110,6 @@ Check all workflows in this repository:
 3. Use `audit` to investigate any failures
 4. Generate a summary report
 
-Logs are in `/tmp/aw-mcp/logs` for analysis.
+Logs are in `/tmp/gh-aw/aw-mcp/logs` for analysis.
 ```
 

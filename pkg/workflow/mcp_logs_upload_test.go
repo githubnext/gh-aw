@@ -58,7 +58,7 @@ Please navigate to example.com and take a screenshot.
 	}
 
 	if !strings.Contains(lockContentStr, "\"/tmp/gh-aw/mcp-logs/playwright\"") {
-		t.Error("Expected Playwright MCP configuration to include '/tmp/mcp-logs/playwright' path")
+		t.Error("Expected Playwright MCP configuration to include '/tmp/gh-aw/mh-aw/mcp-logs/playwright' path")
 	}
 
 	// Verify MCP logs upload step exists

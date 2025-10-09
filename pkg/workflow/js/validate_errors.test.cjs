@@ -275,7 +275,7 @@ describe("main function behavior", () => {
     const originalProcessEnv = process.env;
 
     // Mock environment variables
-    process.env.GITHUB_AW_AGENT_OUTPUT = "/tmp/test.log";
+    process.env.GITHUB_AW_AGENT_OUTPUT = "/tmp/gh-aw/test.log";
     process.env.GITHUB_AW_ERROR_PATTERNS = JSON.stringify([
       {
         pattern: "ERROR:\\s+(.+)",

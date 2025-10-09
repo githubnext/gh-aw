@@ -268,7 +268,7 @@ async function main() {
   if (!isEmpty) {
     core.info("Applying patch...");
     // Patches are created with git format-patch, so use git am to apply them
-    await exec.exec("git am /tmp/aw.patch");
+    await exec.exec("git am /tmp/gh-aw/aw.patch");
     core.info("Patch applied successfully");
 
     // Push the applied commits to the branch (with fallback to issue creation on failure)

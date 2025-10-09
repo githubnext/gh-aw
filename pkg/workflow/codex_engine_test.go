@@ -186,7 +186,7 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 		Name: "test-workflow",
 	}
 
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// Should have at least one step
 	if len(steps) == 0 {

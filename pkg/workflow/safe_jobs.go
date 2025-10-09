@@ -258,7 +258,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, "        uses: actions/download-artifact@v5\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          name: %s\n", constants.AgentOutputArtifactName))
-		steps = append(steps, "          path: /tmp/safe-jobs/\n")
+		steps = append(steps, "          path: /tmp/gh-aw/sh-aw/safe-jobs/\n")
 
 		// Add environment variables step
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
@@ -266,7 +266,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
 
 		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName))
+		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {

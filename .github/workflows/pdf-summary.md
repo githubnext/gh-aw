@@ -59,7 +59,7 @@ When invoked with the `/summarize` command or triggered via workflow_dispatch, y
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Workflow Dispatch URL**: ${{ github.event.inputs.url }}
 - **Workflow Dispatch Query**: ${{ github.event.inputs.query }}
-- **Persistent Storage**: `/tmp/cache-memory/` (use this to store analysis results for future reference)
+- **Persistent Storage**: `/tmp/gh-aw/cache-memory/` (use this to store analysis results for future reference)
 
 ## Processing Steps
 
@@ -99,7 +99,7 @@ For each identified URL:
 
 ### 5. Store Results in Cache Memory
 
-- Store the analysis results in the cache-memory folder (`/tmp/cache-memory/`)
+- Store the analysis results in the cache-memory folder (`/tmp/gh-aw/cache-memory/`)
 - Create a structured file with the resource URL, query, and analysis results
 - Use a naming convention like: `analysis-{timestamp}.json` or organize by resource domain
 - This allows future runs to reference previous analyses and build on prior knowledge
@@ -152,7 +152,7 @@ Your response should be formatted as:
 - **Query Flexibility**: Adapt your analysis to the specific query provided
 - **Repository Context**: Always consider how the analyzed content relates to the current repository
 - **Default Query**: When no specific query is provided, use "summarize in the context of this repository"
-- **Cache Memory Storage**: Store all analysis results in `/tmp/cache-memory/` for future reference. This allows you to:
+- **Cache Memory Storage**: Store all analysis results in `/tmp/gh-aw/cache-memory/` for future reference. This allows you to:
   - Build knowledge over time about analyzed resources
   - Reference previous analyses when new queries come in
   - Track patterns and recurring themes across multiple resource analyses
@@ -160,7 +160,7 @@ Your response should be formatted as:
 
 ## Cache Memory Usage
 
-You have access to persistent storage in `/tmp/cache-memory/` across workflow runs. Use this to:
+You have access to persistent storage in `/tmp/gh-aw/cache-memory/` across workflow runs. Use this to:
 
 1. **Store Analysis Results**: Save each resource analysis as a structured JSON file
 2. **Track History**: Maintain a log of all analyzed resources and their summaries

@@ -520,11 +520,11 @@ jobs:
             });
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safe-outputs
+          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
           {"add-labels":{"allowed":["bug","feature","enhancement","documentation"],"max":1},"missing-tool":{}}
           EOF
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
@@ -1191,14 +1191,14 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-labels\":{\"allowed\":[\"bug\",\"feature\",\"enhancement\",\"documentation\"],\"max\":1},\"missing-tool\":{}}"
         run: |
-          mkdir -p /tmp/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
@@ -1279,7 +1279,7 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           

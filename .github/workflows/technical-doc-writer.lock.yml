@@ -339,11 +339,11 @@ jobs:
           chmod +x .claude/hooks/network_permissions.py
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safe-outputs
+          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
           {"add-comment":{"max":1},"create-pull-request":{},"missing-tool":{},"upload-asset":{}}
           EOF
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
@@ -1010,7 +1010,7 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
         env:
@@ -1020,7 +1020,7 @@ jobs:
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
         run: |
-          mkdir -p /tmp/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
@@ -1218,7 +1218,7 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -2899,7 +2899,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw.patch
-          path: /tmp/aw.patch
+          path: /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
 
   detection:
@@ -3307,7 +3307,7 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: aw.patch
-          path: /tmp/
+          path: /tmp/gh-aw/
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
@@ -3521,7 +3521,7 @@ jobs:
               core.info(`Created new branch from base: ${branchName}`);
               if (!isEmpty) {
                 core.info("Applying patch...");
-                await exec.exec("git am /tmp/aw.patch");
+                await exec.exec("git am /tmp/gh-aw/aw.patch");
                 core.info("Patch applied successfully");
                 try {
                   let remoteBranchExists = false;
@@ -3826,12 +3826,12 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: safe-outputs-assets
-          path: /tmp/safe-outputs/assets/
+          path: /tmp/gh-aw/safe-outputs/assets/
       - name: List downloaded asset files
         continue-on-error: true
         run: |
           echo "Downloaded asset files:"
-          ls -la /tmp/safe-outputs/assets/
+          ls -la /tmp/gh-aw/safe-outputs/assets/
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@v8

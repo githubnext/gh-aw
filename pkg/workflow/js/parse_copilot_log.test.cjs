@@ -327,13 +327,13 @@ describe("parse_copilot_log.cjs", () => {
                 type: "tool_use",
                 id: "tool_1",
                 name: "Read",
-                input: { file_path: "/tmp/test.txt" },
+                input: { file_path: "/tmp/gh-aw/test.txt" },
               },
               {
                 type: "tool_use",
                 id: "tool_2",
                 name: "Write",
-                input: { file_path: "/tmp/output.txt" },
+                input: { file_path: "/tmp/gh-aw/output.txt" },
               },
               {
                 type: "tool_use",

@@ -47,9 +47,9 @@
 * ❓ tavily-tavily_search
 * ❓ `cd /home/runner/work/gh-aw/gh-aw && ls -la .github/instructions/`
 * ❓ str_replace_editor
-* ❓ `cat > /tmp/cache-memory/research-mcp-imports.md << 'EOF' # MCP Server Imports Re...`
+* ❓ `cat > /tmp/gh-aw/cache-memory/research-mcp-imports.md << 'EOF' # MCP Server Imports Re...`
 * ❓ safe_outputs-add_comment
-* ❓ `cat > /tmp/cache-memory/mcp-imports-summary.txt << 'EOF' MCP Server Imports Rese...`
+* ❓ `cat > /tmp/gh-aw/cache-memory/mcp-imports-summary.txt << 'EOF' MCP Server Imports Rese...`
 
 ## 📊 Information
 
@@ -146,7 +146,7 @@ Perfect! Now I have a good understanding. Let me search for more specific inform
 
 Now let me write the memory cache and prepare the comprehensive research report:
 
-❓ Write research summary to cache memory: `cat > /tmp/cache-memory/research-mcp-imports.md << 'EOF' # MCP Server Imports Re...`
+❓ Write research summary to cache memory: `cat > /tmp/gh-aw/cache-memory/research-mcp-imports.md << 'EOF' # MCP Server Imports Re...`
 
 ❓ safe_outputs-add_comment: # 🔍 Scout Research Report
 
@@ -158,5 +158,5 @@ The request is to move T...
 
 Perfect! The research report has been successfully posted. Let me also create a summary in the cache memory for future reference:
 
-❓ Create summary file in cache memory: `cat > /tmp/cache-memory/mcp-imports-summary.txt << 'EOF' MCP Server Imports Rese...`
+❓ Create summary file in cache memory: `cat > /tmp/gh-aw/cache-memory/mcp-imports-summary.txt << 'EOF' MCP Server Imports Rese...`
 

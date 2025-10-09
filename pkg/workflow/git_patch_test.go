@@ -81,7 +81,7 @@ Please do the following tasks:
 	}
 
 	if !strings.Contains(lockContent, "/tmp/gh-aw/aw.patch") {
-		t.Error("Expected '/tmp/aw.patch' path in git patch step")
+		t.Error("Expected '/tmp/gh-aw/aw.patch' path in git patch step")
 	}
 
 	// Verify git patch upload step exists
@@ -99,8 +99,8 @@ Please do the following tasks:
 		t.Error("Expected artifact name 'aw.patch' in upload step")
 	}
 
-	if !strings.Contains(lockContent, "path: /tmp/aw.patch") {
-		t.Error("Expected artifact path '/tmp/aw.patch' in upload step")
+	if !strings.Contains(lockContent, "path: /tmp/gh-aw/aw.patch") {
+		t.Error("Expected artifact path '/tmp/gh-aw/aw.patch' in upload step")
 	}
 
 	if !strings.Contains(lockContent, "if-no-files-found: ignore") {

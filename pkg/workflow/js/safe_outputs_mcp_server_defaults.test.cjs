@@ -271,7 +271,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -376,7 +376,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -484,7 +484,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -586,7 +586,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -684,7 +684,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -783,7 +783,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
           GITHUB_AW_ASSETS_MAX_SIZE_KB: "5120",
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".pdf,.txt,.md",
         },
@@ -890,7 +890,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
         env: {
           ...envWithoutAssetVars,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -993,7 +993,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 
@@ -1094,7 +1094,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
         env: {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
-          GITHUB_AW_SAFE_OUTPUTS: "/tmp/test-outputs.jsonl",
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs.jsonl",
         },
       });
 

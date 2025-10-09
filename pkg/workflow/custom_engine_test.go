@@ -110,7 +110,7 @@ func TestCustomEngineGetExecutionSteps(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 	}
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// Custom engine without steps should return just the log step
 	if len(steps) != 1 {
@@ -148,7 +148,7 @@ func TestCustomEngineGetExecutionStepsWithIdAndContinueOnError(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
-	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// Test with engine config - steps should be populated (2 custom steps + 1 log step)
 	if len(steps) != 3 {
@@ -216,7 +216,7 @@ func TestCustomEngineGetExecutionStepsWithSteps(t *testing.T) {
 		EngineConfig: engineConfig,
 	}
 
-	config := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	config := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
 
 	// Test with engine config - steps should be populated (2 custom steps + 1 log step)
 	if len(config) != 3 {

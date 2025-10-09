@@ -496,7 +496,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 		} else {
 			// Handle cache-memory as a special case - it provides file system access but no MCP tool
 			if toolName == "cache-memory" {
-				// Cache-memory now provides simple file share access at /tmp/cache-memory/
+				// Cache-memory now provides simple file share access at /tmp/gh-aw/cache-memory/
 				// Add path-specific Read and Write tools for the cache directory only
 				cacheDirPattern := "/tmp/gh-aw/cache-memory/*"
 
@@ -777,7 +777,7 @@ func (e *ClaudeEngine) renderClaudeMCPConfig(yaml *strings.Builder, toolName str
 // Cache-memory is now a simple file share, not an MCP server
 func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast bool, workflowData *WorkflowData) {
 	// Cache-memory no longer uses MCP server mounting
-	// The cache folder is available as a simple file share at /tmp/cache-memory/
+	// The cache folder is available as a simple file share at /tmp/gh-aw/cache-memory/
 	// The folder is created by the cache step and is accessible to all tools
 	// No MCP configuration is needed for simple file access
 }

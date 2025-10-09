@@ -351,7 +351,7 @@ const exec = global.exec;`
       // Basic syntax validation - should not contain obvious errors
       expect(scriptContent).toContain("async function main()");
       expect(scriptContent).toContain("core.setFailed");
-      expect(scriptContent).toContain("/tmp/aw.patch");
+      expect(scriptContent).toContain("/tmp/gh-aw/aw.patch");
       expect(scriptContent).toContain("await main()");
     });
 

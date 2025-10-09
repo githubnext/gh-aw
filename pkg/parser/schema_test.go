@@ -897,7 +897,7 @@ func TestValidateWithSchemaAndLocation_CleanedErrorMessage(t *testing.T) {
 	}
 
 	// Create a temporary test file
-	tempFile := "/tmp/test_schema_validation.md"
+	tempFile := "/tmp/gh-aw/test_schema_validation.md"
 	err := os.WriteFile(tempFile, []byte(`---
 on: push
 timeout_minu tes: 10

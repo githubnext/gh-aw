@@ -87,7 +87,7 @@ The YAML frontmatter supports these fields:
     
     Custom engine steps have access to the following environment variables:
     
-    - **`$GITHUB_AW_PROMPT`**: Path to the generated prompt file (`/tmp/aw-prompts/prompt.txt`) containing the markdown content from the workflow. This file contains the natural language instructions that would normally be sent to an AI processor. Custom engines can read this file to access the workflow's markdown content programmatically.
+    - **`$GITHUB_AW_PROMPT`**: Path to the generated prompt file (`/tmp/gh-aw/aw-prompts/prompt.txt`) containing the markdown content from the workflow. This file contains the natural language instructions that would normally be sent to an AI processor. Custom engines can read this file to access the workflow's markdown content programmatically.
     - **`$GITHUB_AW_SAFE_OUTPUTS`**: Path to the safe outputs file (when safe-outputs are configured). Used for writing structured output that gets processed automatically.
     - **`$GITHUB_AW_MAX_TURNS`**: Maximum number of turns/iterations (when max-turns is configured in engine config).
     
@@ -242,7 +242,7 @@ tools:
 ```
 
 **How It Works:**
-- Mounts a memory MCP server at `/tmp/cache-memory/` that persists across workflow runs
+- Mounts a memory MCP server at `/tmp/gh-aw/cache-memory/` that persists across workflow runs
 - Uses `actions/cache` with resolution field so the last cache wins
 - Automatically adds the memory MCP server to available tools
 - Cache steps are automatically added to the workflow job

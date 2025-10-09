@@ -350,11 +350,11 @@ jobs:
             });
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safe-outputs
+          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
           {"add-comment":{"max":1},"missing-tool":{}}
           EOF
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
@@ -1021,14 +1021,14 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
         run: |
-          mkdir -p /tmp/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
@@ -1108,7 +1108,7 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1228,10 +1228,10 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Convert prompt to GenAI format
         run: |
-          cp "$GITHUB_AW_PROMPT" /tmp/aw-prompts/prompt.genai.md
-          sed -i '1i ---' /tmp/aw-prompts/prompt.genai.md
-          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/aw-prompts/prompt.genai.md
-          sed -i '3i ---' /tmp/aw-prompts/prompt.genai.md
+          cp "$GITHUB_AW_PROMPT" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '1i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
           echo "Generated GenAI prompt file"
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
@@ -1247,12 +1247,12 @@ jobs:
             echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
             MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
           fi
-          genaiscript run /tmp/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/genaiscript-output.md || echo "GenAIScript completed"
-          if [ -f /tmp/genaiscript-output.md ]; then
-            cat /tmp/genaiscript-output.md > /tmp/agent-log.txt
+          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
+          if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
+            cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
             echo "GenAIScript execution completed"
           else
-            echo "GenAIScript execution completed (no output)" > /tmp/agent-log.txt
+            echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
           fi
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
@@ -2180,10 +2180,10 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Convert prompt to GenAI format
         run: |
-          cp "$GITHUB_AW_PROMPT" /tmp/aw-prompts/prompt.genai.md
-          sed -i '1i ---' /tmp/aw-prompts/prompt.genai.md
-          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/aw-prompts/prompt.genai.md
-          sed -i '3i ---' /tmp/aw-prompts/prompt.genai.md
+          cp "$GITHUB_AW_PROMPT" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '1i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/gh-aw/aw-prompts/prompt.genai.md
+          sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
           echo "Generated GenAI prompt file"
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
@@ -2199,12 +2199,12 @@ jobs:
             echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
             MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
           fi
-          genaiscript run /tmp/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/genaiscript-output.md || echo "GenAIScript completed"
-          if [ -f /tmp/genaiscript-output.md ]; then
-            cat /tmp/genaiscript-output.md > /tmp/agent-log.txt
+          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
+          if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
+            cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
             echo "GenAIScript execution completed"
           else
-            echo "GenAIScript execution completed (no output)" > /tmp/agent-log.txt
+            echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
           fi
         env:
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini

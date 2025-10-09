@@ -637,8 +637,8 @@ The MCP server exposes four core commands as tools:
 
 - `status` - Show workflow file status with pattern filtering
 - `compile` - Compile markdown workflows to YAML (validation always enabled)
-- `logs` - Download and analyze workflow logs (output forced to `/tmp/aw-mcp/logs`)
-- `audit` - Investigate workflow runs (output forced to `/tmp/aw-mcp/logs`)
+- `logs` - Download and analyze workflow logs (output forced to `/tmp/gh-aw/aw-mcp/logs`)
+- `audit` - Investigate workflow runs (output forced to `/tmp/gh-aw/aw-mcp/logs`)
 
 **Workflow Integration:**
 

@@ -51,16 +51,16 @@ test-integration:
 
 .PHONY: test-perf
 test-perf:
-	go test -v -timeout=3m ./... | tee /tmp/test-output.log; \
+	go test -v -timeout=3m ./... | tee /tmp/gh-aw/test-output.log; \
 	EXIT_CODE=$$?; \
 	echo ""; \
 	echo "=== SLOWEST TESTS ==="; \
-	grep -E "^\s*--- (PASS|FAIL):" /tmp/test-output.log | \
+	grep -E "^\s*--- (PASS|FAIL):" /tmp/gh-aw/test-output.log | \
 	grep -E "\([0-9]+\.[0-9]+s\)" | \
 	sed 's/.*\(Test[^ ]*\).* (\([0-9]*\.[0-9]*s\)).*/\2 \1/' | \
 	sort -nr | \
 	head -10; \
-	rm -f /tmp/test-output.log; \
+	rm -f /tmp/gh-aw/test-output.log; \
 	exit $$EXIT_CODE
 
 # Test JavaScript files

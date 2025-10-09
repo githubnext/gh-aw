@@ -28,7 +28,7 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	steps = append(steps, "        uses: actions/download-artifact@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          name: aw.patch\n")
-	steps = append(steps, "          path: /tmp/\n")
+	steps = append(steps, "          path: /tmp/gh-aw/\n")
 
 	// Step 2: Checkout repository
 	steps = buildCheckoutRepository(steps, c)

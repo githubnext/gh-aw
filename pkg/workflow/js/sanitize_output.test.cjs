@@ -509,7 +509,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
   describe("main function", () => {
     beforeEach(() => {
       // Clean up any test files
-      const testFile = "/tmp/test-output.txt";
+      const testFile = "/tmp/gh-aw/test-output.txt";
       if (fs.existsSync(testFile)) {
         fs.unlinkSync(testFile);
       }
@@ -534,17 +534,17 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
     });
 
     it("should handle non-existent output file", async () => {
-      process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/non-existent-file.txt";
+      process.env.GITHUB_AW_SAFE_OUTPUTS = "/tmp/gh-aw/non-existent-file.txt";
 
       // Execute the script
       await eval(`(async () => { ${sanitizeScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(`Output file does not exist: ${"/tmp/non-existent-file.txt"}`);
+      expect(mockCore.info).toHaveBeenCalledWith(`Output file does not exist: ${"/tmp/gh-aw/non-existent-file.txt"}`);
       expect(mockCore.setOutput).toHaveBeenCalledWith("output", "");
     });
 
     it("should handle empty output file", async () => {
-      const testFile = "/tmp/test-empty-output.txt";
+      const testFile = "/tmp/gh-aw/test-empty-output.txt";
       fs.writeFileSync(testFile, "   \n  \t  \n  ");
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
@@ -559,7 +559,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
     it("should process and sanitize output file content", async () => {
       const testContent = "Hello @user! This fixes #123. Link: http://bad.com and https://github.com/repo";
-      const testFile = "/tmp/test-output.txt";
+      const testFile = "/tmp/gh-aw/test-output.txt";
       fs.writeFileSync(testFile, testContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
@@ -583,7 +583,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
     it("should truncate log output for very long content", async () => {
       const longContent = "x".repeat(250); // More than 200 chars to trigger truncation
-      const testFile = "/tmp/test-long-output.txt";
+      const testFile = "/tmp/gh-aw/test-long-output.txt";
       fs.writeFileSync(testFile, longContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
@@ -602,7 +602,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
     it("should handle file read errors gracefully", async () => {
       // Create a file and then remove read permissions
-      const testFile = "/tmp/test-no-read.txt";
+      const testFile = "/tmp/gh-aw/test-no-read.txt";
       fs.writeFileSync(testFile, "test content");
 
       // Mock readFileSync to throw an error
@@ -634,7 +634,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
     it("should handle binary file content", async () => {
       const binaryData = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd]);
-      const testFile = "/tmp/test-binary.txt";
+      const testFile = "/tmp/gh-aw/test-binary.txt";
       fs.writeFileSync(testFile, binaryData);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
@@ -650,7 +650,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
     it("should handle content with only whitespace", async () => {
       const whitespaceContent = "   \n\n\t\t  \r\n  ";
-      const testFile = "/tmp/test-whitespace.txt";
+      const testFile = "/tmp/gh-aw/test-whitespace.txt";
       fs.writeFileSync(testFile, whitespaceContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
@@ -668,7 +668,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
       const lineContent = 'This is a line with @user and https://evil.com plus <script>alert("xss")</script>\n';
       const repeatedContent = lineContent.repeat(70000); // Will exceed line limit
 
-      const testFile = "/tmp/test-large-mixed.txt";
+      const testFile = "/tmp/gh-aw/test-large-mixed.txt";
       fs.writeFileSync(testFile, repeatedContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 
@@ -692,7 +692,7 @@ Special chars: \x00\x1F & "quotes" 'apostrophes'
 
     it("should preserve log message format for short content", async () => {
       const shortContent = "Short message with @user";
-      const testFile = "/tmp/test-short.txt";
+      const testFile = "/tmp/gh-aw/test-short.txt";
       fs.writeFileSync(testFile, shortContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
 

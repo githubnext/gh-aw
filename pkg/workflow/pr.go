@@ -30,7 +30,7 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 	RenderConditionAsIf(yaml, condition, "          ")
 
 	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt\n")
+	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
 	WritePromptTextToYAML(yaml, prContextPromptText, "          ")
 }

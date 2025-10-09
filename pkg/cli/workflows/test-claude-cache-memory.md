@@ -32,7 +32,7 @@ Your job is to:
 
 ## Instructions
 
-1. First, check what files exist in `/tmp/cache-memory/` from previous runs
+1. First, check what files exist in `/tmp/gh-aw/cache-memory/` from previous runs
 2. Store a new test task: "Test task for run ${{ github.run_number }}" in a file in the cache folder
 3. List all files and contents you now have in the cache folder
 4. Get basic information about this repository using the GitHub tool
@@ -50,7 +50,7 @@ Your job is to:
 - **Artifact upload**: Cache data is also uploaded as artifact with 14-day retention
 
 This workflow tests that the cache-memory configuration properly:
-- Creates a simple file share at `/tmp/cache-memory/`
+- Creates a simple file share at `/tmp/gh-aw/cache-memory/`
 - Persists data between runs using GitHub Actions cache
 - Uploads cache data as artifacts with configurable retention
 - Works with Claude engine and file operations

@@ -251,10 +251,10 @@ deploy:
       uses: actions/download-artifact@v5
       with:
         name: safe_output.jsonl
-        path: /tmp/safe-jobs/
+        path: /tmp/gh-aw/safe-jobs/
     - name: Setup Safe Job Environment Variables
       run: |
-        echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/safe_output.jsonl" >> $GITHUB_ENV
+        echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/safe_output.jsonl" >> $GITHUB_ENV
     - name: Deploy application
       run: |
         if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
@@ -330,18 +330,18 @@ safe-outputs:
         - name: Extract data
           run: |
             if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-              cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.[] | select(.type == "result")' > /tmp/results.json
+              cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r '.[] | select(.type == "result")' > /tmp/gh-aw/results.json
             fi
         - name: Process data
           run: |
-            if [ -f "/tmp/results.json" ]; then
-              echo "Processing $(wc -l < /tmp/results.json) results"
+            if [ -f "/tmp/gh-aw/results.json" ]; then
+              echo "Processing $(wc -l < /tmp/gh-aw/results.json) results"
             fi
         - name: Upload results
           uses: actions/upload-artifact@v4
           with:
             name: processed-results
-            path: /tmp/results.json
+            path: /tmp/gh-aw/results.json
 ```
 
 ### Error Handling
@@ -363,18 +363,18 @@ safe-outputs:
             
             if [ ! -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
               echo "Warning: No agent output found, using defaults"
-              echo '{"status": "default"}' > /tmp/config.json
+              echo '{"status": "default"}' > /tmp/gh-aw/config.json
             else
-              cp "$GITHUB_AW_AGENT_OUTPUT" /tmp/config.json
+              cp "$GITHUB_AW_AGENT_OUTPUT" /tmp/gh-aw/config.json
             fi
             
             # Process with error handling
-            if ! jq -e '.status' /tmp/config.json > /dev/null; then
+            if ! jq -e '.status' /tmp/gh-aw/config.json > /dev/null; then
               echo "Error: Invalid agent output format"
               exit 1
             fi
           
-          STATUS=$(jq -r '.status' /tmp/config.json)
+          STATUS=$(jq -r '.status' /tmp/gh-aw/config.json)
           echo "Processing with status: $STATUS"
 ```
 

@@ -59,8 +59,8 @@ This workflow tests how patches are generated automatically.
 	}
 
 	// Check that it uses git am to apply patches (newer approach)
-	if !strings.Contains(lockStr, "git am /tmp/aw.patch") {
-		t.Error("Expected 'git am /tmp/aw.patch' command in git patch step")
+	if !strings.Contains(lockStr, "git am /tmp/gh-aw/aw.patch") {
+		t.Error("Expected 'git am /tmp/gh-aw/aw.patch' command in git patch step")
 	}
 
 	// Check that it pushes to origin branch

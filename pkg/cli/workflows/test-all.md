@@ -62,8 +62,8 @@ cache:
       poetry-deps-
   - key: poem-assets-${{ github.run_id }}
     path:
-      - /tmp/poem-assets
-      - /tmp/generated-content
+      - /tmp/gh-aw/poem-assets
+      - /tmp/gh-aw/generated-content
     restore-keys:
       - poem-assets-
     fail-on-cache-miss: false

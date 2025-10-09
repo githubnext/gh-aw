@@ -66,7 +66,7 @@ Please follow these steps:
 1. Use Playwright to navigate to `http://localhost:4321/gh-aw/`
 2. Wait for the page to fully load
 3. Take a full-page screenshot of the documentation homepage
-4. Save the screenshot to a file (e.g., `/tmp/docs-screenshot.png`)
+4. Save the screenshot to a file (e.g., `/tmp/gh-aw/docs-screenshot.png`)
 
 ## Step 4: Upload Screenshot
 1. Use the `upload asset` tool from safe-outputs to upload the screenshot file

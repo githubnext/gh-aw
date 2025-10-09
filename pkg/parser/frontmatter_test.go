@@ -1855,7 +1855,7 @@ func TestIsWorkflowSpec(t *testing.T) {
 		},
 		{
 			name: "absolute path",
-			path: "/tmp/file.md",
+			path: "/tmp/gh-aw/fh-aw/file.md",
 			want: false,
 		},
 		{

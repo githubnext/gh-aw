@@ -424,7 +424,7 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 	defer client.Close()
 
 	// Create a test file to publish (using allowed extension)
-	testFilePath := "/tmp/test-asset.png"
+	testFilePath := "/tmp/gh-aw/test-asset.png"
 	testContent := "This is a test asset file."
 
 	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {
@@ -476,7 +476,7 @@ func TestSafeOutputsMCPServer_PublishAsset_PathValidation(t *testing.T) {
 	defer client.Close()
 
 	// Test valid paths first - /tmp should be allowed
-	testFilePath := "/tmp/test-asset-validation.png"
+	testFilePath := "/tmp/gh-aw/test-asset-validation.png"
 	testContent := "This is a test file for path validation."
 
 	if err := os.WriteFile(testFilePath, []byte(testContent), 0644); err != nil {

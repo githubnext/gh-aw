@@ -466,11 +466,11 @@ jobs:
           chmod +x .claude/hooks/network_permissions.py
       - name: Setup Safe Outputs Collector MCP
         run: |
-          mkdir -p /tmp/safe-outputs
-          cat > /tmp/safe-outputs/config.json << 'EOF'
+          mkdir -p /tmp/gh-aw/safe-outputs
+          cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
           {"notion-add-comment":{"description":"Add a comment to a Notion page","inputs":{"comment":{"description":"The comment text to add","required":true,"type":"string"},"page_id":{"description":"The Notion page ID to add a comment to","required":true,"type":"string"}},"output":"Comment added to Notion successfully!"}}
           EOF
-          cat > /tmp/safe-outputs/mcp-server.cjs << 'EOF'
+          cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
@@ -1137,14 +1137,14 @@ jobs:
             process.stdin.resume();
             debug(`listening...`);
           EOF
-          chmod +x /tmp/safe-outputs/mcp-server.cjs
+          chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"notion-add-comment\":{\"description\":\"Add a comment to a Notion page\",\"inputs\":{\"comment\":{\"description\":\"The comment text to add\",\"required\":true,\"type\":\"string\"},\"page_id\":{\"description\":\"The Notion page ID to add a comment to\",\"required\":true,\"type\":\"string\"}},\"output\":\"Comment added to Notion successfully!\"}}"
         run: |
-          mkdir -p /tmp/mcp-config
+          mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
@@ -1253,7 +1253,7 @@ jobs:
           EOF
       - name: Append XPIA security instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -2770,11 +2770,11 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/safe-jobs/
+          path: /tmp/gh-aw/sh-aw/safe-jobs/
       - name: Setup Safe Job Environment Variables
         run: |
           echo "Setting up environment for safe job"
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/safe-jobs/agent_output.json" >> $GITHUB_ENV
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> $GITHUB_ENV
       - name: Add comment to Notion page
         uses: actions/github-script@v8
         env:
