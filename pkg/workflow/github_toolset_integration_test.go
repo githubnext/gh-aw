@@ -21,7 +21,7 @@ on: push
 engine: claude
 tools:
   github:
-    toolset: repos,issues,pull_requests
+    toolset: [repos, issues, pull_requests]
 ---
 
 # Test Workflow
@@ -61,7 +61,7 @@ on: push
 engine: codex
 tools:
   github:
-    toolset: all
+    toolset: [all]
 ---
 
 # Test Workflow
@@ -101,7 +101,7 @@ on: push
 engine: claude
 tools:
   github:
-    toolset: repos,issues
+    toolset: [repos, issues]
     read-only: true
 ---
 
@@ -170,12 +170,12 @@ engine: claude
 tools:
   github:
     mode: remote
-    toolset: repos,issues
+    toolset: [repos, issues]
 ---
 
 # Test Workflow
 
-This workflow tests remote mode (no toolsets in remote mode).
+This workflow tests remote mode with array toolsets.
 `
 
 	// Create temporary directory for test

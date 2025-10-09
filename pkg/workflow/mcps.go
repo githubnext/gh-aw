@@ -232,10 +232,8 @@ func getGitHubReadOnly(githubTool any) bool {
 func getGitHubToolsets(githubTool any) string {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
 		if toolsetsSetting, exists := toolConfig["toolset"]; exists {
-			// Handle both string and array formats
+			// Handle array format only
 			switch v := toolsetsSetting.(type) {
-			case string:
-				return v
 			case []any:
 				// Convert array to comma-separated string
 				toolsets := make([]string, 0, len(v))

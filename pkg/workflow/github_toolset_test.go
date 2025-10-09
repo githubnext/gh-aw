@@ -17,13 +17,6 @@ func TestGetGitHubToolsets(t *testing.T) {
 			expected: "",
 		},
 		{
-			name: "Single toolset as string",
-			input: map[string]any{
-				"toolset": "repos,issues",
-			},
-			expected: "repos,issues",
-		},
-		{
 			name: "Toolsets as array of strings",
 			input: map[string]any{
 				"toolset": []string{"repos", "issues", "pull_requests"},
@@ -38,9 +31,9 @@ func TestGetGitHubToolsets(t *testing.T) {
 			expected: "repos,issues,actions",
 		},
 		{
-			name: "Special 'all' toolset",
+			name: "Special 'all' toolset as array",
 			input: map[string]any{
-				"toolset": "all",
+				"toolset": []string{"all"},
 			},
 			expected: "all",
 		},
@@ -69,22 +62,12 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 		notInYAML      []string
 	}{
 		{
-			name: "Toolsets configured with string",
+			name: "Toolsets configured with array",
 			githubTool: map[string]any{
-				"toolset": "repos,issues,pull_requests",
+				"toolset": []string{"repos", "issues", "pull_requests"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS": "repos,issues,pull_requests"`,
-			},
-			notInYAML: []string{},
-		},
-		{
-			name: "Toolsets configured with array",
-			githubTool: map[string]any{
-				"toolset": []string{"repos", "issues"},
-			},
-			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS": "repos,issues"`,
 			},
 			notInYAML: []string{},
 		},
@@ -99,9 +82,9 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 			},
 		},
 		{
-			name: "All toolset",
+			name: "All toolset as array",
 			githubTool: map[string]any{
-				"toolset": "all",
+				"toolset": []string{"all"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS": "all"`,
@@ -141,22 +124,12 @@ func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 		notInYAML      []string
 	}{
 		{
-			name: "Toolsets configured with string",
+			name: "Toolsets configured with array",
 			githubTool: map[string]any{
-				"toolset": "repos,issues,pull_requests",
+				"toolset": []string{"repos", "issues", "pull_requests"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS=repos,issues,pull_requests"`,
-			},
-			notInYAML: []string{},
-		},
-		{
-			name: "Toolsets configured with array",
-			githubTool: map[string]any{
-				"toolset": []string{"actions", "code_security"},
-			},
-			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS=actions,code_security"`,
 			},
 			notInYAML: []string{},
 		},
@@ -203,22 +176,12 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 		notInYAML      []string
 	}{
 		{
-			name: "Toolsets configured with string",
+			name: "Toolsets configured with array",
 			githubTool: map[string]any{
-				"toolset": "repos,issues",
+				"toolset": []string{"repos", "issues"},
 			},
 			expectedInYAML: []string{
 				`"GITHUB_TOOLSETS" = "repos,issues"`,
-			},
-			notInYAML: []string{},
-		},
-		{
-			name: "Toolsets configured with array",
-			githubTool: map[string]any{
-				"toolset": []string{"actions", "experiments"},
-			},
-			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS" = "actions,experiments"`,
 			},
 			notInYAML: []string{},
 		},
@@ -267,7 +230,7 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 		{
 			name: "Toolsets with read-only mode",
 			githubTool: map[string]any{
-				"toolset":   "repos,issues",
+				"toolset":   []string{"repos", "issues"},
 				"read-only": true,
 			},
 			expectedInYAML: []string{
@@ -279,7 +242,7 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 		{
 			name: "Toolsets with custom token",
 			githubTool: map[string]any{
-				"toolset":      "all",
+				"toolset":      []string{"all"},
 				"github-token": "${{ secrets.CUSTOM_PAT }}",
 			},
 			expectedInYAML: []string{
@@ -291,7 +254,7 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 		{
 			name: "Toolsets with custom Docker version",
 			githubTool: map[string]any{
-				"toolset": "repos,issues,pull_requests",
+				"toolset": []string{"repos", "issues", "pull_requests"},
 				"version": "latest",
 			},
 			expectedInYAML: []string{

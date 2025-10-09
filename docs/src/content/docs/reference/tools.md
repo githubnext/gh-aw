@@ -49,7 +49,7 @@ tools:
     args: ["--verbose", "--debug"]            # Optional: additional arguments (local mode only)
     read-only: true                           # Optional: restrict to read-only operations
     github-token: "${{ secrets.CUSTOM_PAT }}" # Optional: custom GitHub token
-    toolset: "repos,issues,pull_requests"     # Optional: enable specific toolset groups
+    toolset: [repos, issues, pull_requests]   # Optional: array of toolset groups to enable
 ```
 
 ### GitHub Toolsets
@@ -57,14 +57,6 @@ tools:
 The `toolset` field allows you to enable or disable specific groups of GitHub API functionalities. This helps the AI model with tool selection and reduces context size by only exposing relevant tools.
 
 **Configuration:**
-
-```yaml
-tools:
-  github:
-    toolset: "repos,issues,pull_requests"  # Comma-separated string
-```
-
-or as an array:
 
 ```yaml
 tools:
@@ -106,12 +98,12 @@ If no `toolset` is specified, the GitHub MCP server uses these defaults:
 
 **Special "all" Toolset:**
 
-Use `toolset: all` to enable all available toolsets:
+Use `toolset: [all]` to enable all available toolsets:
 
 ```yaml
 tools:
   github:
-    toolset: all
+    toolset: [all]
 ```
 
 **Examples:**
@@ -120,7 +112,7 @@ tools:
 # Enable only repository and issue tools
 tools:
   github:
-    toolset: "repos,issues"
+    toolset: [repos, issues]
 
 # Enable Actions and code security for CI/CD workflows
 tools:
@@ -130,7 +122,7 @@ tools:
 # Enable all toolsets
 tools:
   github:
-    toolset: all
+    toolset: [all]
 ```
 
 **Note**: The `toolset` field is currently supported in local (Docker) mode only. Remote mode support may be added in future versions.
