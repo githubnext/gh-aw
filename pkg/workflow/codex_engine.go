@@ -630,6 +630,7 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 // GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{
+		// Legacy TypeScript format patterns (with brackets) - kept first for backward compatibility
 		{
 			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+stream\s+(error):\s+(.+)`,
 			LevelGroup:   2, // "error" is in the second capture group
@@ -647,6 +648,19 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
 			MessageGroup: 3, // warning message is in the third capture group
 			Description:  "Codex warning messages with timestamp",
+		},
+		// New Rust format patterns (without brackets, with milliseconds and Z timezone)
+		{
+			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(ERROR)\s+(.+)`,
+			LevelGroup:   2, // "ERROR" is in the second capture group
+			MessageGroup: 3, // error message is in the third capture group
+			Description:  "Codex ERROR messages with timestamp (Rust format)",
+		},
+		{
+			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(WARN|WARNING)\s+(.+)`,
+			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
+			MessageGroup: 3, // warning message is in the third capture group
+			Description:  "Codex warning messages with timestamp (Rust format)",
 		},
 		// Specific, contextual permission error patterns - these are precise and unlikely to match informational text
 		{
