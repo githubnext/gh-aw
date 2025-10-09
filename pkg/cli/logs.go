@@ -924,12 +924,12 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			return nil
 		}
 
-		// Process log files - exclude output artifacts like aw_output.txt
+		// Process log files - exclude output artifacts like aw_output.txt and agent_output.json
 		fileName := strings.ToLower(info.Name())
 		if (strings.HasSuffix(fileName, ".log") ||
 			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
 			!strings.Contains(fileName, "aw_output") &&
-			!strings.Contains(fileName, "agent_output") {
+			fileName != "agent_output.json" {
 
 			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
 			if err != nil && verbose {
