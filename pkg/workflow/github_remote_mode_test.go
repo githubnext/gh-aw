@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -199,8 +200,14 @@ This is a test workflow for GitHub remote mode configuration.
 						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
 					if tt.expectedToken != "" {
-						if !strings.Contains(lockContent, `"Authorization" = "Bearer `+tt.expectedToken+`"`) {
-							t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
+						// Codex now uses bearer_token_env_var instead of Authorization header
+						if !strings.Contains(lockContent, `bearer_token_env_var = "GITHUB_MCP_TOKEN"`) {
+							t.Errorf("Expected bearer_token_env_var = \"GITHUB_MCP_TOKEN\" but didn't find it in:\n%s", lockContent)
+						}
+						// Also verify the environment variable is passed to the codex process
+						expectedEnvVar := fmt.Sprintf("GITHUB_MCP_TOKEN: %s", tt.expectedToken)
+						if !strings.Contains(lockContent, expectedEnvVar) {
+							t.Errorf("Expected GITHUB_MCP_TOKEN environment variable with value %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
 						}
 					}
 					// Check for X-MCP-Readonly header if this is a read-only test

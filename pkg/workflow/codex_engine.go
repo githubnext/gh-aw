@@ -127,6 +127,18 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 	}
 
+	// Set GITHUB_MCP_TOKEN based on custom token configuration
+	if githubTool, hasGitHub := workflowData.Tools["github"]; hasGitHub {
+		customToken := getGitHubToken(githubTool)
+		if customToken != "" {
+			env["GITHUB_MCP_TOKEN"] = customToken
+		} else {
+			env["GITHUB_MCP_TOKEN"] = "${{ secrets.GITHUB_MCP_TOKEN }}"
+		}
+	} else {
+		env["GITHUB_MCP_TOKEN"] = "${{ secrets.GITHUB_MCP_TOKEN }}"
+	}
+
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	hasOutput := workflowData.SafeOutputs != nil
 	if hasOutput {
@@ -501,18 +513,13 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("          type = \"http\"\n")
 		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
 
-		// Add authorization header
-		if customGitHubToken != "" {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer " + customGitHubToken + "\"")
-		} else {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
-		}
+		// Use bearer_token_env_var instead of inline bearer token
+		// See https://github.com/openai/codex/commit/a43ae86b6c072a962120460e5f4386cbcbc35b27
+		yaml.WriteString("          bearer_token_env_var = \"GITHUB_MCP_TOKEN\"\n")
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
-			yaml.WriteString(", \"X-MCP-Readonly\" = \"true\" }\n")
-		} else {
-			yaml.WriteString(" }\n")
+			yaml.WriteString("          headers = { \"X-MCP-Readonly\" = \"true\" }\n")
 		}
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
