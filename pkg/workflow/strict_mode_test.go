@@ -174,6 +174,62 @@ engine: claude
 # Test Workflow`,
 			expectError: false,
 		},
+		{
+			name: "shorthand write permission refused in strict mode",
+			content: `---
+on: push
+permissions: write
+timeout_minutes: 10
+engine: claude
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+		},
+		{
+			name: "shorthand write-all permission refused in strict mode",
+			content: `---
+on: push
+permissions: write-all
+timeout_minutes: 10
+engine: claude
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+		},
+
+		{
+			name: "shorthand read-all permission allowed in strict mode",
+			content: `---
+on: push
+permissions: read-all
+timeout_minutes: 10
+engine: claude
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+		{
+			name: "write permission with inline comment refused in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: write # NOT IN STRICT MODE
+timeout_minutes: 10
+engine: claude
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+		},
 	}
 
 	for _, tt := range tests {
