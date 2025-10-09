@@ -899,6 +899,8 @@ jobs:
           
           [mcp_servers.github]
           user_agent = "duplicate-code-detector"
+          startup_timeout_sec = 120
+          tool_timeout_sec = 120
           command = "docker"
           args = [
             "run",
@@ -1235,7 +1237,7 @@ jobs:
               workflow_name: "Duplicate Code Detector",
               experimental: true,
               supports_tools_allowlist: true,
-              supports_http_transport: false,
+              supports_http_transport: true,
               run_id: context.runId,
               run_number: context.runNumber,
               run_attempt: process.env.GITHUB_RUN_ATTEMPT,

@@ -192,6 +192,30 @@ func getGitHubDockerImageVersion(githubTool any) string {
 	return githubDockerImageVersion
 }
 
+// getGitHubType extracts the mode from GitHub tool configuration (local or remote)
+func getGitHubType(githubTool any) string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if modeSetting, exists := toolConfig["mode"]; exists {
+			if stringValue, ok := modeSetting.(string); ok {
+				return stringValue
+			}
+		}
+	}
+	return "local" // default to local (Docker)
+}
+
+// getGitHubToken extracts the custom github-token from GitHub tool configuration
+func getGitHubToken(githubTool any) string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if tokenSetting, exists := toolConfig["github-token"]; exists {
+			if stringValue, ok := tokenSetting.(string); ok {
+				return stringValue
+			}
+		}
+	}
+	return ""
+}
+
 // getGitHubReadOnly checks if read-only mode is enabled for GitHub tool
 func getGitHubReadOnly(githubTool any) bool {
 	if toolConfig, ok := githubTool.(map[string]any); ok {
