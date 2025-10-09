@@ -151,8 +151,8 @@ func TestGeneratePromptIncludesGitHubAWPrompt(t *testing.T) {
 	output := yaml.String()
 
 	// Check that GITHUB_AW_PROMPT environment variable is always included
-	if !strings.Contains(output, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
-		t.Error("Expected 'GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt' in prompt generation step")
+	if !strings.Contains(output, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
+		t.Error("Expected 'GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt' in prompt generation step")
 	}
 
 	// Check that env section is always present now

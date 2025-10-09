@@ -199,10 +199,10 @@ func TestCodexEngineExecutionIncludesGitHubAWPrompt(t *testing.T) {
 	foundMCPConfigEnv := false
 	for _, step := range steps {
 		stepContent := strings.Join([]string(step), "\n")
-		if strings.Contains(stepContent, "GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt") {
+		if strings.Contains(stepContent, "GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt") {
 			foundPromptEnv = true
 		}
-		if strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml") {
+		if strings.Contains(stepContent, "GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml") {
 			foundMCPConfigEnv = true
 		}
 	}
