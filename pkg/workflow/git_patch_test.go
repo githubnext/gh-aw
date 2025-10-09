@@ -80,7 +80,7 @@ Please do the following tasks:
 		t.Error("Expected 'git format-patch' command in git patch step")
 	}
 
-	if !strings.Contains(lockContent, "/tmp/aw.patch") {
+	if !strings.Contains(lockContent, "/tmp/gh-aw/aw.patch") {
 		t.Error("Expected '/tmp/aw.patch' path in git patch step")
 	}
 

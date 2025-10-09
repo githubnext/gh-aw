@@ -57,7 +57,7 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected Playwright MCP configuration to include '--output-dir' argument")
 	}
 
-	if !strings.Contains(lockContentStr, "\"/tmp/mcp-logs/playwright\"") {
+	if !strings.Contains(lockContentStr, "\"/tmp/gh-aw/mcp-logs/playwright\"") {
 		t.Error("Expected Playwright MCP configuration to include '/tmp/mcp-logs/playwright' path")
 	}
 

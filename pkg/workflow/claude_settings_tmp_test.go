@@ -54,33 +54,33 @@ This workflow tests that .claude/settings.json is generated in /tmp directory.
 
 	lockStr := string(lockContent)
 
-	// Test 1: Verify .claude directory is created in /tmp
-	if !strings.Contains(lockStr, "mkdir -p /tmp/.claude") {
-		t.Error("Expected directory creation 'mkdir -p /tmp/.claude' in generated workflow")
+	// Test 1: Verify .claude directory is created in /tmp/gh-aw
+	if !strings.Contains(lockStr, "mkdir -p /tmp/gh-aw/.claude") {
+		t.Error("Expected directory creation 'mkdir -p /tmp/gh-aw/.claude' in generated workflow")
 	}
 
-	// Test 2: Verify settings.json is written to /tmp/.claude/settings.json
-	if !strings.Contains(lockStr, "cat > /tmp/.claude/settings.json") {
-		t.Error("Expected settings file creation 'cat > /tmp/.claude/settings.json' in generated workflow")
+	// Test 2: Verify settings.json is written to /tmp/gh-aw/.claude/settings.json
+	if !strings.Contains(lockStr, "cat > /tmp/gh-aw/.claude/settings.json") {
+		t.Error("Expected settings file creation 'cat > /tmp/gh-aw/.claude/settings.json' in generated workflow")
 	}
 
-	// Test 3: Verify settings parameter points to /tmp/.claude/settings.json
-	if !strings.Contains(lockStr, "--settings /tmp/.claude/settings.json") {
-		t.Error("Expected settings parameter to be '/tmp/.claude/settings.json' in generated workflow")
+	// Test 3: Verify settings parameter points to /tmp/gh-aw/.claude/settings.json
+	if !strings.Contains(lockStr, "--settings /tmp/gh-aw/.claude/settings.json") {
+		t.Error("Expected settings parameter to be '/tmp/gh-aw/.claude/settings.json' in generated workflow")
 	}
 
 	// Test 4: Verify the old paths are not present
-	if strings.Contains(lockStr, "mkdir -p .claude") && !strings.Contains(lockStr, "mkdir -p /tmp/.claude") {
-		t.Error("Found old directory path '.claude' without /tmp prefix in generated workflow")
+	if strings.Contains(lockStr, "mkdir -p .claude") && !strings.Contains(lockStr, "mkdir -p /tmp/gh-aw/.claude") {
+		t.Error("Found old directory path '.claude' without /tmp/gh-aw prefix in generated workflow")
 	}
 
 	if strings.Contains(lockStr, "cat > .claude/settings.json") {
-		t.Error("Found old settings file path '.claude/settings.json' in generated workflow, should use /tmp/.claude/settings.json")
+		t.Error("Found old settings file path '.claude/settings.json' in generated workflow, should use /tmp/gh-aw/.claude/settings.json")
 	}
 
-	if strings.Contains(lockStr, "settings: .claude/settings.json") && !strings.Contains(lockStr, "settings: /tmp/.claude/settings.json") {
-		t.Error("Found old settings parameter '.claude/settings.json' without /tmp prefix in generated workflow")
+	if strings.Contains(lockStr, "settings: .claude/settings.json") && !strings.Contains(lockStr, "settings: /tmp/gh-aw/.claude/settings.json") {
+		t.Error("Found old settings parameter '.claude/settings.json' without /tmp/gh-aw prefix in generated workflow")
 	}
 
-	t.Logf("Successfully verified .claude/settings.json is generated in /tmp directory")
+	t.Logf("Successfully verified .claude/settings.json is generated in /tmp/gh-aw directory")
 }

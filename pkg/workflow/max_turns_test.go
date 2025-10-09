@@ -297,7 +297,7 @@ This tests max-turns feature with custom engine.`
 	}
 
 	// Verify MCP config is generated for custom engine
-	if !strings.Contains(lockContentStr, "/tmp/mcp-config/mcp-servers.json") {
+	if !strings.Contains(lockContentStr, "/tmp/gh-aw/mcp-config/mcp-servers.json") {
 		t.Error("Expected custom engine to generate MCP configuration file")
 	}
 

@@ -68,7 +68,7 @@ Test safe outputs workflow with MCP server integration.
 
 	// Check that the MCP server is configured with correct command
 	if !strings.Contains(yamlStr, `"command": "node"`) ||
-		!strings.Contains(yamlStr, `"/tmp/safe-outputs/mcp-server.cjs"`) {
+		!strings.Contains(yamlStr, `"/tmp/gh-aw/safe-outputs/mcp-server.cjs"`) {
 		t.Error("Expected safe_outputs MCP server to be configured with node command")
 	}
 

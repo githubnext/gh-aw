@@ -51,28 +51,28 @@ This workflow tests that aw_info.json is generated in /tmp directory.
 
 	lockStr := string(lockContent)
 
-	// Test 1: Verify aw_info.json is written to /tmp/aw_info.json
-	if !strings.Contains(lockStr, "const tmpPath = '/tmp/aw_info.json';") {
-		t.Error("Expected tmpPath to be set to '/tmp/aw_info.json' in generated workflow")
+	// Test 1: Verify aw_info.json is written to /tmp/gh-aw/aw_info.json
+	if !strings.Contains(lockStr, "const tmpPath = '/tmp/gh-aw/aw_info.json';") {
+		t.Error("Expected tmpPath to be set to '/tmp/gh-aw/aw_info.json' in generated workflow")
 	}
 
 	if !strings.Contains(lockStr, "fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));") {
 		t.Error("Expected writeFileSync to use tmpPath variable in generated workflow")
 	}
 
-	// Test 2: Verify upload artifact path points to /tmp/aw_info.json
-	if !strings.Contains(lockStr, "path: /tmp/aw_info.json") {
-		t.Error("Expected upload artifact path to be '/tmp/aw_info.json' in generated workflow")
+	// Test 2: Verify upload artifact path points to /tmp/gh-aw/aw_info.json
+	if !strings.Contains(lockStr, "path: /tmp/gh-aw/aw_info.json") {
+		t.Error("Expected upload artifact path to be '/tmp/gh-aw/aw_info.json' in generated workflow")
 	}
 
 	// Test 3: Verify the old hardcoded path is not present
 	if strings.Contains(lockStr, "fs.writeFileSync('aw_info.json'") {
-		t.Error("Found old hardcoded path 'aw_info.json' in generated workflow, should use /tmp/aw_info.json")
+		t.Error("Found old hardcoded path 'aw_info.json' in generated workflow, should use /tmp/gh-aw/aw_info.json")
 	}
 
-	if strings.Contains(lockStr, "path: aw_info.json") && !strings.Contains(lockStr, "path: /tmp/aw_info.json") {
-		t.Error("Found old artifact path 'aw_info.json' without /tmp prefix in generated workflow")
+	if strings.Contains(lockStr, "path: aw_info.json") && !strings.Contains(lockStr, "path: /tmp/gh-aw/aw_info.json") {
+		t.Error("Found old artifact path 'aw_info.json' without /tmp/gh-aw prefix in generated workflow")
 	}
 
-	t.Logf("Successfully verified aw_info.json is generated in /tmp directory")
+	t.Logf("Successfully verified aw_info.json is generated in /tmp/gh-aw directory")
 }

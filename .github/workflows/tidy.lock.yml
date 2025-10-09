@@ -329,7 +329,7 @@ jobs:
     concurrency:
       group: "gh-aw-copilot"
     env:
-      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{},\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -350,6 +350,10 @@ jobs:
           go-version-file: go.mod
       - name: Dev dependencies
         run: make deps-dev
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw
+          echo "Created /tmp/gh-aw directory for agentic workflow temporary files"
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -415,7 +419,7 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
               debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -448,7 +452,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
             if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
               debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -586,7 +590,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -1099,7 +1103,7 @@ jobs:
               "safe_outputs": {
                 "type": "local",
                 "command": "node",
-                "args": ["/tmp/safe-outputs/mcp-server.cjs"],
+                "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
@@ -1118,7 +1122,7 @@ jobs:
           echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
@@ -1228,7 +1232,7 @@ jobs:
           EOF
       - name: Append safe outputs instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1283,7 +1287,7 @@ jobs:
           EOF
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1325,8 +1329,8 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            // Write to /tmp directory to avoid inclusion in PR
-            const tmpPath = '/tmp/aw_info.json';
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
@@ -1343,7 +1347,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw_info.json
-          path: /tmp/aw_info.json
+          path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
@@ -1425,11 +1429,11 @@ jobs:
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(make:*)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool write --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(make:*)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool write --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
@@ -1437,10 +1441,10 @@ jobs:
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/agent-stdio.log
+          touch /tmp/gh-aw/agent-stdio.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Print Safe Outputs
         env:
@@ -2184,7 +2188,7 @@ jobs:
                 items: parsedItems,
                 errors: errors,
               };
-              const agentOutputFile = "/tmp/agent_output.json";
+              const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
                 fs.mkdirSync("/tmp", { recursive: true });
@@ -2227,8 +2231,8 @@ jobs:
         with:
           script: |
             /**
-             * Redacts secrets from files in /tmp directory before uploading artifacts
-             * This script processes all .txt, .json, .log files under /tmp and redacts
+             * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
+             * This script processes all .txt, .json, .log files under /tmp/gh-aw and redacts
              * any strings matching the actual secret values provided via environment variables.
              */
             const fs = require("fs");
@@ -2330,7 +2334,7 @@ jobs:
                 core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
                 return;
               }
-              core.info("Starting secret redaction in /tmp directory");
+              core.info("Starting secret redaction in /tmp/gh-aw directory");
               try {
                 // Parse the comma-separated list of secret names
                 const secretNameList = secretNames.split(",").filter(name => name.trim());
@@ -2350,9 +2354,9 @@ jobs:
                   return;
                 }
                 core.info(`Found ${secretValues.length} secret(s) to redact`);
-                // Find all target files in /tmp directory
+                // Find all target files in /tmp/gh-aw directory
                 const targetExtensions = [".txt", ".json", ".log"];
-                const files = findFiles("/tmp", targetExtensions);
+                const files = findFiles("/tmp/gh-aw", targetExtensions);
                 core.info(`Found ${files.length} file(s) to scan for secrets`);
                 let totalRedactions = 0;
                 let filesWithRedactions = 0;
@@ -2385,20 +2389,20 @@ jobs:
         with:
           name: agent_outputs
           path: |
-            /tmp/.copilot/logs/
+            /tmp/gh-aw/.copilot/logs/
           if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mcp-logs
-          path: /tmp/mcp-logs/
+          path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function main() {
@@ -2945,13 +2949,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-stdio.log
-          path: /tmp/agent-stdio.log
+          path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"authentication failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Authentication failure with Copilot CLI\"},{\"pattern\":\"error.*token.*invalid\",\"level_group\":0,\"message_group\":0,\"description\":\"Invalid token error with Copilot CLI (requires error context)\"},{\"pattern\":\"not authorized.*copilot\",\"level_group\":0,\"message_group\":0,\"description\":\"Not authorized for Copilot CLI access\"},{\"pattern\":\"command not found:\\\\s*(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error\"},{\"pattern\":\"(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (alternate format)\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (sh format)\"},{\"pattern\":\"bash:\\\\s*(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Bash command not found error\"},{\"pattern\":\"permission denied and could not request permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied error\"},{\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"pattern\":\"Error:\\\\s*Cannot find module\\\\s*'(.+)'\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*Permission denied\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell permission denied error\"}]"
         with:
           script: |
@@ -3123,20 +3127,20 @@ jobs:
                 echo "Using merge-base as base: $BASE_REF"
               fi
               # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
               echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
             else
               echo "Branch $BRANCH_NAME does not exist, no patch"
             fi
           fi
           # Show patch info if it exists
-          if [ -f /tmp/aw.patch ]; then
-            ls -la /tmp/aw.patch
+          if [ -f /tmp/gh-aw/aw.patch ]; then
+            ls -la /tmp/gh-aw/aw.patch
             # Show the first 50 lines of the patch for review
             echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
             echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
             echo '...' >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
@@ -3162,13 +3166,13 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
           name: aw.patch
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Echo agent outputs
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
@@ -3186,7 +3190,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const patchPath = '/tmp/threat-detection/aw.patch';
+            const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
               try {
@@ -3250,9 +3254,9 @@ jobs:
             if (customPrompt) {
               promptContent += '\n\n## Additional Instructions\n\n' + customPrompt;
             }
-            fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
-            fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
-            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+            fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
+            fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
+            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
               .addHeading('Threat Detection Prompt', 2)
               .addRaw('\n')
@@ -3261,8 +3265,8 @@ jobs:
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log
         run: |
-          mkdir -p /tmp/threat-detection
-          touch /tmp/threat-detection/detection.log
+          mkdir -p /tmp/gh-aw/threat-detection
+          touch /tmp/gh-aw/threat-detection/detection.log
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -3275,20 +3279,20 @@ jobs:
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/ --log-level all --log-dir /tmp/.copilot/logs/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/threat-detection/detection.log
+          touch /tmp/gh-aw/threat-detection/detection.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
@@ -3296,7 +3300,7 @@ jobs:
           script: |
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
-              const outputPath = '/tmp/threat-detection/agent_output.json';
+              const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
               if (fs.existsSync(outputPath)) {
                 const outputContent = fs.readFileSync(outputPath, 'utf8');
                 const lines = outputContent.split('\n');
@@ -3330,7 +3334,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: threat-detection.log
-          path: /tmp/threat-detection/detection.log
+          path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
   create_pull_request:
@@ -3399,7 +3403,7 @@ jobs:
                 core.info("Agent output content is empty");
               }
               const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/aw.patch")) {
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
                 const message = "No patch file found - cannot create pull request without changes";
                 if (isStaged) {
                   let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
@@ -3421,7 +3425,7 @@ jobs:
                     return;
                 }
               }
-              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
               if (patchContent.includes("Failed to generate patch")) {
                 const message = "Patch file contains error message - cannot create pull request without changes";
                 if (isStaged) {
@@ -3510,8 +3514,8 @@ jobs:
                 if (pullRequestItem.body) {
                   summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
                 }
-                if (fs.existsSync("/tmp/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
                     summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -3796,7 +3800,7 @@ jobs:
               }
               const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
               const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/aw.patch")) {
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
                 const message = "No patch file found - cannot push without changes";
                 switch (ifNoChanges) {
                   case "error":
@@ -3810,7 +3814,7 @@ jobs:
                     return;
                 }
               }
-              const patchContent = fs.readFileSync("/tmp/aw.patch", "utf8");
+              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
               if (patchContent.includes("Failed to generate patch")) {
                 const message = "Patch file contains error message - cannot push without changes";
                 switch (ifNoChanges) {
@@ -3881,8 +3885,8 @@ jobs:
                 if (pushItem.commit_message) {
                   summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
                 }
-                if (fs.existsSync("/tmp/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/aw.patch", "utf8");
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
                     summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;

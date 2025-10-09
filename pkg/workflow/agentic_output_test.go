@@ -283,22 +283,22 @@ This workflow tests that /tmp/ files are excluded from cleanup.
 
 	lockStr := string(lockContent)
 
-	// Verify that the upload step includes the /tmp/ path (artifact should still be uploaded)
-	if !strings.Contains(lockStr, "/tmp/.copilot/logs/") {
-		t.Error("Expected upload artifact path to include '/tmp/.copilot/logs/' in generated workflow")
+	// Verify that the upload step includes the /tmp/gh-aw/ path (artifact should still be uploaded)
+	if !strings.Contains(lockStr, "/tmp/gh-aw/.copilot/logs/") {
+		t.Error("Expected upload artifact path to include '/tmp/gh-aw/.copilot/logs/' in generated workflow")
 	}
 
-	// Verify that the cleanup step does NOT include rm commands for /tmp/ paths
-	if strings.Contains(lockStr, "rm -fr /tmp/.copilot/logs/") {
-		t.Error("Cleanup step should NOT include 'rm -fr /tmp/.copilot/logs/' command")
+	// Verify that the cleanup step does NOT include rm commands for /tmp/gh-aw/ paths
+	if strings.Contains(lockStr, "rm -fr /tmp/gh-aw/.copilot/logs/") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/gh-aw/.copilot/logs/' command")
 	}
 
-	// Verify that cleanup step does NOT exist when all files are in /tmp/
+	// Verify that cleanup step does NOT exist when all files are in /tmp/gh-aw/
 	if strings.Contains(lockStr, "- name: Clean up engine output files") {
-		t.Error("Cleanup step should NOT be present when all output files are in /tmp/")
+		t.Error("Cleanup step should NOT be present when all output files are in /tmp/gh-aw/")
 	}
 
-	t.Log("Successfully verified that /tmp/ files are excluded from cleanup step while still being uploaded as artifacts")
+	t.Log("Successfully verified that /tmp/gh-aw/ files are excluded from cleanup step while still being uploaded as artifacts")
 }
 
 func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
@@ -443,11 +443,11 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 	// Test the cleanup logic directly with mixed paths to ensure proper filtering
 	var yaml strings.Builder
 
-	// Simulate mixed output files: some in /tmp/, some in workspace
+	// Simulate mixed output files: some in /tmp/gh-aw/, some in workspace
 	mockOutputFiles := []string{
-		"/tmp/logs/debug.log",
+		"/tmp/gh-aw/logs/debug.log",
 		"workspace-output/results.txt",
-		"/tmp/.cache/data.json",
+		"/tmp/gh-aw/.cache/data.json",
 		"build/artifacts.zip",
 	}
 
@@ -471,25 +471,25 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 	result := yaml.String()
 
 	// Verify that all files are included in the upload step
-	if !strings.Contains(result, "/tmp/logs/debug.log") {
-		t.Error("Expected /tmp/logs/debug.log to be included in upload step")
+	if !strings.Contains(result, "/tmp/gh-aw/logs/debug.log") {
+		t.Error("Expected /tmp/gh-aw/logs/debug.log to be included in upload step")
 	}
 	if !strings.Contains(result, "workspace-output/results.txt") {
 		t.Error("Expected workspace-output/results.txt to be included in upload step")
 	}
-	if !strings.Contains(result, "/tmp/.cache/data.json") {
-		t.Error("Expected /tmp/.cache/data.json to be included in upload step")
+	if !strings.Contains(result, "/tmp/gh-aw/.cache/data.json") {
+		t.Error("Expected /tmp/gh-aw/.cache/data.json to be included in upload step")
 	}
 	if !strings.Contains(result, "build/artifacts.zip") {
 		t.Error("Expected build/artifacts.zip to be included in upload step")
 	}
 
 	// Verify that only workspace files are included in cleanup step
-	if strings.Contains(result, "rm -fr /tmp/logs/debug.log") {
-		t.Error("Cleanup step should NOT include 'rm -fr /tmp/logs/debug.log' command")
+	if strings.Contains(result, "rm -fr /tmp/gh-aw/logs/debug.log") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/gh-aw/logs/debug.log' command")
 	}
-	if strings.Contains(result, "rm -fr /tmp/.cache/data.json") {
-		t.Error("Cleanup step should NOT include 'rm -fr /tmp/.cache/data.json' command")
+	if strings.Contains(result, "rm -fr /tmp/gh-aw/.cache/data.json") {
+		t.Error("Cleanup step should NOT include 'rm -fr /tmp/gh-aw/.cache/data.json' command")
 	}
 	if !strings.Contains(result, "rm -fr workspace-output/results.txt") {
 		t.Error("Cleanup step should include 'rm -fr workspace-output/results.txt' command")
@@ -498,21 +498,21 @@ func TestEngineOutputCleanupWithMixedPaths(t *testing.T) {
 		t.Error("Cleanup step should include 'rm -fr build/artifacts.zip' command")
 	}
 
-	t.Log("Successfully verified that mixed path cleanup properly filters /tmp/ files")
+	t.Log("Successfully verified that mixed path cleanup properly filters /tmp/gh-aw/ files")
 }
 
 func TestGenerateCleanupStep(t *testing.T) {
 	// Test the generateCleanupStep function directly to demonstrate its testability
 
-	// Test case 1: Only /tmp/ files - should not generate cleanup step
-	tmpOnlyFiles := []string{"/tmp/logs/debug.log", "/tmp/.cache/data.json"}
+	// Test case 1: Only /tmp/gh-aw/ files - should not generate cleanup step
+	tmpOnlyFiles := []string{"/tmp/gh-aw/logs/debug.log", "/tmp/gh-aw/.cache/data.json"}
 	cleanupYaml, hasCleanup := generateCleanupStep(tmpOnlyFiles)
 
 	if hasCleanup {
-		t.Error("Expected no cleanup step for /tmp/ only files")
+		t.Error("Expected no cleanup step for /tmp/gh-aw/ only files")
 	}
 	if cleanupYaml != "" {
-		t.Error("Expected empty cleanup YAML for /tmp/ only files")
+		t.Error("Expected empty cleanup YAML for /tmp/gh-aw/ only files")
 	}
 
 	// Test case 2: Only workspace files - should generate cleanup step
@@ -530,17 +530,17 @@ func TestGenerateCleanupStep(t *testing.T) {
 	}
 
 	// Test case 3: Mixed files - should generate cleanup step only for workspace files
-	mixedFiles := []string{"/tmp/debug.log", "workspace/output.txt", "/tmp/.cache/data.json"}
+	mixedFiles := []string{"/tmp/gh-aw/debug.log", "workspace/output.txt", "/tmp/gh-aw/.cache/data.json"}
 	cleanupYaml, hasCleanup = generateCleanupStep(mixedFiles)
 
 	if !hasCleanup {
 		t.Error("Expected cleanup step for mixed files containing workspace files")
 	}
-	if strings.Contains(cleanupYaml, "rm -fr /tmp/debug.log") {
-		t.Error("Cleanup YAML should NOT contain /tmp/ files")
+	if strings.Contains(cleanupYaml, "rm -fr /tmp/gh-aw/debug.log") {
+		t.Error("Cleanup YAML should NOT contain /tmp/gh-aw/ files")
 	}
-	if strings.Contains(cleanupYaml, "rm -fr /tmp/.cache/data.json") {
-		t.Error("Cleanup YAML should NOT contain /tmp/ files")
+	if strings.Contains(cleanupYaml, "rm -fr /tmp/gh-aw/.cache/data.json") {
+		t.Error("Cleanup YAML should NOT contain /tmp/gh-aw/ files")
 	}
 	if !strings.Contains(cleanupYaml, "rm -fr workspace/output.txt") {
 		t.Error("Expected cleanup YAML to contain workspace files")

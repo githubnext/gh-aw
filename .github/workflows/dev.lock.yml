@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     env:
-      GITHUB_AW_SAFE_OUTPUTS: /tmp/safe-outputs/outputs.jsonl
+      GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
@@ -160,18 +160,22 @@ jobs:
       - name: Check gopls version
         run: gopls version
 
+      - name: Create gh-aw temp directory
+        run: |
+          mkdir -p /tmp/gh-aw
+          echo "Created /tmp/gh-aw directory for agentic workflow temporary files"
       # Cache memory file share configuration from frontmatter processed below
       - name: Create cache-memory directory
         run: |
-          mkdir -p /tmp/cache-memory
-          echo "Cache memory directory created at /tmp/cache-memory"
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
           echo "This folder provides persistent file storage across workflow runs"
           echo "LLMs and agentic tools can freely read and write files in this directory"
       - name: Cache memory file share data
         uses: actions/cache@v4
         with:
           key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/cache-memory
+          path: /tmp/gh-aw/cache-memory
           restore-keys: |
             memory-${{ github.workflow }}-
             memory-
@@ -179,7 +183,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cache-memory
-          path: /tmp/cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -245,7 +249,7 @@ jobs:
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
-              const defaultConfigPath = "/tmp/safe-outputs/config.json";
+              const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
               debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
               try {
                 if (fs.existsSync(defaultConfigPath)) {
@@ -278,7 +282,7 @@ jobs:
             }
             const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw).map(([k, v]) => [k.replace(/-/g, "_"), v]));
             debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
-            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
+            const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
             if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
               debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
               const outputDir = path.dirname(outputFile);
@@ -416,7 +420,7 @@ jobs:
               if (!allowedExts.includes(ext)) {
                 throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
               }
-              const assetsDir = "/tmp/safe-outputs/assets";
+              const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
               if (!fs.existsSync(assetsDir)) {
                 fs.mkdirSync(assetsDir, { recursive: true });
               }
@@ -929,7 +933,7 @@ jobs:
           [mcp_servers.safe_outputs]
           command = "node"
           args = [
-            "/tmp/safe-outputs/mcp-server.cjs",
+            "/tmp/gh-aw/safe-outputs/mcp-server.cjs",
           ]
           env = { "GITHUB_AW_SAFE_OUTPUTS" = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}", "GITHUB_AW_SAFE_OUTPUTS_CONFIG" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, "GITHUB_AW_ASSETS_BRANCH" = "${{ env.GITHUB_AW_ASSETS_BRANCH }}", "GITHUB_AW_ASSETS_MAX_SIZE_KB" = "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}", "GITHUB_AW_ASSETS_ALLOWED_EXTS" = "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}" }
           
@@ -948,7 +952,7 @@ jobs:
           EOF
       - name: Create prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
@@ -996,7 +1000,7 @@ jobs:
           EOF
       - name: Append cache memory instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1004,7 +1008,7 @@ jobs:
           
           ## Cache Folder Available
           
-          You have access to a persistent cache folder at `/tmp/cache-memory/` where you can read and write files to create memories and store information.
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
           
           - **Read/Write Access**: You can freely read from and write to any files in this folder
           - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
@@ -1012,16 +1016,16 @@ jobs:
           - **File Share**: Use this as a simple file share - organize files as you see fit
           
           Examples of what you can store:
-          - `/tmp/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/cache-memory/history.log` - activity history and logs
-          - `/tmp/cache-memory/state/` - organized state files in subdirectories
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           EOF
       - name: Append safe outputs instructions to prompt
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           cat >> $GITHUB_AW_PROMPT << 'EOF'
           
@@ -1042,7 +1046,7 @@ jobs:
           EOF
       - name: Print prompt to step summary
         env:
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
           echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1084,8 +1088,8 @@ jobs:
               created_at: new Date().toISOString()
             };
             
-            // Write to /tmp directory to avoid inclusion in PR
-            const tmpPath = '/tmp/aw_info.json';
+            // Write to /tmp/gh-aw directory to avoid inclusion in PR
+            const tmpPath = '/tmp/gh-aw/aw_info.json';
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
@@ -1102,7 +1106,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aw_info.json
-          path: /tmp/aw_info.json
+          path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Run Codex
         run: |
@@ -1113,21 +1117,21 @@ jobs:
           mkdir -p /tmp/aw-logs
           which codex
           codex --version
-          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/agent-stdio.log
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/agent-stdio.log
+          touch /tmp/gh-aw/agent-stdio.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/agent-stdio.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/agent-stdio.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Print Safe Outputs
         env:
@@ -1871,7 +1875,7 @@ jobs:
                 items: parsedItems,
                 errors: errors,
               };
-              const agentOutputFile = "/tmp/agent_output.json";
+              const agentOutputFile = "/tmp/gh-aw/agent_output.json";
               const validatedOutputJson = JSON.stringify(validatedOutput);
               try {
                 fs.mkdirSync("/tmp", { recursive: true });
@@ -1913,13 +1917,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mcp-logs
-          path: /tmp/mcp-logs/
+          path: /tmp/gh-aw/mcp-logs/
           if-no-files-found: ignore
       - name: Parse agent logs for step summary
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function main() {
@@ -2136,13 +2140,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agent-stdio.log
-          path: /tmp/agent-stdio.log
+          path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/agent-stdio.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
           GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"failed in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool failed due to permission error\"},{\"pattern\":\"error in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool error due to permission issue\"}]"
         with:
           script: |
@@ -2263,13 +2267,13 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
           name: aw.patch
-          path: /tmp/threat-detection/
+          path: /tmp/gh-aw/threat-detection/
       - name: Echo agent outputs
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
@@ -2287,7 +2291,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const patchPath = '/tmp/threat-detection/aw.patch';
+            const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
               try {
@@ -2351,9 +2355,9 @@ jobs:
             if (customPrompt) {
               promptContent += '\n\n## Additional Instructions\n\n' + customPrompt;
             }
-            fs.mkdirSync('/tmp/aw-prompts', { recursive: true });
-            fs.writeFileSync('/tmp/aw-prompts/prompt.txt', promptContent);
-            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/aw-prompts/prompt.txt');
+            fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
+            fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
+            core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
               .addHeading('Threat Detection Prompt', 2)
               .addRaw('\n')
@@ -2362,8 +2366,8 @@ jobs:
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log
         run: |
-          mkdir -p /tmp/threat-detection
-          touch /tmp/threat-detection/detection.log
+          mkdir -p /tmp/gh-aw/threat-detection
+          touch /tmp/gh-aw/threat-detection/detection.log
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -2379,19 +2383,19 @@ jobs:
           mkdir -p /tmp/aw-logs
           which codex
           codex --version
-          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/threat-detection/detection.log
+          codex exec --full-auto --skip-git-repo-check "$INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
-          GITHUB_AW_MCP_CONFIG: /tmp/mcp-config/config.toml
-          GITHUB_AW_PROMPT: /tmp/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
       - name: Print agent log
         if: always()
         run: |
-          touch /tmp/threat-detection/detection.log
+          touch /tmp/gh-aw/threat-detection/detection.log
           echo "## Agent Log" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
+          cat /tmp/gh-aw/threat-detection/detection.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Parse threat detection results
         uses: actions/github-script@v8
@@ -2399,7 +2403,7 @@ jobs:
           script: |
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
-              const outputPath = '/tmp/threat-detection/agent_output.json';
+              const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
               if (fs.existsSync(outputPath)) {
                 const outputContent = fs.readFileSync(outputPath, 'utf8');
                 const lines = outputContent.split('\n');
@@ -2433,7 +2437,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: threat-detection.log
-          path: /tmp/threat-detection/detection.log
+          path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
   create_issue:
