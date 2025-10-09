@@ -110,18 +110,25 @@ function parseCodexLog(logContent) {
     // Extract metadata from Codex logs
     let totalTokens = 0;
 
-    // TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
+    // Old TypeScript format: TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
     const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
     for (const match of tokenCountMatches) {
       const tokens = parseInt(match[1]);
       totalTokens = Math.max(totalTokens, tokens); // Use the highest value (final total)
     }
 
-    // Also check for "tokens used\n<number>" at the end (number may have commas)
-    const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
-    if (finalTokensMatch) {
-      // Remove commas before parsing
-      totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+    // New Rust format: "tokens used: <number>" or "tokens used\n<number>"
+    // Check for inline format first: "tokens used: 15234"
+    const inlineTokensMatch = logContent.match(/tokens used:\s*([\d,]+)/);
+    if (inlineTokensMatch) {
+      totalTokens = parseInt(inlineTokensMatch[1].replace(/,/g, ""));
+    } else {
+      // Fallback to newline format: "tokens used\n<number>"
+      const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+      if (finalTokensMatch) {
+        // Remove commas before parsing
+        totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+      }
     }
 
     if (totalTokens > 0) {

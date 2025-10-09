@@ -2085,9 +2085,14 @@ jobs:
                   const tokens = parseInt(match[1]);
                   totalTokens = Math.max(totalTokens, tokens); 
                 }
-                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
-                if (finalTokensMatch) {
-                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+                const inlineTokensMatch = logContent.match(/tokens used:\s*([\d,]+)/);
+                if (inlineTokensMatch) {
+                  totalTokens = parseInt(inlineTokensMatch[1].replace(/,/g, ""));
+                } else {
+                  const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+                  if (finalTokensMatch) {
+                    totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
+                  }
                 }
                 if (totalTokens > 0) {
                   markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
