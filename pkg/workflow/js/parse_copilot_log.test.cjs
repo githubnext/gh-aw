@@ -430,7 +430,7 @@ describe("parse_copilot_log.cjs", () => {
       scriptFunction();
       await global.testMain();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Log file not found: /nonexistent/file.log");
+      expect(mockCore.info).toHaveBeenCalledWith("No agent log content found");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -443,7 +443,7 @@ describe("parse_copilot_log.cjs", () => {
       scriptFunction();
       await global.testMain();
 
-      expect(mockCore.info).toHaveBeenCalledWith("No agent log file specified");
+      expect(mockCore.info).toHaveBeenCalledWith("No agent log file or output files specified");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
@@ -556,8 +556,23 @@ describe("parse_copilot_log.cjs", () => {
     };
 
     it("should find agentic output in a file path", async () => {
-      const outputContent = "# Agentic Output\n\nThis is the final output from the agent.";
-      const outputFile = path.join(tempDir, "agentic-output.md");
+      // Use valid Copilot log JSON format
+      const outputContent = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-session",
+          tools: ["Bash"],
+          model: "gpt-5",
+        },
+        {
+          type: "result",
+          total_cost_usd: 0.001,
+          usage: { input_tokens: 50, output_tokens: 25 },
+          num_turns: 1,
+        },
+      ]);
+      const outputFile = path.join(tempDir, "agentic-output.json");
       fs.writeFileSync(outputFile, outputContent);
 
       // Set the declared output files environment variable
@@ -565,15 +580,24 @@ describe("parse_copilot_log.cjs", () => {
 
       await runMainFunction();
 
-      // Verify that the agentic output was found and used
-      expect(mockCore.info).toHaveBeenCalledWith("Found agentic output in declared output files");
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(outputContent);
+      // Verify that the agentic output was found and parsed
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("🚀 Initialization");
       expect(mockCore.summary.write).toHaveBeenCalled();
     });
 
     it("should find agentic output in a directory path", async () => {
-      const outputContent = "# Agent Summary\n\nTask completed successfully.";
-      const outputFile = path.join(tempDir, "output.md");
+      // Use valid Copilot log JSON format
+      const outputContent = JSON.stringify([
+        {
+          type: "result",
+          total_cost_usd: 0.002,
+          usage: { input_tokens: 100, output_tokens: 50 },
+          num_turns: 2,
+        },
+      ]);
+      const outputFile = path.join(tempDir, "output.json");
       fs.writeFileSync(outputFile, outputContent);
 
       // Set the declared output files environment variable to the directory
@@ -581,22 +605,40 @@ describe("parse_copilot_log.cjs", () => {
 
       await runMainFunction();
 
-      // Verify that the agentic output was found and used
-      expect(mockCore.info).toHaveBeenCalledWith("Found agentic output in declared output files");
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(outputContent);
+      // Verify that the agentic output was found and parsed
+      expect(mockCore.summary.addRaw).toHaveBeenCalled();
+      expect(mockCore.summary.write).toHaveBeenCalled();
     });
 
     it("should search multiple declared paths and stop at first match", async () => {
-      const outputContent1 = "# First Output\n\nThis is from the first path.";
-      const outputContent2 = "# Second Output\n\nThis should not be used.";
+      // Use valid Copilot log JSON format for first file
+      const outputContent1 = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "first-test",
+          tools: ["Bash"],
+          model: "gpt-5",
+        },
+      ]);
+      // Second file should not be used
+      const outputContent2 = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "second-test",
+          tools: ["Bash"],
+          model: "gpt-5",
+        },
+      ]);
 
       const dir1 = path.join(tempDir, "dir1");
       const dir2 = path.join(tempDir, "dir2");
       fs.mkdirSync(dir1);
       fs.mkdirSync(dir2);
 
-      const outputFile1 = path.join(dir1, "agentic-output.md");
-      const outputFile2 = path.join(dir2, "agentic-output.md");
+      const outputFile1 = path.join(dir1, "agentic-output.json");
+      const outputFile2 = path.join(dir2, "agentic-output.json");
       fs.writeFileSync(outputFile1, outputContent1);
       fs.writeFileSync(outputFile2, outputContent2);
 
@@ -605,9 +647,10 @@ describe("parse_copilot_log.cjs", () => {
 
       await runMainFunction();
 
-      // Verify that only the first output was used
-      expect(mockCore.summary.addRaw).toHaveBeenCalledWith(outputContent1);
-      expect(mockCore.summary.addRaw).not.toHaveBeenCalledWith(outputContent2);
+      // Verify that only the first output was used (should contain first-test, not second-test)
+      const summaryCall = mockCore.summary.addRaw.mock.calls[0][0];
+      expect(summaryCall).toContain("first-test");
+      expect(summaryCall).not.toContain("second-test");
     });
 
     it("should fall back to log parsing when no agentic output found", async () => {

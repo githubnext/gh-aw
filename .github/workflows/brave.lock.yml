@@ -2708,32 +2708,29 @@ jobs:
               try {
                 const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
                 const declaredOutputFiles = process.env.GITHUB_AW_DECLARED_OUTPUT_FILES;
+                const outputPaths = [];
                 if (declaredOutputFiles) {
-                  const outputPaths = declaredOutputFiles.split("\n").filter(p => p.trim());
-                  const agenticOutput = findAgenticOutputInPaths(outputPaths);
-                  if (agenticOutput) {
-                    core.info("Found agentic output in declared output files");
-                    core.summary.addRaw(agenticOutput).write();
-                    core.info("Agentic output processed successfully");
-                    return;
+                  outputPaths.push(...declaredOutputFiles.split("\n").filter(p => p.trim()));
+                }
+                if (logFile) {
+                  outputPaths.push(logFile);
+                }
+                if (outputPaths.length === 0) {
+                  core.info("No agent log file or output files specified");
+                  return;
+                }
+                const agenticOutput = findAgenticOutputInPaths(outputPaths);
+                if (agenticOutput) {
+                  const parsedLog = parseCopilotLog(agenticOutput);
+                  if (parsedLog) {
+                    core.info(parsedLog);
+                    core.summary.addRaw(parsedLog).write();
+                    core.info("Copilot log parsed successfully");
+                  } else {
+                    core.error("Failed to parse Copilot log");
                   }
-                }
-                if (!logFile) {
-                  core.info("No agent log file specified");
-                  return;
-                }
-                if (!fs.existsSync(logFile)) {
-                  core.info(`Log file not found: ${logFile}`);
-                  return;
-                }
-                const content = fs.readFileSync(logFile, "utf8");
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
                 } else {
-                  core.error("Failed to parse Copilot log");
+                  core.info("No agent log content found");
                 }
               } catch (error) {
                 core.setFailed(error instanceof Error ? error : String(error));
@@ -2743,6 +2740,7 @@ jobs:
               const fs = require("fs");
               const path = require("path");
               const outputFileNames = ["agentic-output.md", "output.md", "agentic-output.txt", "output.txt"];
+              const validExtensions = [".txt", ".log", ".jsonl", ".json", ".md"];
               for (const outputPath of outputPaths) {
                 if (!outputPath || !outputPath.trim()) {
                   continue;
@@ -2751,16 +2749,18 @@ jobs:
                 try {
                   const stats = fs.statSync(trimmedPath);
                   if (stats.isDirectory()) {
-                    for (const fileName of outputFileNames) {
-                      const filePath = path.join(trimmedPath, fileName);
-                      if (fs.existsSync(filePath)) {
+                    const files = fs.readdirSync(trimmedPath);
+                    for (const file of files) {
+                      const ext = path.extname(file).toLowerCase();
+                      if (validExtensions.includes(ext)) {
+                        const filePath = path.join(trimmedPath, file);
                         core.info(`Found agentic output file: ${filePath}`);
                         return fs.readFileSync(filePath, "utf8");
                       }
                     }
                   } else if (stats.isFile()) {
-                    const fileName = path.basename(trimmedPath);
-                    if (outputFileNames.includes(fileName)) {
+                    const ext = path.extname(trimmedPath).toLowerCase();
+                    if (validExtensions.includes(ext)) {
                       core.info(`Found agentic output file: ${trimmedPath}`);
                       return fs.readFileSync(trimmedPath, "utf8");
                     }

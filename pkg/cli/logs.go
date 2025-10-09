@@ -2095,6 +2095,26 @@ func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose boo
 		return fmt.Errorf("failed to write log file: %w", err)
 	}
 
+	// Get declared output files from the engine and check if they exist in runDir
+	declaredOutputFiles := engine.GetDeclaredOutputFiles()
+	var existingOutputPaths []string
+	for _, outputPath := range declaredOutputFiles {
+		// The declared paths are typically absolute paths like /tmp/gh-aw/.copilot/logs/
+		// We need to check if the corresponding artifact directory exists in runDir
+		// Extract the last component(s) of the path to find in artifact directories
+		baseName := filepath.Base(outputPath)
+		artifactPath := filepath.Join(runDir, baseName)
+		if _, err := os.Stat(artifactPath); err == nil {
+			existingOutputPaths = append(existingOutputPaths, artifactPath)
+		}
+	}
+
+	// Build the environment variable for declared output files
+	declaredOutputFilesEnv := ""
+	if len(existingOutputPaths) > 0 {
+		declaredOutputFilesEnv = strings.Join(existingOutputPaths, "\n")
+	}
+
 	// Create a Node.js script that mimics the GitHub Actions environment
 	nodeScript := fmt.Sprintf(`
 const fs = require('fs');
@@ -2117,11 +2137,15 @@ const core = {
 	},
 	info: function(message) {
 		// Silent in CLI mode
+	},
+	error: function(message) {
+		console.error('ERROR:', message);
 	}
 };
 
 // Set up environment
 process.env.GITHUB_AW_AGENT_OUTPUT = '%s';
+process.env.GITHUB_AW_DECLARED_OUTPUT_FILES = '%s';
 
 // Override require to provide our mock
 const originalRequire = require;
@@ -2134,7 +2158,7 @@ require = function(name) {
 
 // Execute the parser script
 %s
-`, logFile, jsScript)
+`, logFile, declaredOutputFilesEnv, jsScript)
 
 	// Write the Node.js script
 	nodeFile := filepath.Join(tempDir, "parser.js")

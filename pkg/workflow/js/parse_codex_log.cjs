@@ -6,40 +6,34 @@ function main() {
     const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
     const declaredOutputFiles = process.env.GITHUB_AW_DECLARED_OUTPUT_FILES;
 
-    // Try to find agentic output in declared output files first
+    // Build list of paths to check - start with declared output files, then add log file
+    const outputPaths = [];
     if (declaredOutputFiles) {
-      const outputPaths = declaredOutputFiles.split("\n").filter(p => p.trim());
-      const agenticOutput = findAgenticOutputInPaths(outputPaths);
+      outputPaths.push(...declaredOutputFiles.split("\n").filter(p => p.trim()));
+    }
+    if (logFile) {
+      outputPaths.push(logFile);
+    }
 
-      if (agenticOutput) {
-        // Found agentic output, use it instead of parsing log
-        core.info("Found agentic output in declared output files");
-        core.summary.addRaw(agenticOutput).write();
-        core.info("Agentic output processed successfully");
-        return;
+    if (outputPaths.length === 0) {
+      core.info("No agent log file or output files specified");
+      return;
+    }
+
+    // Try to find and parse agentic output from any of the paths
+    const agenticOutput = findAgenticOutputInPaths(outputPaths);
+
+    if (agenticOutput) {
+      const parsedLog = parseCodexLog(agenticOutput);
+      if (parsedLog) {
+        core.info(parsedLog);
+        core.summary.addRaw(parsedLog).write();
+        core.info("Codex log parsed successfully");
+      } else {
+        core.error("Failed to parse Codex log");
       }
-    }
-
-    // Fall back to parsing log file if no agentic output found
-    if (!logFile) {
-      core.info("No agent log file specified");
-      return;
-    }
-
-    if (!fs.existsSync(logFile)) {
-      core.info(`Log file not found: ${logFile}`);
-      return;
-    }
-
-    const content = fs.readFileSync(logFile, "utf8");
-    const parsedLog = parseCodexLog(content);
-
-    if (parsedLog) {
-      core.info(parsedLog);
-      core.summary.addRaw(parsedLog).write();
-      core.info("Codex log parsed successfully");
     } else {
-      core.error("Failed to parse Codex log");
+      core.info("No agent log content found");
     }
   } catch (error) {
     core.setFailed(error instanceof Error ? error : String(error));
@@ -57,6 +51,8 @@ function findAgenticOutputInPaths(outputPaths) {
 
   // Common agentic output file names to search for
   const outputFileNames = ["agentic-output.md", "output.md", "agentic-output.txt", "output.txt"];
+  // Valid file extensions for agentic output
+  const validExtensions = [".txt", ".log", ".jsonl", ".json", ".md"];
 
   for (const outputPath of outputPaths) {
     if (!outputPath || !outputPath.trim()) {
@@ -69,18 +65,20 @@ function findAgenticOutputInPaths(outputPaths) {
       const stats = fs.statSync(trimmedPath);
 
       if (stats.isDirectory()) {
-        // Search for common output file names in the directory
-        for (const fileName of outputFileNames) {
-          const filePath = path.join(trimmedPath, fileName);
-          if (fs.existsSync(filePath)) {
+        // Search for any file with valid extensions in the directory
+        const files = fs.readdirSync(trimmedPath);
+        for (const file of files) {
+          const ext = path.extname(file).toLowerCase();
+          if (validExtensions.includes(ext)) {
+            const filePath = path.join(trimmedPath, file);
             core.info(`Found agentic output file: ${filePath}`);
             return fs.readFileSync(filePath, "utf8");
           }
         }
       } else if (stats.isFile()) {
-        // If it's a file, check if it's one of the expected output files
-        const fileName = path.basename(trimmedPath);
-        if (outputFileNames.includes(fileName)) {
+        // If it's a file, check if it has a valid extension
+        const ext = path.extname(trimmedPath).toLowerCase();
+        if (validExtensions.includes(ext)) {
           core.info(`Found agentic output file: ${trimmedPath}`);
           return fs.readFileSync(trimmedPath, "utf8");
         }
