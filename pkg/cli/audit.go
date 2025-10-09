@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -153,7 +154,12 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 		// Download artifacts for the run
 		err := downloadRunArtifacts(runID, runOutputDir, verbose)
 		if err != nil {
-			if isPermissionError(err) {
+			// Gracefully handle cases where the run legitimately has no artifacts
+			if errors.Is(err, ErrNoArtifacts) {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No artifacts attached to this run. Proceeding with metadata-only audit."))
+				}
+			} else if isPermissionError(err) {
 				if hasLocalCache {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Artifact download failed due to permissions, but found locally cached artifacts. Processing cached data..."))
 					useLocalCache = true
@@ -235,6 +241,22 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 	// Generate and display report
 	report := generateAuditReport(processedRun, metrics)
 	fmt.Println(report)
+
+	// Always attempt to render agentic log (similar to `logs --parse`) if engine & logs are available
+	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
+	// We intentionally do not fail the audit on parse errors; they are reported as warnings.
+	awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+	if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
+		if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
+			}
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No agent logs found to parse or no parser available"))
+		}
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
+	}
 
 	// Display logs location
 	absOutputDir, _ := filepath.Abs(runOutputDir)
@@ -417,13 +439,13 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 		artifacts = append(artifacts, "aw_info.json (engine configuration)")
 	}
 	if _, err := os.Stat(filepath.Join(run.LogsPath, "safe_output.jsonl")); err == nil {
-		artifacts = append(artifacts, "safe_output.jsonl (agent output)")
+		artifacts = append(artifacts, "safe_output.jsonl (safe outputs)")
 	}
 	if _, err := os.Stat(filepath.Join(run.LogsPath, "aw.patch")); err == nil {
 		artifacts = append(artifacts, "aw.patch (code changes)")
 	}
 	if _, err := os.Stat(filepath.Join(run.LogsPath, constants.AgentOutputArtifactName)); err == nil {
-		artifacts = append(artifacts, "agent_output.json (full agent output)")
+		artifacts = append(artifacts, "agent_output.json (validated safe outputs)")
 	}
 
 	if len(artifacts) > 0 {
@@ -431,6 +453,37 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 			report.WriteString(fmt.Sprintf("- %s\n", artifact))
 		}
 		report.WriteString("\n")
+	}
+
+	// Enumerate all files/directories present (top-level) to show full artifact set
+	entries, err := os.ReadDir(run.LogsPath)
+	if err == nil && len(entries) > 0 {
+		report.WriteString("### All Downloaded Entries (top-level)\n\n")
+		maxList := 100
+		shown := 0
+		for _, e := range entries {
+			if shown >= maxList {
+				break
+			}
+			name := e.Name()
+			full := filepath.Join(run.LogsPath, name)
+			var sizeInfo string
+			if info, statErr := os.Stat(full); statErr == nil && !info.IsDir() {
+				sizeInfo = fmt.Sprintf(" (%d bytes)", info.Size())
+			}
+			if e.IsDir() {
+				report.WriteString(fmt.Sprintf("- %s/\n", name))
+			} else {
+				report.WriteString(fmt.Sprintf("- %s%s\n", name, sizeInfo))
+			}
+			shown++
+		}
+		if len(entries) > maxList {
+			report.WriteString(fmt.Sprintf("- ... %d more entries omitted\n", len(entries)-maxList))
+		}
+		report.WriteString("\n")
+	} else if err == nil && len(entries) == 0 {
+		report.WriteString("(No artifact or log files were present for this run)\n\n")
 	}
 
 	return report.String()

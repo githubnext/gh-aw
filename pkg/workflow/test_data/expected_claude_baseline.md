@@ -50,7 +50,7 @@
 I'll help you try to call the `draw_pelican` tool. Let me first check if there's an existing execution plan, then attempt to call the tool.
 
 <details>
-<summary>✅ Read `/tmp/gh-aw/cache-memory/plan.md`</summary>
+<summary>✅ Read <code>/tmp/gh-aw/cache-memory/plan.md</code></summary>
 
 `````
      1→# Execution Plan: Draw Pelican Tool
@@ -85,7 +85,7 @@ success
 Now let me update the execution plan to reflect the current attempt:
 
 <details>
-<summary>✅ Write `/tmp/gh-aw/cache-memory/plan.md`</summary>
+<summary>✅ Write <code>/tmp/gh-aw/cache-memory/plan.md</code></summary>
 
 `````
 The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
