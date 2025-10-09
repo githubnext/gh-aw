@@ -48,11 +48,35 @@ function parseCodexLog(logContent) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // ToolCall: github__list_pull_requests {...}
+      // Old TypeScript format: ToolCall: github__list_pull_requests {...}
       const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
       if (toolCallMatch) {
         const server = toolCallMatch[1];
         const toolName = toolCallMatch[2];
+
+        // Look ahead to find the result status
+        let statusIcon = "❓"; // Unknown by default
+        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+          const nextLine = lines[j];
+          if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+            statusIcon = "✅";
+            break;
+          } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+            statusIcon = "❌";
+            break;
+          }
+        }
+
+        commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
+        continue;
+      }
+
+      // New Rust format: tool github.list_pull_requests(...)
+      const trimmedLine = line.trim();
+      const rustToolMatch = trimmedLine.match(/^tool\s+(\w+)\.(\w+)\(/);
+      if (rustToolMatch) {
+        const server = rustToolMatch[1];
+        const toolName = rustToolMatch[2];
 
         // Look ahead to find the result status
         let statusIcon = "❓"; // Unknown by default
@@ -104,8 +128,10 @@ function parseCodexLog(logContent) {
       markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
     }
 
-    // Count tool calls
-    const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+    // Count tool calls (support both old and new formats)
+    const oldFormatToolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+    const newFormatToolCalls = (logContent.match(/^tool\s+\w+\.\w+\(/gm) || []).length;
+    const toolCalls = oldFormatToolCalls + newFormatToolCalls;
 
     if (toolCalls > 0) {
       markdown += `**Tool Calls:** ${toolCalls}\n\n`;

@@ -304,7 +304,9 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		}
 
 		// Detect thinking sections as indicators of turns
-		if strings.Contains(line, "] thinking") {
+		// Support both old format: "] thinking" and new Rust format: "thinking" (standalone line)
+		trimmedLine := strings.TrimSpace(line)
+		if strings.Contains(line, "] thinking") || trimmedLine == "thinking" {
 			if !inThinkingSection {
 				turns++
 				inThinkingSection = true
@@ -314,7 +316,8 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 					currentSequence = []string{}
 				}
 			}
-		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") {
+		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") || 
+			strings.HasPrefix(trimmedLine, "tool ") || strings.HasPrefix(trimmedLine, "exec ") {
 			inThinkingSection = false
 		}
 
@@ -365,59 +368,89 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 
 // parseCodexToolCallsWithSequence extracts tool call information from Codex log lines and returns tool name
 func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap map[string]*ToolCallInfo) string {
-	// Parse tool calls: "] tool provider.method(...)"
+	trimmedLine := strings.TrimSpace(line)
+	
+	// Parse tool calls: "] tool provider.method(...)" (old format)
+	// or "tool provider.method(...)" (new Rust format)
+	var toolName string
+	
+	// Try old format first: "] tool provider.method(...)"
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
 		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
-			toolName := strings.TrimSpace(match[1])
-			prettifiedName := PrettifyToolName(toolName)
-
-			// For Codex, format provider.method as provider_method (avoiding colons)
-			if strings.Contains(toolName, ".") {
-				parts := strings.Split(toolName, ".")
-				if len(parts) >= 2 {
-					provider := parts[0]
-					method := strings.Join(parts[1:], "_")
-					prettifiedName = fmt.Sprintf("%s_%s", provider, method)
-				}
-			}
-
-			// Initialize or update tool call info
-			if toolInfo, exists := toolCallMap[prettifiedName]; exists {
-				toolInfo.CallCount++
-			} else {
-				toolCallMap[prettifiedName] = &ToolCallInfo{
-					Name:          prettifiedName,
-					CallCount:     1,
-					MaxOutputSize: 0, // TODO: Extract output size from results if available
-					MaxDuration:   0, // Will be updated when duration is found
-				}
-			}
-
-			return prettifiedName
+			toolName = strings.TrimSpace(match[1])
 		}
 	}
+	
+	// Try new Rust format: "tool provider.method(...)"
+	if toolName == "" && strings.HasPrefix(trimmedLine, "tool ") && strings.Contains(trimmedLine, "(") {
+		if match := regexp.MustCompile(`^tool ([^(]+)\(`).FindStringSubmatch(trimmedLine); len(match) > 1 {
+			toolName = strings.TrimSpace(match[1])
+		}
+	}
+	
+	if toolName != "" {
+		prettifiedName := PrettifyToolName(toolName)
 
-	// Parse exec commands: "] exec command" - treat as bash calls
+		// For Codex, format provider.method as provider_method (avoiding colons)
+		if strings.Contains(toolName, ".") {
+			parts := strings.Split(toolName, ".")
+			if len(parts) >= 2 {
+				provider := parts[0]
+				method := strings.Join(parts[1:], "_")
+				prettifiedName = fmt.Sprintf("%s_%s", provider, method)
+			}
+		}
+
+		// Initialize or update tool call info
+		if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+			toolInfo.CallCount++
+		} else {
+			toolCallMap[prettifiedName] = &ToolCallInfo{
+				Name:          prettifiedName,
+				CallCount:     1,
+				MaxOutputSize: 0, // TODO: Extract output size from results if available
+				MaxDuration:   0, // Will be updated when duration is found
+			}
+		}
+
+		return prettifiedName
+	}
+
+	// Parse exec commands: "] exec command" (old format)
+	// or "exec command in" (new Rust format) - treat as bash calls
+	var execCommand string
+	
+	// Try old format: "] exec command in"
 	if strings.Contains(line, "] exec ") {
 		if match := regexp.MustCompile(`\] exec (.+?) in`).FindStringSubmatch(line); len(match) > 1 {
-			command := strings.TrimSpace(match[1])
-			// Create unique bash entry with command info, avoiding colons
-			uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(command))
-
-			// Initialize or update tool call info
-			if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
-				toolInfo.CallCount++
-			} else {
-				toolCallMap[uniqueBashName] = &ToolCallInfo{
-					Name:          uniqueBashName,
-					CallCount:     1,
-					MaxOutputSize: 0,
-					MaxDuration:   0, // Will be updated when duration is found
-				}
-			}
-
-			return uniqueBashName
+			execCommand = strings.TrimSpace(match[1])
 		}
+	}
+	
+	// Try new Rust format: "exec command in"
+	if execCommand == "" && strings.HasPrefix(trimmedLine, "exec ") {
+		if match := regexp.MustCompile(`^exec (.+?) in`).FindStringSubmatch(trimmedLine); len(match) > 1 {
+			execCommand = strings.TrimSpace(match[1])
+		}
+	}
+	
+	if execCommand != "" {
+		// Create unique bash entry with command info, avoiding colons
+		uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(execCommand))
+
+		// Initialize or update tool call info
+		if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
+			toolInfo.CallCount++
+		} else {
+			toolCallMap[uniqueBashName] = &ToolCallInfo{
+				Name:          uniqueBashName,
+				CallCount:     1,
+				MaxOutputSize: 0,
+				MaxDuration:   0, // Will be updated when duration is found
+			}
+		}
+
+		return uniqueBashName
 	}
 
 	// Parse duration from success/failure lines: "] success in 0.2s" or "] failure in 1.5s"

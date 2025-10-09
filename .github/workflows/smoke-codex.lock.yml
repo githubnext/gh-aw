@@ -2050,6 +2050,25 @@ jobs:
                       }
                     }
                     commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
+                    continue;
+                  }
+                  const trimmedLine = line.trim();
+                  const rustToolMatch = trimmedLine.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (rustToolMatch) {
+                    const server = rustToolMatch[1];
+                    const toolName = rustToolMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
                   }
                 }
                 if (commandSummary.length > 0) {
@@ -2073,7 +2092,9 @@ jobs:
                 if (totalTokens > 0) {
                   markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
                 }
-                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+                const oldFormatToolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
+                const newFormatToolCalls = (logContent.match(/^tool\s+\w+\.\w+\(/gm) || []).length;
+                const toolCalls = oldFormatToolCalls + newFormatToolCalls;
                 if (toolCalls > 0) {
                   markdown += `**Tool Calls:** ${toolCalls}\n\n`;
                 }
