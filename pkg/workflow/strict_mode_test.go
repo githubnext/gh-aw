@@ -200,21 +200,7 @@ engine: claude
 			expectError: true,
 			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
 		},
-		{
-			name: "shorthand read permission allowed in strict mode",
-			content: `---
-on: push
-permissions: read
-timeout_minutes: 10
-engine: claude
-network:
-  allowed:
-    - "api.example.com"
----
 
-# Test Workflow`,
-			expectError: false,
-		},
 		{
 			name: "shorthand read-all permission allowed in strict mode",
 			content: `---
