@@ -209,9 +209,6 @@ gh aw compile --strict
 # Override the AI engine for specific compilation
 gh aw compile --engine copilot
 
-# Skip generating GitHub Copilot instructions and prompt files
-gh aw compile --no-instructions
-
 # Compile all workflows and remove orphaned .lock.yml files
 gh aw compile --purge
 

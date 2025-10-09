@@ -27,7 +27,24 @@ gh extension install githubnext/gh-aw
 
 If this step fails, you may need to use a personal access token or run the [install-gh-aw.sh script](https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/install-gh-aw.sh).
 
-**Step 2 — Add a sample workflow, review and merge**
+**Step 2 — Initialize the repository**
+
+Initialize your repository to set up GitHub Copilot instructions and prompt files:
+
+```bash wrap
+gh aw init
+```
+
+This creates:
+- `.github/instructions/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
+- `.github/prompts/create-agentic-workflow.prompt.md` - The `/create-agentic-workflow` command for Copilot Chat
+- `.github/prompts/create-shared-agentic-workflow.prompt.md` - The `/create-shared-agentic-workflow` command for creating reusable workflow components
+
+:::tip[VS Code integration]
+Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/tools/vscode/) for more details.
+:::
+
+**Step 3 — Add a sample workflow, review and merge**
 
 The easiest way to get started is to add a sample from [The Agentics](https://github.com/githubnext/agentics) collection. From your repository root run:
 
@@ -37,7 +54,7 @@ gh aw add githubnext/agentics/weekly-research --pr
 
 This creates a pull request that adds `.github/workflows/weekly-research.md` and the compiled `.lock.yml`. Review and merge the PR into your repo.
 
-**Step 3 — Add an AI secret**
+**Step 4 — Add an AI secret**
 
 Agentic workflows use a coding agent: GitHub Copilot CLI (default), Claude or Codex.
 
@@ -59,7 +76,7 @@ See [GitHub Tools configuration](/gh-aw/reference/tools/#github-remote-mode) for
 
 For Claude and Codex, see the instructions in [AI Engines](/gh-aw/reference/engines/).
 
-**Step 4 — Trigger a run of the workflow in GitHub Actions**
+**Step 5 — Trigger a run of the workflow in GitHub Actions**
 
 Trigger the workflow immediately in GitHub Actions:
 
