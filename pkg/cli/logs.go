@@ -472,8 +472,8 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			run.TokenUsage = result.Metrics.TokenUsage
 			run.EstimatedCost = result.Metrics.EstimatedCost
 			run.Turns = result.Metrics.Turns
-			run.ErrorCount = result.Metrics.ErrorCount
-			run.WarningCount = result.Metrics.WarningCount
+			run.ErrorCount = workflow.CountErrors(result.Metrics.Errors)
+			run.WarningCount = workflow.CountWarnings(result.Metrics.Errors)
 			run.LogsPath = result.LogsPath
 
 			// Add failed jobs to error count
@@ -979,8 +979,6 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Aggregate metrics
 			metrics.TokenUsage += fileMetrics.TokenUsage
 			metrics.EstimatedCost += fileMetrics.EstimatedCost
-			metrics.ErrorCount += fileMetrics.ErrorCount
-			metrics.WarningCount += fileMetrics.WarningCount
 			if fileMetrics.Turns > metrics.Turns {
 				// For turns, take the maximum rather than summing, since turns represent
 				// the total conversation turns for the entire workflow run
@@ -990,6 +988,12 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			// Aggregate tool sequences and tool calls
 			metrics.ToolSequences = append(metrics.ToolSequences, fileMetrics.ToolSequences...)
 			metrics.ToolCalls = append(metrics.ToolCalls, fileMetrics.ToolCalls...)
+
+			// Aggregate errors and set file path
+			for _, logErr := range fileMetrics.Errors {
+				logErr.File = path // Set the file path for this error
+				metrics.Errors = append(metrics.Errors, logErr)
+			}
 		}
 
 		return nil

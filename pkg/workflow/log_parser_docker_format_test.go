@@ -43,12 +43,13 @@ bfb59b82a9b6: Download complete
 	}
 
 	// Should count all the error lines including MCP server stderr and the initial [ERROR]
-	if metrics.ErrorCount < 5 {
-		t.Errorf("Expected at least 5 errors from various error lines, got %d", metrics.ErrorCount)
+	errorCount := CountErrors(metrics.Errors)
+	if errorCount < 5 {
+		t.Errorf("Expected at least 5 errors from various error lines, got %d", errorCount)
 	}
 
 	t.Logf("Successfully parsed complex docker log with %d errors, %d tokens, cost $%.6f, %d turns",
-		metrics.ErrorCount, metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
+		errorCount, metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 }
 
 func TestParseClaudeLogDockerPullFormatJS(t *testing.T) {

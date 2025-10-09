@@ -74,9 +74,10 @@ func TestCopilotEngineDetectsRealWorldErrors(t *testing.T) {
    Permission denied and could not request permission from user`
 
 	// Test that errors are detected in the log
-	counts := CountErrorsAndWarningsWithPatterns(testLog, patterns)
+	errors := CountErrorsAndWarningsWithPatterns(testLog, patterns)
 
-	if counts.ErrorCount == 0 {
+	errorCount := CountErrors(errors)
+	if errorCount == 0 {
 		t.Error("Expected to detect errors in the log, but found none")
 		t.Log("Log content contains:")
 		t.Log("  - ✗ symbols indicating failed commands")
@@ -85,11 +86,11 @@ func TestCopilotEngineDetectsRealWorldErrors(t *testing.T) {
 	}
 
 	// We should detect at least 3 errors (3 failed commands with ✗ symbol)
-	if counts.ErrorCount < 3 {
-		t.Errorf("Expected at least 3 errors, but detected %d", counts.ErrorCount)
+	if errorCount < 3 {
+		t.Errorf("Expected at least 3 errors, but detected %d", errorCount)
 	}
 
-	t.Logf("Successfully detected %d errors in the workflow log", counts.ErrorCount)
+	t.Logf("Successfully detected %d errors in the workflow log", errorCount)
 }
 
 // TestCopilotEngineDetectsCommandNotFoundInLogs tests detection of command not found errors
@@ -103,13 +104,14 @@ sh: 1: vitest: not found
 make: *** [Makefile:100: test-js] Error 127
 make: *** Waiting for unfinished jobs....`
 
-	counts := CountErrorsAndWarningsWithPatterns(testLog, patterns)
+	errors := CountErrorsAndWarningsWithPatterns(testLog, patterns)
 
-	if counts.ErrorCount == 0 {
+	errorCount := CountErrors(errors)
+	if errorCount == 0 {
 		t.Error("Expected to detect 'vitest: not found' error, but found none")
 	}
 
-	t.Logf("Successfully detected %d errors including command not found", counts.ErrorCount)
+	t.Logf("Successfully detected %d errors including command not found", errorCount)
 }
 
 // TestCopilotEngineDetectsNodeModuleNotFound tests detection of Node.js module errors
@@ -126,11 +128,12 @@ Require stack:
 - /home/runner/work/gh-aw/gh-aw/pkg/workflow/js/test.js
     at Module._resolveFilename (node:internal/modules/cjs/loader:1144:15)`
 
-	counts := CountErrorsAndWarningsWithPatterns(testLog, patterns)
+	errors := CountErrorsAndWarningsWithPatterns(testLog, patterns)
 
-	if counts.ErrorCount == 0 {
+	errorCount := CountErrors(errors)
+	if errorCount == 0 {
 		t.Error("Expected to detect 'Cannot find module' error, but found none")
 	}
 
-	t.Logf("Successfully detected %d errors including module not found", counts.ErrorCount)
+	t.Logf("Successfully detected %d errors including module not found", errorCount)
 }

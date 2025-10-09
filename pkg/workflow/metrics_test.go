@@ -616,3 +616,91 @@ func TestPrettifyToolName(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractErrorMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Simple error message",
+			input:    "Failed to connect to server",
+			expected: "Failed to connect to server",
+		},
+		{
+			name:     "Error with timestamp prefix",
+			input:    "2024-01-01 12:00:00 Connection timeout",
+			expected: "Connection timeout",
+		},
+		{
+			name:     "Error with timestamp and milliseconds",
+			input:    "2024-01-01 12:00:00.123 Connection refused",
+			expected: "Connection refused",
+		},
+		{
+			name:     "Error with bracket timestamp",
+			input:    "[12:00:00] Permission denied",
+			expected: "Permission denied",
+		},
+		{
+			name:     "Error with ERROR prefix",
+			input:    "ERROR: File not found",
+			expected: "File not found",
+		},
+		{
+			name:     "Error with [ERROR] prefix",
+			input:    "[ERROR] Invalid configuration",
+			expected: "Invalid configuration",
+		},
+		{
+			name:     "Warning with WARN prefix",
+			input:    "WARN - Deprecated API usage",
+			expected: "Deprecated API usage",
+		},
+		{
+			name:     "Error with WARNING prefix",
+			input:    "WARNING: Resource limit reached",
+			expected: "Resource limit reached",
+		},
+		{
+			name:     "Timestamp and log level combined",
+			input:    "2024-01-01 12:00:00 ERROR: Failed to initialize",
+			expected: "Failed to initialize",
+		},
+		{
+			name:     "Very long message truncation",
+			input:    "This is a very long error message that exceeds the maximum character limit and should be truncated to prevent overly verbose output in the audit report which could make it harder to read and understand the key issues",
+			expected: "This is a very long error message that exceeds the maximum character limit and should be truncated to prevent overly verbose output in the audit report which could make it harder to read and unders...",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "Only whitespace",
+			input:    "   \t  ",
+			expected: "",
+		},
+		{
+			name:     "Case insensitive ERROR prefix",
+			input:    "error: Connection failed",
+			expected: "Connection failed",
+		},
+		{
+			name:     "Mixed case WARNING prefix",
+			input:    "Warning: Low memory",
+			expected: "Low memory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractErrorMessage(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractErrorMessage(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

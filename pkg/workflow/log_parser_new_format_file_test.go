@@ -17,8 +17,9 @@ func TestParseClaudeLogNewFormatFile(t *testing.T) {
 	metrics := engine.ParseLogMetrics(string(content), true)
 
 	// Verify parsing worked correctly
+	errorCount := CountErrors(metrics.Errors)
 	t.Logf("Parsed metrics: Tokens=%d, Cost=%.6f, Turns=%d, Errors=%d",
-		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, metrics.ErrorCount)
+		metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, errorCount)
 
 	// Should extract the correct final result metrics
 	if metrics.TokenUsage == 0 {
@@ -32,7 +33,7 @@ func TestParseClaudeLogNewFormatFile(t *testing.T) {
 	}
 
 	// Should count the [ERROR] line in the debug logs
-	if metrics.ErrorCount == 0 {
+	if errorCount == 0 {
 		t.Error("Expected at least one error from debug logs")
 	}
 }

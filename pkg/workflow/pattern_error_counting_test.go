@@ -149,14 +149,16 @@ warning: be careful`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			counts := CountErrorsAndWarningsWithPatterns(tt.logContent, tt.patterns)
+			errors := CountErrorsAndWarningsWithPatterns(tt.logContent, tt.patterns)
 
-			if counts.ErrorCount != tt.expectedErrors {
-				t.Errorf("Expected %d errors, got %d", tt.expectedErrors, counts.ErrorCount)
+			errorCount := CountErrors(errors)
+			if errorCount != tt.expectedErrors {
+				t.Errorf("Expected %d errors, got %d", tt.expectedErrors, errorCount)
 			}
 
-			if counts.WarningCount != tt.expectedWarns {
-				t.Errorf("Expected %d warnings, got %d", tt.expectedWarns, counts.WarningCount)
+			warningCount := CountWarnings(errors)
+			if warningCount != tt.expectedWarns {
+				t.Errorf("Expected %d warnings, got %d", tt.expectedWarns, warningCount)
 			}
 		})
 	}

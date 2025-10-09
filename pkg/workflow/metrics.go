@@ -17,12 +17,41 @@ type ToolCallInfo struct {
 	MaxDuration   time.Duration // Maximum execution duration for any call
 }
 
+// LogError represents a single error or warning from the log
+type LogError struct {
+	File    string // File path (usually the log file)
+	Line    int    // Line number in the log file
+	Type    string // "error" or "warning"
+	Message string // Error/warning message
+}
+
+// CountErrors counts the number of errors in the slice
+func CountErrors(errors []LogError) int {
+	count := 0
+	for _, err := range errors {
+		if err.Type == "error" {
+			count++
+		}
+	}
+	return count
+}
+
+// CountWarnings counts the number of warnings in the slice
+func CountWarnings(errors []LogError) int {
+	count := 0
+	for _, err := range errors {
+		if err.Type == "warning" {
+			count++
+		}
+	}
+	return count
+}
+
 // LogMetrics represents extracted metrics from log files
 type LogMetrics struct {
 	TokenUsage    int
 	EstimatedCost float64
-	ErrorCount    int
-	WarningCount  int
+	Errors        []LogError     // Individual error and warning details
 	Turns         int            // Number of turns needed to complete the task
 	ToolCalls     []ToolCallInfo // Tool call statistics
 	ToolSequences [][]string     // Sequences of tool calls preserving order
@@ -254,45 +283,62 @@ func ExtractMCPServer(toolName string) string {
 	return toolName
 }
 
-// ErrorWarningCounts represents the counts of errors and warnings
-type ErrorWarningCounts struct {
-	ErrorCount   int
-	WarningCount int
-}
-
-// CountErrorsAndWarningsWithPatterns counts errors and warnings using regex patterns
+// CountErrorsAndWarningsWithPatterns extracts errors and warnings using regex patterns
 // This is more accurate than simple string matching and uses the same logic as validate_errors.cjs
-func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPattern) ErrorWarningCounts {
-	counts := ErrorWarningCounts{}
+func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPattern) []LogError {
+	var errors []LogError
 
 	if len(patterns) == 0 {
-		return counts
+		return errors
 	}
 
 	lines := strings.Split(logContent, "\n")
 
-	for _, pattern := range patterns {
-		regex, err := regexp.Compile(pattern.Pattern)
-		if err != nil {
-			// Skip invalid patterns
-			continue
-		}
+	for lineNum, line := range lines {
+		for _, pattern := range patterns {
+			regex, err := regexp.Compile(pattern.Pattern)
+			if err != nil {
+				// Skip invalid patterns
+				continue
+			}
 
-		for _, line := range lines {
 			matches := regex.FindAllStringSubmatch(line, -1)
 			for _, match := range matches {
 				level := extractLevelFromMatch(match, pattern)
 
+				// Extract message using the pattern's MessageGroup or full match
+				message := ""
+				if pattern.MessageGroup > 0 && pattern.MessageGroup < len(match) && match[pattern.MessageGroup] != "" {
+					message = match[pattern.MessageGroup]
+				} else if len(match) > 0 {
+					message = match[0]
+				}
+
+				// Clean up the message
+				message = extractErrorMessage(message)
+
 				if strings.ToLower(level) == "error" {
-					counts.ErrorCount++
+					if message != "" {
+						errors = append(errors, LogError{
+							Line:    lineNum + 1, // 1-based line numbering
+							Type:    "error",
+							Message: message,
+						})
+					}
 				} else if strings.ToLower(level) == "warning" || strings.ToLower(level) == "warn" {
-					counts.WarningCount++
+					if message != "" {
+						errors = append(errors, LogError{
+							Line:    lineNum + 1, // 1-based line numbering
+							Type:    "warning",
+							Message: message,
+						})
+					}
 				}
 			}
 		}
 	}
 
-	return counts
+	return errors
 }
 
 // extractLevelFromMatch extracts the error level from a regex match using the pattern configuration
@@ -330,4 +376,38 @@ func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
 	}
 
 	return "unknown"
+}
+
+// extractErrorMessage extracts a clean error message from a log line
+// Removes timestamps, log level prefixes, and other common noise
+func extractErrorMessage(line string) string {
+	// Remove common timestamp patterns
+	// Examples: "2024-01-01 12:00:00", "[12:00:00]", "12:00:00.123"
+	timestampPatterns := []string{
+		`^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(\.\d+)?\s+`,
+		`^\[\d{2}:\d{2}:\d{2}\]\s+`,
+		`^\d{2}:\d{2}:\d{2}(\.\d+)?\s+`,
+	}
+
+	cleanedLine := line
+	for _, pattern := range timestampPatterns {
+		re := regexp.MustCompile(pattern)
+		cleanedLine = re.ReplaceAllString(cleanedLine, "")
+	}
+
+	// Remove common log level prefixes (case-insensitive)
+	// Examples: "ERROR:", "[ERROR]", "error -"
+	// Note: WARNING must come before WARN to avoid partial matches
+	logLevelPattern := regexp.MustCompile(`(?i)^\[?(ERROR|WARNING|WARN|INFO|DEBUG)\]?\s*[:-]?\s*`)
+	cleanedLine = logLevelPattern.ReplaceAllString(cleanedLine, "")
+
+	// Trim whitespace
+	cleanedLine = strings.TrimSpace(cleanedLine)
+
+	// If the line is too long (>200 chars), truncate it
+	if len(cleanedLine) > 200 {
+		cleanedLine = cleanedLine[:197] + "..."
+	}
+
+	return cleanedLine
 }
