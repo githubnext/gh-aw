@@ -3,8 +3,6 @@
 package workflow
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -124,13 +122,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 					t.Errorf("Error building create issue job: %v", err)
 				}
 
-				// Verify environment variables are included in job steps
-				jobYAML := strings.Join(job.Steps, "")
-				for _, expectedEnvVar := range tt.expectedEnvVars {
-					if !strings.Contains(jobYAML, expectedEnvVar) {
-						t.Errorf("Expected env var %q not found in create issue job YAML", expectedEnvVar)
-					}
-				}
+				assertEnvVarsInSteps(t, job.Steps, tt.expectedEnvVars)
 			}
 
 			if strings.Contains(tt.expectedSafeOutput, "create-pull-request") {
@@ -139,13 +131,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 					t.Errorf("Error building create pull request job: %v", err)
 				}
 
-				// Verify environment variables are included in job steps
-				jobYAML := strings.Join(job.Steps, "")
-				for _, expectedEnvVar := range tt.expectedEnvVars {
-					if !strings.Contains(jobYAML, expectedEnvVar) {
-						t.Errorf("Expected env var %q not found in create pull request job YAML", expectedEnvVar)
-					}
-				}
+				assertEnvVarsInSteps(t, job.Steps, tt.expectedEnvVars)
 			}
 
 			if strings.Contains(tt.expectedSafeOutput, "add-comment") {
@@ -154,23 +140,13 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 					t.Errorf("Error building add issue comment job: %v", err)
 				}
 
-				// Verify environment variables are included in job steps
-				jobYAML := strings.Join(job.Steps, "")
-				for _, expectedEnvVar := range tt.expectedEnvVars {
-					if !strings.Contains(jobYAML, expectedEnvVar) {
-						t.Errorf("Expected env var %q not found in add issue comment job YAML", expectedEnvVar)
-					}
-				}
+				assertEnvVarsInSteps(t, job.Steps, tt.expectedEnvVars)
 			}
 		})
 	}
 }
 
 func TestSafeOutputsEnvFullWorkflowCompilation(t *testing.T) {
-	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
-
-	// Create a test workflow file
 	workflowContent := `---
 name: Test Environment Variables
 on: push
@@ -192,17 +168,7 @@ to safe output jobs.
 Create an issue with test results.
 `
 
-	workflowFile := filepath.Join(tmpDir, "test-env-workflow.md")
-	if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write test workflow file: %v", err)
-	}
-
-	// Parse the workflow data to get the structure (using the same approach as existing tests)
-	compiler := NewCompiler(false, "", "test")
-	workflowData, err := compiler.ParseWorkflowFile(workflowFile)
-	if err != nil {
-		t.Fatalf("Failed to parse workflow: %v", err)
-	}
+	workflowData := parseWorkflowFromContent(t, workflowContent, "test-env-workflow.md")
 
 	// Verify the SafeOutputs configuration includes our environment variables
 	if workflowData.SafeOutputs == nil {
@@ -228,6 +194,7 @@ Create an issue with test results.
 	}
 
 	// Build the create issue job and verify it includes our environment variables
+	compiler := NewCompiler(false, "", "test")
 	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
 	if err != nil {
 		t.Fatalf("Failed to build create issue job: %v", err)
@@ -235,8 +202,13 @@ Create an issue with test results.
 
 	jobYAML := strings.Join(job.Steps, "")
 
-	for key, expectedValue := range expectedEnvVars {
-		expectedEnvLine := key + ": " + expectedValue
+	expectedEnvLines := []string{
+		"GITHUB_TOKEN: ${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
+		"DEBUG_MODE: true",
+		"CUSTOM_API_KEY: ${{ secrets.CUSTOM_API_KEY }}",
+	}
+
+	for _, expectedEnvLine := range expectedEnvLines {
 		if !strings.Contains(jobYAML, expectedEnvLine) {
 			t.Errorf("Expected environment variable %q not found in job YAML", expectedEnvLine)
 		}
@@ -250,15 +222,9 @@ Create an issue with test results.
 	if !strings.Contains(jobYAML, "GITHUB_AW_ISSUE_LABELS: \"automated,env-test\"") {
 		t.Error("Expected issue labels not found in job YAML")
 	}
-
-	t.Logf("✓ %s", workflowFile)
 }
 
 func TestSafeOutputsEnvWithStagedMode(t *testing.T) {
-	// Create a temporary directory for the test
-	tmpDir := t.TempDir()
-
-	// Create a test workflow file with staged mode and env vars
 	workflowContent := `---
 name: Test Environment Variables with Staged Mode
 on: push
@@ -275,17 +241,7 @@ safe-outputs:
 This workflow tests that custom environment variables work with staged mode.
 `
 
-	workflowFile := filepath.Join(tmpDir, "test-env-staged-workflow.md")
-	if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write test workflow file: %v", err)
-	}
-
-	// Parse the workflow data
-	compiler := NewCompiler(false, "", "test")
-	workflowData, err := compiler.ParseWorkflowFile(workflowFile)
-	if err != nil {
-		t.Fatalf("Failed to parse workflow: %v", err)
-	}
+	workflowData := parseWorkflowFromContent(t, workflowContent, "test-env-staged-workflow.md")
 
 	// Verify staged mode is enabled
 	if !workflowData.SafeOutputs.Staged {
@@ -293,6 +249,7 @@ This workflow tests that custom environment variables work with staged mode.
 	}
 
 	// Build the create issue job and verify it includes our environment variables and staged flag
+	compiler := NewCompiler(false, "", "test")
 	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
 	if err != nil {
 		t.Fatalf("Failed to build create issue job: %v", err)
@@ -305,16 +262,10 @@ This workflow tests that custom environment variables work with staged mode.
 		"DEBUG_MODE: true",
 	}
 
-	for _, expectedEnvVar := range expectedEnvVars {
-		if !strings.Contains(jobYAML, expectedEnvVar) {
-			t.Errorf("Expected environment variable %q not found in job YAML", expectedEnvVar)
-		}
-	}
+	assertEnvVarsInSteps(t, job.Steps, expectedEnvVars)
 
 	// Verify staged mode is enabled
 	if !strings.Contains(jobYAML, "GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"") {
 		t.Error("Expected staged mode flag not found in job YAML")
 	}
-
-	t.Logf("✓ %s", workflowFile)
 }

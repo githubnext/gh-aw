@@ -1,7 +1,6 @@
 package workflow
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -63,16 +62,11 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			t.Fatalf("Failed to build create issue job: %v", err)
 		}
 
-		// Check that the steps include our custom environment variables
-		stepsStr := strings.Join(job.Steps, "")
-
-		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
-			t.Error("Expected GITHUB_TOKEN to be included in job steps")
+		expectedEnvVars := []string{
+			"GITHUB_TOKEN: ${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
+			"DEBUG_MODE: true",
 		}
-
-		if !strings.Contains(stepsStr, "DEBUG_MODE: true") {
-			t.Error("Expected DEBUG_MODE to be included in job steps")
-		}
+		assertEnvVarsInSteps(t, job.Steps, expectedEnvVars)
 	})
 
 	t.Run("Should include custom env vars in create-pull-request job", func(t *testing.T) {
@@ -93,16 +87,11 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			t.Fatalf("Failed to build create pull request job: %v", err)
 		}
 
-		// Check that the steps include our custom environment variables
-		stepsStr := strings.Join(job.Steps, "")
-
-		if !strings.Contains(stepsStr, "GITHUB_TOKEN: ${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}") {
-			t.Error("Expected GITHUB_TOKEN to be included in job steps")
+		expectedEnvVars := []string{
+			"GITHUB_TOKEN: ${{ secrets.SOME_PAT_FOR_AGENTIC_WORKFLOWS }}",
+			"API_ENDPOINT: https://api.example.com",
 		}
-
-		if !strings.Contains(stepsStr, "API_ENDPOINT: https://api.example.com") {
-			t.Error("Expected API_ENDPOINT to be included in job steps")
-		}
+		assertEnvVarsInSteps(t, job.Steps, expectedEnvVars)
 	})
 
 	t.Run("Should work without env configuration", func(t *testing.T) {
