@@ -21,6 +21,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// defaultAgentStdioLogPath is the default log file path for agent stdout/stderr
+	defaultAgentStdioLogPath = "/tmp/gh-aw/agent-stdio.log"
+)
+
 // WorkflowRun represents a GitHub Actions workflow run with metrics
 type WorkflowRun struct {
 	DatabaseID       int64     `json:"databaseId"`
@@ -958,12 +963,12 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 			return nil
 		}
 
-		// Process log files - exclude output artifacts like aw_output.txt
+		// Process log files - exclude output artifacts like aw_output.txt and agent_output.json
 		fileName := strings.ToLower(info.Name())
 		if (strings.HasSuffix(fileName, ".log") ||
 			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))) &&
 			!strings.Contains(fileName, "aw_output") &&
-			!strings.Contains(fileName, "agent_output") {
+			fileName != "agent_output.json" {
 
 			fileMetrics, err := parseLogFileWithEngine(path, detectedEngine, verbose)
 			if err != nil && verbose {
@@ -1434,32 +1439,41 @@ func findAgentOutputFile(logDir string) (string, bool) {
 }
 
 // findAgentLogFile searches for agent logs within the logDir.
-// It looks for:
-// 1. Any file in the "agent_output" artifact directory (if present)
-// 2. The "agent-stdio.log" artifact file (if agent_output not present)
+// It uses engine.GetLogFileForParsing() to determine which log file to use:
+//   - If GetLogFileForParsing() returns a non-empty value that doesn't point to agent-stdio.log,
+//     look for files in the "agent_output" artifact directory
+//   - Otherwise, look for the "agent-stdio.log" artifact file
+//
 // Returns the first path found and a boolean indicating success.
-func findAgentLogFile(logDir string) (string, bool) {
-	// First, check for agent_output directory (artifact)
-	agentOutputDir := filepath.Join(logDir, "agent_output")
-	if dirExists(agentOutputDir) {
-		// Find the first file in this directory
-		var foundFile string
-		_ = filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info == nil {
+func findAgentLogFile(logDir string, engine workflow.CodingAgentEngine) (string, bool) {
+	// Use GetLogFileForParsing to determine which log file to use
+	logFileForParsing := engine.GetLogFileForParsing()
+
+	// If the engine specifies a log file that isn't the default agent-stdio.log,
+	// look in the agent_output artifact directory
+	if logFileForParsing != "" && logFileForParsing != defaultAgentStdioLogPath {
+		// Check for agent_output directory (artifact)
+		agentOutputDir := filepath.Join(logDir, "agent_output")
+		if dirExists(agentOutputDir) {
+			// Find the first file in this directory
+			var foundFile string
+			_ = filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
+				if err != nil || info == nil {
+					return nil
+				}
+				if !info.IsDir() && foundFile == "" {
+					foundFile = path
+					return errors.New("stop") // sentinel to stop walking early
+				}
 				return nil
+			})
+			if foundFile != "" {
+				return foundFile, true
 			}
-			if !info.IsDir() && foundFile == "" {
-				foundFile = path
-				return errors.New("stop") // sentinel to stop walking early
-			}
-			return nil
-		})
-		if foundFile != "" {
-			return foundFile, true
 		}
 	}
 
-	// If agent_output directory doesn't exist or is empty, check for agent-stdio.log
+	// Default to agent-stdio.log
 	agentStdioLog := filepath.Join(logDir, "agent-stdio.log")
 	if fileExists(agentStdioLog) {
 		return agentStdioLog, true
@@ -2116,16 +2130,16 @@ func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
 
 // parseAgentLog runs the JavaScript log parser on agent logs and writes markdown to log.md
 func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
-	// Find the agent log file - either in agent_output artifact directory or agent-stdio.log file
-	agentLogPath, found := findAgentLogFile(runDir)
-	if !found {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
-		return nil
-	}
-
 	// Determine which parser script to use based on the engine
 	if engine == nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No engine detected in %s, skipping log parsing", filepath.Base(runDir))))
+		return nil
+	}
+
+	// Find the agent log file - use engine.GetLogFileForParsing() to determine location
+	agentLogPath, found := findAgentLogFile(runDir, engine)
+	if !found {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
 		return nil
 	}
 

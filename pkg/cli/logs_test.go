@@ -1224,3 +1224,117 @@ func TestBranchFilteringWithGitHubCLI(t *testing.T) {
 		t.Errorf("Expected branch filter '--branch feature-branch' not found in args: %v", args)
 	}
 }
+
+func TestFindAgentLogFile(t *testing.T) {
+	// Create a temporary directory structure for testing
+	tmpDir := t.TempDir()
+
+	// Test 1: Copilot engine with agent_output directory
+	t.Run("Copilot engine uses agent_output", func(t *testing.T) {
+		copilotEngine := workflow.NewCopilotEngine()
+
+		// Create agent_output directory with a log file
+		agentOutputDir := filepath.Join(tmpDir, "copilot_test", "agent_output")
+		err := os.MkdirAll(agentOutputDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create agent_output directory: %v", err)
+		}
+
+		logFile := filepath.Join(agentOutputDir, "debug.log")
+		err = os.WriteFile(logFile, []byte("test log content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create log file: %v", err)
+		}
+
+		// Create agent-stdio.log as well (should be ignored for Copilot)
+		stdioLog := filepath.Join(tmpDir, "copilot_test", "agent-stdio.log")
+		err = os.WriteFile(stdioLog, []byte("stdio content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create agent-stdio.log: %v", err)
+		}
+
+		// Test findAgentLogFile
+		found, ok := findAgentLogFile(filepath.Join(tmpDir, "copilot_test"), copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Copilot engine")
+		}
+
+		// Should find the file in agent_output directory
+		if !strings.Contains(found, "agent_output") {
+			t.Errorf("Expected to find file in agent_output directory, got: %s", found)
+		}
+	})
+
+	// Test 2: Claude engine with agent-stdio.log
+	t.Run("Claude engine uses agent-stdio.log", func(t *testing.T) {
+		claudeEngine := workflow.NewClaudeEngine()
+
+		// Create only agent-stdio.log
+		claudeDir := filepath.Join(tmpDir, "claude_test")
+		err := os.MkdirAll(claudeDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create claude test directory: %v", err)
+		}
+
+		stdioLog := filepath.Join(claudeDir, "agent-stdio.log")
+		err = os.WriteFile(stdioLog, []byte("stdio content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create agent-stdio.log: %v", err)
+		}
+
+		// Test findAgentLogFile
+		found, ok := findAgentLogFile(claudeDir, claudeEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Claude engine")
+		}
+
+		// Should find agent-stdio.log
+		if !strings.Contains(found, "agent-stdio.log") {
+			t.Errorf("Expected to find agent-stdio.log, got: %s", found)
+		}
+	})
+
+	// Test 3: No logs found
+	t.Run("No logs found returns false", func(t *testing.T) {
+		emptyDir := filepath.Join(tmpDir, "empty_test")
+		err := os.MkdirAll(emptyDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create empty test directory: %v", err)
+		}
+
+		claudeEngine := workflow.NewClaudeEngine()
+		_, ok := findAgentLogFile(emptyDir, claudeEngine)
+		if ok {
+			t.Errorf("Expected to not find agent log file in empty directory")
+		}
+	})
+
+	// Test 4: Codex engine with agent-stdio.log
+	t.Run("Codex engine uses agent-stdio.log", func(t *testing.T) {
+		codexEngine := workflow.NewCodexEngine()
+
+		// Create only agent-stdio.log
+		codexDir := filepath.Join(tmpDir, "codex_test")
+		err := os.MkdirAll(codexDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create codex test directory: %v", err)
+		}
+
+		stdioLog := filepath.Join(codexDir, "agent-stdio.log")
+		err = os.WriteFile(stdioLog, []byte("stdio content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create agent-stdio.log: %v", err)
+		}
+
+		// Test findAgentLogFile
+		found, ok := findAgentLogFile(codexDir, codexEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Codex engine")
+		}
+
+		// Should find agent-stdio.log
+		if !strings.Contains(found, "agent-stdio.log") {
+			t.Errorf("Expected to find agent-stdio.log, got: %s", found)
+		}
+	})
+}
