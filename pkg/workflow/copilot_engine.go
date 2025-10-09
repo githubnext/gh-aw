@@ -890,6 +890,59 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			MessageGroup: 1,
 			Description:  "Shell permission denied error",
 		},
+		// Rate limiting and quota errors
+		{
+			Pattern:      `(?i)(rate limit|too many requests)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Rate limit exceeded error",
+		},
+		{
+			Pattern:      `(?i)(429|HTTP.*429)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "HTTP 429 Too Many Requests status code",
+		},
+		{
+			Pattern:      `(?i)error.*quota.*exceeded`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Quota exceeded error",
+		},
+		// Timeout and deadline errors
+		{
+			Pattern:      `(?i)error.*(timeout|timed out|deadline exceeded)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Timeout or deadline exceeded error",
+		},
+		// Network and connection errors
+		{
+			Pattern:      `(?i)(connection refused|connection failed|ECONNREFUSED)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Network connection error",
+		},
+		{
+			Pattern:      `(?i)(ETIMEDOUT|ENOTFOUND)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Network timeout or DNS resolution error",
+		},
+		// Token expiration errors
+		{
+			Pattern:      `(?i)error.*token.*expired`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Token expired error",
+		},
+		// Memory and resource errors
+		{
+			Pattern:      `(?i)(maximum call stack size exceeded|heap out of memory|spawn ENOMEM)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Memory or resource exhaustion error",
+		},
 	}
 }
 
