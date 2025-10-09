@@ -769,7 +769,7 @@ function handleMessage(req) {
       }
       const result = handler(args);
       const content = result && result.content ? result.content : [];
-      replyResult(id, { content });
+      replyResult(id, { content, isError: false });
     } else if (/^notifications\//.test(method)) {
       debug(`ignore ${method}`);
     } else {
