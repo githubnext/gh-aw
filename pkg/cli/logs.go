@@ -197,7 +197,8 @@ metrics including duration, token usage, and cost information.
 Downloaded artifacts include:
 - aw_info.json: Engine configuration and workflow metadata
 - safe_output.jsonl: Agent's final output content (available when non-empty)
-- agent_output.json: Full/raw agent output (if the workflow uploaded this artifact)
+- agent_output/: Agent logs directory (if the workflow produced logs)
+- agent-stdio.log: Agent standard output/error logs
 - aw.patch: Git patch of changes made during execution
 - Various log files with execution details and metrics
 
@@ -261,6 +262,7 @@ Examples:
 			verbose, _ := cmd.Flags().GetBool("verbose")
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
+			parse, _ := cmd.Flags().GetBool("parse")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -300,7 +302,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -321,12 +323,13 @@ Examples:
 	logsCmd.Flags().Int64("after-run-id", 0, "Filter runs with database ID after this value (exclusive)")
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
+	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -492,6 +495,23 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			}
 			processedRuns = append(processedRuns, processedRun)
 			batchProcessed++
+
+			// If --parse flag is set, parse the agent log and write to log.md
+			if parse {
+				// Get the engine from aw_info.json
+				awInfoPath := filepath.Join(result.LogsPath, "aw_info.json")
+				detectedEngine := extractEngineFromAwInfo(awInfoPath, verbose)
+
+				if err := parseAgentLog(result.LogsPath, detectedEngine, verbose); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log for run %d: %v", run.DatabaseID, err)))
+				} else {
+					// Always show success message for parsing, not just in verbose mode
+					logMdPath := filepath.Join(result.LogsPath, "log.md")
+					if _, err := os.Stat(logMdPath); err == nil {
+						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Parsed log for run %d → %s", run.DatabaseID, logMdPath)))
+					}
+				}
+			}
 		}
 
 		if verbose {
@@ -1374,6 +1394,66 @@ func findAgentOutputFile(logDir string) (string, bool) {
 	return foundPath, true
 }
 
+// findAgentLogFile searches for agent logs within the logDir.
+// It looks for:
+// 1. Any file in the "agent_output" artifact directory (if present)
+// 2. The "agent-stdio.log" artifact file (if agent_output not present)
+// Returns the first path found and a boolean indicating success.
+func findAgentLogFile(logDir string) (string, bool) {
+	// First, check for agent_output directory (artifact)
+	agentOutputDir := filepath.Join(logDir, "agent_output")
+	if dirExists(agentOutputDir) {
+		// Find the first file in this directory
+		var foundFile string
+		_ = filepath.Walk(agentOutputDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info == nil {
+				return nil
+			}
+			if !info.IsDir() && foundFile == "" {
+				foundFile = path
+				return errors.New("stop") // sentinel to stop walking early
+			}
+			return nil
+		})
+		if foundFile != "" {
+			return foundFile, true
+		}
+	}
+
+	// If agent_output directory doesn't exist or is empty, check for agent-stdio.log
+	agentStdioLog := filepath.Join(logDir, "agent-stdio.log")
+	if fileExists(agentStdioLog) {
+		return agentStdioLog, true
+	}
+
+	// Also check for nested agent-stdio.log in case it's in a subdirectory
+	var foundPath string
+	_ = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
+		if !info.IsDir() && info.Name() == "agent-stdio.log" {
+			foundPath = path
+			return errors.New("stop") // sentinel to stop walking early
+		}
+		return nil
+	})
+	if foundPath != "" {
+		return foundPath, true
+	}
+
+	return "", false
+}
+
+// fileExists checks if a file exists
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !info.IsDir()
+}
+
 // copyFileSimple copies a file from src to dst using buffered IO.
 func copyFileSimple(src, dst string) error {
 	in, err := os.Open(src)
@@ -1965,4 +2045,116 @@ func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
 			}
 		}
 	}
+}
+
+// parseAgentLog runs the JavaScript log parser on agent logs and writes markdown to log.md
+func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
+	// Find the agent log file - either in agent_output artifact directory or agent-stdio.log file
+	agentLogPath, found := findAgentLogFile(runDir)
+	if !found {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No agent logs found in %s, skipping log parsing", filepath.Base(runDir))))
+		return nil
+	}
+
+	// Determine which parser script to use based on the engine
+	if engine == nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("No engine detected in %s, skipping log parsing", filepath.Base(runDir))))
+		return nil
+	}
+
+	parserScriptName := engine.GetLogParserScriptId()
+	if parserScriptName == "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No log parser available for engine %s in %s, skipping", engine.GetID(), filepath.Base(runDir))))
+		return nil
+	}
+
+	jsScript := workflow.GetLogParserScript(parserScriptName)
+	if jsScript == "" {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to get log parser script %s", parserScriptName)))
+		}
+		return nil
+	}
+
+	// Read the log content
+	logContent, err := os.ReadFile(agentLogPath)
+	if err != nil {
+		return fmt.Errorf("failed to read agent log file: %w", err)
+	}
+
+	// Create a temporary directory for running the parser
+	tempDir, err := os.MkdirTemp("", "log_parser")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Write the log content to a temporary file
+	logFile := filepath.Join(tempDir, "agent.log")
+	if err := os.WriteFile(logFile, logContent, 0644); err != nil {
+		return fmt.Errorf("failed to write log file: %w", err)
+	}
+
+	// Create a Node.js script that mimics the GitHub Actions environment
+	nodeScript := fmt.Sprintf(`
+const fs = require('fs');
+
+// Mock @actions/core for the parser
+const core = {
+	summary: {
+		addRaw: function(content) {
+			this._content = content;
+			return this;
+		},
+		write: function() {
+			console.log(this._content);
+		},
+		_content: ''
+	},
+	setFailed: function(message) {
+		console.error('FAILED:', message);
+		process.exit(1);
+	},
+	info: function(message) {
+		// Silent in CLI mode
+	}
+};
+
+// Set up environment
+process.env.GITHUB_AW_AGENT_OUTPUT = '%s';
+
+// Override require to provide our mock
+const originalRequire = require;
+require = function(name) {
+	if (name === '@actions/core') {
+		return core;
+	}
+	return originalRequire.apply(this, arguments);
+};
+
+// Execute the parser script
+%s
+`, logFile, jsScript)
+
+	// Write the Node.js script
+	nodeFile := filepath.Join(tempDir, "parser.js")
+	if err := os.WriteFile(nodeFile, []byte(nodeScript), 0644); err != nil {
+		return fmt.Errorf("failed to write node script: %w", err)
+	}
+
+	// Execute the Node.js script
+	cmd := exec.Command("node", "parser.js")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute parser script: %w\nOutput: %s", err, string(output))
+	}
+
+	// Write the output to log.md in the run directory
+	logMdPath := filepath.Join(runDir, "log.md")
+	if err := os.WriteFile(logMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
+		return fmt.Errorf("failed to write log.md: %w", err)
+	}
+
+	return nil
 }

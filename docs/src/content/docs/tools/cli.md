@@ -386,6 +386,10 @@ gh aw logs --no-staged               # Filter out staged runs
 # Generate tool usage analysis
 gh aw logs --tool-graph              # Generate Mermaid tool sequence graph
 
+# Parse agent logs with JavaScript parser
+gh aw logs --parse                   # Run JS parser and write log.md
+gh aw logs ci-doctor --parse         # Parse specific workflow logs
+
 # Analyze recent performance with verbose output
 gh aw logs ci-doctor -c 5 --verbose
 ```
@@ -396,6 +400,40 @@ gh aw logs ci-doctor -c 5 --verbose
 - Success/failure rates and error categorization
 - Workflow run frequency and scheduling patterns
 - Resource usage and performance trends
+
+**Log Parsing:**
+
+The `--parse` flag runs the engine-specific JavaScript log parser on downloaded agent logs and generates a formatted markdown summary:
+
+```bash
+# Parse logs for all downloaded runs
+gh aw logs --parse
+
+# Parse logs for specific workflow
+gh aw logs ci-doctor --parse --verbose
+```
+
+When `--parse` is used:
+- Locates agent logs in each downloaded run directory:
+  - First checks for files in the `agent_output` artifact directory
+  - Falls back to `agent-stdio.log` artifact if `agent_output` doesn't exist
+- Automatically selects the appropriate parser based on the engine (Claude, Codex, Copilot)
+- Generates a `log.md` file in each run folder with formatted markdown output
+- The parser extracts tool calls, reasoning, and other structured information from raw logs
+- Uses a minimal Node.js environment that mocks the `@actions/core` API for parser execution
+
+**Output Format:**
+
+The generated `log.md` file contains:
+- Tool usage section with formatted command execution details
+- Reasoning and thinking sections showing the agent's decision-making process
+- Status indicators (✅ success, ⚠️ warnings, ❌ errors) for tool executions
+- Structured markdown suitable for review and analysis
+
+Each engine's parser formats the output differently based on the log structure:
+- **Claude**: Extracts tool_use and tool_result blocks, interleaved with reasoning text
+- **Codex**: Parses thinking sections and command execution logs
+- **Copilot**: Formats conversation flow and tool interactions
 
 ## 🔎 Single Run Audit
 
