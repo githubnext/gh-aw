@@ -2253,11 +2253,14 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 		return
 	}
 
+	// Get the log file path for parsing (may be different from stdout/stderr log)
+	logFileForParsing := engine.GetLogFileForParsing()
+
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -2321,11 +2324,14 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 		return
 	}
 
+	// Get the log file path for validation (may be different from stdout/stderr log)
+	logFileForValidation := engine.GetLogFileForParsing()
+
 	yaml.WriteString("      - name: Validate agent logs for errors\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
 
 	// Add JavaScript-compatible error patterns as a single JSON array
 	patternsJSON, err := json.Marshal(jsCompatiblePatterns)

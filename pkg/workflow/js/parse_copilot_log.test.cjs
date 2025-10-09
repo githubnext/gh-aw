@@ -68,6 +68,9 @@ describe("parse_copilot_log.cjs", () => {
       if (module === "fs") {
         return fs;
       }
+      if (module === "path") {
+        return path;
+      }
       if (module === "@actions/core") {
         return mockCore;
       }
@@ -427,7 +430,7 @@ describe("parse_copilot_log.cjs", () => {
       scriptFunction();
       await global.testMain();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Log file not found: /nonexistent/file.log");
+      expect(mockCore.info).toHaveBeenCalledWith("Log path not found: /nonexistent/file.log");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
