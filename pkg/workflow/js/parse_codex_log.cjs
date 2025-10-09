@@ -40,16 +40,15 @@ function parseCodexLog(logContent) {
 
     const commandSummary = [];
 
-    // Look-ahead window sizes for finding tool results
-    // New format has more verbose debug logs, so requires larger window
-    const NEW_FORMAT_LOOKAHEAD = 50;
-    const OLD_FORMAT_LOOKAHEAD = 5;
+    // Look-ahead window size for finding tool results
+    // New format has verbose debug logs, so requires larger window
+    const LOOKAHEAD_WINDOW = 50;
 
     // First pass: collect commands for summary
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // New format: ToolCall: github__list_pull_requests {...}
+      // ToolCall: github__list_pull_requests {...}
       const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
       if (toolCallMatch) {
         const server = toolCallMatch[1];
@@ -57,7 +56,7 @@ function parseCodexLog(logContent) {
 
         // Look ahead to find the result status
         let statusIcon = "❓"; // Unknown by default
-        for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
+        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
           const nextLine = lines[j];
           if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
             statusIcon = "✅";
@@ -69,58 +68,6 @@ function parseCodexLog(logContent) {
         }
 
         commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
-      }
-      // Old format: "] tool " for backwards compatibility
-      else if (line.includes("] tool ") && line.includes("(")) {
-        // Extract tool name
-        const toolMatch = line.match(/\] tool ([^(]+)\(/);
-        if (toolMatch) {
-          const toolName = toolMatch[1];
-
-          // Look ahead to find the result status
-          let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-            const nextLine = lines[j];
-            if (nextLine.includes("success in")) {
-              statusIcon = "✅";
-              break;
-            } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-              statusIcon = "❌";
-              break;
-            }
-          }
-
-          if (toolName.includes(".")) {
-            // Format as provider::method
-            const parts = toolName.split(".");
-            const provider = parts[0];
-            const method = parts.slice(1).join("_");
-            commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
-          } else {
-            commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
-          }
-        }
-      } else if (line.includes("] exec ")) {
-        // Extract exec command
-        const execMatch = line.match(/exec (.+?) in/);
-        if (execMatch) {
-          const formattedCommand = formatBashCommand(execMatch[1]);
-
-          // Look ahead to find the result status
-          let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-            const nextLine = lines[j];
-            if (nextLine.includes("succeeded in")) {
-              statusIcon = "✅";
-              break;
-            } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-              statusIcon = "❌";
-              break;
-            }
-          }
-
-          commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-        }
       }
     }
 
@@ -136,28 +83,14 @@ function parseCodexLog(logContent) {
     // Add Information section
     markdown += "\n## 📊 Information\n\n";
 
-    // Extract metadata from Codex logs (new format)
+    // Extract metadata from Codex logs
     let totalTokens = 0;
 
-    // New format: TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
+    // TokenCount(TokenCountEvent { ... total_tokens: 13281 ...
     const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
     for (const match of tokenCountMatches) {
       const tokens = parseInt(match[1]);
       totalTokens = Math.max(totalTokens, tokens); // Use the highest value (final total)
-    }
-
-    // Old format fallback: tokens used: <number>
-    if (totalTokens === 0) {
-      const tokenMatches = logContent.match(/tokens used: (\d+)/g);
-      if (tokenMatches) {
-        for (const match of tokenMatches) {
-          const numberMatch = match.match(/(\d+)/);
-          if (numberMatch) {
-            const tokens = parseInt(numberMatch[1]);
-            totalTokens += tokens;
-          }
-        }
-      }
     }
 
     // Also check for "tokens used\n<number>" at the end (number may have commas)
@@ -171,23 +104,16 @@ function parseCodexLog(logContent) {
       markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
     }
 
-    // Count tool calls and exec commands (both old and new formats)
-    const newToolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
-    const oldToolCalls = (logContent.match(/\] tool /g) || []).length;
-    const toolCalls = newToolCalls + oldToolCalls;
-    const execCommands = (logContent.match(/\] exec /g) || []).length;
+    // Count tool calls
+    const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
 
     if (toolCalls > 0) {
       markdown += `**Tool Calls:** ${toolCalls}\n\n`;
     }
 
-    if (execCommands > 0) {
-      markdown += `**Commands Executed:** ${execCommands}\n\n`;
-    }
-
     markdown += "\n## 🤖 Reasoning\n\n";
 
-    // Second pass: process full conversation flow with interleaved reasoning, tools, and commands
+    // Second pass: process full conversation flow with interleaved reasoning and tools
     let inThinkingSection = false;
 
     for (let i = 0; i < lines.length; i++) {
@@ -212,28 +138,22 @@ function parseCodexLog(logContent) {
         continue;
       }
 
-      // New format: thinking section starts with standalone "thinking" line
+      // Thinking section starts with standalone "thinking" line
       if (line.trim() === "thinking") {
         inThinkingSection = true;
         continue;
       }
 
-      // Old format: Process thinking sections with "] thinking"
-      if (line.includes("] thinking")) {
-        inThinkingSection = true;
-        continue;
-      }
-
-      // New format: Tool call line "tool github.list_pull_requests(...)"
-      const newToolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
-      if (newToolMatch) {
+      // Tool call line "tool github.list_pull_requests(...)"
+      const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+      if (toolMatch) {
         inThinkingSection = false;
-        const server = newToolMatch[1];
-        const toolName = newToolMatch[2];
+        const server = toolMatch[1];
+        const toolName = toolMatch[2];
 
         // Look ahead to find the result status
         let statusIcon = "❓"; // Unknown by default
-        for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
+        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
           const nextLine = lines[j];
           if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
             statusIcon = "✅";
@@ -248,65 +168,8 @@ function parseCodexLog(logContent) {
         continue;
       }
 
-      // Old format: Process tool calls
-      if (line.includes("] tool ") && line.includes("(")) {
-        inThinkingSection = false;
-        const toolMatch = line.match(/\] tool ([^(]+)\(/);
-        if (toolMatch) {
-          const toolName = toolMatch[1];
-
-          // Look ahead to find the result status
-          let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-            const nextLine = lines[j];
-            if (nextLine.includes("success in")) {
-              statusIcon = "✅";
-              break;
-            } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-              statusIcon = "❌";
-              break;
-            }
-          }
-
-          if (toolName.includes(".")) {
-            const parts = toolName.split(".");
-            const provider = parts[0];
-            const method = parts.slice(1).join("_");
-            markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
-          } else {
-            markdown += `${statusIcon} ${toolName}(...)\n\n`;
-          }
-        }
-        continue;
-      }
-
-      // Process exec commands
-      if (line.includes("] exec ")) {
-        inThinkingSection = false;
-        const execMatch = line.match(/exec (.+?) in/);
-        if (execMatch) {
-          const formattedCommand = formatBashCommand(execMatch[1]);
-
-          // Look ahead to find the result status
-          let statusIcon = "❓"; // Unknown by default
-          for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-            const nextLine = lines[j];
-            if (nextLine.includes("succeeded in")) {
-              statusIcon = "✅";
-              break;
-            } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-              statusIcon = "❌";
-              break;
-            }
-          }
-
-          markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-        }
-        continue;
-      }
-
       // Process thinking content (filter out timestamp lines and very short lines)
-      if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-") && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
         const trimmed = line.trim();
         // Add thinking content directly
         markdown += `${trimmed}\n\n`;
@@ -318,35 +181,6 @@ function parseCodexLog(logContent) {
     core.error(`Error parsing Codex log: ${error}`);
     return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
   }
-}
-
-/**
- * Format bash command for display
- * @param {string} command - The command to format
- * @returns {string} Formatted command string
- */
-function formatBashCommand(command) {
-  if (!command) return "";
-
-  // Convert multi-line commands to single line by replacing newlines with spaces
-  // and collapsing multiple spaces
-  let formatted = command
-    .replace(/\n/g, " ") // Replace newlines with spaces
-    .replace(/\r/g, " ") // Replace carriage returns with spaces
-    .replace(/\t/g, " ") // Replace tabs with spaces
-    .replace(/\s+/g, " ") // Collapse multiple spaces into one
-    .trim(); // Remove leading/trailing whitespace
-
-  // Escape backticks to prevent markdown issues
-  formatted = formatted.replace(/`/g, "\\`");
-
-  // Truncate if too long (keep reasonable length for summary)
-  const maxLength = 80;
-  if (formatted.length > maxLength) {
-    formatted = formatted.substring(0, maxLength) + "...";
-  }
-
-  return formatted;
 }
 
 /**
@@ -363,7 +197,7 @@ function truncateString(str, maxLength) {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseCodexLog, formatBashCommand, truncateString };
+  module.exports = { parseCodexLog, truncateString };
 }
 
 main();

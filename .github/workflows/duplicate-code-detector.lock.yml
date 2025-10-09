@@ -2274,8 +2274,7 @@ jobs:
                 const lines = logContent.split("\n");
                 let markdown = "## 🤖 Commands and Tools\n\n";
                 const commandSummary = [];
-                const NEW_FORMAT_LOOKAHEAD = 50;
-                const OLD_FORMAT_LOOKAHEAD = 5;
+                const LOOKAHEAD_WINDOW = 50;
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
                   const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
@@ -2283,7 +2282,7 @@ jobs:
                     const server = toolCallMatch[1];
                     const toolName = toolCallMatch[2];
                     let statusIcon = "❓"; 
-                    for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
                       const nextLine = lines[j];
                       if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
                         statusIcon = "✅";
@@ -2294,48 +2293,6 @@ jobs:
                       }
                     }
                     commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
-                  }
-                  else if (line.includes("] tool ") && line.includes("(")) {
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
-                      } else {
-                        commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
-                      }
-                    }
-                  } else if (line.includes("] exec ")) {
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
-                    }
                   }
                 }
                 if (commandSummary.length > 0) {
@@ -2352,18 +2309,6 @@ jobs:
                   const tokens = parseInt(match[1]);
                   totalTokens = Math.max(totalTokens, tokens); 
                 }
-                if (totalTokens === 0) {
-                  const tokenMatches = logContent.match(/tokens used: (\d+)/g);
-                  if (tokenMatches) {
-                    for (const match of tokenMatches) {
-                      const numberMatch = match.match(/(\d+)/);
-                      if (numberMatch) {
-                        const tokens = parseInt(numberMatch[1]);
-                        totalTokens += tokens;
-                      }
-                    }
-                  }
-                }
                 const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
                 if (finalTokensMatch) {
                   totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
@@ -2371,15 +2316,9 @@ jobs:
                 if (totalTokens > 0) {
                   markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
                 }
-                const newToolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
-                const oldToolCalls = (logContent.match(/\] tool /g) || []).length;
-                const toolCalls = newToolCalls + oldToolCalls;
-                const execCommands = (logContent.match(/\] exec /g) || []).length;
+                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
                 if (toolCalls > 0) {
                   markdown += `**Tool Calls:** ${toolCalls}\n\n`;
-                }
-                if (execCommands > 0) {
-                  markdown += `**Commands Executed:** ${execCommands}\n\n`;
                 }
                 markdown += "\n## 🤖 Reasoning\n\n";
                 let inThinkingSection = false;
@@ -2406,17 +2345,13 @@ jobs:
                     inThinkingSection = true;
                     continue;
                   }
-                  if (line.includes("] thinking")) {
-                    inThinkingSection = true;
-                    continue;
-                  }
-                  const newToolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
-                  if (newToolMatch) {
+                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (toolMatch) {
                     inThinkingSection = false;
-                    const server = newToolMatch[1];
-                    const toolName = newToolMatch[2];
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
                     let statusIcon = "❓"; 
-                    for (let j = i + 1; j < Math.min(i + NEW_FORMAT_LOOKAHEAD, lines.length); j++) {
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
                       const nextLine = lines[j];
                       if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
                         statusIcon = "✅";
@@ -2429,54 +2364,7 @@ jobs:
                     markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
                     continue;
                   }
-                  if (line.includes("] tool ") && line.includes("(")) {
-                    inThinkingSection = false;
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
-                      } else {
-                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
-                      }
-                    }
-                    continue;
-                  }
-                  if (line.includes("] exec ")) {
-                    inThinkingSection = false;
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + OLD_FORMAT_LOOKAHEAD, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-                    }
-                    continue;
-                  }
-                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-") && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
                     const trimmed = line.trim();
                     markdown += `${trimmed}\n\n`;
                   }
@@ -2487,28 +2375,13 @@ jobs:
                 return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
-            function formatBashCommand(command) {
-              if (!command) return "";
-              let formatted = command
-                .replace(/\n/g, " ") 
-                .replace(/\r/g, " ") 
-                .replace(/\t/g, " ") 
-                .replace(/\s+/g, " ") 
-                .trim(); 
-              formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
-              if (formatted.length > maxLength) {
-                formatted = formatted.substring(0, maxLength) + "...";
-              }
-              return formatted;
-            }
             function truncateString(str, maxLength) {
               if (!str) return "";
               if (str.length <= maxLength) return str;
               return str.substring(0, maxLength) + "...";
             }
             if (typeof module !== "undefined" && module.exports) {
-              module.exports = { parseCodexLog, formatBashCommand, truncateString };
+              module.exports = { parseCodexLog, truncateString };
             }
             main();
       - name: Upload Agent Stdio
