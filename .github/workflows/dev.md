@@ -17,4 +17,5 @@ timeout_minutes: 10
 strict: true
 ---
 
-List the last 5 merged pull requests (use `github list_pull_requests`) in this repository.
+List the last 5 merged pull requests (use `github list_pull_requests`) in this repository
+and open an issue with the list.`
