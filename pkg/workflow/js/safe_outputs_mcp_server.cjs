@@ -13,7 +13,7 @@ let safeOutputsConfigRaw;
 
 if (!configEnv) {
   // Default config file path
-  const defaultConfigPath = "/tmp/safe-outputs/config.json";
+  const defaultConfigPath = "/tmp/gh-aw/safe-outputs/config.json";
   debug(`GITHUB_AW_SAFE_OUTPUTS_CONFIG not set, attempting to read from default path: ${defaultConfigPath}`);
 
   try {
@@ -51,7 +51,7 @@ const safeOutputsConfig = Object.fromEntries(Object.entries(safeOutputsConfigRaw
 debug(`Final processed config: ${JSON.stringify(safeOutputsConfig)}`);
 
 // Handle GITHUB_AW_SAFE_OUTPUTS with default fallback
-const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/safe-outputs/outputs.jsonl";
+const outputFile = process.env.GITHUB_AW_SAFE_OUTPUTS || "/tmp/gh-aw/safe-outputs/outputs.jsonl";
 if (!process.env.GITHUB_AW_SAFE_OUTPUTS) {
   debug(`GITHUB_AW_SAFE_OUTPUTS not set, using default: ${outputFile}`);
   // Ensure the directory exists
@@ -222,7 +222,7 @@ const uploadAssetHandler = args => {
   }
 
   // Create assets directory
-  const assetsDir = "/tmp/safe-outputs/assets";
+  const assetsDir = "/tmp/gh-aw/safe-outputs/assets";
   if (!fs.existsSync(assetsDir)) {
     fs.mkdirSync(assetsDir, { recursive: true });
   }

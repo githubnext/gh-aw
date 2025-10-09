@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-// generateCleanupStep generates the cleanup step YAML for workspace files, excluding /tmp/ files
+// generateCleanupStep generates the cleanup step YAML for workspace files, excluding /tmp/gh-aw/ files
 // Returns the YAML string and whether a cleanup step was generated
 func generateCleanupStep(outputFiles []string) (string, bool) {
-	// Filter to get only workspace files (exclude /tmp/ files)
+	// Filter to get only workspace files (exclude /tmp/gh-aw/ files)
 	var workspaceFiles []string
 	for _, file := range outputFiles {
-		if !strings.HasPrefix(file, "/tmp/") {
+		if !strings.HasPrefix(file, "/tmp/gh-aw/") {
 			workspaceFiles = append(workspaceFiles, file)
 		}
 	}
@@ -58,7 +58,7 @@ func (c *Compiler) generateEngineOutputCollection(yaml *strings.Builder, engine 
 	yaml.WriteString("          if-no-files-found: ignore\n")
 
 	// Add cleanup step to remove output files after upload
-	// Only clean files under the workspace, ignore files in /tmp/
+	// Only clean files under the workspace, ignore files in /tmp/gh-aw/
 	cleanupYaml, hasCleanup := generateCleanupStep(outputFiles)
 	if hasCleanup {
 		yaml.WriteString(cleanupYaml)

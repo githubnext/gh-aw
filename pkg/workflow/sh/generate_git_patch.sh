@@ -60,7 +60,7 @@ if [ -n "$BRANCH_NAME" ]; then
     fi
     
     # Generate patch from the determined base to the branch
-    git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/aw.patch || echo "Failed to generate patch from branch" > /tmp/aw.patch
+    git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
     echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
   else
     echo "Branch $BRANCH_NAME does not exist, no patch"
@@ -68,13 +68,13 @@ if [ -n "$BRANCH_NAME" ]; then
 fi
 
 # Show patch info if it exists
-if [ -f /tmp/aw.patch ]; then
-  ls -la /tmp/aw.patch
+if [ -f /tmp/gh-aw/aw.patch ]; then
+  ls -la /tmp/gh-aw/aw.patch
   # Show the first 50 lines of the patch for review
   echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
   echo '' >> $GITHUB_STEP_SUMMARY
   echo '```diff' >> $GITHUB_STEP_SUMMARY
-  head -500 /tmp/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+  head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
   echo '...' >> $GITHUB_STEP_SUMMARY
   echo '```' >> $GITHUB_STEP_SUMMARY
   echo '' >> $GITHUB_STEP_SUMMARY

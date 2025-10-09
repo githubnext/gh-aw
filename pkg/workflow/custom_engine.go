@@ -50,10 +50,10 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			envVars := make(map[string]any)
 
 			// Always add GITHUB_AW_PROMPT for agentic workflows
-			envVars["GITHUB_AW_PROMPT"] = "/tmp/aw-prompts/prompt.txt"
+			envVars["GITHUB_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
 
 			// Add GITHUB_AW_MCP_CONFIG for MCP server configuration
-			envVars["GITHUB_AW_MCP_CONFIG"] = "/tmp/mcp-config/mcp-servers.json"
+			envVars["GITHUB_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
 
 			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
 			if workflowData.SafeOutputs != nil {
@@ -236,7 +236,7 @@ func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
 	yaml.WriteString("                  \"--output-dir\",\n")
-	yaml.WriteString("                  \"/tmp/mcp-logs/playwright\"")
+	yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"--allowed-origins\",\n")
@@ -295,7 +295,7 @@ func (e *CustomEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 func (e *CustomEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 	yaml.WriteString("              \"safe_outputs\": {\n")
 	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")

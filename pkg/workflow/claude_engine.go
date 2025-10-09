@@ -118,7 +118,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add MCP configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
-		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/mcp-config/mcp-servers.json")
+		claudeArgs = append(claudeArgs, "--mcp-config", "/tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
 	// Add allowed tools configuration
@@ -141,7 +141,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Add network settings if configured
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
-		claudeArgs = append(claudeArgs, "--settings", "/tmp/.claude/settings.json")
+		claudeArgs = append(claudeArgs, "--settings", "/tmp/gh-aw/.claude/settings.json")
 	}
 
 	var stepLines []string
@@ -498,7 +498,7 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 			if toolName == "cache-memory" {
 				// Cache-memory now provides simple file share access at /tmp/cache-memory/
 				// Add path-specific Read and Write tools for the cache directory only
-				cacheDirPattern := "/tmp/cache-memory/*"
+				cacheDirPattern := "/tmp/gh-aw/cache-memory/*"
 
 				// Add path-specific tools for cache directory access
 				if !slices.Contains(allowedTools, fmt.Sprintf("Read(%s)", cacheDirPattern)) {
@@ -602,7 +602,7 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 }
 
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/mcp-config/mcp-servers.json << 'EOF'\n")
+	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
@@ -695,7 +695,7 @@ func (e *ClaudeEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrig
 	yaml.WriteString("                \"args\": [\n")
 	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
 	yaml.WriteString("                  \"--output-dir\",\n")
-	yaml.WriteString("                  \"/tmp/mcp-logs/playwright\"")
+	yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("                  \"--allowed-origins\",\n")
@@ -752,7 +752,7 @@ func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 func (e *ClaudeEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 	yaml.WriteString("              \"safe_outputs\": {\n")
 	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/safe-outputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")

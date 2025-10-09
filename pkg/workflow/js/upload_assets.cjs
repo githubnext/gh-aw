@@ -86,7 +86,7 @@ async function main() {
         }
 
         // Check if file exists in artifacts
-        const assetSourcePath = path.join("/tmp/safe-outputs/assets", fileName);
+        const assetSourcePath = path.join("/tmp/gh-aw/safe-outputs/assets", fileName);
         if (!fs.existsSync(assetSourcePath)) {
           core.warning(`Asset file not found: ${assetSourcePath}`);
           continue;

@@ -123,8 +123,8 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 	env := map[string]string{
 		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
-		"GITHUB_AW_PROMPT":     "/tmp/aw-prompts/prompt.txt",
-		"GITHUB_AW_MCP_CONFIG": "/tmp/mcp-config/config.toml",
+		"GITHUB_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
+		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
@@ -526,7 +526,7 @@ func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, play
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"@playwright/mcp@latest\",\n")
 	yaml.WriteString("            \"--output-dir\",\n")
-	yaml.WriteString("            \"/tmp/mcp-logs/playwright\"")
+	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
 	if len(args.AllowedDomains) > 0 {
 		yaml.WriteString(",\n")
 		yaml.WriteString("            \"--allowed-origins\",\n")
@@ -568,7 +568,7 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
 		yaml.WriteString("          command = \"node\"\n")
 		yaml.WriteString("          args = [\n")
-		yaml.WriteString("            \"/tmp/safe-outputs/mcp-server.cjs\",\n")
+		yaml.WriteString("            \"/tmp/gh-aw/safe-outputs/mcp-server.cjs\",\n")
 		yaml.WriteString("          ]\n")
 		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, \"GITHUB_AW_ASSETS_BRANCH\" = \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\", \"GITHUB_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\", \"GITHUB_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
 	}
