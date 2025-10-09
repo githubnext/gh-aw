@@ -38,46 +38,121 @@ function parseCodexLog(logContent) {
     const lines = logContent.split("\n");
     let markdown = "## 🤖 Commands and Tools\n\n";
 
-    const commandSummary = [];
-
     // Look-ahead window size for finding tool results
     // New format has verbose debug logs, so requires larger window
     const LOOKAHEAD_WINDOW = 50;
 
-    // First pass: collect commands for summary
+    // First pass: collect tool calls with details
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // ToolCall: github__list_pull_requests {...}
-      const toolCallMatch = line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
-      if (toolCallMatch) {
-        const server = toolCallMatch[1];
-        const toolName = toolCallMatch[2];
+      // Match: tool server.method(params) or ToolCall: server__method params
+      const toolMatch = line.match(/^\[.*?\]\s+tool\s+(\w+)\.(\w+)\((.+)\)/) || line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
 
-        // Look ahead to find the result status
-        let statusIcon = "❓"; // Unknown by default
+      // Also match: exec bash -lc 'command' in /path
+      const bashMatch = line.match(/^\[.*?\]\s+exec\s+bash\s+-lc\s+'([^']+)'/);
+
+      if (toolMatch) {
+        const server = toolMatch[1];
+        const toolName = toolMatch[2];
+        const params = toolMatch[3];
+
+        // Look ahead to find the result
+        let statusIcon = "❓";
+        let response = "";
+        let isError = false;
+
         for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
           const nextLine = lines[j];
-          if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
-            statusIcon = "✅";
-            break;
-          } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
-            statusIcon = "❌";
+
+          // Check for result line: server.method(...) success/failed in Xms:
+          if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
+            isError = nextLine.includes("failed in");
+            statusIcon = isError ? "❌" : "✅";
+
+            // Extract response - it's the JSON object following this line
+            let jsonLines = [];
+            let braceCount = 0;
+            let inJson = false;
+
+            for (let k = j + 1; k < Math.min(j + 30, lines.length); k++) {
+              const respLine = lines[k];
+
+              // Stop if we hit the next tool call or tokens used
+              if (respLine.includes("tool ") || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
+                break;
+              }
+
+              // Count braces to track JSON boundaries
+              for (const char of respLine) {
+                if (char === "{") {
+                  braceCount++;
+                  inJson = true;
+                } else if (char === "}") {
+                  braceCount--;
+                }
+              }
+
+              if (inJson) {
+                jsonLines.push(respLine);
+              }
+
+              if (inJson && braceCount === 0) {
+                break;
+              }
+            }
+
+            response = jsonLines.join("\n");
             break;
           }
         }
 
-        commandSummary.push(`* ${statusIcon} \`${server}::${toolName}(...)\``);
-      }
-    }
+        // Format the tool call with HTML details
+        markdown += formatCodexToolCall(server, toolName, params, response, statusIcon);
+      } else if (bashMatch) {
+        const command = bashMatch[1];
 
-    // Add command summary
-    if (commandSummary.length > 0) {
-      for (const cmd of commandSummary) {
-        markdown += `${cmd}\n`;
+        // Look ahead to find the result
+        let statusIcon = "❓";
+        let response = "";
+        let isError = false;
+
+        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+          const nextLine = lines[j];
+
+          // Check for bash result line: bash -lc 'command' succeeded/failed in Xms:
+          if (nextLine.includes("bash -lc") && (nextLine.includes("succeeded in") || nextLine.includes("failed in"))) {
+            isError = nextLine.includes("failed in");
+            statusIcon = isError ? "❌" : "✅";
+
+            // Extract response - it's the plain text following this line
+            let responseLines = [];
+
+            for (let k = j + 1; k < Math.min(j + 20, lines.length); k++) {
+              const respLine = lines[k];
+
+              // Stop if we hit the next tool call, exec, or tokens used
+              if (
+                respLine.includes("tool ") ||
+                respLine.includes("exec ") ||
+                respLine.includes("ToolCall:") ||
+                respLine.includes("tokens used") ||
+                respLine.includes("thinking")
+              ) {
+                break;
+              }
+
+              responseLines.push(respLine);
+            }
+
+            response = responseLines.join("\n").trim();
+            break;
+          }
+        }
+
+        // Format the bash command with HTML details
+        markdown += formatCodexBashCall(command, response, statusIcon);
       }
-    } else {
-      markdown += "No commands or tools used.\n";
     }
 
     // Add Information section
@@ -184,6 +259,82 @@ function parseCodexLog(logContent) {
 }
 
 /**
+ * Format a Codex tool call with HTML details
+ * @param {string} server - The server name (e.g., "github", "time")
+ * @param {string} toolName - The tool name (e.g., "list_pull_requests")
+ * @param {string} params - The parameters as JSON string
+ * @param {string} response - The response as JSON string
+ * @param {string} statusIcon - The status icon (✅, ❌, or ❓)
+ * @returns {string} Formatted HTML details string
+ */
+function formatCodexToolCall(server, toolName, params, response, statusIcon) {
+  const summary = `${statusIcon} ${server}::${toolName}`;
+
+  // If no response, just show the summary
+  if (!response || response.trim() === "") {
+    return `${summary}\n\n`;
+  }
+
+  // Build the details content with parameters and response
+  let details = "";
+
+  // Add parameters section
+  if (params && params.trim()) {
+    details += "**Parameters:**\n\n";
+    details += "``````json\n";
+    details += params;
+    details += "\n``````\n\n";
+  }
+
+  // Add response section
+  if (response && response.trim()) {
+    details += "**Response:**\n\n";
+    details += "``````json\n";
+    details += response;
+    details += "\n``````";
+  }
+
+  // Return formatted HTML details
+  return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
+}
+
+/**
+ * Format a Codex bash call with HTML details
+ * @param {string} command - The bash command
+ * @param {string} response - The response as plain text
+ * @param {string} statusIcon - The status icon (✅, ❌, or ❓)
+ * @returns {string} Formatted HTML details string
+ */
+function formatCodexBashCall(command, response, statusIcon) {
+  const summary = `${statusIcon} bash: ${truncateString(command, 60)}`;
+
+  // If no response, just show the summary
+  if (!response || response.trim() === "") {
+    return `${summary}\n\n`;
+  }
+
+  // Build the details content with command and response
+  let details = "";
+
+  // Add command section
+  details += "**Command:**\n\n";
+  details += "``````bash\n";
+  details += command;
+  details += "\n``````\n\n";
+
+  // Add response section
+  if (response && response.trim()) {
+    details += "**Output:**\n\n";
+    details += "``````\n";
+    details += response;
+    details += "\n``````";
+  }
+
+  // Return formatted HTML details
+  return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
+}
+
+/**
  * Truncate string to maximum length
  * @param {string} str - The string to truncate
  * @param {number} maxLength - Maximum length allowed
@@ -197,7 +348,7 @@ function truncateString(str, maxLength) {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseCodexLog, truncateString };
+  module.exports = { parseCodexLog, formatCodexToolCall, formatCodexBashCall, truncateString };
 }
 
 main();
