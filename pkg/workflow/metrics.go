@@ -386,7 +386,8 @@ func extractErrorMessage(line string) string {
 
 	// Remove common log level prefixes (case-insensitive)
 	// Examples: "ERROR:", "[ERROR]", "error -"
-	logLevelPattern := regexp.MustCompile(`(?i)^\[?(ERROR|WARN|WARNING|INFO|DEBUG)\]?\s*[:-]?\s*`)
+	// Note: WARNING must come before WARN to avoid partial matches
+	logLevelPattern := regexp.MustCompile(`(?i)^\[?(ERROR|WARNING|WARN|INFO|DEBUG)\]?\s*[:-]?\s*`)
 	cleanedLine = logLevelPattern.ReplaceAllString(cleanedLine, "")
 
 	// Trim whitespace
