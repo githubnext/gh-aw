@@ -132,7 +132,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"GITHUB_AW_PROMPT":     "/tmp/gh-aw/aw-prompts/prompt.txt",
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":           "/tmp/gh-aw/mcp-config",
-		"RUST_LOG":             "TRACE",
+		"RUST_LOG":             "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
