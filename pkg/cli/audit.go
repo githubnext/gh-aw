@@ -242,6 +242,22 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 	report := generateAuditReport(processedRun, metrics)
 	fmt.Println(report)
 
+	// Always attempt to render agentic log (similar to `logs --parse`) if engine & logs are available
+	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
+	// We intentionally do not fail the audit on parse errors; they are reported as warnings.
+	awInfoPath := filepath.Join(runOutputDir, "aw_info.json")
+	if engine := extractEngineFromAwInfo(awInfoPath, verbose); engine != nil { // reuse existing helper in same package
+		if err := parseAgentLog(runOutputDir, engine, verbose); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse agent log for run %d: %v", runID, err)))
+			}
+		} else if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No agent logs found to parse or no parser available"))
+		}
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
+	}
+
 	// Display logs location
 	absOutputDir, _ := filepath.Abs(runOutputDir)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Audit complete. Logs saved to %s", absOutputDir)))
