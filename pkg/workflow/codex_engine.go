@@ -316,7 +316,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 					currentSequence = []string{}
 				}
 			}
-		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") || 
+		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") ||
 			strings.HasPrefix(trimmedLine, "tool ") || strings.HasPrefix(trimmedLine, "exec ") {
 			inThinkingSection = false
 		}
@@ -369,25 +369,25 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 // parseCodexToolCallsWithSequence extracts tool call information from Codex log lines and returns tool name
 func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap map[string]*ToolCallInfo) string {
 	trimmedLine := strings.TrimSpace(line)
-	
+
 	// Parse tool calls: "] tool provider.method(...)" (old format)
 	// or "tool provider.method(...)" (new Rust format)
 	var toolName string
-	
+
 	// Try old format first: "] tool provider.method(...)"
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
 		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
 			toolName = strings.TrimSpace(match[1])
 		}
 	}
-	
+
 	// Try new Rust format: "tool provider.method(...)"
 	if toolName == "" && strings.HasPrefix(trimmedLine, "tool ") && strings.Contains(trimmedLine, "(") {
 		if match := regexp.MustCompile(`^tool ([^(]+)\(`).FindStringSubmatch(trimmedLine); len(match) > 1 {
 			toolName = strings.TrimSpace(match[1])
 		}
 	}
-	
+
 	if toolName != "" {
 		prettifiedName := PrettifyToolName(toolName)
 
@@ -419,21 +419,21 @@ func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap m
 	// Parse exec commands: "] exec command" (old format)
 	// or "exec command in" (new Rust format) - treat as bash calls
 	var execCommand string
-	
+
 	// Try old format: "] exec command in"
 	if strings.Contains(line, "] exec ") {
 		if match := regexp.MustCompile(`\] exec (.+?) in`).FindStringSubmatch(line); len(match) > 1 {
 			execCommand = strings.TrimSpace(match[1])
 		}
 	}
-	
+
 	// Try new Rust format: "exec command in"
 	if execCommand == "" && strings.HasPrefix(trimmedLine, "exec ") {
 		if match := regexp.MustCompile(`^exec (.+?) in`).FindStringSubmatch(trimmedLine); len(match) > 1 {
 			execCommand = strings.TrimSpace(match[1])
 		}
 	}
-	
+
 	if execCommand != "" {
 		// Create unique bash entry with command info, avoiding colons
 		uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(execCommand))
