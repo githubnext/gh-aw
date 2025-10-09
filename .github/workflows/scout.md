@@ -14,13 +14,13 @@ permissions:
 roles: [admin, maintainer, write]
 engine: copilot
 imports:
+  - shared/mcp/arxiv.md
   - shared/mcp/tavily.md
-  - shared/mcp/microsoftdocs.md
+  - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
   - shared/mcp/context7.md
 tools:
-  cache-memory:
-    retention-days: 7
+  cache-memory: true
 safe-outputs:
   add-comment:
     max: 1
@@ -65,6 +65,7 @@ When invoked with the `/scout` command in an issue or pull request comment, OR m
   - **DeepWiki**: GitHub repository documentation and Q&A for specific projects
   - **Microsoft Docs**: Official Microsoft documentation and guides
   - **Context7**: Semantic search over stored knowledge and documentation
+  - **arXiv**: Academic research papers and preprints for scientific and technical topics
 - Conduct multiple searches from different angles if needed
 
 ### 3. Deep Investigation
