@@ -23,19 +23,7 @@ engine:
     
     - name: Run GenAIScript
       id: genaiscript
-      run: |
-        MCP_ARG=""
-        if [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
-          echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
-          MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
-        fi
-        genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
-        if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
-          cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
-          echo "GenAIScript execution completed"
-        else
-          echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
-        fi
+      run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config $GITHUB_AW_MCP_CONFIG --out /tmp/gh-aw/genaiscript-output.md
       env:
         DEBUG: genaiscript:*
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
