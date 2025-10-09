@@ -319,7 +319,7 @@ function parseDebugLogFormat(logContent) {
 
                   // Create an assistant entry
                   const content = [];
-                  const toolResults = []; // Collect tool calls to create results
+                  const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
 
                   if (message.content && message.content.trim()) {
                     content.push({
@@ -427,7 +427,7 @@ function parseDebugLogFormat(logContent) {
           if (choice.message) {
             const message = choice.message;
             const content = [];
-            const toolResults = []; // Collect tool calls to create results
+            const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
 
             if (message.content && message.content.trim()) {
               content.push({
