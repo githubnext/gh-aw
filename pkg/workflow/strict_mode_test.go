@@ -216,6 +216,20 @@ network:
 # Test Workflow`,
 			expectError: false,
 		},
+		{
+			name: "write permission with inline comment refused in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: write # NOT IN STRICT MODE
+timeout_minutes: 10
+engine: claude
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: write permission 'contents: write' is not allowed",
+		},
 	}
 
 	for _, tt := range tests {
