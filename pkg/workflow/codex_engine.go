@@ -80,16 +80,6 @@ func (e *CodexEngine) GetVersionCommand() string {
 	return "codex --version"
 }
 
-// GetDeclaredOutputFiles returns the output files that Codex may produce
-// Codex (written in Rust) writes logs to ~/.codex/log/codex-tui.log
-func (e *CodexEngine) GetDeclaredOutputFiles() []string {
-	// Return the Codex log directory for artifact collection
-	// Using mcp-config folder structure for consistency with other engines
-	return []string{
-		"/tmp/gh-aw/mcp-config/logs/",
-	}
-}
-
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
@@ -237,6 +227,7 @@ func (e *CodexEngine) expandNeutralToolsToCodexTools(tools map[string]any) map[s
 }
 
 func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
+	yaml.WriteString("          export CODEX_HOME=/tmp/gh-aw/mcp-config\n")
 	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/config.toml << EOF\n")
 
 	// Add history configuration to disable persistence

@@ -287,6 +287,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 			},
 			mcpTools: []string{"github"},
 			expected: []string{
+				"export CODEX_HOME=/tmp/gh-aw/mcp-config",
 				"cat > /tmp/gh-aw/mcp-config/config.toml << EOF",
 				"[history]",
 				"persistence = \"none\"",
