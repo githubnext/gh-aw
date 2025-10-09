@@ -123,7 +123,7 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat $GITHUB_AW_PROMPT)
-mkdir -p /tmp/gh-aw/mcp-config/logs
+mkdir -p $CODEX_HOME/logs
 codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
 
 	env := map[string]string{
