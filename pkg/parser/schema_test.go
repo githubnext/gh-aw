@@ -898,6 +898,10 @@ func TestValidateWithSchemaAndLocation_CleanedErrorMessage(t *testing.T) {
 
 	// Create a temporary test file
 	tempFile := "/tmp/gh-aw/test_schema_validation.md"
+	// Ensure the directory exists
+	if err := os.MkdirAll("/tmp/gh-aw", 0755); err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
 	err := os.WriteFile(tempFile, []byte(`---
 on: push
 timeout_minu tes: 10
