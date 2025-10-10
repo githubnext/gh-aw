@@ -8,6 +8,7 @@ permissions:
   actions: read
 engine: copilot
 tools:
+  cache-memory:
   github:
     allowed: 
       - list_workflows
