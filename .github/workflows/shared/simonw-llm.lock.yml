@@ -200,12 +200,14 @@ jobs:
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
+          cat > ~/.llm-tools-mcp/mcp.json << 'EOF'
           {
-            "mcpServers": {
-              "github": {
-                "command": "docker",
-                "args": [
+            "servers": [
+              {
+                "name": "github",
+                "transport": "stdio",
+                "command": [
+                  "docker",
                   "run",
                   "-i",
                   "--rm",
@@ -217,7 +219,7 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
                 }
               }
-            }
+            ]
           }
           EOF
       - name: Create prompt
@@ -348,7 +350,7 @@ jobs:
           # Show logs database path for debugging
           echo "LLM logs database: $(llm logs path)"
         env:
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_MCP_CONFIG: ~/.llm-tools-mcp/mcp.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Configure llm with GitHub Models and MCP
@@ -362,59 +364,9 @@ jobs:
             mkdir -p ~/.llm-tools-mcp
             mkdir -p ~/.llm-tools-mcp/logs
 
-            # Transform MCP configuration from mcpServers format to servers array format
-            echo "🔄 Converting MCP configuration to llm-tools-mcp format..."
-
-            # Use Python to transform the config
-            python3 - "$GITHUB_AW_MCP_CONFIG" << 'PYTHON_SCRIPT'
-          import json
-          import os
-          import sys
-
-          # Read the mcpServers format config
-          config_path = sys.argv[1]
-          with open(config_path, "r") as f:
-              mcp_config = json.load(f)
-
-          # Transform to servers array format
-          servers = []
-
-          if "mcpServers" in mcp_config:
-              for name, config in mcp_config["mcpServers"].items():
-                  server = {
-                      "name": name,
-                      "transport": "stdio"
-                  }
-
-                  # Build command array from command + args
-                  if "command" in config:
-                      command = [config["command"]]
-                      if "args" in config and isinstance(config["args"], list):
-                          command.extend(config["args"])
-                      server["command"] = command
-
-                  # Add environment variables if present
-                  if "env" in config:
-                      server["env"] = config["env"]
-
-                  # Add allowed tools if specified
-                  if "allowed" in config:
-                      server["tools"] = config["allowed"]
-
-                  servers.append(server)
-
-          # Write the extension format
-          extension_config = {"servers": servers}
-          output_path = os.path.expanduser("~/.llm-tools-mcp/mcp.json")
-          with open(output_path, "w") as f:
-              json.dump(extension_config, f, indent=2)
-
-          print("✓ Converted {} MCP server(s)".format(len(servers)))
-          PYTHON_SCRIPT
-
-            echo "✓ MCP configuration installed at ~/.llm-tools-mcp/mcp.json"
+            echo "✓ MCP configuration installed at $GITHUB_AW_MCP_CONFIG"
             echo "📋 MCP configuration:"
-            cat ~/.llm-tools-mcp/mcp.json
+            cat "$GITHUB_AW_MCP_CONFIG"
             echo ""
 
             # List available tools for debugging
@@ -424,7 +376,7 @@ jobs:
             echo "ℹ No MCP configuration available"
           fi
         env:
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_MCP_CONFIG: ~/.llm-tools-mcp/mcp.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -457,7 +409,7 @@ jobs:
             cp /tmp/gh-aw/llm-output.txt "$GITHUB_AW_SAFE_OUTPUTS"
           fi
         env:
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_MCP_CONFIG: ~/.llm-tools-mcp/mcp.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -466,7 +418,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         env:
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_MCP_CONFIG: ~/.llm-tools-mcp/mcp.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
           if-no-files-found: ignore
