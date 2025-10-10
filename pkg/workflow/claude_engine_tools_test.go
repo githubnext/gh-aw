@@ -1,12 +1,8 @@
 package workflow
 
 import (
-	"fmt"
-	"sort"
 	"strings"
 	"testing"
-
-	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 func TestClaudeEngineComputeAllowedTools(t *testing.T) {
@@ -54,21 +50,11 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__create_issue,mcp__github__list_issues",
 		},
 		{
-			name: "github tools without explicit allowed list (should use defaults)",
+			name: "github tools without explicit allowed list (should allow all via wildcard)",
 			tools: map[string]any{
 				"github": map[string]any{},
 			},
-			expected: func() string {
-				// Expected to include all default GitHub tools with mcp__github__ prefix
-				base := "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite"
-				var githubTools []string
-				for _, tool := range constants.DefaultGitHubTools {
-					githubTools = append(githubTools, fmt.Sprintf("mcp__github__%s", tool))
-				}
-				// Sort the GitHub tools to match the expected output
-				sort.Strings(githubTools)
-				return base + "," + strings.Join(githubTools, ",")
-			}(),
+			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github",
 		},
 		{
 			name: "cache-memory tool (provides file system access with path-specific cache tools)",

@@ -547,10 +547,9 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 							}
 						}
 					} else if toolName == "github" {
-						// For GitHub tools without explicit allowed list, use default GitHub tools
-						for _, defaultTool := range constants.DefaultGitHubTools {
-							allowedTools = append(allowedTools, fmt.Sprintf("mcp__github__%s", defaultTool))
-						}
+						// For GitHub tools without explicit allowed list, allow all tools via wildcard
+						// This lets the MCP server determine available tools based on read-only mode
+						allowedTools = append(allowedTools, "mcp__github")
 					}
 				}
 			}

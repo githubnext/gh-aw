@@ -1344,9 +1344,9 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 	return result, nil
 }
 
-// applyDefaultTools adds default read-only GitHub MCP tools, creating github tool if not present
+// applyDefaultTools enables read-only GitHub MCP server by default, creating github tool if not present
 func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutputsConfig) map[string]any {
-	// Always apply default GitHub tools (create github section if it doesn't exist)
+	// Always enable GitHub tools with read-only mode by default (create github section if it doesn't exist)
 
 	if tools == nil {
 		tools = make(map[string]any)
@@ -1365,34 +1365,15 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		githubConfig = make(map[string]any)
 	}
 
-	// Get existing allowed tools
-	var existingAllowed []any
-	if allowed, hasAllowed := githubConfig["allowed"]; hasAllowed {
-		if allowedSlice, ok := allowed.([]any); ok {
-			existingAllowed = allowedSlice
-		}
+	// If no explicit 'allowed' list is specified and no explicit 'read-only' setting,
+	// set read-only to true by default to let the MCP server provide all read-only tools
+	_, hasAllowed := githubConfig["allowed"]
+	_, hasReadOnly := githubConfig["read-only"]
+	
+	if !hasAllowed && !hasReadOnly {
+		githubConfig["read-only"] = true
 	}
 
-	// Create a set of existing tools for efficient lookup
-	existingToolsSet := make(map[string]bool)
-	for _, tool := range existingAllowed {
-		if toolStr, ok := tool.(string); ok {
-			existingToolsSet[toolStr] = true
-		}
-	}
-
-	// Add default GitHub tools that aren't already present
-	newAllowed := make([]any, len(existingAllowed))
-	copy(newAllowed, existingAllowed)
-
-	for _, defaultTool := range constants.DefaultGitHubTools {
-		if !existingToolsSet[defaultTool] {
-			newAllowed = append(newAllowed, defaultTool)
-		}
-	}
-
-	// Update the github tool configuration
-	githubConfig["allowed"] = newAllowed
 	tools["github"] = githubConfig
 
 	// Add Git commands and file editing tools when safe-outputs includes create-pull-request or push-to-pull-request-branch
