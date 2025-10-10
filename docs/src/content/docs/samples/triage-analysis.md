@@ -16,6 +16,14 @@ Automatically triage issues and pull requests with intelligent labeling and anal
 - **Why it's valuable**: Ensures consistent issue management and reduces manual triage overhead
 - **Learn more**: [Issue Triage Documentation](https://github.com/githubnext/agentics/blob/main/docs/issue-triage.md)
 
+### 🤖 Issue Triage with LLM CLI
+Automated issue triage using the simonw/llm CLI tool for flexible LLM provider selection.
+
+- **What it does**: Analyzes new issues and provides classification, priority assessment, and triage recommendations
+- **Why it's valuable**: Offers flexibility in LLM provider choice (OpenAI, Anthropic) and demonstrates custom engine patterns
+- **Try it**: [issue-triage-llm.md](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/issue-triage-llm.md)
+- **Learn more**: [Using simonw/llm CLI Guide](/gh-aw/guides/simonw-llm/)
+
 ### 🏥 CI Doctor
 Monitor CI workflows and automatically investigate failures with deep root cause analysis.
 
