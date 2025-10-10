@@ -115,6 +115,12 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 		}
 	}
 
+	// Check if this workflow has an issue trigger and we're in trial mode
+	// If so, inject workflow_dispatch with issue_number input
+	if data.TrialMode && c.hasIssueTrigger(data.On) {
+		data.On = c.injectWorkflowDispatchForIssue(data.On)
+	}
+
 	if data.Permissions == "" {
 		// Default behavior: use read-all permissions
 		data.Permissions = `permissions: read-all`
@@ -220,4 +226,56 @@ func mergeRuntimes(topRuntimes map[string]any, importedRuntimesJSON string) (map
 	}
 
 	return result, nil
+}
+
+// hasIssueTrigger checks if the workflow has an issue trigger in its 'on' section
+func (c *Compiler) hasIssueTrigger(onSection string) bool {
+	// Look for 'issues:', 'issue:', or 'issue_comment:' in the on section
+	return strings.Contains(onSection, "issues:") ||
+		strings.Contains(onSection, "issue:") ||
+		strings.Contains(onSection, "issue_comment:")
+}
+
+// injectWorkflowDispatchForIssue adds workflow_dispatch trigger with issue_number input
+func (c *Compiler) injectWorkflowDispatchForIssue(onSection string) string {
+	// Parse the existing on section to understand its structure
+	var onData map[string]any
+	if err := yaml.Unmarshal([]byte(onSection), &onData); err != nil {
+		// If parsing fails, append workflow_dispatch manually
+		return onSection + "\n  workflow_dispatch:\n    inputs:\n      issue_number:\n        description: 'Issue number for trial mode'\n        required: true\n        type: string"
+	}
+
+	// Get the 'on' section
+	if onMap, exists := onData["on"]; exists {
+		if triggers, ok := onMap.(map[string]any); ok {
+			// Add workflow_dispatch with issue_number input
+			triggers["workflow_dispatch"] = map[string]any{
+				"inputs": map[string]any{
+					"issue_number": map[string]any{
+						"description": "Issue number for trial mode",
+						"required":    true,
+						"type":        "string",
+					},
+				},
+			}
+
+			// Convert back to YAML
+			updatedOnData := map[string]any{"on": triggers}
+			if yamlBytes, err := yaml.Marshal(updatedOnData); err == nil {
+				yamlStr := string(yamlBytes)
+				// Clean up quoted keys
+				yamlStr = UnquoteYAMLKey(yamlStr, "on")
+				return strings.TrimSuffix(yamlStr, "\n")
+			}
+		}
+	}
+
+	// Fallback: append workflow_dispatch manually
+	return onSection + "\n  workflow_dispatch:\n    inputs:\n      issue_number:\n        description: 'Issue number for trial mode'\n        required: true\n        type: string"
+}
+
+// replaceIssueNumberReferences replaces github.event.issue.number with inputs.issue_number in YAML content
+func (c *Compiler) replaceIssueNumberReferences(yamlContent string) string {
+	// Replace all occurrences of github.event.issue.number with inputs.issue_number
+	return strings.ReplaceAll(yamlContent, "github.event.issue.number", "inputs.issue_number")
 }

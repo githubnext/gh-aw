@@ -53,8 +53,8 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 	// Pass target repository - prefer explicit config over trial mode setting
 	if data.SafeOutputs.AddLabels.TargetRepoSlug != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddLabels.TargetRepoSlug))
-	} else if c.trialMode && c.trialSimulatedRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialSimulatedRepoSlug))
+	} else if c.trialMode && c.trialApparentRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialApparentRepoSlug))
 	}
 
 	// Get token from config

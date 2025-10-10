@@ -287,8 +287,8 @@ gh aw run weekly-research --input priority=high
 # Test a workflow from a source repository against the current target repository
 gh aw trial githubnext/agentics/weekly-research
 
-# Test a workflow from a source repository against a different target repository
-gh aw trial githubnext/agentics/weekly-research --simulated-host-repo myorg/myrepo
+# Test a workflow in trial mode, is if it were installed and running in a repo
+gh aw trial githubnext/agentics/weekly-research --apparent-repo myorg/myrepo
 ```
 
 Trial mode creates a temporary private repository, installs the specified workflow from the source repository, and runs it in a safe environment that captures outputs without affecting the target repository. This is particularly useful for:

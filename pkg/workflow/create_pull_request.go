@@ -80,8 +80,8 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if data.SafeOutputs.CreatePullRequests.TargetRepoSlug != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequests.TargetRepoSlug))
-	} else if c.trialMode && c.trialSimulatedRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialSimulatedRepoSlug))
+	} else if c.trialMode && c.trialApparentRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialApparentRepoSlug))
 	}
 
 	// Step 4: Create pull request using the common helper

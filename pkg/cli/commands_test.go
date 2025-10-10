@@ -36,17 +36,17 @@ func TestCompileWorkflows(t *testing.T) {
 				args = []string{tt.markdownFile}
 			}
 			config := CompileConfig{
-				MarkdownFiles:     args,
-				Verbose:           false,
-				EngineOverride:    "",
-				Validate:          false,
-				Watch:             false,
-				WorkflowDir:       "",
-				SkipInstructions:  false,
-				NoEmit:            false,
-				Purge:             false,
-				TrialMode:         false,
-				SimulatedRepoSlug: "",
+				MarkdownFiles:         args,
+				Verbose:               false,
+				EngineOverride:        "",
+				Validate:              false,
+				Watch:                 false,
+				WorkflowDir:           "",
+				SkipInstructions:      false,
+				NoEmit:                false,
+				Purge:                 false,
+				TrialMode:             false,
+				TrialApparentRepoSlug: "",
 			}
 			_, err := CompileWorkflows(config)
 
@@ -63,17 +63,17 @@ func TestCompileWorkflowsPurgeFlag(t *testing.T) {
 	t.Run("purge flag validation with specific files", func(t *testing.T) {
 		// Test that purge flag is rejected when specific files are provided
 		config := CompileConfig{
-			MarkdownFiles:     []string{"test.md"},
-			Verbose:           false,
-			EngineOverride:    "",
-			Validate:          false,
-			Watch:             false,
-			WorkflowDir:       "",
-			SkipInstructions:  false,
-			NoEmit:            false,
-			Purge:             true,
-			TrialMode:         false,
-			SimulatedRepoSlug: "",
+			MarkdownFiles:         []string{"test.md"},
+			Verbose:               false,
+			EngineOverride:        "",
+			Validate:              false,
+			Watch:                 false,
+			WorkflowDir:           "",
+			SkipInstructions:      false,
+			NoEmit:                false,
+			Purge:                 true,
+			TrialMode:             false,
+			TrialApparentRepoSlug: "",
 		}
 		_, err := CompileWorkflows(config)
 
@@ -105,17 +105,17 @@ func TestCompileWorkflowsPurgeFlag(t *testing.T) {
 		// Note: This will still error because there are no .md files, but it shouldn't
 		// error specifically because of the purge flag validation
 		config := CompileConfig{
-			MarkdownFiles:     []string{},
-			Verbose:           false,
-			EngineOverride:    "",
-			Validate:          false,
-			Watch:             false,
-			WorkflowDir:       "",
-			SkipInstructions:  false,
-			NoEmit:            false,
-			Purge:             true,
-			TrialMode:         false,
-			SimulatedRepoSlug: "",
+			MarkdownFiles:         []string{},
+			Verbose:               false,
+			EngineOverride:        "",
+			Validate:              false,
+			Watch:                 false,
+			WorkflowDir:           "",
+			SkipInstructions:      false,
+			NoEmit:                false,
+			Purge:                 true,
+			TrialMode:             false,
+			TrialApparentRepoSlug: "",
 		}
 		_, err := CompileWorkflows(config)
 
@@ -156,17 +156,17 @@ This is a test workflow to verify the --no-emit flag functionality.`
 
 	// Test compilation with noEmit = false (should create lock file)
 	config := CompileConfig{
-		MarkdownFiles:     []string{"no-emit-test"},
-		Verbose:           false,
-		EngineOverride:    "",
-		Validate:          false,
-		Watch:             false,
-		WorkflowDir:       "",
-		SkipInstructions:  false,
-		NoEmit:            false,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
+		MarkdownFiles:         []string{"no-emit-test"},
+		Verbose:               false,
+		EngineOverride:        "",
+		Validate:              false,
+		Watch:                 false,
+		WorkflowDir:           "",
+		SkipInstructions:      false,
+		NoEmit:                false,
+		Purge:                 false,
+		TrialMode:             false,
+		TrialApparentRepoSlug: "",
 	}
 	_, err = CompileWorkflows(config)
 	if err != nil {
@@ -183,17 +183,17 @@ This is a test workflow to verify the --no-emit flag functionality.`
 
 	// Test compilation with noEmit = true (should NOT create lock file)
 	config2 := CompileConfig{
-		MarkdownFiles:     []string{"no-emit-test"},
-		Verbose:           false,
-		EngineOverride:    "",
-		Validate:          false,
-		Watch:             false,
-		WorkflowDir:       "",
-		SkipInstructions:  false,
-		NoEmit:            true,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
+		MarkdownFiles:         []string{"no-emit-test"},
+		Verbose:               false,
+		EngineOverride:        "",
+		Validate:              false,
+		Watch:                 false,
+		WorkflowDir:           "",
+		SkipInstructions:      false,
+		NoEmit:                true,
+		Purge:                 false,
+		TrialMode:             false,
+		TrialApparentRepoSlug: "",
 	}
 	_, err = CompileWorkflows(config2)
 	if err != nil {
@@ -385,17 +385,17 @@ func TestAllCommandsExist(t *testing.T) {
 	}{
 		{func() error {
 			config := CompileConfig{
-				MarkdownFiles:     []string{},
-				Verbose:           false,
-				EngineOverride:    "",
-				Validate:          false,
-				Watch:             false,
-				WorkflowDir:       "",
-				SkipInstructions:  false,
-				NoEmit:            false,
-				Purge:             false,
-				TrialMode:         false,
-				SimulatedRepoSlug: "",
+				MarkdownFiles:         []string{},
+				Verbose:               false,
+				EngineOverride:        "",
+				Validate:              false,
+				Watch:                 false,
+				WorkflowDir:           "",
+				SkipInstructions:      false,
+				NoEmit:                false,
+				Purge:                 false,
+				TrialMode:             false,
+				TrialApparentRepoSlug: "",
 			}
 			_, err := CompileWorkflows(config)
 			return err

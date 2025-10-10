@@ -70,18 +70,18 @@ This is a test workflow for compilation.
 
 	// Compile the workflow
 	config := CompileConfig{
-		MarkdownFiles:     []string{workflowPath},
-		Verbose:           false,
-		EngineOverride:    "",
-		Validate:          false,
-		Watch:             false,
-		WorkflowDir:       "",
-		SkipInstructions:  false, // Deprecated field, has no effect
-		NoEmit:            false,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
-		Strict:            false,
+		MarkdownFiles:         []string{workflowPath},
+		Verbose:               false,
+		EngineOverride:        "",
+		Validate:              false,
+		Watch:                 false,
+		WorkflowDir:           "",
+		SkipInstructions:      false, // Deprecated field, has no effect
+		NoEmit:                false,
+		Purge:                 false,
+		TrialMode:             false,
+		TrialApparentRepoSlug: "",
+		Strict:                false,
 	}
 
 	_, err = CompileWorkflows(config)
@@ -172,18 +172,18 @@ This is a test workflow for compilation.
 
 	// Compile all workflows (no specific files)
 	config := CompileConfig{
-		MarkdownFiles:     []string{}, // Empty means compile all
-		Verbose:           false,
-		EngineOverride:    "",
-		Validate:          false,
-		Watch:             false,
-		WorkflowDir:       "",
-		SkipInstructions:  false, // Deprecated field, has no effect
-		NoEmit:            false,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
-		Strict:            false,
+		MarkdownFiles:         []string{}, // Empty means compile all
+		Verbose:               false,
+		EngineOverride:        "",
+		Validate:              false,
+		Watch:                 false,
+		WorkflowDir:           "",
+		SkipInstructions:      false, // Deprecated field, has no effect
+		NoEmit:                false,
+		Purge:                 false,
+		TrialMode:             false,
+		TrialApparentRepoSlug: "",
+		Strict:                false,
 	}
 
 	_, err = CompileWorkflows(config)

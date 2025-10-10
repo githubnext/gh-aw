@@ -33,18 +33,18 @@ type FileTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
-	verbose                bool
-	engineOverride         string
-	customOutput           string          // If set, output will be written to this path instead of default location
-	version                string          // Version of the extension
-	skipValidation         bool            // If true, skip schema validation
-	noEmit                 bool            // If true, validate without generating lock files
-	strictMode             bool            // If true, enforce strict validation requirements
-	trialMode              bool            // If true, suppress safe outputs for trial mode execution
-	trialSimulatedRepoSlug string          // If set in trial mode, the target repository to checkout
-	jobManager             *JobManager     // Manages jobs and dependencies
-	engineRegistry         *EngineRegistry // Registry of available agentic engines
-	fileTracker            FileTracker     // Optional file tracker for tracking created files
+	verbose               bool
+	engineOverride        string
+	customOutput          string          // If set, output will be written to this path instead of default location
+	version               string          // Version of the extension
+	skipValidation        bool            // If true, skip schema validation
+	noEmit                bool            // If true, validate without generating lock files
+	strictMode            bool            // If true, enforce strict validation requirements
+	trialMode             bool            // If true, suppress safe outputs for trial mode execution
+	trialApparentRepoSlug string          // If set in trial mode, the target repository to checkout
+	jobManager            *JobManager     // Manages jobs and dependencies
+	engineRegistry        *EngineRegistry // Registry of available agentic engines
+	fileTracker           FileTracker     // Optional file tracker for tracking created files
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -81,9 +81,9 @@ func (c *Compiler) SetTrialMode(trialMode bool) {
 	c.trialMode = trialMode
 }
 
-// SetSimulatedRepo configures the target repository for trial mode
-func (c *Compiler) SetSimulatedRepo(repo string) {
-	c.trialSimulatedRepoSlug = repo
+// SetTrialApparentRepoSlug configures the target repository for trial mode
+func (c *Compiler) SetTrialApparentRepoSlug(repo string) {
+	c.trialApparentRepoSlug = repo
 }
 
 // SetStrictMode configures whether to enable strict validation mode
@@ -1581,7 +1581,15 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 	// Generate jobs section using JobManager
 	yaml.WriteString(c.jobManager.RenderToYAML())
 
-	return yaml.String(), nil
+	yamlContent := yaml.String()
+
+	// If we're in trial mode and this workflow has issue triggers,
+	// replace github.event.issue.number with inputs.issue_number
+	if data.TrialMode && c.hasIssueTrigger(data.On) {
+		yamlContent = c.replaceIssueNumberReferences(yamlContent)
+	}
+
+	return yamlContent, nil
 }
 
 // isActivationJobNeeded determines if the activation job is required
@@ -2076,9 +2084,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("        uses: actions/checkout@v5\n")
 		if c.trialMode {
 			yaml.WriteString("        with:\n")
-			if c.trialSimulatedRepoSlug != "" {
-				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialSimulatedRepoSlug))
-				// trialTargetRepoName := strings.Split(c.trialSimulatedRepoSlug, "/")
+			if c.trialApparentRepoSlug != "" {
+				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialApparentRepoSlug))
+				// trialTargetRepoName := strings.Split(c.trialApparentRepoSlug, "/")
 				// if len(trialTargetRepoName) == 2 {
 				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 				// }
@@ -2197,7 +2205,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	c.generateUploadMCPLogs(yaml)
 
 	// parse agent logs for GITHUB_STEP_SUMMARY
-	c.generateLogParsing(yaml, engine, logFileFull)
+	c.generateLogParsing(yaml, engine)
 
 	// upload agent logs
 	var _ string = logFile
@@ -2209,7 +2217,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	}
 
 	// Add error validation for AI execution logs
-	c.generateErrorValidation(yaml, engine, logFileFull, data)
+	c.generateErrorValidation(yaml, engine, data)
 
 	// Add git patch generation step only if safe-outputs create-pull-request feature is used
 	if data.SafeOutputs != nil && (data.SafeOutputs.CreatePullRequests != nil || data.SafeOutputs.PushToPullRequestBranch != nil) {
@@ -2240,7 +2248,7 @@ func (c *Compiler) generateUploadAssets(yaml *strings.Builder) {
 	yaml.WriteString("          if-no-files-found: ignore\n")
 }
 
-func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string) {
+func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentEngine) {
 	parserScriptName := engine.GetLogParserScriptId()
 	if parserScriptName == "" {
 		// Skip log parsing if engine doesn't provide a parser
@@ -2297,7 +2305,7 @@ func (c *Compiler) convertErrorPatternsToJavaScript(goPatterns []ErrorPattern) [
 	return jsPatterns
 }
 
-func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, logFileFull string, data *WorkflowData) {
+func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingAgentEngine, data *WorkflowData) {
 	// Concatenate engine error patterns and configured error patterns
 	var errorPatterns []ErrorPattern
 
@@ -2512,7 +2520,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add XPIA security prompt as separate step if enabled (before other prompts)
 	c.generateXPIAPromptStep(yaml, data)
 
-	// trialTargetRepoName := strings.Split(c.trialSimulatedRepoSlug, "/")
+	// trialTargetRepoName := strings.Split(c.trialApparentRepoSlug, "/")
 	// if len(trialTargetRepoName) == 2 {
 	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 	// }
@@ -2524,7 +2532,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 		yaml.WriteString("        run: |\n")
 		yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
 		yaml.WriteString("          ## Note\n")
-		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialSimulatedRepoSlug))
+		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialApparentRepoSlug))
 		yaml.WriteString("          EOF\n")
 	}
 
@@ -2691,7 +2699,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
 	// Set trial mode information before calling engine
 	data.TrialMode = c.trialMode
-	data.TrialTargetRepo = c.trialSimulatedRepoSlug
+	data.TrialTargetRepo = c.trialApparentRepoSlug
 
 	steps := engine.GetExecutionSteps(data, logFile)
 
