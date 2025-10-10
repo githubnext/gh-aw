@@ -687,13 +687,11 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		yaml.WriteString("                  \"--rm\",\n")
 		yaml.WriteString("                  \"-e\",\n")
 		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"GITHUB_TOOLSETS\",\n")
 		if readOnly {
 			yaml.WriteString("                  \"-e\",\n")
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
-		}
-		if toolsets == "" {
-			yaml.WriteString("                  \"--toolsets\",\n")
-			yaml.WriteString("                  \"all\",\n")
 		}
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
@@ -715,6 +713,9 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		if toolsets != "" {
 			yaml.WriteString(",\n")
 			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS\": \"%s\"", toolsets))
+		} else {
+			yaml.WriteString(",\n")
+			yaml.WriteString("                  \"GITHUB_TOOLSETS\": \"all\"")
 		}
 
 		yaml.WriteString("\n")

@@ -337,8 +337,8 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 			yaml.WriteString("                  \"-e\",\n")
 			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
 		} else {
-			yaml.WriteString("                  \"--toolsets\",\n")
-			yaml.WriteString("                  \"all\",\n")
+			yaml.WriteString("                  \"-e\",\n")
+			yaml.WriteString("                  \"GITHUB_TOOLSETS=all\",\n")
 		}
 
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
