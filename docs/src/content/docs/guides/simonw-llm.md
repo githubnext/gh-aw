@@ -13,7 +13,7 @@ This repository includes a shared component (`shared/simonw-llm.md`) that makes 
 
 ## Quick Start
 
-The simplest way to use the llm CLI is to import the shared component:
+The simplest way to use the llm CLI with GitHub Models is to import the shared component:
 
 ```aw
 ---
@@ -24,6 +24,7 @@ on:
 permissions:
   contents: read
   actions: read
+  models: read
 safe-outputs:
   add-comment:
     max: 1
@@ -38,25 +39,7 @@ Analyze the issue: ${{ needs.activation.outputs.text }}
 
 ## Configuration
 
-The `simonw-llm` shared component supports OpenAI, Anthropic, and GitHub Models API keys. You need to configure at least one API key as a repository secret, or use the built-in GITHUB_TOKEN for GitHub Models.
-
-### OpenAI Setup
-
-1. Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Add as repository secret:
-   ```bash
-   gh secret set OPENAI_API_KEY -a actions --body "<your-api-key>"
-   ```
-3. The workflow will automatically use `gpt-4o-mini` model
-
-### Anthropic Setup
-
-1. Get your API key from [Anthropic Console](https://console.anthropic.com/)
-2. Add as repository secret:
-   ```bash
-   gh secret set ANTHROPIC_API_KEY -a actions --body "<your-api-key>"
-   ```
-3. The workflow will automatically install the `llm-claude` plugin and use `claude-3-5-sonnet-20241022` model
+The `simonw-llm` shared component uses GitHub Models with the built-in `GITHUB_TOKEN`. No additional API key setup is required.
 
 ### GitHub Models Setup (Free Tier)
 
@@ -65,6 +48,13 @@ The `simonw-llm` shared component supports OpenAI, Anthropic, and GitHub Models 
 3. Requires `models: read` permission in the workflow
 4. Free tier available for all GitHub users
 5. Over 30+ models available including GPT-4o, DeepSeek, Llama, and more
+
+### MCP Tools Support
+
+The workflow includes the `llm-tools-mcp` plugin which enables integration with MCP servers:
+- Tools from MCP servers are automatically available
+- MCP configuration can be customized via workflow configuration
+- Supports stdio, SSE, and HTTP transports for MCP servers
 
 ## Example: Issue Triage Workflow
 
@@ -100,25 +90,24 @@ You are an issue triage assistant. Analyze the issue and provide:
 
 ## Features
 
-- **Multiple LLM Providers**: Supports OpenAI, Anthropic (via plugins), and GitHub Models (free tier)
-- **Automatic Model Selection**: Chooses the right model based on available API keys
+- **GitHub Models Integration**: Uses free GitHub Models with 30+ AI models
+- **MCP Tools Support**: Integrated MCP server support via llm-tools-mcp plugin
+- **Automatic Configuration**: Uses built-in GITHUB_TOKEN, no API key setup needed
 - **Safe Outputs Integration**: Works seamlessly with GitHub's safe-outputs for issue comments, PRs, etc.
 - **Simple Installation**: Automatically installs via pip in the workflow
-- **Plugin Support**: Automatically installs required plugins (e.g., llm-claude, llm-github-models)
-- **Free Option**: GitHub Models provides free access to 30+ AI models
+- **Free Tier**: GitHub Models provides free access to GPT-4o, DeepSeek, Llama, and more
 
 ## How It Works
 
-1. **Installation**: The workflow installs the llm CLI and llm-github-models plugin via pip
-2. **API Key Configuration**: Configures the appropriate API key based on available secrets (or uses GITHUB_TOKEN for GitHub Models)
-3. **Plugin Installation**: Installs required plugins (e.g., llm-claude for Anthropic)
-4. **MCP Configuration**: The GITHUB_AW_MCP_CONFIG environment variable is available for MCP server integration (future compatibility)
-5. **Execution**: Runs your prompt using the llm CLI
-6. **Output Processing**: Captures output for safe-outputs processing
+1. **Installation**: The workflow installs the llm CLI, llm-github-models, and llm-tools-mcp plugins via pip
+2. **Configuration**: Uses the built-in GITHUB_TOKEN (no API key setup needed)
+3. **MCP Integration**: The llm-tools-mcp plugin provides MCP server support for tool access
+4. **Execution**: Runs your prompt using the llm CLI with GitHub Models
+5. **Output Processing**: Captures output for safe-outputs processing
 
 ## Customization
 
-To customize the model or other settings, you can create your own custom engine configuration based on the shared component:
+To use different models or customize settings, you can create your own custom engine configuration:
 
 ```aw
 ---
@@ -127,55 +116,50 @@ engine:
   steps:
     - name: Install simonw/llm CLI
       run: |
-        pip install llm
+        pip install llm llm-github-models llm-tools-mcp
         llm --version
     
-    - name: Configure API key
+    - name: Run with custom model
       run: |
-        echo "$OPENAI_API_KEY" | llm keys set openai
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-    
-    - name: Run custom llm command
-      run: |
-        # Use custom model or options
-        llm -m gpt-4o "$(cat $GITHUB_AW_PROMPT)"
+        # Use a different GitHub model
+        llm -m "github/gpt-4o" "$(cat $GITHUB_AW_PROMPT)"
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 ```
 
 ## Comparison with Other Engines
 
-| Feature | Claude Engine | Copilot Engine | LLM CLI |
-|---------|--------------|----------------|---------|
-| Setup Complexity | Low | Low | Low |
-| Model Choice | Claude only | GitHub models | Multiple providers (OpenAI, Anthropic, GitHub Models, etc.) |
-| Plugin Support | No | No | Yes (extensive) |
-| Cost | Pay per use | Included with subscription | Free (GitHub Models) or pay per use |
+| Feature | Claude Engine | Copilot Engine | LLM CLI (GitHub Models) |
+|---------|--------------|----------------|-------------------------|
+| Setup Complexity | Low | Low | Very Low (no API keys) |
+| Model Choice | Claude only | GitHub models | GitHub Models (30+) |
+| MCP Support | Native | No | Via llm-tools-mcp plugin |
+| Cost | Pay per use | Included with subscription | Free |
 | Offline Mode | No | No | Yes (with local models) |
 
 ## Best Practices
 
 1. **Use Safe Outputs**: Always use safe-outputs for GitHub API operations instead of direct API calls
 2. **Set Timeouts**: Configure appropriate timeout_minutes for your workflows
-3. **Minimal Permissions**: Only grant the permissions your workflow actually needs
-4. **API Key Security**: Never hardcode API keys; always use repository secrets
-5. **Test Locally**: The llm CLI can be tested locally before deploying to workflows
+3. **Minimal Permissions**: Only grant the permissions your workflow actually needs (`models: read` is required)
+4. **Test Locally**: The llm CLI can be tested locally before deploying to workflows
+5. **MCP Tools**: Leverage MCP servers for additional tool capabilities
 
 ## Troubleshooting
 
-### API Key Not Found
+### GITHUB_TOKEN Not Available
 
 If you see "No API key configured":
-- Verify the secret is named exactly `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
-- Check that the secret is accessible to Actions (not just Dependabot or Codespaces)
+- Ensure the workflow has `models: read` permission
+- Verify the workflow is running in a GitHub Actions environment
 
 ### Model Not Available
 
 If the default model is not available:
-- For OpenAI: Check your account has access to gpt-4o-mini
-- For Anthropic: Verify your API key has access to claude-3-5-sonnet
+- Check GitHub Models status and available models
+- Try using a different model: `github/gpt-4o`, `github/DeepSeek-V3`, etc.
 
 ### Installation Issues
 
