@@ -218,19 +218,17 @@ tools:
 
 Arguments are appended to the generated MCP server command and properly escaped for special characters including spaces, quotes, and backslashes.
 
-The system automatically includes comprehensive default read-only GitHub tools. These defaults are merged with your custom `allowed` tools, providing comprehensive repository access.
+When no explicit `allowed` tools list is specified, the system automatically enables read-only mode, which provides access to all read-only GitHub MCP tools. The available tools are determined by the GitHub MCP server itself, ensuring you always have access to the latest read-only capabilities without maintaining a hardcoded list.
 
-**Default Read-Only Tools**:
+**Example Read-Only Tools Categories**:
 
-**Actions**: `download_workflow_run_artifact`, `get_job_logs`, `get_workflow_run`, `list_workflows`
+- **Actions**: Workflow run and artifact operations
+- **Issues & PRs**: Issue and pull request reading
+- **Repository**: Commit, file, and branch operations
+- **Security**: Code scanning and secret scanning alerts
+- **Users & Organizations**: User and organization searches
 
-**Issues & PRs**: `get_issue`, `get_pull_request`, `list_issues`, `list_pull_requests`, `search_issues`
-
-**Repository**: `get_commit`, `get_file_contents`, `list_branches`, `list_commits`, `search_code`
-
-**Security**: `get_code_scanning_alert`, `list_secret_scanning_alerts`, `get_dependabot_alert`
-
-**Users & Organizations**: `search_users`, `search_orgs`, `get_me`
+For a complete list of available tools, use the MCP inspect command: `gh aw mcp inspect <workflow-name> --server github`
 
 ## Playwright Tool (`playwright:`)
 

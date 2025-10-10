@@ -112,8 +112,6 @@ const AgentOutputArtifactName = "agent_output.json"
 
 var AgenticEngines = []string{"claude", "codex", "copilot"}
 
-
-
 // DefaultBashTools defines basic bash commands that should be available by default when bash is enabled
 var DefaultBashTools = []string{
 	"echo",

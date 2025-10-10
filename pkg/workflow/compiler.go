@@ -1369,7 +1369,7 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 	// set read-only to true by default to let the MCP server provide all read-only tools
 	_, hasAllowed := githubConfig["allowed"]
 	_, hasReadOnly := githubConfig["read-only"]
-	
+
 	if !hasAllowed && !hasReadOnly {
 		githubConfig["read-only"] = true
 	}
