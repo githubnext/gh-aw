@@ -300,9 +300,10 @@ async function main() {
   const commitSha = commitShaRes.stdout.trim();
 
   // Get commit SHA and push URL
+  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const pushUrl = context.payload.repository
     ? `${context.payload.repository.html_url}/tree/${branchName}`
-    : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
 
   // Set outputs
   core.setOutput("branch_name", branchName);

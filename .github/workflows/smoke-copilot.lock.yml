@@ -3147,9 +3147,10 @@ jobs:
                 const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
                 const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL).trimEnd(), "");
                 const body = bodyLines.join("\n").trim();
                 core.info(`Creating issue with title: ${title}`);
