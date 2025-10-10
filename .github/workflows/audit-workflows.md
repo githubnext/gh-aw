@@ -11,7 +11,7 @@ tools:
   cache-memory: true
 safe-outputs:
   create-discussion:
-    category-id: "audits"
+    category: "audits"
     max: 1
 timeout_minutes: 20
 strict: true

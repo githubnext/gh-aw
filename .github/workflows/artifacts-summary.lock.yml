@@ -3030,7 +3030,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Artifacts Summary"
-          GITHUB_AW_DISCUSSION_CATEGORY_ID: "artifacts"
+          GITHUB_AW_DISCUSSION_CATEGORY: "artifacts"
         with:
           script: |
             async function main() {
@@ -3071,8 +3071,8 @@ jobs:
                   if (item.body) {
                     summaryContent += `**Body:**\n${item.body}\n\n`;
                   }
-                  if (item.category_id) {
-                    summaryContent += `**Category ID:** ${item.category_id}\n\n`;
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
                   }
                   summaryContent += "---\n\n";
                 }
@@ -3120,10 +3120,37 @@ jobs:
                 core.error(`Failed to get discussion categories: ${errorMessage}`);
                 throw error;
               }
-              let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID;
-              if (!categoryId && discussionCategories.length > 0) {
+              let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY;
+              if (categoryId) {
+                const categoryById = discussionCategories.find(cat => cat.id === categoryId);
+                if (categoryById) {
+                  core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
+                } else {
+                  const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
+                  if (categoryByName) {
+                    categoryId = categoryByName.id;
+                    core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
+                  } else {
+                    const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
+                    if (categoryBySlug) {
+                      categoryId = categoryBySlug.id;
+                      core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
+                    } else {
+                      core.warning(
+                        `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
+                      );
+                      if (discussionCategories.length > 0) {
+                        categoryId = discussionCategories[0].id;
+                        core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+                      } else {
+                        categoryId = undefined;
+                      }
+                    }
+                  }
+                }
+              } else if (discussionCategories.length > 0) {
                 categoryId = discussionCategories[0].id;
-                core.info(`No category-id specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
+                core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
               }
               if (!categoryId) {
                 core.error("No discussion category available and none specified in configuration");
