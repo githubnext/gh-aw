@@ -1060,6 +1060,7 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Ensure log file exists
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log
@@ -1993,6 +1994,7 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Ensure log file exists
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/threat-detection/detection.log
