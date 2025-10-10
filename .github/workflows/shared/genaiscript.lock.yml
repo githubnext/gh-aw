@@ -211,7 +211,7 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                  "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -343,7 +343,7 @@ jobs:
       - name: Install GenAIScript
         run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
         env:
-          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_MODEL_VERSION: github:gpt-4o-mini
           GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -355,7 +355,7 @@ jobs:
           sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
           echo "Generated GenAI prompt file"
         env:
-          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_MODEL_VERSION: github:gpt-4o-mini
           GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -364,10 +364,11 @@ jobs:
         run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config $GITHUB_AW_MCP_CONFIG --out /tmp/gh-aw/genaiscript-output.md
         env:
           DEBUG: genaiscript:*
-          GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
+          GITHUB_AW_AGENT_MODEL_VERSION: github:gpt-4o-mini
           GITHUB_AW_AGENT_VERSION: 2.5.1
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Ensure log file exists
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log

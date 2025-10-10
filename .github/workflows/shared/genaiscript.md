@@ -28,6 +28,7 @@ engine:
         DEBUG: genaiscript:*
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
         GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
 <!--
