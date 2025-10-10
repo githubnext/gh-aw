@@ -339,3 +339,97 @@ describe("main function behavior", () => {
     expect(global.core.setFailed).not.toHaveBeenCalled();
   });
 });
+
+describe("infinite loop detection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("should detect and prevent infinite loops from zero-width matches", () => {
+    // A pattern that could potentially match zero-width (though JavaScript's regex.exec
+    // typically advances even on zero-width matches, this tests our safety mechanism)
+    const logContent = "test line";
+    const patterns = [
+      {
+        // This pattern uses a lookahead which could be problematic in some scenarios
+        pattern: "(?=t)",
+        level_group: 0,
+        message_group: 0,
+        description: "Potentially problematic zero-width pattern",
+      },
+    ];
+
+    // Should not hang or throw, should complete
+    const hasErrors = validateErrors(logContent, patterns);
+
+    // The function should complete without hanging
+    expect(hasErrors).toBeDefined();
+  });
+
+  test("should log warning when iteration count is high", () => {
+    // Create a line with many matches to trigger the warning threshold
+    const repeatedPattern = "ERROR ".repeat(1500); // More than ITERATION_WARNING_THRESHOLD
+    const logContent = repeatedPattern;
+
+    const patterns = [
+      {
+        pattern: "ERROR",
+        level_group: 0,
+        message_group: 0,
+        description: "Simple error pattern",
+      },
+    ];
+
+    validateErrors(logContent, patterns);
+
+    // Should have logged a warning about high iteration count
+    const warningCalls = global.core.warning.mock.calls.map(call => call[0]);
+    const hasIterationWarning = warningCalls.some(msg => msg.includes("High iteration count") || msg.includes("1000"));
+
+    expect(hasIterationWarning).toBe(true);
+  });
+
+  test("should enforce maximum iteration limit", () => {
+    // Create a line with an extreme number of potential matches
+    const massivePattern = "X".repeat(15000); // More than MAX_ITERATIONS_PER_LINE
+    const logContent = massivePattern;
+
+    const patterns = [
+      {
+        pattern: "X",
+        level_group: 0,
+        message_group: 0,
+        description: "Single character pattern",
+      },
+    ];
+
+    validateErrors(logContent, patterns);
+
+    // Should have logged an error about maximum iteration limit
+    const errorCalls = global.core.error.mock.calls.map(call => call[0]);
+    const hasMaxIterationError = errorCalls.some(msg => msg.includes("Maximum iteration limit") || msg.includes("10000"));
+
+    expect(hasMaxIterationError).toBe(true);
+  });
+
+  test("should log debug information about patterns and lines", () => {
+    const logContent = "ERROR: test\nWARNING: test2";
+    const patterns = [
+      {
+        pattern: "ERROR:\\s+(.+)",
+        level_group: 0,
+        message_group: 1,
+        description: "Error pattern",
+      },
+    ];
+
+    validateErrors(logContent, patterns);
+
+    // Should have logged debug information
+    const debugCalls = global.core.debug.mock.calls.map(call => call[0]);
+
+    // Should log pattern count and line count
+    const hasPatternInfo = debugCalls.some(msg => msg.includes("patterns") && msg.includes("lines"));
+    expect(hasPatternInfo).toBe(true);
+  });
+});
