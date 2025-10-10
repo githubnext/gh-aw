@@ -2251,7 +2251,13 @@ require = function(name) {
 	return nil
 }
 
-// runErrorValidator runs the validate_errors.cjs script on agent logs
+// runErrorValidator runs the validate_errors.cjs script on agent logs with a 1-minute timeout.
+// It validates agent logs against error patterns defined by the engine to detect issues like
+// permission errors, configuration problems, and potential infinite regex loops.
+//
+// The validator executes with a 1-minute timeout to prevent hanging on infinite regex loops.
+// Error patterns are passed via GITHUB_AW_ERROR_PATTERNS environment variable as JSON.
+// Validation failures are logged but don't fail the entire operation.
 func runErrorValidator(tempDir, logFile string, engine workflow.CodingAgentEngine, verbose bool) error {
 	// Get error patterns from the engine
 	errorPatterns := engine.GetErrorPatterns()
