@@ -7,6 +7,12 @@ describe("collect_ndjson_output.cjs", () => {
   let collectScript;
 
   beforeEach(() => {
+    // Ensure test directory exists
+    const testDir = "/tmp/gh-aw";
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
+
     // Save original console before mocking
     global.originalConsole = global.console;
 
