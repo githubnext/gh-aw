@@ -691,6 +691,10 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 			yaml.WriteString("                  \"-e\",\n")
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 		}
+		if toolsets == "" {
+			yaml.WriteString("                  \"--toolsets\",\n")
+			yaml.WriteString("                  \"all\",\n")
+		}
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present

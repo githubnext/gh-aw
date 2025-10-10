@@ -178,9 +178,9 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 
 			// Write the updated @include directive
 			if isOptional {
-				result.WriteString("@include? " + workflowSpec + "\n")
+				result.WriteString("{{#import? " + workflowSpec + "}}\n")
 			} else {
-				result.WriteString("@include " + workflowSpec + "\n")
+				result.WriteString("{{#import " + workflowSpec + "}}\n")
 			}
 
 			// Add file to queue for processing nested includes
@@ -324,11 +324,11 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 				workflowSpec += "#" + sectionName
 			}
 
-			// Write the updated @include directive
+			// Write the updated import directive
 			if isOptional {
-				result.WriteString("@include? " + workflowSpec + "\n")
+				result.WriteString("{{#import? " + workflowSpec + "}}\n")
 			} else {
-				result.WriteString("@include " + workflowSpec + "\n")
+				result.WriteString("{{#import " + workflowSpec + "}}\n")
 			}
 		} else {
 			// Regular line, pass through

@@ -33,7 +33,7 @@ More content.
 	}
 
 	// Should convert to @include with workflowspec
-	expectedInclude := "@include? githubnext/agentics/agentics/weekly-research.config@main"
+	expectedInclude := "{{#import? githubnext/agentics/agentics/weekly-research.config@main}}"
 	if !strings.Contains(result, expectedInclude) {
 		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
 	}
@@ -73,7 +73,7 @@ More content.
 	}
 
 	// Should convert to @include with workflowspec
-	expectedInclude := "@include? githubnext/agentics/shared/config.md@main"
+	expectedInclude := "{{#import? githubnext/agentics/shared/config.md@main}}"
 	if !strings.Contains(result, expectedInclude) {
 		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
 	}
@@ -104,7 +104,7 @@ engine: claude
 	}
 
 	// Should use commit SHA instead of version
-	expectedInclude := "@include githubnext/agentics/agentics/config.md@e2770974a7eaccb58ddafd5606c38a05ba52c631"
+	expectedInclude := "{{#import githubnext/agentics/agentics/config.md@e2770974a7eaccb58ddafd5606c38a05ba52c631}}"
 	if !strings.Contains(result, expectedInclude) {
 		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
 	}
@@ -171,7 +171,7 @@ engine: claude
 	}
 
 	// Should convert to workflowspec format
-	expectedInclude := "@include? owner/repo/config/settings.md@v1.0.0"
+	expectedInclude := "{{#import? owner/repo/config/settings.md@v1.0.0}}"
 	if !strings.Contains(result, expectedInclude) {
 		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
 	}
@@ -249,7 +249,7 @@ Do research.
 	}
 
 	// Should convert to proper workflowspec
-	expectedInclude := "@include? githubnext/agentics/agentics/weekly-research.config@e2770974a7eaccb58ddafd5606c38a05ba52c631"
+	expectedInclude := "{{#import? githubnext/agentics/agentics/weekly-research.config@e2770974a7eaccb58ddafd5606c38a05ba52c631}}"
 	if !strings.Contains(result, expectedInclude) {
 		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
 	}

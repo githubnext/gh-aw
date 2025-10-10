@@ -561,7 +561,12 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("            \"run\",\n")
 		yaml.WriteString("            \"-i\",\n")
 		yaml.WriteString("            \"--rm\",\n")
+		if toolsets == "" {
+			yaml.WriteString("            \"--toolsets\",\n")
+			yaml.WriteString("            \"all\",\n")
+		}
 		yaml.WriteString("            \"-e\",\n")
+		// Add GITHUB_TOOLSETS environment variable if toolsets are configured
 		yaml.WriteString("            \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
 		if readOnly {
 			yaml.WriteString("            \"-e\",\n")
