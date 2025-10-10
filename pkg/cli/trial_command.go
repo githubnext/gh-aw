@@ -68,7 +68,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			workflowSpecs := args
-			apparentRepoSlug, _ := cmd.Flags().GetString("apparent-repo")
+			logicalRepoSlug, _ := cmd.Flags().GetString("logical-repo")
 			hostRepoSlug, _ := cmd.Flags().GetString("host-repo")
 			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo")
 			yes, _ := cmd.Flags().GetBool("yes")
@@ -76,7 +76,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			triggerContext, _ := cmd.Flags().GetString("trigger-context")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
-			if err := RunWorkflowTrials(workflowSpecs, apparentRepoSlug, hostRepoSlug, deleteHostRepo, yes, timeout, triggerContext, verbose); err != nil {
+			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSlug, hostRepoSlug, deleteHostRepo, yes, timeout, triggerContext, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -84,7 +84,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	}
 
 	// Add flags
-	cmd.Flags().StringP("apparent-repo", "s", "", "The repo we're simulating the execution for, as if the workflow was installed in that repo (defaults to current repository)")
+	cmd.Flags().StringP("logical-repo", "s", "", "The repo we're simulating the execution for, as if the workflow was installed in that repo (defaults to current repository)")
 
 	// Get current username for default trial repo description
 	username, _ := getCurrentGitHubUsername()
@@ -103,7 +103,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, apparentRepoSlug string, hostRepoSlug string, deleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, verbose bool) error {
+func RunWorkflowTrials(workflowSpecs []string, logicalRepoSlug string, hostRepoSlug string, deleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, verbose bool) error {
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -129,19 +129,19 @@ func RunWorkflowTrials(workflowSpecs []string, apparentRepoSlug string, hostRepo
 	dateTimeID := fmt.Sprintf("%s-%d", time.Now().Format("20060102-150405"), time.Now().UnixNano()%1000000)
 
 	// Step 0: Determine simulated host repository
-	var finalApparentRepoSlug string
-	if apparentRepoSlug != "" {
+	var finalLogicalRepoSlug string
+	if logicalRepoSlug != "" {
 		// Use the provided simulated host repository
-		finalApparentRepoSlug = apparentRepoSlug
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", finalApparentRepoSlug)))
+		finalLogicalRepoSlug = logicalRepoSlug
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (specified): %s", finalLogicalRepoSlug)))
 	} else {
 		// Fall back to current repository
 		var err error
-		finalApparentRepoSlug, err = getCurrentRepositoryInfo()
+		finalLogicalRepoSlug, err = getCurrentRepositoryInfo()
 		if err != nil {
 			return fmt.Errorf("failed to determine simulated host repository: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (current): %s", finalApparentRepoSlug)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Target repository (current): %s", finalLogicalRepoSlug)))
 	}
 
 	// Step 1: Determine host repository slug
@@ -178,7 +178,7 @@ func RunWorkflowTrials(workflowSpecs []string, apparentRepoSlug string, hostRepo
 
 	// Step 1.5: Show confirmation unless quiet mode
 	if !quiet {
-		if err := showTrialConfirmation(parsedSpecs, finalApparentRepoSlug, hostRepoSlug, deleteHostRepo); err != nil {
+		if err := showTrialConfirmation(parsedSpecs, finalLogicalRepoSlug, hostRepoSlug, deleteHostRepo); err != nil {
 			return err
 		}
 	}
@@ -227,7 +227,7 @@ func RunWorkflowTrials(workflowSpecs []string, apparentRepoSlug string, hostRepo
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 		// Install workflow with trial mode compilation
-		if err := installWorkflowInTrialMode(tempDir, parsedSpec, finalApparentRepoSlug, hostRepoSlug, verbose); err != nil {
+		if err := installWorkflowInTrialMode(tempDir, parsedSpec, finalLogicalRepoSlug, hostRepoSlug, verbose); err != nil {
 			return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 		}
 
@@ -272,7 +272,7 @@ func RunWorkflowTrials(workflowSpecs []string, apparentRepoSlug string, hostRepo
 		workflowResults = append(workflowResults, result)
 
 		// Save individual trial file
-		sanitizedTargetRepo := sanitizeRepoSlugForFilename(finalApparentRepoSlug)
+		sanitizedTargetRepo := sanitizeRepoSlugForFilename(finalLogicalRepoSlug)
 		individualFilename := fmt.Sprintf("trials/%s-%s.%s.json", parsedSpec.WorkflowName, sanitizedTargetRepo, dateTimeID)
 		if err := saveTrialResult(individualFilename, result, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save individual trial result: %v", err)))
@@ -309,7 +309,7 @@ func RunWorkflowTrials(workflowSpecs []string, apparentRepoSlug string, hostRepo
 			workflowNames[i] = spec.WorkflowName
 		}
 		workflowNamesStr := strings.Join(workflowNames, "-")
-		sanitizedTargetRepo := sanitizeRepoSlugForFilename(finalApparentRepoSlug)
+		sanitizedTargetRepo := sanitizeRepoSlugForFilename(finalLogicalRepoSlug)
 		combinedFilename := fmt.Sprintf("trials/%s-%s.%s.json", workflowNamesStr, sanitizedTargetRepo, dateTimeID)
 		combinedResult := CombinedTrialResult{
 			WorkflowNames: workflowNames,
@@ -327,7 +327,7 @@ func RunWorkflowTrials(workflowSpecs []string, apparentRepoSlug string, hostRepo
 	for i, spec := range parsedSpecs {
 		workflowNames[i] = spec.WorkflowName
 	}
-	if err := copyTrialResultsToRepo(tempDir, dateTimeID, workflowNames, finalApparentRepoSlug, verbose); err != nil {
+	if err := copyTrialResultsToRepo(tempDir, dateTimeID, workflowNames, finalLogicalRepoSlug, verbose); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy trial results to repository: %v", err)))
 	}
 
@@ -373,13 +373,13 @@ func getCurrentRepositoryInfo() (string, error) {
 	// Remove .git suffix if present
 	repoPath = strings.TrimSuffix(repoPath, ".git")
 
-	// Validate format (should be owner/repo)
-	parts := strings.Split(repoPath, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", fmt.Errorf("invalid repository format: %s", repoPath)
+	// Use parseRepoSpec to validate the format consistently
+	repoSpec, err := parseRepoSpec(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("invalid repository format from git remote: %w", err)
 	}
 
-	return repoPath, nil
+	return repoSpec.Repo, nil
 }
 
 // getCurrentGitHubUsername gets the current GitHub username from gh CLI
@@ -421,7 +421,7 @@ func getCurrentRepoSlug() (string, error) {
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
-func showTrialConfirmation(parsedSpecs []*WorkflowSpec, apparentRepoSlug, hostRepoSlug string, deleteHostRepo bool) error {
+func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, hostRepoSlug string, deleteHostRepo bool) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("=== Trial Execution Plan ==="))
@@ -433,7 +433,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, apparentRepoSlug, hostRe
 			fmt.Fprintf(os.Stderr, console.FormatInfoMessage("  - %s (from %s)\n"), spec.WorkflowName, spec.Repo)
 		}
 	}
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Target Repository: %s\n"), apparentRepoSlug)
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Target Repository: %s\n"), logicalRepoSlug)
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("Trial Repository: %s (%s)\n"), hostRepoSlug, hostRepoSlugURL)
 
 	if deleteHostRepo {
@@ -445,7 +445,7 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, apparentRepoSlug, hostRe
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("This will:"))
 	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("1. Create a private host repository at %s\n"), hostRepoSlugURL)
-	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("2. Install and compile the specified workflows in trial mode against %s\n"), apparentRepoSlug)
+	fmt.Fprintf(os.Stderr, console.FormatInfoMessage("2. Install and compile the specified workflows in trial mode against %s\n"), logicalRepoSlug)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("3. Execute each workflow and collect any safe outputs"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("4. Display the results from each workflow execution"))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("5. Clean up API key secrets from the host repository"))
@@ -562,11 +562,7 @@ func cloneTrialRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, apparentRepoSlug, hostRepoSlug string, verbose bool) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.Repo)))
-	}
-
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, hostRepoSlug string, verbose bool) error {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -578,34 +574,50 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, appare
 		return fmt.Errorf("failed to change to temp directory: %w", err)
 	}
 
-	// Install the source repository as a package
-	if err := InstallPackage(parsedSpec.Repo, verbose); err != nil {
-		return fmt.Errorf("failed to install source repository: %w", err)
-	}
+	// Check if this is a local workflow
+	if strings.HasPrefix(parsedSpec.WorkflowPath, "./") {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing local workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.WorkflowPath)))
+		}
 
-	// Add the workflow from the installed package
-	if err := AddWorkflows([]string{parsedSpec.String()}, 1, verbose, "", "", true, false); err != nil {
-		return fmt.Errorf("failed to add workflow: %w", err)
+		// For local workflows, copy the file directly from the filesystem
+		if err := installLocalWorkflowInTrialMode(originalDir, tempDir, parsedSpec, verbose); err != nil {
+			return fmt.Errorf("failed to install local workflow: %w", err)
+		}
+	} else {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Installing workflow '%s' from '%s' in trial mode", parsedSpec.WorkflowName, parsedSpec.Repo)))
+		}
+
+		// Install the source repository as a package
+		if err := InstallPackage(parsedSpec.Repo, verbose); err != nil {
+			return fmt.Errorf("failed to install source repository: %w", err)
+		}
+
+		// Add the workflow from the installed package
+		if err := AddWorkflows([]string{parsedSpec.String()}, 1, verbose, "", "", true, false); err != nil {
+			return fmt.Errorf("failed to add workflow: %w", err)
+		}
 	}
 
 	// Now we need to modify the workflow for trial mode
-	if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowName, apparentRepoSlug, verbose); err != nil {
+	if err := modifyWorkflowForTrialMode(tempDir, parsedSpec.WorkflowName, logicalRepoSlug, verbose); err != nil {
 		return fmt.Errorf("failed to modify workflow for trial mode: %w", err)
 	}
 
 	// Compile the workflow with trial modifications
 	config := CompileConfig{
-		MarkdownFiles:         []string{".github/workflows/" + parsedSpec.WorkflowName + ".md"},
-		Verbose:               verbose,
-		EngineOverride:        "",
-		Validate:              true,
-		Watch:                 false,
-		WorkflowDir:           "",
-		SkipInstructions:      false,
-		NoEmit:                false,
-		Purge:                 false,
-		TrialMode:             true,
-		TrialApparentRepoSlug: apparentRepoSlug,
+		MarkdownFiles:        []string{".github/workflows/" + parsedSpec.WorkflowName + ".md"},
+		Verbose:              verbose,
+		EngineOverride:       "",
+		Validate:             true,
+		Watch:                false,
+		WorkflowDir:          "",
+		SkipInstructions:     false,
+		NoEmit:               false,
+		Purge:                false,
+		TrialMode:            true,
+		TrialLogicalRepoSlug: logicalRepoSlug,
 	}
 	workflowDataList, err := CompileWorkflows(config)
 	if err != nil {
@@ -624,6 +636,43 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, appare
 	// Commit and push the changes
 	if err := commitAndPushWorkflow(tempDir, parsedSpec.WorkflowName, verbose); err != nil {
 		return fmt.Errorf("failed to commit and push workflow: %w", err)
+	}
+
+	return nil
+}
+
+// installLocalWorkflowInTrialMode installs a local workflow file for trial mode
+func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *WorkflowSpec, verbose bool) error {
+	// Construct the source path (relative to original directory)
+	sourcePath := filepath.Join(originalDir, parsedSpec.WorkflowPath)
+
+	// Check if the source file exists
+	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+		return fmt.Errorf("local workflow file does not exist: %s", sourcePath)
+	}
+
+	// Create the workflows directory in the temp directory
+	workflowsDir := filepath.Join(tempDir, constants.GetWorkflowDir())
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create workflows directory: %w", err)
+	}
+
+	// Construct the destination path
+	destPath := filepath.Join(workflowsDir, parsedSpec.WorkflowName+".md")
+
+	// Read the source file
+	content, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return fmt.Errorf("failed to read local workflow file: %w", err)
+	}
+
+	// Write the content to the destination
+	if err := os.WriteFile(destPath, content, 0644); err != nil {
+		return fmt.Errorf("failed to write workflow to destination: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Copied local workflow from %s to %s", sourcePath, destPath)))
 	}
 
 	return nil
@@ -673,8 +722,7 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 	if triggerContext != "" {
 		issueNumber := extractIssueNumberFromURL(triggerContext)
 		if issueNumber != "" {
-			jsonInput := fmt.Sprintf(`{"issue_number":"%s"}`, issueNumber)
-			args = append(args, "--json", jsonInput)
+			args = append(args, "--field", fmt.Sprintf("issue_number=%s", issueNumber))
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using issue number %s from trigger context", issueNumber)))
 			}
@@ -865,7 +913,7 @@ func addEngineSecret(secretName, hostRepoSlug string, verbose bool) error {
 }
 
 // modifyWorkflowForTrialMode modifies the workflow to work in trial mode
-func modifyWorkflowForTrialMode(tempDir, workflowName, apparentRepoSlug string, verbose bool) error {
+func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Modifying workflow for trial mode"))
 	}
@@ -882,12 +930,12 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, apparentRepoSlug string, 
 	modifiedContent := string(content)
 
 	// Replace github.repository references to point to simulated host repo
-	modifiedContent = strings.ReplaceAll(modifiedContent, "${{ github.repository }}", apparentRepoSlug)
+	modifiedContent = strings.ReplaceAll(modifiedContent, "${{ github.repository }}", logicalRepoSlug)
 
 	// Also replace any hardcoded checkout actions to use the simulated host repo
 	checkoutPattern := regexp.MustCompile(`uses: actions/checkout@[^\s]*`)
 	modifiedContent = checkoutPattern.ReplaceAllStringFunc(modifiedContent, func(match string) string {
-		return fmt.Sprintf("%s\n        with:\n          repository: %s", match, apparentRepoSlug)
+		return fmt.Sprintf("%s\n        with:\n          repository: %s", match, logicalRepoSlug)
 	})
 
 	// Write the modified content back
@@ -1153,7 +1201,7 @@ func saveTrialResult(filename string, result interface{}, verbose bool) error {
 }
 
 // copyTrialResultsToRepo copies trial result files to the host repository and commits them
-func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, apparentRepoSlug string, verbose bool) error {
+func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, logicalRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Copying trial results to host repository"))
 	}
@@ -1165,7 +1213,7 @@ func copyTrialResultsToRepo(tempDir, dateTimeID string, workflowNames []string, 
 	}
 
 	// Copy individual workflow result files
-	sanitizedTargetRepo := sanitizeRepoSlugForFilename(apparentRepoSlug)
+	sanitizedTargetRepo := sanitizeRepoSlugForFilename(logicalRepoSlug)
 	for _, workflowName := range workflowNames {
 		sourceFile := fmt.Sprintf("trials/%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID)
 		destFile := filepath.Join(trialsDir, fmt.Sprintf("%s-%s.%s.json", workflowName, sanitizedTargetRepo, dateTimeID))

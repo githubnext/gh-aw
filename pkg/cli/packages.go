@@ -241,6 +241,34 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 		return nil, nil, fmt.Errorf("no packages directory found")
 	}
 
+	// Handle local workflows (starting with "./")
+	if strings.HasPrefix(workflow.WorkflowPath, "./") {
+		if verbose {
+			fmt.Printf("Searching local filesystem for workflow: %s\n", workflow.WorkflowPath)
+		}
+
+		// For local workflows, use current directory as packagePath
+		packagePath := "."
+		workflowFile := workflow.WorkflowPath
+
+		if verbose {
+			fmt.Printf("Looking for local workflow: %s\n", workflowFile)
+		}
+
+		content, err := os.ReadFile(workflowFile)
+		if err != nil {
+			return nil, nil, fmt.Errorf("local workflow '%s' not found: %w", workflow.WorkflowPath, err)
+		}
+
+		sourceInfo := &WorkflowSourceInfo{
+			PackagePath: packagePath,
+			SourcePath:  workflowFile,
+			CommitSHA:   "", // Local workflows don't have commit SHA
+		}
+
+		return content, sourceInfo, nil
+	}
+
 	if verbose {
 		fmt.Printf("Searching packages in %s for workflow: %s\n", packagesDir, workflow.WorkflowPath)
 	}

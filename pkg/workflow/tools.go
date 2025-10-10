@@ -117,7 +117,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 
 	// Check if this workflow has an issue trigger and we're in trial mode
 	// If so, inject workflow_dispatch with issue_number input
-	if data.TrialMode && c.hasIssueTrigger(data.On) {
+	if c.trialMode && c.hasIssueTrigger(data.On) {
 		data.On = c.injectWorkflowDispatchForIssue(data.On)
 	}
 

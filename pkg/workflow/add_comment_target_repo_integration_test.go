@@ -12,7 +12,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 		frontmatter              map[string]any
 		expectedTargetRepoInYAML string
 		shouldHaveTargetRepo     bool
-		trialApparentRepoSlug    string
+		trialLogicalRepoSlug     string
 		expectedTargetRepoValue  string
 	}{
 		{
@@ -44,7 +44,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 					},
 				},
 			},
-			trialApparentRepoSlug:   "trial/repo",
+			trialLogicalRepoSlug:    "trial/repo",
 			shouldHaveTargetRepo:    true,
 			expectedTargetRepoValue: "github/customer-feedback", // Should prefer config over trial
 		},
@@ -60,7 +60,7 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 					},
 				},
 			},
-			trialApparentRepoSlug:   "trial/repo",
+			trialLogicalRepoSlug:    "trial/repo",
 			shouldHaveTargetRepo:    true,
 			expectedTargetRepoValue: "trial/repo",
 		},
@@ -76,8 +76,8 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 					},
 				},
 			},
-			trialApparentRepoSlug: "", // explicitly empty
-			shouldHaveTargetRepo:  false,
+			trialLogicalRepoSlug: "", // explicitly empty
+			shouldHaveTargetRepo: false,
 		},
 	}
 
@@ -98,9 +98,9 @@ func TestAddCommentTargetRepoIntegration(t *testing.T) {
 
 			// Create compiler with trial mode if needed
 			compiler := NewCompiler(false, "", "")
-			if tt.trialApparentRepoSlug != "" {
+			if tt.trialLogicalRepoSlug != "" {
 				compiler.SetTrialMode(true)
-				compiler.SetTrialApparentRepoSlug(tt.trialApparentRepoSlug)
+				compiler.SetTrialLogicalRepoSlug(tt.trialLogicalRepoSlug)
 			}
 
 			// Parse workflow data

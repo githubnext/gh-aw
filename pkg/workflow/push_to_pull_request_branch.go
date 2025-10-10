@@ -126,9 +126,9 @@ func buildCheckoutRepository(steps []string, c *Compiler) []string {
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 	if c.trialMode {
-		if c.trialApparentRepoSlug != "" {
-			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialApparentRepoSlug))
-			// trialTargetRepoName := strings.Split(c.trialApparentRepoSlug, "/")
+		if c.trialLogicalRepoSlug != "" {
+			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+			// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 			// if len(trialTargetRepoName) == 2 {
 			// 	steps = append(steps, fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 			// }

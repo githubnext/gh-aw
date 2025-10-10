@@ -515,17 +515,17 @@ This is a test workflow for backward compatibility.
 				args = []string{tt.workflowID}
 			}
 			config := CompileConfig{
-				MarkdownFiles:         args,
-				Verbose:               false,
-				EngineOverride:        "",
-				Validate:              false,
-				Watch:                 false,
-				WorkflowDir:           "",
-				SkipInstructions:      false,
-				NoEmit:                false,
-				Purge:                 false,
-				TrialMode:             false,
-				TrialApparentRepoSlug: "",
+				MarkdownFiles:        args,
+				Verbose:              false,
+				EngineOverride:       "",
+				Validate:             false,
+				Watch:                false,
+				WorkflowDir:          "",
+				SkipInstructions:     false,
+				NoEmit:               false,
+				Purge:                false,
+				TrialMode:            false,
+				TrialLogicalRepoSlug: "",
 			}
 			_, err = CompileWorkflows(config)
 

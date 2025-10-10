@@ -156,18 +156,18 @@ Examples:
 			os.Exit(1)
 		}
 		config := cli.CompileConfig{
-			MarkdownFiles:         args,
-			Verbose:               verbose,
-			EngineOverride:        engineOverride,
-			Validate:              validate,
-			Watch:                 watch,
-			WorkflowDir:           workflowDir,
-			SkipInstructions:      false, // Deprecated field, kept for backward compatibility
-			NoEmit:                noEmit,
-			Purge:                 purge,
-			TrialMode:             false,
-			TrialApparentRepoSlug: "",
-			Strict:                strict,
+			MarkdownFiles:        args,
+			Verbose:              verbose,
+			EngineOverride:       engineOverride,
+			Validate:             validate,
+			Watch:                watch,
+			WorkflowDir:          workflowDir,
+			SkipInstructions:     false, // Deprecated field, kept for backward compatibility
+			NoEmit:               noEmit,
+			Purge:                purge,
+			TrialMode:            false,
+			TrialLogicalRepoSlug: "",
+			Strict:               strict,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
