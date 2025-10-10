@@ -217,7 +217,7 @@ func TestProcessIncludesWithWorkflowSpec_RealWorldScenario(t *testing.T) {
 	// The workflow has: {{#import? agentics/weekly-research.config}}
 	// Previously this would generate: githubnext/agentics/@e2770974...
 	// Now it should generate: githubnext/agentics/agentics/weekly-research.config@e2770974...
-	
+
 	content := `---
 on:
   schedule:
