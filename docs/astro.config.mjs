@@ -62,6 +62,10 @@ export default defineConfig({
 					autogenerate: { directory: 'start-here' },
 				},
 				{
+					label: 'Tutorials',
+					autogenerate: { directory: 'tutorials' },
+				},
+				{
 					label: 'Workflows',
 					autogenerate: { directory: 'reference' },
 				},
