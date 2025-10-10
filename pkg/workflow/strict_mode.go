@@ -10,72 +10,19 @@ func (c *Compiler) validateStrictMode(frontmatter map[string]any, networkPermiss
 		return nil
 	}
 
-	// 1. Require timeout_minutes
-	if err := c.validateStrictTimeout(frontmatter); err != nil {
-		return err
-	}
-
-	// 2. Refuse write permissions
+	// 1. Refuse write permissions
 	if err := c.validateStrictPermissions(frontmatter); err != nil {
 		return err
 	}
 
-	// 3. Require network configuration and refuse "*" wildcard
+	// 2. Require network configuration and refuse "*" wildcard
 	if err := c.validateStrictNetwork(networkPermissions); err != nil {
 		return err
 	}
 
-	// 4. Require network configuration on custom MCP servers
+	// 3. Require network configuration on custom MCP servers
 	if err := c.validateStrictMCPNetwork(frontmatter); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// validateStrictTimeout ensures timeout_minutes is specified in strict mode
-func (c *Compiler) validateStrictTimeout(frontmatter map[string]any) error {
-	timeoutValue, exists := frontmatter["timeout_minutes"]
-	if !exists {
-		return fmt.Errorf("strict mode: 'timeout_minutes' is required in workflow frontmatter")
-	}
-
-	// Validate it's a positive integer (handle various numeric types)
-	switch v := timeoutValue.(type) {
-	case int:
-		if v <= 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %d", v)
-		}
-	case int32:
-		if v <= 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %d", v)
-		}
-	case int64:
-		if v <= 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %d", v)
-		}
-	case uint:
-		if v == 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %d", v)
-		}
-	case uint32:
-		if v == 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %d", v)
-		}
-	case uint64:
-		if v == 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %d", v)
-		}
-	case float64:
-		if v <= 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %f", v)
-		}
-	case float32:
-		if v <= 0 {
-			return fmt.Errorf("strict mode: 'timeout_minutes' must be a positive integer, got %f", v)
-		}
-	default:
-		return fmt.Errorf("strict mode: 'timeout_minutes' must be an integer, got type %T", timeoutValue)
 	}
 
 	return nil

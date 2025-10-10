@@ -297,11 +297,10 @@ strict: false
 
 When `strict: true`, the workflow must satisfy these requirements:
 
-1. **Timeout Required**: Must specify `timeout_minutes` with a positive integer value to prevent runaway executions
-2. **Write Permissions Blocked**: Cannot use `contents: write`, `issues: write`, or `pull-requests: write` permissions (use `safe-outputs` instead for controlled GitHub API interactions)
-3. **Network Configuration Required**: Must explicitly configure network access (cannot rely on default behavior)
-4. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
-5. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
+1. **Write Permissions Blocked**: Cannot use `contents: write`, `issues: write`, or `pull-requests: write` permissions (use `safe-outputs` instead for controlled GitHub API interactions)
+2. **Network Configuration Required**: Must explicitly configure network access (cannot rely on default behavior)
+3. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
+4. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
 
 **Example Strict Mode Workflow:**
 
@@ -311,7 +310,6 @@ on: push
 strict: true
 permissions:
   contents: read
-timeout_minutes: 10
 engine: claude
 network:
   allowed:
@@ -334,7 +332,6 @@ The CLI `--strict` flag takes precedence over frontmatter settings. If the CLI f
 **Use Cases:**
 - Production workflows that require enhanced security validation
 - Workflows with elevated permissions that need extra scrutiny
-- Cost-sensitive workflows where timeout enforcement is critical
 - Workflows that need to comply with security policies
 
 ## AI Engine (`engine:`)
@@ -595,7 +592,7 @@ Standard GitHub Actions properties:
 ```yaml
 run-name: "Custom workflow run name"  # Defaults to workflow name
 runs-on: ubuntu-latest               # Defaults to ubuntu-latest
-timeout_minutes: 30                  # Defaults to 15 minutes
+timeout_minutes: 30                  # Defaults to 20 minutes
 ```
 
 ## Concurrency Control (`concurrency:`)

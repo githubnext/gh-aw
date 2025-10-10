@@ -168,7 +168,7 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 	if workflowData.TimeoutMinutes != "" {
 		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s", strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")))
 	} else {
-		stepLines = append(stepLines, "        timeout-minutes: 5") // Default timeout
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)) // Default timeout for agentic workflows
 	}
 
 	stepLines = append(stepLines, "        run: |")

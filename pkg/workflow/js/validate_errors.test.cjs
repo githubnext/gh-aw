@@ -339,3 +339,211 @@ describe("main function behavior", () => {
     expect(global.core.setFailed).not.toHaveBeenCalled();
   });
 });
+
+describe("infinite loop detection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("should detect and prevent infinite loops from zero-width matches", () => {
+    // A pattern that could potentially match zero-width (though JavaScript's regex.exec
+    // typically advances even on zero-width matches, this tests our safety mechanism)
+    const logContent = "test line";
+    const patterns = [
+      {
+        // This pattern uses a lookahead which could be problematic in some scenarios
+        pattern: "(?=t)",
+        level_group: 0,
+        message_group: 0,
+        description: "Potentially problematic zero-width pattern",
+      },
+    ];
+
+    // Should not hang or throw, should complete
+    const hasErrors = validateErrors(logContent, patterns);
+
+    // The function should complete without hanging
+    expect(hasErrors).toBeDefined();
+  });
+
+  test("should log warning when iteration count is high", () => {
+    // Create a line with many matches to trigger the warning threshold
+    const repeatedPattern = "ERROR ".repeat(1500); // More than ITERATION_WARNING_THRESHOLD
+    const logContent = repeatedPattern;
+
+    const patterns = [
+      {
+        pattern: "ERROR",
+        level_group: 0,
+        message_group: 0,
+        description: "Simple error pattern",
+      },
+    ];
+
+    validateErrors(logContent, patterns);
+
+    // Should have logged a warning about high iteration count
+    const warningCalls = global.core.warning.mock.calls.map(call => call[0]);
+    const hasIterationWarning = warningCalls.some(msg => msg.includes("High iteration count") || msg.includes("1000"));
+
+    expect(hasIterationWarning).toBe(true);
+  });
+
+  test("should enforce maximum iteration limit", () => {
+    // Create a line with an extreme number of potential matches
+    const massivePattern = "X".repeat(15000); // More than MAX_ITERATIONS_PER_LINE
+    const logContent = massivePattern;
+
+    const patterns = [
+      {
+        pattern: "X",
+        level_group: 0,
+        message_group: 0,
+        description: "Single character pattern",
+      },
+    ];
+
+    validateErrors(logContent, patterns);
+
+    // Should have logged an error about maximum iteration limit
+    const errorCalls = global.core.error.mock.calls.map(call => call[0]);
+    const hasMaxIterationError = errorCalls.some(msg => msg.includes("Maximum iteration limit") || msg.includes("10000"));
+
+    expect(hasMaxIterationError).toBe(true);
+  });
+
+  test("should not have patterns that match empty string (zero-width)", () => {
+    // Test patterns that should NEVER be used because they match zero-width
+    const problematicPatterns = [
+      {
+        pattern: ".*",
+        description: "Pure .* matches zero-width at end",
+      },
+      {
+        pattern: "a*",
+        description: "Single char * matches zero-width",
+      },
+      {
+        pattern: ".*error.*",
+        description: ".* surrounding text (false positive - actually safe)",
+      },
+    ];
+
+    problematicPatterns.forEach(({ pattern, description }) => {
+      const regex = new RegExp(pattern, "g");
+      const testStr = "hello";
+      let lastIndex = -1;
+      let iterationCount = 0;
+      let match;
+
+      while ((match = regex.exec(testStr)) !== null && iterationCount < 100) {
+        iterationCount++;
+
+        // Check if lastIndex is stuck (zero-width match at end)
+        if (regex.lastIndex === lastIndex) {
+          // This is the problematic case - pattern matches zero-width
+          console.log(`Pattern "${pattern}" (${description}) would cause infinite loop!`);
+
+          // For patterns like .* and a*, this is expected
+          if (pattern === ".*" || pattern === "a*") {
+            expect(regex.lastIndex).toBe(lastIndex);
+            return; // Expected behavior for these patterns
+          }
+        }
+        lastIndex = regex.lastIndex;
+      }
+    });
+  });
+
+  test("should handle actual engine patterns safely", () => {
+    // Test with actual patterns from the engines (converted from Go)
+    const actualPatterns = [
+      {
+        pattern: "access denied.*only authorized.*can trigger.*workflow",
+        description: "access denied workflow",
+      },
+      {
+        pattern: "error.*permission.*denied",
+        description: "error permission denied",
+      },
+      {
+        pattern: "error.*unauthorized",
+        description: "error unauthorized",
+      },
+    ];
+
+    const testLines = [
+      "ERROR permission denied",
+      "error: unauthorized access",
+      "access denied to user not authorized",
+      "", // Empty line should not cause issues
+      "x".repeat(1000), // Long line
+    ];
+
+    actualPatterns.forEach(({ pattern, description }) => {
+      testLines.forEach(line => {
+        const regex = new RegExp(pattern, "gi");
+        let match;
+        let iterationCount = 0;
+        let lastIndex = -1;
+        const MAX_ITERATIONS = 1000;
+
+        while ((match = regex.exec(line)) !== null) {
+          iterationCount++;
+
+          // Safety check: lastIndex must advance
+          if (regex.lastIndex === lastIndex) {
+            throw new Error(`Pattern "${pattern}" (${description}) caused infinite loop on line: "${line.substring(0, 50)}..."`);
+          }
+          lastIndex = regex.lastIndex;
+
+          if (iterationCount > MAX_ITERATIONS) {
+            throw new Error(`Pattern "${pattern}" exceeded ${MAX_ITERATIONS} iterations on line: "${line.substring(0, 50)}..."`);
+          }
+        }
+      });
+    });
+  });
+
+  test("should never match empty string for production patterns", () => {
+    // Patterns from actual engines should NEVER match empty string
+    const productionPatterns = [
+      "access denied.*only authorized.*can trigger.*workflow",
+      "error.*permission.*denied",
+      "error.*unauthorized",
+      "error.*forbidden",
+      "error.*access.*restricted",
+      "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z)\\s+\\[(ERROR)\\]\\s+(.+)",
+    ];
+
+    productionPatterns.forEach(pattern => {
+      const regex = new RegExp(pattern, "gi");
+      const matchesEmpty = regex.test("");
+
+      if (matchesEmpty) {
+        throw new Error(`Production pattern "${pattern}" matches empty string! This WILL cause infinite loops.`);
+      }
+    });
+  });
+
+  test("should log debug information about patterns and lines", () => {
+    const logContent = "ERROR: test\nWARNING: test2";
+    const patterns = [
+      {
+        pattern: "ERROR:\\s+(.+)",
+        level_group: 0,
+        message_group: 1,
+        description: "Error pattern",
+      },
+    ];
+
+    validateErrors(logContent, patterns);
+
+    // Should have logged debug information
+    const debugCalls = global.core.debug.mock.calls.map(call => call[0]);
+
+    // Should log pattern count and line count
+    const hasPatternInfo = debugCalls.some(msg => msg.includes("patterns") && msg.includes("lines"));
+    expect(hasPatternInfo).toBe(true);
+  });
+});

@@ -93,7 +93,7 @@ network:
     - "api.example.com"
 ```
 
-Strict mode prevents write permissions (`contents:write`, `issues:write`, `pull-requests:write`) and requires explicit network configuration and timeouts. Use `safe-outputs` configuration instead for controlled GitHub API interactions. See [Strict Mode Validation](#strict-mode-validation) for details.
+Strict mode prevents write permissions (`contents:write`, `issues:write`, `pull-requests:write`) and requires explicit network configuration. Use `safe-outputs` configuration instead for controlled GitHub API interactions. See [Strict Mode Validation](#strict-mode-validation) for details.
 
 ### Human in the Loop
 
@@ -113,7 +113,6 @@ For production workflows, use strict mode to enforce enhanced security and relia
 ```yaml
 # Enable strict mode declaratively in frontmatter
 strict: true
-timeout_minutes: 10
 permissions:
   contents: read
 network:
@@ -129,14 +128,12 @@ gh aw compile --strict
 
 **Strict mode enforces:**
 
-1. **Timeout Required**: All workflows must specify `timeout_minutes` to prevent runaway executions
-2. **Write Permissions Blocked**: Refuses `contents:write`, `issues:write`, and `pull-requests:write` (use `safe-outputs` instead)
-3. **Network Configuration Required**: Must explicitly configure network access (cannot rely on defaults)
-4. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
-5. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
+1. **Write Permissions Blocked**: Refuses `contents:write`, `issues:write`, and `pull-requests:write` (use `safe-outputs` instead)
+2. **Network Configuration Required**: Must explicitly configure network access (cannot rely on defaults)
+3. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
+4. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
 
 **Benefits:**
-- **Cost Control**: Prevents unbounded execution times through mandatory timeouts
 - **Security**: Minimizes attack surface by blocking write permissions and requiring explicit network access
 - **Compliance**: Ensures workflows meet organizational security standards
 - **Auditability**: Clear security requirements make workflows easier to review

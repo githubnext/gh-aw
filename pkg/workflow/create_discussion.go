@@ -8,7 +8,7 @@ import (
 type CreateDiscussionsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string `yaml:"title-prefix,omitempty"`
-	CategoryId           string `yaml:"category-id,omitempty"` // Discussion category ID
+	Category             string `yaml:"category,omitempty"`    // Discussion category ID or name
 	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository discussions
 }
 
@@ -29,10 +29,17 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 				}
 			}
 
-			// Parse category-id
-			if categoryId, exists := configMap["category-id"]; exists {
-				if categoryIdStr, ok := categoryId.(string); ok {
-					discussionsConfig.CategoryId = categoryIdStr
+			// Parse category (can be string or number)
+			if category, exists := configMap["category"]; exists {
+				switch v := category.(type) {
+				case string:
+					discussionsConfig.Category = v
+				case int:
+					discussionsConfig.Category = fmt.Sprintf("%d", v)
+				case int64:
+					discussionsConfig.Category = fmt.Sprintf("%d", v)
+				case float64:
+					discussionsConfig.Category = fmt.Sprintf("%.0f", v)
 				}
 			}
 
@@ -66,8 +73,8 @@ func (c *Compiler) buildCreateOutputDiscussionJob(data *WorkflowData, mainJobNam
 	if data.SafeOutputs.CreateDiscussions.TitlePrefix != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_DISCUSSION_TITLE_PREFIX: %q\n", data.SafeOutputs.CreateDiscussions.TitlePrefix))
 	}
-	if data.SafeOutputs.CreateDiscussions.CategoryId != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY_ID: %q\n", data.SafeOutputs.CreateDiscussions.CategoryId))
+	if data.SafeOutputs.CreateDiscussions.Category != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_DISCUSSION_CATEGORY: %q\n", data.SafeOutputs.CreateDiscussions.Category))
 	}
 
 	// Pass the staged flag if it's set to true

@@ -84,7 +84,7 @@ describe("create_discussion.cjs", () => {
     // Reset environment variables
     delete process.env.GITHUB_AW_AGENT_OUTPUT;
     delete process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
-    delete process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID;
+    delete process.env.GITHUB_AW_DISCUSSION_CATEGORY;
 
     // Read the script content
     const scriptPath = path.join(process.cwd(), "create_discussion.cjs");
@@ -276,7 +276,7 @@ describe("create_discussion.cjs", () => {
       ],
     };
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
-    process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID = "DIC_custom789";
+    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "DIC_custom789";
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -317,5 +317,153 @@ describe("create_discussion.cjs", () => {
 
     // Should only attempt the GraphQL query once and not attempt to create discussions
     expect(mockGithub.graphql).toHaveBeenCalledTimes(1);
+  });
+
+  it("should match category by name when ID is not found", async () => {
+    // Mock the GraphQL API responses
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+        discussionCategories: {
+          nodes: [
+            { id: "DIC_test456", name: "General", slug: "general" },
+            { id: "DIC_custom789", name: "Custom", slug: "custom" },
+          ],
+        },
+      },
+    });
+
+    mockGithub.graphql.mockResolvedValueOnce({
+      createDiscussion: {
+        discussion: {
+          id: "D_test789",
+          number: 1,
+          title: "Test Discussion",
+          url: "https://github.com/testowner/testrepo/discussions/1",
+        },
+      },
+    });
+
+    const validOutput = {
+      items: [
+        {
+          type: "create-discussion",
+          title: "Test Discussion",
+          body: "Test discussion body",
+        },
+      ],
+    };
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "Custom"; // Use category name instead of ID
+
+    // Execute the script
+    await eval(`(async () => { ${createDiscussionScript} })()`);
+
+    // Verify the category was matched by name and its ID was used
+    expect(mockCore.info).toHaveBeenCalledWith("Using category by name: Custom (DIC_custom789)");
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"),
+      expect.objectContaining({
+        categoryId: "DIC_custom789",
+      })
+    );
+  });
+
+  it("should match category by slug when ID and name are not found", async () => {
+    // Mock the GraphQL API responses
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+        discussionCategories: {
+          nodes: [
+            { id: "DIC_test456", name: "General", slug: "general" },
+            { id: "DIC_custom789", name: "Custom Category", slug: "custom-category" },
+          ],
+        },
+      },
+    });
+
+    mockGithub.graphql.mockResolvedValueOnce({
+      createDiscussion: {
+        discussion: {
+          id: "D_test789",
+          number: 1,
+          title: "Test Discussion",
+          url: "https://github.com/testowner/testrepo/discussions/1",
+        },
+      },
+    });
+
+    const validOutput = {
+      items: [
+        {
+          type: "create-discussion",
+          title: "Test Discussion",
+          body: "Test discussion body",
+        },
+      ],
+    };
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "custom-category"; // Use category slug instead of ID or name
+
+    // Execute the script
+    await eval(`(async () => { ${createDiscussionScript} })()`);
+
+    // Verify the category was matched by slug and its ID was used
+    expect(mockCore.info).toHaveBeenCalledWith("Using category by slug: Custom Category (DIC_custom789)");
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"),
+      expect.objectContaining({
+        categoryId: "DIC_custom789",
+      })
+    );
+  });
+
+  it("should warn and fall back to default when category is not found", async () => {
+    // Mock the GraphQL API responses
+    mockGithub.graphql.mockResolvedValueOnce({
+      repository: {
+        id: "MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=",
+        discussionCategories: {
+          nodes: [{ id: "DIC_test456", name: "General", slug: "general" }],
+        },
+      },
+    });
+
+    mockGithub.graphql.mockResolvedValueOnce({
+      createDiscussion: {
+        discussion: {
+          id: "D_test789",
+          number: 1,
+          title: "Test Discussion",
+          url: "https://github.com/testowner/testrepo/discussions/1",
+        },
+      },
+    });
+
+    const validOutput = {
+      items: [
+        {
+          type: "create-discussion",
+          title: "Test Discussion",
+          body: "Test discussion body",
+        },
+      ],
+    };
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    process.env.GITHUB_AW_DISCUSSION_CATEGORY = "NonExistent"; // Category that doesn't exist
+
+    // Execute the script
+    await eval(`(async () => { ${createDiscussionScript} })()`);
+
+    // Verify warning was logged and fallback was used
+    expect(mockCore.warning).toHaveBeenCalledWith('Category "NonExistent" not found by ID, name, or slug. Available categories: General');
+    expect(mockCore.info).toHaveBeenCalledWith("Falling back to default category: General (DIC_test456)");
+    expect(mockGithub.graphql).toHaveBeenCalledWith(
+      expect.stringContaining("mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!)"),
+      expect.objectContaining({
+        categoryId: "DIC_test456",
+      })
+    );
   });
 });

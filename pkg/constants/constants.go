@@ -15,10 +15,10 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.11"
+const DefaultClaudeCodeVersion = "2.0.13"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.337"
+const DefaultCopilotVersion = "0.0.338"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.46.0"
@@ -43,6 +43,9 @@ const DefaultElixirVersion = "1.17"
 
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion = "9.10"
+
+// DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
+const DefaultAgenticWorkflowTimeoutMinutes = 20
 
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation

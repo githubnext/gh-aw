@@ -14,15 +14,14 @@ tools:
       - list_workflow_runs
       - list_workflow_run_artifacts
 safe-outputs:
-  create-issue:
-    title-prefix: "[report] "
-    labels: [automation, artifacts, report]
+  create-discussion:
+    category: "artifacts"
     max: 1
 timeout_minutes: 15
 strict: true
 ---
 
-# GitHub Actions Artifacts Usage Summary
+# Artifacts Summary
 
 Generate a comprehensive summary table of GitHub Actions artifacts usage in the repository ${{ github.repository }}.
 
@@ -61,17 +60,7 @@ Please:
 Create an issue with a markdown table like this:
 
 ```markdown
-# GitHub Actions Artifacts Usage Report
-
-Generated on: [DATE]
-
-## Summary Statistics
-- Total Workflows: X
-- Total Artifacts: X  
-- Total Storage Used: X GB
-- Active Workflows (with recent runs): X
-
-## Detailed Breakdown
+# Artifacts Usage Report
 
 | Workflow Name | Artifacts Count | Total Size | Avg Size | Latest Run | Status |
 |---------------|-----------------|------------|----------|------------|--------|
@@ -87,8 +76,4 @@ Generated on: [DATE]
 - Focus on workflows that actually generate artifacts (skip those without any)
 - Convert sizes to human-readable formats (MB, GB)
 - Consider artifact retention policies in your analysis
-- Include both successful and failed runs in the analysis
-- If a workflow has no recent runs, mark it as "Inactive"
-
-Repository: ${{ github.repository }}
-Triggered by: ${{ github.actor }}
+- Include both successful and failed runs in the analysis, ignore cancelled runs

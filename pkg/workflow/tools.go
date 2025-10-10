@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/goccy/go-yaml"
 )
@@ -127,7 +128,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.TimeoutMinutes == "" {
-		data.TimeoutMinutes = `timeout_minutes: 5`
+		data.TimeoutMinutes = fmt.Sprintf("timeout_minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes)
 	}
 
 	if data.RunsOn == "" {
