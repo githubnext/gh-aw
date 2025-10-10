@@ -2,7 +2,7 @@ function main() {
   const fs = require("fs");
   const path = require("path");
 
-  core.info("Starting validate_errors.cjs script");
+  core.debug("Starting validate_errors.cjs script");
   const startTime = Date.now();
 
   try {
