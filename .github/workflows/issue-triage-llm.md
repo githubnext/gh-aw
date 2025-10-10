@@ -3,6 +3,12 @@ name: Issue Triage (LLM)
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to triage"
+        required: true
+        type: string
   reaction: "eyes"
 permissions:
   contents: read
@@ -22,7 +28,7 @@ You are an issue triage assistant. Your task is to analyze newly created issues 
 
 ## Current Issue
 
-- **Issue Number**: ${{ github.event.issue.number }}
+- **Issue Number**: ${{ github.event.inputs.issue_number || github.event.issue.number }}
 - **Repository**: ${{ github.repository }}
 - **Issue Content**: 
   ```
