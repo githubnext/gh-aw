@@ -154,12 +154,12 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 				t.Errorf("Failed to detect error in log line: %q", logLine)
 			}
 		}
-		
+
 		// Test logs that should be detected as warnings
 		testWarningLogs := []string{
 			"Permission denied and could not request permission from user",
 		}
-		
+
 		for _, logLine := range testWarningLogs {
 			errors := CountErrorsAndWarningsWithPatterns(logLine, patterns)
 			warningCount := CountWarnings(errors)
