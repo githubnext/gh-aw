@@ -1,0 +1,92 @@
+---
+engine:
+  id: custom
+  steps:
+    - name: Install simonw/llm CLI
+      run: |
+        pip install llm
+        llm --version
+    
+    - name: Configure llm with API key
+      run: |
+        if [ -n "$OPENAI_API_KEY" ]; then
+          echo "$OPENAI_API_KEY" | llm keys set openai
+          echo "✓ OpenAI API key configured"
+        elif [ -n "$ANTHROPIC_API_KEY" ]; then
+          llm install llm-claude
+          echo "$ANTHROPIC_API_KEY" | llm keys set claude
+          echo "✓ Anthropic API key configured"
+        else
+          echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+          exit 1
+        fi
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    
+    - name: Run llm CLI with prompt
+      id: llm_execution
+      run: |
+        set -o pipefail
+        
+        # Determine which model to use based on available API keys
+        if [ -n "$OPENAI_API_KEY" ]; then
+          MODEL="gpt-4o-mini"
+        elif [ -n "$ANTHROPIC_API_KEY" ]; then
+          MODEL="claude-3-5-sonnet-20241022"
+        else
+          echo "No API key configured"
+          exit 1
+        fi
+        
+        echo "Using model: $MODEL"
+        
+        # Run llm with the prompt from the file
+        llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+        
+        # Store output for safe-outputs processing if configured
+        if [ -n "$GITHUB_AW_SAFE_OUTPUTS" ]; then
+          cp /tmp/gh-aw/llm-output.txt "$GITHUB_AW_SAFE_OUTPUTS"
+        fi
+      env:
+        GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
+        GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+---
+
+<!--
+This shared configuration sets up a custom agentic engine using simonw/llm CLI.
+
+**Usage:**
+Include this file in your workflow using frontmatter imports:
+
+```yaml
+---
+imports:
+  - shared/simonw-llm.md
+---
+```
+
+**Requirements:**
+- The workflow requires either `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` secret to be configured
+- The llm CLI will be installed via pip
+- If using Anthropic, the llm-claude plugin will be automatically installed
+
+**Model Selection:**
+- With OpenAI API key: Uses `gpt-4o-mini` by default
+- With Anthropic API key: Uses `claude-3-5-sonnet-20241022` by default
+
+**API Key Setup:**
+1. Go to your repository settings → Secrets and variables → Actions
+2. Create a secret named either:
+   - `OPENAI_API_KEY` (for OpenAI models)
+   - `ANTHROPIC_API_KEY` (for Anthropic Claude models)
+3. Set the value to your API key
+
+**Note**: 
+- This workflow requires internet access to install Python packages
+- The llm CLI stores conversations in a local SQLite database
+- Output is automatically captured for safe-outputs processing
+- You can customize the model by modifying the MODEL variable in the run step
+-->
