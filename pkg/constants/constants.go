@@ -151,8 +151,14 @@ var DefaultGitHubTools = []string{
 	"get_label",
 	"list_label",
 	// prs
-	"pull_request_read",
+	"get_pull_request",
+	"get_pull_request_comments",
+	"get_pull_request_diff",
+	"get_pull_request_files",
+	"get_pull_request_reviews",
+	"get_pull_request_status",
 	"list_pull_requests",
+	"pull_request_read",
 	"search_pull_requests",
 	// repos
 	"get_commit",
@@ -170,6 +176,7 @@ var DefaultGitHubTools = []string{
 	"search_users",
 	// additional unique tools (previously duplicated block extras)
 	"get_latest_release",
+	"get_pull_request_review_comments",
 	"get_release_by_tag",
 	"list_issue_types",
 	"list_releases",

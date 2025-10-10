@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestEnsureLocalhostDomains tests the helper function that ensures localhost domains are always included
@@ -91,7 +93,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
 						"-e", "GITHUB_READ_ONLY=1",
-						"ghcr.io/github/github-mcp-server:v0.18.0",
+						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
@@ -116,7 +118,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:v0.18.0",
+						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
@@ -139,7 +141,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:v0.18.0",
+						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env: map[string]string{
 						"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}",
@@ -258,7 +260,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:v0.18.0",
+						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
 					Allowed: []string{},
@@ -487,7 +489,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					Command: "docker",
 					Args: []string{
 						"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-						"ghcr.io/github/github-mcp-server:v0.18.0",
+						"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 					},
 					Env:     map[string]string{"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN_REQUIRED}"},
 					Allowed: []string{},
