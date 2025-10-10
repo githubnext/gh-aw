@@ -70,7 +70,7 @@ git push
 The workflow needs a GitHub Copilot CLI token to run. [Create a Fine-Grained Personal Access Token](https://github.com/settings/personal-access-tokens/new) with Copilot Requests permission (Read-only access), then add it as a repository secret:
 
 ```bash
-gh secret set COPILOT_CLI_TOKEN -a actions --body "your-token-here"
+gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-token>"
 ```
 
 ### Step 5: Test Your Workflow
