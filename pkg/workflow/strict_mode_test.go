@@ -15,58 +15,35 @@ func TestStrictModeTimeout(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name: "valid timeout in strict mode",
+			name: "timeout not required in strict mode",
 			content: `---
 on: push
 permissions:
   contents: read
-timeout_minutes: 10
 engine: claude
+network:
+  allowed:
+    - "api.example.com"
 ---
 
 # Test Workflow`,
 			expectError: false,
 		},
 		{
-			name: "missing timeout in strict mode",
+			name: "timeout still valid in strict mode when specified",
 			content: `---
 on: push
 permissions:
   contents: read
+timeout_minutes: 10
 engine: claude
+network:
+  allowed:
+    - "api.example.com"
 ---
 
 # Test Workflow`,
-			expectError: true,
-			errorMsg:    "strict mode: 'timeout_minutes' is required",
-		},
-		{
-			name: "zero timeout in strict mode",
-			content: `---
-on: push
-permissions:
-  contents: read
-timeout_minutes: 0
-engine: claude
----
-
-# Test Workflow`,
-			expectError: true,
-			errorMsg:    "strict mode: 'timeout_minutes' must be a positive integer",
-		},
-		{
-			name: "negative timeout in strict mode",
-			content: `---
-on: push
-permissions:
-  contents: read
-timeout_minutes: -5
-engine: claude
----
-
-# Test Workflow`,
-			expectError: true,
-			errorMsg:    "strict mode: 'timeout_minutes' must be a positive integer",
+			expectError: false,
 		},
 	}
 
@@ -474,11 +451,13 @@ strict: true
 permissions:
   contents: read
 engine: claude
+network:
+  allowed:
+    - "api.example.com"
 ---
 
 # Test Workflow`,
-			expectError: true,
-			errorMsg:    "strict mode: 'timeout_minutes' is required",
+			expectError: false,
 		},
 		{
 			name: "strict: false in frontmatter does not enable strict mode",
@@ -581,11 +560,11 @@ engine: claude
 	compiler.SetStrictMode(true) // CLI flag sets strict mode
 	err = compiler.CompileWorkflow(testFile)
 
-	// Should fail because CLI flag enforces strict mode despite frontmatter saying false
+	// Should fail because CLI flag enforces strict mode and write permission is not allowed
 	if err == nil {
 		t.Error("Expected compilation to fail with CLI --strict flag, but it succeeded")
-	} else if !strings.Contains(err.Error(), "timeout_minutes") {
-		t.Errorf("Expected timeout error, got: %v", err)
+	} else if !strings.Contains(err.Error(), "write permission") {
+		t.Errorf("Expected write permission error, got: %v", err)
 	}
 }
 
@@ -597,7 +576,7 @@ func TestStrictModeIsolation(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// First workflow with strict: true (missing timeout_minutes - should fail)
+	// First workflow with strict: true (should succeed now without timeout)
 	strictWorkflow := `---
 on: push
 strict: true
@@ -634,15 +613,13 @@ engine: claude
 	compiler := NewCompiler(false, "", "")
 	// Do NOT set strict mode via CLI - let frontmatter control it
 
-	// Compile strict workflow first - should fail
+	// Compile strict workflow first - should succeed now
 	err = compiler.CompileWorkflow(strictFile)
-	if err == nil {
-		t.Error("Expected strict workflow to fail due to missing timeout_minutes, but it succeeded")
-	} else if !strings.Contains(err.Error(), "timeout_minutes") {
-		t.Errorf("Expected timeout_minutes error for strict workflow, got: %v", err)
+	if err != nil {
+		t.Errorf("Expected strict workflow to succeed, but it failed: %v", err)
 	}
 
-	// Compile non-strict workflow second - should succeed
+	// Compile non-strict workflow second - should also succeed
 	// This tests that strict mode from first workflow doesn't leak
 	err = compiler.CompileWorkflow(nonStrictFile)
 	if err != nil {
