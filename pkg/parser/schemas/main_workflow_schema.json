@@ -1572,9 +1572,18 @@
                   "type": "string",
                   "description": "Optional prefix for the discussion title"
                 },
-                "category-id": {
-                  "type": "string",
-                  "description": "Optional discussion category ID. If not specified, uses the first available category"
+                "category": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Discussion category name or ID"
+                    },
+                    {
+                      "type": "number",
+                      "description": "Discussion category ID as a number"
+                    }
+                  ],
+                  "description": "Optional discussion category. Can be a category ID (string or number) or category name. If not specified, uses the first available category. Matched first against category IDs, then against category names."
                 },
                 "max": {
                   "type": "integer",

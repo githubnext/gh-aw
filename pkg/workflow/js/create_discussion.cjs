@@ -36,8 +36,8 @@ async function main() {
       if (item.body) {
         summaryContent += `**Body:**\n${item.body}\n\n`;
       }
-      if (item.category_id) {
-        summaryContent += `**Category ID:** ${item.category_id}\n\n`;
+      if (item.category) {
+        summaryContent += `**Category:** ${item.category}\n\n`;
       }
       summaryContent += "---\n\n";
     }
@@ -85,10 +85,34 @@ async function main() {
     core.error(`Failed to get discussion categories: ${errorMessage}`);
     throw error;
   }
-  let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY_ID;
-  if (!categoryId && discussionCategories.length > 0) {
+  let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY;
+  if (categoryId) {
+    // Try to match against category IDs first
+    const categoryById = discussionCategories.find(cat => cat.id === categoryId);
+    if (categoryById) {
+      core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
+    } else {
+      // Try to match against category names
+      const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
+      if (categoryByName) {
+        categoryId = categoryByName.id;
+        core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
+      } else {
+        core.warning(
+          `Category "${categoryId}" not found by ID or name. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
+        );
+        // Fall back to first category if available
+        if (discussionCategories.length > 0) {
+          categoryId = discussionCategories[0].id;
+          core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+        } else {
+          categoryId = undefined;
+        }
+      }
+    }
+  } else if (discussionCategories.length > 0) {
     categoryId = discussionCategories[0].id;
-    core.info(`No category-id specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
+    core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
   }
   if (!categoryId) {
     core.error("No discussion category available and none specified in configuration");
