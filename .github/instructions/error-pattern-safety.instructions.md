@@ -1,3 +1,8 @@
+---
+description: Error Pattern Safety Guidelines for Agentic Engines
+applyTo: "pkg/workflow/*_engine.go,pkg/workflow/js/validate_errors.cjs,pkg/workflow/engine_error_patterns*.go"
+---
+
 # Error Pattern Safety Guidelines
 
 This document outlines the safety guidelines for error pattern regex in agentic engines to prevent infinite loops in JavaScript.
