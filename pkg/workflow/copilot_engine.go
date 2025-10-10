@@ -864,10 +864,10 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 		},
 		// Copilot CLI specific errors
 		{
-			Pattern:      `(?i)permission denied and could not request permission`,
+			Pattern:      `(?i)permission denied and could not request permission from user`,
 			LevelGroup:   0,
 			MessageGroup: 0,
-			Description:  "Copilot CLI permission denied error",
+			Description:  "Copilot CLI permission denied warning (user interaction required)",
 		},
 		{
 			Pattern:      `(?i)✗\s+(.+)`,

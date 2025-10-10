@@ -77,20 +77,31 @@ func TestCopilotEngineDetectsRealWorldErrors(t *testing.T) {
 	errors := CountErrorsAndWarningsWithPatterns(testLog, patterns)
 
 	errorCount := CountErrors(errors)
+	warningCount := CountWarnings(errors)
+	
+	// Log all detected errors and warnings for debugging
+	t.Logf("Detected %d errors and %d warnings in the workflow log", errorCount, warningCount)
+	for i, err := range errors {
+		t.Logf("  %d. [%s] Line %d: %s", i+1, err.Type, err.Line, err.Message)
+	}
+	
 	if errorCount == 0 {
 		t.Error("Expected to detect errors in the log, but found none")
 		t.Log("Log content contains:")
 		t.Log("  - ✗ symbols indicating failed commands")
-		t.Log("  - 'Permission denied and could not request permission from user' messages")
 		t.Log("These should be detected as errors by the Copilot error patterns")
 	}
 
 	// We should detect at least 3 errors (3 failed commands with ✗ symbol)
+	// Note: "Permission denied and could not request permission from user" should be warnings, not errors
 	if errorCount < 3 {
 		t.Errorf("Expected at least 3 errors, but detected %d", errorCount)
 	}
-
-	t.Logf("Successfully detected %d errors in the workflow log", errorCount)
+	
+	// We should detect warnings for "Permission denied" messages
+	if warningCount < 3 {
+		t.Errorf("Expected at least 3 warnings for 'Permission denied' messages, but detected %d", warningCount)
+	}
 }
 
 // TestCopilotEngineDetectsCommandNotFoundInLogs tests detection of command not found errors
