@@ -62,20 +62,20 @@ export default defineConfig({
 					autogenerate: { directory: 'start-here' },
 				},
 				{
-					label: 'Workflows',
+					label: '🎓 Tutorials',
+					autogenerate: { directory: 'tutorials' },
+				},
+				{
+					label: '📋 How-To Guides',
+					autogenerate: { directory: 'how-to' },
+				},
+				{
+					label: '📖 Reference',
 					autogenerate: { directory: 'reference' },
 				},
 				{
-					label: 'Tools',
-					autogenerate: { directory: 'tools' },
-				},
-				{
-					label: 'Guides',
-					autogenerate: { directory: 'guides' },
-				},
-				{
-					label: 'Application Areas',
-					autogenerate: { directory: 'samples' },
+					label: '💡 Explanation',
+					autogenerate: { directory: 'explanation' },
 				},
 				// ...makeChangelogsSidebarLinks([
 				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }
