@@ -44,6 +44,9 @@ const DefaultElixirVersion = "1.17"
 // DefaultHaskellVersion is the default version of GHC for runtime setup
 const DefaultHaskellVersion = "9.10"
 
+// DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
+const DefaultAgenticWorkflowTimeoutMinutes = 20
+
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
 var DefaultAllowedDomains = []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
