@@ -104,9 +104,11 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	env := map[string]string{
 		"XDG_CONFIG_HOME":           "/home/runner",
+		"XDG_STATE_HOME":            "/tmp/gh-aw/.copilot/state",
 		"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE",
 		"GITHUB_TOKEN":              "${{ secrets.COPILOT_CLI_TOKEN  }}",
 		"GITHUB_STEP_SUMMARY":       "${{ env.GITHUB_STEP_SUMMARY }}",
+		"DEBUG":                     "\"*\"",
 	}
 
 	// Always add GITHUB_AW_PROMPT for agentic workflows
@@ -207,6 +209,7 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
+	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-logs\n")
 	yaml.WriteString("          cat > /home/runner/.copilot/mcp-config.json << 'EOF'\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
