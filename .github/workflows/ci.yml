@@ -5,6 +5,8 @@ jobs:
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     concurrency:
       group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-test
       cancel-in-progress: true
@@ -33,6 +35,8 @@ jobs:
   build:
     name: Build Code and Recompile
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -75,6 +79,8 @@ jobs:
   js:
     name: Build JavaScript
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     concurrency:
       group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-js
       cancel-in-progress: true
@@ -94,6 +100,8 @@ jobs:
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     concurrency:
       group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-lint
       cancel-in-progress: true
