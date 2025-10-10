@@ -3019,7 +3019,7 @@ jobs:
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_TITLE_PREFIX: "[security-fix] "
           GITHUB_AW_PR_LABELS: "security,automated-fix"
-          GITHUB_AW_PR_DRAFT: "false"
+          GITHUB_AW_PR_DRAFT: "true"
           GITHUB_AW_PR_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:

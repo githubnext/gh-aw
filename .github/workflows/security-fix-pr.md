@@ -19,7 +19,6 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[security-fix] "
     labels: [security, automated-fix]
-    draft: false
 timeout_minutes: 20
 ---
 
