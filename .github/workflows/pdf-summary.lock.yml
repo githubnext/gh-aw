@@ -3487,7 +3487,7 @@ jobs:
         run: npm install -g @github/copilot@0.0.337
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
-        timeout-minutes: 5
+        timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
