@@ -1,6 +1,9 @@
 ---
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/repo-tree-map.lock.yml'
 
 permissions:
   contents: read
@@ -9,6 +12,7 @@ permissions:
 engine: copilot
 
 tools:
+  edit:
   bash:
     - "find *"
     - "ls *"
