@@ -230,7 +230,7 @@ jobs:
           import re
           
           # Domain allow-list (populated during generation)
-          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","registry.npmjs.org"]
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","registry.npmjs.org","api.github.com","ghcr.io"]
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -994,7 +994,7 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                  "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -1027,10 +1027,11 @@ jobs:
           
           ## Mission
           
-          Check for new versions of the following agentic CLIs daily:
+          Check for new versions of the following agentic CLIs and MCP servers daily:
           1. **Claude Code** (`@anthropic-ai/claude-code`)
           2. **GitHub Copilot CLI** (`@github/copilot`)
           3. **OpenAI Codex** (`@openai/codex`)
+          4. **GitHub MCP Server** (Docker image and remote API)
           
           When updates are found, update the default versions in the codebase and create a pull request.
           
@@ -1089,14 +1090,55 @@ jobs:
              - Since Codex uses "latest" by default, note the current available version
              - Document any important changes in the PR description
           
-          ### Phase 4: Update Code If Needed
+          ### Phase 4: Check GitHub MCP Server Version
           
-          If any CLI has a newer version available:
+          The GitHub MCP server is used in both local (Docker) and remote (hosted) modes. Check both:
+          
+          #### Local Mode (Docker Image)
+          
+          1. **Fetch Latest Docker Image Tags**:
+             - Use web-fetch to get available tags from GitHub Container Registry:
+               - Fetch `https://ghcr.io/v2/github/github-mcp-server/tags/list` (may require authentication)
+               - Or fetch release information from `https://api.github.com/repos/github/github-mcp-server/releases/latest`
+             - Look for the latest release tag or SHA-based tag
+          
+          2. **Check Current Version**:
+             - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`
+             - Find the current `DefaultGitHubMCPServerVersion` constant value (e.g., "sha-09deac4")
+          
+          3. **Compare Versions**:
+             - If a newer release or SHA tag is available, mark for update
+             - Prefer release tags (e.g., "v1.2.3") over SHA tags when available
+             - If only SHA tags exist, compare SHAs to determine if an update is needed
+          
+          4. **Review Changes**:
+             - Check the GitHub repository at `https://github.com/github/github-mcp-server` for:
+               - Release notes
+               - Changelog
+               - Breaking changes or new features
+             - Note any changes that might affect local (Docker) mode usage
+          
+          #### Remote Mode (Hosted API)
+          
+          1. **Check API Status**:
+             - The remote mode uses the hosted GitHub MCP server at `https://api.githubcopilot.com/mcp/`
+             - Check if there are any version headers or API version indicators
+             - Note: Remote mode doesn't have a configurable version, but document the current API capabilities
+          
+          2. **Document Remote API State**:
+             - Note the current state of the remote API in the PR
+             - Include any known API changes or updates
+             - This helps track when the remote API capabilities change
+          
+          ### Phase 5: Update Code If Needed
+          
+          If any CLI or MCP server has a newer version available:
           
           1. **Update Constants File**:
              - Edit `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`
              - Update `DefaultClaudeCodeVersion` to the new version if Claude has an update
-             - Use the `Edit` tool to make surgical changes to the constant value
+             - Update `DefaultGitHubMCPServerVersion` to the new version if GitHub MCP Server has an update
+             - Use the `Edit` tool to make surgical changes to the constant values
           
           2. **Recompile Workflows**:
              - Run `make recompile` to ensure all workflows are updated with the new version
@@ -1129,6 +1171,7 @@ jobs:
           - **Document Changes**: Include detailed information in the PR description
           - **Test First**: The recompile step will catch obvious issues
           - **Security Focused**: Prioritize security updates
+          - **GitHub MCP Server**: For Docker images, prefer release tags (e.g., "v1.2.3") over SHA tags when available
           - **DO NOT COMMIT `*.lock.yml` and `pkg/workflow/js/*.js` files directly**. These files will be reconstructed by another action.
           
           ## PR Description Template
@@ -1138,7 +1181,7 @@ jobs:
           ```markdown
           # Update Agentic CLI Versions
           
-          This automated PR updates the default versions for agentic CLIs used in gh-aw.
+          This automated PR updates the default versions for agentic CLIs and MCP servers used in gh-aw.
           
           ## Changes
           
@@ -1157,6 +1200,13 @@ jobs:
           - **Releases**: [link to releases or key changes]
           - **Note**: Uses "latest" tag by default
           
+          ### GitHub MCP Server
+          - **Previous Version**: [old version, e.g., sha-09deac4]
+          - **New Version**: [new version, e.g., v1.2.3 or sha-abc1234]
+          - **Mode**: Local (Docker) - `ghcr.io/github/github-mcp-server:[version]`
+          - **Changelog**: [link to release notes or key changes]
+          - **Remote API Status**: [any updates to the hosted MCP server at api.githubcopilot.com/mcp/]
+          
           ## Migration Notes
           
           [Any breaking changes or important updates users should be aware of]
@@ -1172,6 +1222,9 @@ jobs:
           - Claude NPM: https://www.npmjs.com/package/@anthropic-ai/claude-code
           - Copilot NPM: https://www.npmjs.com/package/@github/copilot
           - Codex NPM: https://www.npmjs.com/package/@openai/codex
+          - GitHub MCP Server: https://github.com/github/github-mcp-server
+          - GitHub MCP Server Docker: https://ghcr.io/github/github-mcp-server
+          - GitHub MCP Remote API: https://api.githubcopilot.com/mcp/
           ```
           
           ## Error Handling
@@ -1355,6 +1408,7 @@ jobs:
         # - mcp__github__get_issue
         # - mcp__github__get_issue_comments
         # - mcp__github__get_job_logs
+        # - mcp__github__get_label
         # - mcp__github__get_latest_release
         # - mcp__github__get_me
         # - mcp__github__get_notification_details
@@ -1379,6 +1433,7 @@ jobs:
         # - mcp__github__list_discussions
         # - mcp__github__list_issue_types
         # - mcp__github__list_issues
+        # - mcp__github__list_label
         # - mcp__github__list_notifications
         # - mcp__github__list_pull_requests
         # - mcp__github__list_releases
@@ -1390,6 +1445,7 @@ jobs:
         # - mcp__github__list_workflow_run_artifacts
         # - mcp__github__list_workflow_runs
         # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
         # - mcp__github__search_code
         # - mcp__github__search_issues
         # - mcp__github__search_orgs
@@ -1400,7 +1456,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(date),Bash(echo),Bash(git *),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep *),Bash(grep),Bash(head),Bash(ls *),Bash(ls),Bash(make *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(date),Bash(echo),Bash(git *),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep *),Bash(grep),Bash(head),Bash(ls *),Bash(ls),Bash(make *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -2883,7 +2939,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "CLI Version Checker"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# CLI Version Checker\n\nYou are the CLI Version Checker agent, responsible for monitoring updates to the agentic CLI tools used in this project and proposing updates when new versions are available.\n\n## Mission\n\nCheck for new versions of the following agentic CLIs daily:\n1. **Claude Code** (`@anthropic-ai/claude-code`)\n2. **GitHub Copilot CLI** (`@github/copilot`)\n3. **OpenAI Codex** (`@openai/codex`)\n\nWhen updates are found, update the default versions in the codebase and create a pull request.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggered**: Scheduled daily check\n- **Run ID**: ${{ github.run_id }}\n\n## Checking Process\n\n### Phase 1: Check Claude Code Version\n\n1. **Fetch NPM Registry Data**:\n   - Use web-fetch to get the latest version from `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`\n   - Extract the `version` field from the JSON response\n   \n2. **Check Current Version**:\n   - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`\n   - Find the current `DefaultClaudeCodeVersion` constant value\n\n3. **Compare Versions**:\n   - If the NPM version is newer than the current version, mark Claude for update\n\n4. **Review Changelog (if update available)**:\n   - Fetch the changelog from NPM package metadata\n   - Look for breaking changes, important features, or security fixes\n   - Note any changes that might affect our usage\n\n### Phase 2: Check GitHub Copilot CLI Version\n\n1. **Fetch NPM Registry Data**:\n   - Use web-fetch to get the latest version from `https://registry.npmjs.org/@github/copilot/latest`\n   - Extract the `version` field from the JSON response\n\n2. **Review Changelog**:\n   - Check the GitHub repository at `https://github.com/github/copilot-cli` for changelog\n   - Look at recent releases or changelog.md\n   - Note any breaking changes or important updates\n\n3. **Determine Update Strategy**:\n   - Since Copilot uses \"latest\" by default, note the current available version\n   - Document any important changes in the PR description\n\n### Phase 3: Check OpenAI Codex Version\n\n1. **Fetch NPM Registry Data**:\n   - Use web-fetch to get the latest version from `https://registry.npmjs.org/@openai/codex/latest`\n   - Extract the `version` field from the JSON response\n\n2. **Review Releases**:\n   - Check GitHub releases at `https://github.com/openai/codex/releases` using web-fetch\n   - Note any breaking changes or important updates\n\n3. **Determine Update Strategy**:\n   - Since Codex uses \"latest\" by default, note the current available version\n   - Document any important changes in the PR description\n\n### Phase 4: Update Code If Needed\n\nIf any CLI has a newer version available:\n\n1. **Update Constants File**:\n   - Edit `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`\n   - Update `DefaultClaudeCodeVersion` to the new version if Claude has an update\n   - Use the `Edit` tool to make surgical changes to the constant value\n\n2. **Recompile Workflows**:\n   - Run `make recompile` to ensure all workflows are updated with the new version\n   - This ensures the compiled `.lock.yml` files reflect the version change\n\n3. **Verify Changes**:\n   - Run `git status` to see what files changed\n   - Verify that only expected files were modified\n\n### Phase 5: Create Pull Request\n\nIf updates were made:\n\n1. **Prepare PR Description**:\n   - Title: \"[auto] Update agentic CLI versions\"\n   - Description should include:\n     - Which CLIs were updated and to what versions\n     - Summary of important changes from changelogs\n     - Any breaking changes or migration notes\n     - Link to changelogs for each updated CLI\n\n2. **Create PR Using Safe Outputs**:\n   - Use the safe-outputs create-pull-request mechanism\n   - The PR will be created automatically with your changes\n\n## Important Guidelines\n\n- **Be Conservative**: Only update if the new version is stable (not pre-release)\n- **Check Compatibility**: Review changelogs for breaking changes\n- **Document Changes**: Include detailed information in the PR description\n- **Test First**: The recompile step will catch obvious issues\n- **Security Focused**: Prioritize security updates\n- **DO NOT COMMIT `*.lock.yml` and `pkg/workflow/js/*.js` files directly**. These files will be reconstructed by another action.\n\n## PR Description Template\n\nUse this template when creating the PR:\n\n```markdown\n# Update Agentic CLI Versions\n\nThis automated PR updates the default versions for agentic CLIs used in gh-aw.\n\n## Changes\n\n### Claude Code\n- **Previous Version**: [old version]\n- **New Version**: [new version]\n- **Changelog**: [link to changelog or key changes]\n\n### GitHub Copilot CLI\n- **Current Available**: [version]\n- **Changelog**: [link to changelog or key changes]\n- **Note**: Uses \"latest\" tag by default\n\n### OpenAI Codex\n- **Current Available**: [version]\n- **Releases**: [link to releases or key changes]\n- **Note**: Uses \"latest\" tag by default\n\n## Migration Notes\n\n[Any breaking changes or important updates users should be aware of]\n\n## Testing\n\n- [x] Workflows recompiled successfully with `make recompile`\n- [x] Constants file updated\n- [ ] Manual testing recommended before merge\n\n## References\n\n- Claude NPM: https://www.npmjs.com/package/@anthropic-ai/claude-code\n- Copilot NPM: https://www.npmjs.com/package/@github/copilot\n- Codex NPM: https://www.npmjs.com/package/@openai/codex\n```\n\n## Error Handling\n\n- If NPM registry is unavailable, retry once after 30 seconds\n- If changelog fetch fails, proceed with version update but note in PR\n- If recompile fails, do NOT create PR - log the error\n- If no updates are available, exit successfully without creating PR\n\n## Security Notes\n\n- Never execute code from external sources\n- Only fetch data from trusted NPM registry and official GitHub repos\n- Validate version strings match semver format before updating\n- Review changelogs for security-related updates\n"
+          WORKFLOW_MARKDOWN: "# CLI Version Checker\n\nYou are the CLI Version Checker agent, responsible for monitoring updates to the agentic CLI tools used in this project and proposing updates when new versions are available.\n\n## Mission\n\nCheck for new versions of the following agentic CLIs and MCP servers daily:\n1. **Claude Code** (`@anthropic-ai/claude-code`)\n2. **GitHub Copilot CLI** (`@github/copilot`)\n3. **OpenAI Codex** (`@openai/codex`)\n4. **GitHub MCP Server** (Docker image and remote API)\n\nWhen updates are found, update the default versions in the codebase and create a pull request.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggered**: Scheduled daily check\n- **Run ID**: ${{ github.run_id }}\n\n## Checking Process\n\n### Phase 1: Check Claude Code Version\n\n1. **Fetch NPM Registry Data**:\n   - Use web-fetch to get the latest version from `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`\n   - Extract the `version` field from the JSON response\n   \n2. **Check Current Version**:\n   - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`\n   - Find the current `DefaultClaudeCodeVersion` constant value\n\n3. **Compare Versions**:\n   - If the NPM version is newer than the current version, mark Claude for update\n\n4. **Review Changelog (if update available)**:\n   - Fetch the changelog from NPM package metadata\n   - Look for breaking changes, important features, or security fixes\n   - Note any changes that might affect our usage\n\n### Phase 2: Check GitHub Copilot CLI Version\n\n1. **Fetch NPM Registry Data**:\n   - Use web-fetch to get the latest version from `https://registry.npmjs.org/@github/copilot/latest`\n   - Extract the `version` field from the JSON response\n\n2. **Review Changelog**:\n   - Check the GitHub repository at `https://github.com/github/copilot-cli` for changelog\n   - Look at recent releases or changelog.md\n   - Note any breaking changes or important updates\n\n3. **Determine Update Strategy**:\n   - Since Copilot uses \"latest\" by default, note the current available version\n   - Document any important changes in the PR description\n\n### Phase 3: Check OpenAI Codex Version\n\n1. **Fetch NPM Registry Data**:\n   - Use web-fetch to get the latest version from `https://registry.npmjs.org/@openai/codex/latest`\n   - Extract the `version` field from the JSON response\n\n2. **Review Releases**:\n   - Check GitHub releases at `https://github.com/openai/codex/releases` using web-fetch\n   - Note any breaking changes or important updates\n\n3. **Determine Update Strategy**:\n   - Since Codex uses \"latest\" by default, note the current available version\n   - Document any important changes in the PR description\n\n### Phase 4: Check GitHub MCP Server Version\n\nThe GitHub MCP server is used in both local (Docker) and remote (hosted) modes. Check both:\n\n#### Local Mode (Docker Image)\n\n1. **Fetch Latest Docker Image Tags**:\n   - Use web-fetch to get available tags from GitHub Container Registry:\n     - Fetch `https://ghcr.io/v2/github/github-mcp-server/tags/list` (may require authentication)\n     - Or fetch release information from `https://api.github.com/repos/github/github-mcp-server/releases/latest`\n   - Look for the latest release tag or SHA-based tag\n\n2. **Check Current Version**:\n   - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`\n   - Find the current `DefaultGitHubMCPServerVersion` constant value (e.g., \"sha-09deac4\")\n\n3. **Compare Versions**:\n   - If a newer release or SHA tag is available, mark for update\n   - Prefer release tags (e.g., \"v1.2.3\") over SHA tags when available\n   - If only SHA tags exist, compare SHAs to determine if an update is needed\n\n4. **Review Changes**:\n   - Check the GitHub repository at `https://github.com/github/github-mcp-server` for:\n     - Release notes\n     - Changelog\n     - Breaking changes or new features\n   - Note any changes that might affect local (Docker) mode usage\n\n#### Remote Mode (Hosted API)\n\n1. **Check API Status**:\n   - The remote mode uses the hosted GitHub MCP server at `https://api.githubcopilot.com/mcp/`\n   - Check if there are any version headers or API version indicators\n   - Note: Remote mode doesn't have a configurable version, but document the current API capabilities\n\n2. **Document Remote API State**:\n   - Note the current state of the remote API in the PR\n   - Include any known API changes or updates\n   - This helps track when the remote API capabilities change\n\n### Phase 5: Update Code If Needed\n\nIf any CLI or MCP server has a newer version available:\n\n1. **Update Constants File**:\n   - Edit `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`\n   - Update `DefaultClaudeCodeVersion` to the new version if Claude has an update\n   - Update `DefaultGitHubMCPServerVersion` to the new version if GitHub MCP Server has an update\n   - Use the `Edit` tool to make surgical changes to the constant values\n\n2. **Recompile Workflows**:\n   - Run `make recompile` to ensure all workflows are updated with the new version\n   - This ensures the compiled `.lock.yml` files reflect the version change\n\n3. **Verify Changes**:\n   - Run `git status` to see what files changed\n   - Verify that only expected files were modified\n\n### Phase 5: Create Pull Request\n\nIf updates were made:\n\n1. **Prepare PR Description**:\n   - Title: \"[auto] Update agentic CLI versions\"\n   - Description should include:\n     - Which CLIs were updated and to what versions\n     - Summary of important changes from changelogs\n     - Any breaking changes or migration notes\n     - Link to changelogs for each updated CLI\n\n2. **Create PR Using Safe Outputs**:\n   - Use the safe-outputs create-pull-request mechanism\n   - The PR will be created automatically with your changes\n\n## Important Guidelines\n\n- **Be Conservative**: Only update if the new version is stable (not pre-release)\n- **Check Compatibility**: Review changelogs for breaking changes\n- **Document Changes**: Include detailed information in the PR description\n- **Test First**: The recompile step will catch obvious issues\n- **Security Focused**: Prioritize security updates\n- **GitHub MCP Server**: For Docker images, prefer release tags (e.g., \"v1.2.3\") over SHA tags when available\n- **DO NOT COMMIT `*.lock.yml` and `pkg/workflow/js/*.js` files directly**. These files will be reconstructed by another action.\n\n## PR Description Template\n\nUse this template when creating the PR:\n\n```markdown\n# Update Agentic CLI Versions\n\nThis automated PR updates the default versions for agentic CLIs and MCP servers used in gh-aw.\n\n## Changes\n\n### Claude Code\n- **Previous Version**: [old version]\n- **New Version**: [new version]\n- **Changelog**: [link to changelog or key changes]\n\n### GitHub Copilot CLI\n- **Current Available**: [version]\n- **Changelog**: [link to changelog or key changes]\n- **Note**: Uses \"latest\" tag by default\n\n### OpenAI Codex\n- **Current Available**: [version]\n- **Releases**: [link to releases or key changes]\n- **Note**: Uses \"latest\" tag by default\n\n### GitHub MCP Server\n- **Previous Version**: [old version, e.g., sha-09deac4]\n- **New Version**: [new version, e.g., v1.2.3 or sha-abc1234]\n- **Mode**: Local (Docker) - `ghcr.io/github/github-mcp-server:[version]`\n- **Changelog**: [link to release notes or key changes]\n- **Remote API Status**: [any updates to the hosted MCP server at api.githubcopilot.com/mcp/]\n\n## Migration Notes\n\n[Any breaking changes or important updates users should be aware of]\n\n## Testing\n\n- [x] Workflows recompiled successfully with `make recompile`\n- [x] Constants file updated\n- [ ] Manual testing recommended before merge\n\n## References\n\n- Claude NPM: https://www.npmjs.com/package/@anthropic-ai/claude-code\n- Copilot NPM: https://www.npmjs.com/package/@github/copilot\n- Codex NPM: https://www.npmjs.com/package/@openai/codex\n- GitHub MCP Server: https://github.com/github/github-mcp-server\n- GitHub MCP Server Docker: https://ghcr.io/github/github-mcp-server\n- GitHub MCP Remote API: https://api.githubcopilot.com/mcp/\n```\n\n## Error Handling\n\n- If NPM registry is unavailable, retry once after 30 seconds\n- If changelog fetch fails, proceed with version update but note in PR\n- If recompile fails, do NOT create PR - log the error\n- If no updates are available, exit successfully without creating PR\n\n## Security Notes\n\n- Never execute code from external sources\n- Only fetch data from trusted NPM registry and official GitHub repos\n- Validate version strings match semver format before updating\n- Review changelogs for security-related updates\n"
         with:
           script: |
             const fs = require('fs');

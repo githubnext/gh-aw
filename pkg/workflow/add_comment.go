@@ -35,6 +35,14 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Build custom environment variables specific to add-comment
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Pass the workflow source URL for installation instructions
+	if data.Source != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE: %q\n", data.Source))
+		sourceURL := buildSourceURL(data.Source)
+		if sourceURL != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+		}
+	}
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
@@ -45,8 +53,8 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if data.SafeOutputs.AddComments.TargetRepoSlug != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddComments.TargetRepoSlug))
-	} else if c.trialMode && c.trialTargetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
+	} else if c.trialMode && c.trialSimulatedRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialSimulatedRepoSlug))
 	}
 
 	// Get token from config

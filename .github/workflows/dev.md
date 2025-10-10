@@ -9,7 +9,7 @@ name: Dev
 engine: codex
 tools:
   github:
-    allowed: [list_pull_requests, get_pull_request]
+    allowed: [list_pull_requests, pull_request_read]
 safe-outputs:
     staged: true
     create-discussion:

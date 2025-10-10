@@ -33,18 +33,18 @@ type FileTracker interface {
 
 // Compiler handles converting markdown workflows to GitHub Actions YAML
 type Compiler struct {
-	verbose             bool
-	engineOverride      string
-	customOutput        string          // If set, output will be written to this path instead of default location
-	version             string          // Version of the extension
-	skipValidation      bool            // If true, skip schema validation
-	noEmit              bool            // If true, validate without generating lock files
-	strictMode          bool            // If true, enforce strict validation requirements
-	trialMode           bool            // If true, suppress safe outputs for trial mode execution
-	trialTargetRepoSlug string          // If set in trial mode, the target repository to checkout
-	jobManager          *JobManager     // Manages jobs and dependencies
-	engineRegistry      *EngineRegistry // Registry of available agentic engines
-	fileTracker         FileTracker     // Optional file tracker for tracking created files
+	verbose                bool
+	engineOverride         string
+	customOutput           string          // If set, output will be written to this path instead of default location
+	version                string          // Version of the extension
+	skipValidation         bool            // If true, skip schema validation
+	noEmit                 bool            // If true, validate without generating lock files
+	strictMode             bool            // If true, enforce strict validation requirements
+	trialMode              bool            // If true, suppress safe outputs for trial mode execution
+	trialSimulatedRepoSlug string          // If set in trial mode, the target repository to checkout
+	jobManager             *JobManager     // Manages jobs and dependencies
+	engineRegistry         *EngineRegistry // Registry of available agentic engines
+	fileTracker            FileTracker     // Optional file tracker for tracking created files
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -81,9 +81,9 @@ func (c *Compiler) SetTrialMode(trialMode bool) {
 	c.trialMode = trialMode
 }
 
-// SetTrialTargetRepo configures the target repository for trial mode
-func (c *Compiler) SetTrialTargetRepo(targetRepoSlug string) {
-	c.trialTargetRepoSlug = targetRepoSlug
+// SetSimulatedRepo configures the target repository for trial mode
+func (c *Compiler) SetSimulatedRepo(repo string) {
+	c.trialSimulatedRepoSlug = repo
 }
 
 // SetStrictMode configures whether to enable strict validation mode
@@ -936,6 +936,41 @@ func (c *Compiler) extractSource(frontmatter map[string]any) string {
 	}
 
 	return ""
+}
+
+// buildSourceURL converts a source string (owner/repo/path@ref) to a GitHub URL
+// For enterprise deployments, the URL will use the GitHub server URL from the workflow context
+func buildSourceURL(source string) string {
+	if source == "" {
+		return ""
+	}
+
+	// Parse the source string: owner/repo/path@ref
+	parts := strings.Split(source, "@")
+	if len(parts) == 0 {
+		return ""
+	}
+
+	pathPart := parts[0] // "owner/repo/path"
+	refPart := "main"    // default ref
+	if len(parts) > 1 {
+		refPart = parts[1]
+	}
+
+	// Build GitHub URL using server URL from GitHub Actions context
+	// The pathPart is "owner/repo/workflows/file.md", we need to convert it to
+	// "${GITHUB_SERVER_URL}/owner/repo/tree/ref/workflows/file.md"
+	pathComponents := strings.SplitN(pathPart, "/", 3)
+	if len(pathComponents) < 3 {
+		return ""
+	}
+
+	owner := pathComponents[0]
+	repo := pathComponents[1]
+	filePath := pathComponents[2]
+
+	// Use github.server_url for enterprise GitHub deployments
+	return fmt.Sprintf("${{ github.server_url }}/%s/%s/tree/%s/%s", owner, repo, refPart, filePath)
 }
 
 // extractSafetyPromptSetting extracts the safety-prompt setting from tools
@@ -2076,12 +2111,12 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 		yaml.WriteString("        uses: actions/checkout@v5\n")
 		if c.trialMode {
 			yaml.WriteString("        with:\n")
-			if c.trialTargetRepoSlug != "" {
-				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialTargetRepoSlug))
-				trialTargetRepoName := strings.Split(c.trialTargetRepoSlug, "/")
-				if len(trialTargetRepoName) == 2 {
-					yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
-				}
+			if c.trialSimulatedRepoSlug != "" {
+				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialSimulatedRepoSlug))
+				// trialTargetRepoName := strings.Split(c.trialSimulatedRepoSlug, "/")
+				// if len(trialTargetRepoName) == 2 {
+				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
+				// }
 			}
 			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		}
@@ -2512,6 +2547,22 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add XPIA security prompt as separate step if enabled (before other prompts)
 	c.generateXPIAPromptStep(yaml, data)
 
+	// trialTargetRepoName := strings.Split(c.trialSimulatedRepoSlug, "/")
+	// if len(trialTargetRepoName) == 2 {
+	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
+	// }
+	// If trialling, generate a step to append a note about it in the prompt
+	if c.trialMode {
+		yaml.WriteString("      - name: Append trial mode note to prompt\n")
+		yaml.WriteString("        env:\n")
+		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
+		yaml.WriteString("          ## Note\n")
+		yaml.WriteString(fmt.Sprintf("          This workflow is running in directory $GITHUB_WORKSPACE, but that directory actually contains the contents of the repository '%s'.\n", c.trialSimulatedRepoSlug))
+		yaml.WriteString("          EOF\n")
+	}
+
 	// Add cache memory prompt as separate step if enabled
 	c.generateCacheMemoryPromptStep(yaml, data.CacheMemoryConfig)
 
@@ -2675,7 +2726,7 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
 	// Set trial mode information before calling engine
 	data.TrialMode = c.trialMode
-	data.TrialTargetRepo = c.trialTargetRepoSlug
+	data.TrialTargetRepo = c.trialSimulatedRepoSlug
 
 	steps := engine.GetExecutionSteps(data, logFile)
 

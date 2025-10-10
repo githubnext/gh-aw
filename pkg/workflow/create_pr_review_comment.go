@@ -21,6 +21,14 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Build custom environment variables specific to create-pull-request-review-comment
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+	// Pass the workflow source URL for installation instructions
+	if data.Source != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE: %q\n", data.Source))
+		sourceURL := buildSourceURL(data.Source)
+		if sourceURL != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+		}
+	}
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_REVIEW_COMMENT_SIDE: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.Side))
@@ -35,8 +43,8 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequestReviewComments.TargetRepoSlug))
-	} else if c.trialMode && c.trialTargetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialTargetRepoSlug))
+	} else if c.trialMode && c.trialSimulatedRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialSimulatedRepoSlug))
 	}
 
 	// Get token from config

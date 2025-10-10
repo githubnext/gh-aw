@@ -300,7 +300,7 @@ func processBuiltinMCPTool(toolName string, toolValue any, serverFilter string) 
 				Command: "docker",
 				Args: []string{
 					"run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-					"ghcr.io/github/github-mcp-server:sha-09deac4",
+					"ghcr.io/github/github-mcp-server:" + constants.DefaultGitHubMCPServerVersion,
 				},
 				Env: make(map[string]string),
 			}
