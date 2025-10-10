@@ -15,8 +15,33 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 	}
 
 	// Test that the script modifies the body when in issue context
-	if !strings.Contains(createIssueScript, "Related to #${parentIssueNumber}") {
+	if !strings.Contains(createIssueScript, "Related to #${effectiveParentIssueNumber}") {
 		t.Error("Expected create_issue.js to add parent issue reference to body")
+	}
+
+	// Test that the script supports explicit parent field
+	if !strings.Contains(createIssueScript, "createIssueItem.parent") {
+		t.Error("Expected create_issue.js to support explicit parent field")
+	}
+
+	// Test that the script uses effectiveParentIssueNumber
+	if !strings.Contains(createIssueScript, "effectiveParentIssueNumber") {
+		t.Error("Expected create_issue.js to use effectiveParentIssueNumber variable")
+	}
+
+	// Test that the script includes GraphQL sub-issue linking
+	if !strings.Contains(createIssueScript, "addSubIssue") {
+		t.Error("Expected create_issue.js to include addSubIssue GraphQL mutation")
+	}
+
+	// Test that the script calls github.graphql for sub-issue linking
+	if !strings.Contains(createIssueScript, "github.graphql(addSubIssueMutation") {
+		t.Error("Expected create_issue.js to call github.graphql for sub-issue linking")
+	}
+
+	// Test that the script fetches node IDs before linking
+	if !strings.Contains(createIssueScript, "getIssueNodeIdQuery") {
+		t.Error("Expected create_issue.js to fetch issue node IDs before linking")
 	}
 
 	// Test that the script creates a comment on the parent issue
@@ -24,14 +49,19 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 		t.Error("Expected create_issue.js to create comment on parent issue")
 	}
 
-	// Test that the script has proper error handling for comment creation
-	if !strings.Contains(createIssueScript, "Warning: Could not add comment to parent issue") {
-		t.Error("Expected create_issue.js to have error handling for parent issue comment")
+	// Test that the script has proper error handling for sub-issue linking
+	if !strings.Contains(createIssueScript, "Warning: Could not link sub-issue to parent") {
+		t.Error("Expected create_issue.js to have error handling for sub-issue linking")
 	}
 
 	// Test console logging for debugging
 	if !strings.Contains(createIssueScript, "Detected issue context, parent issue") {
 		t.Error("Expected create_issue.js to log when issue context is detected")
+	}
+
+	// Test that it logs successful sub-issue linking
+	if !strings.Contains(createIssueScript, "Linked issue #") {
+		t.Error("Expected create_issue.js to log successful sub-issue linking")
 	}
 }
 
@@ -89,6 +119,19 @@ Write output to ${{ env.GITHUB_AW_SAFE_OUTPUTS }}.`
 
 	if !strings.Contains(lockContent, "Created related issue: #${issue.number}") {
 		t.Error("Expected compiled workflow to include parent issue comment")
+	}
+
+	// Verify GraphQL sub-issue linking code is present
+	if !strings.Contains(lockContent, "addSubIssue") {
+		t.Error("Expected compiled workflow to include addSubIssue GraphQL mutation")
+	}
+
+	if !strings.Contains(lockContent, "github.graphql(addSubIssueMutation") {
+		t.Error("Expected compiled workflow to call github.graphql for sub-issue linking")
+	}
+
+	if !strings.Contains(lockContent, "Linked issue #") {
+		t.Error("Expected compiled workflow to log successful sub-issue linking")
 	}
 
 	// Verify it still has the standard create_issue job structure

@@ -22,6 +22,8 @@ interface CreateIssueItem extends BaseSafeOutputItem {
   body: string;
   /** Optional labels to add to the issue */
   labels?: string[];
+  /** Optional parent issue number to link as sub-issue */
+  parent?: number;
 }
 
 /**
