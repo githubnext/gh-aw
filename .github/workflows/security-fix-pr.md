@@ -129,9 +129,9 @@ Your pull request should include:
 ## Important Notes
 
 - **One Alert at a Time**: This workflow fixes only the first open alert
-- **Safe Operation**: All changes go through pull request review
+- **Safe Operation**: All changes go through pull request review before merging
 - **No Execute**: Never execute untrusted code during analysis
-- **Analysis Tools**: Use read-only GitHub API tools for security analysis
+- **Analysis Tools**: Use read-only GitHub API tools for security analysis; edit and bash tools for creating fixes
 - **Surgical Fixes**: Make minimal, focused changes to fix the vulnerability
 
 ## Error Handling
