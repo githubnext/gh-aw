@@ -947,14 +947,14 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 	// Split content into lines to preserve indentation
 	lines := strings.Split(modifiedContent, "\n")
 	checkoutPattern := regexp.MustCompile(`^(\s*)(uses: actions/checkout@[^\s]*)(.*)$`)
-	
+
 	var newLines []string
 	for _, line := range lines {
 		if matches := checkoutPattern.FindStringSubmatch(line); len(matches) >= 3 {
 			indentation := matches[1]
 			usesLine := matches[2]
 			remainder := matches[3]
-			
+
 			// Add the original uses line
 			newLines = append(newLines, fmt.Sprintf("%s%s%s", indentation, usesLine, remainder))
 			// Add the with clause at the same indentation level as uses
@@ -964,7 +964,7 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 			newLines = append(newLines, line)
 		}
 	}
-	
+
 	modifiedContent = strings.Join(newLines, "\n")
 
 	// Write the modified content back
