@@ -13,12 +13,14 @@ tools:
       - list_code_scanning_alerts
       - get_code_scanning_alert
       - get_file_contents
+  edit:
+  bash:
 safe-outputs:
   create-pull-request:
     title-prefix: "[security-fix] "
     labels: [security, automated-fix]
     draft: false
-timeout_minutes: 15
+timeout_minutes: 20
 ---
 
 # Security Issue Fix Agent
@@ -129,8 +131,8 @@ Your pull request should include:
 - **One Alert at a Time**: This workflow fixes only the first open alert
 - **Safe Operation**: All changes go through pull request review
 - **No Execute**: Never execute untrusted code during analysis
-- **Read-Only Tools**: Use read-only GitHub API tools for analysis
-- **Surgical Fixes**: Make minimal, focused changes
+- **Analysis Tools**: Use read-only GitHub API tools for security analysis
+- **Surgical Fixes**: Make minimal, focused changes to fix the vulnerability
 
 ## Error Handling
 
