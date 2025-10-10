@@ -666,7 +666,7 @@ safe-outputs:
 safe-outputs:
   create-discussion:
     title-prefix: "[ai] "            # Optional: prefix for discussion titles
-    category-id: "DIC_kwDOGFsHUM4BsUn3"  # Optional: specific discussion category ID
+    category: "DIC_kwDOGFsHUM4BsUn3"  # Optional: discussion category ID or name
     max: 3                           # Optional: maximum number of discussions (default: 1)
     target-repo: "owner/target-repo" # Optional: create discussions in a different repository (requires github-token with appropriate permissions)
 ```
@@ -684,7 +684,7 @@ Create new discussions with your research findings. For each discussion, provide
 
 The compiled workflow will have additional prompting describing that, to create discussions, it should write the discussion details to a file.
 
-**Note:** If no `category-id` is specified, the workflow will use the first available discussion category in the repository.
+**Note:** The `category` field can be either a category ID (e.g., `"DIC_kwDOGFsHUM4BsUn3"`), a category name (e.g., `"General"`), or a category slug/route (e.g., `"general"`). The workflow will first try to match against category IDs, then against category names, and finally against category slugs. If no `category` is specified, the workflow will use the first available discussion category in the repository.
 
 ## Cross-Repository Operations
 
