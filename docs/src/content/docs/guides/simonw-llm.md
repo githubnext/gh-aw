@@ -102,8 +102,9 @@ You are an issue triage assistant. Analyze the issue and provide:
 1. **Installation**: The workflow installs the llm CLI via pip
 2. **API Key Configuration**: Configures the appropriate API key based on available secrets
 3. **Plugin Installation**: Installs required plugins (e.g., llm-claude for Anthropic)
-4. **Execution**: Runs your prompt using the llm CLI
-5. **Output Processing**: Captures output for safe-outputs processing
+4. **MCP Configuration**: The GITHUB_AW_MCP_CONFIG environment variable is available for MCP server integration (future compatibility)
+5. **Execution**: Runs your prompt using the llm CLI
+6. **Output Processing**: Captures output for safe-outputs processing
 
 ## Customization
 

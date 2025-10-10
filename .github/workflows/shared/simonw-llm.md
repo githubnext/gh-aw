@@ -6,6 +6,8 @@ engine:
       run: |
         pip install llm
         llm --version
+      env:
+        GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
     
     - name: Configure llm with API key
       run: |
@@ -23,6 +25,7 @@ engine:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
     
     - name: Run llm CLI with prompt
       id: llm_execution
@@ -42,6 +45,7 @@ engine:
         echo "Using model: $MODEL"
         
         # Run llm with the prompt from the file
+        # Note: MCP configuration is available via GITHUB_AW_MCP_CONFIG if needed
         llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
         
         # Store output for safe-outputs processing if configured
@@ -51,6 +55,7 @@ engine:
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
         GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+        GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ---
@@ -89,4 +94,5 @@ imports:
 - The llm CLI stores conversations in a local SQLite database
 - Output is automatically captured for safe-outputs processing
 - You can customize the model by modifying the MODEL variable in the run step
+- MCP server configuration is available via GITHUB_AW_MCP_CONFIG environment variable for future compatibility
 -->

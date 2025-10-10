@@ -383,6 +383,7 @@ jobs:
           echo "Using model: $MODEL"
 
           # Run llm with the prompt from the file
+          # Note: MCP configuration is available via GITHUB_AW_MCP_CONFIG if needed
           llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
 
           # Store output for safe-outputs processing if configured
