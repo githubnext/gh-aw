@@ -10,14 +10,9 @@ engine: claude
 tools:
   cache-memory: true
 safe-outputs:
-  create-issue:
-    title-prefix: "[audit] "
-    labels: [automation, audit, agentic-workflows]
+  create-discussion:
+    category-id: "audits"
     max: 1
-  create-pull-request:
-    title-prefix: "[audit] "
-    labels: [automation, audit, improvement]
-    draft: true
 timeout_minutes: 20
 strict: true
 imports:
@@ -35,8 +30,6 @@ Daily audit all agentic workflow runs from the last 24 hours to identify issues,
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Triggered by**: ${{ github.actor }}
-- **Run Time**: ${{ github.run_id }}
 
 ## Audit Process
 
