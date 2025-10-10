@@ -603,7 +603,7 @@ if (Object.keys(PREDEFINED_TOOLS).length > 0) {
   Object.keys(PREDEFINED_TOOLS).forEach(toolName => {
     const tool = PREDEFINED_TOOLS[toolName];
     TOOLS[toolName] = tool;
-    
+
     // Attach handlers for specific tools
     if (tool.hasHandler) {
       if (toolName === "create_pull_request") {

@@ -169,7 +169,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 				// Log error but continue with empty tools
 				filteredToolsJSON = "{}"
 			}
-			
+
 			// Add environment variables for JSONL validation
 			yaml.WriteString("        env:\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")

@@ -58,7 +58,7 @@ func (c *Compiler) GenerateFilteredToolsJSON(data *WorkflowData) (string, error)
 
 	// Check which tools are enabled in the configuration
 	safeOutputsConfig := c.generateSafeOutputsConfigMap(data)
-	
+
 	for _, tool := range allTools {
 		// Check if this tool is enabled in the configuration
 		for configKey := range safeOutputsConfig {
@@ -198,7 +198,7 @@ func (c *Compiler) generateSafeOutputsConfigMap(data *WorkflowData) map[string]i
 		missingToolConfig := map[string]interface{}{}
 		safeOutputsConfig["missing-tool"] = missingToolConfig
 	}
-	
+
 	// Add safe-jobs as well
 	for jobName := range data.SafeOutputs.Jobs {
 		safeOutputsConfig[jobName] = map[string]interface{}{}
