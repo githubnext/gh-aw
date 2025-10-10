@@ -43,6 +43,41 @@ func NewMCPTestClient(t *testing.T, outputFile string, config map[string]any) *M
 			t.Fatalf("Failed to marshal config: %v", err)
 		}
 		env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS_CONFIG=%s", string(configJSON)))
+		
+		// Generate filtered tools JSON based on the config
+		compiler := NewCompiler(false, "", "test")
+		compiler.SetSkipValidation(true)
+		
+		// Build a minimal WorkflowData with the safe outputs config
+		safeOutputs := &SafeOutputsConfig{}
+		for key := range config {
+			// Normalize the key to handle both dash and underscore formats
+			normalizedKey := strings.ReplaceAll(key, "_", "-")
+			switch normalizedKey {
+			case "create-issue":
+				safeOutputs.CreateIssues = &CreateIssuesConfig{}
+			case "create-discussion":
+				safeOutputs.CreateDiscussions = &CreateDiscussionsConfig{}
+			case "add-comment":
+				safeOutputs.AddComments = &AddCommentsConfig{}
+			case "create-pull-request":
+				safeOutputs.CreatePullRequests = &CreatePullRequestsConfig{}
+			case "upload-asset":
+				safeOutputs.UploadAssets = &UploadAssetsConfig{}
+			case "missing-tool":
+				safeOutputs.MissingTool = &MissingToolConfig{}
+			}
+		}
+		
+		workflowData := &WorkflowData{
+			SafeOutputs: safeOutputs,
+		}
+		
+		toolsJSON, err := compiler.GenerateFilteredToolsJSON(workflowData)
+		if err != nil {
+			t.Fatalf("Failed to generate tools JSON: %v", err)
+		}
+		env = append(env, fmt.Sprintf("GITHUB_AW_SAFE_OUTPUTS_TOOLS=%s", toolsJSON))
 	}
 
 	// Create command for the MCP server

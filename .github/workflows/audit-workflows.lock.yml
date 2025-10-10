@@ -603,290 +603,43 @@ jobs:
               };
             };
             const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
-            let PREDEFINED_TOOLS = {};
             const toolsEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_TOOLS;
-            if (toolsEnv) {
-              debug(`Loading tools from GITHUB_AW_SAFE_OUTPUTS_TOOLS environment variable`);
-              try {
-                PREDEFINED_TOOLS = JSON.parse(toolsEnv);
-                debug(`Loaded ${Object.keys(PREDEFINED_TOOLS).length} predefined tools from environment`);
-              } catch (error) {
-                debug(`Error parsing GITHUB_AW_SAFE_OUTPUTS_TOOLS: ${error instanceof Error ? error.message : String(error)}`);
-                debug(`Falling back to legacy ALL_TOOLS filtering`);
-                PREDEFINED_TOOLS = {};
-              }
+            if (!toolsEnv) {
+              throw new Error("GITHUB_AW_SAFE_OUTPUTS_TOOLS environment variable is required");
             }
-            const ALL_TOOLS = [
-              {
-                name: "create_issue",
-                description: "Create a new GitHub issue",
-                inputSchema: {
-                  type: "object",
-                  required: ["title", "body"],
-                  properties: {
-                    title: { type: "string", description: "Issue title" },
-                    body: { type: "string", description: "Issue body/description" },
-                    labels: {
-                      type: "array",
-                      items: { type: "string" },
-                      description: "Issue labels",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "create_discussion",
-                description: "Create a new GitHub discussion",
-                inputSchema: {
-                  type: "object",
-                  required: ["title", "body"],
-                  properties: {
-                    title: { type: "string", description: "Discussion title" },
-                    body: { type: "string", description: "Discussion body/content" },
-                    category: { type: "string", description: "Discussion category" },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "add_comment",
-                description: "Add a comment to a GitHub issue or pull request",
-                inputSchema: {
-                  type: "object",
-                  required: ["body"],
-                  properties: {
-                    body: { type: "string", description: "Comment body/content" },
-                    issue_number: {
-                      type: "number",
-                      description: "Issue or PR number (optional for current context)",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "create_pull_request",
-                description: "Create a new GitHub pull request",
-                inputSchema: {
-                  type: "object",
-                  required: ["title", "body"],
-                  properties: {
-                    title: { type: "string", description: "Pull request title" },
-                    body: {
-                      type: "string",
-                      description: "Pull request body/description",
-                    },
-                    branch: {
-                      type: "string",
-                      description: "Optional branch name. If not provided, the current branch will be used.",
-                    },
-                    labels: {
-                      type: "array",
-                      items: { type: "string" },
-                      description: "Optional labels to add to the PR",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-                handler: createPullRequestHandler,
-              },
-              {
-                name: "create_pull_request_review_comment",
-                description: "Create a review comment on a GitHub pull request",
-                inputSchema: {
-                  type: "object",
-                  required: ["path", "line", "body"],
-                  properties: {
-                    path: {
-                      type: "string",
-                      description: "File path for the review comment",
-                    },
-                    line: {
-                      type: ["number", "string"],
-                      description: "Line number for the comment",
-                    },
-                    body: { type: "string", description: "Comment body content" },
-                    start_line: {
-                      type: ["number", "string"],
-                      description: "Optional start line for multi-line comments",
-                    },
-                    side: {
-                      type: "string",
-                      enum: ["LEFT", "RIGHT"],
-                      description: "Optional side of the diff: LEFT or RIGHT",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "create_code_scanning_alert",
-                description: "Create a code scanning alert. severity MUST be one of 'error', 'warning', 'info', 'note'.",
-                inputSchema: {
-                  type: "object",
-                  required: ["file", "line", "severity", "message"],
-                  properties: {
-                    file: {
-                      type: "string",
-                      description: "File path where the issue was found",
-                    },
-                    line: {
-                      type: ["number", "string"],
-                      description: "Line number where the issue was found",
-                    },
-                    severity: {
-                      type: "string",
-                      enum: ["error", "warning", "info", "note"],
-                      description:
-                        ' Security severity levels follow the industry-standard Common Vulnerability Scoring System (CVSS) that is also used for advisories in the GitHub Advisory Database and must be one of "error", "warning", "info", "note".',
-                    },
-                    message: {
-                      type: "string",
-                      description: "Alert message describing the issue",
-                    },
-                    column: {
-                      type: ["number", "string"],
-                      description: "Optional column number",
-                    },
-                    ruleIdSuffix: {
-                      type: "string",
-                      description: "Optional rule ID suffix for uniqueness",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "add_labels",
-                description: "Add labels to a GitHub issue or pull request",
-                inputSchema: {
-                  type: "object",
-                  required: ["labels"],
-                  properties: {
-                    labels: {
-                      type: "array",
-                      items: { type: "string" },
-                      description: "Labels to add",
-                    },
-                    issue_number: {
-                      type: "number",
-                      description: "Issue or PR number (optional for current context)",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "update_issue",
-                description: "Update a GitHub issue",
-                inputSchema: {
-                  type: "object",
-                  properties: {
-                    status: {
-                      type: "string",
-                      enum: ["open", "closed"],
-                      description: "Optional new issue status",
-                    },
-                    title: { type: "string", description: "Optional new issue title" },
-                    body: { type: "string", description: "Optional new issue body" },
-                    issue_number: {
-                      type: ["number", "string"],
-                      description: "Optional issue number for target '*'",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              {
-                name: "push_to_pull_request_branch",
-                description: "Push changes to a pull request branch",
-                inputSchema: {
-                  type: "object",
-                  required: ["message"],
-                  properties: {
-                    branch: {
-                      type: "string",
-                      description: "Optional branch name. If not provided, the current branch will be used.",
-                    },
-                    message: { type: "string", description: "Commit message" },
-                    pull_request_number: {
-                      type: ["number", "string"],
-                      description: "Optional pull request number for target '*'",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-                handler: pushToPullRequestBranchHandler,
-              },
-              {
-                name: "upload_asset",
-                description: "Publish a file as a URL-addressable asset to an orphaned git branch",
-                inputSchema: {
-                  type: "object",
-                  required: ["path"],
-                  properties: {
-                    path: {
-                      type: "string",
-                      description:
-                        "Path to the file to publish as an asset. Must be a file under the current workspace or /tmp directory. By default, images (.png, .jpg, .jpeg) are allowed, but can be configured via workflow settings.",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-                handler: uploadAssetHandler,
-              },
-              {
-                name: "missing_tool",
-                description: "Report a missing tool or functionality needed to complete tasks",
-                inputSchema: {
-                  type: "object",
-                  required: ["tool", "reason"],
-                  properties: {
-                    tool: { type: "string", description: "Name of the missing tool" },
-                    reason: { type: "string", description: "Why this tool is needed" },
-                    alternatives: {
-                      type: "string",
-                      description: "Possible alternatives or workarounds",
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
-            ];
+            let PREDEFINED_TOOLS = {};
+            debug(`Loading tools from GITHUB_AW_SAFE_OUTPUTS_TOOLS environment variable`);
+            try {
+              PREDEFINED_TOOLS = JSON.parse(toolsEnv);
+              debug(`Loaded ${Object.keys(PREDEFINED_TOOLS).length} predefined tools from environment`);
+            } catch (error) {
+              debug(`Error parsing GITHUB_AW_SAFE_OUTPUTS_TOOLS: ${error instanceof Error ? error.message : String(error)}`);
+              throw new Error(`Failed to parse GITHUB_AW_SAFE_OUTPUTS_TOOLS: ${error instanceof Error ? error.message : String(error)}`);
+            }
             debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);
             debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
             const TOOLS = {};
-            if (Object.keys(PREDEFINED_TOOLS).length > 0) {
-              debug(`Using pre-filtered tools from environment variable`);
-              Object.keys(PREDEFINED_TOOLS).forEach(toolName => {
-                const tool = PREDEFINED_TOOLS[toolName];
-                TOOLS[toolName] = tool;
-                if (tool.hasHandler) {
-                  if (toolName === "create_pull_request") {
-                    TOOLS[toolName].handler = createPullRequestHandler;
-                  } else if (toolName === "push_to_pull_request_branch") {
-                    TOOLS[toolName].handler = pushToPullRequestBranchHandler;
-                  } else if (toolName === "upload_asset") {
-                    TOOLS[toolName].handler = uploadAssetHandler;
-                  }
+            debug(`Using pre-filtered tools from environment variable`);
+            Object.keys(PREDEFINED_TOOLS).forEach(toolName => {
+              const tool = PREDEFINED_TOOLS[toolName];
+              TOOLS[toolName] = tool;
+              if (tool.hasHandler) {
+                if (toolName === "create_pull_request") {
+                  TOOLS[toolName].handler = createPullRequestHandler;
+                } else if (toolName === "push_to_pull_request_branch") {
+                  TOOLS[toolName].handler = pushToPullRequestBranchHandler;
+                } else if (toolName === "upload_asset") {
+                  TOOLS[toolName].handler = uploadAssetHandler;
                 }
-              });
-            } else {
-              debug(`Using legacy ALL_TOOLS filtering (no GITHUB_AW_SAFE_OUTPUTS_TOOLS provided)`);
-              ALL_TOOLS.forEach(tool => {
-                if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-                  TOOLS[tool.name] = tool;
-                }
-              });
-            }
+              }
+            });
             Object.keys(safeOutputsConfig).forEach(configKey => {
               const normalizedKey = normTool(configKey);
               if (TOOLS[normalizedKey]) {
                 return;
               }
-              const isKnownTool = ALL_TOOLS.find(t => t.name === normalizedKey) || PREDEFINED_TOOLS[normalizedKey];
+              const isKnownTool = PREDEFINED_TOOLS[normalizedKey];
               if (!isKnownTool) {
                 const jobConfig = safeOutputsConfig[configKey];
                 const dynamicTool = {
