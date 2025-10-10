@@ -245,7 +245,7 @@ func TestCreateDiscussionConfigParsing(t *testing.T) {
 		name                string
 		frontmatter         map[string]any
 		expectedTitlePrefix string
-		expectedCategoryId  string
+		expectedCategory    string
 		expectedMax         int
 		expectConfig        bool
 	}{
@@ -264,7 +264,7 @@ func TestCreateDiscussionConfigParsing(t *testing.T) {
 				},
 			},
 			expectedTitlePrefix: "",
-			expectedCategoryId:  "",
+			expectedCategory:    "",
 			expectedMax:         1, // default
 			expectConfig:        true,
 		},
@@ -278,21 +278,49 @@ func TestCreateDiscussionConfigParsing(t *testing.T) {
 				},
 			},
 			expectedTitlePrefix: "[ai] ",
-			expectedCategoryId:  "",
+			expectedCategory:    "",
 			expectedMax:         1,
 			expectConfig:        true,
 		},
 		{
-			name: "create-discussion with category-id",
+			name: "create-discussion with category (string)",
 			frontmatter: map[string]any{
 				"safe-outputs": map[string]any{
 					"create-discussion": map[string]any{
-						"category-id": "DIC_kwDOGFsHUM4BsUn3",
+						"category": "DIC_kwDOGFsHUM4BsUn3",
 					},
 				},
 			},
 			expectedTitlePrefix: "",
-			expectedCategoryId:  "DIC_kwDOGFsHUM4BsUn3",
+			expectedCategory:    "DIC_kwDOGFsHUM4BsUn3",
+			expectedMax:         1,
+			expectConfig:        true,
+		},
+		{
+			name: "create-discussion with category (name)",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-discussion": map[string]any{
+						"category": "General",
+					},
+				},
+			},
+			expectedTitlePrefix: "",
+			expectedCategory:    "General",
+			expectedMax:         1,
+			expectConfig:        true,
+		},
+		{
+			name: "create-discussion with category (number)",
+			frontmatter: map[string]any{
+				"safe-outputs": map[string]any{
+					"create-discussion": map[string]any{
+						"category": 12345,
+					},
+				},
+			},
+			expectedTitlePrefix: "",
+			expectedCategory:    "12345",
 			expectedMax:         1,
 			expectConfig:        true,
 		},
@@ -302,13 +330,13 @@ func TestCreateDiscussionConfigParsing(t *testing.T) {
 				"safe-outputs": map[string]any{
 					"create-discussion": map[string]any{
 						"title-prefix": "[research] ",
-						"category-id":  "DIC_kwDOGFsHUM4BsUn3",
+						"category":     "DIC_kwDOGFsHUM4BsUn3",
 						"max":          3,
 					},
 				},
 			},
 			expectedTitlePrefix: "[research] ",
-			expectedCategoryId:  "DIC_kwDOGFsHUM4BsUn3",
+			expectedCategory:    "DIC_kwDOGFsHUM4BsUn3",
 			expectedMax:         3,
 			expectConfig:        true,
 		},
@@ -337,8 +365,8 @@ func TestCreateDiscussionConfigParsing(t *testing.T) {
 				t.Errorf("Expected title prefix %q, but got %q", tt.expectedTitlePrefix, discussionConfig.TitlePrefix)
 			}
 
-			if discussionConfig.CategoryId != tt.expectedCategoryId {
-				t.Errorf("Expected category ID %q, but got %q", tt.expectedCategoryId, discussionConfig.CategoryId)
+			if discussionConfig.Category != tt.expectedCategory {
+				t.Errorf("Expected category %q, but got %q", tt.expectedCategory, discussionConfig.Category)
 			}
 
 			if discussionConfig.Max != tt.expectedMax {
