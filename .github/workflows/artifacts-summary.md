@@ -57,7 +57,7 @@ Please:
 
 ## Output Format
 
-Create an issue with a markdown table like this:
+Create a discussion with a markdown table like this:
 
 ```markdown
 # Artifacts Usage Report
