@@ -3,9 +3,10 @@ async function main() {
   const reaction = process.env.GITHUB_AW_REACTION || "eyes";
   const command = process.env.GITHUB_AW_COMMAND; // Only present for command workflows
   const runId = context.runId;
+  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const runUrl = context.payload.repository
     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-    : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
   core.info(`Reaction type: ${reaction}`);
   core.info(`Command name: ${command || "none"}`);
