@@ -26,9 +26,6 @@ Create a new file in your repository at `.github/workflows/issue-greeter.md`:
 on:
   issues:
     types: [opened]
-permissions:
-  contents: read
-engine: copilot
 safe-outputs:
   add-comment:
 ---
