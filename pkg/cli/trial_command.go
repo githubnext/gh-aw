@@ -35,6 +35,20 @@ type CombinedTrialResult struct {
 	Timestamp     time.Time             `json:"timestamp"`
 }
 
+// TrialSecretTracker tracks which secrets were added during a trial for cleanup
+type TrialSecretTracker struct {
+	RepoSlug     string          `json:"repo_slug"`
+	AddedSecrets map[string]bool `json:"added_secrets"` // secrets that were successfully added by trial
+}
+
+// NewTrialSecretTracker creates a new secret tracker for a repository
+func NewTrialSecretTracker(repoSlug string) *TrialSecretTracker {
+	return &TrialSecretTracker{
+		RepoSlug:     repoSlug,
+		AddedSecrets: make(map[string]bool),
+	}
+}
+
 // NewTrialCommand creates the trial command
 func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
@@ -182,9 +196,12 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, hostRepoS
 		return fmt.Errorf("failed to ensure host repository: %w", err)
 	}
 
+	// Step 2.5: Create secret tracker
+	secretTracker := NewTrialSecretTracker(hostRepoSlug)
+
 	// Set up secret cleanup to always run on exit
 	defer func() {
-		if err := cleanupTrialSecrets(hostRepoSlug, verbose); err != nil {
+		if err := cleanupTrialSecretsWithTracker(hostRepoSlug, secretTracker, verbose); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to cleanup secrets: %v", err)))
 		}
 	}()
@@ -221,13 +238,13 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, hostRepoS
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 		// Install workflow with trial mode compilation
-		if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, hostRepoSlug, verbose); err != nil {
+		if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, hostRepoSlug, secretTracker, verbose); err != nil {
 			return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 		}
 
 		// Add user's PAT as repository secret (only once)
 		if i == 0 {
-			if err := addGitHubTokenSecret(hostRepoSlug, verbose); err != nil {
+			if err := addGitHubTokenSecretWithTracker(hostRepoSlug, secretTracker, verbose); err != nil {
 				return fmt.Errorf("failed to add GitHub token secret: %w", err)
 			}
 		}
@@ -556,7 +573,7 @@ func cloneTrialRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, hostRepoSlug string, verbose bool) error {
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, verbose bool) error {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -623,7 +640,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 	workflowData := workflowDataList[0]
 
 	// Determine required engine secret from workflow data
-	if err := determineAndAddEngineSecret(workflowData, hostRepoSlug, verbose); err != nil {
+	if err := determineAndAddEngineSecretWithTracker(workflowData, hostRepoSlug, secretTracker, verbose); err != nil {
 		return fmt.Errorf("failed to determine engine secret: %w", err)
 	}
 
@@ -672,9 +689,26 @@ func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *Wo
 	return nil
 }
 
-func addGitHubTokenSecret(repoSlug string, verbose bool) error {
+
+
+func addGitHubTokenSecretWithTracker(repoSlug string, tracker *TrialSecretTracker, verbose bool) error {
+	secretName := "GH_AW_GITHUB_TOKEN"
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Adding GitHub token as repository secret"))
+	}
+
+	// Check if secret already exists by trying to list secrets
+	listCmd := exec.Command("gh", "secret", "list", "--repo", repoSlug)
+	listOutput, listErr := listCmd.CombinedOutput()
+	secretExists := listErr == nil && strings.Contains(string(listOutput), secretName)
+
+	// Skip if secret already exists
+	if secretExists {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret %s already exists, skipping", secretName)))
+		}
+		return nil
 	}
 
 	// Get the current auth token using the proper helper
@@ -687,18 +721,27 @@ func addGitHubTokenSecret(repoSlug string, verbose bool) error {
 	fullRepoName := repoSlug
 
 	// Add the token as a repository secret
-	cmd := exec.Command("gh", "secret", "set", "GH_AW_GITHUB_TOKEN", "--repo", fullRepoName, "--body", token)
-	output, err := cmd.CombinedOutput()
+	setCmd := exec.Command("gh", "secret", "set", secretName, "--repo", fullRepoName, "--body", token)
+	output, err := setCmd.CombinedOutput()
 
 	if err != nil {
 		return fmt.Errorf("failed to set repository secret: %w (output: %s)", err, string(output))
 	}
 
+	// Mark as successfully added
+	tracker.AddedSecrets[secretName] = true
+
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added GH_AW_GITHUB_TOKEN secret to host repository"))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Added %s secret to host repository", secretName)))
 	}
 
 	return nil
+}
+
+// Legacy function for backward compatibility
+func addGitHubTokenSecret(repoSlug string, verbose bool) error {
+	tracker := NewTrialSecretTracker(repoSlug)
+	return addGitHubTokenSecretWithTracker(repoSlug, tracker, verbose)
 }
 
 func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
@@ -827,8 +870,8 @@ func waitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbo
 	}
 }
 
-// determineAndAddEngineSecret determines and sets the appropriate engine secret based on workflow configuration
-func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, verbose bool) error {
+// determineAndAddEngineSecretWithTracker determines and sets the appropriate engine secret based on workflow configuration with tracking
+func determineAndAddEngineSecretWithTracker(workflowData *workflow.WorkflowData, hostRepoSlug string, tracker *TrialSecretTracker, verbose bool) error {
 	var engineType string
 
 	if verbose {
@@ -859,27 +902,46 @@ func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSl
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting ANTHROPIC_API_KEY secret for Claude engine"))
 		}
-		return addEngineSecret("ANTHROPIC_API_KEY", hostRepoSlug, verbose)
+		return addEngineSecretWithTracker("ANTHROPIC_API_KEY", hostRepoSlug, tracker, verbose)
 	case "codex", "openai":
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting OPENAI_API_KEY secret for OpenAI engine"))
 		}
-		return addEngineSecret("OPENAI_API_KEY", hostRepoSlug, verbose)
+		return addEngineSecretWithTracker("OPENAI_API_KEY", hostRepoSlug, tracker, verbose)
 	case "copilot":
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting COPILOT_CLI_TOKEN secret for Copilot engine"))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", hostRepoSlug, verbose)
+		return addEngineSecretWithTracker("COPILOT_CLI_TOKEN", hostRepoSlug, tracker, verbose)
 	default:
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Unknown engine type '%s', defaulting to Copilot", engineType)))
 		}
-		return addEngineSecret("COPILOT_CLI_TOKEN", hostRepoSlug, verbose)
+		return addEngineSecretWithTracker("COPILOT_CLI_TOKEN", hostRepoSlug, tracker, verbose)
 	}
 }
 
-// addEngineSecret adds an engine-specific secret to the repository
-func addEngineSecret(secretName, hostRepoSlug string, verbose bool) error {
+// determineAndAddEngineSecret determines and sets the appropriate engine secret based on workflow configuration (legacy function for backward compatibility)
+func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, verbose bool) error {
+	tracker := NewTrialSecretTracker(hostRepoSlug)
+	return determineAndAddEngineSecretWithTracker(workflowData, hostRepoSlug, tracker, verbose)
+}
+
+// addEngineSecretWithTracker adds an engine-specific secret to the repository with tracking
+func addEngineSecretWithTracker(secretName, hostRepoSlug string, tracker *TrialSecretTracker, verbose bool) error {
+	// Check if secret already exists by trying to list secrets
+	listCmd := exec.Command("gh", "secret", "list", "--repo", hostRepoSlug)
+	listOutput, listErr := listCmd.CombinedOutput()
+	secretExists := listErr == nil && strings.Contains(string(listOutput), secretName)
+
+	// Skip if secret already exists
+	if secretExists {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Secret %s already exists, skipping", secretName)))
+		}
+		return nil
+	}
+
 	// First try to get the secret from environment variables
 	secretValue := os.Getenv(secretName)
 	if secretValue == "" {
@@ -915,6 +977,9 @@ func addEngineSecret(secretName, hostRepoSlug string, verbose bool) error {
 	if output, err := addSecretCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to add %s secret: %w\nOutput: %s", secretName, err, string(output))
 	}
+
+	// Mark as successfully added
+	tracker.AddedSecrets[secretName] = true
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully added %s secret", secretName)))
@@ -1035,8 +1100,8 @@ func commitAndPushWorkflow(tempDir, workflowName string, verbose bool) error {
 	return nil
 }
 
-// cleanupTrialSecrets removes API key secrets from the host repository for security
-func cleanupTrialSecrets(repoSlug string, verbose bool) error {
+// cleanupTrialSecretsWithTracker removes API key secrets from the host repository for security, based on tracking information
+func cleanupTrialSecretsWithTracker(repoSlug string, tracker *TrialSecretTracker, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up API key secrets from host repository"))
 	}
@@ -1044,26 +1109,43 @@ func cleanupTrialSecrets(repoSlug string, verbose bool) error {
 	// Use the repository slug directly
 	fullRepoName := repoSlug
 
-	// List of API key secrets to remove (keep GH_AW_GITHUB_TOKEN as it's needed for repository operations)
-	secretsToRemove := []string{"GH_AW_GITHUB_TOKEN", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "COPILOT_CLI_TOKEN"}
-
-	for _, secretName := range secretsToRemove {
+	secretsDeleted := 0
+	// Only delete secrets that were actually added by this trial command
+	for secretName := range tracker.AddedSecrets {
 		cmd := exec.Command("gh", "secret", "delete", secretName, "--repo", fullRepoName)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			// It's okay if the secret doesn't exist, just log in verbose mode
 			if verbose && !strings.Contains(string(output), "Not Found") {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Could not delete secret %s: %s", secretName, string(output))))
 			}
-		} else if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Deleted secret: %s", secretName)))
+		} else {
+			secretsDeleted++
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Deleted secret: %s", secretName)))
+			}
 		}
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("API key secrets cleaned up from host repository"))
+		if secretsDeleted > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("API key secrets cleaned up from host repository (%d deleted)", secretsDeleted)))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("No secrets needed cleanup (none were added by trial)"))
+		}
 	}
 
 	return nil
+}
+
+// cleanupTrialSecrets removes API key secrets from the host repository for security (legacy function for backward compatibility)
+func cleanupTrialSecrets(repoSlug string, verbose bool) error {
+	// Create a tracker that assumes all secrets should be deleted (legacy behavior)
+	tracker := NewTrialSecretTracker(repoSlug)
+	allSecrets := []string{"GH_AW_GITHUB_TOKEN", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "COPILOT_CLI_TOKEN"}
+	for _, secret := range allSecrets {
+		tracker.AddedSecrets[secret] = true // Assume we added them
+	}
+	return cleanupTrialSecretsWithTracker(repoSlug, tracker, verbose)
 }
 
 // TrialArtifacts represents all artifacts downloaded from a workflow run
