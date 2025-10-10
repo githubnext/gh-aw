@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2239,6 +2240,118 @@ require = function(name) {
 	logMdPath := filepath.Join(runDir, "log.md")
 	if err := os.WriteFile(logMdPath, []byte(strings.TrimSpace(string(output))), 0644); err != nil {
 		return fmt.Errorf("failed to write log.md: %w", err)
+	}
+
+	// Run validate_errors.cjs to check for errors in the log
+	if err := runErrorValidator(tempDir, logFile, engine, verbose); err != nil {
+		// Log the error but don't fail the entire operation
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error validation failed: %v", err)))
+	}
+
+	return nil
+}
+
+// runErrorValidator runs the validate_errors.cjs script on agent logs
+func runErrorValidator(tempDir, logFile string, engine workflow.CodingAgentEngine, verbose bool) error {
+	// Get error patterns from the engine
+	errorPatterns := engine.GetErrorPatterns()
+	if len(errorPatterns) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No error patterns available for this engine, skipping error validation"))
+		}
+		return nil
+	}
+
+	// Get the validate_errors.cjs script
+	validateScript := workflow.GetLogParserScript("validate_errors")
+	if validateScript == "" {
+		return fmt.Errorf("failed to get validate_errors.cjs script")
+	}
+
+	// Convert error patterns to JSON
+	patternsJSON, err := json.Marshal(errorPatterns)
+	if err != nil {
+		return fmt.Errorf("failed to marshal error patterns: %w", err)
+	}
+
+	// Create a Node.js script for error validation
+	nodeScript := fmt.Sprintf(`
+const fs = require('fs');
+
+// Mock @actions/core for the validator
+const core = {
+	debug: function(message) {
+		if (process.env.VERBOSE === 'true') {
+			console.error('[DEBUG]', message);
+		}
+	},
+	info: function(message) {
+		console.error('[INFO]', message);
+	},
+	warning: function(message) {
+		console.error('[WARNING]', message);
+	},
+	error: function(message) {
+		console.error('[ERROR]', message);
+	},
+	setFailed: function(message) {
+		console.error('[FAILED]', message);
+	}
+};
+
+// Set up environment
+process.env.GITHUB_AW_AGENT_OUTPUT = '%s';
+process.env.GITHUB_AW_ERROR_PATTERNS = '%s';
+if (%t) {
+	process.env.VERBOSE = 'true';
+}
+
+// Override require to provide our mock
+const originalRequire = require;
+require = function(name) {
+	if (name === '@actions/core') {
+		return core;
+	}
+	return originalRequire.apply(this, arguments);
+};
+
+// Execute the validator script
+%s
+`, logFile, string(patternsJSON), verbose, validateScript)
+
+	// Write the validation script
+	validatorFile := filepath.Join(tempDir, "validator.js")
+	if err := os.WriteFile(validatorFile, []byte(nodeScript), 0644); err != nil {
+		return fmt.Errorf("failed to write validator script: %w", err)
+	}
+
+	// Execute with 1 minute timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "node", "validator.js")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+
+	// Check if timeout occurred
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("error validation timed out after 1 minute (possible infinite regex loop)")
+	}
+
+	// Log the output if verbose or if there was an error
+	if verbose || err != nil {
+		outputStr := string(output)
+		if outputStr != "" {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Error validation output:"))
+			fmt.Fprintln(os.Stderr, outputStr)
+		}
+	}
+
+	if err != nil {
+		// Don't return error - just log it
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error validator exited with error: %v", err)))
+		}
 	}
 
 	return nil
