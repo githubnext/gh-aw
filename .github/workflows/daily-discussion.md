@@ -5,8 +5,6 @@ on:
     - cron: "0 9 * * 1-5"
   workflow_dispatch:
 
-  stop-after: +30d # workflow will no longer trigger after 30 days. Remove this and recompile to run indefinitely
-
 permissions: read-all
 
 network: defaults
@@ -20,8 +18,9 @@ timeout_minutes: 15
 
 tools:
   web-fetch:
-  web-search:
 ---
+
+{{#import shared/mcp/tavily.md}}
 
 # Daily Team Status
 
