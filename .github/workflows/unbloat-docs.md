@@ -50,7 +50,7 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[docs] "
     labels: [documentation, automation]
-    draft: false
+    draft: true
   add-comment:
     max: 1
 
@@ -91,6 +91,16 @@ find docs -name '*.md' -type f
 
 Focus on files that were recently modified or are in the `docs/src/content/docs/samples/` directory.
 
+{{#if ${{ github.event.pull_request.number }}}}
+**Pull Request Context**: Since this workflow is running in the context of PR #${{ github.event.pull_request.number }}, prioritize reviewing the documentation files that were modified in this pull request. Use the GitHub API to get the list of changed files:
+
+```bash
+# Get PR file changes using the get_pull_request tool
+```
+
+Focus on markdown files in the `docs/` directory that appear in the PR's changed files list.
+{{/if}}
+
 ### 2. Select ONE File to Improve
 
 **IMPORTANT**: Work on only **ONE file at a time** to keep changes small and reviewable.
@@ -129,6 +139,13 @@ Make targeted edits to improve clarity:
 **Standardize structure**:
 - Reduce repetitive "What it does" / "Why it's valuable" patterns
 - Use varied, natural language
+
+**Simplify code samples**:
+- Remove unnecessary complexity from code examples
+- Focus on demonstrating the core concept clearly
+- Eliminate boilerplate or setup code unless essential for understanding
+- Keep examples minimal yet complete
+- Use realistic but simple scenarios
 
 ### 5. Preserve Essential Content
 
