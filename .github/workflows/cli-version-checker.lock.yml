@@ -2677,7 +2677,7 @@ jobs:
               core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
               for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
                 const pattern = patterns[patternIndex];
-                core.info(pattern);    
+                core.info(pattern);
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");

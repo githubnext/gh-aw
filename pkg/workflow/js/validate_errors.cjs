@@ -115,7 +115,7 @@ function validateErrors(logContent, patterns) {
 
   for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
     const pattern = patterns[patternIndex];
-    core.info(pattern);    
+    core.info(pattern);
     let regex;
     try {
       regex = new RegExp(pattern.pattern, "g");
