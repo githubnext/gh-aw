@@ -3605,6 +3605,45 @@ jobs:
                   createdIssues.push(issue);
                   if (parentIssueNumber) {
                     try {
+                      const getIssueNodeIdQuery = `
+                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                          repository(owner: $owner, name: $repo) {
+                            issue(number: $issueNumber) {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issueNumber: parentIssueNumber,
+                      });
+                      const parentNodeId = parentResult.repository.issue.id;
+                      const childResult = await github.graphql(getIssueNodeIdQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issueNumber: issue.number,
+                      });
+                      const childNodeId = childResult.repository.issue.id;
+                      const addSubIssueMutation = `
+                        mutation($parentId: ID!, $subIssueId: ID!) {
+                          addSubIssue(input: {
+                            parentId: $parentId,
+                            subIssueId: $subIssueId
+                          }) {
+                            subIssue {
+                              id
+                              number
+                            }
+                          }
+                        }
+                      `;
+                      await github.graphql(addSubIssueMutation, {
+                        parentId: parentNodeId,
+                        subIssueId: childNodeId,
+                      });
+                      core.info("Linked issue #" + issue.number + " as sub-issue of #" + parentIssueNumber);
                       await github.rest.issues.createComment({
                         owner: context.repo.owner,
                         repo: context.repo.repo,
@@ -3613,7 +3652,20 @@ jobs:
                       });
                       core.info("Added comment to parent issue #" + parentIssueNumber);
                     } catch (error) {
-                      core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
+                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+                      try {
+                        await github.rest.issues.createComment({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: parentIssueNumber,
+                          body: `Created related issue: #${issue.number}`,
+                        });
+                        core.info("Added comment to parent issue #" + parentIssueNumber + " (sub-issue linking not available)");
+                      } catch (commentError) {
+                        core.info(
+                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+                        );
+                      }
                     }
                   }
                   if (i === createIssueItems.length - 1) {

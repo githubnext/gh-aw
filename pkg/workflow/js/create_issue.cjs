@@ -121,6 +121,56 @@ async function main() {
       createdIssues.push(issue);
       if (parentIssueNumber) {
         try {
+          // First, get the node IDs for both parent and child issues
+          const getIssueNodeIdQuery = `
+            query($owner: String!, $repo: String!, $issueNumber: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $issueNumber) {
+                  id
+                }
+              }
+            }
+          `;
+
+          // Get parent issue node ID
+          const parentResult = await github.graphql(getIssueNodeIdQuery, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issueNumber: parentIssueNumber,
+          });
+          const parentNodeId = parentResult.repository.issue.id;
+
+          // Get child issue node ID
+          const childResult = await github.graphql(getIssueNodeIdQuery, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issueNumber: issue.number,
+          });
+          const childNodeId = childResult.repository.issue.id;
+
+          // Link the child issue as a sub-issue of the parent
+          const addSubIssueMutation = `
+            mutation($parentId: ID!, $subIssueId: ID!) {
+              addSubIssue(input: {
+                parentId: $parentId,
+                subIssueId: $subIssueId
+              }) {
+                subIssue {
+                  id
+                  number
+                }
+              }
+            }
+          `;
+
+          await github.graphql(addSubIssueMutation, {
+            parentId: parentNodeId,
+            subIssueId: childNodeId,
+          });
+
+          core.info("Linked issue #" + issue.number + " as sub-issue of #" + parentIssueNumber);
+
+          // Also add a comment for visibility
           await github.rest.issues.createComment({
             owner: context.repo.owner,
             repo: context.repo.repo,
@@ -129,7 +179,21 @@ async function main() {
           });
           core.info("Added comment to parent issue #" + parentIssueNumber);
         } catch (error) {
-          core.info(`Warning: Could not add comment to parent issue: ${error instanceof Error ? error.message : String(error)}`);
+          core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
+          // Fallback: try to add just a comment if sub-issue linking fails
+          try {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parentIssueNumber,
+              body: `Created related issue: #${issue.number}`,
+            });
+            core.info("Added comment to parent issue #" + parentIssueNumber + " (sub-issue linking not available)");
+          } catch (commentError) {
+            core.info(
+              `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
+            );
+          }
         }
       }
       if (i === createIssueItems.length - 1) {
