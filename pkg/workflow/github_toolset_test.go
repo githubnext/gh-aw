@@ -188,10 +188,9 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 			githubTool: map[string]any{},
 			expectedInYAML: []string{
 				`GITHUB_PERSONAL_ACCESS_TOKEN`,
-			},
-			notInYAML: []string{
 				"GITHUB_TOOLSETS",
 			},
+			notInYAML: []string{},
 		},
 	}
 
