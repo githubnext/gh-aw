@@ -112,11 +112,11 @@ This is needed to secure API endpoints before implementing user-specific feature
 ## Important Notes
 
 - **Maximum 5 sub-issues**: Don't create more than 5 sub-issues even if the work seems larger
-- **Parent Issue Reference**: The system automatically links sub-issues to the parent issue
+- **Parent Issue Reference**: You must specify the current issue (#${{ github.event.issue.number }}) as the parent when creating sub-issues. The system will automatically link them with "Related to #${{ github.event.issue.number }}" in the issue body.
 - **Clear Steps**: Each sub-issue should have clear, actionable steps
 - **No Duplication**: Don't create sub-issues for work that's already done
 - **Prioritize Clarity**: SWE agents need unambiguous instructions
 
 ## Begin Planning
 
-Analyze the issue and create the sub-issues now. Remember to use the safe-outputs mechanism to create each issue.
+Analyze the issue and create the sub-issues now. Remember to use the safe-outputs mechanism to create each issue. Each sub-issue you create will be automatically linked to the parent issue #${{ github.event.issue.number }}.
