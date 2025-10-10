@@ -42,20 +42,11 @@ func TestVSCodeMCPConfig(t *testing.T) {
 	}
 
 	// Check that the args are correct - should be ["mcp-server"], not ["mcp", "serve"]
-	if len(server.Args) != 1 {
-		t.Errorf("Expected 1 argument, got %d: %v", len(server.Args), server.Args)
-	}
-
-	expectedArg := "mcp-server"
-	if len(server.Args) > 0 && server.Args[0] != expectedArg {
-		t.Errorf("Expected first argument to be '%s', got '%s'", expectedArg, server.Args[0])
-	}
-
-	// Validate that the incorrect ["mcp", "serve"] is not used
-	if len(server.Args) >= 2 {
-		if server.Args[0] == "mcp" && server.Args[1] == "serve" {
-			t.Error("Found incorrect command ['mcp', 'serve']. Should use ['mcp-server'] instead.")
-		}
+	expectedArgs := []string{"mcp-server"}
+	if len(server.Args) != len(expectedArgs) {
+		t.Errorf("Expected %d argument(s), got %d: %v", len(expectedArgs), len(server.Args), server.Args)
+	} else if len(server.Args) > 0 && server.Args[0] != expectedArgs[0] {
+		t.Errorf("Expected args %v, got %v", expectedArgs, server.Args)
 	}
 
 	// Check that cwd is set
