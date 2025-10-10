@@ -2672,11 +2672,12 @@ jobs:
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
               let hasErrors = false;
-              const MAX_ITERATIONS_PER_LINE = 10000; 
-              const ITERATION_WARNING_THRESHOLD = 1000; 
+              const MAX_ITERATIONS_PER_LINE = 10; 
+              const ITERATION_WARNING_THRESHOLD = 2; 
               core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
               for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
                 const pattern = patterns[patternIndex];
+                core.info(pattern);    
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");

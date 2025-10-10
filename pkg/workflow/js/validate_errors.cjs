@@ -108,13 +108,14 @@ function validateErrors(logContent, patterns) {
   let hasErrors = false;
 
   // Configuration for infinite loop detection
-  const MAX_ITERATIONS_PER_LINE = 10000; // Maximum regex matches per line
-  const ITERATION_WARNING_THRESHOLD = 1000; // Warn if iterations exceed this
+  const MAX_ITERATIONS_PER_LINE = 10; // Maximum regex matches per line
+  const ITERATION_WARNING_THRESHOLD = 2; // Warn if iterations exceed this
 
   core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
 
   for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
     const pattern = patterns[patternIndex];
+    core.info(pattern);    
     let regex;
     try {
       regex = new RegExp(pattern.pattern, "g");
