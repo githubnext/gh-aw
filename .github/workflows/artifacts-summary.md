@@ -15,7 +15,7 @@ tools:
       - list_workflow_run_artifacts
 safe-outputs:
   create-discussion:
-    category-id: "artifacts"
+    category: "artifacts"
     max: 1
 timeout_minutes: 15
 strict: true
