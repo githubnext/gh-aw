@@ -944,10 +944,28 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 	modifiedContent = strings.ReplaceAll(modifiedContent, "${{ github.repository }}", logicalRepoSlug)
 
 	// Also replace any hardcoded checkout actions to use the simulated host repo
-	checkoutPattern := regexp.MustCompile(`uses: actions/checkout@[^\s]*`)
-	modifiedContent = checkoutPattern.ReplaceAllStringFunc(modifiedContent, func(match string) string {
-		return fmt.Sprintf("%s\n        with:\n          repository: %s", match, logicalRepoSlug)
-	})
+	// Split content into lines to preserve indentation
+	lines := strings.Split(modifiedContent, "\n")
+	checkoutPattern := regexp.MustCompile(`^(\s*)(uses: actions/checkout@[^\s]*)(.*)$`)
+	
+	var newLines []string
+	for _, line := range lines {
+		if matches := checkoutPattern.FindStringSubmatch(line); len(matches) >= 3 {
+			indentation := matches[1]
+			usesLine := matches[2]
+			remainder := matches[3]
+			
+			// Add the original uses line
+			newLines = append(newLines, fmt.Sprintf("%s%s%s", indentation, usesLine, remainder))
+			// Add the with clause at the same indentation level as uses
+			newLines = append(newLines, fmt.Sprintf("%swith:", indentation))
+			newLines = append(newLines, fmt.Sprintf("%s  repository: %s", indentation, logicalRepoSlug))
+		} else {
+			newLines = append(newLines, line)
+		}
+	}
+	
+	modifiedContent = strings.Join(newLines, "\n")
 
 	// Write the modified content back
 	if err := os.WriteFile(workflowPath, []byte(modifiedContent), 0644); err != nil {
