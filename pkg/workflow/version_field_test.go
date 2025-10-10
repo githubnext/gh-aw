@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
@@ -25,8 +26,8 @@ func TestVersionField(t *testing.T) {
 			"allowed": []any{"create_issue"},
 		}
 		result = getGitHubDockerImageVersion(githubToolDefault)
-		if result != "sha-09deac4" {
-			t.Errorf("Expected default sha-09deac4, got %s", result)
+		if result != constants.DefaultGitHubMCPServerVersion {
+			t.Errorf("Expected default %s, got %s", constants.DefaultGitHubMCPServerVersion, result)
 		}
 	})
 

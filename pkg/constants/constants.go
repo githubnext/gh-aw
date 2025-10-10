@@ -23,6 +23,9 @@ const DefaultCopilotVersion = "0.0.338"
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.46.0"
 
+// DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
+const DefaultGitHubMCPServerVersion = "sha-09deac4"
+
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"
 
