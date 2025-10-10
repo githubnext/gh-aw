@@ -126,13 +126,12 @@ func buildCheckoutRepository(steps []string, c *Compiler) []string {
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
 	if c.trialMode {
-		steps = append(steps, "        with:\n")
-		if c.trialTargetRepoSlug != "" {
-			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialTargetRepoSlug))
-			trialTargetRepoName := strings.Split(c.trialTargetRepoSlug, "/")
-			if len(trialTargetRepoName) == 2 {
-				steps = append(steps, fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
-			}
+		if c.trialSimulatedRepoSlug != "" {
+			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialSimulatedRepoSlug))
+			// trialTargetRepoName := strings.Split(c.trialSimulatedRepoSlug, "/")
+			// if len(trialTargetRepoName) == 2 {
+			// 	steps = append(steps, fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
+			// }
 		}
 		steps = append(steps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 	}
