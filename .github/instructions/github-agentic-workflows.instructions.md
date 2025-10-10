@@ -476,6 +476,23 @@ tools:
   - "git status"
 ```
 
+### GitHub Tools
+
+The GitHub MCP server provides tools for repository operations. As of v0.18.0, pull request tools have been consolidated into a single `pull_request_read` tool with a method parameter:
+
+```yaml
+tools:
+  github:
+    allowed:
+      - pull_request_read      # Consolidated PR tool (replaces get_pull_request, get_pull_request_diff, etc.)
+      - get_issue              # Issue operations
+      - list_commits           # Repository operations
+      - get_label              # Label management (new in v0.18.0)
+      - list_label             # Label listing (new in v0.18.0)
+```
+
+**Note**: The `pull_request_read` tool replaces multiple individual PR tools (get_pull_request, get_pull_request_comments, get_pull_request_diff, get_pull_request_files, get_pull_request_reviews, get_pull_request_status, get_pull_request_review_comments) with a unified interface using method parameters (get, get_diff, get_status, get_files, get_review_comments, get_reviews).
+
 ### Custom MCP Tools
 ```yaml
 mcp-servers:

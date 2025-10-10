@@ -55,7 +55,7 @@ func TestClaudeCanAccessGitHubTools(t *testing.T) {
 
 	claudeRelevantTools := []string{
 		"get_issue",
-		"get_pull_request",
+		"pull_request_read",
 		"search_code",
 		"list_commits",
 	}

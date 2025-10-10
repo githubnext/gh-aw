@@ -303,7 +303,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"--rm\",",
 				"\"-e\",",
 				"\"GITHUB_PERSONAL_ACCESS_TOKEN\",",
-				"\"ghcr.io/github/github-mcp-server:sha-09deac4\"",
+				"\"ghcr.io/github/github-mcp-server:v0.18.0\"",
 				"]",
 				"",
 				"[mcp_servers.github.env]",
