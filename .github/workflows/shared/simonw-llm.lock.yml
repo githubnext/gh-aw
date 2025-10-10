@@ -342,7 +342,7 @@ jobs:
           if-no-files-found: warn
       - name: Install simonw/llm CLI
         run: |
-          pip install llm
+          pip install llm llm-github-models
           llm --version
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
@@ -356,14 +356,18 @@ jobs:
             llm install llm-claude
             echo "$ANTHROPIC_API_KEY" | llm keys set claude
             echo "✓ Anthropic API key configured"
+          elif [ -n "$GITHUB_TOKEN" ]; then
+            # GitHub Models uses GITHUB_TOKEN by default, no key setup needed
+            echo "✓ GitHub Models configured (using GITHUB_TOKEN)"
           else
-            echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+            echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ensure GITHUB_TOKEN is available"
             exit 1
           fi
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Run llm CLI with prompt
         id: llm_execution
@@ -375,6 +379,8 @@ jobs:
             MODEL="gpt-4o-mini"
           elif [ -n "$ANTHROPIC_API_KEY" ]; then
             MODEL="claude-3-5-sonnet-20241022"
+          elif [ -n "$GITHUB_TOKEN" ]; then
+            MODEL="github/gpt-4o-mini"
           else
             echo "No API key configured"
             exit 1
@@ -395,6 +401,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Ensure log file exists
         run: |

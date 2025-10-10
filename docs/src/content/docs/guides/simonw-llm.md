@@ -38,7 +38,7 @@ Analyze the issue: ${{ needs.activation.outputs.text }}
 
 ## Configuration
 
-The `simonw-llm` shared component supports both OpenAI and Anthropic API keys. You need to configure at least one API key as a repository secret.
+The `simonw-llm` shared component supports OpenAI, Anthropic, and GitHub Models API keys. You need to configure at least one API key as a repository secret, or use the built-in GITHUB_TOKEN for GitHub Models.
 
 ### OpenAI Setup
 
@@ -58,6 +58,14 @@ The `simonw-llm` shared component supports both OpenAI and Anthropic API keys. Y
    ```
 3. The workflow will automatically install the `llm-claude` plugin and use `claude-3-5-sonnet-20241022` model
 
+### GitHub Models Setup (Free Tier)
+
+1. No additional setup required - uses the built-in `GITHUB_TOKEN`
+2. The workflow will automatically use `github/gpt-4o-mini` model
+3. Requires `models: read` permission in the workflow
+4. Free tier available for all GitHub users
+5. Over 30+ models available including GPT-4o, DeepSeek, Llama, and more
+
 ## Example: Issue Triage Workflow
 
 This repository includes a complete example workflow (`issue-triage-llm.md`) that demonstrates how to use llm CLI for automated issue triage:
@@ -71,6 +79,7 @@ on:
 permissions:
   contents: read
   actions: read
+  models: read
 safe-outputs:
   add-comment:
     max: 1
@@ -91,16 +100,17 @@ You are an issue triage assistant. Analyze the issue and provide:
 
 ## Features
 
-- **Multiple LLM Providers**: Supports OpenAI and Anthropic (via plugins)
+- **Multiple LLM Providers**: Supports OpenAI, Anthropic (via plugins), and GitHub Models (free tier)
 - **Automatic Model Selection**: Chooses the right model based on available API keys
 - **Safe Outputs Integration**: Works seamlessly with GitHub's safe-outputs for issue comments, PRs, etc.
 - **Simple Installation**: Automatically installs via pip in the workflow
-- **Plugin Support**: Automatically installs required plugins (e.g., llm-claude)
+- **Plugin Support**: Automatically installs required plugins (e.g., llm-claude, llm-github-models)
+- **Free Option**: GitHub Models provides free access to 30+ AI models
 
 ## How It Works
 
-1. **Installation**: The workflow installs the llm CLI via pip
-2. **API Key Configuration**: Configures the appropriate API key based on available secrets
+1. **Installation**: The workflow installs the llm CLI and llm-github-models plugin via pip
+2. **API Key Configuration**: Configures the appropriate API key based on available secrets (or uses GITHUB_TOKEN for GitHub Models)
 3. **Plugin Installation**: Installs required plugins (e.g., llm-claude for Anthropic)
 4. **MCP Configuration**: The GITHUB_AW_MCP_CONFIG environment variable is available for MCP server integration (future compatibility)
 5. **Execution**: Runs your prompt using the llm CLI
@@ -140,9 +150,9 @@ engine:
 | Feature | Claude Engine | Copilot Engine | LLM CLI |
 |---------|--------------|----------------|---------|
 | Setup Complexity | Low | Low | Low |
-| Model Choice | Claude only | GitHub models | Multiple providers |
+| Model Choice | Claude only | GitHub models | Multiple providers (OpenAI, Anthropic, GitHub Models, etc.) |
 | Plugin Support | No | No | Yes (extensive) |
-| Cost | Pay per use | Included with subscription | Pay per use |
+| Cost | Pay per use | Included with subscription | Free (GitHub Models) or pay per use |
 | Offline Mode | No | No | Yes (with local models) |
 
 ## Best Practices

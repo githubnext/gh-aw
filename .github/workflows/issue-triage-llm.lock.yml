@@ -469,6 +469,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      models: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
@@ -1409,7 +1410,7 @@ jobs:
           if-no-files-found: warn
       - name: Install simonw/llm CLI
         run: |
-          pip install llm
+          pip install llm llm-github-models
           llm --version
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
@@ -1424,8 +1425,11 @@ jobs:
             llm install llm-claude
             echo "$ANTHROPIC_API_KEY" | llm keys set claude
             echo "✓ Anthropic API key configured"
+          elif [ -n "$GITHUB_TOKEN" ]; then
+            # GitHub Models uses GITHUB_TOKEN by default, no key setup needed
+            echo "✓ GitHub Models configured (using GITHUB_TOKEN)"
           else
-            echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+            echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ensure GITHUB_TOKEN is available"
             exit 1
           fi
         env:
@@ -1433,6 +1437,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Run llm CLI with prompt
         id: llm_execution
@@ -1444,6 +1449,8 @@ jobs:
             MODEL="gpt-4o-mini"
           elif [ -n "$ANTHROPIC_API_KEY" ]; then
             MODEL="claude-3-5-sonnet-20241022"
+          elif [ -n "$GITHUB_TOKEN" ]; then
+            MODEL="github/gpt-4o-mini"
           else
             echo "No API key configured"
             exit 1
@@ -1464,6 +1471,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Ensure log file exists
         run: |
@@ -2283,7 +2291,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Issue Triage (LLM)"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using simonw/llm CLI.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/simonw-llm.md\n---\n```\n\n**Requirements:**\n- The workflow requires either `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` secret to be configured\n- The llm CLI will be installed via pip\n- If using Anthropic, the llm-claude plugin will be automatically installed\n\n**Model Selection:**\n- With OpenAI API key: Uses `gpt-4o-mini` by default\n- With Anthropic API key: Uses `claude-3-5-sonnet-20241022` by default\n\n**API Key Setup:**\n1. Go to your repository settings → Secrets and variables → Actions\n2. Create a secret named either:\n   - `OPENAI_API_KEY` (for OpenAI models)\n   - `ANTHROPIC_API_KEY` (for Anthropic Claude models)\n3. Set the value to your API key\n\n**Note**: \n- This workflow requires internet access to install Python packages\n- The llm CLI stores conversations in a local SQLite database\n- Output is automatically captured for safe-outputs processing\n- You can customize the model by modifying the MODEL variable in the run step\n- MCP server configuration is available via GITHUB_AW_MCP_CONFIG environment variable for future compatibility\n-->\n\n# Issue Triage\n\nYou are an issue triage assistant. Your task is to analyze newly created issues and provide helpful triage information.\n\n## Current Issue\n\n- **Issue Number**: ${{ github.event.inputs.issue_number || github.event.issue.number }}\n- **Repository**: ${{ github.repository }}\n- **Issue Content**: \n  ```\n  ${{ needs.activation.outputs.text }}\n  ```\n\n## Triage Guidelines\n\nPlease analyze the issue and provide:\n\n1. **Issue Type Classification**: Determine if this is a:\n   - Bug report (something broken or not working)\n   - Feature request (new functionality)\n   - Documentation update\n   - Question or support request\n   - Enhancement (improvement to existing feature)\n\n2. **Priority Assessment**: Based on the content, suggest a priority level:\n   - Critical (security, data loss, complete breakage)\n   - High (major functionality affected)\n   - Medium (important but not blocking)\n   - Low (minor issue or nice-to-have)\n\n3. **Initial Analysis**: Provide:\n   - A brief summary of the issue\n   - Any missing information that would be helpful\n   - Suggested next steps or questions to ask the reporter\n   - Related components or areas of the codebase that might be affected\n\n## Your Task\n\nAnalyze the issue content above and create a triage comment that includes:\n- The issue type classification\n- The suggested priority level\n- Your initial analysis and recommendations\n\nFormat your response as a helpful comment that will be added to the issue. Use clear formatting with sections and bullet points. Be professional and constructive.\n\n**Important**: Generate a single, well-formatted comment that provides value to both the issue reporter and repository maintainers.\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using simonw/llm CLI.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/simonw-llm.md\n---\n```\n\n**Requirements:**\n- The workflow requires `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GITHUB_TOKEN` secret to be configured\n- The llm CLI will be installed via pip along with the llm-github-models plugin\n- If using Anthropic, the llm-claude plugin will be automatically installed\n- GitHub Models uses the built-in GITHUB_TOKEN (no additional setup required)\n\n**Model Selection:**\n- With OpenAI API key: Uses `gpt-4o-mini` by default\n- With Anthropic API key: Uses `claude-3-5-sonnet-20241022` by default\n- With GitHub Token: Uses `github/gpt-4o-mini` by default (free via GitHub Models)\n\n**API Key Setup:**\n1. Go to your repository settings → Secrets and variables → Actions\n2. Create a secret named one of:\n   - `OPENAI_API_KEY` (for OpenAI models)\n   - `ANTHROPIC_API_KEY` (for Anthropic Claude models)\n   - Use the built-in `GITHUB_TOKEN` for GitHub Models (no setup needed, free tier available)\n3. Set the value to your API key (not needed for GitHub Models)\n\n**Note**: \n- This workflow requires internet access to install Python packages\n- The llm CLI stores conversations in a local SQLite database\n- Output is automatically captured for safe-outputs processing\n- You can customize the model by modifying the MODEL variable in the run step\n- MCP server configuration is available via GITHUB_AW_MCP_CONFIG environment variable for future compatibility\n-->\n\n# Issue Triage\n\nYou are an issue triage assistant. Your task is to analyze newly created issues and provide helpful triage information.\n\n## Current Issue\n\n- **Issue Number**: ${{ github.event.inputs.issue_number || github.event.issue.number }}\n- **Repository**: ${{ github.repository }}\n- **Issue Content**: \n  ```\n  ${{ needs.activation.outputs.text }}\n  ```\n\n## Triage Guidelines\n\nPlease analyze the issue and provide:\n\n1. **Issue Type Classification**: Determine if this is a:\n   - Bug report (something broken or not working)\n   - Feature request (new functionality)\n   - Documentation update\n   - Question or support request\n   - Enhancement (improvement to existing feature)\n\n2. **Priority Assessment**: Based on the content, suggest a priority level:\n   - Critical (security, data loss, complete breakage)\n   - High (major functionality affected)\n   - Medium (important but not blocking)\n   - Low (minor issue or nice-to-have)\n\n3. **Initial Analysis**: Provide:\n   - A brief summary of the issue\n   - Any missing information that would be helpful\n   - Suggested next steps or questions to ask the reporter\n   - Related components or areas of the codebase that might be affected\n\n## Your Task\n\nAnalyze the issue content above and create a triage comment that includes:\n- The issue type classification\n- The suggested priority level\n- Your initial analysis and recommendations\n\nFormat your response as a helpful comment that will be added to the issue. Use clear formatting with sections and bullet points. Be professional and constructive.\n\n**Important**: Generate a single, well-formatted comment that provides value to both the issue reporter and repository maintainers.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2366,7 +2374,7 @@ jobs:
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install simonw/llm CLI
         run: |
-          pip install llm
+          pip install llm llm-github-models
           llm --version
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
@@ -2381,8 +2389,11 @@ jobs:
             llm install llm-claude
             echo "$ANTHROPIC_API_KEY" | llm keys set claude
             echo "✓ Anthropic API key configured"
+          elif [ -n "$GITHUB_TOKEN" ]; then
+            # GitHub Models uses GITHUB_TOKEN by default, no key setup needed
+            echo "✓ GitHub Models configured (using GITHUB_TOKEN)"
           else
-            echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+            echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ensure GITHUB_TOKEN is available"
             exit 1
           fi
         env:
@@ -2390,6 +2401,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Run llm CLI with prompt
         id: llm_execution
@@ -2401,6 +2413,8 @@ jobs:
             MODEL="gpt-4o-mini"
           elif [ -n "$ANTHROPIC_API_KEY" ]; then
             MODEL="claude-3-5-sonnet-20241022"
+          elif [ -n "$GITHUB_TOKEN" ]; then
+            MODEL="github/gpt-4o-mini"
           else
             echo "No API key configured"
             exit 1
@@ -2421,6 +2435,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Ensure log file exists
         run: |

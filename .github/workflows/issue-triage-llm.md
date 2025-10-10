@@ -13,6 +13,7 @@ on:
 permissions:
   contents: read
   actions: read
+  models: read
 safe-outputs:
   add-comment:
     max: 1

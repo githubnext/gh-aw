@@ -4,7 +4,7 @@ engine:
   steps:
     - name: Install simonw/llm CLI
       run: |
-        pip install llm
+        pip install llm llm-github-models
         llm --version
       env:
         GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
@@ -18,13 +18,17 @@ engine:
           llm install llm-claude
           echo "$ANTHROPIC_API_KEY" | llm keys set claude
           echo "✓ Anthropic API key configured"
+        elif [ -n "$GITHUB_TOKEN" ]; then
+          # GitHub Models uses GITHUB_TOKEN by default, no key setup needed
+          echo "✓ GitHub Models configured (using GITHUB_TOKEN)"
         else
-          echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY"
+          echo "⚠ Warning: No API key found. Please set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ensure GITHUB_TOKEN is available"
           exit 1
         fi
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
     
     - name: Run llm CLI with prompt
@@ -37,6 +41,8 @@ engine:
           MODEL="gpt-4o-mini"
         elif [ -n "$ANTHROPIC_API_KEY" ]; then
           MODEL="claude-3-5-sonnet-20241022"
+        elif [ -n "$GITHUB_TOKEN" ]; then
+          MODEL="github/gpt-4o-mini"
         else
           echo "No API key configured"
           exit 1
@@ -58,6 +64,7 @@ engine:
         GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ---
 
 <!--
@@ -74,20 +81,23 @@ imports:
 ```
 
 **Requirements:**
-- The workflow requires either `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` secret to be configured
-- The llm CLI will be installed via pip
+- The workflow requires `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GITHUB_TOKEN` secret to be configured
+- The llm CLI will be installed via pip along with the llm-github-models plugin
 - If using Anthropic, the llm-claude plugin will be automatically installed
+- GitHub Models uses the built-in GITHUB_TOKEN (no additional setup required)
 
 **Model Selection:**
 - With OpenAI API key: Uses `gpt-4o-mini` by default
 - With Anthropic API key: Uses `claude-3-5-sonnet-20241022` by default
+- With GitHub Token: Uses `github/gpt-4o-mini` by default (free via GitHub Models)
 
 **API Key Setup:**
 1. Go to your repository settings → Secrets and variables → Actions
-2. Create a secret named either:
+2. Create a secret named one of:
    - `OPENAI_API_KEY` (for OpenAI models)
    - `ANTHROPIC_API_KEY` (for Anthropic Claude models)
-3. Set the value to your API key
+   - Use the built-in `GITHUB_TOKEN` for GitHub Models (no setup needed, free tier available)
+3. Set the value to your API key (not needed for GitHub Models)
 
 **Note**: 
 - This workflow requires internet access to install Python packages
