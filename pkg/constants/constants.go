@@ -147,6 +147,9 @@ var DefaultGitHubTools = []string{
 	"list_notifications",
 	// organizations
 	"search_orgs",
+	// labels
+	"get_label",
+	"list_label",
 	// prs
 	"get_pull_request",
 	"get_pull_request_comments",
@@ -155,6 +158,7 @@ var DefaultGitHubTools = []string{
 	"get_pull_request_reviews",
 	"get_pull_request_status",
 	"list_pull_requests",
+	"pull_request_read",
 	"search_pull_requests",
 	// repos
 	"get_commit",

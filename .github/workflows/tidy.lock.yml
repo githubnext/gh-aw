@@ -1096,7 +1096,7 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                  "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
                 "tools": ["*"]
               },
@@ -1354,6 +1354,7 @@ jobs:
         # --allow-tool github(get_issue)
         # --allow-tool github(get_issue_comments)
         # --allow-tool github(get_job_logs)
+        # --allow-tool github(get_label)
         # --allow-tool github(get_latest_release)
         # --allow-tool github(get_me)
         # --allow-tool github(get_notification_details)
@@ -1378,6 +1379,7 @@ jobs:
         # --allow-tool github(list_discussions)
         # --allow-tool github(list_issue_types)
         # --allow-tool github(list_issues)
+        # --allow-tool github(list_label)
         # --allow-tool github(list_notifications)
         # --allow-tool github(list_pull_requests)
         # --allow-tool github(list_releases)
@@ -1389,6 +1391,7 @@ jobs:
         # --allow-tool github(list_workflow_run_artifacts)
         # --allow-tool github(list_workflow_runs)
         # --allow-tool github(list_workflows)
+        # --allow-tool github(pull_request_read)
         # --allow-tool github(search_code)
         # --allow-tool github(search_issues)
         # --allow-tool github(search_orgs)
@@ -1421,7 +1424,7 @@ jobs:
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(make:*)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool write --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(make:*)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool write --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
