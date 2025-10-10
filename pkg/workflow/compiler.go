@@ -938,6 +938,41 @@ func (c *Compiler) extractSource(frontmatter map[string]any) string {
 	return ""
 }
 
+// buildSourceURL converts a source string (owner/repo/path@ref) to a GitHub URL
+// For enterprise deployments, the URL will use the GitHub server URL from the workflow context
+func buildSourceURL(source string) string {
+	if source == "" {
+		return ""
+	}
+
+	// Parse the source string: owner/repo/path@ref
+	parts := strings.Split(source, "@")
+	if len(parts) == 0 {
+		return ""
+	}
+
+	pathPart := parts[0] // "owner/repo/path"
+	refPart := "main"    // default ref
+	if len(parts) > 1 {
+		refPart = parts[1]
+	}
+
+	// Build GitHub URL using server URL from GitHub Actions context
+	// The pathPart is "owner/repo/workflows/file.md", we need to convert it to
+	// "${GITHUB_SERVER_URL}/owner/repo/tree/ref/workflows/file.md"
+	pathComponents := strings.SplitN(pathPart, "/", 3)
+	if len(pathComponents) < 3 {
+		return ""
+	}
+
+	owner := pathComponents[0]
+	repo := pathComponents[1]
+	filePath := pathComponents[2]
+
+	// Use github.server_url for enterprise GitHub deployments
+	return fmt.Sprintf("${{ github.server_url }}/%s/%s/tree/%s/%s", owner, repo, refPart, filePath)
+}
+
 // extractSafetyPromptSetting extracts the safety-prompt setting from tools
 // Returns true by default (safety prompt is enabled by default)
 func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
