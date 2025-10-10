@@ -126,10 +126,11 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Check if this line is an @include or @import directive
-		if matches := parser.IncludeDirectivePattern.FindStringSubmatch(line); matches != nil {
-			isOptional := matches[1] == "?"
-			includePath := strings.TrimSpace(matches[2])
+		// Parse import directive using the helper function that handles both syntaxes
+		directive := parser.ParseImportDirective(line)
+		if directive != nil {
+			isOptional := directive.IsOptional
+			includePath := directive.Path
 
 			// Handle section references (file.md#Section)
 			var filePath, sectionName string
@@ -139,6 +140,15 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 				sectionName = parts[1]
 			} else {
 				filePath = includePath
+			}
+
+			// Skip if filePath is empty (e.g., section-only reference like "#Section")
+			if filePath == "" {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping include with empty file path: %s", line)))
+				}
+				result.WriteString(line + "\n")
+				continue
 			}
 
 			// Check for cycle detection
@@ -289,6 +299,15 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 				sectionName = parts[1]
 			} else {
 				filePath = includePath
+			}
+
+			// Skip if filePath is empty (e.g., section-only reference like "#Section")
+			if filePath == "" {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping include with empty file path: %s", line)))
+				}
+				result.WriteString(line + "\n")
+				continue
 			}
 
 			// Build workflowspec for this include
