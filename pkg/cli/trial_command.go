@@ -689,8 +689,6 @@ func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *Wo
 	return nil
 }
 
-
-
 func addGitHubTokenSecretWithTracker(repoSlug string, tracker *TrialSecretTracker, verbose bool) error {
 	secretName := "GH_AW_GITHUB_TOKEN"
 
