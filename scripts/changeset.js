@@ -7,6 +7,7 @@
  * Usage:
  *   node changeset.js version    - Preview next version from changesets
  *   node changeset.js release    - Create release and update CHANGELOG
+ *   GH_AW_CURRENT_VERSION=v1.2.3 node changeset.js release to force current version
  */
 
 const fs = require('fs');
@@ -65,9 +66,9 @@ function parseChangesetFile(filePath) {
   let bumpType = null;
   
   for (const line of frontmatterLines) {
-    const match = line.match(/^"gh-aw":\s*(patch|minor|major)/);
+    const match = line.match(/^"(githubnext\/)?gh-aw":\s*(patch|minor|major)/);
     if (match) {
-      bumpType = match[1];
+      bumpType = match[2];
       break;
     }
   }
@@ -160,7 +161,7 @@ function determineVersionBump(changesets) {
  */
 function getCurrentVersion() {
   try {
-    const output = execSync('git describe --tags --abbrev=0', { encoding: 'utf8' });
+    const output = process.env.GH_AW_CURRENT_VERSION || execSync('git describe --tags --abbrev=0', { encoding: 'utf8' });
     const versionStr = output.trim().replace(/^v/, '');
     const parts = versionStr.split('.');
     

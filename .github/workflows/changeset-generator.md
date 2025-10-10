@@ -72,24 +72,10 @@ Based on https://github.com/changesets/changesets/blob/main/docs/adding-a-change
 
 ```markdown
 ---
-"package-name": patch
+"gh-aw": patch
 ---
 
 Fixed a bug in the component rendering logic
-```
-
-### Multiple Packages
-
-```markdown
----
-"@myorg/button": minor
-"@myorg/theme": patch
----
-
-Add new variant prop to Button component
-
-This adds a new `variant` prop to the Button component allowing for different visual styles.
-The theme package has been updated with new color tokens to support these variants.
 ```
 
 ### Version Bump Types
