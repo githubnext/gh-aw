@@ -5,22 +5,19 @@ on:
     - cron: "0 9 * * 1-5"
   workflow_dispatch:
 
-permissions: read-all
-
-network: defaults
-
 safe-outputs:
   create-discussion:
-    category-id: "artifacts"
+    category-id: "daily-news"
     max: 1
-
-timeout_minutes: 15
 
 tools:
   web-fetch:
----
 
-{{#import shared/mcp/tavily.md}}
+mcp-servers:
+  tavily:
+    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+    allowed: ["*"]
+---
 
 # Daily Team Status
 
