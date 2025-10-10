@@ -114,11 +114,11 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
 
 Based on your analysis, decide the appropriate action:
 
-#### Option A: Create an Issue Report
+#### Option A: Create a Discussion
 
 **When to choose**: If you find significant issues, errors, or missing tools that need attention.
 
-Create a comprehensive issue with:
+Create a comprehensive discussion with:
 - **Summary**: Overview of audit findings
 - **Statistics**: Number of runs analyzed, success/failure rates, error counts
 - **Missing Tools**: List of tools requested but not available
@@ -127,7 +127,7 @@ Create a comprehensive issue with:
 - **Recommendations**: Specific actions to address issues
 - **Priority Assessment**: Severity of issues found
 
-**Issue Template**:
+**Discussion Template**:
 ```markdown
 # 🔍 Agentic Workflow Audit Report - [DATE]
 
