@@ -5,11 +5,11 @@ sidebar:
   order: 1
 ---
 
-This tutorial will guide you through creating your first agentic workflow in 5 minutes. You'll build a simple bot that welcomes new issues with a friendly message.
+This tutorial will guide you through creating your first agentic workflow in 5 minutes. You'll build a simple bot that welcomes new contributors when they open their first issue.
 
 ## What You'll Build
 
-An issue greeter workflow that automatically adds a welcoming comment when someone opens a new issue in your repository.
+An issue greeter workflow that automatically welcomes new contributors when they open their first issue in your repository.
 
 ## Prerequisites
 
@@ -34,10 +34,12 @@ safe-outputs:
 
 Welcome new contributors with a friendly message.
 
-When a new issue is opened, post a warm greeting that:
-- Thanks the contributor for opening the issue
-- Lets them know the team will review it soon
-- Invites them to add any additional details if needed
+When a new issue is opened:
+1. Check if the issue author is a new contributor to the repository
+2. If they are a new contributor, post a warm greeting that:
+   - Thanks them for their first contribution
+   - Lets them know the team will review it soon
+   - Invites them to add any additional details if needed
 
 Keep the tone friendly and professional.
 ```
