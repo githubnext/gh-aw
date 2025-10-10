@@ -211,3 +211,52 @@ engine: claude
 		t.Errorf("Result should NOT contain malformed path '%s'\nGot:\n%s", malformedPath, result)
 	}
 }
+
+func TestProcessIncludesWithWorkflowSpec_RealWorldScenario(t *testing.T) {
+	// Test the exact scenario from the weekly-research workflow bug report
+	// The workflow has: {{#import? agentics/weekly-research.config}}
+	// Previously this would generate: githubnext/agentics/@e2770974...
+	// Now it should generate: githubnext/agentics/agentics/weekly-research.config@e2770974...
+	
+	content := `---
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+
+tools:
+  web-fetch:
+  web-search:
+---
+
+# Weekly Research
+
+Do research.
+
+{{#import? agentics/weekly-research.config}}
+`
+
+	workflow := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "githubnext/agentics",
+		},
+	}
+
+	commitSHA := "e2770974a7eaccb58ddafd5606c38a05ba52c631"
+
+	result, err := processIncludesWithWorkflowSpec(content, workflow, commitSHA, "/tmp/package", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Should convert to proper workflowspec
+	expectedInclude := "@include? githubnext/agentics/agentics/weekly-research.config@e2770974a7eaccb58ddafd5606c38a05ba52c631"
+	if !strings.Contains(result, expectedInclude) {
+		t.Errorf("Expected result to contain '%s'\nGot:\n%s", expectedInclude, result)
+	}
+
+	// Should NOT contain the malformed path from the bug report
+	malformedPath := "githubnext/agentics/@e2770974"
+	if strings.Contains(result, malformedPath) {
+		t.Errorf("Result should NOT contain malformed path '%s' (the original bug)\nGot:\n%s", malformedPath, result)
+	}
+}
