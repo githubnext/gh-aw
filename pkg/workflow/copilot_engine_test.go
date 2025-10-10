@@ -90,6 +90,21 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	if strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS") {
 		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
 	}
+
+	// Test that DEBUG environment variable is present for MCP logging
+	if !strings.Contains(stepContent, "DEBUG: \"*\"") {
+		t.Errorf("Expected DEBUG environment variable for MCP logging in step content:\n%s", stepContent)
+	}
+
+	// Test that XDG_STATE_HOME environment variable is present for MCP state/logs
+	if !strings.Contains(stepContent, "XDG_STATE_HOME: /tmp/gh-aw/.copilot/state") {
+		t.Errorf("Expected XDG_STATE_HOME environment variable in step content:\n%s", stepContent)
+	}
+
+	// Test that XDG_CONFIG_HOME environment variable is present
+	if !strings.Contains(stepContent, "XDG_CONFIG_HOME: /home/runner") {
+		t.Errorf("Expected XDG_CONFIG_HOME environment variable in step content:\n%s", stepContent)
+	}
 }
 
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {

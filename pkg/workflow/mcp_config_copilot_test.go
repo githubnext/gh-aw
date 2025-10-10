@@ -275,3 +275,29 @@ func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 		})
 	}
 }
+
+func TestCopilotMCPConfigCreatesLogsDirectory(t *testing.T) {
+	engine := NewCopilotEngine()
+	var yaml strings.Builder
+
+	tools := map[string]any{
+		"github": map[string]any{
+			"allowed": []any{"get_issue"},
+		},
+	}
+	mcpTools := []string{"github"}
+	workflowData := &WorkflowData{}
+
+	engine.RenderMCPConfig(&yaml, tools, mcpTools, workflowData)
+	output := yaml.String()
+
+	// Verify that mcp-logs directory is created
+	if !strings.Contains(output, "mkdir -p /tmp/gh-aw/mcp-logs") {
+		t.Errorf("Expected MCP config to create /tmp/gh-aw/mcp-logs directory, got:\n%s", output)
+	}
+
+	// Verify that copilot config directory is created
+	if !strings.Contains(output, "mkdir -p /home/runner/.copilot") {
+		t.Errorf("Expected MCP config to create /home/runner/.copilot directory, got:\n%s", output)
+	}
+}
