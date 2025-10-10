@@ -59,17 +59,17 @@ This is a test workflow in a custom directory.
 
 	// Test 1: Compile with custom workflow directory should work
 	config := CompileConfig{
-		MarkdownFiles:     []string{},
-		Verbose:           false,
-		EngineOverride:    "",
-		Validate:          false,
-		Watch:             false,
-		WorkflowDir:       customDir,
-		SkipInstructions:  false,
-		NoEmit:            false,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
+		MarkdownFiles:        []string{},
+		Verbose:              false,
+		EngineOverride:       "",
+		Validate:             false,
+		Watch:                false,
+		WorkflowDir:          customDir,
+		SkipInstructions:     false,
+		NoEmit:               false,
+		Purge:                false,
+		TrialMode:            false,
+		TrialLogicalRepoSlug: "",
 	}
 	_, err = CompileWorkflows(config)
 	if err != nil {
@@ -84,17 +84,17 @@ This is a test workflow in a custom directory.
 
 	// Test 2: Using absolute path should fail
 	config = CompileConfig{
-		MarkdownFiles:     []string{},
-		Verbose:           false,
-		EngineOverride:    "",
-		Validate:          false,
-		Watch:             false,
-		WorkflowDir:       "/absolute/path",
-		SkipInstructions:  false,
-		NoEmit:            false,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
+		MarkdownFiles:        []string{},
+		Verbose:              false,
+		EngineOverride:       "",
+		Validate:             false,
+		Watch:                false,
+		WorkflowDir:          "/absolute/path",
+		SkipInstructions:     false,
+		NoEmit:               false,
+		Purge:                false,
+		TrialMode:            false,
+		TrialLogicalRepoSlug: "",
 	}
 	_, err = CompileWorkflows(config)
 	if err == nil {
@@ -116,17 +116,17 @@ This is a test workflow in a custom directory.
 	}
 
 	config = CompileConfig{
-		MarkdownFiles:     []string{},
-		Verbose:           false,
-		EngineOverride:    "",
-		Validate:          false,
-		Watch:             false,
-		WorkflowDir:       "",
-		SkipInstructions:  false,
-		NoEmit:            false,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
+		MarkdownFiles:        []string{},
+		Verbose:              false,
+		EngineOverride:       "",
+		Validate:             false,
+		Watch:                false,
+		WorkflowDir:          "",
+		SkipInstructions:     false,
+		NoEmit:               false,
+		Purge:                false,
+		TrialMode:            false,
+		TrialLogicalRepoSlug: "",
 	}
 	_, err = CompileWorkflows(config)
 	if err != nil {
@@ -223,17 +223,17 @@ on: push
 
 			// Test the compilation
 			config := CompileConfig{
-				MarkdownFiles:     []string{},
-				Verbose:           false,
-				EngineOverride:    "",
-				Validate:          false,
-				Watch:             false,
-				WorkflowDir:       tt.workflowDir,
-				SkipInstructions:  false,
-				NoEmit:            false,
-				Purge:             false,
-				TrialMode:         false,
-				SimulatedRepoSlug: "",
+				MarkdownFiles:        []string{},
+				Verbose:              false,
+				EngineOverride:       "",
+				Validate:             false,
+				Watch:                false,
+				WorkflowDir:          tt.workflowDir,
+				SkipInstructions:     false,
+				NoEmit:               false,
+				Purge:                false,
+				TrialMode:            false,
+				TrialLogicalRepoSlug: "",
 			}
 			_, err = CompileWorkflows(config)
 

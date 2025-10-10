@@ -239,16 +239,17 @@ This is a test workflow for GitHub remote mode configuration.
 				}
 			case "local":
 				// Should contain Docker or local configuration
-				if tt.engineType == "copilot" {
+				switch tt.engineType {
+				case "copilot":
 					if !strings.Contains(lockContent, `"type": "local"`) {
 						t.Errorf("Expected Copilot local type but didn't find it in:\n%s", lockContent)
 					}
-				} else if tt.engineType == "codex" {
+				case "codex":
 					// Codex uses TOML format for Docker
 					if !strings.Contains(lockContent, `command = "docker"`) {
 						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)
 					}
-				} else {
+				default:
 					// For Claude, check for Docker command
 					if !strings.Contains(lockContent, `"command": "docker"`) {
 						t.Errorf("Expected Docker command but didn't find it in:\n%s", lockContent)

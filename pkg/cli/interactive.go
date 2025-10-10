@@ -470,17 +470,17 @@ func (b *InteractiveWorkflowBuilder) compileWorkflow(verbose bool) error {
 
 	// Use the existing compile functionality
 	config := CompileConfig{
-		MarkdownFiles:     []string{b.WorkflowName},
-		Verbose:           verbose,
-		EngineOverride:    "",
-		Validate:          true,
-		Watch:             false,
-		WorkflowDir:       "",
-		SkipInstructions:  false,
-		NoEmit:            false,
-		Purge:             false,
-		TrialMode:         false,
-		SimulatedRepoSlug: "",
+		MarkdownFiles:        []string{b.WorkflowName},
+		Verbose:              verbose,
+		EngineOverride:       "",
+		Validate:             true,
+		Watch:                false,
+		WorkflowDir:          "",
+		SkipInstructions:     false,
+		NoEmit:               false,
+		Purge:                false,
+		TrialMode:            false,
+		TrialLogicalRepoSlug: "",
 	}
 	_, err := CompileWorkflows(config)
 	return err
