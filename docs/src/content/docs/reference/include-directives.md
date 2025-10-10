@@ -1,39 +1,35 @@
 ---
-title: Include Directives
-description: Learn how to modularize and reuse workflow components across multiple workflows using import directives for better organization and maintainability.
+title: Imports
+description: Learn how to modularize and reuse workflow components across multiple workflows using the imports field in frontmatter for better organization and maintainability.
 sidebar:
   order: 4
 ---
 
-Import directives allow you to modularize and reuse workflow components across multiple workflows.
+The `imports:` field in frontmatter allows you to modularize and reuse workflow components across multiple workflows.
 
-## Basic Import Syntax
+## Frontmatter Imports
 
-```aw wrap
-@import relative/path/to/file.md
-```
-
-Imports files relative to the current markdown file's location.
-
-:::note
-`@import` and `@include` are aliases - you can use either keyword interchangeably.
-:::
-
-## Optional Import Syntax
+The recommended way to import shared components is using the `imports:` field in the frontmatter:
 
 ```aw wrap
-@import? relative/path/to/file.md
+---
+on: issues
+engine: copilot
+imports:
+  - shared/common-tools.md
+  - shared/mcp/tavily.md
+---
+
+# Your Workflow
+
+Workflow instructions here...
 ```
 
-Imports files optionally - if the file doesn't exist, no error occurs and a friendly informational comment is added to the workflow. The optional file will be watched for changes in `gh aw compile --watch` mode, so creating the file later will automatically import it.
+### Import Path Resolution
 
-## Section-Specific Imports
-
-```aw wrap
-@import filename.md#Section
-```
-
-Imports only a specific section from a markdown file using the section header.
+- **Relative paths**: Resolved relative to the importing file
+- **Nested imports**: Imported files can import other files
+- **Circular protection**: System prevents infinite import loops
 
 ## Frontmatter Merging
 
@@ -45,12 +41,13 @@ Imports only a specific section from a markdown file using the section header.
 ```aw wrap
 # Base workflow
 ---
+on: issues
 tools:
   github:
     allowed: [get_issue]
+imports:
+  - shared/extra-tools.md
 ---
-
-@import shared/extra-tools.md  # Adds more GitHub tools
 ```
 
 ```aw wrap
@@ -72,9 +69,9 @@ tools:
 ---
 on: issues
 engine: copilot
+imports:
+  - shared/mcp/tavily.md
 ---
-
-@import shared/mcp/tavily.md  # Adds Tavily MCP server
 ```
 
 ```aw wrap
@@ -89,11 +86,27 @@ mcp-servers:
 
 **Result**: Final workflow has the Tavily MCP server configured and available to the AI engine.
 
-## Import Path Resolution
+## Legacy Directive Syntax (Deprecated)
 
-- **Relative paths**: Resolved relative to the importing file
-- **Nested imports**: Imported files can import other files
-- **Circular protection**: System prevents infinite import loops
+:::caution[Deprecated]
+The `{{#import}}`, `@import`, and `@include` directive syntax is deprecated. Use the `imports:` field in frontmatter instead.
+
+**Migration example:**
+```diff
+# Old approach
+---
+on: issues
+---
+- @import shared/extra-tools.md
+
+# New approach
++ ---
++ on: issues
++ imports:
++   - shared/extra-tools.md
++ ---
+```
+:::
 
 ## Related Documentation
 
