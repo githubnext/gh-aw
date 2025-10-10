@@ -237,6 +237,44 @@ function extractFirstLine(text) {
 }
 
 /**
+ * Format changeset body for changelog entry
+ * Converts the first line to a header 4 and includes the rest of the body
+ * @param {string} text - Changeset description text
+ * @returns {string} Formatted text with first line as h4
+ */
+function formatChangesetBody(text) {
+  const lines = text.split('\n');
+  
+  // Find first non-empty line for header
+  let firstLineIndex = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() !== '') {
+      firstLineIndex = i;
+      break;
+    }
+  }
+  
+  if (firstLineIndex === -1) {
+    return text + '\n\n';
+  }
+  
+  // Format first line as header 4
+  const firstLine = lines[firstLineIndex].trim();
+  const remainingLines = lines.slice(firstLineIndex + 1);
+  
+  // Build formatted output
+  let formatted = `#### ${firstLine}\n\n`;
+  
+  // Add remaining content if present
+  const remainingText = remainingLines.join('\n').trim();
+  if (remainingText) {
+    formatted += remainingText + '\n\n';
+  }
+  
+  return formatted;
+}
+
+/**
  * Check if git working tree is clean
  * @returns {boolean} True if tree is clean
  */
@@ -309,7 +347,7 @@ function updateChangelog(version, changesets, dryRun = false) {
   if (majorChanges.length > 0) {
     newEntry += '### Breaking Changes\n\n';
     for (const cs of majorChanges) {
-      newEntry += `- ${extractFirstLine(cs.description)}\n`;
+      newEntry += formatChangesetBody(cs.description);
     }
     newEntry += '\n';
   }
@@ -317,7 +355,7 @@ function updateChangelog(version, changesets, dryRun = false) {
   if (minorChanges.length > 0) {
     newEntry += '### Features\n\n';
     for (const cs of minorChanges) {
-      newEntry += `- ${extractFirstLine(cs.description)}\n`;
+      newEntry += formatChangesetBody(cs.description);
     }
     newEntry += '\n';
   }
@@ -325,7 +363,7 @@ function updateChangelog(version, changesets, dryRun = false) {
   if (patchChanges.length > 0) {
     newEntry += '### Bug Fixes\n\n';
     for (const cs of patchChanges) {
-      newEntry += `- ${extractFirstLine(cs.description)}\n`;
+      newEntry += formatChangesetBody(cs.description);
     }
     newEntry += '\n';
   }
