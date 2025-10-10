@@ -211,7 +211,7 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                  "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -344,9 +344,13 @@ jobs:
         run: |
           pip install llm llm-github-models llm-tools-mcp
           llm --version
+
+          # Show logs database path for debugging
+          echo "LLM logs database: $(llm logs path)"
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Configure llm with GitHub Models and MCP
         run: |
           # GitHub Models uses GITHUB_TOKEN by default, no key setup needed
@@ -356,18 +360,28 @@ jobs:
           if [ -n "$GITHUB_AW_MCP_CONFIG" ] && [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
             # Create llm-tools-mcp config directory
             mkdir -p ~/.llm-tools-mcp
+            mkdir -p ~/.llm-tools-mcp/logs
 
             # Copy MCP configuration to the expected location for llm-tools-mcp
             cp "$GITHUB_AW_MCP_CONFIG" ~/.llm-tools-mcp/mcp.json
 
             echo "✓ MCP configuration installed at ~/.llm-tools-mcp/mcp.json"
+            echo "📋 MCP configuration:"
+            cat ~/.llm-tools-mcp/mcp.json
+            echo ""
+
+            # List available tools for debugging
+            echo "🔧 Listing available MCP tools:"
+            llm tools list || echo "⚠ Failed to list tools"
           else
             echo "ℹ No MCP configuration available"
           fi
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LLM_TOOLS_MCP_FULL_ERRORS: "1"
       - name: Run llm CLI with prompt
         id: llm_execution
         run: |
@@ -380,12 +394,15 @@ jobs:
 
           # Run llm with the prompt from the file
           # Use -T MCP to enable MCP tools if configured
+          # Additional flags for debugging:
+          #   --td: Show full details of tool executions
+          #   -u: Show token usage
           if [ -f ~/.llm-tools-mcp/mcp.json ]; then
-            echo "Running with MCP tools enabled"
-            llm -m "$MODEL" -T MCP "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+            echo "🚀 Running with MCP tools enabled (debug mode)"
+            llm -m "$MODEL" -T MCP --td -u "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
           else
             echo "Running without MCP tools"
-            llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+            llm -m "$MODEL" -u "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
           fi
 
           # Store output for safe-outputs processing if configured
@@ -397,6 +414,17 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LLM_TOOLS_MCP_FULL_ERRORS: "1"
+      - name: Upload MCP server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        env:
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        with:
+          if-no-files-found: ignore
+          name: llm-mcp-logs
+          path: ~/.llm-tools-mcp/logs/
       - name: Ensure log file exists
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log
