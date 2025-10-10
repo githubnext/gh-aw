@@ -850,7 +850,7 @@ jobs:
                   }
                   const result = handler(args);
                   const content = result && result.content ? result.content : [];
-                  replyResult(id, { content });
+                  replyResult(id, { content, isError: false });
                 } else if (/^notifications\//.test(method)) {
                   debug(`ignore ${method}`);
                 } else {
@@ -892,7 +892,9 @@ jobs:
             "GITHUB_PERSONAL_ACCESS_TOKEN",
             "ghcr.io/github/github-mcp-server:sha-09deac4"
           ]
-          env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}" }
+          
+          [mcp_servers.github.env]
+          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
           
           [mcp_servers.safe_outputs]
           command = "node"
@@ -1014,14 +1016,6 @@ jobs:
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
-            
-            // Add agentic workflow run information to step summary
-            core.summary
-              .addRaw('## Agentic Run Information\n\n')
-              .addRaw('```json\n')
-              .addRaw(JSON.stringify(awInfo, null, 2))
-              .addRaw('\n```\n')
-              .write();
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@v4
@@ -1044,24 +1038,6 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
-      - name: Print Safe Outputs
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-        run: |
-          echo "## Safe Outputs (JSONL)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          if [ -f ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ]; then
-            cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
-            # Ensure there's a newline after the file content if it doesn't end with one
-            if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "No agent output file found" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -2033,81 +2009,99 @@ jobs:
               try {
                 const lines = logContent.split("\n");
                 let markdown = "## 🤖 Commands and Tools\n\n";
-                const commandSummary = [];
+                const LOOKAHEAD_WINDOW = 50;
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
-                  if (line.includes("] tool ") && line.includes("(")) {
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-                          statusIcon = "❌";
-                          break;
+                  const toolMatch = line.match(/^\[.*?\]\s+tool\s+(\w+)\.(\w+)\((.+)\)/) || line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
+                  const bashMatch = line.match(/^\[.*?\]\s+exec\s+bash\s+-lc\s+'([^']+)'/);
+                  if (toolMatch) {
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    const params = toolMatch[3];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("success in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let jsonLines = [];
+                        let braceCount = 0;
+                        let inJson = false;
+                        for (let k = j + 1; k < Math.min(j + 30, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (respLine.includes("tool ") || respLine.includes("ToolCall:") || respLine.includes("tokens used")) {
+                            break;
+                          }
+                          for (const char of respLine) {
+                            if (char === "{") {
+                              braceCount++;
+                              inJson = true;
+                            } else if (char === "}") {
+                              braceCount--;
+                            }
+                          }
+                          if (inJson) {
+                            jsonLines.push(respLine);
+                          }
+                          if (inJson && braceCount === 0) {
+                            break;
+                          }
                         }
-                      }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        commandSummary.push(`* ${statusIcon} \`${provider}::${method}(...)\``);
-                      } else {
-                        commandSummary.push(`* ${statusIcon} \`${toolName}(...)\``);
+                        response = jsonLines.join("\n");
+                        break;
                       }
                     }
-                  } else if (line.includes("] exec ")) {
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-                          statusIcon = "❌";
-                          break;
+                    markdown += formatCodexToolCall(server, toolName, params, response, statusIcon);
+                  } else if (bashMatch) {
+                    const command = bashMatch[1];
+                    let statusIcon = "❓";
+                    let response = "";
+                    let isError = false;
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes("bash -lc") && (nextLine.includes("succeeded in") || nextLine.includes("failed in"))) {
+                        isError = nextLine.includes("failed in");
+                        statusIcon = isError ? "❌" : "✅";
+                        let responseLines = [];
+                        for (let k = j + 1; k < Math.min(j + 20, lines.length); k++) {
+                          const respLine = lines[k];
+                          if (
+                            respLine.includes("tool ") ||
+                            respLine.includes("exec ") ||
+                            respLine.includes("ToolCall:") ||
+                            respLine.includes("tokens used") ||
+                            respLine.includes("thinking")
+                          ) {
+                            break;
+                          }
+                          responseLines.push(respLine);
                         }
+                        response = responseLines.join("\n").trim();
+                        break;
                       }
-                      commandSummary.push(`* ${statusIcon} \`${formattedCommand}\``);
                     }
+                    markdown += formatCodexBashCall(command, response, statusIcon);
                   }
-                }
-                if (commandSummary.length > 0) {
-                  for (const cmd of commandSummary) {
-                    markdown += `${cmd}\n`;
-                  }
-                } else {
-                  markdown += "No commands or tools used.\n";
                 }
                 markdown += "\n## 📊 Information\n\n";
                 let totalTokens = 0;
-                const tokenMatches = logContent.match(/tokens used: (\d+)/g);
-                if (tokenMatches) {
-                  for (const match of tokenMatches) {
-                    const numberMatch = match.match(/(\d+)/);
-                    if (numberMatch) {
-                      const tokens = parseInt(numberMatch[1]);
-                      totalTokens += tokens;
-                    }
-                  }
+                const tokenCountMatches = logContent.matchAll(/total_tokens:\s*(\d+)/g);
+                for (const match of tokenCountMatches) {
+                  const tokens = parseInt(match[1]);
+                  totalTokens = Math.max(totalTokens, tokens); 
+                }
+                const finalTokensMatch = logContent.match(/tokens used\n([\d,]+)/);
+                if (finalTokensMatch) {
+                  totalTokens = parseInt(finalTokensMatch[1].replace(/,/g, ""));
                 }
                 if (totalTokens > 0) {
                   markdown += `**Total Tokens Used:** ${totalTokens.toLocaleString()}\n\n`;
                 }
-                const toolCalls = (logContent.match(/\] tool /g) || []).length;
-                const execCommands = (logContent.match(/\] exec /g) || []).length;
+                const toolCalls = (logContent.match(/ToolCall:\s+\w+__\w+/g) || []).length;
                 if (toolCalls > 0) {
                   markdown += `**Tool Calls:** ${toolCalls}\n\n`;
-                }
-                if (execCommands > 0) {
-                  markdown += `**Commands Executed:** ${execCommands}\n\n`;
                 }
                 markdown += "\n## 🤖 Reasoning\n\n";
                 let inThinkingSection = false;
@@ -2123,62 +2117,37 @@ jobs:
                     line.includes("sandbox:") ||
                     line.includes("reasoning effort:") ||
                     line.includes("reasoning summaries:") ||
-                    line.includes("tokens used:")
+                    line.includes("tokens used:") ||
+                    line.includes("DEBUG codex") ||
+                    line.includes("INFO codex") ||
+                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
                   ) {
                     continue;
                   }
-                  if (line.includes("] thinking")) {
+                  if (line.trim() === "thinking") {
                     inThinkingSection = true;
                     continue;
                   }
-                  if (line.includes("] tool ") && line.includes("(")) {
+                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (toolMatch) {
                     inThinkingSection = false;
-                    const toolMatch = line.match(/\] tool ([^(]+)\(/);
-                    if (toolMatch) {
-                      const toolName = toolMatch[1];
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("success in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failure in") || nextLine.includes("error in") || nextLine.includes("failed in")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      if (toolName.includes(".")) {
-                        const parts = toolName.split(".");
-                        const provider = parts[0];
-                        const method = parts.slice(1).join("_");
-                        markdown += `${statusIcon} ${provider}::${method}(...)\n\n`;
-                      } else {
-                        markdown += `${statusIcon} ${toolName}(...)\n\n`;
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
                       }
                     }
+                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
                     continue;
                   }
-                  if (line.includes("] exec ")) {
-                    inThinkingSection = false;
-                    const execMatch = line.match(/exec (.+?) in/);
-                    if (execMatch) {
-                      const formattedCommand = formatBashCommand(execMatch[1]);
-                      let statusIcon = "❓"; 
-                      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                        const nextLine = lines[j];
-                        if (nextLine.includes("succeeded in")) {
-                          statusIcon = "✅";
-                          break;
-                        } else if (nextLine.includes("failed in") || nextLine.includes("error")) {
-                          statusIcon = "❌";
-                          break;
-                        }
-                      }
-                      markdown += `${statusIcon} \`${formattedCommand}\`\n\n`;
-                    }
-                    continue;
-                  }
-                  if (inThinkingSection && line.trim().length > 20 && !line.startsWith("[2025-")) {
+                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
                     const trimmed = line.trim();
                     markdown += `${trimmed}\n\n`;
                   }
@@ -2189,20 +2158,43 @@ jobs:
                 return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
-            function formatBashCommand(command) {
-              if (!command) return "";
-              let formatted = command
-                .replace(/\n/g, " ") 
-                .replace(/\r/g, " ") 
-                .replace(/\t/g, " ") 
-                .replace(/\s+/g, " ") 
-                .trim(); 
-              formatted = formatted.replace(/`/g, "\\`");
-              const maxLength = 80;
-              if (formatted.length > maxLength) {
-                formatted = formatted.substring(0, maxLength) + "...";
+            function formatCodexToolCall(server, toolName, params, response, statusIcon) {
+              const summary = `${statusIcon} <code>${server}::${toolName}</code>`;
+              if (!response || response.trim() === "") {
+                return `${summary}\n\n`;
               }
-              return formatted;
+              let details = "";
+              if (params && params.trim()) {
+                details += "**Parameters:**\n\n";
+                details += "``````json\n";
+                details += params;
+                details += "\n``````\n\n";
+              }
+              if (response && response.trim()) {
+                details += "**Response:**\n\n";
+                details += "``````json\n";
+                details += response;
+                details += "\n``````";
+              }
+              return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
+            }
+            function formatCodexBashCall(command, response, statusIcon) {
+              const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>`;
+              if (!response || response.trim() === "") {
+                return `${summary}\n\n`;
+              }
+              let details = "";
+              details += "**Command:**\n\n";
+              details += "``````bash\n";
+              details += command;
+              details += "\n``````\n\n";
+              if (response && response.trim()) {
+                details += "**Output:**\n\n";
+                details += "``````\n";
+                details += response;
+                details += "\n``````";
+              }
+              return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
             }
             function truncateString(str, maxLength) {
               if (!str) return "";
@@ -2210,7 +2202,7 @@ jobs:
               return str.substring(0, maxLength) + "...";
             }
             if (typeof module !== "undefined" && module.exports) {
-              module.exports = { parseCodexLog, formatBashCommand, truncateString };
+              module.exports = { parseCodexLog, formatCodexToolCall, formatCodexBashCall, truncateString };
             }
             main();
       - name: Upload Agent Stdio
@@ -2225,24 +2217,45 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+stream\\\\s+(error):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex stream errors with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2})\\\\]\\\\s+(WARN|WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"failed in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool failed due to permission error\"},{\"pattern\":\"error in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool error due to permission issue\"}]"
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(ERROR)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex ERROR messages with timestamp\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T[\\\\d:.]+Z)\\\\s+(WARN|WARNING)\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Codex warning messages with timestamp\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"failed in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool failed due to permission error\"},{\"pattern\":\"error in.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Codex tool error due to permission issue\"}]"
         with:
           script: |
             function main() {
               const fs = require("fs");
+              const path = require("path");
               try {
-                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!logFile) {
+                const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+                if (!logPath) {
                   throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
-                if (!fs.existsSync(logFile)) {
-                  throw new Error(`Log file not found: ${logFile}`);
+                if (!fs.existsSync(logPath)) {
+                  throw new Error(`Log path not found: ${logPath}`);
                 }
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
                   throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
-                const content = fs.readFileSync(logFile, "utf8");
+                let content = "";
+                const stat = fs.statSync(logPath);
+                if (stat.isDirectory()) {
+                  const files = fs.readdirSync(logPath);
+                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+                  if (logFiles.length === 0) {
+                    core.info(`No log files found in directory: ${logPath}`);
+                    return;
+                  }
+                  logFiles.sort();
+                  for (const file of logFiles) {
+                    const filePath = path.join(logPath, file);
+                    const fileContent = fs.readFileSync(filePath, "utf8");
+                    content += fileContent;
+                    if (content.length > 0 && !content.endsWith("\n")) {
+                      content += "\n";
+                    }
+                  }
+                } else {
+                  content = fs.readFileSync(logPath, "utf8");
+                }
                 const hasErrors = validateErrors(content, patterns);
                 if (hasErrors) {
                   core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
@@ -2469,6 +2482,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            const fs = require('fs');
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
               const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';

@@ -228,6 +228,29 @@ func getGitHubReadOnly(githubTool any) bool {
 	return false
 }
 
+// getGitHubToolsets extracts the toolsets configuration from GitHub tool
+func getGitHubToolsets(githubTool any) string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if toolsetsSetting, exists := toolConfig["toolset"]; exists {
+			// Handle array format only
+			switch v := toolsetsSetting.(type) {
+			case []any:
+				// Convert array to comma-separated string
+				toolsets := make([]string, 0, len(v))
+				for _, item := range v {
+					if str, ok := item.(string); ok {
+						toolsets = append(toolsets, str)
+					}
+				}
+				return strings.Join(toolsets, ",")
+			case []string:
+				return strings.Join(v, ",")
+			}
+		}
+	}
+	return ""
+}
+
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
 	// Extract version setting from tool properties

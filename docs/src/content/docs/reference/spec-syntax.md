@@ -51,13 +51,27 @@ gh aw add https://github.com/owner/repo/blob/v1.0.0/custom/path/workflow.md
 gh aw add https://github.com/owner/repo/tree/develop/workflows/helper.md
 ```
 
+**GitHub /files/ path form**: GitHub UI file path format
+```bash
+gh aw add owner/repo/files/main/.github/workflows/ci-doctor.md
+gh aw add owner/repo/files/fc7992627494253a869e177e5d1985d25f3bb316/workflows/helper.md
+```
+
+**Raw GitHub URL form**: raw.githubusercontent.com URLs
+```bash
+gh aw add https://raw.githubusercontent.com/owner/repo/refs/heads/main/workflows/ci-doctor.md
+gh aw add https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0.0/workflows/helper.md
+gh aw add https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/workflows/helper.md
+```
+
 **Validation:**
 - Minimum 3 parts (owner/repo/workflow-name) for spec format
 - Explicit paths must end with `.md` extension
 - Version optional (tag, branch, or commit SHA)
-- GitHub URLs must be from github.com domain
-- GitHub URLs must use /blob/, /tree/, or /raw/ format
+- GitHub URLs support github.com and raw.githubusercontent.com domains
+- GitHub URLs must use /blob/, /tree/, or /raw/ format for github.com
 - GitHub URLs automatically extract branch/tag/commit from the URL path
+- /files/ format automatically extracts ref from path
 
 ## Source Specification (SourceSpec)
 
@@ -102,6 +116,8 @@ gh aw add githubnext/agentics/ci-doctor              # short form
 gh aw add githubnext/agentics/ci-doctor@v1.0.0       # with version
 gh aw add githubnext/agentics/workflows/ci-doctor.md@main  # explicit path
 gh aw add https://github.com/githubnext/agentics/blob/main/workflows/ci-doctor.md  # GitHub URL
+gh aw add githubnext/agentics/files/main/workflows/ci-doctor.md  # /files/ path format
+gh aw add https://raw.githubusercontent.com/githubnext/agentics/refs/heads/main/workflows/ci-doctor.md  # raw URL
 ```
 
 **Update workflow:**

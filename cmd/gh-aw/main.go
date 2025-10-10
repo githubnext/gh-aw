@@ -147,7 +147,6 @@ Examples:
 		validate, _ := cmd.Flags().GetBool("validate")
 		watch, _ := cmd.Flags().GetBool("watch")
 		workflowDir, _ := cmd.Flags().GetString("workflows-dir")
-		noInstructions, _ := cmd.Flags().GetBool("no-instructions")
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
 		strict, _ := cmd.Flags().GetBool("strict")
@@ -156,9 +155,6 @@ Examples:
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
-		// Invert noInstructions to get skipInstructions (by default, we want to write instructions)
-		// Also skip instructions when noEmit is true (validation-only mode)
-		skipInstructions := noInstructions || noEmit
 		config := cli.CompileConfig{
 			MarkdownFiles:     args,
 			Verbose:           verbose,
@@ -166,7 +162,7 @@ Examples:
 			Validate:          validate,
 			Watch:             watch,
 			WorkflowDir:       workflowDir,
-			SkipInstructions:  skipInstructions,
+			SkipInstructions:  false, // Deprecated field, kept for backward compatibility
 			NoEmit:            noEmit,
 			Purge:             purge,
 			TrialMode:         false,
@@ -262,7 +258,6 @@ func init() {
 	compileCmd.Flags().Bool("validate", true, "Enable GitHub Actions workflow schema validation (default: true)")
 	compileCmd.Flags().BoolP("watch", "w", false, "Watch for changes to workflow files and recompile automatically")
 	compileCmd.Flags().String("workflows-dir", "", "Relative directory containing workflows (default: .github/workflows)")
-	compileCmd.Flags().Bool("no-instructions", false, "Skip generating or updating GitHub Copilot instructions and prompt files")
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")

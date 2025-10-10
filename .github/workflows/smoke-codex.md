@@ -13,4 +13,4 @@ timeout_minutes: 10
 strict: true
 ---
 
-List the last 5 merged pull requests in this repository into an issue.
+Review the last 5 merged pull requests in this repository and post summary in an issue.

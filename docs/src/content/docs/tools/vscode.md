@@ -7,11 +7,15 @@ The `gh aw` cli provides a few tools to improve your developer experience in VS 
 
 ## Copilot instructions <a id="copilot-instructions"></a>
 
-By default, the compile command will write a [custom Copilot instructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
+The `gh aw init` command writes a [custom Copilot instructions file](https://code.visualstudio.com/docs/copilot/copilot-customization) at `.github/instructions/github-agentic-workflows.instructions.md`.
+
+:::tip[Initialize your repository]
+Run `gh aw init` once in your repository to set up Copilot instructions and prompt files:
 
 ```sh
-gh aw compile
+gh aw init
 ```
+:::
 
 The instructions will automatically be imported by Copilot when authoring markdown
 files under the `.github/workflows` folder.
@@ -19,19 +23,17 @@ files under the `.github/workflows` folder.
 Once configured, you will notice that Copilot Chat will be much more efficient at
 generating Agentic Workflows.
 
-To skip generating the instructions file, use the `--no-instructions` flag:
-
-```sh
-gh aw compile --no-instructions
-```
-
 ## /create-agentic-workflow command <a id="create-agentic-workflow"></a>
 
-By default, the compile command also creates a [prompt template](https://code.visualstudio.com/docs/copilot/copilot-customization#_prompt-templates) at `.github/prompts/create-agentic-workflow.prompt.md` that enables the `/create-agentic-workflow` command in GitHub Copilot Chat.
+The `gh aw init` command also creates a [prompt template](https://code.visualstudio.com/docs/copilot/copilot-customization#_prompt-templates) at `.github/prompts/create-agentic-workflow.prompt.md` that enables the `/create-agentic-workflow` command in GitHub Copilot Chat.
+
+:::tip[Initialize your repository]
+If you haven't already, run `gh aw init` to set up the prompt files:
 
 ```sh
-gh aw compile
+gh aw init
 ```
+:::
 
 Once the prompt file is created, you can use `/create-agentic-workflow` in Copilot Chat to interactively design and create agentic workflows with guided assistance for:
 
@@ -42,12 +44,6 @@ Once the prompt file is created, you can use `/create-agentic-workflow` in Copil
 - Following best practices for workflow design
 
 The command provides a conversational interface that helps you build secure, well-structured agentic workflows without needing to memorize the full syntax.
-
-To skip generating the prompt file, use the `--no-instructions` flag:
-
-```sh
-gh aw compile --no-instructions
-```
 
 ## Background Compilation
 

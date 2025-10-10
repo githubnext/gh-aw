@@ -1177,3 +1177,107 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
     });
   });
 });
+
+// Test that tool call responses include the isError field
+describe("safe_outputs_mcp_server.cjs tool call response format", () => {
+  it("should include isError field in tool call responses", async () => {
+    const config = {
+      "create-issue": {},
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: "/tmp/gh-aw/test-outputs-iserror.jsonl",
+        },
+      });
+
+      let receivedMessages = [];
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/call request after initialization
+      setTimeout(() => {
+        const toolCallMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/call",
+            params: {
+              name: "create-issue",
+              arguments: {
+                title: "Test Issue",
+                body: "Test body",
+              },
+            },
+          }) + "\n";
+        child.stdin.write(toolCallMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/call response
+        const toolCallResponse = receivedMessages.find(m => m.id === 2);
+        expect(toolCallResponse).toBeDefined();
+        expect(toolCallResponse.result).toBeDefined();
+
+        // Verify the response includes isError field
+        expect(toolCallResponse.result.isError).toBeDefined();
+        expect(toolCallResponse.result.isError).toBe(false);
+
+        // Verify the response includes content
+        expect(toolCallResponse.result.content).toBeDefined();
+        expect(Array.isArray(toolCallResponse.result.content)).toBe(true);
+
+        resolve();
+      }, 500);
+    });
+  });
+});

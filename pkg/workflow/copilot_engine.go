@@ -277,6 +277,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 	githubType := getGitHubType(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -330,6 +331,13 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 			yaml.WriteString("                  \"-e\",\n")
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 		}
+
+		// Add GITHUB_TOOLSETS environment variable if toolsets are configured
+		if toolsets != "" {
+			yaml.WriteString("                  \"-e\",\n")
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
+		}
+
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present
@@ -488,9 +496,7 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 	// Count errors and warnings using pattern matching for better accuracy
 	errorPatterns := e.GetErrorPatterns()
 	if len(errorPatterns) > 0 {
-		counts := CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
-		metrics.ErrorCount = counts.ErrorCount
-		metrics.WarningCount = counts.WarningCount
+		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 	}
 
 	// Detect permission errors and create missing-tool entries
@@ -537,6 +543,13 @@ func (e *CopilotEngine) parseCopilotToolCallsWithSequence(line string, toolCallM
 // GetLogParserScript returns the JavaScript script name for parsing Copilot logs
 func (e *CopilotEngine) GetLogParserScriptId() string {
 	return "parse_copilot_log"
+}
+
+// GetLogFileForParsing returns the log directory for Copilot CLI logs
+// Copilot writes detailed debug logs to /tmp/gh-aw/.copilot/logs/ which should be parsed
+// instead of the agent-stdio.log file
+func (e *CopilotEngine) GetLogFileForParsing() string {
+	return logsFolder
 }
 
 // computeCopilotToolArguments generates Copilot CLI tool permission arguments from workflow tools configuration
@@ -874,6 +887,59 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			LevelGroup:   0,
 			MessageGroup: 1,
 			Description:  "Shell permission denied error",
+		},
+		// Rate limiting and quota errors
+		{
+			Pattern:      `(?i)(rate limit|too many requests)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Rate limit exceeded error",
+		},
+		{
+			Pattern:      `(?i)(429|HTTP.*429)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "HTTP 429 Too Many Requests status code",
+		},
+		{
+			Pattern:      `(?i)error.*quota.*exceeded`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Quota exceeded error",
+		},
+		// Timeout and deadline errors
+		{
+			Pattern:      `(?i)error.*(timeout|timed out|deadline exceeded)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Timeout or deadline exceeded error",
+		},
+		// Network and connection errors
+		{
+			Pattern:      `(?i)(connection refused|connection failed|ECONNREFUSED)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Network connection error",
+		},
+		{
+			Pattern:      `(?i)(ETIMEDOUT|ENOTFOUND)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Network timeout or DNS resolution error",
+		},
+		// Token expiration errors
+		{
+			Pattern:      `(?i)error.*token.*expired`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Token expired error",
+		},
+		// Memory and resource errors
+		{
+			Pattern:      `(?i)(maximum call stack size exceeded|heap out of memory|spawn ENOMEM)`,
+			LevelGroup:   0,
+			MessageGroup: 0,
+			Description:  "Memory or resource exhaustion error",
 		},
 	}
 }

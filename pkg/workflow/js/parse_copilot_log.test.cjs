@@ -68,6 +68,9 @@ describe("parse_copilot_log.cjs", () => {
       if (module === "fs") {
         return fs;
       }
+      if (module === "path") {
+        return path;
+      }
       if (module === "@actions/core") {
         return mockCore;
       }
@@ -265,6 +268,26 @@ describe("parse_copilot_log.cjs", () => {
 
       // Details should contain the output
       expect(result).toContain("Project Title");
+
+      // Should use 6 backticks (not 5) for code blocks
+      expect(result).toContain("``````json");
+      expect(result).toMatch(/``````\n#/); // Response content should start after 6 backticks
+
+      // Should have Parameters and Response sections
+      expect(result).toContain("**Parameters:**");
+      expect(result).toContain("**Response:**");
+
+      // Parameters should be formatted as JSON
+      expect(result).toContain("``````json");
+
+      // Verify the structure contains both parameter and response sections
+      const detailsMatch = result.match(/<details>[\s\S]*?<\/details>/);
+      expect(detailsMatch).toBeDefined();
+      const detailsContent = detailsMatch[0];
+      expect(detailsContent).toContain("**Parameters:**");
+      expect(detailsContent).toContain("**Response:**");
+      expect(detailsContent).toContain('"command": "cat README.md"');
+      expect(detailsContent).toContain("Project description here");
     });
 
     it("should handle MCP tools", () => {
@@ -380,6 +403,71 @@ describe("parse_copilot_log.cjs", () => {
       expect(result).toContain("## Analysis");
       expect(result).toContain("could use some improvements");
     });
+
+    it("should parse debug log format with tool calls and mark them as successful", () => {
+      // Simulating the actual debug log format from Copilot CLI
+      const debugLogFormat = `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-sonnet-4
+2025-09-26T11:13:12.575Z [START-GROUP] Sending request to the AI model
+2025-09-26T11:13:17.989Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:17.989Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "object": "chat.completion",
+  "model": "claude-sonnet-4",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I'll help you with this task.",
+        "tool_calls": [
+          {
+            "id": "call_abc123",
+            "type": "function",
+            "function": {
+              "name": "bash",
+              "arguments": "{\\"command\\":\\"echo 'Hello World'\\",\\"description\\":\\"Print greeting\\",\\"sessionId\\":\\"main\\",\\"async\\":false}"
+            }
+          },
+          {
+            "id": "call_def456",
+            "type": "function",
+            "function": {
+              "name": "github-search_issues",
+              "arguments": "{\\"query\\":\\"is:open label:bug\\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+  }
+}
+2025-09-26T11:13:18.000Z [END-GROUP]`;
+
+      const result = parseCopilotLog(debugLogFormat);
+
+      // Should successfully parse the debug log format
+      expect(result).toContain("🤖 Commands and Tools");
+      expect(result).toContain("echo 'Hello World'");
+      expect(result).toContain("github::search_issues");
+
+      // CRITICAL: Tools should be marked as successful (✅) not unknown (❓)
+      // This is the fix for the issue - parseDebugLogFormat now creates tool_result entries
+      expect(result).toContain("✅");
+      expect(result).not.toContain("❓ `echo");
+      expect(result).not.toContain("❓ `github::search_issues");
+
+      // Check that the tool calls are in the Commands and Tools section with success icon
+      const commandsSection = result.split("📊 Information")[0];
+      expect(commandsSection).toContain("✅ `echo 'Hello World'`");
+      expect(commandsSection).toContain("✅ `github::search_issues(...)`");
+    });
   });
 
   describe("main function integration", () => {
@@ -427,7 +515,7 @@ describe("parse_copilot_log.cjs", () => {
       scriptFunction();
       await global.testMain();
 
-      expect(mockCore.info).toHaveBeenCalledWith("Log file not found: /nonexistent/file.log");
+      expect(mockCore.info).toHaveBeenCalledWith("Log path not found: /nonexistent/file.log");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 

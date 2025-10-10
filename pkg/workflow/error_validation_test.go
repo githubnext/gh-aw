@@ -75,18 +75,10 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 
 		// Verify patterns have expected content
-		foundStreamError := false
 		foundError := false
 		foundWarning := false
 
 		for _, pattern := range patterns {
-			if pattern.Description == "Codex stream errors with timestamp" {
-				foundStreamError = true
-				if pattern.LevelGroup != 2 || pattern.MessageGroup != 3 {
-					t.Errorf("Stream error pattern has incorrect groups: level=%d, message=%d",
-						pattern.LevelGroup, pattern.MessageGroup)
-				}
-			}
 			if pattern.Description == "Codex ERROR messages with timestamp" {
 				foundError = true
 			}
@@ -95,9 +87,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 			}
 		}
 
-		if !foundStreamError {
-			t.Error("Missing stream error pattern")
-		}
 		if !foundError {
 			t.Error("Missing ERROR pattern")
 		}
@@ -160,8 +149,9 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 
 		for _, logLine := range testLogs {
-			counts := CountErrorsAndWarningsWithPatterns(logLine, patterns)
-			if counts.ErrorCount == 0 {
+			errors := CountErrorsAndWarningsWithPatterns(logLine, patterns)
+			errorCount := CountErrors(errors)
+			if errorCount == 0 {
 				t.Errorf("Failed to detect error in log line: %q", logLine)
 			}
 		}
@@ -182,6 +172,13 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		foundBracketedError := false
 		foundGenericError := false
 		foundNpmError := false
+		foundRateLimitError := false
+		foundHTTP429Error := false
+		foundQuotaError := false
+		foundTimeoutError := false
+		foundNetworkError := false
+		foundTokenExpiredError := false
+		foundMemoryError := false
 
 		for _, pattern := range patterns {
 			switch pattern.Description {
@@ -210,6 +207,20 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 				if pattern.LevelGroup != 0 || pattern.MessageGroup != 1 {
 					t.Errorf("Copilot npm error pattern has wrong groups: level=%d, message=%d", pattern.LevelGroup, pattern.MessageGroup)
 				}
+			case "Rate limit exceeded error":
+				foundRateLimitError = true
+			case "HTTP 429 Too Many Requests status code":
+				foundHTTP429Error = true
+			case "Quota exceeded error":
+				foundQuotaError = true
+			case "Timeout or deadline exceeded error":
+				foundTimeoutError = true
+			case "Network connection error":
+				foundNetworkError = true
+			case "Token expired error":
+				foundTokenExpiredError = true
+			case "Memory or resource exhaustion error":
+				foundMemoryError = true
 			}
 		}
 
@@ -227,6 +238,80 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		}
 		if !foundNpmError {
 			t.Error("CopilotEngine should have npm error pattern")
+		}
+		if !foundRateLimitError {
+			t.Error("CopilotEngine should have rate limit error pattern")
+		}
+		if !foundHTTP429Error {
+			t.Error("CopilotEngine should have HTTP 429 error pattern")
+		}
+		if !foundQuotaError {
+			t.Error("CopilotEngine should have quota exceeded error pattern")
+		}
+		if !foundTimeoutError {
+			t.Error("CopilotEngine should have timeout error pattern")
+		}
+		if !foundNetworkError {
+			t.Error("CopilotEngine should have network error pattern")
+		}
+		if !foundTokenExpiredError {
+			t.Error("CopilotEngine should have token expired error pattern")
+		}
+		if !foundMemoryError {
+			t.Error("CopilotEngine should have memory error pattern")
+		}
+	})
+
+	// Test new error patterns with real-world examples
+	t.Run("CopilotEngine_detects_new_error_types", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		patterns := engine.GetErrorPatterns()
+
+		// Test logs with new error types
+		testLogs := []string{
+			"Error: API rate limit exceeded, please try again later",
+			"Error: Too many requests",
+			"Error: received 429 status code",
+			"Error: quota exceeded for API calls",
+			"Error: Request timeout after 30 seconds",
+			"Error: Operation timed out",
+			"Error: deadline exceeded",
+			"Error: Connection refused: ECONNREFUSED",
+			"Error: connection failed to api.github.com",
+			"Error: Network error: ETIMEDOUT",
+			"Error: DNS resolution failed: ENOTFOUND",
+			"Error: token expired, please refresh your credentials",
+			"Error: Fatal error: maximum call stack size exceeded",
+			"Error: heap out of memory",
+			"Error: spawn ENOMEM: not enough memory",
+		}
+
+		for _, logLine := range testLogs {
+			counts := CountErrorsAndWarningsWithPatterns(logLine, patterns)
+			if CountErrors(counts) == 0 {
+				t.Errorf("Failed to detect error in log line: %q", logLine)
+			}
+		}
+	})
+
+	// Test that patterns don't match informational text
+	t.Run("CopilotEngine_does_not_match_informational_quota_and_timeout_text", func(t *testing.T) {
+		engine := NewCopilotEngine()
+		patterns := engine.GetErrorPatterns()
+
+		// These should NOT match because they lack error context
+		informationalText := []string{
+			"quota will be exceeded tomorrow",
+			"avoid timeout issues by increasing the limit",
+			"timeout configuration is set to 30 seconds",
+			"the deadline is next week",
+		}
+
+		for _, text := range informationalText {
+			counts := CountErrorsAndWarningsWithPatterns(text, patterns)
+			if CountErrors(counts) > 0 {
+				t.Errorf("Pattern incorrectly matched informational text: %q", text)
+			}
 		}
 	})
 }
@@ -255,19 +340,14 @@ func TestErrorPatternSerialization(t *testing.T) {
 
 func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 	// Test case for GitHub issue #668: Codex fails to report failure if unauthorised
+	// Updated to test new Rust format
 	engine := NewCodexEngine()
 	patterns := engine.GetErrorPatterns()
 
-	// Log content from issue #668
-	logContent := `[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…
-[2025-09-10T17:54:54] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 2/5 in 414ms…
-[2025-09-10T17:54:58] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 3/5 in 821ms…
-[2025-09-10T17:55:03] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 4/5 in 1.611s…
-[2025-09-10T17:55:08] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 5/5 in 3.039s…
-[2025-09-10T17:55:15] ERROR: exceeded retry limit, last status: 401 Unauthorized`
+	// Log content in new Rust format (converted from issue #668)
+	logContent := `2025-09-10T17:55:15.123Z ERROR exceeded retry limit, last status: 401 Unauthorized`
 
 	// Test that patterns can detect the errors
-	foundStreamErrors := 0
 	foundErrorMessages := 0
 
 	for _, pattern := range patterns {
@@ -279,36 +359,30 @@ func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 
 		matches := regex.FindAllString(logContent, -1)
 		if len(matches) > 0 {
-			if pattern.Description == "Codex stream errors with timestamp" {
-				foundStreamErrors = len(matches)
-			}
 			if pattern.Description == "Codex ERROR messages with timestamp" {
 				foundErrorMessages = len(matches)
 			}
 		}
 	}
 
-	// Should detect 5 stream errors and 1 ERROR message from issue #668
-	if foundStreamErrors != 5 {
-		t.Errorf("Expected 5 stream errors from issue #668, found %d", foundStreamErrors)
-	}
+	// Should detect 1 ERROR message from issue #668
 	if foundErrorMessages != 1 {
 		t.Errorf("Expected 1 ERROR message from issue #668, found %d", foundErrorMessages)
 	}
 
 	// Verify the patterns specifically match 401 unauthorized content
-	streamPattern := patterns[0] // Stream error pattern
-	regex, _ := regexp.Compile(streamPattern.Pattern)
-	match := regex.FindStringSubmatch("[2025-09-10T17:54:49] stream error: exceeded retry limit, last status: 401 Unauthorized; retrying 1/5 in 216ms…")
+	errorPattern := patterns[0] // ERROR pattern (first pattern in new format)
+	regex, _ := regexp.Compile(errorPattern.Pattern)
+	match := regex.FindStringSubmatch("2025-09-10T17:55:15.123Z ERROR exceeded retry limit, last status: 401 Unauthorized")
 
 	if len(match) < 4 {
-		t.Error("Stream error pattern should capture timestamp, level, and message groups")
+		t.Error("ERROR pattern should capture timestamp, level, and message groups")
 	} else {
-		if match[streamPattern.LevelGroup] != "error" {
-			t.Errorf("Expected level 'error', got '%s'", match[streamPattern.LevelGroup])
+		if match[errorPattern.LevelGroup] != "ERROR" {
+			t.Errorf("Expected level 'ERROR', got '%s'", match[errorPattern.LevelGroup])
 		}
-		if !strings.Contains(match[streamPattern.MessageGroup], "401 Unauthorized") {
-			t.Errorf("Expected message to contain '401 Unauthorized', got '%s'", match[streamPattern.MessageGroup])
+		if !strings.Contains(match[errorPattern.MessageGroup], "401 Unauthorized") {
+			t.Errorf("Expected message to contain '401 Unauthorized', got '%s'", match[errorPattern.MessageGroup])
 		}
 	}
 }

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -304,7 +305,9 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"\"GITHUB_PERSONAL_ACCESS_TOKEN\",",
 				"\"ghcr.io/github/github-mcp-server:sha-09deac4\"",
 				"]",
-				"env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\" }",
+				"",
+				"[mcp_servers.github.env]",
+				"GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"",
 				"EOF",
 			},
 		},
@@ -585,4 +588,83 @@ func TestCodexEngineRenderMCPConfigUserAgentWithHyphen(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCodexEngineErrorPatterns(t *testing.T) {
+	engine := NewCodexEngine()
+	patterns := engine.GetErrorPatterns()
+
+	// Test Rust format patterns (new format)
+	rustFormatTests := []struct {
+		name          string
+		logLine       string
+		shouldMatch   bool
+		expectedLevel string
+	}{
+		{
+			name:          "Rust ERROR format with milliseconds",
+			logLine:       "2025-08-31T12:37:08.123Z ERROR This is a test error message",
+			shouldMatch:   true,
+			expectedLevel: "ERROR",
+		},
+		{
+			name:          "Rust WARN format with milliseconds",
+			logLine:       "2025-08-31T12:37:09.456Z WARN This is a test warning message",
+			shouldMatch:   true,
+			expectedLevel: "WARN",
+		},
+		{
+			name:          "Rust WARNING format with milliseconds",
+			logLine:       "2025-08-31T12:37:10.789Z WARNING This is a test warning message",
+			shouldMatch:   true,
+			expectedLevel: "WARNING",
+		},
+		{
+			name:        "Rust INFO format should not match error patterns",
+			logLine:     "2025-08-31T12:37:11.012Z INFO This is a test info message",
+			shouldMatch: false,
+		},
+		{
+			name:        "Rust DEBUG format should not match error patterns",
+			logLine:     "2025-08-31T12:37:12.345Z DEBUG This is a test debug message",
+			shouldMatch: false,
+		},
+	}
+
+	for _, tt := range rustFormatTests {
+		t.Run(tt.name, func(t *testing.T) {
+			matched := false
+			matchedLevel := ""
+			for _, pattern := range patterns {
+				if strings.Contains(pattern.Description, "Codex ERROR messages with timestamp") ||
+					strings.Contains(pattern.Description, "Codex warning messages with timestamp") {
+					re := compilePattern(t, pattern.Pattern)
+					if re.MatchString(tt.logLine) {
+						matched = true
+						matches := re.FindStringSubmatch(tt.logLine)
+						if pattern.LevelGroup > 0 && pattern.LevelGroup < len(matches) {
+							matchedLevel = matches[pattern.LevelGroup]
+						}
+						break
+					}
+				}
+			}
+
+			if matched != tt.shouldMatch {
+				t.Errorf("Pattern matching mismatch for %q: expected match=%v, got match=%v", tt.logLine, tt.shouldMatch, matched)
+			}
+
+			if tt.shouldMatch && matchedLevel != tt.expectedLevel {
+				t.Errorf("Level extraction mismatch for %q: expected %q, got %q", tt.logLine, tt.expectedLevel, matchedLevel)
+			}
+		})
+	}
+}
+
+func compilePattern(t *testing.T, pattern string) *regexp.Regexp {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		t.Fatalf("Failed to compile pattern %q: %v", pattern, err)
+	}
+	return re
 }

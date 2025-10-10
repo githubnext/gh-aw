@@ -304,7 +304,9 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 		}
 
 		// Detect thinking sections as indicators of turns
-		if strings.Contains(line, "] thinking") {
+		// Support both old format: "] thinking" and new Rust format: "thinking" (standalone line)
+		trimmedLine := strings.TrimSpace(line)
+		if strings.Contains(line, "] thinking") || trimmedLine == "thinking" {
 			if !inThinkingSection {
 				turns++
 				inThinkingSection = true
@@ -314,7 +316,8 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 					currentSequence = []string{}
 				}
 			}
-		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") {
+		} else if strings.Contains(line, "] tool") || strings.Contains(line, "] exec") || strings.Contains(line, "] codex") ||
+			strings.HasPrefix(trimmedLine, "tool ") || strings.HasPrefix(trimmedLine, "exec ") {
 			inThinkingSection = false
 		}
 
@@ -352,9 +355,7 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	// Count errors and warnings using pattern matching for better accuracy
 	errorPatterns := e.GetErrorPatterns()
 	if len(errorPatterns) > 0 {
-		counts := CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
-		metrics.ErrorCount = counts.ErrorCount
-		metrics.WarningCount = counts.WarningCount
+		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 	}
 
 	// Detect permission errors and create missing-tool entries
@@ -365,59 +366,89 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 
 // parseCodexToolCallsWithSequence extracts tool call information from Codex log lines and returns tool name
 func (e *CodexEngine) parseCodexToolCallsWithSequence(line string, toolCallMap map[string]*ToolCallInfo) string {
-	// Parse tool calls: "] tool provider.method(...)"
+	trimmedLine := strings.TrimSpace(line)
+
+	// Parse tool calls: "] tool provider.method(...)" (old format)
+	// or "tool provider.method(...)" (new Rust format)
+	var toolName string
+
+	// Try old format first: "] tool provider.method(...)"
 	if strings.Contains(line, "] tool ") && strings.Contains(line, "(") {
 		if match := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(match) > 1 {
-			toolName := strings.TrimSpace(match[1])
-			prettifiedName := PrettifyToolName(toolName)
-
-			// For Codex, format provider.method as provider_method (avoiding colons)
-			if strings.Contains(toolName, ".") {
-				parts := strings.Split(toolName, ".")
-				if len(parts) >= 2 {
-					provider := parts[0]
-					method := strings.Join(parts[1:], "_")
-					prettifiedName = fmt.Sprintf("%s_%s", provider, method)
-				}
-			}
-
-			// Initialize or update tool call info
-			if toolInfo, exists := toolCallMap[prettifiedName]; exists {
-				toolInfo.CallCount++
-			} else {
-				toolCallMap[prettifiedName] = &ToolCallInfo{
-					Name:          prettifiedName,
-					CallCount:     1,
-					MaxOutputSize: 0, // TODO: Extract output size from results if available
-					MaxDuration:   0, // Will be updated when duration is found
-				}
-			}
-
-			return prettifiedName
+			toolName = strings.TrimSpace(match[1])
 		}
 	}
 
-	// Parse exec commands: "] exec command" - treat as bash calls
+	// Try new Rust format: "tool provider.method(...)"
+	if toolName == "" && strings.HasPrefix(trimmedLine, "tool ") && strings.Contains(trimmedLine, "(") {
+		if match := regexp.MustCompile(`^tool ([^(]+)\(`).FindStringSubmatch(trimmedLine); len(match) > 1 {
+			toolName = strings.TrimSpace(match[1])
+		}
+	}
+
+	if toolName != "" {
+		prettifiedName := PrettifyToolName(toolName)
+
+		// For Codex, format provider.method as provider_method (avoiding colons)
+		if strings.Contains(toolName, ".") {
+			parts := strings.Split(toolName, ".")
+			if len(parts) >= 2 {
+				provider := parts[0]
+				method := strings.Join(parts[1:], "_")
+				prettifiedName = fmt.Sprintf("%s_%s", provider, method)
+			}
+		}
+
+		// Initialize or update tool call info
+		if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+			toolInfo.CallCount++
+		} else {
+			toolCallMap[prettifiedName] = &ToolCallInfo{
+				Name:          prettifiedName,
+				CallCount:     1,
+				MaxOutputSize: 0, // TODO: Extract output size from results if available
+				MaxDuration:   0, // Will be updated when duration is found
+			}
+		}
+
+		return prettifiedName
+	}
+
+	// Parse exec commands: "] exec command" (old format)
+	// or "exec command in" (new Rust format) - treat as bash calls
+	var execCommand string
+
+	// Try old format: "] exec command in"
 	if strings.Contains(line, "] exec ") {
 		if match := regexp.MustCompile(`\] exec (.+?) in`).FindStringSubmatch(line); len(match) > 1 {
-			command := strings.TrimSpace(match[1])
-			// Create unique bash entry with command info, avoiding colons
-			uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(command))
-
-			// Initialize or update tool call info
-			if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
-				toolInfo.CallCount++
-			} else {
-				toolCallMap[uniqueBashName] = &ToolCallInfo{
-					Name:          uniqueBashName,
-					CallCount:     1,
-					MaxOutputSize: 0,
-					MaxDuration:   0, // Will be updated when duration is found
-				}
-			}
-
-			return uniqueBashName
+			execCommand = strings.TrimSpace(match[1])
 		}
+	}
+
+	// Try new Rust format: "exec command in"
+	if execCommand == "" && strings.HasPrefix(trimmedLine, "exec ") {
+		if match := regexp.MustCompile(`^exec (.+?) in`).FindStringSubmatch(trimmedLine); len(match) > 1 {
+			execCommand = strings.TrimSpace(match[1])
+		}
+	}
+
+	if execCommand != "" {
+		// Create unique bash entry with command info, avoiding colons
+		uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(execCommand))
+
+		// Initialize or update tool call info
+		if toolInfo, exists := toolCallMap[uniqueBashName]; exists {
+			toolInfo.CallCount++
+		} else {
+			toolCallMap[uniqueBashName] = &ToolCallInfo{
+				Name:          uniqueBashName,
+				CallCount:     1,
+				MaxOutputSize: 0,
+				MaxDuration:   0, // Will be updated when duration is found
+			}
+		}
+
+		return uniqueBashName
 	}
 
 	// Parse duration from success/failure lines: "] success in 0.2s" or "] failure in 1.5s"
@@ -480,6 +511,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	githubType := getGitHubType(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
@@ -543,11 +575,20 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("\n")
 		yaml.WriteString("          ]\n")
 
+		// Use TOML section syntax for environment variables
+		yaml.WriteString("          \n")
+		yaml.WriteString("          [mcp_servers.github.env]\n")
+
 		// Use custom token if specified, otherwise use default
 		if customGitHubToken != "" {
-			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"" + customGitHubToken + "\" }\n")
+			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + customGitHubToken + "\"\n")
 		} else {
-			yaml.WriteString("          env = { \"GITHUB_PERSONAL_ACCESS_TOKEN\" = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\" }\n")
+			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
+		}
+
+		// Add toolsets if configured
+		if toolsets != "" {
+			yaml.WriteString("          GITHUB_TOOLSETS = \"" + toolsets + "\"\n")
 		}
 	}
 }
@@ -620,20 +661,15 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 // GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{
+		// Rust format patterns (without brackets, with milliseconds and Z timezone)
 		{
-			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+stream\s+(error):\s+(.+)`,
-			LevelGroup:   2, // "error" is in the second capture group
-			MessageGroup: 3, // error message is in the third capture group
-			Description:  "Codex stream errors with timestamp",
-		},
-		{
-			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(ERROR):\s+(.+)`,
+			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(ERROR)\s+(.+)`,
 			LevelGroup:   2, // "ERROR" is in the second capture group
 			MessageGroup: 3, // error message is in the third capture group
 			Description:  "Codex ERROR messages with timestamp",
 		},
 		{
-			Pattern:      `\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\]\s+(WARN|WARNING):\s+(.+)`,
+			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(WARN|WARNING)\s+(.+)`,
 			LevelGroup:   2, // "WARN" or "WARNING" is in the second capture group
 			MessageGroup: 3, // warning message is in the third capture group
 			Description:  "Codex warning messages with timestamp",

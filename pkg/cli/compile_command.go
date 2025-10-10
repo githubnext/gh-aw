@@ -55,7 +55,7 @@ type CompileConfig struct {
 	Validate          bool     // Enable schema validation
 	Watch             bool     // Enable watch mode
 	WorkflowDir       string   // Custom workflow directory
-	SkipInstructions  bool     // Skip instruction validation
+	SkipInstructions  bool     // Deprecated: Instructions are no longer written during compilation
 	NoEmit            bool     // Validate without generating lock files
 	Purge             bool     // Remove orphaned lock files
 	TrialMode         bool     // Enable trial mode (suppress safe outputs)
@@ -70,7 +70,6 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	validate := config.Validate
 	watch := config.Watch
 	workflowDir := config.WorkflowDir
-	skipInstructions := config.SkipInstructions
 	noEmit := config.NoEmit
 	purge := config.Purge
 	trialMode := config.TrialMode
@@ -174,12 +173,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
 		}
 
-		// Ensure copilot instructions are present
-		if err := ensureCopilotInstructions(verbose, skipInstructions); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
-			}
-		}
+		// Note: Instructions are only written by the init command
+		// The compile command should not write instruction files
 
 		return workflowDataList, nil
 	}
@@ -294,26 +289,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
 	}
 
-	// Ensure copilot instructions are present
-	if err := ensureCopilotInstructions(verbose, skipInstructions); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update copilot instructions: %v", err)))
-		}
-	}
-
-	// Ensure agentic workflow prompt is present
-	if err := ensureAgenticWorkflowPrompt(verbose, skipInstructions); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update agentic workflow prompt: %v", err)))
-		}
-	}
-
-	// Ensure shared agentic workflow prompt is present
-	if err := ensureSharedAgenticWorkflowPrompt(verbose, skipInstructions); err != nil {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update shared agentic workflow prompt: %v", err)))
-		}
-	}
+	// Note: Instructions are only written by the init command
+	// The compile command should not write instruction files
 
 	return workflowDataList, nil
 }

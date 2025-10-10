@@ -60,6 +60,10 @@ type CodingAgentEngine interface {
 	// GetLogParserScriptId returns the name of the JavaScript script to parse logs for this engine
 	GetLogParserScriptId() string
 
+	// GetLogFileForParsing returns the log file path to use for JavaScript parsing in the workflow
+	// This may be different from the stdout/stderr log file if the engine produces separate detailed logs
+	GetLogFileForParsing() string
+
 	// GetErrorPatterns returns regex patterns for extracting error messages from logs
 	GetErrorPatterns() []ErrorPattern
 
@@ -154,6 +158,13 @@ func (e *BaseEngine) GetVersionCommand() string {
 // HasDefaultConcurrency returns the configured value for default concurrency mode
 func (e *BaseEngine) HasDefaultConcurrency() bool {
 	return e.hasDefaultConcurrency
+}
+
+// GetLogFileForParsing returns the default log file path for parsing
+// Engines can override this to use engine-specific log files
+func (e *BaseEngine) GetLogFileForParsing() string {
+	// Default to agent-stdio.log which contains stdout/stderr
+	return "/tmp/gh-aw/agent-stdio.log"
 }
 
 // EngineRegistry manages available agentic engines

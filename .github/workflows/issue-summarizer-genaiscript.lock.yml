@@ -1004,7 +1004,7 @@ jobs:
                   }
                   const result = handler(args);
                   const content = result && result.content ? result.content : [];
-                  replyResult(id, { content });
+                  replyResult(id, { content, isError: false });
                 } else if (/^notifications\//.test(method)) {
                   debug(`ignore ${method}`);
                 } else {
@@ -1203,14 +1203,6 @@ jobs:
             fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
             console.log('Generated aw_info.json at:', tmpPath);
             console.log(JSON.stringify(awInfo, null, 2));
-            
-            // Add agentic workflow run information to step summary
-            core.summary
-              .addRaw('## Agentic Run Information\n\n')
-              .addRaw('```json\n')
-              .addRaw(JSON.stringify(awInfo, null, 2))
-              .addRaw('\n```\n')
-              .write();
       - name: Upload agentic run info
         if: always()
         uses: actions/upload-artifact@v4
@@ -1241,19 +1233,7 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Run GenAIScript
         id: genaiscript
-        run: |
-          MCP_ARG=""
-          if [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
-            echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
-            MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
-          fi
-          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
-          if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
-            cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
-            echo "GenAIScript execution completed"
-          else
-            echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
-          fi
+        run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config $GITHUB_AW_MCP_CONFIG --out /tmp/gh-aw/genaiscript-output.md
         env:
           DEBUG: genaiscript:*
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
@@ -1265,24 +1245,6 @@ jobs:
         run: |
           echo "Custom steps execution completed" >> /tmp/gh-aw/agent-stdio.log
           touch /tmp/gh-aw/agent-stdio.log
-      - name: Print Safe Outputs
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-        run: |
-          echo "## Safe Outputs (JSONL)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          if [ -f ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ]; then
-            cat ${{ env.GITHUB_AW_SAFE_OUTPUTS }} >> $GITHUB_STEP_SUMMARY
-            # Ensure there's a newline after the file content if it doesn't end with one
-            if [ -s ${{ env.GITHUB_AW_SAFE_OUTPUTS }} ] && [ "$(tail -c1 ${{ env.GITHUB_AW_SAFE_OUTPUTS }})" != "" ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "No agent output file found" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -2194,19 +2156,7 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Run GenAIScript
         id: genaiscript
-        run: |
-          MCP_ARG=""
-          if [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
-            echo "Using MCP configuration from $GITHUB_AW_MCP_CONFIG"
-            MCP_ARG="--mcp-config $GITHUB_AW_MCP_CONFIG"
-          fi
-          genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md $MCP_ARG --output /tmp/gh-aw/genaiscript-output.md || echo "GenAIScript completed"
-          if [ -f /tmp/gh-aw/genaiscript-output.md ]; then
-            cat /tmp/gh-aw/genaiscript-output.md > /tmp/gh-aw/agent-log.txt
-            echo "GenAIScript execution completed"
-          else
-            echo "GenAIScript execution completed (no output)" > /tmp/gh-aw/agent-log.txt
-          fi
+        run: genaiscript run /tmp/gh-aw/aw-prompts/prompt.genai.md --mcp-config $GITHUB_AW_MCP_CONFIG --out /tmp/gh-aw/genaiscript-output.md
         env:
           DEBUG: genaiscript:*
           GITHUB_AW_AGENT_MODEL_VERSION: gpt-4o-mini
@@ -2222,6 +2172,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            const fs = require('fs');
             let verdict = { prompt_injection: false, secret_leak: false, malicious_patch: false, reasons: [] };
             try {
               const outputPath = '/tmp/gh-aw/threat-detection/agent_output.json';

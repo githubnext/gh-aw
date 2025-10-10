@@ -540,22 +540,156 @@ I've posted the PR summary comment with analysis and recommendations. Let me kno
 		t.Fatalf("Failed to create test log file: %v", err)
 	}
 
-	// Get the Codex engine for testing
-	registry := workflow.NewEngineRegistry()
-	codexEngine, err := registry.GetEngine("codex")
-	if err != nil {
-		t.Fatalf("Failed to get Codex engine: %v", err)
-	}
-
+	// Test with Codex engine
+	codexEngine := workflow.NewCodexEngine()
 	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
 	if err != nil {
-		t.Fatalf("parseLogFile failed: %v", err)
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
 	}
 
-	// Should sum all Codex token entries: 32169 + 28828 + 5000 = 65997
-	expectedTokens := 32169 + 28828 + 5000
+	// Check that all token entries are summed
+	expectedTokens := 32169 + 28828 + 5000 // 65997
 	if metrics.TokenUsage != expectedTokens {
-		t.Errorf("Expected token usage %d (sum of all Codex entries), got %d", expectedTokens, metrics.TokenUsage)
+		t.Errorf("Expected summed token usage %d, got %d", expectedTokens, metrics.TokenUsage)
+	}
+}
+
+func TestParseLogFileWithCodexRustFormat(t *testing.T) {
+	// Create a temporary log file with the new Rust-based Codex format
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-codex-rust.log")
+
+	// This simulates the new Rust format from the Codex engine
+	logContent := `2025-01-15T10:30:00.123456Z  INFO codex: Starting codex execution
+2025-01-15T10:30:00.234567Z DEBUG codex_core: Initializing MCP servers
+2025-01-15T10:30:01.123456Z  INFO codex: Session initialized
+thinking
+Let me fetch the list of pull requests first to see what we're working with.
+2025-01-15T10:30:02.123456Z DEBUG codex_exec: Executing tool call
+tool github.list_pull_requests({"state": "closed", "per_page": 5})
+2025-01-15T10:30:03.456789Z DEBUG codex_core: Tool execution started
+2025-01-15T10:30:04.567890Z  INFO codex: github.list_pull_requests(...) success in 2.1s
+thinking
+Now I need to get details for each PR to write a comprehensive summary.
+2025-01-15T10:30:05.123456Z DEBUG codex_exec: Executing tool call
+tool github.get_pull_request({"pull_number": 123})
+2025-01-15T10:30:06.234567Z  INFO codex: github.get_pull_request(...) success in 0.8s
+2025-01-15T10:30:07.345678Z DEBUG codex_core: Processing response
+thinking
+I have all the information I need. Let me create a summary issue.
+2025-01-15T10:30:08.456789Z DEBUG codex_exec: Executing tool call
+tool safe_outputs.create_issue({"title": "PR Summary", "body": "..."})
+2025-01-15T10:30:09.567890Z  INFO codex: safe_outputs.create_issue(...) success in 1.2s
+2025-01-15T10:30:10.123456Z DEBUG codex_core: Workflow completing
+tokens used: 15234
+2025-01-15T10:30:10.234567Z  INFO codex: Execution complete`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	// Test with Codex engine to parse new Rust format
+	codexEngine := workflow.NewCodexEngine()
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	if err != nil {
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
+	}
+
+	// Check token usage extraction from Rust format
+	expectedTokens := 15234
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d, got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Check turns extraction from thinking sections (new Rust format uses standalone "thinking" lines)
+	expectedTurns := 3 // Three thinking sections in the test data
+	if metrics.Turns != expectedTurns {
+		t.Errorf("Expected turns %d, got %d", expectedTurns, metrics.Turns)
+	}
+
+	// Check tool calls extraction from new Rust format
+	expectedToolCount := 3
+	if len(metrics.ToolCalls) != expectedToolCount {
+		t.Errorf("Expected %d tool calls, got %d", expectedToolCount, len(metrics.ToolCalls))
+	}
+
+	// Verify the specific tools were detected
+	toolNames := make(map[string]bool)
+	for _, tool := range metrics.ToolCalls {
+		toolNames[tool.Name] = true
+	}
+
+	expectedTools := []string{"github_list_pull_requests", "github_get_pull_request", "safe_outputs_create_issue"}
+	for _, expectedTool := range expectedTools {
+		if !toolNames[expectedTool] {
+			t.Errorf("Expected tool %s not found in tool calls", expectedTool)
+		}
+	}
+}
+
+func TestParseLogFileWithCodexMixedFormats(t *testing.T) {
+	// Create a temporary log file with mixed old TypeScript and new Rust formats
+	tmpDir := t.TempDir()
+	logFile := filepath.Join(tmpDir, "test-codex-mixed.log")
+
+	// Mix both formats to test backward compatibility
+	logContent := `[2025-08-13T00:24:45] Starting Codex workflow execution
+[2025-08-13T00:24:50] thinking
+Old format thinking section
+[2025-08-13T00:24:50] tool github.list_repos({"org": "test"})
+[2025-08-13T00:24:51] codex
+Response from old format
+2025-01-15T10:30:00.123456Z  INFO codex: Starting execution
+thinking
+New Rust format thinking section
+tool github.create_issue({"title": "Test", "body": "Body"})
+2025-01-15T10:30:05.567890Z  INFO codex: github.create_issue(...) success in 1.2s
+[2025-08-13T00:24:52] tokens used: 5000
+tokens used: 10000
+2025-01-15T10:30:10.234567Z  INFO codex: Execution complete`
+
+	err := os.WriteFile(logFile, []byte(logContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test log file: %v", err)
+	}
+
+	// Test with Codex engine to parse mixed formats
+	codexEngine := workflow.NewCodexEngine()
+	metrics, err := parseLogFileWithEngine(logFile, codexEngine, false)
+	if err != nil {
+		t.Fatalf("parseLogFileWithEngine failed: %v", err)
+	}
+
+	// Check token usage is summed from both formats
+	expectedTokens := 15000 // 5000 + 10000
+	if metrics.TokenUsage != expectedTokens {
+		t.Errorf("Expected token usage %d (summed from both formats), got %d", expectedTokens, metrics.TokenUsage)
+	}
+
+	// Check turns from both formats
+	expectedTurns := 2 // One from old format, one from new format
+	if metrics.Turns != expectedTurns {
+		t.Errorf("Expected turns %d (from both formats), got %d", expectedTurns, metrics.Turns)
+	}
+
+	// Check tool calls from both formats
+	expectedToolCount := 2
+	if len(metrics.ToolCalls) != expectedToolCount {
+		t.Errorf("Expected %d tool calls, got %d", expectedToolCount, len(metrics.ToolCalls))
+	}
+
+	// Verify the specific tools were detected from both formats
+	toolNames := make(map[string]bool)
+	for _, tool := range metrics.ToolCalls {
+		toolNames[tool.Name] = true
+	}
+
+	expectedTools := []string{"github_list_repos", "github_create_issue"}
+	for _, expectedTool := range expectedTools {
+		if !toolNames[expectedTool] {
+			t.Errorf("Expected tool %s not found in tool calls", expectedTool)
+		}
 	}
 }
 
@@ -973,7 +1107,9 @@ Now I'll implement the solution.
 		t.Errorf("Expected token usage 5000 from Codex-style logs, got %d", metrics.TokenUsage)
 	}
 
-	// Test Case 3: Generic logs (fallback)
+	// Test Case 3: Generic logs (fallback - no error detection)
+	// Custom engine no longer has its own error detection patterns
+	// It relies on Claude/Codex parsers which don't match plain text logs
 	genericLogContent := `2025-08-13T00:24:45 Starting workflow
 2025-08-13T00:24:50 Processing request
 2025-08-13T00:24:52 Warning: Something happened
@@ -982,18 +1118,21 @@ Now I'll implement the solution.
 
 	metrics = customEngine.ParseLogMetrics(genericLogContent, false)
 
-	// Should fall back to basic parsing
+	// Should fall back to basic parsing (no metrics extracted)
 	if metrics.Turns != 0 {
 		t.Errorf("Expected turns 0 from generic logs, got %d", metrics.Turns)
 	}
 	if metrics.TokenUsage != 0 {
 		t.Errorf("Expected token usage 0 from generic logs, got %d", metrics.TokenUsage)
 	}
-	if metrics.WarningCount != 1 {
-		t.Errorf("Expected warning count 1 from generic logs, got %d", metrics.WarningCount)
+	// Custom engine has no error patterns, so it won't detect errors in plain text
+	warningCount := workflow.CountWarnings(metrics.Errors)
+	if warningCount != 0 {
+		t.Errorf("Expected warning count 0 from generic logs (custom engine has no error patterns), got %d", warningCount)
 	}
-	if metrics.ErrorCount != 1 {
-		t.Errorf("Expected error count 1 from generic logs, got %d", metrics.ErrorCount)
+	errorCount := workflow.CountErrors(metrics.Errors)
+	if errorCount != 0 {
+		t.Errorf("Expected error count 0 from generic logs (custom engine has no error patterns), got %d", errorCount)
 	}
 }
 
@@ -1089,4 +1228,118 @@ func TestBranchFilteringWithGitHubCLI(t *testing.T) {
 	if !found {
 		t.Errorf("Expected branch filter '--branch feature-branch' not found in args: %v", args)
 	}
+}
+
+func TestFindAgentLogFile(t *testing.T) {
+	// Create a temporary directory structure for testing
+	tmpDir := t.TempDir()
+
+	// Test 1: Copilot engine with agent_output directory
+	t.Run("Copilot engine uses agent_output", func(t *testing.T) {
+		copilotEngine := workflow.NewCopilotEngine()
+
+		// Create agent_output directory with a log file
+		agentOutputDir := filepath.Join(tmpDir, "copilot_test", "agent_output")
+		err := os.MkdirAll(agentOutputDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create agent_output directory: %v", err)
+		}
+
+		logFile := filepath.Join(agentOutputDir, "debug.log")
+		err = os.WriteFile(logFile, []byte("test log content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create log file: %v", err)
+		}
+
+		// Create agent-stdio.log as well (should be ignored for Copilot)
+		stdioLog := filepath.Join(tmpDir, "copilot_test", "agent-stdio.log")
+		err = os.WriteFile(stdioLog, []byte("stdio content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create agent-stdio.log: %v", err)
+		}
+
+		// Test findAgentLogFile
+		found, ok := findAgentLogFile(filepath.Join(tmpDir, "copilot_test"), copilotEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Copilot engine")
+		}
+
+		// Should find the file in agent_output directory
+		if !strings.Contains(found, "agent_output") {
+			t.Errorf("Expected to find file in agent_output directory, got: %s", found)
+		}
+	})
+
+	// Test 2: Claude engine with agent-stdio.log
+	t.Run("Claude engine uses agent-stdio.log", func(t *testing.T) {
+		claudeEngine := workflow.NewClaudeEngine()
+
+		// Create only agent-stdio.log
+		claudeDir := filepath.Join(tmpDir, "claude_test")
+		err := os.MkdirAll(claudeDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create claude test directory: %v", err)
+		}
+
+		stdioLog := filepath.Join(claudeDir, "agent-stdio.log")
+		err = os.WriteFile(stdioLog, []byte("stdio content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create agent-stdio.log: %v", err)
+		}
+
+		// Test findAgentLogFile
+		found, ok := findAgentLogFile(claudeDir, claudeEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Claude engine")
+		}
+
+		// Should find agent-stdio.log
+		if !strings.Contains(found, "agent-stdio.log") {
+			t.Errorf("Expected to find agent-stdio.log, got: %s", found)
+		}
+	})
+
+	// Test 3: No logs found
+	t.Run("No logs found returns false", func(t *testing.T) {
+		emptyDir := filepath.Join(tmpDir, "empty_test")
+		err := os.MkdirAll(emptyDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create empty test directory: %v", err)
+		}
+
+		claudeEngine := workflow.NewClaudeEngine()
+		_, ok := findAgentLogFile(emptyDir, claudeEngine)
+		if ok {
+			t.Errorf("Expected to not find agent log file in empty directory")
+		}
+	})
+
+	// Test 4: Codex engine with agent-stdio.log
+	t.Run("Codex engine uses agent-stdio.log", func(t *testing.T) {
+		codexEngine := workflow.NewCodexEngine()
+
+		// Create only agent-stdio.log
+		codexDir := filepath.Join(tmpDir, "codex_test")
+		err := os.MkdirAll(codexDir, 0755)
+		if err != nil {
+			t.Fatalf("Failed to create codex test directory: %v", err)
+		}
+
+		stdioLog := filepath.Join(codexDir, "agent-stdio.log")
+		err = os.WriteFile(stdioLog, []byte("stdio content"), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create agent-stdio.log: %v", err)
+		}
+
+		// Test findAgentLogFile
+		found, ok := findAgentLogFile(codexDir, codexEngine)
+		if !ok {
+			t.Errorf("Expected to find agent log file for Codex engine")
+		}
+
+		// Should find agent-stdio.log
+		if !strings.Contains(found, "agent-stdio.log") {
+			t.Errorf("Expected to find agent-stdio.log, got: %s", found)
+		}
+	})
 }

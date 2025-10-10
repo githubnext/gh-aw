@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -117,6 +119,16 @@ func TestCopilotEngineGetLogParserScript(t *testing.T) {
 
 	if script != "parse_copilot_log" {
 		t.Errorf("Expected 'parse_copilot_log', got '%s'", script)
+	}
+}
+
+func TestCopilotEngineGetLogFileForParsing(t *testing.T) {
+	engine := NewCopilotEngine()
+	logFile := engine.GetLogFileForParsing()
+
+	expected := "/tmp/gh-aw/.copilot/logs/"
+	if logFile != expected {
+		t.Errorf("Expected '%s', got '%s'", expected, logFile)
 	}
 }
 
@@ -693,4 +705,60 @@ func TestCopilotEngineGitHubToolsShellEscaping(t *testing.T) {
 	if !strings.Contains(copilotCommand, "'github(get_issue)'") {
 		t.Errorf("Expected 'github(get_issue)' to be single-quoted in command: %s", copilotCommand)
 	}
+}
+
+func TestCopilotEngineLogParsingUsesCorrectLogFile(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "copilot-log-parsing-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a test workflow with Copilot engine
+	testContent := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+tools:
+  github:
+    allowed: [list_issues]
+---
+
+# Test Copilot Log Parsing
+
+This workflow tests that Copilot log parsing uses the correct log file path.
+`
+
+	testFile := filepath.Join(tmpDir, "test-copilot-log-parsing.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := strings.Replace(testFile, ".md", ".lock.yml", 1)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Verify that the log parsing step uses /tmp/gh-aw/.copilot/logs/ instead of agent-stdio.log
+	if !strings.Contains(lockStr, "GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/") {
+		t.Error("Expected GITHUB_AW_AGENT_OUTPUT to be set to '/tmp/gh-aw/.copilot/logs/' for Copilot engine")
+	}
+
+	// Verify that it's NOT using the agent-stdio.log path for parsing
+	if strings.Contains(lockStr, "GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log") {
+		t.Error("Expected GITHUB_AW_AGENT_OUTPUT to NOT use '/tmp/gh-aw/agent-stdio.log' for Copilot engine")
+	}
+
+	t.Log("Successfully verified that Copilot log parsing uses /tmp/gh-aw/.copilot/logs/")
 }

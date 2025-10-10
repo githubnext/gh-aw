@@ -648,6 +648,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	githubType := getGitHubType(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
+	toolsets := getGitHubToolsets(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -701,10 +702,18 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 
 		// Use custom token if specified, otherwise use default
 		if customGitHubToken != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"\n", customGitHubToken))
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", customGitHubToken))
 		} else {
-			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
+			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"")
 		}
+
+		// Add GITHUB_TOOLSETS environment variable if toolsets are configured
+		if toolsets != "" {
+			yaml.WriteString(",\n")
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS\": \"%s\"", toolsets))
+		}
+
+		yaml.WriteString("\n")
 		yaml.WriteString("                }\n")
 	}
 
@@ -818,7 +827,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 	// Process line by line for error counting and fallback parsing
 	lines := strings.Split(logContent, "\n")
 
-	for _, line := range lines {
+	for lineNum, line := range lines {
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -849,13 +858,29 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 			}
 		}
 
-		// Count errors and warnings
+		// Collect individual error and warning details
 		lowerLine := strings.ToLower(line)
 		if strings.Contains(lowerLine, "error") {
-			metrics.ErrorCount++
+			// Extract error message (remove timestamp and common prefixes)
+			message := extractErrorMessage(line)
+			if message != "" {
+				metrics.Errors = append(metrics.Errors, LogError{
+					Line:    lineNum + 1, // 1-based line numbering
+					Type:    "error",
+					Message: message,
+				})
+			}
 		}
 		if strings.Contains(lowerLine, "warning") {
-			metrics.WarningCount++
+			// Extract warning message (remove timestamp and common prefixes)
+			message := extractErrorMessage(line)
+			if message != "" {
+				metrics.Errors = append(metrics.Errors, LogError{
+					Line:    lineNum + 1, // 1-based line numbering
+					Type:    "warning",
+					Message: message,
+				})
+			}
 		}
 	}
 

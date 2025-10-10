@@ -1156,6 +1156,35 @@
                 "github-token": {
                   "type": "string",
                   "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GITHUB_MCP_TOKEN if not specified."
+                },
+                "toolset": {
+                  "type": "array",
+                  "description": "Array of GitHub MCP server toolset names to enable specific groups of GitHub API functionalities",
+                  "items": {
+                    "type": "string",
+                    "description": "Toolset name",
+                    "enum": [
+                      "all",
+                      "context",
+                      "repos",
+                      "issues",
+                      "pull_requests",
+                      "actions",
+                      "code_security",
+                      "dependabot",
+                      "discussions",
+                      "experiments",
+                      "gists",
+                      "labels",
+                      "notifications",
+                      "orgs",
+                      "projects",
+                      "secret_protection",
+                      "security_advisories",
+                      "stargazers",
+                      "users"
+                    ]
+                  }
                 }
               },
               "additionalProperties": false

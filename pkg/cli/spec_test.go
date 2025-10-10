@@ -234,6 +234,33 @@ func TestParseWorkflowSpec(t *testing.T) {
 			wantErr:     true,
 			errContains: "does not look like a valid GitHub repository",
 		},
+		{
+			name:             "/files/ format with branch",
+			spec:             "githubnext/gh-aw/files/main/.github/workflows/shared/mcp/serena.md",
+			wantRepo:         "githubnext/gh-aw",
+			wantWorkflowPath: ".github/workflows/shared/mcp/serena.md",
+			wantWorkflowName: "serena",
+			wantVersion:      "main",
+			wantErr:          false,
+		},
+		{
+			name:             "/files/ format with commit SHA",
+			spec:             "githubnext/gh-aw/files/fc7992627494253a869e177e5d1985d25f3bb316/.github/workflows/shared/mcp/serena.md",
+			wantRepo:         "githubnext/gh-aw",
+			wantWorkflowPath: ".github/workflows/shared/mcp/serena.md",
+			wantWorkflowName: "serena",
+			wantVersion:      "fc7992627494253a869e177e5d1985d25f3bb316",
+			wantErr:          false,
+		},
+		{
+			name:             "/files/ format with tag",
+			spec:             "owner/repo/files/v1.0.0/workflows/helper.md",
+			wantRepo:         "owner/repo",
+			wantWorkflowPath: "workflows/helper.md",
+			wantWorkflowName: "helper",
+			wantVersion:      "v1.0.0",
+			wantErr:          false,
+		},
 	}
 
 	for _, tt := range tests {

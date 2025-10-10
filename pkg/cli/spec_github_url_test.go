@@ -67,6 +67,33 @@ func TestParseGitHubURL(t *testing.T) {
 			wantErr:     true,
 			errContains: "must point to a .md file",
 		},
+		{
+			name:             "raw.githubusercontent.com with refs/heads/branch",
+			url:              "https://raw.githubusercontent.com/githubnext/gh-aw/refs/heads/main/.github/workflows/shared/mcp/serena.md",
+			wantRepo:         "githubnext/gh-aw",
+			wantWorkflowPath: ".github/workflows/shared/mcp/serena.md",
+			wantWorkflowName: "serena",
+			wantVersion:      "main",
+			wantErr:          false,
+		},
+		{
+			name:             "raw.githubusercontent.com with commit SHA",
+			url:              "https://raw.githubusercontent.com/githubnext/gh-aw/fc7992627494253a869e177e5d1985d25f3bb316/.github/workflows/shared/mcp/serena.md",
+			wantRepo:         "githubnext/gh-aw",
+			wantWorkflowPath: ".github/workflows/shared/mcp/serena.md",
+			wantWorkflowName: "serena",
+			wantVersion:      "fc7992627494253a869e177e5d1985d25f3bb316",
+			wantErr:          false,
+		},
+		{
+			name:             "raw.githubusercontent.com with refs/tags/tag",
+			url:              "https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0.0/workflows/helper.md",
+			wantRepo:         "owner/repo",
+			wantWorkflowPath: "workflows/helper.md",
+			wantWorkflowName: "helper",
+			wantVersion:      "v1.0.0",
+			wantErr:          false,
+		},
 	}
 
 	for _, tt := range tests {

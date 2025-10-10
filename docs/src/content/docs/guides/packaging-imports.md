@@ -65,6 +65,34 @@ Version references can be:
 - **Commit SHAs** (40-character hexadecimal): `abc123def456789012345678901234567890abcdef`
 - **No version** (uses repository default branch): `owner/repo/workflow`
 
+### GitHub URL Forms
+
+The system supports multiple GitHub URL formats for convenience:
+
+**GitHub.com URLs:**
+```bash
+gh aw add https://github.com/owner/repo/blob/main/workflows/ci-doctor.md
+gh aw add https://github.com/owner/repo/tree/develop/workflows/helper.md
+gh aw add https://github.com/owner/repo/raw/v1.0.0/workflows/helper.md
+```
+
+**GitHub /files/ Path Format:**
+```bash
+# When copying paths from GitHub UI
+gh aw add owner/repo/files/main/.github/workflows/ci-doctor.md
+gh aw add owner/repo/files/COMMIT_SHA/workflows/helper.md
+```
+
+**Raw GitHub URLs:**
+```bash
+# raw.githubusercontent.com URLs
+gh aw add https://raw.githubusercontent.com/owner/repo/refs/heads/main/workflows/ci-doctor.md
+gh aw add https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0.0/workflows/helper.md
+gh aw add https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/workflows/helper.md
+```
+
+All URL formats automatically extract the branch/tag/commit reference from the URL path.
+
 ## Adding Workflows
 
 The `add` command installs workflows from external repositories into your project.

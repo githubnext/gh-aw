@@ -1,19 +1,51 @@
 function main() {
   const fs = require("fs");
+  const path = require("path");
 
   try {
-    const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
-    if (!logFile) {
+    const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+    if (!logPath) {
       core.info("No agent log file specified");
       return;
     }
 
-    if (!fs.existsSync(logFile)) {
-      core.info(`Log file not found: ${logFile}`);
+    if (!fs.existsSync(logPath)) {
+      core.info(`Log path not found: ${logPath}`);
       return;
     }
 
-    const content = fs.readFileSync(logFile, "utf8");
+    let content = "";
+
+    // Check if logPath is a directory or a file
+    const stat = fs.statSync(logPath);
+    if (stat.isDirectory()) {
+      // Read all log files from the directory and concatenate them
+      const files = fs.readdirSync(logPath);
+      const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
+
+      if (logFiles.length === 0) {
+        core.info(`No log files found in directory: ${logPath}`);
+        return;
+      }
+
+      // Sort log files by name to ensure consistent ordering
+      logFiles.sort();
+
+      // Concatenate all log files
+      for (const file of logFiles) {
+        const filePath = path.join(logPath, file);
+        const fileContent = fs.readFileSync(filePath, "utf8");
+        content += fileContent;
+        // Add a newline between files if the previous file doesn't end with one
+        if (content.length > 0 && !content.endsWith("\n")) {
+          content += "\n";
+        }
+      }
+    } else {
+      // Read the single log file
+      content = fs.readFileSync(logPath, "utf8");
+    }
+
     const parsedLog = parseCopilotLog(content);
 
     if (parsedLog) {
@@ -287,6 +319,7 @@ function parseDebugLogFormat(logContent) {
 
                   // Create an assistant entry
                   const content = [];
+                  const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
 
                   if (message.content && message.content.trim()) {
                     content.push({
@@ -315,11 +348,20 @@ function parseDebugLogFormat(logContent) {
                           args = {};
                         }
 
+                        const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                         content.push({
                           type: "tool_use",
-                          id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                          id: toolId,
                           name: toolName,
                           input: args,
+                        });
+
+                        // Create a corresponding tool result (assume success since we don't have actual results in debug logs)
+                        toolResults.push({
+                          type: "tool_result",
+                          tool_use_id: toolId,
+                          content: "", // No actual output available in debug logs
+                          is_error: false, // Assume success
                         });
                       }
                     }
@@ -331,6 +373,14 @@ function parseDebugLogFormat(logContent) {
                       message: { content },
                     });
                     turnCount++;
+
+                    // Add tool results as a user message if we have any
+                    if (toolResults.length > 0) {
+                      entries.push({
+                        type: "user",
+                        message: { content: toolResults },
+                      });
+                    }
                   }
                 }
               }
@@ -377,6 +427,7 @@ function parseDebugLogFormat(logContent) {
           if (choice.message) {
             const message = choice.message;
             const content = [];
+            const toolResults = []; // Collect tool calls to create synthetic results (debug logs don't include actual results)
 
             if (message.content && message.content.trim()) {
               content.push({
@@ -403,11 +454,20 @@ function parseDebugLogFormat(logContent) {
                     args = {};
                   }
 
+                  const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
                   content.push({
                     type: "tool_use",
-                    id: toolCall.id || `tool_${Date.now()}_${Math.random()}`,
+                    id: toolId,
                     name: toolName,
                     input: args,
+                  });
+
+                  // Create a corresponding tool result (assume success since we don't have actual results in debug logs)
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: toolId,
+                    content: "", // No actual output available in debug logs
+                    is_error: false, // Assume success
                   });
                 }
               }
@@ -419,6 +479,14 @@ function parseDebugLogFormat(logContent) {
                 message: { content },
               });
               turnCount++;
+
+              // Add tool results as a user message if we have any
+              if (toolResults.length > 0) {
+                entries.push({
+                  type: "user",
+                  message: { content: toolResults },
+                });
+              }
             }
           }
         }
@@ -583,16 +651,16 @@ function formatToolUseWithDetails(toolUse, toolResult) {
       const formattedCommand = formatBashCommand(command);
 
       if (description) {
-        summary = `${statusIcon} ${description}: \`${formattedCommand}\``;
+        summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>`;
       } else {
-        summary = `${statusIcon} \`${formattedCommand}\``;
+        summary = `${statusIcon} <code>${formattedCommand}</code>`;
       }
       break;
 
     case "Read":
       const filePath = input.file_path || input.path || "";
       const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Read \`${relativePath}\``;
+      summary = `${statusIcon} Read <code>${relativePath}</code>`;
       break;
 
     case "Write":
@@ -600,13 +668,13 @@ function formatToolUseWithDetails(toolUse, toolResult) {
     case "MultiEdit":
       const writeFilePath = input.file_path || input.path || "";
       const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Write \`${writeRelativePath}\``;
+      summary = `${statusIcon} Write <code>${writeRelativePath}</code>`;
       break;
 
     case "Grep":
     case "Glob":
       const query = input.query || input.pattern || "";
-      summary = `${statusIcon} Search for \`${truncateString(query, 80)}\``;
+      summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>`;
       break;
 
     case "LS":
@@ -641,10 +709,25 @@ function formatToolUseWithDetails(toolUse, toolResult) {
 
   // Format with HTML details tag if we have output
   if (details && details.trim()) {
-    // Truncate details if too long
-    const maxDetailsLength = 500;
-    const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
-    return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
+    // Build the details content with tool input parameters and response
+    let detailsContent = "";
+
+    // Add parameters section if we have input
+    const inputKeys = Object.keys(input);
+    if (inputKeys.length > 0) {
+      detailsContent += "**Parameters:**\n\n";
+      detailsContent += "``````json\n";
+      detailsContent += JSON.stringify(input, null, 2);
+      detailsContent += "\n``````\n\n";
+    }
+
+    // Add response section
+    detailsContent += "**Response:**\n\n";
+    detailsContent += "``````\n";
+    detailsContent += details;
+    detailsContent += "\n``````";
+
+    return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
   } else {
     // No details, just show summary
     return `${summary}\n\n`;

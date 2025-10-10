@@ -49,7 +49,83 @@ tools:
     args: ["--verbose", "--debug"]            # Optional: additional arguments (local mode only)
     read-only: true                           # Optional: restrict to read-only operations
     github-token: "${{ secrets.CUSTOM_PAT }}" # Optional: custom GitHub token
+    toolset: [repos, issues, pull_requests]   # Optional: array of toolset groups to enable
 ```
+
+### GitHub Toolsets
+
+The `toolset` field allows you to enable or disable specific groups of GitHub API functionalities. This helps the AI model with tool selection and reduces context size by only exposing relevant tools.
+
+**Configuration:**
+
+```yaml
+tools:
+  github:
+    toolset: [repos, issues, pull_requests, actions]
+```
+
+**Available Toolsets:**
+
+| Toolset                 | Description                                                   |
+| ----------------------- | ------------------------------------------------------------- |
+| `context`               | **Strongly recommended**: Tools that provide context about the current user and GitHub context |
+| `actions`               | GitHub Actions workflows and CI/CD operations |
+| `code_security`         | Code security related tools, such as GitHub Code Scanning |
+| `dependabot`            | Dependabot tools |
+| `discussions`           | GitHub Discussions related tools |
+| `experiments`           | Experimental features that are not considered stable yet |
+| `gists`                 | GitHub Gist related tools |
+| `issues`                | GitHub Issues related tools |
+| `labels`                | GitHub Labels related tools |
+| `notifications`         | GitHub Notifications related tools |
+| `orgs`                  | GitHub Organization related tools |
+| `projects`              | GitHub Projects related tools |
+| `pull_requests`         | GitHub Pull Request related tools |
+| `repos`                 | GitHub Repository related tools |
+| `secret_protection`     | Secret protection related tools, such as GitHub Secret Scanning |
+| `security_advisories`   | Security advisories related tools |
+| `stargazers`            | GitHub Stargazers related tools |
+| `users`                 | GitHub User related tools |
+
+**Default Toolsets:**
+
+If no `toolset` is specified, the GitHub MCP server uses these defaults:
+- `context`
+- `repos`
+- `issues`
+- `pull_requests`
+- `users`
+
+**Special "all" Toolset:**
+
+Use `toolset: [all]` to enable all available toolsets:
+
+```yaml
+tools:
+  github:
+    toolset: [all]
+```
+
+**Examples:**
+
+```yaml
+# Enable only repository and issue tools
+tools:
+  github:
+    toolset: [repos, issues]
+
+# Enable Actions and code security for CI/CD workflows
+tools:
+  github:
+    toolset: [actions, code_security]
+
+# Enable all toolsets
+tools:
+  github:
+    toolset: [all]
+```
+
+**Note**: The `toolset` field is currently supported in local (Docker) mode only. Remote mode support may be added in future versions.
 
 ### GitHub Remote Mode
 

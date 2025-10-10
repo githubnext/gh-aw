@@ -2253,11 +2253,14 @@ func (c *Compiler) generateLogParsing(yaml *strings.Builder, engine CodingAgentE
 		return
 	}
 
+	// Get the log file path for parsing (may be different from stdout/stderr log)
+	logFileForParsing := engine.GetLogFileForParsing()
+
 	yaml.WriteString("      - name: Parse agent logs for step summary\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileForParsing)
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          script: |\n")
 
@@ -2321,11 +2324,14 @@ func (c *Compiler) generateErrorValidation(yaml *strings.Builder, engine CodingA
 		return
 	}
 
+	// Get the log file path for validation (may be different from stdout/stderr log)
+	logFileForValidation := engine.GetLogFileForParsing()
+
 	yaml.WriteString("      - name: Validate agent logs for errors\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/github-script@v8\n")
 	yaml.WriteString("        env:\n")
-	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileFull)
+	fmt.Fprintf(yaml, "          GITHUB_AW_AGENT_OUTPUT: %s\n", logFileForValidation)
 
 	// Add JavaScript-compatible error patterns as a single JSON array
 	patternsJSON, err := json.Marshal(jsCompatiblePatterns)
@@ -2783,14 +2789,6 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("            fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));\n")
 	yaml.WriteString("            console.log('Generated aw_info.json at:', tmpPath);\n")
 	yaml.WriteString("            console.log(JSON.stringify(awInfo, null, 2));\n")
-	yaml.WriteString("            \n")
-	yaml.WriteString("            // Add agentic workflow run information to step summary\n")
-	yaml.WriteString("            core.summary\n")
-	yaml.WriteString("              .addRaw('## Agentic Run Information\\n\\n')\n")
-	yaml.WriteString("              .addRaw('```json\\n')\n")
-	yaml.WriteString("              .addRaw(JSON.stringify(awInfo, null, 2))\n")
-	yaml.WriteString("              .addRaw('\\n```\\n')\n")
-	yaml.WriteString("              .write();\n")
 }
 
 func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
@@ -2968,12 +2966,6 @@ func (c *Compiler) generateSafeOutputsConfig(data *WorkflowData) string {
 
 // generateOutputCollectionStep generates a step that reads the output file and sets it as a GitHub Actions output
 func (c *Compiler) generateOutputCollectionStep(yaml *strings.Builder, data *WorkflowData) {
-	yaml.WriteString("      - name: Print Safe Outputs\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, printSafeOutputsSummaryScript, "          ")
-
 	yaml.WriteString("      - name: Upload Safe Outputs\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")

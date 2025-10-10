@@ -12,9 +12,6 @@ var prContextPromptText string
 //go:embed sh/print_prompt_summary.sh
 var printPromptSummaryScript string
 
-//go:embed sh/print_safe_outputs_summary.sh
-var printSafeOutputsSummaryScript string
-
 //go:embed sh/create_prompt_first.sh
 var createPromptFirstScript string
 
