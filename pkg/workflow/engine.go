@@ -7,16 +7,18 @@ import (
 
 // EngineConfig represents the parsed engine configuration
 type EngineConfig struct {
-	ID            string
-	Version       string
-	Model         string
-	MaxTurns      string
-	Concurrency   string // Agent job-level concurrency configuration (YAML format)
-	UserAgent     string
-	Env           map[string]string
-	Steps         []map[string]any
-	ErrorPatterns []ErrorPattern
-	Config        string
+	ID               string
+	Version          string
+	Model            string
+	MaxTurns         string
+	Concurrency      string // Agent job-level concurrency configuration (YAML format)
+	UserAgent        string
+	Env              map[string]string
+	Steps            []map[string]any
+	ErrorPatterns    []ErrorPattern
+	Config           string
+	MCPConfigFile    string // Path to MCP config file (custom engine only)
+	MCPServersField  string // Field name for MCP servers in config file (custom engine only)
 }
 
 // NetworkPermissions represents network access permissions
@@ -180,6 +182,20 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if config_field, hasConfig := engineObj["config"]; hasConfig {
 				if configStr, ok := config_field.(string); ok {
 					config.Config = configStr
+				}
+			}
+
+			// Extract optional 'mcp-config-file' field (custom engine only)
+			if mcpConfigFile, hasMCPConfigFile := engineObj["mcp-config-file"]; hasMCPConfigFile {
+				if mcpConfigFileStr, ok := mcpConfigFile.(string); ok {
+					config.MCPConfigFile = mcpConfigFileStr
+				}
+			}
+
+			// Extract optional 'mcp-servers-field' field (custom engine only)
+			if mcpServersField, hasMCPServersField := engineObj["mcp-servers-field"]; hasMCPServersField {
+				if mcpServersFieldStr, ok := mcpServersField.(string); ok {
+					config.MCPServersField = mcpServersFieldStr
 				}
 			}
 

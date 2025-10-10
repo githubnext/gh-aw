@@ -2452,6 +2452,14 @@
             "config": {
               "type": "string",
               "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
+            },
+            "mcp-config-file": {
+              "type": "string",
+              "description": "Path to the MCP configuration file (custom engine only). Overrides the default path (/tmp/gh-aw/mcp-config/mcp-servers.json)."
+            },
+            "mcp-servers-field": {
+              "type": "string",
+              "description": "Field name for the MCP servers in the configuration file (custom engine only). Common values: 'mcpServers' (default), 'servers'. Used to determine the structure of the generated MCP configuration."
             }
           },
           "required": [

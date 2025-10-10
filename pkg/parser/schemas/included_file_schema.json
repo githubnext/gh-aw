@@ -230,6 +230,14 @@
               "type": "object",
               "additionalProperties": true
             }
+          },
+          "mcp-config-file": {
+            "type": "string",
+            "description": "Path to the MCP configuration file (custom engine only). Overrides the default path (/tmp/gh-aw/mcp-config/mcp-servers.json)."
+          },
+          "mcp-servers-field": {
+            "type": "string",
+            "description": "Field name for the MCP servers in the configuration file (custom engine only). Common values: 'mcpServers' (default), 'servers'. Used to determine the structure of the generated MCP configuration."
           }
         },
         "required": [
