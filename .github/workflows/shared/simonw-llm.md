@@ -9,10 +9,23 @@ engine:
       env:
         GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
     
-    - name: Configure llm with GitHub Models
+    - name: Configure llm with GitHub Models and MCP
       run: |
         # GitHub Models uses GITHUB_TOKEN by default, no key setup needed
         echo "✓ GitHub Models configured (using GITHUB_TOKEN)"
+        
+        # Configure MCP tools if MCP config is available
+        if [ -n "$GITHUB_AW_MCP_CONFIG" ] && [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
+          # Create llm-tools-mcp config directory
+          mkdir -p ~/.llm-tools-mcp
+          
+          # Copy MCP configuration to the expected location for llm-tools-mcp
+          cp "$GITHUB_AW_MCP_CONFIG" ~/.llm-tools-mcp/mcp.json
+          
+          echo "✓ MCP configuration installed at ~/.llm-tools-mcp/mcp.json"
+        else
+          echo "ℹ No MCP configuration available"
+        fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_AW_MCP_CONFIG: ${{ env.GITHUB_AW_MCP_CONFIG }}
@@ -28,8 +41,14 @@ engine:
         echo "Using model: $MODEL"
         
         # Run llm with the prompt from the file
-        # MCP tools are available via llm-tools-mcp plugin
-        llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+        # Use -T MCP to enable MCP tools if configured
+        if [ -f ~/.llm-tools-mcp/mcp.json ]; then
+          echo "Running with MCP tools enabled"
+          llm -m "$MODEL" -T MCP "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+        else
+          echo "Running without MCP tools"
+          llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+        fi
         
         # Store output for safe-outputs processing if configured
         if [ -n "$GITHUB_AW_SAFE_OUTPUTS" ]; then
@@ -66,8 +85,9 @@ imports:
 
 **MCP Tools:**
 - The llm-tools-mcp plugin enables MCP server integration
-- MCP configuration is available via GITHUB_AW_MCP_CONFIG environment variable
-- Tools from MCP servers can be accessed using the `-T MCP` flag
+- MCP configuration from GITHUB_AW_MCP_CONFIG is copied to `~/.llm-tools-mcp/mcp.json`
+- Tools from MCP servers are automatically enabled via the `-T MCP` flag when MCP config is present
+- MCP config file must be in the format expected by llm-tools-mcp (see https://github.com/VirtusLab/llm-tools-mcp)
 
 **Note**: 
 - This workflow requires internet access to install Python packages

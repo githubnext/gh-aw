@@ -347,10 +347,23 @@ jobs:
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-      - name: Configure llm with GitHub Models
+      - name: Configure llm with GitHub Models and MCP
         run: |
           # GitHub Models uses GITHUB_TOKEN by default, no key setup needed
           echo "✓ GitHub Models configured (using GITHUB_TOKEN)"
+
+          # Configure MCP tools if MCP config is available
+          if [ -n "$GITHUB_AW_MCP_CONFIG" ] && [ -f "$GITHUB_AW_MCP_CONFIG" ]; then
+            # Create llm-tools-mcp config directory
+            mkdir -p ~/.llm-tools-mcp
+
+            # Copy MCP configuration to the expected location for llm-tools-mcp
+            cp "$GITHUB_AW_MCP_CONFIG" ~/.llm-tools-mcp/mcp.json
+
+            echo "✓ MCP configuration installed at ~/.llm-tools-mcp/mcp.json"
+          else
+            echo "ℹ No MCP configuration available"
+          fi
         env:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -366,8 +379,14 @@ jobs:
           echo "Using model: $MODEL"
 
           # Run llm with the prompt from the file
-          # MCP tools are available via llm-tools-mcp plugin
-          llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+          # Use -T MCP to enable MCP tools if configured
+          if [ -f ~/.llm-tools-mcp/mcp.json ]; then
+            echo "Running with MCP tools enabled"
+            llm -m "$MODEL" -T MCP "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+          else
+            echo "Running without MCP tools"
+            llm -m "$MODEL" "$(cat $GITHUB_AW_PROMPT)" 2>&1 | tee /tmp/gh-aw/llm-output.txt
+          fi
 
           # Store output for safe-outputs processing if configured
           if [ -n "$GITHUB_AW_SAFE_OUTPUTS" ]; then
