@@ -149,27 +149,27 @@ func (e *CustomEngine) convertStepToYAML(stepMap map[string]any) (string, error)
 
 // RenderMCPConfig renders MCP configuration using shared logic with Claude engine
 func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	// Determine MCP config file path and servers shape
+	// Determine MCP config file path and servers field name
 	mcpConfigPath := "/tmp/gh-aw/mcp-config/mcp-servers.json"
-	mcpServersShape := "map" // Default to map format
+	mcpServersField := "mcpServers" // Default to mcpServers format
 	
 	if workflowData != nil && workflowData.EngineConfig != nil {
 		if workflowData.EngineConfig.MCPConfigFile != "" {
 			mcpConfigPath = workflowData.EngineConfig.MCPConfigFile
 		}
-		if workflowData.EngineConfig.MCPServersShape != "" {
-			mcpServersShape = workflowData.EngineConfig.MCPServersShape
+		if workflowData.EngineConfig.MCPServersField != "" {
+			mcpServersField = workflowData.EngineConfig.MCPServersField
 		}
 	}
 
 	// Custom engine uses the same MCP configuration generation as Claude
 	yaml.WriteString(fmt.Sprintf("          cat > %s << 'EOF'\n", mcpConfigPath))
 	
-	// Handle different server shape formats
-	if mcpServersShape == "array" {
+	// Handle different server field formats
+	if mcpServersField == "servers" {
 		// Extension format: { "servers": [ {...}, {...} ] }
 		yaml.WriteString("          {\n")
-		yaml.WriteString("            \"servers\": [\n")
+		yaml.WriteString(fmt.Sprintf("            \"%s\": [\n", mcpServersField))
 		
 		// Add safe-outputs MCP server if safe-outputs are configured
 		totalServers := len(mcpTools)
@@ -208,9 +208,9 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		yaml.WriteString("            ]\n")
 		yaml.WriteString("          }\n")
 	} else {
-		// Default map format: { "mcpServers": { "name": {...}, ... } }
+		// Default mcpServers format: { "mcpServers": { "name": {...}, ... } }
 		yaml.WriteString("          {\n")
-		yaml.WriteString("            \"mcpServers\": {\n")
+		yaml.WriteString(fmt.Sprintf("            \"%s\": {\n", mcpServersField))
 		
 		// Add safe-outputs MCP server if safe-outputs are configured
 		totalServers := len(mcpTools)
