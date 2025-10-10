@@ -24,7 +24,7 @@ const DefaultCopilotVersion = "0.0.338"
 const DefaultCodexVersion = "0.46.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion = "sha-09deac4"
+const DefaultGitHubMCPServerVersion = "v0.18.0"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"
@@ -147,6 +147,9 @@ var DefaultGitHubTools = []string{
 	"list_notifications",
 	// organizations
 	"search_orgs",
+	// labels
+	"get_label",
+	"list_label",
 	// prs
 	"get_pull_request",
 	"get_pull_request_comments",
@@ -155,6 +158,7 @@ var DefaultGitHubTools = []string{
 	"get_pull_request_reviews",
 	"get_pull_request_status",
 	"list_pull_requests",
+	"pull_request_read",
 	"search_pull_requests",
 	// repos
 	"get_commit",
