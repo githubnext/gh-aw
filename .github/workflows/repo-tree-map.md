@@ -6,7 +6,7 @@ permissions:
   contents: read
   actions: read
 
-engine: claude
+engine: copilot
 
 tools:
   bash:
