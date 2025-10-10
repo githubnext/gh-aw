@@ -2219,11 +2219,14 @@ jobs:
             function main() {
               const fs = require("fs");
               const path = require("path");
+              core.debug("Starting validate_errors.cjs script");
+              const startTime = Date.now();
               try {
                 const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logPath) {
                   throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
+                core.debug(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
                   throw new Error(`Log path not found: ${logPath}`);
                 }
@@ -2231,6 +2234,8 @@ jobs:
                 if (patterns.length === 0) {
                   throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
+                core.info(`Loaded ${patterns.length} error patterns`);
+                core.debug(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
@@ -2240,10 +2245,12 @@ jobs:
                     core.info(`No log files found in directory: ${logPath}`);
                     return;
                   }
+                  core.info(`Found ${logFiles.length} log files in directory`);
                   logFiles.sort();
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
+                    core.debug(`Reading log file: ${file} (${fileContent.length} bytes)`);
                     content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
@@ -2251,8 +2258,12 @@ jobs:
                   }
                 } else {
                   content = fs.readFileSync(logPath, "utf8");
+                  core.info(`Read single log file (${content.length} bytes)`);
                 }
+                core.info(`Total log content size: ${content.length} bytes, ${content.split("\n").length} lines`);
                 const hasErrors = validateErrors(content, patterns);
+                const elapsedTime = Date.now() - startTime;
+                core.info(`Error validation completed in ${elapsedTime}ms`);
                 if (hasErrors) {
                   core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
                 } else {
@@ -2281,10 +2292,15 @@ jobs:
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
               let hasErrors = false;
-              for (const pattern of patterns) {
+              const MAX_ITERATIONS_PER_LINE = 10000; 
+              const ITERATION_WARNING_THRESHOLD = 1000; 
+              core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
+                const pattern = patterns[patternIndex];
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");
+                  core.debug(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
                 } catch (e) {
                   core.error(`invalid error regex pattern: ${pattern.pattern}`);
                   continue;
@@ -2292,7 +2308,28 @@ jobs:
                 for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
                   const line = lines[lineIndex];
                   let match;
+                  let iterationCount = 0;
+                  let lastIndex = -1;
                   while ((match = regex.exec(line)) !== null) {
+                    iterationCount++;
+                    if (regex.lastIndex === lastIndex) {
+                      core.error(`Infinite loop detected at line ${lineIndex + 1}! Pattern: ${pattern.pattern}, lastIndex stuck at ${lastIndex}`);
+                      core.error(`Line content (truncated): ${truncateString(line, 200)}`);
+                      break; 
+                    }
+                    lastIndex = regex.lastIndex;
+                    if (iterationCount === ITERATION_WARNING_THRESHOLD) {
+                      core.warning(
+                        `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
+                      );
+                      core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
+                    }
+                    if (iterationCount > MAX_ITERATIONS_PER_LINE) {
+                      core.error(`Maximum iteration limit (${MAX_ITERATIONS_PER_LINE}) exceeded at line ${lineIndex + 1}! Pattern: ${pattern.pattern}`);
+                      core.error(`Line content (truncated): ${truncateString(line, 200)}`);
+                      core.error(`This likely indicates a problematic regex pattern. Skipping remaining matches on this line.`);
+                      break; 
+                    }
                     const level = extractLevel(match, pattern);
                     const message = extractMessage(match, pattern, line);
                     const errorMessage = `Line ${lineIndex + 1}: ${message} (Pattern: ${pattern.description || "Unknown pattern"}, Raw log: ${truncateString(line.trim(), 120)})`;
@@ -2303,8 +2340,12 @@ jobs:
                       core.warning(errorMessage);
                     }
                   }
+                  if (iterationCount > 100) {
+                    core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+                  }
                 }
               }
+              core.debug(`Error validation completed. Errors found: ${hasErrors}`);
               return hasErrors;
             }
             function extractLevel(match, pattern) {

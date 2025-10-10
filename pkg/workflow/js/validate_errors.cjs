@@ -2,11 +2,16 @@ function main() {
   const fs = require("fs");
   const path = require("path");
 
+  core.debug("Starting validate_errors.cjs script");
+  const startTime = Date.now();
+
   try {
     const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
     if (!logPath) {
       throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
     }
+
+    core.debug(`Log path: ${logPath}`);
 
     if (!fs.existsSync(logPath)) {
       throw new Error(`Log path not found: ${logPath}`);
@@ -17,6 +22,9 @@ function main() {
     if (patterns.length === 0) {
       throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
     }
+
+    core.info(`Loaded ${patterns.length} error patterns`);
+    core.debug(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
 
     let content = "";
 
@@ -32,6 +40,8 @@ function main() {
         return;
       }
 
+      core.info(`Found ${logFiles.length} log files in directory`);
+
       // Sort log files by name to ensure consistent ordering
       logFiles.sort();
 
@@ -39,6 +49,7 @@ function main() {
       for (const file of logFiles) {
         const filePath = path.join(logPath, file);
         const fileContent = fs.readFileSync(filePath, "utf8");
+        core.debug(`Reading log file: ${file} (${fileContent.length} bytes)`);
         content += fileContent;
         // Add a newline between files if the previous file doesn't end with one
         if (content.length > 0 && !content.endsWith("\n")) {
@@ -48,9 +59,15 @@ function main() {
     } else {
       // Read the single log file
       content = fs.readFileSync(logPath, "utf8");
+      core.info(`Read single log file (${content.length} bytes)`);
     }
 
+    core.info(`Total log content size: ${content.length} bytes, ${content.split("\n").length} lines`);
+
     const hasErrors = validateErrors(content, patterns);
+
+    const elapsedTime = Date.now() - startTime;
+    core.info(`Error validation completed in ${elapsedTime}ms`);
 
     if (hasErrors) {
       core.error("Errors detected in agent logs - continuing workflow step (not failing for now)");
@@ -90,10 +107,18 @@ function validateErrors(logContent, patterns) {
   const lines = logContent.split("\n");
   let hasErrors = false;
 
-  for (const pattern of patterns) {
+  // Configuration for infinite loop detection
+  const MAX_ITERATIONS_PER_LINE = 10000; // Maximum regex matches per line
+  const ITERATION_WARNING_THRESHOLD = 1000; // Warn if iterations exceed this
+
+  core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+
+  for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
+    const pattern = patterns[patternIndex];
     let regex;
     try {
       regex = new RegExp(pattern.pattern, "g");
+      core.debug(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
     } catch (e) {
       core.error(`invalid error regex pattern: ${pattern.pattern}`);
       continue;
@@ -102,8 +127,36 @@ function validateErrors(logContent, patterns) {
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex];
       let match;
+      let iterationCount = 0;
+      let lastIndex = -1;
 
       while ((match = regex.exec(line)) !== null) {
+        iterationCount++;
+
+        // Detect potential infinite loop: regex.lastIndex not advancing
+        if (regex.lastIndex === lastIndex) {
+          core.error(`Infinite loop detected at line ${lineIndex + 1}! Pattern: ${pattern.pattern}, lastIndex stuck at ${lastIndex}`);
+          core.error(`Line content (truncated): ${truncateString(line, 200)}`);
+          break; // Exit the while loop to prevent hanging
+        }
+        lastIndex = regex.lastIndex;
+
+        // Warn if iteration count is getting high
+        if (iterationCount === ITERATION_WARNING_THRESHOLD) {
+          core.warning(
+            `High iteration count (${iterationCount}) on line ${lineIndex + 1} with pattern: ${pattern.description || pattern.pattern}`
+          );
+          core.warning(`Line content (truncated): ${truncateString(line, 200)}`);
+        }
+
+        // Hard limit to prevent actual infinite loops
+        if (iterationCount > MAX_ITERATIONS_PER_LINE) {
+          core.error(`Maximum iteration limit (${MAX_ITERATIONS_PER_LINE}) exceeded at line ${lineIndex + 1}! Pattern: ${pattern.pattern}`);
+          core.error(`Line content (truncated): ${truncateString(line, 200)}`);
+          core.error(`This likely indicates a problematic regex pattern. Skipping remaining matches on this line.`);
+          break; // Exit the while loop
+        }
+
         const level = extractLevel(match, pattern);
         const message = extractMessage(match, pattern, line);
 
@@ -116,9 +169,15 @@ function validateErrors(logContent, patterns) {
           core.warning(errorMessage);
         }
       }
+
+      // Log if we had a significant number of matches on a line
+      if (iterationCount > 100) {
+        core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+      }
     }
   }
 
+  core.debug(`Error validation completed. Errors found: ${hasErrors}`);
   return hasErrors;
 }
 
