@@ -74,6 +74,11 @@ async function main() {
     core.info(
       `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
     );
+    // Use the parent field from the item if provided, otherwise fall back to context
+    const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
+    if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
+      core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
+    }
     let labels = [...envLabels];
     if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
       labels = [...labels, ...createIssueItem.labels];
@@ -95,9 +100,9 @@ async function main() {
     if (titlePrefix && !title.startsWith(titlePrefix)) {
       title = titlePrefix + title;
     }
-    if (parentIssueNumber) {
-      core.info("Detected issue context, parent issue #" + parentIssueNumber);
-      bodyLines.push(`Related to #${parentIssueNumber}`);
+    if (effectiveParentIssueNumber) {
+      core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
+      bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
     }
     const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
     const runId = context.runId;
@@ -119,7 +124,7 @@ async function main() {
       });
       core.info("Created issue #" + issue.number + ": " + issue.html_url);
       createdIssues.push(issue);
-      if (parentIssueNumber) {
+      if (effectiveParentIssueNumber) {
         try {
           // First, get the node IDs for both parent and child issues
           const getIssueNodeIdQuery = `
@@ -136,7 +141,7 @@ async function main() {
           const parentResult = await github.graphql(getIssueNodeIdQuery, {
             owner: context.repo.owner,
             repo: context.repo.repo,
-            issueNumber: parentIssueNumber,
+            issueNumber: effectiveParentIssueNumber,
           });
           const parentNodeId = parentResult.repository.issue.id;
 
@@ -168,16 +173,16 @@ async function main() {
             subIssueId: childNodeId,
           });
 
-          core.info("Linked issue #" + issue.number + " as sub-issue of #" + parentIssueNumber);
+          core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
 
           // Also add a comment for visibility
           await github.rest.issues.createComment({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            issue_number: parentIssueNumber,
+            issue_number: effectiveParentIssueNumber,
             body: `Created related issue: #${issue.number}`,
           });
-          core.info("Added comment to parent issue #" + parentIssueNumber);
+          core.info("Added comment to parent issue #" + effectiveParentIssueNumber);
         } catch (error) {
           core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
           // Fallback: try to add just a comment if sub-issue linking fails
@@ -185,10 +190,10 @@ async function main() {
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: parentIssueNumber,
+              issue_number: effectiveParentIssueNumber,
               body: `Created related issue: #${issue.number}`,
             });
-            core.info("Added comment to parent issue #" + parentIssueNumber + " (sub-issue linking not available)");
+            core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
           } catch (commentError) {
             core.info(
               `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`

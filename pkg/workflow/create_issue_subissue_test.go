@@ -15,8 +15,18 @@ func TestCreateIssueSubissueFeature(t *testing.T) {
 	}
 
 	// Test that the script modifies the body when in issue context
-	if !strings.Contains(createIssueScript, "Related to #${parentIssueNumber}") {
+	if !strings.Contains(createIssueScript, "Related to #${effectiveParentIssueNumber}") {
 		t.Error("Expected create_issue.js to add parent issue reference to body")
+	}
+
+	// Test that the script supports explicit parent field
+	if !strings.Contains(createIssueScript, "createIssueItem.parent") {
+		t.Error("Expected create_issue.js to support explicit parent field")
+	}
+
+	// Test that the script uses effectiveParentIssueNumber
+	if !strings.Contains(createIssueScript, "effectiveParentIssueNumber") {
+		t.Error("Expected create_issue.js to use effectiveParentIssueNumber variable")
 	}
 
 	// Test that the script includes GraphQL sub-issue linking
