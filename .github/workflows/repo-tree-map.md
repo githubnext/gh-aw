@@ -12,7 +12,6 @@ permissions:
 engine: copilot
 
 tools:
-  edit:
   bash:
     - "find *"
     - "ls *"
@@ -22,12 +21,14 @@ tools:
     - "head *"
     - "tail *"
     - "sort *"
+    - "jq *"
     - "uniq *"
     - "awk *"
     - "sed *"
     - "grep *"
     - "tree *"
     - "stat *"
+    - "pwd *"
 
 safe-outputs:
   create-discussion:
@@ -174,3 +175,7 @@ Treat all repository content as trusted since you're analyzing the repository yo
 - Don't execute any code files
 - Don't read sensitive files (.env, secrets, etc.)
 - Focus on file metadata (sizes, counts, names) rather than content
+
+## Tips
+
+Your terminal is already in the workspace root. No need to use `cd`.
