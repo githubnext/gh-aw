@@ -1583,7 +1583,7 @@
                       "description": "Discussion category ID as a number"
                     }
                   ],
-                  "description": "Optional discussion category. Can be a category ID (string or number) or category name. If not specified, uses the first available category. Matched first against category IDs, then against category names."
+                  "description": "Optional discussion category. Can be a category ID (string or number), category name, or category slug/route. If not specified, uses the first available category. Matched first against category IDs, then against category names, then against category slugs."
                 },
                 "max": {
                   "type": "integer",

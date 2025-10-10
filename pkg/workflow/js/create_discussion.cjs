@@ -98,15 +98,22 @@ async function main() {
         categoryId = categoryByName.id;
         core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
       } else {
-        core.warning(
-          `Category "${categoryId}" not found by ID or name. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
-        );
-        // Fall back to first category if available
-        if (discussionCategories.length > 0) {
-          categoryId = discussionCategories[0].id;
-          core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+        // Try to match against category slugs (routes)
+        const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
+        if (categoryBySlug) {
+          categoryId = categoryBySlug.id;
+          core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
         } else {
-          categoryId = undefined;
+          core.warning(
+            `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
+          );
+          // Fall back to first category if available
+          if (discussionCategories.length > 0) {
+            categoryId = discussionCategories[0].id;
+            core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+          } else {
+            categoryId = undefined;
+          }
         }
       }
     }
