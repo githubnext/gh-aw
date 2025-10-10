@@ -3,7 +3,7 @@ engine:
   id: custom
   env:
     GITHUB_AW_AGENT_VERSION: "2.5.1"
-    GITHUB_AW_AGENT_MODEL_VERSION: "gpt-4o-mini"
+    GITHUB_AW_AGENT_MODEL_VERSION: "github:gpt-4o-mini"
   steps:
     - name: Install GenAIScript
       run: npm install -g genaiscript@${GITHUB_AW_AGENT_VERSION} && genaiscript --version
