@@ -49,18 +49,18 @@ func CompileWorkflowWithValidation(compiler *workflow.Compiler, filePath string,
 
 // CompileConfig holds configuration options for compiling workflows
 type CompileConfig struct {
-	MarkdownFiles       []string // Files to compile (empty for all files)
-	Verbose             bool     // Enable verbose output
-	EngineOverride      string   // Override AI engine setting
-	Validate            bool     // Enable schema validation
-	Watch               bool     // Enable watch mode
-	WorkflowDir         string   // Custom workflow directory
-	SkipInstructions    bool     // Skip instruction validation
-	NoEmit              bool     // Validate without generating lock files
-	Purge               bool     // Remove orphaned lock files
-	TrialMode           bool     // Enable trial mode (suppress safe outputs)
-	TrialTargetRepoSlug string   // Target repository for trial mode
-	Strict              bool     // Enable strict mode validation
+	MarkdownFiles     []string // Files to compile (empty for all files)
+	Verbose           bool     // Enable verbose output
+	EngineOverride    string   // Override AI engine setting
+	Validate          bool     // Enable schema validation
+	Watch             bool     // Enable watch mode
+	WorkflowDir       string   // Custom workflow directory
+	SkipInstructions  bool     // Skip instruction validation
+	NoEmit            bool     // Validate without generating lock files
+	Purge             bool     // Remove orphaned lock files
+	TrialMode         bool     // Enable trial mode (suppress safe outputs)
+	SimulatedRepoSlug string   // Target repository for trial mode
+	Strict            bool     // Enable strict mode validation
 }
 
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
@@ -74,7 +74,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	noEmit := config.NoEmit
 	purge := config.Purge
 	trialMode := config.TrialMode
-	trialTargetRepoSlug := config.TrialTargetRepoSlug
+	trialSimulatedRepoSlug := config.SimulatedRepoSlug
 	strict := config.Strict
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
@@ -108,8 +108,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	// Set trial mode if specified
 	if trialMode {
 		compiler.SetTrialMode(true)
-		if trialTargetRepoSlug != "" {
-			compiler.SetTrialTargetRepo(trialTargetRepoSlug)
+		if trialSimulatedRepoSlug != "" {
+			compiler.SetSimulatedRepo(trialSimulatedRepoSlug)
 		}
 	}
 

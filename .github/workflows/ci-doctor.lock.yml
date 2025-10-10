@@ -5,7 +5,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md
 #
-# Effective stop-time: 2025-10-09 23:16:17
+# Effective stop-time: 2025-10-11 17:51:44
 
 name: "CI Failure Doctor"
 on:
@@ -57,7 +57,7 @@ jobs:
           WORKFLOW_NAME="CI Failure Doctor"
           
           # Check stop-time limit
-          STOP_TIME="2025-10-09 23:16:17"
+          STOP_TIME="2025-10-11 17:51:44"
           echo "Checking stop-time limit: $STOP_TIME"
           
           # Convert stop time to epoch seconds

@@ -160,18 +160,18 @@ Examples:
 		// Also skip instructions when noEmit is true (validation-only mode)
 		skipInstructions := noInstructions || noEmit
 		config := cli.CompileConfig{
-			MarkdownFiles:       args,
-			Verbose:             verbose,
-			EngineOverride:      engineOverride,
-			Validate:            validate,
-			Watch:               watch,
-			WorkflowDir:         workflowDir,
-			SkipInstructions:    skipInstructions,
-			NoEmit:              noEmit,
-			Purge:               purge,
-			TrialMode:           false,
-			TrialTargetRepoSlug: "",
-			Strict:              strict,
+			MarkdownFiles:     args,
+			Verbose:           verbose,
+			EngineOverride:    engineOverride,
+			Validate:          validate,
+			Watch:             watch,
+			WorkflowDir:       workflowDir,
+			SkipInstructions:  skipInstructions,
+			NoEmit:            noEmit,
+			Purge:             purge,
+			TrialMode:         false,
+			SimulatedRepoSlug: "",
+			Strict:            strict,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
