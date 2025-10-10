@@ -2,7 +2,7 @@
 engine:
   id: custom
   mcp-config-file: ~/.llm-tools-mcp/mcp.json
-  mcp-servers-field: servers
+  mcp-servers-shape: array
   steps:
     - name: Install simonw/llm CLI
       run: |
@@ -113,7 +113,7 @@ imports:
 **MCP Tools:**
 - The llm-tools-mcp plugin enables MCP server integration
 - MCP configuration is automatically generated in the llm-tools-mcp extension format using custom engine fields
-- The custom engine is configured with `mcp-config-file: ~/.llm-tools-mcp/mcp.json` and `mcp-servers-field: servers`
+- The custom engine is configured with `mcp-config-file: ~/.llm-tools-mcp/mcp.json` and `mcp-servers-shape: array`
 - Tools from MCP servers are automatically enabled via the `-T MCP` flag when MCP config is present
 - Extension config format: `{"servers": [{"name": "...", "transport": "stdio", "command": [...], "tools": [...]}]}`
 - See https://github.com/VirtusLab/llm-tools-mcp for more details on the extension format

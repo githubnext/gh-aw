@@ -18,7 +18,7 @@ type EngineConfig struct {
 	ErrorPatterns    []ErrorPattern
 	Config           string
 	MCPConfigFile    string // Path to MCP config file (custom engine only)
-	MCPServersField  string // Field name for MCP servers in config file (custom engine only)
+	MCPServersShape  string // Shape of MCP servers in config file: "array" or "map" (default: "map", custom engine only)
 }
 
 // NetworkPermissions represents network access permissions
@@ -192,10 +192,10 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				}
 			}
 
-			// Extract optional 'mcp-servers-field' field (custom engine only)
-			if mcpServersField, hasMCPServersField := engineObj["mcp-servers-field"]; hasMCPServersField {
-				if mcpServersFieldStr, ok := mcpServersField.(string); ok {
-					config.MCPServersField = mcpServersFieldStr
+			// Extract optional 'mcp-servers-shape' field (custom engine only)
+			if mcpServersShape, hasMCPServersShape := engineObj["mcp-servers-shape"]; hasMCPServersShape {
+				if mcpServersShapeStr, ok := mcpServersShape.(string); ok {
+					config.MCPServersShape = mcpServersShapeStr
 				}
 			}
 
