@@ -1,6 +1,9 @@
 ---
 on: 
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/smoke-genaiscript.lock.yml'
 name: Smoke GenAIScript
 imports:
   - shared/genaiscript.md
