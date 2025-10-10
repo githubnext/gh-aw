@@ -884,15 +884,16 @@ jobs:
             "run",
             "-i",
             "--rm",
-            "--toolsets",
-            "all",
             "-e",
             "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "-e",
+            "GITHUB_TOOLSETS",
             "ghcr.io/github/github-mcp-server:v0.18.0"
           ]
           
           [mcp_servers.github.env]
           GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+          GITHUB_TOOLSETS = "all"
           
           [mcp_servers.safe_outputs]
           command = "node"
