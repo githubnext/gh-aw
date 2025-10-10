@@ -17,7 +17,7 @@ imports:
   - shared/mcp/tavily.md
 ---
 
-# Daily Team Status
+# Daily News
 
 Write an upbeat, friendly, motivating summary of recent activity in the repo.
 
@@ -30,6 +30,7 @@ Write an upbeat, friendly, motivating summary of recent activity in the repo.
   * Recent code reviews
   * Recent code changes
   * Recent failed CI runs
+  * Look at the changesets in ./changeset folder
 
 - If little has happened, don't write too much.
 

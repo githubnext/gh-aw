@@ -7,7 +7,7 @@
 #   Imports:
 #     - shared/mcp/tavily.md
 
-name: "Daily Team Status"
+name: "Daily News"
 on:
   schedule:
   - cron: 0 9 * * 1-5
@@ -18,7 +18,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Daily Team Status"
+run-name: "Daily News"
 
 jobs:
   check-membership:
@@ -942,7 +942,7 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           
           
-          # Daily Team Status
+          # Daily News
           
           Write an upbeat, friendly, motivating summary of recent activity in the repo.
           
@@ -955,6 +955,7 @@ jobs:
             * Recent code reviews
             * Recent code changes
             * Recent failed CI runs
+            * Look at the changesets in ./changeset folder
           
           - If little has happened, don't write too much.
           
@@ -1058,7 +1059,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Daily Team Status",
+              workflow_name: "Daily News",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -2921,9 +2922,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          WORKFLOW_NAME: "Daily Team Status"
+          WORKFLOW_NAME: "Daily News"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "\n\n# Daily Team Status\n\nWrite an upbeat, friendly, motivating summary of recent activity in the repo.\n\n- Include some or all of the following:\n  * Recent issues activity\n  * Recent pull requests\n  * Recent discussions\n  * Recent releases\n  * Recent comments\n  * Recent code reviews\n  * Recent code changes\n  * Recent failed CI runs\n\n- If little has happened, don't write too much.\n\n- Give some deep thought to ways the team can improve their productivity, and suggest some ways to do that.\n\n- Include a description of open source community engagement, if any.\n\n- Highlight suggestions for possible investment, ideas for features and project plan, ways to improve community engagement, and so on.\n\n- Be helpful, thoughtful, respectful, positive, kind, and encouraging.\n\n- Use emojis to make the report more engaging and fun, but don't overdo it.\n\n- Include a short haiku at the end of the report to help orient the team to the season of their work.\n\n- In a note at the end of the report, include a log of\n  * all search queries (web, issues, pulls, content) you used to generate the data for the report\n  * all commands you used to generate the data for the report\n  * all files you read to generate the data for the report\n  * places you didn't have time to read or search, but would have liked to\n\nCreate a new GitHub discussion with a title containing today's date (e.g., \"Daily Status - 2024-10-10\") containing a markdown report with your findings. Use links where appropriate.\n\nOnly a new discussion should be created, do not close or update any existing discussions.\n"
+          WORKFLOW_MARKDOWN: "\n\n# Daily News\n\nWrite an upbeat, friendly, motivating summary of recent activity in the repo.\n\n- Include some or all of the following:\n  * Recent issues activity\n  * Recent pull requests\n  * Recent discussions\n  * Recent releases\n  * Recent comments\n  * Recent code reviews\n  * Recent code changes\n  * Recent failed CI runs\n  * Look at the changesets in ./changeset folder\n\n- If little has happened, don't write too much.\n\n- Give some deep thought to ways the team can improve their productivity, and suggest some ways to do that.\n\n- Include a description of open source community engagement, if any.\n\n- Highlight suggestions for possible investment, ideas for features and project plan, ways to improve community engagement, and so on.\n\n- Be helpful, thoughtful, respectful, positive, kind, and encouraging.\n\n- Use emojis to make the report more engaging and fun, but don't overdo it.\n\n- Include a short haiku at the end of the report to help orient the team to the season of their work.\n\n- In a note at the end of the report, include a log of\n  * all search queries (web, issues, pulls, content) you used to generate the data for the report\n  * all commands you used to generate the data for the report\n  * all files you read to generate the data for the report\n  * places you didn't have time to read or search, but would have liked to\n\nCreate a new GitHub discussion with a title containing today's date (e.g., \"Daily Status - 2024-10-10\") containing a markdown report with your findings. Use links where appropriate.\n\nOnly a new discussion should be created, do not close or update any existing discussions.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3086,7 +3087,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Daily Team Status"
+          GITHUB_AW_WORKFLOW_NAME: "Daily News"
           GITHUB_AW_DISCUSSION_CATEGORY: "daily-news"
         with:
           script: |
