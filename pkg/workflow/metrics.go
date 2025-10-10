@@ -360,6 +360,12 @@ func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
 	// Try to infer level from the full match content
 	if len(match) > 0 {
 		fullMatch := strings.ToLower(match[0])
+
+		// Check for specific Copilot CLI permission warnings (before general error checks)
+		if strings.Contains(fullMatch, "permission denied and could not request permission from user") {
+			return "warning"
+		}
+
 		if strings.Contains(fullMatch, "error") || strings.Contains(fullMatch, "err") ||
 			strings.Contains(fullMatch, "fail") || strings.Contains(fullMatch, "fatal") {
 			return "error"
