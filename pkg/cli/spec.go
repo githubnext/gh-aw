@@ -362,10 +362,7 @@ func buildSourceString(workflow *WorkflowSpec) string {
 	}
 
 	// For local workflows, remove the "./" prefix from the WorkflowPath
-	workflowPath := workflow.WorkflowPath
-	if strings.HasPrefix(workflowPath, "./") {
-		workflowPath = strings.TrimPrefix(workflowPath, "./")
-	}
+	workflowPath := strings.TrimPrefix(workflow.WorkflowPath, "./")
 
 	// Format: owner/repo/path@ref (consistent with add command syntax)
 	source := workflow.RepoSlug + "/" + workflowPath
@@ -384,10 +381,7 @@ func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) st
 	}
 
 	// For local workflows, remove the "./" prefix from the WorkflowPath
-	workflowPath := workflow.WorkflowPath
-	if strings.HasPrefix(workflowPath, "./") {
-		workflowPath = strings.TrimPrefix(workflowPath, "./")
-	}
+	workflowPath := strings.TrimPrefix(workflow.WorkflowPath, "./")
 
 	// Format: owner/repo/path@commitSHA
 	source := workflow.RepoSlug + "/" + workflowPath
