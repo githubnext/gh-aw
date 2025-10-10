@@ -461,6 +461,19 @@ jobs:
               };
             };
             const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
+            let PREDEFINED_TOOLS = {};
+            const toolsEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_TOOLS;
+            if (toolsEnv) {
+              debug(`Loading tools from GITHUB_AW_SAFE_OUTPUTS_TOOLS environment variable`);
+              try {
+                PREDEFINED_TOOLS = JSON.parse(toolsEnv);
+                debug(`Loaded ${Object.keys(PREDEFINED_TOOLS).length} predefined tools from environment`);
+              } catch (error) {
+                debug(`Error parsing GITHUB_AW_SAFE_OUTPUTS_TOOLS: ${error instanceof Error ? error.message : String(error)}`);
+                debug(`Falling back to legacy ALL_TOOLS filtering`);
+                PREDEFINED_TOOLS = {};
+              }
+            }
             const ALL_TOOLS = [
               {
                 name: "create_issue",
@@ -703,17 +716,36 @@ jobs:
             debug(`  output file: ${outputFile}`);
             debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
             const TOOLS = {};
-            ALL_TOOLS.forEach(tool => {
-              if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-                TOOLS[tool.name] = tool;
-              }
-            });
+            if (Object.keys(PREDEFINED_TOOLS).length > 0) {
+              debug(`Using pre-filtered tools from environment variable`);
+              Object.keys(PREDEFINED_TOOLS).forEach(toolName => {
+                const tool = PREDEFINED_TOOLS[toolName];
+                TOOLS[toolName] = tool;
+                if (tool.hasHandler) {
+                  if (toolName === "create_pull_request") {
+                    TOOLS[toolName].handler = createPullRequestHandler;
+                  } else if (toolName === "push_to_pull_request_branch") {
+                    TOOLS[toolName].handler = pushToPullRequestBranchHandler;
+                  } else if (toolName === "upload_asset") {
+                    TOOLS[toolName].handler = uploadAssetHandler;
+                  }
+                }
+              });
+            } else {
+              debug(`Using legacy ALL_TOOLS filtering (no GITHUB_AW_SAFE_OUTPUTS_TOOLS provided)`);
+              ALL_TOOLS.forEach(tool => {
+                if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
+                  TOOLS[tool.name] = tool;
+                }
+              });
+            }
             Object.keys(safeOutputsConfig).forEach(configKey => {
               const normalizedKey = normTool(configKey);
               if (TOOLS[normalizedKey]) {
                 return;
               }
-              if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
+              const isKnownTool = ALL_TOOLS.find(t => t.name === normalizedKey) || PREDEFINED_TOOLS[normalizedKey];
+              if (!isKnownTool) {
                 const jobConfig = safeOutputsConfig[configKey];
                 const dynamicTool = {
                   name: normalizedKey,
@@ -877,6 +909,7 @@ jobs:
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-discussion\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_TOOLS: "{\"create_discussion\":{\"name\":\"create_discussion\",\"description\":\"Create a new GitHub discussion\",\"inputSchema\":{\"additionalProperties\":false,\"properties\":{\"body\":{\"description\":\"Discussion body/content\",\"type\":\"string\"},\"category\":{\"description\":\"Discussion category\",\"type\":\"string\"},\"title\":{\"description\":\"Discussion title\",\"type\":\"string\"}},\"required\":[\"title\",\"body\"],\"type\":\"object\"}},\"missing_tool\":{\"name\":\"missing_tool\",\"description\":\"Report a missing tool or functionality needed to complete tasks\",\"inputSchema\":{\"additionalProperties\":false,\"properties\":{\"alternatives\":{\"description\":\"Possible alternatives or workarounds\",\"type\":\"string\"},\"reason\":{\"description\":\"Why this tool is needed\",\"type\":\"string\"},\"tool\":{\"description\":\"Name of the missing tool\",\"type\":\"string\"}},\"required\":[\"tool\",\"reason\"],\"type\":\"object\"}}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot

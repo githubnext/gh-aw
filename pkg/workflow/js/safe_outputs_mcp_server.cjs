@@ -332,6 +332,24 @@ const pushToPullRequestBranchHandler = args => {
 };
 
 const normTool = toolName => (toolName ? toolName.replace(/-/g, "_").toLowerCase() : undefined);
+
+// Load tools from environment variable or use legacy fallback
+let PREDEFINED_TOOLS = {};
+const toolsEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_TOOLS;
+
+if (toolsEnv) {
+  debug(`Loading tools from GITHUB_AW_SAFE_OUTPUTS_TOOLS environment variable`);
+  try {
+    PREDEFINED_TOOLS = JSON.parse(toolsEnv);
+    debug(`Loaded ${Object.keys(PREDEFINED_TOOLS).length} predefined tools from environment`);
+  } catch (error) {
+    debug(`Error parsing GITHUB_AW_SAFE_OUTPUTS_TOOLS: ${error instanceof Error ? error.message : String(error)}`);
+    debug(`Falling back to legacy ALL_TOOLS filtering`);
+    PREDEFINED_TOOLS = {};
+  }
+}
+
+// Legacy ALL_TOOLS array - kept for backward compatibility when env var not provided
 const ALL_TOOLS = [
   {
     name: "create_issue",
@@ -578,12 +596,34 @@ debug(`  config: ${JSON.stringify(safeOutputsConfig)}`);
 // Create a comprehensive tools map including both predefined tools and dynamic safe-jobs
 const TOOLS = {};
 
-// Add predefined tools that are enabled in configuration
-ALL_TOOLS.forEach(tool => {
-  if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-    TOOLS[tool.name] = tool;
-  }
-});
+// If we have predefined tools from environment, use them directly (pre-filtered by Go)
+if (Object.keys(PREDEFINED_TOOLS).length > 0) {
+  debug(`Using pre-filtered tools from environment variable`);
+  // Add handlers for tools that need them
+  Object.keys(PREDEFINED_TOOLS).forEach(toolName => {
+    const tool = PREDEFINED_TOOLS[toolName];
+    TOOLS[toolName] = tool;
+    
+    // Attach handlers for specific tools
+    if (tool.hasHandler) {
+      if (toolName === "create_pull_request") {
+        TOOLS[toolName].handler = createPullRequestHandler;
+      } else if (toolName === "push_to_pull_request_branch") {
+        TOOLS[toolName].handler = pushToPullRequestBranchHandler;
+      } else if (toolName === "upload_asset") {
+        TOOLS[toolName].handler = uploadAssetHandler;
+      }
+    }
+  });
+} else {
+  // Legacy fallback: filter ALL_TOOLS based on configuration
+  debug(`Using legacy ALL_TOOLS filtering (no GITHUB_AW_SAFE_OUTPUTS_TOOLS provided)`);
+  ALL_TOOLS.forEach(tool => {
+    if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
+      TOOLS[tool.name] = tool;
+    }
+  });
+}
 
 // Add safe-jobs as dynamic tools
 Object.keys(safeOutputsConfig).forEach(configKey => {
@@ -594,8 +634,9 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
     return;
   }
 
-  // Check if this is a safe-job (not in ALL_TOOLS)
-  if (!ALL_TOOLS.find(t => t.name === normalizedKey)) {
+  // Check if this is a safe-job (not in ALL_TOOLS or PREDEFINED_TOOLS)
+  const isKnownTool = ALL_TOOLS.find(t => t.name === normalizedKey) || PREDEFINED_TOOLS[normalizedKey];
+  if (!isKnownTool) {
     const jobConfig = safeOutputsConfig[configKey];
 
     // Create a dynamic tool for this safe-job

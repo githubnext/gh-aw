@@ -163,10 +163,18 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	yaml.WriteString("      - name: Setup MCPs\n")
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		if safeOutputConfig != "" {
+			// Generate filtered tools JSON
+			filteredToolsJSON, err := c.GenerateFilteredToolsJSON(workflowData)
+			if err != nil {
+				// Log error but continue with empty tools
+				filteredToolsJSON = "{}"
+			}
+			
 			// Add environment variables for JSONL validation
 			yaml.WriteString("        env:\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
 			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_TOOLS: %q\n", filteredToolsJSON)
 			if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
 				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
 				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
