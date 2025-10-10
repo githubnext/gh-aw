@@ -35,7 +35,7 @@ network: {}
 # Tools configuration
 tools:
   github:
-    allowed: [get_repository, get_issue, get_pull_request]
+    allowed: [get_repository, get_issue, pull_request_read]
   edit:
   bash:
     - "echo"

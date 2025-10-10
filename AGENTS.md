@@ -133,20 +133,9 @@ When modifying JSON schemas in `pkg/parser/schemas/`:
 ### Documentation
 
 The documentation for this project is available in the `docs/` directory. It includes information on how to use the CLI, API references, and examples.
-It uses the Astro Starlight system.
+It uses the Astro Starlight system and Diátaxis framework.
 
-- neutral tone, not promotional
-- avoid "we", "our", "us"
-- avoid "Key Features" section
-- avoid long list of bullet points
-- use the `aw` language for agentic workflows snippets. It handles YAML frontmatter and markdown content.
-
-    ```aw
-    ---
-    on: push
-    ---
-    # Your workflow steps here
-    ```
+See [documentation instructions](.github/instructions/documentation.instructions.md) for details.
 
 ### Legacy Support
 

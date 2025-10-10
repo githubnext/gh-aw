@@ -423,6 +423,14 @@ async function main() {
           if (item.labels && Array.isArray(item.labels)) {
             item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
           }
+          // Validate parent field if provided
+          if (item.parent !== undefined) {
+            const parentValidation = validateIssueOrPRNumber(item.parent, "create_issue 'parent'", i + 1);
+            if (!parentValidation.isValid) {
+              if (parentValidation.error) errors.push(parentValidation.error);
+              continue;
+            }
+          }
           break;
         case "add-comment":
           if (!item.body || typeof item.body !== "string") {
