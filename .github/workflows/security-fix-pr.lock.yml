@@ -131,6 +131,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      security-events: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-pull-request\":{},\"missing-tool\":{}}"
