@@ -544,6 +544,7 @@ jobs:
             });
             debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
             if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
+            console.error(`[${SERVER_INFO.name}] Filtered tools:\n${JSON.stringify(TOOLS, null, 2)}`);
             function handleMessage(req) {
               if (!req || typeof req !== "object") {
                 debug(`Invalid message: not an object`);

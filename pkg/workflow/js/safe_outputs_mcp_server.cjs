@@ -457,6 +457,9 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
 debug(`  tools: ${Object.keys(TOOLS).join(", ")}`);
 if (!Object.keys(TOOLS).length) throw new Error("No tools enabled in configuration");
 
+// Log the filtered tools for debugging
+console.error(`[${SERVER_INFO.name}] Filtered tools:\n${JSON.stringify(TOOLS, null, 2)}`);
+
 function handleMessage(req) {
   // Validate basic JSON-RPC structure
   if (!req || typeof req !== "object") {
