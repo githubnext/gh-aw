@@ -536,6 +536,7 @@ describe("create_issue.cjs", () => {
     });
     process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
     process.env.GITHUB_AW_WORKFLOW_SOURCE = "githubnext/agentics/workflows/ci-doctor.md@v1.0.0";
+    process.env.GITHUB_AW_WORKFLOW_SOURCE_URL = "https://github.com/githubnext/agentics/tree/v1.0.0/workflows/ci-doctor.md";
 
     const mockIssue = {
       number: 101,

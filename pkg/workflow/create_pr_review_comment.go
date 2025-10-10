@@ -21,9 +21,13 @@ func (c *Compiler) buildCreateOutputPullRequestReviewCommentJob(data *WorkflowDa
 	// Build custom environment variables specific to create-pull-request-review-comment
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
-	// Pass the workflow source for installation instructions
+	// Pass the workflow source URL for installation instructions
 	if data.Source != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE: %q\n", data.Source))
+		sourceURL := buildSourceURL(data.Source)
+		if sourceURL != "" {
+			customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_SOURCE_URL: %q\n", sourceURL))
+		}
 	}
 	// Pass the side configuration
 	if data.SafeOutputs.CreatePullRequestReviewComments.Side != "" {
