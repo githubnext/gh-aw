@@ -5,6 +5,7 @@ on:
 permissions:
   contents: read
   actions: read
+  security-events: read
 engine: claude
 tools:
   github:
