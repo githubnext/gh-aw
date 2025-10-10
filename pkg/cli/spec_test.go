@@ -112,8 +112,8 @@ func TestParseRepoSpec(t *testing.T) {
 				return
 			}
 
-			if spec.Repo != tt.wantRepo {
-				t.Errorf("parseRepoSpec() repo = %q, want %q", spec.Repo, tt.wantRepo)
+			if spec.RepoSlug != tt.wantRepo {
+				t.Errorf("parseRepoSpec() repo = %q, want %q", spec.RepoSlug, tt.wantRepo)
 			}
 			if spec.Version != tt.wantVersion {
 				t.Errorf("parseRepoSpec() version = %q, want %q", spec.Version, tt.wantVersion)
@@ -314,8 +314,8 @@ func TestParseWorkflowSpec(t *testing.T) {
 				return
 			}
 
-			if spec.Repo != tt.wantRepo {
-				t.Errorf("parseWorkflowSpec() repo = %q, want %q", spec.Repo, tt.wantRepo)
+			if spec.RepoSlug != tt.wantRepo {
+				t.Errorf("parseWorkflowSpec() repo = %q, want %q", spec.RepoSlug, tt.wantRepo)
 			}
 			if spec.WorkflowPath != tt.wantWorkflowPath {
 				t.Errorf("parseWorkflowSpec() workflowPath = %q, want %q", spec.WorkflowPath, tt.wantWorkflowPath)
@@ -399,7 +399,7 @@ func TestParseLocalWorkflowSpec(t *testing.T) {
 			if spec.Version != "" {
 				t.Errorf("parseWorkflowSpec() version = %q, want empty string for local workflow", spec.Version)
 			}
-			if spec.Repo == "" {
+			if spec.RepoSlug == "" {
 				t.Errorf("parseWorkflowSpec() repo should not be empty for local workflow")
 			}
 		})
@@ -416,8 +416,8 @@ func TestWorkflowSpecString(t *testing.T) {
 			name: "with version",
 			spec: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "v1.0.0",
+					RepoSlug: "owner/repo",
+					Version:  "v1.0.0",
 				},
 				WorkflowPath: "workflows/ci-doctor.md",
 			},
@@ -427,8 +427,8 @@ func TestWorkflowSpecString(t *testing.T) {
 			name: "without version",
 			spec: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "workflows/helper.md",
 			},
@@ -438,8 +438,8 @@ func TestWorkflowSpecString(t *testing.T) {
 			name: "with branch",
 			spec: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "githubnext/agentics",
-					Version: "main",
+					RepoSlug: "githubnext/agentics",
+					Version:  "main",
 				},
 				WorkflowPath: "workflows/weekly-research.md",
 			},
@@ -449,8 +449,8 @@ func TestWorkflowSpecString(t *testing.T) {
 			name: "local workflow",
 			spec: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "./workflows/local-workflow.md",
 			},
@@ -460,8 +460,8 @@ func TestWorkflowSpecString(t *testing.T) {
 			name: "local workflow in current directory",
 			spec: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "./test.md",
 			},
@@ -575,8 +575,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "workflow with version",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "v1.0.0",
+					RepoSlug: "owner/repo",
+					Version:  "v1.0.0",
 				},
 				WorkflowPath: "workflows/ci-doctor.md",
 			},
@@ -586,8 +586,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "workflow with branch",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "main",
+					RepoSlug: "owner/repo",
+					Version:  "main",
 				},
 				WorkflowPath: "workflows/helper.md",
 			},
@@ -597,8 +597,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "workflow without version",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "workflows/test.md",
 			},
@@ -608,8 +608,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "workflow with nested path",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "v2.0.0",
+					RepoSlug: "owner/repo",
+					Version:  "v2.0.0",
 				},
 				WorkflowPath: "path/to/workflow.md",
 			},
@@ -619,8 +619,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "empty repo",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "",
-					Version: "v1.0.0",
+					RepoSlug: "",
+					Version:  "v1.0.0",
 				},
 				WorkflowPath: "workflows/test.md",
 			},
@@ -630,8 +630,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "empty workflow path",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "v1.0.0",
+					RepoSlug: "owner/repo",
+					Version:  "v1.0.0",
 				},
 				WorkflowPath: "",
 			},
@@ -641,8 +641,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "local workflow without version",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "./workflows/local.md",
 			},
@@ -652,8 +652,8 @@ func TestBuildSourceString(t *testing.T) {
 			name: "local workflow with version (should still work)",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "v1.0.0",
+					RepoSlug: "owner/repo",
+					Version:  "v1.0.0",
 				},
 				WorkflowPath: "./test.md",
 			},
@@ -682,8 +682,8 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 			name: "with commit SHA",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "v1.0.0",
+					RepoSlug: "owner/repo",
+					Version:  "v1.0.0",
 				},
 				WorkflowPath: "workflows/ci-doctor.md",
 			},
@@ -694,8 +694,8 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 			name: "with commit SHA overrides version",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "main",
+					RepoSlug: "owner/repo",
+					Version:  "main",
 				},
 				WorkflowPath: "workflows/helper.md",
 			},
@@ -706,8 +706,8 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 			name: "without commit SHA falls back to version",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "v2.0.0",
+					RepoSlug: "owner/repo",
+					Version:  "v2.0.0",
 				},
 				WorkflowPath: "workflows/test.md",
 			},
@@ -718,8 +718,8 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 			name: "without commit SHA or version",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "workflows/test.md",
 			},
@@ -730,8 +730,8 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 			name: "empty repo with commit SHA",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "",
-					Version: "v1.0.0",
+					RepoSlug: "",
+					Version:  "v1.0.0",
 				},
 				WorkflowPath: "workflows/test.md",
 			},
@@ -742,8 +742,8 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 			name: "local workflow with commit SHA",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "./workflows/local.md",
 			},
@@ -754,8 +754,8 @@ func TestBuildSourceStringWithCommitSHA(t *testing.T) {
 			name: "local workflow without commit SHA",
 			workflow: &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    "owner/repo",
-					Version: "",
+					RepoSlug: "owner/repo",
+					Version:  "",
 				},
 				WorkflowPath: "./test.md",
 			},

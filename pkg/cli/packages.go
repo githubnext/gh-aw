@@ -26,7 +26,7 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Repository: %s\n", spec.Repo)
+		fmt.Fprintf(os.Stderr, "Repository: %s\n", spec.RepoSlug)
 		if spec.Version != "" {
 			fmt.Fprintf(os.Stderr, "Version: %s\n", spec.Version)
 		} else {
@@ -50,7 +50,7 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	// Create target directory for this repository
-	targetDir := filepath.Join(packagesDir, spec.Repo)
+	targetDir := filepath.Join(packagesDir, spec.RepoSlug)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return fmt.Errorf("failed to create package directory: %w", err)
 	}
@@ -59,7 +59,7 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	if _, err := os.Stat(targetDir); err == nil {
 		entries, err := os.ReadDir(targetDir)
 		if err == nil && len(entries) > 0 {
-			fmt.Fprintf(os.Stderr, "Package %s already exists. Updating...\n", spec.Repo)
+			fmt.Fprintf(os.Stderr, "Package %s already exists. Updating...\n", spec.RepoSlug)
 			// Remove existing content
 			if err := os.RemoveAll(targetDir); err != nil {
 				return fmt.Errorf("failed to remove existing package: %w", err)
@@ -71,11 +71,11 @@ func InstallPackage(repoSpec string, verbose bool) error {
 	}
 
 	// Download workflows from the repository
-	if err := downloadWorkflows(spec.Repo, spec.Version, targetDir, verbose); err != nil {
+	if err := downloadWorkflows(spec.RepoSlug, spec.Version, targetDir, verbose); err != nil {
 		return fmt.Errorf("failed to download workflows: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Successfully installed package: %s\n", spec.Repo)
+	fmt.Fprintf(os.Stderr, "Successfully installed package: %s\n", spec.RepoSlug)
 	return nil
 }
 
@@ -275,7 +275,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 
 	// Check if workflow name contains org/repo prefix
 	// Fully qualified name: org/repo/workflow_name
-	packagePath := filepath.Join(packagesDir, workflow.Repo)
+	packagePath := filepath.Join(packagesDir, workflow.RepoSlug)
 	workflowFile := filepath.Join(packagePath, workflow.WorkflowPath)
 
 	if verbose {
@@ -284,7 +284,7 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 
 	content, err := os.ReadFile(workflowFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.Repo)
+		return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.RepoSlug)
 	}
 
 	// Try to read the commit SHA from metadata file

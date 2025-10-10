@@ -143,10 +143,10 @@ func AddWorkflows(workflows []string, number int, verbose bool, engineOverride s
 		}
 
 		// Handle repository installation and workflow name extraction
-		if existing, exists := repoVersions[spec.Repo]; exists && existing != spec.Version {
-			return fmt.Errorf("conflicting versions for repository %s: %s vs %s", spec.Repo, existing, spec.Version)
+		if existing, exists := repoVersions[spec.RepoSlug]; exists && existing != spec.Version {
+			return fmt.Errorf("conflicting versions for repository %s: %s vs %s", spec.RepoSlug, existing, spec.Version)
 		}
-		repoVersions[spec.Repo] = spec.Version
+		repoVersions[spec.RepoSlug] = spec.Version
 
 		// Create qualified name for processing
 		processedWorkflows = append(processedWorkflows, spec)

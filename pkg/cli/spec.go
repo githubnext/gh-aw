@@ -9,8 +9,8 @@ import (
 
 // RepoSpec represents a parsed repository specification
 type RepoSpec struct {
-	Repo    string // e.g., "owner/repo"
-	Version string // optional version/tag/SHA/branch
+	RepoSlug string // e.g., "owner/repo"
+	Version  string // optional version/tag/SHA/branch
 }
 
 // SourceSpec represents a parsed source specification from workflow frontmatter
@@ -36,7 +36,7 @@ func (w *WorkflowSpec) String() string {
 	}
 
 	// For remote workflows, use the standard format
-	spec := w.Repo + "/" + w.WorkflowPath
+	spec := w.RepoSlug + "/" + w.WorkflowPath
 	if w.Version != "" {
 		spec += "@" + w.Version
 	}
@@ -68,6 +68,13 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 		}
 
 		repo = fmt.Sprintf("%s/%s", pathParts[0], pathParts[1])
+	} else if repo == "." {
+		// Handle current directory as repo (local workflow)
+		currentRepo, err := getCurrentRepositoryInfo()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current repository info: %w", err)
+		}
+		repo = currentRepo
 	} else {
 		// Validate repository format (org/repo)
 		repoParts := strings.Split(repo, "/")
@@ -77,8 +84,8 @@ func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 	}
 
 	spec := &RepoSpec{
-		Repo:    repo,
-		Version: version,
+		RepoSlug: repo,
+		Version:  version,
 	}
 
 	return spec, nil
@@ -145,8 +152,8 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			Repo:    fmt.Sprintf("%s/%s", owner, repo),
-			Version: ref,
+			RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+			Version:  ref,
 		},
 		WorkflowPath: filePath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(filePath), ".md"),
@@ -207,8 +214,8 @@ func parseRawGitHubURL(parsedURL *url.URL) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			Repo:    fmt.Sprintf("%s/%s", owner, repo),
-			Version: ref,
+			RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+			Version:  ref,
 		},
 		WorkflowPath: filePath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(filePath), ".md"),
@@ -292,8 +299,8 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			Repo:    fmt.Sprintf("%s/%s", owner, repo),
-			Version: version,
+			RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+			Version:  version,
 		},
 		WorkflowPath: workflowPath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(workflowPath), ".md"),
@@ -315,8 +322,8 @@ func parseLocalWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			Repo:    repoInfo,
-			Version: "", // Local workflows have no version
+			RepoSlug: repoInfo,
+			Version:  "", // Local workflows have no version
 		},
 		WorkflowPath: spec, // Keep the "./" prefix in WorkflowPath
 		WorkflowName: strings.TrimSuffix(filepath.Base(spec), ".md"),
@@ -350,7 +357,7 @@ func parseSourceSpec(source string) (*SourceSpec, error) {
 
 // buildSourceString builds the source string in the format owner/repo/path@ref
 func buildSourceString(workflow *WorkflowSpec) string {
-	if workflow.Repo == "" || workflow.WorkflowPath == "" {
+	if workflow.RepoSlug == "" || workflow.WorkflowPath == "" {
 		return ""
 	}
 
@@ -361,7 +368,7 @@ func buildSourceString(workflow *WorkflowSpec) string {
 	}
 
 	// Format: owner/repo/path@ref (consistent with add command syntax)
-	source := workflow.Repo + "/" + workflowPath
+	source := workflow.RepoSlug + "/" + workflowPath
 	if workflow.Version != "" {
 		source += "@" + workflow.Version
 	}
@@ -372,7 +379,7 @@ func buildSourceString(workflow *WorkflowSpec) string {
 // buildSourceStringWithCommitSHA builds the source string with the actual commit SHA
 // This is used when adding workflows to include the precise commit that was installed
 func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) string {
-	if workflow.Repo == "" || workflow.WorkflowPath == "" {
+	if workflow.RepoSlug == "" || workflow.WorkflowPath == "" {
 		return ""
 	}
 
@@ -383,7 +390,7 @@ func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) st
 	}
 
 	// Format: owner/repo/path@commitSHA
-	source := workflow.Repo + "/" + workflowPath
+	source := workflow.RepoSlug + "/" + workflowPath
 	if commitSHA != "" {
 		source += "@" + commitSHA
 	} else if workflow.Version != "" {

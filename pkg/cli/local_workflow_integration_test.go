@@ -83,7 +83,7 @@ This is a test local workflow.
 
 	// Test buildSourceString (should remove ./ prefix)
 	sourceString := buildSourceString(spec)
-	expectedSourceString := spec.Repo + "/workflows/test-local.md"
+	expectedSourceString := spec.RepoSlug + "/workflows/test-local.md"
 	if sourceString != expectedSourceString {
 		t.Errorf("Expected buildSourceString() %q, got %q", expectedSourceString, sourceString)
 	}

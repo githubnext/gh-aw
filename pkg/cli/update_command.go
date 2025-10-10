@@ -541,8 +541,8 @@ func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 		if err == nil {
 			workflow := &WorkflowSpec{
 				RepoSpec: RepoSpec{
-					Repo:    sourceSpec.Repo,
-					Version: newRef,
+					RepoSlug: sourceSpec.Repo,
+					Version:  newRef,
 				},
 				WorkflowPath: sourceSpec.Path,
 			}

@@ -58,7 +58,7 @@ func processImportsWithWorkflowSpec(content string, workflow *WorkflowSpec, comm
 
 		// Build workflowspec for this import
 		// Format: owner/repo/path@sha
-		workflowSpec := workflow.Repo + "/" + importPath
+		workflowSpec := workflow.RepoSlug + "/" + importPath
 		if commitSHA != "" {
 			workflowSpec += "@" + commitSHA
 		} else if workflow.Version != "" {
@@ -154,7 +154,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 
 			// Build workflowspec for this include
 			// Format: owner/repo/path@sha
-			workflowSpec := workflow.Repo + "/" + filePath
+			workflowSpec := workflow.RepoSlug + "/" + filePath
 			if commitSHA != "" {
 				workflowSpec += "@" + commitSHA
 			} else if workflow.Version != "" {
@@ -293,7 +293,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 
 			// Build workflowspec for this include
 			// Format: owner/repo/path@sha
-			workflowSpec := workflow.Repo + "/" + filePath
+			workflowSpec := workflow.RepoSlug + "/" + filePath
 			if commitSHA != "" {
 				workflowSpec += "@" + commitSHA
 			} else if workflow.Version != "" {

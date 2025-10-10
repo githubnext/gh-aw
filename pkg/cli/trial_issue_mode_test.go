@@ -64,9 +64,9 @@ func TestExtractIssueNumberFromURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := extractIssueNumberFromURL(tc.url)
+			result := parseIssueSpec(tc.url)
 			if result != tc.expected {
-				t.Errorf("extractIssueNumberFromURL(%q) = %q, expected %q", tc.url, result, tc.expected)
+				t.Errorf("parseIssueSpec(%q) = %q, expected %q", tc.url, result, tc.expected)
 			}
 		})
 	}
@@ -120,8 +120,8 @@ func TestTrialWorkflowSpecParsing(t *testing.T) {
 				return
 			}
 
-			if spec.Repo != tc.expectedRepo {
-				t.Errorf("Expected repo %q, got %q", tc.expectedRepo, spec.Repo)
+			if spec.RepoSlug != tc.expectedRepo {
+				t.Errorf("Expected repo %q, got %q", tc.expectedRepo, spec.RepoSlug)
 			}
 
 			if spec.WorkflowName != tc.expectedName {
