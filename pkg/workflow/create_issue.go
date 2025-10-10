@@ -119,8 +119,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
 	if data.SafeOutputs.CreateIssues.TargetRepoSlug != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreateIssues.TargetRepoSlug))
-	} else if c.trialMode && c.trialSimulatedRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialSimulatedRepoSlug))
+	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
 	}
 
 	// Get token from config

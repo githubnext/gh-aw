@@ -21,6 +21,8 @@ gh aw --help
 # Basic workflow lifecycle
 gh aw add githubnext/agentics/ci-doctor    # Add workflow and compile to GitHub Actions
 gh aw compile                                    # Recompile to GitHub Actions
+gh aw trial githubnext/agentics/ci-doctor  # Test workflow safely before adding
+gh aw trial ./my-workflow.md                # Test local workflow during development
 gh aw update                                     # Update all workflows with source field
 gh aw status                                     # Check status
 gh aw run ci-doctor                        # Execute workflow
@@ -283,19 +285,70 @@ gh aw run weekly-research --input priority=high
 ```
 
 **Trial Mode Execution:**
+
+Trial mode creates a temporary private repository, installs the specified workflow(s), and runs them in a safe environment that captures outputs without affecting the target repository.
+
 ```bash
-# Test a workflow from a source repository against the current target repository
+# Test a workflow from a source repository
 gh aw trial githubnext/agentics/weekly-research
 
-# Test a workflow from a source repository against a different target repository
-gh aw trial githubnext/agentics/weekly-research --simulated-host-repo myorg/myrepo
+# Test a local workflow file
+gh aw trial ./my-local-workflow.md
+
+# Test multiple workflows for comparison
+gh aw trial githubnext/agentics/daily-plan githubnext/agentics/weekly-research
+
+# Specify target repository context (defaults to current repo)
+gh aw trial githubnext/agentics/ci-doctor --logical-repo myorg/myrepo
+
+# Use current repository as the trial host (instead of creating new one)
+gh aw trial ./workflow.md --host-repo .
+
+# Clean up trial repository after completion
+gh aw trial githubnext/agentics/workflow --delete-host-repo
+
+# Skip confirmation prompts
+gh aw trial githubnext/agentics/workflow --yes
+
+# Set custom timeout (default: 30 minutes)
+gh aw trial githubnext/agentics/workflow --timeout 60
 ```
 
-Trial mode creates a temporary private repository, installs the specified workflow from the source repository, and runs it in a safe environment that captures outputs without affecting the target repository. This is particularly useful for:
-- Testing third-party workflows before installation
-- Validating workflow behavior against your repository structure
-- Safe experimentation with workflow modifications
-- Compliance and security reviews of agentic automation
+**Issue-Triggered Workflow Testing:**
+
+For workflows that are triggered by issues, you can provide context to simulate the trigger:
+
+```bash
+# Test with GitHub issue URL
+gh aw trial ./issue-workflow.md --trigger-context https://github.com/owner/repo/issues/123
+
+# Test with issue reference
+gh aw trial githubnext/agentics/issue-triage --trigger-context "#456"
+
+# Test with plain issue number
+gh aw trial githubnext/agentics/issue-handler --trigger-context "789"
+```
+
+**Trial Mode Features:**
+
+Trial mode is particularly useful for:
+- **Testing third-party workflows** before installation
+- **Local workflow development** - test workflows you're building locally
+- **Validating workflow behavior** against your repository structure  
+- **Safe experimentation** with workflow modifications
+- **Compliance and security reviews** of agentic automation
+- **Comparing multiple workflows** side-by-side with identical inputs
+- **Issue workflow testing** with realistic trigger context
+
+**Output and Results:**
+
+Trial results are automatically saved in multiple formats:
+- **Console output**: Safe outputs displayed immediately 
+- **Local files**: Results saved to `trials/` directory with timestamps
+- **Trial repository**: Results committed to the trial repo for inspection
+- **Artifact downloads**: All workflow artifacts are captured and analyzed
+
+For multiple workflow trials, both individual and combined result files are generated for easy comparison.
 
 > [!TIP]
 > Trial mode automatically uses the `GH_AW_GITHUB_TOKEN` environment variable if set, allowing you to override authentication for testing purposes. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management) for token management best practices.

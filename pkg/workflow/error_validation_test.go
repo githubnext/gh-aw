@@ -572,7 +572,7 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 	}
 
 	var yamlBuilder strings.Builder
-	compiler.generateErrorValidation(&yamlBuilder, engine, "/tmp/gh-aw/th-aw/test.log", data)
+	compiler.generateErrorValidation(&yamlBuilder, engine, data)
 
 	generated := yamlBuilder.String()
 
@@ -600,7 +600,7 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 	}
 
 	var yamlBuilder2 strings.Builder
-	compiler.generateErrorValidation(&yamlBuilder2, codexEngine, "/tmp/gh-aw/th-aw/test.log", dataEmpty)
+	compiler.generateErrorValidation(&yamlBuilder2, codexEngine, dataEmpty)
 
 	generated2 := yamlBuilder2.String()
 
@@ -615,7 +615,7 @@ func TestGenerateErrorValidationWithEngineConfigPatterns(t *testing.T) {
 	}
 
 	var yamlBuilder3 strings.Builder
-	compiler.generateErrorValidation(&yamlBuilder3, engine, "/tmp/gh-aw/th-aw/test.log", dataEmpty2)
+	compiler.generateErrorValidation(&yamlBuilder3, engine, dataEmpty2)
 
 	generated3 := yamlBuilder3.String()
 

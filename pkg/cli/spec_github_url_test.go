@@ -113,8 +113,8 @@ func TestParseGitHubURL(t *testing.T) {
 				return
 			}
 
-			if spec.Repo != tt.wantRepo {
-				t.Errorf("parseGitHubURL() repo = %q, want %q", spec.Repo, tt.wantRepo)
+			if spec.RepoSlug != tt.wantRepo {
+				t.Errorf("parseGitHubURL() repo = %q, want %q", spec.RepoSlug, tt.wantRepo)
 			}
 			if spec.WorkflowPath != tt.wantWorkflowPath {
 				t.Errorf("parseGitHubURL() workflowPath = %q, want %q", spec.WorkflowPath, tt.wantWorkflowPath)

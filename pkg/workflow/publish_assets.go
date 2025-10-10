@@ -139,8 +139,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 	if c.trialMode || data.SafeOutputs.Staged {
 		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
 	}
-	if c.trialMode && c.trialSimulatedRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialSimulatedRepoSlug))
+	if c.trialMode && c.trialLogicalRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
 	}
 
 	// Add custom environment variables from safe-outputs.env

@@ -9,8 +9,8 @@ import (
 
 // RepoSpec represents a parsed repository specification
 type RepoSpec struct {
-	Repo    string // e.g., "owner/repo"
-	Version string // optional version/tag/SHA/branch
+	RepoSlug string // e.g., "owner/repo"
+	Version  string // optional version/tag/SHA/branch
 }
 
 // SourceSpec represents a parsed source specification from workflow frontmatter
@@ -28,9 +28,15 @@ type WorkflowSpec struct {
 }
 
 // String returns the canonical string representation of the workflow spec
-// in the format "owner/repo/path[@version]"
+// in the format "owner/repo/path[@version]" or just the WorkflowPath for local specs
 func (w *WorkflowSpec) String() string {
-	spec := w.Repo + "/" + w.WorkflowPath
+	// For local workflows (starting with "./"), return just the WorkflowPath
+	if strings.HasPrefix(w.WorkflowPath, "./") {
+		return w.WorkflowPath
+	}
+
+	// For remote workflows, use the standard format
+	spec := w.RepoSlug + "/" + w.WorkflowPath
 	if w.Version != "" {
 		spec += "@" + w.Version
 	}
@@ -38,22 +44,48 @@ func (w *WorkflowSpec) String() string {
 }
 
 // parseRepoSpec parses repository specification like "org/repo@version" or "org/repo@branch" or "org/repo@commit"
+// Also supports GitHub URLs like "https://github.com/owner/repo[@version]"
 func parseRepoSpec(repoSpec string) (*RepoSpec, error) {
 	parts := strings.SplitN(repoSpec, "@", 2)
 	repo := parts[0]
+	var version string
+	if len(parts) == 2 {
+		version = parts[1]
+	}
 
-	// Validate repository format (org/repo)
-	repoParts := strings.Split(repo, "/")
-	if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
-		return nil, fmt.Errorf("repository must be in format 'org/repo'")
+	// Check if this is a GitHub URL
+	if strings.HasPrefix(repo, "https://github.com/") || strings.HasPrefix(repo, "http://github.com/") {
+		// Parse GitHub URL: https://github.com/owner/repo
+		repoURL, err := url.Parse(repo)
+		if err != nil {
+			return nil, fmt.Errorf("invalid GitHub URL: %w", err)
+		}
+
+		// Extract owner/repo from path
+		pathParts := strings.Split(strings.Trim(repoURL.Path, "/"), "/")
+		if len(pathParts) != 2 || pathParts[0] == "" || pathParts[1] == "" {
+			return nil, fmt.Errorf("invalid GitHub URL: must be https://github.com/owner/repo")
+		}
+
+		repo = fmt.Sprintf("%s/%s", pathParts[0], pathParts[1])
+	} else if repo == "." {
+		// Handle current directory as repo (local workflow)
+		currentRepo, err := getCurrentRepositoryInfo()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current repository info: %w", err)
+		}
+		repo = currentRepo
+	} else {
+		// Validate repository format (org/repo)
+		repoParts := strings.Split(repo, "/")
+		if len(repoParts) != 2 || repoParts[0] == "" || repoParts[1] == "" {
+			return nil, fmt.Errorf("repository must be in format 'org/repo' or 'https://github.com/owner/repo'")
+		}
 	}
 
 	spec := &RepoSpec{
-		Repo: repo,
-	}
-
-	if len(parts) == 2 {
-		spec.Version = parts[1]
+		RepoSlug: repo,
+		Version:  version,
 	}
 
 	return spec, nil
@@ -120,8 +152,8 @@ func parseGitHubURL(spec string) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			Repo:    fmt.Sprintf("%s/%s", owner, repo),
-			Version: ref,
+			RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+			Version:  ref,
 		},
 		WorkflowPath: filePath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(filePath), ".md"),
@@ -182,8 +214,8 @@ func parseRawGitHubURL(parsedURL *url.URL) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			Repo:    fmt.Sprintf("%s/%s", owner, repo),
-			Version: ref,
+			RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+			Version:  ref,
 		},
 		WorkflowPath: filePath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(filePath), ".md"),
@@ -193,10 +225,16 @@ func parseRawGitHubURL(parsedURL *url.URL) (*WorkflowSpec, error) {
 // parseWorkflowSpec parses a workflow specification in the new format
 // Format: owner/repo/workflows/workflow-name[@version] or owner/repo/workflow-name[@version]
 // Also supports full GitHub URLs like https://github.com/owner/repo/blob/branch/path/to/workflow.md
+// Also supports local paths like ./workflows/workflow-name.md
 func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 	// Check if this is a GitHub URL
 	if strings.HasPrefix(spec, "http://") || strings.HasPrefix(spec, "https://") {
 		return parseGitHubURL(spec)
+	}
+
+	// Check if this is a local path starting with "./"
+	if strings.HasPrefix(spec, "./") {
+		return parseLocalWorkflowSpec(spec)
 	}
 
 	// Handle version first (anything after @)
@@ -261,11 +299,34 @@ func parseWorkflowSpec(spec string) (*WorkflowSpec, error) {
 
 	return &WorkflowSpec{
 		RepoSpec: RepoSpec{
-			Repo:    fmt.Sprintf("%s/%s", owner, repo),
-			Version: version,
+			RepoSlug: fmt.Sprintf("%s/%s", owner, repo),
+			Version:  version,
 		},
 		WorkflowPath: workflowPath,
 		WorkflowName: strings.TrimSuffix(filepath.Base(workflowPath), ".md"),
+	}, nil
+}
+
+// parseLocalWorkflowSpec parses a local workflow specification starting with "./"
+func parseLocalWorkflowSpec(spec string) (*WorkflowSpec, error) {
+	// Validate that it's a .md file
+	if !strings.HasSuffix(spec, ".md") {
+		return nil, fmt.Errorf("local workflow specification must end with '.md' extension: %s", spec)
+	}
+
+	// Get current repository info
+	repoInfo, err := getCurrentRepositoryInfo()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current repository info for local workflow: %w", err)
+	}
+
+	return &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: repoInfo,
+			Version:  "", // Local workflows have no version
+		},
+		WorkflowPath: spec, // Keep the "./" prefix in WorkflowPath
+		WorkflowName: strings.TrimSuffix(filepath.Base(spec), ".md"),
 	}, nil
 }
 
@@ -296,12 +357,15 @@ func parseSourceSpec(source string) (*SourceSpec, error) {
 
 // buildSourceString builds the source string in the format owner/repo/path@ref
 func buildSourceString(workflow *WorkflowSpec) string {
-	if workflow.Repo == "" || workflow.WorkflowPath == "" {
+	if workflow.RepoSlug == "" || workflow.WorkflowPath == "" {
 		return ""
 	}
 
+	// For local workflows, remove the "./" prefix from the WorkflowPath
+	workflowPath := strings.TrimPrefix(workflow.WorkflowPath, "./")
+
 	// Format: owner/repo/path@ref (consistent with add command syntax)
-	source := workflow.Repo + "/" + workflow.WorkflowPath
+	source := workflow.RepoSlug + "/" + workflowPath
 	if workflow.Version != "" {
 		source += "@" + workflow.Version
 	}
@@ -312,12 +376,15 @@ func buildSourceString(workflow *WorkflowSpec) string {
 // buildSourceStringWithCommitSHA builds the source string with the actual commit SHA
 // This is used when adding workflows to include the precise commit that was installed
 func buildSourceStringWithCommitSHA(workflow *WorkflowSpec, commitSHA string) string {
-	if workflow.Repo == "" || workflow.WorkflowPath == "" {
+	if workflow.RepoSlug == "" || workflow.WorkflowPath == "" {
 		return ""
 	}
 
+	// For local workflows, remove the "./" prefix from the WorkflowPath
+	workflowPath := strings.TrimPrefix(workflow.WorkflowPath, "./")
+
 	// Format: owner/repo/path@commitSHA
-	source := workflow.Repo + "/" + workflow.WorkflowPath
+	source := workflow.RepoSlug + "/" + workflowPath
 	if commitSHA != "" {
 		source += "@" + commitSHA
 	} else if workflow.Version != "" {
