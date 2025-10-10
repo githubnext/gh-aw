@@ -269,7 +269,7 @@ describe("create_issue.cjs", () => {
     };
 
     mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
-    
+
     // Mock graphql calls for sub-issue linking
     let graphqlCallCount = 0;
     mockGithub.graphql.mockImplementation(() => {
@@ -285,7 +285,7 @@ describe("create_issue.cjs", () => {
       }
       return Promise.reject(new Error("Unexpected graphql call"));
     });
-    
+
     mockGithub.rest.issues.createComment.mockResolvedValue({});
 
     // Execute the script
@@ -294,7 +294,7 @@ describe("create_issue.cjs", () => {
     // Should create the child issue with reference to parent
     const createArgs = mockGithub.rest.issues.create.mock.calls[0][0];
     expect(createArgs.body).toContain("Related to #555");
-    
+
     // Note: GraphQL sub-issue linking and comment creation are tested in integration tests
   });
 

@@ -174,18 +174,9 @@ async function main() {
           });
 
           core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-
-          // Also add a comment for visibility
-          await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: effectiveParentIssueNumber,
-            body: `Created related issue: #${issue.number}`,
-          });
-          core.info("Added comment to parent issue #" + effectiveParentIssueNumber);
         } catch (error) {
           core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-          // Fallback: try to add just a comment if sub-issue linking fails
+          // Fallback: add a comment if sub-issue linking fails
           try {
             await github.rest.issues.createComment({
               owner: context.repo.owner,
