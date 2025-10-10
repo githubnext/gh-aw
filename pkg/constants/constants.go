@@ -24,7 +24,7 @@ const DefaultCopilotVersion = "0.0.338"
 const DefaultCodexVersion = "0.46.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
-const DefaultGitHubMCPServerVersion = "sha-09deac4"
+const DefaultGitHubMCPServerVersion = "v0.18.0"
 
 // DefaultNodeVersion is the default version of Node.js for runtime setup
 const DefaultNodeVersion = "24"
