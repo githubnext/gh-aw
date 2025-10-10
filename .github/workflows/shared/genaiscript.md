@@ -15,7 +15,9 @@ engine:
         cp "$GITHUB_AW_PROMPT" /tmp/gh-aw/aw-prompts/prompt.genai.md
         sed -i '1i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
         sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/gh-aw/aw-prompts/prompt.genai.md
-        sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
+        sed -i '3i maxDataTokens: 8000' /tmp/gh-aw/aw-prompts/prompt.genai.md
+        sed -i '4i system: []' /tmp/gh-aw/aw-prompts/prompt.genai.md
+        sed -i '5i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
         echo "Generated GenAI prompt file"
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
