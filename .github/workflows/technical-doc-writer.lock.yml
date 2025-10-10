@@ -3018,7 +3018,7 @@ jobs:
         # - Read
         # - Task
         # - TodoWrite
-        timeout-minutes: 5
+        timeout-minutes: 20
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file

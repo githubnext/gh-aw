@@ -127,7 +127,7 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 	}
 
 	if data.TimeoutMinutes == "" {
-		data.TimeoutMinutes = `timeout_minutes: 5`
+		data.TimeoutMinutes = `timeout_minutes: 20`
 	}
 
 	if data.RunsOn == "" {
