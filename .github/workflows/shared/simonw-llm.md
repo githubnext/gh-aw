@@ -25,8 +25,55 @@ engine:
           mkdir -p ~/.llm-tools-mcp
           mkdir -p ~/.llm-tools-mcp/logs
           
-          # Copy MCP configuration to the expected location for llm-tools-mcp
-          cp "$GITHUB_AW_MCP_CONFIG" ~/.llm-tools-mcp/mcp.json
+          # Transform MCP configuration from mcpServers format to servers array format
+          echo "🔄 Converting MCP configuration to llm-tools-mcp format..."
+          
+          # Use Python to transform the config
+          python3 - "$GITHUB_AW_MCP_CONFIG" << 'PYTHON_SCRIPT'
+        import json
+        import os
+        import sys
+        
+        # Read the mcpServers format config
+        config_path = sys.argv[1]
+        with open(config_path, "r") as f:
+            mcp_config = json.load(f)
+        
+        # Transform to servers array format
+        servers = []
+        
+        if "mcpServers" in mcp_config:
+            for name, config in mcp_config["mcpServers"].items():
+                server = {
+                    "name": name,
+                    "transport": "stdio"
+                }
+                
+                # Build command array from command + args
+                if "command" in config:
+                    command = [config["command"]]
+                    if "args" in config and isinstance(config["args"], list):
+                        command.extend(config["args"])
+                    server["command"] = command
+                
+                # Add environment variables if present
+                if "env" in config:
+                    server["env"] = config["env"]
+                
+                # Add allowed tools if specified
+                if "allowed" in config:
+                    server["tools"] = config["allowed"]
+                
+                servers.append(server)
+        
+        # Write the extension format
+        extension_config = {"servers": servers}
+        output_path = os.path.expanduser("~/.llm-tools-mcp/mcp.json")
+        with open(output_path, "w") as f:
+            json.dump(extension_config, f, indent=2)
+        
+        print("✓ Converted {} MCP server(s)".format(len(servers)))
+        PYTHON_SCRIPT
           
           echo "✓ MCP configuration installed at ~/.llm-tools-mcp/mcp.json"
           echo "📋 MCP configuration:"
@@ -113,9 +160,11 @@ imports:
 
 **MCP Tools:**
 - The llm-tools-mcp plugin enables MCP server integration
-- MCP configuration from GITHUB_AW_MCP_CONFIG is copied to `~/.llm-tools-mcp/mcp.json`
+- MCP configuration from GITHUB_AW_MCP_CONFIG is automatically converted to the llm-tools-mcp extension format
+- The conversion transforms `mcpServers` object format to `servers` array format expected by llm-tools-mcp
 - Tools from MCP servers are automatically enabled via the `-T MCP` flag when MCP config is present
-- MCP config file must be in the format expected by llm-tools-mcp (see https://github.com/VirtusLab/llm-tools-mcp)
+- Extension config format: `{"servers": [{"name": "...", "transport": "stdio", "command": [...], "tools": [...]}]}`
+- See https://github.com/VirtusLab/llm-tools-mcp for more details on the extension format
 
 **Debugging and Logging:**
 This configuration includes maximum debug tracing for troubleshooting MCP server issues:

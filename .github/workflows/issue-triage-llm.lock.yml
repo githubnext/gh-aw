@@ -1430,8 +1430,55 @@ jobs:
             mkdir -p ~/.llm-tools-mcp
             mkdir -p ~/.llm-tools-mcp/logs
 
-            # Copy MCP configuration to the expected location for llm-tools-mcp
-            cp "$GITHUB_AW_MCP_CONFIG" ~/.llm-tools-mcp/mcp.json
+            # Transform MCP configuration from mcpServers format to servers array format
+            echo "🔄 Converting MCP configuration to llm-tools-mcp format..."
+
+            # Use Python to transform the config
+            python3 - "$GITHUB_AW_MCP_CONFIG" << 'PYTHON_SCRIPT'
+          import json
+          import os
+          import sys
+
+          # Read the mcpServers format config
+          config_path = sys.argv[1]
+          with open(config_path, "r") as f:
+              mcp_config = json.load(f)
+
+          # Transform to servers array format
+          servers = []
+
+          if "mcpServers" in mcp_config:
+              for name, config in mcp_config["mcpServers"].items():
+                  server = {
+                      "name": name,
+                      "transport": "stdio"
+                  }
+
+                  # Build command array from command + args
+                  if "command" in config:
+                      command = [config["command"]]
+                      if "args" in config and isinstance(config["args"], list):
+                          command.extend(config["args"])
+                      server["command"] = command
+
+                  # Add environment variables if present
+                  if "env" in config:
+                      server["env"] = config["env"]
+
+                  # Add allowed tools if specified
+                  if "allowed" in config:
+                      server["tools"] = config["allowed"]
+
+                  servers.append(server)
+
+          # Write the extension format
+          extension_config = {"servers": servers}
+          output_path = os.path.expanduser("~/.llm-tools-mcp/mcp.json")
+          with open(output_path, "w") as f:
+              json.dump(extension_config, f, indent=2)
+
+          print("✓ Converted {} MCP server(s)".format(len(servers)))
+          PYTHON_SCRIPT
 
             echo "✓ MCP configuration installed at ~/.llm-tools-mcp/mcp.json"
             echo "📋 MCP configuration:"
@@ -2312,7 +2359,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Issue Triage (LLM)"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using simonw/llm CLI with GitHub Models.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/simonw-llm.md\n---\n```\n\n**Requirements:**\n- The workflow uses GitHub Models via the built-in GITHUB_TOKEN (no additional setup required)\n- The llm CLI will be installed via pip along with:\n  - llm-github-models: GitHub Models integration (free tier)\n  - llm-tools-mcp: MCP server support for tool access\n\n**Model:**\n- Uses `github/gpt-4o-mini` by default (free via GitHub Models)\n\n**MCP Tools:**\n- The llm-tools-mcp plugin enables MCP server integration\n- MCP configuration from GITHUB_AW_MCP_CONFIG is copied to `~/.llm-tools-mcp/mcp.json`\n- Tools from MCP servers are automatically enabled via the `-T MCP` flag when MCP config is present\n- MCP config file must be in the format expected by llm-tools-mcp (see https://github.com/VirtusLab/llm-tools-mcp)\n\n**Debugging and Logging:**\nThis configuration includes maximum debug tracing for troubleshooting MCP server issues:\n\n1. **Environment Variables:**\n   - `LLM_TOOLS_MCP_FULL_ERRORS=1` - Enables full error stack traces for MCP connection failures\n   - Set on both \"Configure llm\" and \"Run llm CLI\" steps\n\n2. **CLI Flags:**\n   - `--td` (--tools-debug) - Shows full details of tool executions\n   - `-u` (--usage) - Shows token usage information\n\n3. **MCP Server Logs:**\n   - MCP server connection logs are written to `~/.llm-tools-mcp/logs/`\n   - These logs are uploaded as workflow artifacts (artifact name: `llm-mcp-logs`)\n   - Each MCP server session creates a timestamped log file\n\n4. **Diagnostic Output:**\n   - MCP configuration is printed to stdout during setup\n   - Available MCP tools are listed with `llm tools list`\n   - LLM logs database path is displayed\n\n5. **Log Locations:**\n   - MCP server logs: `~/.llm-tools-mcp/logs/` (uploaded as artifacts)\n   - LLM conversation logs: View with `llm logs path` command\n   - Workflow output: `/tmp/gh-aw/llm-output.txt`\n\n**Troubleshooting MCP Issues:**\nIf MCP servers fail to load:\n1. Check the workflow run artifacts for `llm-mcp-logs`\n2. Review the \"Configure llm with GitHub Models and MCP\" step output for configuration details\n3. Check the \"Run llm CLI\" step output for tool execution details\n4. Look for error messages with full stack traces (enabled by LLM_TOOLS_MCP_FULL_ERRORS)\n\n**Note**: \n- This workflow requires internet access to install Python packages\n- The llm CLI stores conversations in a local SQLite database\n- Output is automatically captured for safe-outputs processing\n- You can customize the model by modifying the MODEL variable in the run step\n- GitHub Models provides free access to 30+ AI models\n-->\n\n# Issue Triage\n\nYou are an issue triage assistant. Your task is to analyze newly created issues and provide helpful triage information.\n\n## Current Issue\n\n- **Issue Number**: ${{ github.event.inputs.issue_number || github.event.issue.number }}\n- **Repository**: ${{ github.repository }}\n- **Issue Content**: \n  ```\n  ${{ needs.activation.outputs.text }}\n  ```\n\n## Triage Guidelines\n\nPlease analyze the issue and provide:\n\n1. **Issue Type Classification**: Determine if this is a:\n   - Bug report (something broken or not working)\n   - Feature request (new functionality)\n   - Documentation update\n   - Question or support request\n   - Enhancement (improvement to existing feature)\n\n2. **Priority Assessment**: Based on the content, suggest a priority level:\n   - Critical (security, data loss, complete breakage)\n   - High (major functionality affected)\n   - Medium (important but not blocking)\n   - Low (minor issue or nice-to-have)\n\n3. **Initial Analysis**: Provide:\n   - A brief summary of the issue\n   - Any missing information that would be helpful\n   - Suggested next steps or questions to ask the reporter\n   - Related components or areas of the codebase that might be affected\n\n## Your Task\n\nAnalyze the issue content above and create a triage comment that includes:\n- The issue type classification\n- The suggested priority level\n- Your initial analysis and recommendations\n\nFormat your response as a helpful comment that will be added to the issue. Use clear formatting with sections and bullet points. Be professional and constructive.\n\n**Important**: Generate a single, well-formatted comment that provides value to both the issue reporter and repository maintainers.\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using simonw/llm CLI with GitHub Models.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/simonw-llm.md\n---\n```\n\n**Requirements:**\n- The workflow uses GitHub Models via the built-in GITHUB_TOKEN (no additional setup required)\n- The llm CLI will be installed via pip along with:\n  - llm-github-models: GitHub Models integration (free tier)\n  - llm-tools-mcp: MCP server support for tool access\n\n**Model:**\n- Uses `github/gpt-4o-mini` by default (free via GitHub Models)\n\n**MCP Tools:**\n- The llm-tools-mcp plugin enables MCP server integration\n- MCP configuration from GITHUB_AW_MCP_CONFIG is automatically converted to the llm-tools-mcp extension format\n- The conversion transforms `mcpServers` object format to `servers` array format expected by llm-tools-mcp\n- Tools from MCP servers are automatically enabled via the `-T MCP` flag when MCP config is present\n- Extension config format: `{\"servers\": [{\"name\": \"...\", \"transport\": \"stdio\", \"command\": [...], \"tools\": [...]}]}`\n- See https://github.com/VirtusLab/llm-tools-mcp for more details on the extension format\n\n**Debugging and Logging:**\nThis configuration includes maximum debug tracing for troubleshooting MCP server issues:\n\n1. **Environment Variables:**\n   - `LLM_TOOLS_MCP_FULL_ERRORS=1` - Enables full error stack traces for MCP connection failures\n   - Set on both \"Configure llm\" and \"Run llm CLI\" steps\n\n2. **CLI Flags:**\n   - `--td` (--tools-debug) - Shows full details of tool executions\n   - `-u` (--usage) - Shows token usage information\n\n3. **MCP Server Logs:**\n   - MCP server connection logs are written to `~/.llm-tools-mcp/logs/`\n   - These logs are uploaded as workflow artifacts (artifact name: `llm-mcp-logs`)\n   - Each MCP server session creates a timestamped log file\n\n4. **Diagnostic Output:**\n   - MCP configuration is printed to stdout during setup\n   - Available MCP tools are listed with `llm tools list`\n   - LLM logs database path is displayed\n\n5. **Log Locations:**\n   - MCP server logs: `~/.llm-tools-mcp/logs/` (uploaded as artifacts)\n   - LLM conversation logs: View with `llm logs path` command\n   - Workflow output: `/tmp/gh-aw/llm-output.txt`\n\n**Troubleshooting MCP Issues:**\nIf MCP servers fail to load:\n1. Check the workflow run artifacts for `llm-mcp-logs`\n2. Review the \"Configure llm with GitHub Models and MCP\" step output for configuration details\n3. Check the \"Run llm CLI\" step output for tool execution details\n4. Look for error messages with full stack traces (enabled by LLM_TOOLS_MCP_FULL_ERRORS)\n\n**Note**: \n- This workflow requires internet access to install Python packages\n- The llm CLI stores conversations in a local SQLite database\n- Output is automatically captured for safe-outputs processing\n- You can customize the model by modifying the MODEL variable in the run step\n- GitHub Models provides free access to 30+ AI models\n-->\n\n# Issue Triage\n\nYou are an issue triage assistant. Your task is to analyze newly created issues and provide helpful triage information.\n\n## Current Issue\n\n- **Issue Number**: ${{ github.event.inputs.issue_number || github.event.issue.number }}\n- **Repository**: ${{ github.repository }}\n- **Issue Content**: \n  ```\n  ${{ needs.activation.outputs.text }}\n  ```\n\n## Triage Guidelines\n\nPlease analyze the issue and provide:\n\n1. **Issue Type Classification**: Determine if this is a:\n   - Bug report (something broken or not working)\n   - Feature request (new functionality)\n   - Documentation update\n   - Question or support request\n   - Enhancement (improvement to existing feature)\n\n2. **Priority Assessment**: Based on the content, suggest a priority level:\n   - Critical (security, data loss, complete breakage)\n   - High (major functionality affected)\n   - Medium (important but not blocking)\n   - Low (minor issue or nice-to-have)\n\n3. **Initial Analysis**: Provide:\n   - A brief summary of the issue\n   - Any missing information that would be helpful\n   - Suggested next steps or questions to ask the reporter\n   - Related components or areas of the codebase that might be affected\n\n## Your Task\n\nAnalyze the issue content above and create a triage comment that includes:\n- The issue type classification\n- The suggested priority level\n- Your initial analysis and recommendations\n\nFormat your response as a helpful comment that will be added to the issue. Use clear formatting with sections and bullet points. Be professional and constructive.\n\n**Important**: Generate a single, well-formatted comment that provides value to both the issue reporter and repository maintainers.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2415,8 +2462,55 @@ jobs:
             mkdir -p ~/.llm-tools-mcp
             mkdir -p ~/.llm-tools-mcp/logs
 
-            # Copy MCP configuration to the expected location for llm-tools-mcp
-            cp "$GITHUB_AW_MCP_CONFIG" ~/.llm-tools-mcp/mcp.json
+            # Transform MCP configuration from mcpServers format to servers array format
+            echo "🔄 Converting MCP configuration to llm-tools-mcp format..."
+
+            # Use Python to transform the config
+            python3 - "$GITHUB_AW_MCP_CONFIG" << 'PYTHON_SCRIPT'
+          import json
+          import os
+          import sys
+
+          # Read the mcpServers format config
+          config_path = sys.argv[1]
+          with open(config_path, "r") as f:
+              mcp_config = json.load(f)
+
+          # Transform to servers array format
+          servers = []
+
+          if "mcpServers" in mcp_config:
+              for name, config in mcp_config["mcpServers"].items():
+                  server = {
+                      "name": name,
+                      "transport": "stdio"
+                  }
+
+                  # Build command array from command + args
+                  if "command" in config:
+                      command = [config["command"]]
+                      if "args" in config and isinstance(config["args"], list):
+                          command.extend(config["args"])
+                      server["command"] = command
+
+                  # Add environment variables if present
+                  if "env" in config:
+                      server["env"] = config["env"]
+
+                  # Add allowed tools if specified
+                  if "allowed" in config:
+                      server["tools"] = config["allowed"]
+
+                  servers.append(server)
+
+          # Write the extension format
+          extension_config = {"servers": servers}
+          output_path = os.path.expanduser("~/.llm-tools-mcp/mcp.json")
+          with open(output_path, "w") as f:
+              json.dump(extension_config, f, indent=2)
+
+          print("✓ Converted {} MCP server(s)".format(len(servers)))
+          PYTHON_SCRIPT
 
             echo "✓ MCP configuration installed at ~/.llm-tools-mcp/mcp.json"
             echo "📋 MCP configuration:"
