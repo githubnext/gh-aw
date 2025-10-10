@@ -1001,7 +1001,7 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "ghcr.io/github/github-mcp-server:sha-09deac4"
+                  "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -1182,6 +1182,7 @@ jobs:
         # - mcp__github__get_issue
         # - mcp__github__get_issue_comments
         # - mcp__github__get_job_logs
+        # - mcp__github__get_label
         # - mcp__github__get_latest_release
         # - mcp__github__get_me
         # - mcp__github__get_notification_details
@@ -1206,6 +1207,7 @@ jobs:
         # - mcp__github__list_discussions
         # - mcp__github__list_issue_types
         # - mcp__github__list_issues
+        # - mcp__github__list_label
         # - mcp__github__list_notifications
         # - mcp__github__list_pull_requests
         # - mcp__github__list_releases
@@ -1217,6 +1219,7 @@ jobs:
         # - mcp__github__list_workflow_run_artifacts
         # - mcp__github__list_workflow_runs
         # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
         # - mcp__github__search_code
         # - mcp__github__search_issues
         # - mcp__github__search_orgs
@@ -1227,7 +1230,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1684,6 +1687,13 @@ jobs:
                       item.body = sanitizeContent(item.body);
                       if (item.labels && Array.isArray(item.labels)) {
                         item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
+                      }
+                      if (item.parent !== undefined) {
+                        const parentValidation = validateIssueOrPRNumber(item.parent, "create_issue 'parent'", i + 1);
+                        if (!parentValidation.isValid) {
+                          if (parentValidation.error) errors.push(parentValidation.error);
+                          continue;
+                        }
                       }
                       break;
                     case "add-comment":
@@ -2811,6 +2821,14 @@ jobs:
           GITHUB_AW_TARGET_REPO_SLUG: "github/customer-feedback"
         with:
           script: |
+            function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n";
+              return footer;
+            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -2843,11 +2861,13 @@ jobs:
               function getRepositoryUrl() {
                 const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
                 if (targetRepoSlug) {
-                  return `https://github.com/${targetRepoSlug}`;
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  return `${githubServer}/${targetRepoSlug}`;
                 } else if (context.payload.repository) {
                   return context.payload.repository.html_url;
                 } else {
-                  return `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
                 }
               }
               if (isStaged) {
@@ -2931,11 +2951,14 @@ jobs:
                 }
                 let body = commentItem.body.trim();
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += `\n\n> AI generated by [${workflowName}](${runUrl})\n`;
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL);
                 core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
                 core.info(`Comment content length: ${body.length}`);
                 try {
