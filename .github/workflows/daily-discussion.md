@@ -7,7 +7,7 @@ on:
 
 safe-outputs:
   create-discussion:
-    category-id: "daily-news"
+    category: "daily-news"
     max: 1
 
 tools:

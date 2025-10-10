@@ -12,9 +12,9 @@ steps:
   - name: Install dependencies
     run: make deps-dev
   - name: Install binary as 'gh-aw'
-    run: make install
+    run: make build
   - name: Start MCP server
-    run: gh-aw mcp-server --port 8765 &
+    run: ./gh-aw mcp-server --port 8765 &
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 ---
