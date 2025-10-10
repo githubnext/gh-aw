@@ -12,9 +12,10 @@ safe-outputs:
 
 tools:
   web-fetch:
----
 
-{{#import shared/mcp/tavily.md}}
+imports:
+  - shared/mcp/tavily.md
+---
 
 # Daily Team Status
 

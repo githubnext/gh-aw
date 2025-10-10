@@ -154,7 +154,7 @@ When you add a workflow:
 
 1. **Downloads the workflow** from the specified repository and version
 2. **Processes imports field** in frontmatter, replacing local file references with workflow specifications
-3. **Processes @include directives** in content, replacing local references with workflow specifications
+3. **Processes legacy import directives** (if present), replacing local references with workflow specifications
 4. **Adds source field** to frontmatter for tracking origin and enabling updates
 5. **Saves the workflow** to `.github/workflows/` directory
 6. **Compiles the workflow** to generate the GitHub Actions `.lock.yml` file
