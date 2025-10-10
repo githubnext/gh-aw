@@ -39,7 +39,7 @@ Write an upbeat, friendly, motivating summary of recent activity in the repo.
 
 - If little has happened, don't write too much.
 
-- Give some depth thought into ways the team can improve their productivity, and suggest some ways to do that.
+- Give some deep thought into ways the team can improve their productivity, and suggest some ways to do that.
 
 - Include a description of open source community engagement, if any.
 
