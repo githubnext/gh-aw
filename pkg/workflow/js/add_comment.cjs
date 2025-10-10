@@ -65,13 +65,15 @@ async function main() {
 
     if (targetRepoSlug) {
       // Use target repository for issue/PR URLs in trial mode
-      return `https://github.com/${targetRepoSlug}`;
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      return `${githubServer}/${targetRepoSlug}`;
     } else if (context.payload.repository) {
       // Use execution context repository (default behavior)
       return context.payload.repository.html_url;
     } else {
       // Final fallback for action runs when context repo is not available
-      return `https://github.com/${context.repo.owner}/${context.repo.repo}`;
+      const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+      return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
     }
   }
 
@@ -182,9 +184,10 @@ async function main() {
     const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
     const runId = context.runId;
+    const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
     const runUrl = context.payload.repository
       ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-      : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+      : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
     body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL);
 
     core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);

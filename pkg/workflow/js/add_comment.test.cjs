@@ -310,4 +310,78 @@ describe("add_comment.cjs", () => {
     expect(callArgs.body).not.toContain("gh aw add");
     expect(callArgs.body).not.toContain("usage guide");
   });
+
+  it("should use GITHUB_SERVER_URL when repository context is not available", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "add-comment",
+          body: "Test content with custom server",
+        },
+      ],
+    });
+    process.env.GITHUB_SERVER_URL = "https://github.enterprise.com";
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 123 };
+    // Remove repository context to force use of GITHUB_SERVER_URL
+    delete global.context.payload.repository;
+
+    const mockComment = {
+      id: 456,
+      html_url: "https://github.enterprise.com/testowner/testrepo/issues/123#issuecomment-456",
+    };
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: mockComment,
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+    const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
+
+    // Check that the footer uses the custom GitHub server URL
+    expect(callArgs.body).toContain("Test content with custom server");
+    expect(callArgs.body).toContain("https://github.enterprise.com/testowner/testrepo/actions/runs/12345");
+    expect(callArgs.body).not.toContain("https://github.com/testowner/testrepo/actions/runs/12345");
+
+    // Clean up
+    delete process.env.GITHUB_SERVER_URL;
+  });
+
+  it("should fallback to https://github.com when GITHUB_SERVER_URL is not set and repository context is missing", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "add-comment",
+          body: "Test content with fallback",
+        },
+      ],
+    });
+    delete process.env.GITHUB_SERVER_URL;
+    global.context.eventName = "issues";
+    global.context.payload.issue = { number: 123 };
+    // Remove repository context to test fallback
+    delete global.context.payload.repository;
+
+    const mockComment = {
+      id: 456,
+      html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-456",
+    };
+
+    mockGithub.rest.issues.createComment.mockResolvedValue({
+      data: mockComment,
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createCommentScript} })()`);
+
+    expect(mockGithub.rest.issues.createComment).toHaveBeenCalled();
+    const callArgs = mockGithub.rest.issues.createComment.mock.calls[0][0];
+
+    // Check that the footer uses the default https://github.com
+    expect(callArgs.body).toContain("Test content with fallback");
+    expect(callArgs.body).toContain("https://github.com/testowner/testrepo/actions/runs/12345");
+  });
 });
