@@ -156,10 +156,10 @@ func TestGenerateFilteredToolsJSONWithHandlers(t *testing.T) {
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			CreatePullRequests:       &CreatePullRequestsConfig{},
-			PushToPullRequestBranch:  &PushToPullRequestBranchConfig{},
-			UploadAssets:             &UploadAssetsConfig{},
-			MissingTool:              &MissingToolConfig{},
+			CreatePullRequests:      &CreatePullRequestsConfig{},
+			PushToPullRequestBranch: &PushToPullRequestBranchConfig{},
+			UploadAssets:            &UploadAssetsConfig{},
+			MissingTool:             &MissingToolConfig{},
 		},
 	}
 
@@ -176,7 +176,7 @@ func TestGenerateFilteredToolsJSONWithHandlers(t *testing.T) {
 
 	// Verify hasHandler flag is set for tools that have handlers
 	toolsWithHandlers := []string{"create_pull_request", "push_to_pull_request_branch", "upload_asset"}
-	
+
 	for _, toolName := range toolsWithHandlers {
 		tool, ok := tools[toolName]
 		if !ok {
