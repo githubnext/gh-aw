@@ -7,35 +7,11 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// isYAMLBooleanKeyword checks if a key is a YAML boolean keyword that must remain quoted.
-// YAML 1.1 and 1.2 boolean keywords include: on, off, yes, no, true, false
-// These keywords are interpreted as boolean values when unquoted, so they must remain quoted
-// when used as keys in YAML documents.
-func isYAMLBooleanKeyword(key string) bool {
-	// List of YAML boolean keywords that are interpreted as boolean values when unquoted
-	// Based on YAML 1.1 specification: http://yaml.org/type/bool.html
-	boolKeywords := []string{"on", "off", "yes", "no", "true", "false"}
-	for _, keyword := range boolKeywords {
-		if key == keyword {
-			return true
-		}
-	}
-	return false
-}
-
 // UnquoteYAMLKey removes quotes from a YAML key at the start of a line.
-// This is necessary because yaml.Marshal adds quotes around some keys.
+// This is necessary because yaml.Marshal adds quotes around reserved words like "on".
 // The function only replaces the quoted key if it appears at the start of a line
 // (optionally preceded by whitespace) to avoid replacing quoted strings in values.
-//
-// IMPORTANT: YAML boolean keywords (on, off, yes, no, true, false) are NOT unquoted
-// because they would be interpreted as boolean values instead of string keys.
 func UnquoteYAMLKey(yamlStr string, key string) string {
-	// Do not unquote YAML boolean keywords - they must remain quoted to be interpreted as strings
-	if isYAMLBooleanKeyword(key) {
-		return yamlStr
-	}
-
 	// Create a regex pattern that matches the quoted key at the start of a line
 	// Pattern: (start of line or newline) + (optional whitespace) + quoted key + colon
 	pattern := `(^|\n)([ \t]*)"` + regexp.QuoteMeta(key) + `":`

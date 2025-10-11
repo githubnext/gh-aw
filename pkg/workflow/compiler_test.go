@@ -5600,7 +5600,7 @@ This is a test workflow to verify description field rendering.
 }
 
 // TestOnSectionWithQuotes tests that the "on" keyword IS quoted in the generated YAML
-// because "on" is a YAML boolean keyword and must remain quoted to be interpreted as a string
+// to prevent YAML parsers from interpreting it as a boolean value
 func TestOnSectionWithQuotes(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "on-quotes-test")

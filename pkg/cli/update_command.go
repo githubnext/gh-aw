@@ -781,9 +781,9 @@ func reconstructWorkflowFile(frontmatter map[string]any, markdown string) (strin
 		return "", fmt.Errorf("failed to marshal frontmatter: %w", err)
 	}
 
-	// Clean up the YAML - remove trailing newline and unquote the "on" key
+	// Clean up the YAML - remove trailing newline
+	// Keep "on" quoted as it's a YAML boolean keyword
 	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
-	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
 
 	// Reconstruct the file
 	var lines []string

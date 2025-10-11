@@ -908,8 +908,10 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 	yamlStr = strings.TrimSuffix(yamlStr, "\n")
 
 	// Clean up quoted keys - replace "key": with key: at the start of a line
-	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-	yamlStr = UnquoteYAMLKey(yamlStr, key)
+	// Don't unquote "on" key as it's a YAML boolean keyword and must remain quoted
+	if key != "on" {
+		yamlStr = UnquoteYAMLKey(yamlStr, key)
+	}
 
 	// Special handling for "on" section - comment out draft and fork fields from pull_request
 	if key == "on" {
@@ -1229,11 +1231,7 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 		onEventsYAML, err := yaml.Marshal(map[string]any{"on": otherEvents})
 		if err == nil {
 			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
-
-			// Clean up quoted keys - replace "on": with on: at the start of a line
-			// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-			yamlStr = UnquoteYAMLKey(yamlStr, "on")
-
+			// Keep "on" quoted as it's a YAML boolean keyword
 			workflowData.On = yamlStr
 		} else {
 			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)

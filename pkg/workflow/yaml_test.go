@@ -15,25 +15,25 @@ func TestUnquoteYAMLKey(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "do not unquote 'on' - YAML boolean keyword",
+			name: "unquote 'on' at start of line",
 			input: `"on":
   issues:
     types:
     - opened`,
 			key: "on",
-			expected: `"on":
+			expected: `on:
   issues:
     types:
     - opened`,
 		},
 		{
-			name: "do not unquote 'on' with indentation - YAML boolean keyword",
+			name: "unquote 'on' with indentation",
 			input: `  "on":
     issues:
       types:
       - opened`,
 			key: "on",
-			expected: `  "on":
+			expected: `  on:
     issues:
       types:
       - opened`,
@@ -51,7 +51,7 @@ func TestUnquoteYAMLKey(t *testing.T) {
 			expected: `description: "This is about on: something"`,
 		},
 		{
-			name: "do not unquote 'on' multiple occurrences - YAML boolean keyword",
+			name: "unquote multiple occurrences at start of lines",
 			input: `"on":
   issues:
     types:
@@ -61,57 +61,17 @@ func TestUnquoteYAMLKey(t *testing.T) {
     branches:
     - main`,
 			key: "on",
-			expected: `"on":
+			expected: `on:
   issues:
     types:
     - opened
-"on":
+on:
   push:
     branches:
     - main`,
 		},
 		{
-			name: "do not unquote 'yes' - YAML boolean keyword",
-			input: `"yes":
-  value: test`,
-			key: "yes",
-			expected: `"yes":
-  value: test`,
-		},
-		{
-			name: "do not unquote 'no' - YAML boolean keyword",
-			input: `"no":
-  value: test`,
-			key: "no",
-			expected: `"no":
-  value: test`,
-		},
-		{
-			name: "do not unquote 'true' - YAML boolean keyword",
-			input: `"true":
-  value: test`,
-			key: "true",
-			expected: `"true":
-  value: test`,
-		},
-		{
-			name: "do not unquote 'false' - YAML boolean keyword",
-			input: `"false":
-  value: test`,
-			key: "false",
-			expected: `"false":
-  value: test`,
-		},
-		{
-			name: "do not unquote 'off' - YAML boolean keyword",
-			input: `"off":
-  value: test`,
-			key: "off",
-			expected: `"off":
-  value: test`,
-		},
-		{
-			name: "unquote 'if' - not a YAML boolean keyword",
+			name: "unquote other keys",
 			input: `"if":
   github.actor == 'bot'`,
 			key: "if",
@@ -127,23 +87,23 @@ func TestUnquoteYAMLKey(t *testing.T) {
   value: test`,
 		},
 		{
-			name: "no change when key is already unquoted - YAML boolean keyword preserved",
-			input: `"on":
+			name: "no change when key is not quoted",
+			input: `on:
   issues:
     types:
     - opened`,
 			key: "on",
-			expected: `"on":
+			expected: `on:
   issues:
     types:
     - opened`,
 		},
 		{
-			name: "do not unquote 'on' with tabs - YAML boolean keyword",
+			name: "unquote with tabs",
 			input: `		"on":
 		  issues:`,
 			key: "on",
-			expected: `		"on":
+			expected: `		on:
 		  issues:`,
 		},
 		{
