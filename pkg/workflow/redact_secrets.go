@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+// escapeSingleQuote escapes single quotes and backslashes in a string to prevent injection
+// when embedding data in single-quoted YAML strings
+func escapeSingleQuote(s string) string {
+	// First escape backslashes, then escape single quotes
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `'`, `\'`)
+	return s
+}
+
 // CollectSecretReferences extracts all secret references from the workflow YAML
 // This scans for patterns like ${{ secrets.SECRET_NAME }} or secrets.SECRET_NAME
 func CollectSecretReferences(yamlContent string) []string {
@@ -67,12 +76,19 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	yaml.WriteString("        env:\n")
 
 	// Pass the list of secret names as a comma-separated string
-	yaml.WriteString(fmt.Sprintf("          GITHUB_AW_SECRET_NAMES: '%s'\n", strings.Join(secretReferences, ",")))
+	// Escape each secret reference to prevent injection when embedding in YAML
+	escapedRefs := make([]string, len(secretReferences))
+	for i, ref := range secretReferences {
+		escapedRefs[i] = escapeSingleQuote(ref)
+	}
+	yaml.WriteString(fmt.Sprintf("          GITHUB_AW_SECRET_NAMES: '%s'\n", strings.Join(escapedRefs, ",")))
 
 	// Pass the actual secret values as environment variables so they can be redacted
 	// Each secret will be available as an environment variable
 	for _, secretName := range secretReferences {
-		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", secretName, secretName))
+		// Escape secret name to prevent injection in YAML
+		escapedSecretName := escapeSingleQuote(secretName)
+		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, escapedSecretName))
 	}
 }
 
