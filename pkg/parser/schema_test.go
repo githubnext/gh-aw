@@ -241,6 +241,227 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid frontmatter with branch_protection_rule trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"branch_protection_rule": map[string]any{
+						"types": []string{"created", "deleted"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with check_run trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"check_run": map[string]any{
+						"types": []string{"completed", "rerequested"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with check_suite trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"check_suite": map[string]any{
+						"types": []string{"completed"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple create trigger",
+			frontmatter: map[string]any{
+				"on":     "create",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple delete trigger",
+			frontmatter: map[string]any{
+				"on":     "delete",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple fork trigger",
+			frontmatter: map[string]any{
+				"on":     "fork",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple gollum trigger",
+			frontmatter: map[string]any{
+				"on":     "gollum",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with label trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"label": map[string]any{
+						"types": []string{"created", "deleted"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with merge_group trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"merge_group": map[string]any{
+						"types": []string{"checks_requested"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with milestone trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"milestone": map[string]any{
+						"types": []string{"opened", "closed"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple page_build trigger",
+			frontmatter: map[string]any{
+				"on":     "page_build",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple public trigger",
+			frontmatter: map[string]any{
+				"on":     "public",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with pull_request_target trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_target": map[string]any{
+						"types":    []string{"opened", "synchronize"},
+						"branches": []string{"main"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with pull_request_review trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request_review": map[string]any{
+						"types": []string{"submitted", "edited"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with registry_package trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"registry_package": map[string]any{
+						"types": []string{"published", "updated"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with repository_dispatch trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"repository_dispatch": map[string]any{
+						"types": []string{"custom-event", "deploy"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple status trigger",
+			frontmatter: map[string]any{
+				"on":     "status",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with watch trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"watch": map[string]any{
+						"types": []string{"started"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple workflow_call trigger",
+			frontmatter: map[string]any{
+				"on":     "workflow_call",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with updated issues trigger types",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{
+						"types": []string{"opened", "typed", "untyped"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with updated pull_request trigger types",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{
+						"types": []string{"opened", "milestoned", "demilestoned", "ready_for_review", "auto_merge_enabled"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid frontmatter with complex tools configuration (new format)",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
