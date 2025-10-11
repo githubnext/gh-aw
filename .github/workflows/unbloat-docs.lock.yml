@@ -166,10 +166,9 @@ jobs:
               const reaction = process.env.GITHUB_AW_REACTION || "eyes";
               const command = process.env.GITHUB_AW_COMMAND; 
               const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const runUrl = context.payload.repository
                 ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               core.info(`Reaction type: ${reaction}`);
               core.info(`Command name: ${command || "none"}`);
               core.info(`Run ID: ${runId}`);
@@ -401,7 +400,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.14
+        run: npm install -g @anthropic-ai/claude-code@2.0.13
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -438,7 +437,6 @@ jobs:
           import re
           
           # Domain allow-list (populated during generation)
-          # JSON array safely embedded as Python list literal
           ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","*.githubusercontent.com","raw.githubusercontent.com","objects.githubusercontent.com","lfs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","codeload.github.com"]
           
           def extract_domain(url_or_query):
@@ -809,7 +807,7 @@ jobs:
               },
               {
                 name: "add_comment",
-                description: "Add a comment to a GitHub issue, pull request, or discussion",
+                description: "Add a comment to a GitHub issue or pull request",
                 inputSchema: {
                   type: "object",
                   required: ["body"],
@@ -817,15 +815,7 @@ jobs:
                     body: { type: "string", description: "Comment body/content" },
                     issue_number: {
                       type: "number",
-                      description: "Issue number (optional for current context)",
-                    },
-                    pull_number: {
-                      type: "number",
-                      description: "Pull request number (optional, alternative to issue_number)",
-                    },
-                    discussion_number: {
-                      type: "number",
-                      description: "Discussion number for discussion comments (optional, alternative to issue_number)",
+                      description: "Issue or PR number (optional for current context)",
                     },
                   },
                   additionalProperties: false,
@@ -1200,7 +1190,7 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
               "github": {
@@ -1211,9 +1201,7 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_TOOLSETS=all",
-                  "ghcr.io/github/github-mcp-server:v0.18.0"
+                  "ghcr.io/github/github-mcp-server:sha-09deac4"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -1568,6 +1556,15 @@ jobs:
               }
             }
             main();
+      - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
@@ -1671,7 +1668,6 @@ jobs:
         # - mcp__github__get_issue
         # - mcp__github__get_issue_comments
         # - mcp__github__get_job_logs
-        # - mcp__github__get_label
         # - mcp__github__get_latest_release
         # - mcp__github__get_me
         # - mcp__github__get_notification_details
@@ -1697,7 +1693,6 @@ jobs:
         # - mcp__github__list_discussions
         # - mcp__github__list_issue_types
         # - mcp__github__list_issues
-        # - mcp__github__list_label
         # - mcp__github__list_notifications
         # - mcp__github__list_pull_requests
         # - mcp__github__list_releases
@@ -1709,7 +1704,6 @@ jobs:
         # - mcp__github__list_workflow_run_artifacts
         # - mcp__github__list_workflow_runs
         # - mcp__github__list_workflows
-        # - mcp__github__pull_request_read
         # - mcp__github__search_code
         # - mcp__github__search_issues
         # - mcp__github__search_orgs
@@ -1720,7 +1714,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(date),Bash(echo),Bash(find docs -name '*.md'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n *),Bash(grep),Bash(head *),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail *),Bash(tail),Bash(uniq),Bash(wc -l *),Bash(wc),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(date),Bash(echo),Bash(find docs -name '*.md'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n *),Bash(grep),Bash(head *),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail *),Bash(tail),Bash(uniq),Bash(wc -l *),Bash(wc),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -2176,39 +2170,16 @@ jobs:
                       if (item.labels && Array.isArray(item.labels)) {
                         item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
-                      if (item.parent !== undefined) {
-                        const parentValidation = validateIssueOrPRNumber(item.parent, "create_issue 'parent'", i + 1);
-                        if (!parentValidation.isValid) {
-                          if (parentValidation.error) errors.push(parentValidation.error);
-                          continue;
-                        }
-                      }
                       break;
                     case "add-comment":
                       if (!item.body || typeof item.body !== "string") {
                         errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
                         continue;
                       }
-                      if (item.issue_number !== undefined) {
-                        const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-                        if (!issueNumValidation.isValid) {
-                          if (issueNumValidation.error) errors.push(issueNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.discussion_number !== undefined) {
-                        const discussionNumValidation = validateIssueOrPRNumber(item.discussion_number, "add_comment 'discussion_number'", i + 1);
-                        if (!discussionNumValidation.isValid) {
-                          if (discussionNumValidation.error) errors.push(discussionNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.pull_number !== undefined) {
-                        const pullNumValidation = validateIssueOrPRNumber(item.pull_number, "add_comment 'pull_number'", i + 1);
-                        if (!pullNumValidation.isValid) {
-                          if (pullNumValidation.error) errors.push(pullNumValidation.error);
-                          continue;
-                        }
+                      const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
+                      if (!issueNumValidation.isValid) {
+                        if (issueNumValidation.error) errors.push(issueNumValidation.error);
+                        continue;
                       }
                       item.body = sanitizeContent(item.body);
                       break;
@@ -2499,6 +2470,18 @@ jobs:
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
               core.setOutput("output_types", outputTypes.join(","));
+              try {
+                await core.summary
+                  .addRaw("## Processed Output\n\n")
+                  .addRaw("```json\n")
+                  .addRaw(JSON.stringify(validatedOutput))
+                  .addRaw("\n```\n")
+                  .write();
+                core.info("Successfully wrote processed output to step summary");
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to write to step summary: ${errorMsg}`);
+              }
             }
             await main();
       - name: Upload sanitized agent output
@@ -2591,16 +2574,6 @@ jobs:
                     mcpFailures: [],
                   };
                 }
-                const toolUsePairs = new Map(); 
-                for (const entry of logEntries) {
-                  if (entry.type === "user" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_result" && content.tool_use_id) {
-                        toolUsePairs.set(content.tool_use_id, content);
-                      }
-                    }
-                  }
-                }
                 let markdown = "";
                 const mcpFailures = [];
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
@@ -2611,27 +2584,18 @@ jobs:
                   mcpFailures.push(...initResult.mcpFailures);
                   markdown += "\n";
                 }
-                markdown += "\n## 🤖 Reasoning\n\n";
+                markdown += "## 🤖 Commands and Tools\n\n";
+                const toolUsePairs = new Map(); 
+                const commandSummary = []; 
                 for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
+                  if (entry.type === "user" && entry.message?.content) {
                     for (const content of entry.message.content) {
-                      if (content.type === "text" && content.text) {
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + "\n\n";
-                        }
-                      } else if (content.type === "tool_use") {
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUse(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
-                        }
+                      if (content.type === "tool_result" && content.tool_use_id) {
+                        toolUsePairs.set(content.tool_use_id, content);
                       }
                     }
                   }
                 }
-                markdown += "## 🤖 Commands and Tools\n\n";
-                const commandSummary = []; 
                 for (const entry of logEntries) {
                   if (entry.type === "assistant" && entry.message?.content) {
                     for (const content of entry.message.content) {
@@ -2694,6 +2658,25 @@ jobs:
                   }
                   if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
                     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                  }
+                }
+                markdown += "\n## 🤖 Reasoning\n\n";
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "text" && content.text) {
+                        const text = content.text.trim();
+                        if (text && text.length > 0) {
+                          markdown += text + "\n\n";
+                        }
+                      } else if (content.type === "tool_use") {
+                        const toolResult = toolUsePairs.get(content.id);
+                        const toolMarkdown = formatToolUse(content, toolResult);
+                        if (toolMarkdown) {
+                          markdown += toolMarkdown;
+                        }
+                      }
+                    }
                   }
                 }
                 return { markdown, mcpFailures };
@@ -2912,15 +2895,6 @@ jobs:
               };
             }
             main();
-      - name: Print prompt to step summary
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
@@ -2933,7 +2907,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
         with:
           script: |
             function main() {
@@ -3309,7 +3283,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.14
+        run: npm install -g @anthropic-ai/claude-code@2.0.13
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -3382,14 +3356,13 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && (((github.event.issue.number) ||
-      (github.event.pull_request.number)) || (github.event.discussion.number))
+      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && ((github.event.issue.number) ||
+      (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
       pull-requests: write
-      discussions: write
     timeout-minutes: 10
     outputs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
@@ -3410,56 +3383,8 @@ jobs:
           GITHUB_AW_WORKFLOW_NAME: "Documentation Unbloat"
         with:
           script: |
-            function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
-            async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              const discussionId = repository.discussion.id;
-              const discussionUrl = repository.discussion.url;
-              const result = await github.graphql(
-                `
-                mutation($dId: ID!, $body: String!) {
-                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                    comment { 
-                      id 
-                      body 
-                      createdAt 
-                      url
-                    }
-                  }
-                }`,
-                { dId: discussionId, body: message }
-              );
-              const comment = result.addDiscussionComment.comment;
-              return {
-                id: comment.id,
-                html_url: comment.url,
-                discussion_url: discussionUrl,
-              };
-            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
@@ -3490,26 +3415,12 @@ jobs:
               function getRepositoryUrl() {
                 const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
                 if (targetRepoSlug) {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${targetRepoSlug}`;
+                  return `https://github.com/${targetRepoSlug}`;
                 } else if (context.payload.repository) {
                   return context.payload.repository.html_url;
                 } else {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+                  return `https://github.com/${context.repo.owner}/${context.repo.repo}`;
                 }
-              }
-              function getTargetNumber(item) {
-                if (item.issue_number !== undefined) {
-                  return item.issue_number;
-                }
-                if (item.pull_number !== undefined) {
-                  return item.pull_number;
-                }
-                if (item.discussion_number !== undefined) {
-                  return item.discussion_number;
-                }
-                return undefined;
               }
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -3517,22 +3428,12 @@ jobs:
                 for (let i = 0; i < commentItems.length; i++) {
                   const item = commentItems[i];
                   summaryContent += `### Comment ${i + 1}\n`;
-                  const targetNumber = getTargetNumber(item);
-                  if (targetNumber) {
+                  if (item.issue_number) {
                     const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
-                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                    } else {
-                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                    }
+                    const issueUrl = `${repoUrl}/issues/${item.issue_number}`;
+                    summaryContent += `**Target Issue:** [#${item.issue_number}](${issueUrl})\n\n`;
                   } else {
-                    if (isDiscussion) {
-                      summaryContent += `**Target:** Current discussion\n\n`;
-                    } else {
-                      summaryContent += `**Target:** Current issue/PR\n\n`;
-                    }
+                    summaryContent += `**Target:** Current issue/PR\n\n`;
                   }
                   summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
                   summaryContent += "---\n\n";
@@ -3543,15 +3444,13 @@ jobs:
               }
               const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
               core.info(`Comment target configuration: ${commentTarget}`);
-              core.info(`Discussion mode: ${isDiscussion}`);
               const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
               const isPRContext =
                 context.eventName === "pull_request" ||
                 context.eventName === "pull_request_review" ||
                 context.eventName === "pull_request_review_comment";
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
+              if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
+                core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
                 return;
               }
               const createdComments = [];
@@ -3561,87 +3460,64 @@ jobs:
                 let issueNumber;
                 let commentEndpoint;
                 if (commentTarget === "*") {
-                  const targetNumber = getTargetNumber(commentItem);
-                  if (targetNumber) {
-                    issueNumber = parseInt(targetNumber, 10);
+                  if (commentItem.issue_number) {
+                    issueNumber = parseInt(commentItem.issue_number, 10);
                     if (isNaN(issueNumber) || issueNumber <= 0) {
-                      core.info(`Invalid target number specified: ${targetNumber}`);
+                      core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
                       continue;
                     }
-                    commentEndpoint = isDiscussion ? "discussions" : "issues";
+                    commentEndpoint = "issues";
                   } else {
-                    const expectedFields = isDiscussion ? "discussion_number" : "issue_number or pull_number";
-                    core.info(`Target is "*" but no ${expectedFields} specified in comment item`);
+                    core.info('Target is "*" but no issue_number specified in comment item');
                     continue;
                   }
                 } else if (commentTarget && commentTarget !== "triggering") {
                   issueNumber = parseInt(commentTarget, 10);
                   if (isNaN(issueNumber) || issueNumber <= 0) {
-                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
+                    core.info(`Invalid issue number in target configuration: ${commentTarget}`);
                     continue;
                   }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
+                  commentEndpoint = "issues";
                 } else {
                   if (isIssueContext) {
-                    issueNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
                     if (context.payload.issue) {
+                      issueNumber = context.payload.issue.number;
                       commentEndpoint = "issues";
                     } else {
                       core.info("Issue context detected but no issue found in payload");
                       continue;
                     }
                   } else if (isPRContext) {
-                    issueNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
                     if (context.payload.pull_request) {
+                      issueNumber = context.payload.pull_request.number;
                       commentEndpoint = "issues"; 
                     } else {
                       core.info("Pull request context detected but no pull request found in payload");
                       continue;
                     }
-                  } else if (isDiscussionContext) {
-                    issueNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-                    if (context.payload.discussion) {
-                      commentEndpoint = "discussions"; 
-                    } else {
-                      core.info("Discussion context detected but no discussion found in payload");
-                      continue;
-                    }
                   }
                 }
                 if (!issueNumber) {
-                  core.info("Could not determine issue, pull request, or discussion number");
+                  core.info("Could not determine issue or pull request number");
                   continue;
                 }
                 let body = commentItem.body.trim();
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL);
+                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                body += `\n\n> AI generated by [${workflowName}](${runUrl})\n`;
+                core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+                core.info(`Comment content length: ${body.length}`);
                 try {
-                  let comment;
-                  if (isDiscussion) {
-                    core.info(`Creating comment on discussion #${issueNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, issueNumber, body);
-                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-                    comment.discussion_url = comment.discussion_url;
-                  } else {
-                    core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    const { data: restComment } = await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: issueNumber,
-                      body: body,
-                    });
-                    comment = restComment;
-                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  }
+                  const { data: comment } = await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    body: body,
+                  });
+                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
                   createdComments.push(comment);
                   if (i === commentItems.length - 1) {
                     core.setOutput("comment_id", comment.id);
@@ -3866,10 +3742,9 @@ jobs:
               }
               const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
               const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const runUrl = context.payload.repository
                 ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
               bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
               const body = bodyLines.join("\n").trim();
               const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
@@ -3929,10 +3804,9 @@ jobs:
                   core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
                   core.warning("Git push operation failed - creating fallback issue instead of pull request");
                   const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                   const runUrl = context.payload.repository
                     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                    : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   const fallbackBody = `${body}
             ---
             > [!NOTE]
@@ -4033,10 +3907,9 @@ jobs:
               } catch (prError) {
                 core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
                 core.info("Falling back to creating an issue instead");
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const branchUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
                 const fallbackBody = `${body}
             ---
             **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
