@@ -44,7 +44,7 @@ func TestForceLevelOverride(t *testing.T) {
 			expectedWarns:  1,
 		},
 		{
-			name:       "multiple_permission_patterns_as_warnings",
+			name: "multiple_permission_patterns_as_warnings",
 			logContent: `ERROR: permission denied for write
 Error: unauthorized access attempt
 configuration error: required permissions not specified
@@ -138,7 +138,7 @@ func TestCodexEnginePermissionPatternsAreWarnings(t *testing.T) {
 	patterns := engine.GetErrorPatterns()
 
 	permissionKeywords := []string{"permission", "unauthorized", "forbidden", "access"}
-	
+
 	for _, pattern := range patterns {
 		// Check if this is a permission-related pattern
 		isPermissionPattern := false
@@ -167,7 +167,7 @@ func TestCopilotEnginePermissionPatternsAreWarnings(t *testing.T) {
 	patterns := engine.GetErrorPatterns()
 
 	permissionKeywords := []string{"permission", "unauthorized", "forbidden", "access", "authentication", "token"}
-	
+
 	for _, pattern := range patterns {
 		// Check if this is a permission-related pattern
 		isPermissionPattern := false
@@ -181,7 +181,7 @@ func TestCopilotEnginePermissionPatternsAreWarnings(t *testing.T) {
 
 		// If it's a permission/auth pattern (but not a timestamped ERROR/WARN), it should have ForceLevel="warning"
 		// Exclude patterns with explicit level groups (those are properly categorized by their level group)
-		if isPermissionPattern && pattern.LevelGroup == 0 && 
+		if isPermissionPattern && pattern.LevelGroup == 0 &&
 			!containsIgnoreCase(pattern.Pattern, `\[(ERROR|WARN|WARNING)\]`) &&
 			!containsIgnoreCase(pattern.Pattern, `(ERROR|WARN|WARNING):`) {
 			if pattern.ForceLevel != "warning" {
@@ -194,10 +194,10 @@ func TestCopilotEnginePermissionPatternsAreWarnings(t *testing.T) {
 
 // Helper function to check if a string contains a substring (case-insensitive)
 func containsIgnoreCase(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		(s == substr || 
-		 len(s) > 0 && len(substr) > 0 &&
-		 stringContains(toLower(s), toLower(substr)))
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			len(s) > 0 && len(substr) > 0 &&
+				stringContains(toLower(s), toLower(substr)))
 }
 
 func toLower(s string) string {
