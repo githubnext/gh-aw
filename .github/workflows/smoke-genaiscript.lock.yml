@@ -915,12 +915,6 @@ jobs:
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           
-          ```yaml
-          ---
-          imports:
-            - shared/genaiscript.md
-          ---
-          ```
           
           Review the last 5 merged pull requests in this repository and post summary in an issue.
           
