@@ -472,6 +472,9 @@ function runRelease(releaseType) {
   const nextVersion = bumpVersion(currentVersion, bumpType);
   const versionString = formatVersion(nextVersion);
   
+  console.log(formatInfoMessage(`Current version: ${formatVersion(currentVersion)}`));
+  console.log(formatInfoMessage(`Bump type: ${bumpType}`));
+  console.log(formatInfoMessage(`Next version: ${versionString}`));
   console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
   
   // Update changelog
