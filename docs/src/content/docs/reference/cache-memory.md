@@ -168,7 +168,9 @@ The cache folder provides standard file system access:
 /tmp/gh-aw/cache-memory/state/session.yaml  # State management
 ```
 
-### Best Practices for File Organization
+## Best Practices
+
+### File Organization
 
 Use descriptive file names and directory structures:
 
@@ -185,8 +187,6 @@ Use descriptive file names and directory structures:
 │   └── context.json
 └── notes.md
 ```
-
-## Best Practices
 
 ### Cache Key Naming
 
@@ -216,24 +216,22 @@ Be mindful of cache usage:
 
 ## Troubleshooting
 
-### Common Issues
-
-#### Files Not Persisting
+### Files Not Persisting
 - **Check Cache Keys**: Ensure keys are consistent between runs
 - **Verify Paths**: Confirm `/tmp/gh-aw/cache-memory/` directory exists
 - **Review Logs**: Check workflow logs for cache restore/save messages
 
-#### File Access Issues
+### File Access Issues
 - **Directory Creation**: Ensure subdirectories are created before use
 - **Permissions**: Verify file write permissions in the cache folder
 - **Path Resolution**: Use absolute paths within `/tmp/gh-aw/cache-memory/`
 
-#### Cache Size Issues
+### Cache Size Issues
 - **Monitor Usage**: Track cache size growth over time
 - **Cleanup Strategy**: Implement periodic cache clearing
 - **Key Rotation**: Use time-based cache keys for automatic expiration
 
-### Debugging
+## Debugging
 
 Enable verbose logging to debug cache-memory issues:
 
@@ -334,21 +332,6 @@ tools:
 
 Share cache data across multiple workflows in the same repository using files.
 ```
-
-## Migration from MCP Memory Server
-
-If migrating from the previous MCP memory server approach:
-
-### Changes
-- **No MCP server**: Cache-memory no longer uses `@modelcontextprotocol/server-memory`
-- **File operations**: Use standard file read/write instead of memory tools
-- **Direct access**: Access files directly at `/tmp/gh-aw/cache-memory/`
-- **No tools**: No `mcp__memory` tool is provided
-
-### Migration Steps
-1. **Update workflow syntax**: Remove any `docker-image` configuration
-2. **Modify prompts**: Update prompts to reference file operations instead of memory tools
-3. **Test file access**: Verify file operations work as expected
 
 ## Related Documentation
 
