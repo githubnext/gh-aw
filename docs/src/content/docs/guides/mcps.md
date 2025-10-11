@@ -82,6 +82,11 @@ This command automatically:
 
 **Default Registry**: `https://api.mcp.github.com/v0`
 
+> [!TIP]
+> You can discover and inspect the tools available for Agentic Workflows by running: <br/>
+> `gh aw mcp list <workflow-file>` - Quick overview of MCP servers <br/>
+> `gh aw mcp inspect <workflow-file>` - Detailed inspection with connection testing
+
 ### Engine Compatibility
 
 Different AI engines support different MCP features:
