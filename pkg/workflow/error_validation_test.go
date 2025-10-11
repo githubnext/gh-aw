@@ -144,7 +144,6 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 			"bash: npm: command not found",
 			"✗ Install dev dependencies",
 			"Error: Cannot find module 'vitest'",
-			"sh: 1: make: Permission denied",
 		}
 
 		for _, logLine := range testLogs {
@@ -158,6 +157,7 @@ func TestCodingAgentEngineErrorValidation(t *testing.T) {
 		// Test logs that should be detected as warnings
 		testWarningLogs := []string{
 			"Permission denied and could not request permission from user",
+			"sh: 1: make: Permission denied", // Permission errors are warnings
 		}
 
 		for _, logLine := range testWarningLogs {
