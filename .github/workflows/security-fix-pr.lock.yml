@@ -3102,6 +3102,18 @@ jobs:
             const fs = require("fs");
             const crypto = require("crypto");
             async function main() {
+              function generatePatchPreview(patchContent) {
+                if (!patchContent || !patchContent.trim()) {
+                  return "";
+                }
+                const lines = patchContent.split("\n");
+                const maxLines = 500;
+                if (lines.length <= maxLines) {
+                  return `\n\n<details><summary>Show patch (${lines.length} lines)</summary>\n\n\`\`\`diff\n${patchContent}\n\`\`\`\n\n</details>`;
+                }
+                const preview = lines.slice(0, maxLines).join("\n");
+                return `\n\n<details><summary>Show patch preview (${maxLines} of ${lines.length} lines)</summary>\n\n\`\`\`diff\n${preview}\n... (truncated)\n\`\`\`\n\n</details>`;
+              }
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
               if (!workflowId) {
@@ -3319,6 +3331,11 @@ jobs:
                   const runUrl = context.payload.repository
                     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                     : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  let patchPreview = "";
+                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    patchPreview = generatePatchPreview(patchContent);
+                  }
                   const fallbackBody = `${body}
             ---
             > [!NOTE]
@@ -3335,7 +3352,7 @@ jobs:
             # Apply the patch
             git am aw.patch
             \`\`\`
-            `;
+            ${patchPreview}`;
                   try {
                     const { data: issue } = await github.rest.issues.create({
                       owner: context.repo.owner,
@@ -3423,11 +3440,16 @@ jobs:
                 const branchUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/tree/${branchName}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                let patchPreview = "";
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  patchPreview = generatePatchPreview(patchContent);
+                }
                 const fallbackBody = `${body}
             ---
             **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
             **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.`;
+            You can manually create a pull request from the branch if needed.${patchPreview}`;
                 try {
                   const { data: issue } = await github.rest.issues.create({
                     owner: context.repo.owner,
