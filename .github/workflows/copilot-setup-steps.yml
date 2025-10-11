@@ -45,6 +45,9 @@ jobs:
         run: npm ci
         working-directory: ./pkg/workflow/js
 
+      - name: Install development dependencies
+        run: make deps-dev
+
       - name: Build code
         run: make build
         continue-on-error: true
