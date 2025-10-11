@@ -957,15 +957,6 @@ jobs:
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
-      - name: Print prompt to step summary
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(codex --version 2>&1 || echo "unknown")
@@ -1776,18 +1767,6 @@ jobs:
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
               core.setOutput("output_types", outputTypes.join(","));
-              try {
-                await core.summary
-                  .addRaw("## Processed Output\n\n")
-                  .addRaw("```json\n")
-                  .addRaw(JSON.stringify(validatedOutput))
-                  .addRaw("\n```\n")
-                  .write();
-                core.info("Successfully wrote processed output to step summary");
-              } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to write to step summary: ${errorMsg}`);
-              }
             }
             await main();
       - name: Upload sanitized agent output
@@ -2005,7 +1984,57 @@ jobs:
             function parseCodexLog(logContent) {
               try {
                 const lines = logContent.split("\n");
-                let markdown = "## 🤖 Commands and Tools\n\n";
+                let markdown = "";
+                markdown += "## 🤖 Reasoning\n\n";
+                let inThinkingSection = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  if (
+                    line.includes("OpenAI Codex") ||
+                    line.startsWith("--------") ||
+                    line.includes("workdir:") ||
+                    line.includes("model:") ||
+                    line.includes("provider:") ||
+                    line.includes("approval:") ||
+                    line.includes("sandbox:") ||
+                    line.includes("reasoning effort:") ||
+                    line.includes("reasoning summaries:") ||
+                    line.includes("tokens used:") ||
+                    line.includes("DEBUG codex") ||
+                    line.includes("INFO codex") ||
+                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
+                  ) {
+                    continue;
+                  }
+                  if (line.trim() === "thinking") {
+                    inThinkingSection = true;
+                    continue;
+                  }
+                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+                  if (toolMatch) {
+                    inThinkingSection = false;
+                    const server = toolMatch[1];
+                    const toolName = toolMatch[2];
+                    let statusIcon = "❓"; 
+                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+                      const nextLine = lines[j];
+                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+                        statusIcon = "✅";
+                        break;
+                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+                        statusIcon = "❌";
+                        break;
+                      }
+                    }
+                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
+                    continue;
+                  }
+                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+                    const trimmed = line.trim();
+                    markdown += `${trimmed}\n\n`;
+                  }
+                }
+                markdown += "## 🤖 Commands and Tools\n\n";
                 const LOOKAHEAD_WINDOW = 50;
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
@@ -2100,55 +2129,6 @@ jobs:
                 if (toolCalls > 0) {
                   markdown += `**Tool Calls:** ${toolCalls}\n\n`;
                 }
-                markdown += "\n## 🤖 Reasoning\n\n";
-                let inThinkingSection = false;
-                for (let i = 0; i < lines.length; i++) {
-                  const line = lines[i];
-                  if (
-                    line.includes("OpenAI Codex") ||
-                    line.startsWith("--------") ||
-                    line.includes("workdir:") ||
-                    line.includes("model:") ||
-                    line.includes("provider:") ||
-                    line.includes("approval:") ||
-                    line.includes("sandbox:") ||
-                    line.includes("reasoning effort:") ||
-                    line.includes("reasoning summaries:") ||
-                    line.includes("tokens used:") ||
-                    line.includes("DEBUG codex") ||
-                    line.includes("INFO codex") ||
-                    line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
-                  ) {
-                    continue;
-                  }
-                  if (line.trim() === "thinking") {
-                    inThinkingSection = true;
-                    continue;
-                  }
-                  const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
-                  if (toolMatch) {
-                    inThinkingSection = false;
-                    const server = toolMatch[1];
-                    const toolName = toolMatch[2];
-                    let statusIcon = "❓"; 
-                    for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
-                      const nextLine = lines[j];
-                      if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
-                        statusIcon = "✅";
-                        break;
-                      } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
-                        statusIcon = "❌";
-                        break;
-                      }
-                    }
-                    markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
-                    continue;
-                  }
-                  if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
-                    const trimmed = line.trim();
-                    markdown += `${trimmed}\n\n`;
-                  }
-                }
                 return markdown;
               } catch (error) {
                 core.error(`Error parsing Codex log: ${error}`);
@@ -2202,6 +2182,15 @@ jobs:
               module.exports = { parseCodexLog, formatCodexToolCall, formatCodexBashCall, truncateString };
             }
             main();
+      - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
