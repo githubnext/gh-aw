@@ -1488,8 +1488,8 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 					}
 				}
 
-				// Start with default commands
-				mergedCommands := make([]any, 0, len(constants.DefaultBashTools)+len(bashArray))
+				// Start with default commands (append handles capacity automatically)
+				var mergedCommands []any
 				for _, cmd := range constants.DefaultBashTools {
 					if !existingCommands[cmd] {
 						mergedCommands = append(mergedCommands, cmd)
