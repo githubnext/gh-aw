@@ -8,7 +8,7 @@
 #     - shared/mcp/serena.md
 
 name: "Duplicate Code Detector"
-on:
+"on":
   schedule:
   - cron: 0 11 * * *
   workflow_dispatch: null

@@ -8,7 +8,7 @@
 #     - shared/actions-ai-inference.md
 
 name: "Issue Classifier"
-on:
+"on":
   issues:
     types:
     - opened

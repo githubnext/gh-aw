@@ -12,7 +12,7 @@
 #     - shared/mcp/context7.md
 
 name: "Scout"
-on:
+"on":
   issue_comment:
     types:
     - created

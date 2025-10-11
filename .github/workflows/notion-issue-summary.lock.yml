@@ -8,7 +8,7 @@
 #     - shared/mcp/notion.md
 
 name: "Issue Summary to Notion"
-on:
+"on":
   issues:
     types:
     - opened

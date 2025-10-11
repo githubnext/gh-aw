@@ -278,9 +278,9 @@ source: old/repo/workflow.md@v1.0.0
 		t.Errorf("Expected source field to be updated to v2.0.0, got:\n%s", updated)
 	}
 
-	// Ensure other content is preserved
-	if !strings.Contains(updated, "on: push") {
-		t.Error("Expected other frontmatter fields to be preserved")
+	// Ensure other content is preserved (on key is now quoted)
+	if !strings.Contains(updated, `"on": push`) {
+		t.Errorf("Expected other frontmatter fields to be preserved, got:\n%s", updated)
 	}
 
 	if !strings.Contains(updated, "# Test Workflow") {

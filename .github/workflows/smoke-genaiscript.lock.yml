@@ -8,7 +8,7 @@
 #     - shared/genaiscript.md
 
 name: "Smoke GenAIScript"
-on:
+"on":
   push:
     paths:
     - .github/workflows/smoke-genaiscript.lock.yml

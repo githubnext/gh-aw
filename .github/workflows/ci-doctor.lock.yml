@@ -8,7 +8,7 @@
 # Effective stop-time: 2025-10-11 17:51:44
 
 name: "CI Failure Doctor"
-on:
+"on":
   workflow_run:
     types:
     - completed

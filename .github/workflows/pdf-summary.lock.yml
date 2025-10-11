@@ -8,7 +8,7 @@
 #     - shared/mcp/markitdown.md
 
 name: "Resource Summarizer Agent"
-on:
+"on":
   issue_comment:
     types:
     - created
