@@ -51,3 +51,7 @@ jobs:
       - name: Build code
         run: make build
         continue-on-error: true
+
+      - name: Recompile workflows
+        run: make recompile
+        continue-on-error: true
