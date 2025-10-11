@@ -517,9 +517,15 @@ func processIncludesWithVisited(content, baseDir string, extractTools bool, visi
 		if directive != nil {
 			// Emit deprecation warning for legacy syntax
 			if directive.IsLegacy {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: '%s'. Use '{{#import%s %s}}' instead.",
+				// Security: Escape strings to prevent quote injection in warning messages
+				// Use %q format specifier to safely quote strings containing special characters
+				optionalMarker := ""
+				if directive.IsOptional {
+					optionalMarker = "?"
+				}
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Deprecated syntax: %q. Use {{#import%s %s}} instead.",
 					directive.Original,
-					map[bool]string{true: "?", false: ""}[directive.IsOptional],
+					optionalMarker,
 					directive.Path)))
 			}
 
