@@ -56,7 +56,7 @@ When updates are found, update the default versions in the codebase and create a
    - Extract the `version` field from the JSON response
    
 2. **Check Current Version**:
-   - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`
+   - Read `./pkg/constants/constants.go`
    - Find the current `DefaultClaudeCodeVersion` constant value
 
 3. **Compare Versions**:
@@ -92,7 +92,7 @@ When updates are found, update the default versions in the codebase and create a
    - Extract the `version` field from the JSON response
 
 2. **Check Current Version**:
-   - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`
+   - Read `./pkg/constants/constants.go`
    - Find the current `DefaultCopilotVersion` constant value
 
 3. **Compare Versions**:
@@ -132,7 +132,7 @@ When updates are found, update the default versions in the codebase and create a
    - Extract the `version` field from the JSON response
 
 2. **Check Current Version**:
-   - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`
+   - Read `./pkg/constants/constants.go`
    - Find the current `DefaultCodexVersion` constant value
 
 3. **Compare Versions**:
@@ -176,7 +176,7 @@ The GitHub MCP server is used in both local (Docker) and remote (hosted) modes. 
    - Look for the latest release tag or SHA-based tag
 
 2. **Check Current Version**:
-   - Read `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`
+   - Read `./pkg/constants/constants.go`
    - Find the current `DefaultGitHubMCPServerVersion` constant value (e.g., "v0.18.0")
 
 3. **Compare Versions**:
@@ -235,7 +235,7 @@ The GitHub MCP server is used in both local (Docker) and remote (hosted) modes. 
 If any CLI or MCP server has a newer version available:
 
 1. **Update Constants File**:
-   - Edit `/home/runner/work/gh-aw/gh-aw/pkg/constants/constants.go`
+   - Edit `./pkg/constants/constants.go`
    - Update `DefaultClaudeCodeVersion` to the new version if Claude has an update
    - Update `DefaultGitHubMCPServerVersion` to the new version if GitHub MCP Server has an update
    - Use the `Edit` tool to make surgical changes to the constant values
