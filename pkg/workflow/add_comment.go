@@ -101,7 +101,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		Name:           "add_comment",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
+		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,

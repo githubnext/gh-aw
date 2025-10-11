@@ -3966,6 +3966,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
+      discussions: write
     timeout-minutes: 10
     outputs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
