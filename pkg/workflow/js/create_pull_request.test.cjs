@@ -583,8 +583,64 @@ describe("create_pull_request.cjs", () => {
 
     // Should include first few lines but not all 604 lines
     expect(issueCreateCall.body).toContain("+Line 0");
-    expect(issueCreateCall.body).toContain("+Line 100");
+    // Due to 2000 char limit, it won't contain line 100
     expect(issueCreateCall.body).not.toContain("+Line 550"); // Should be truncated before this
+  });
+
+  it("should truncate patch by character limit when it exceeds 2000 chars", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "PR with large patch",
+          body: "This PR will fail and create an issue with char-limited patch.",
+        },
+      ],
+    });
+
+    // Create a patch that exceeds 2000 chars but has fewer than 500 lines
+    const patchLines = ["diff --git a/file.txt b/file.txt", "--- a/file.txt", "+++ b/file.txt", "@@ -1,1 +1,100 @@"];
+    // Add lines with enough content to exceed 2000 chars
+    for (let i = 0; i < 100; i++) {
+      patchLines.push(`+This is a longer line ${i} with more content to trigger character limit truncation`);
+    }
+    const largePatch = patchLines.join("\n");
+    mockDependencies.fs.readFileSync.mockReturnValue(largePatch);
+
+    // Mock PR creation to fail
+    const prError = new Error("Pull request creation is disabled");
+    mockDependencies.github.rest.pulls.create.mockRejectedValue(prError);
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 790,
+      html_url: "https://github.com/testowner/testrepo/issues/790",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+    await mainFunction();
+
+    // Verify fallback issue was created with patch preview
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+    const issueCreateCall = mockDependencies.github.rest.issues.create.mock.calls[0][0];
+
+    // Should include patch preview with truncation
+    expect(issueCreateCall.body).toMatch(/<details><summary>Show patch preview/);
+    expect(issueCreateCall.body).toMatch(/```diff/);
+    expect(issueCreateCall.body).toMatch(/\.\.\. \(truncated\)/);
+
+    // Verify the patch content in the issue body is limited to 2000 chars
+    const patchMatch = issueCreateCall.body.match(/```diff\n([\s\S]*?)\n\.\.\. \(truncated\)/);
+    if (patchMatch) {
+      const patchInBody = patchMatch[1];
+      expect(patchInBody.length).toBeLessThanOrEqual(2000);
+    }
   });
 
   it("should include full patch when under 500 lines in fallback issue", async () => {

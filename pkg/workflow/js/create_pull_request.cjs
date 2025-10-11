@@ -5,7 +5,7 @@ const crypto = require("crypto");
 
 async function main() {
   /**
-   * Generate a patch preview with max 500 lines for issue body
+   * Generate a patch preview with max 500 lines and 2000 chars for issue body
    * @param {string} patchContent - The full patch content
    * @returns {string} Formatted patch preview
    */
@@ -16,13 +16,24 @@ async function main() {
 
     const lines = patchContent.split("\n");
     const maxLines = 500;
+    const maxChars = 2000;
 
-    if (lines.length <= maxLines) {
-      return `\n\n<details><summary>Show patch (${lines.length} lines)</summary>\n\n\`\`\`diff\n${patchContent}\n\`\`\`\n\n</details>`;
+    // Apply line limit first
+    let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
+    const lineTruncated = lines.length > maxLines;
+
+    // Apply character limit
+    const charTruncated = preview.length > maxChars;
+    if (charTruncated) {
+      preview = preview.slice(0, maxChars);
     }
 
-    const preview = lines.slice(0, maxLines).join("\n");
-    return `\n\n<details><summary>Show patch preview (${maxLines} of ${lines.length} lines)</summary>\n\n\`\`\`diff\n${preview}\n... (truncated)\n\`\`\`\n\n</details>`;
+    const truncated = lineTruncated || charTruncated;
+    const summary = truncated
+      ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
+      : `Show patch (${lines.length} lines)`;
+
+    return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
   }
 
   // Check if we're in staged mode
