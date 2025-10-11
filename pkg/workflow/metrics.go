@@ -343,6 +343,11 @@ func CountErrorsAndWarningsWithPatterns(logContent string, patterns []ErrorPatte
 
 // extractLevelFromMatch extracts the error level from a regex match using the pattern configuration
 func extractLevelFromMatch(match []string, pattern ErrorPattern) string {
+	// If ForceLevel is explicitly set, use it
+	if pattern.ForceLevel != "" {
+		return pattern.ForceLevel
+	}
+
 	// If level group is specified and valid, use it
 	if pattern.LevelGroup > 0 && pattern.LevelGroup < len(match) && match[pattern.LevelGroup] != "" {
 		levelText := strings.ToLower(match[pattern.LevelGroup])

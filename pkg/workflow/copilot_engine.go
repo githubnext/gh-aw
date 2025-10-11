@@ -767,77 +767,89 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			MessageGroup: 2, // error message is in the second capture group
 			Description:  "Copilot CLI command-level error messages",
 		},
-		// Specific, contextual permission error patterns - these are precise and unlikely to match informational text
+		// Specific, contextual permission error patterns - marked as warnings to reduce false positives
 		{
 			Pattern:      `(?i)access denied.*only authorized.*can trigger.*workflow`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Permission denied - workflow access restriction",
 		},
 		{
 			Pattern:      `(?i)access denied.*user.*not authorized`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Permission denied - user not authorized",
 		},
 		{
 			Pattern:      `(?i)repository permission check failed`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Repository permission check failure",
 		},
 		{
 			Pattern:      `(?i)configuration error.*required permissions not specified`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Configuration error - missing permissions",
 		},
 		{
 			Pattern:      `(?i)\berror\b.*permission.*denied`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Permission denied error (requires error context)",
 		},
 		{
 			Pattern:      `(?i)\berror\b.*unauthorized`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Unauthorized error (requires error context)",
 		},
 		{
 			Pattern:      `(?i)\berror\b.*forbidden`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Forbidden error (requires error context)",
 		},
 		{
 			Pattern:      `(?i)\berror\b.*access.*restricted`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Access restricted error (requires error context)",
 		},
 		{
 			Pattern:      `(?i)\berror\b.*insufficient.*permission`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Insufficient permissions error (requires error context)",
 		},
 		{
 			Pattern:      `(?i)authentication failed`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Authentication failure with Copilot CLI",
 		},
 		{
 			Pattern:      `(?i)\berror\b.*token.*invalid`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Invalid token error with Copilot CLI (requires error context)",
 		},
 		{
 			Pattern:      `(?i)not authorized.*copilot`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Not authorized for Copilot CLI access",
 		},
 		// Command execution failures
@@ -870,6 +882,7 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Pattern:      `(?i)permission denied and could not request permission from user`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Copilot CLI permission denied warning (user interaction required)",
 		},
 		{
@@ -889,6 +902,7 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Pattern:      `(?i)sh:\s*\d+:\s*(.+):\s*Permission denied`,
 			LevelGroup:   0,
 			MessageGroup: 1,
+			ForceLevel:   "warning",
 			Description:  "Shell permission denied error",
 		},
 		// Rate limiting and quota errors
@@ -935,6 +949,7 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Pattern:      `(?i)error.*token.*expired`,
 			LevelGroup:   0,
 			MessageGroup: 0,
+			ForceLevel:   "warning",
 			Description:  "Token expired error",
 		},
 		// Memory and resource errors
