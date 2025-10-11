@@ -672,3 +672,102 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 		t.Error("Expected echo step to reference needs.agent.outputs.output_types")
 	}
 }
+
+func TestBuildWriteWorkflowMarkdownStep(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	tests := []struct {
+		name             string
+		markdownContent  string
+		expectContains   []string
+		notExpectContain []string
+	}{
+		{
+			name:            "basic markdown content",
+			markdownContent: "# Test Workflow\n\nThis is a test.",
+			expectContains: []string{
+				"Write workflow markdown to file",
+				"mkdir -p /tmp/gh-aw/templates",
+				"base64 -d > /tmp/gh-aw/templates/workflow.md",
+			},
+			notExpectContain: []string{
+				"# Test Workflow", // Should be base64 encoded, not plain text
+			},
+		},
+		{
+			name:            "empty markdown",
+			markdownContent: "",
+			expectContains: []string{
+				"Write workflow markdown to file",
+				"base64 -d > /tmp/gh-aw/templates/workflow.md",
+			},
+		},
+		{
+			name:            "markdown with special characters",
+			markdownContent: "# Test\n\nWith 'quotes' and \"double quotes\" and $variables",
+			expectContains: []string{
+				"Write workflow markdown to file",
+				"base64 -d",
+			},
+			notExpectContain: []string{
+				"'quotes'", // Should be encoded
+				"$variables",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				MarkdownContent: tt.markdownContent,
+			}
+
+			steps := compiler.buildWriteWorkflowMarkdownStep(data)
+			stepsString := strings.Join(steps, "")
+
+			for _, expected := range tt.expectContains {
+				if !strings.Contains(stepsString, expected) {
+					t.Errorf("Expected step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
+				}
+			}
+
+			for _, notExpected := range tt.notExpectContain {
+				if strings.Contains(stepsString, notExpected) {
+					t.Errorf("Expected step NOT to contain %q, but it was found.\nGenerated steps:\n%s", notExpected, stepsString)
+				}
+			}
+		})
+	}
+}
+
+func TestWorkflowMarkdownNotInEnvVars(t *testing.T) {
+	compiler := NewCompiler(false, "", "test")
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		Description:     "Test Description",
+		MarkdownContent: "# Large Markdown Content\n\nThis should not be in env vars",
+	}
+
+	envVars := compiler.buildWorkflowContextEnvVars(data)
+	envVarsString := strings.Join(envVars, "")
+
+	// Verify WORKFLOW_MARKDOWN is NOT in the env vars
+	if strings.Contains(envVarsString, "WORKFLOW_MARKDOWN") {
+		t.Error("Expected WORKFLOW_MARKDOWN to NOT be in environment variables")
+	}
+
+	// Verify other env vars are still present
+	if !strings.Contains(envVarsString, "WORKFLOW_NAME") {
+		t.Error("Expected WORKFLOW_NAME to be in environment variables")
+	}
+
+	if !strings.Contains(envVarsString, "WORKFLOW_DESCRIPTION") {
+		t.Error("Expected WORKFLOW_DESCRIPTION to be in environment variables")
+	}
+
+	// Verify markdown content is not in env vars
+	if strings.Contains(envVarsString, "Large Markdown Content") {
+		t.Error("Expected markdown content to NOT be in environment variables")
+	}
+}

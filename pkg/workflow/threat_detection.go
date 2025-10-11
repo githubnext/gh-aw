@@ -2,6 +2,7 @@ package workflow
 
 import (
 	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -146,6 +147,24 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 	}
 }
 
+// buildWriteWorkflowMarkdownStep creates a step that writes workflow markdown to a file
+func (c *Compiler) buildWriteWorkflowMarkdownStep(data *WorkflowData) []string {
+	workflowMarkdown := data.MarkdownContent
+	if workflowMarkdown == "" {
+		workflowMarkdown = "No content provided"
+	}
+
+	// Use base64 encoding to safely write the content without escaping issues
+	encoded := base64.StdEncoding.EncodeToString([]byte(workflowMarkdown))
+
+	return []string{
+		"      - name: Write workflow markdown to file\n",
+		"        run: |\n",
+		"          mkdir -p /tmp/gh-aw/templates\n",
+		fmt.Sprintf("          echo '%s' | base64 -d > /tmp/gh-aw/templates/workflow.md\n", encoded),
+	}
+}
+
 // buildEchoAgentOutputsStep creates a step that echoes the agent outputs
 func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 	return []string{
@@ -162,6 +181,9 @@ func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 // buildThreatDetectionAnalysisStep creates the main threat analysis step
 func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobName string) []string {
 	var steps []string
+
+	// Add a shell step to write workflow markdown to a file to avoid bloating YAML with large env var
+	steps = append(steps, c.buildWriteWorkflowMarkdownStep(data)...)
 
 	// Setup step
 	steps = append(steps, []string{
@@ -227,12 +249,26 @@ if (fs.existsSync(patchPath)) {
   core.info('No patch file found at: ' + patchPath);
 }
 
+// Read workflow markdown from file
+const workflowMarkdownPath = '/tmp/gh-aw/templates/workflow.md';
+let workflowMarkdown = 'No content provided';
+if (fs.existsSync(workflowMarkdownPath)) {
+  try {
+    workflowMarkdown = fs.readFileSync(workflowMarkdownPath, 'utf8');
+    core.info('Workflow markdown loaded from file (' + workflowMarkdown.length + ' bytes)');
+  } catch (error) {
+    core.warning('Failed to read workflow markdown file: ' + error.message);
+  }
+} else {
+  core.warning('Workflow markdown file not found at: ' + workflowMarkdownPath);
+}
+
 // Create threat detection prompt with embedded template
 const templateContent = %s;
 let promptContent = templateContent
   .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-  .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+  .replace(/{WORKFLOW_MARKDOWN}/g, workflowMarkdown)
   .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
   .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
 
@@ -350,15 +386,11 @@ func (c *Compiler) buildWorkflowContextEnvVars(data *WorkflowData) []string {
 		workflowDescription = "No description provided"
 	}
 
-	workflowMarkdown := data.MarkdownContent
-	if workflowMarkdown == "" {
-		workflowMarkdown = "No content provided"
-	}
-
+	// Note: WORKFLOW_MARKDOWN is now written to a file instead of being passed as an env var
+	// to avoid bloating the YAML with large content
 	return []string{
 		fmt.Sprintf("          WORKFLOW_NAME: %q\n", workflowName),
 		fmt.Sprintf("          WORKFLOW_DESCRIPTION: %q\n", workflowDescription),
-		fmt.Sprintf("          WORKFLOW_MARKDOWN: %q\n", workflowMarkdown),
 	}
 }
 

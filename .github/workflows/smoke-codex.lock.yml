@@ -2431,13 +2431,16 @@ jobs:
         run: |
           echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
+      - name: Write workflow markdown to file
+        run: |
+          mkdir -p /tmp/gh-aw/templates
+          echo 'UmV2aWV3IHRoZSBsYXN0IDUgbWVyZ2VkIHB1bGwgcmVxdWVzdHMgaW4gdGhpcyByZXBvc2l0b3J5IGFuZCBwb3N0IHN1bW1hcnkgaW4gYW4gaXNzdWUuCg==' | base64 -d > /tmp/gh-aw/templates/workflow.md
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Smoke Codex"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Review the last 5 merged pull requests in this repository and post summary in an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2453,6 +2456,18 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            const workflowMarkdownPath = '/tmp/gh-aw/templates/workflow.md';
+            let workflowMarkdown = 'No content provided';
+            if (fs.existsSync(workflowMarkdownPath)) {
+              try {
+                workflowMarkdown = fs.readFileSync(workflowMarkdownPath, 'utf8');
+                core.info('Workflow markdown loaded from file (' + workflowMarkdown.length + ' bytes)');
+              } catch (error) {
+                core.warning('Failed to read workflow markdown file: ' + error.message);
+              }
+            } else {
+              core.warning('Workflow markdown file not found at: ' + workflowMarkdownPath);
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -2498,7 +2513,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_MARKDOWN}/g, workflowMarkdown)
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;

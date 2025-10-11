@@ -2932,13 +2932,16 @@ jobs:
         run: |
           echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
+      - name: Write workflow markdown to file
+        run: |
+          mkdir -p /tmp/gh-aw/templates
+          echo 'CgojIERhaWx5IE5ld3MKCldyaXRlIGFuIHVwYmVhdCwgZnJpZW5kbHksIG1vdGl2YXRpbmcgc3VtbWFyeSBvZiByZWNlbnQgYWN0aXZpdHkgaW4gdGhlIHJlcG8uCgotIEluY2x1ZGUgc29tZSBvciBhbGwgb2YgdGhlIGZvbGxvd2luZzoKICAqIFJlY2VudCBpc3N1ZXMgYWN0aXZpdHkKICAqIFJlY2VudCBwdWxsIHJlcXVlc3RzCiAgKiBSZWNlbnQgZGlzY3Vzc2lvbnMKICAqIFJlY2VudCByZWxlYXNlcwogICogUmVjZW50IGNvbW1lbnRzCiAgKiBSZWNlbnQgY29kZSByZXZpZXdzCiAgKiBSZWNlbnQgY29kZSBjaGFuZ2VzCiAgKiBSZWNlbnQgZmFpbGVkIENJIHJ1bnMKICAqIExvb2sgYXQgdGhlIGNoYW5nZXNldHMgaW4gLi9jaGFuZ2VzZXQgZm9sZGVyCgotIElmIGxpdHRsZSBoYXMgaGFwcGVuZWQsIGRvbid0IHdyaXRlIHRvbyBtdWNoLgoKLSBHaXZlIHNvbWUgZGVlcCB0aG91Z2h0IHRvIHdheXMgdGhlIHRlYW0gY2FuIGltcHJvdmUgdGhlaXIgcHJvZHVjdGl2aXR5LCBhbmQgc3VnZ2VzdCBzb21lIHdheXMgdG8gZG8gdGhhdC4KCi0gSW5jbHVkZSBhIGRlc2NyaXB0aW9uIG9mIG9wZW4gc291cmNlIGNvbW11bml0eSBlbmdhZ2VtZW50LCBpZiBhbnkuCgotIEhpZ2hsaWdodCBzdWdnZXN0aW9ucyBmb3IgcG9zc2libGUgaW52ZXN0bWVudCwgaWRlYXMgZm9yIGZlYXR1cmVzIGFuZCBwcm9qZWN0IHBsYW4sIHdheXMgdG8gaW1wcm92ZSBjb21tdW5pdHkgZW5nYWdlbWVudCwgYW5kIHNvIG9uLgoKLSBCZSBoZWxwZnVsLCB0aG91Z2h0ZnVsLCByZXNwZWN0ZnVsLCBwb3NpdGl2ZSwga2luZCwgYW5kIGVuY291cmFnaW5nLgoKLSBVc2UgZW1vamlzIHRvIG1ha2UgdGhlIHJlcG9ydCBtb3JlIGVuZ2FnaW5nIGFuZCBmdW4sIGJ1dCBkb24ndCBvdmVyZG8gaXQuCgotIEluY2x1ZGUgYSBzaG9ydCBoYWlrdSBhdCB0aGUgZW5kIG9mIHRoZSByZXBvcnQgdG8gaGVscCBvcmllbnQgdGhlIHRlYW0gdG8gdGhlIHNlYXNvbiBvZiB0aGVpciB3b3JrLgoKLSBJbiBhIG5vdGUgYXQgdGhlIGVuZCBvZiB0aGUgcmVwb3J0LCBpbmNsdWRlIGEgbG9nIG9mCiAgKiBhbGwgc2VhcmNoIHF1ZXJpZXMgKHdlYiwgaXNzdWVzLCBwdWxscywgY29udGVudCkgeW91IHVzZWQgdG8gZ2VuZXJhdGUgdGhlIGRhdGEgZm9yIHRoZSByZXBvcnQKICAqIGFsbCBjb21tYW5kcyB5b3UgdXNlZCB0byBnZW5lcmF0ZSB0aGUgZGF0YSBmb3IgdGhlIHJlcG9ydAogICogYWxsIGZpbGVzIHlvdSByZWFkIHRvIGdlbmVyYXRlIHRoZSBkYXRhIGZvciB0aGUgcmVwb3J0CiAgKiBwbGFjZXMgeW91IGRpZG4ndCBoYXZlIHRpbWUgdG8gcmVhZCBvciBzZWFyY2gsIGJ1dCB3b3VsZCBoYXZlIGxpa2VkIHRvCgpDcmVhdGUgYSBuZXcgR2l0SHViIGRpc2N1c3Npb24gd2l0aCBhIHRpdGxlIGNvbnRhaW5pbmcgdG9kYXkncyBkYXRlIChlLmcuLCAiRGFpbHkgU3RhdHVzIC0gMjAyNC0xMC0xMCIpIGNvbnRhaW5pbmcgYSBtYXJrZG93biByZXBvcnQgd2l0aCB5b3VyIGZpbmRpbmdzLiBVc2UgbGlua3Mgd2hlcmUgYXBwcm9wcmlhdGUuCgpPbmx5IGEgbmV3IGRpc2N1c3Npb24gc2hvdWxkIGJlIGNyZWF0ZWQsIGRvIG5vdCBjbG9zZSBvciB1cGRhdGUgYW55IGV4aXN0aW5nIGRpc2N1c3Npb25zLgo=' | base64 -d > /tmp/gh-aw/templates/workflow.md
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Daily News"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "\n\n# Daily News\n\nWrite an upbeat, friendly, motivating summary of recent activity in the repo.\n\n- Include some or all of the following:\n  * Recent issues activity\n  * Recent pull requests\n  * Recent discussions\n  * Recent releases\n  * Recent comments\n  * Recent code reviews\n  * Recent code changes\n  * Recent failed CI runs\n  * Look at the changesets in ./changeset folder\n\n- If little has happened, don't write too much.\n\n- Give some deep thought to ways the team can improve their productivity, and suggest some ways to do that.\n\n- Include a description of open source community engagement, if any.\n\n- Highlight suggestions for possible investment, ideas for features and project plan, ways to improve community engagement, and so on.\n\n- Be helpful, thoughtful, respectful, positive, kind, and encouraging.\n\n- Use emojis to make the report more engaging and fun, but don't overdo it.\n\n- Include a short haiku at the end of the report to help orient the team to the season of their work.\n\n- In a note at the end of the report, include a log of\n  * all search queries (web, issues, pulls, content) you used to generate the data for the report\n  * all commands you used to generate the data for the report\n  * all files you read to generate the data for the report\n  * places you didn't have time to read or search, but would have liked to\n\nCreate a new GitHub discussion with a title containing today's date (e.g., \"Daily Status - 2024-10-10\") containing a markdown report with your findings. Use links where appropriate.\n\nOnly a new discussion should be created, do not close or update any existing discussions.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2954,6 +2957,18 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            const workflowMarkdownPath = '/tmp/gh-aw/templates/workflow.md';
+            let workflowMarkdown = 'No content provided';
+            if (fs.existsSync(workflowMarkdownPath)) {
+              try {
+                workflowMarkdown = fs.readFileSync(workflowMarkdownPath, 'utf8');
+                core.info('Workflow markdown loaded from file (' + workflowMarkdown.length + ' bytes)');
+              } catch (error) {
+                core.warning('Failed to read workflow markdown file: ' + error.message);
+              }
+            } else {
+              core.warning('Workflow markdown file not found at: ' + workflowMarkdownPath);
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -2999,7 +3014,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_MARKDOWN}/g, workflowMarkdown)
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;

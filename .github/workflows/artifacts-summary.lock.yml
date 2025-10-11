@@ -2925,13 +2925,16 @@ jobs:
         run: |
           echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
+      - name: Write workflow markdown to file
+        run: |
+          mkdir -p /tmp/gh-aw/templates
+          echo 'IyBBcnRpZmFjdHMgU3VtbWFyeQoKR2VuZXJhdGUgYSBjb21wcmVoZW5zaXZlIHN1bW1hcnkgdGFibGUgb2YgR2l0SHViIEFjdGlvbnMgYXJ0aWZhY3RzIHVzYWdlIGluIHRoZSByZXBvc2l0b3J5ICR7eyBnaXRodWIucmVwb3NpdG9yeSB9fS4KCiMjIFRhc2sgUmVxdWlyZW1lbnRzCgoxLiAqKkFuYWx5emUgYWxsIHdvcmtmbG93cyoqIGluIHRoZSByZXBvc2l0b3J5IHRvIGlkZW50aWZ5IHdoaWNoIG9uZXMgZ2VuZXJhdGUgYXJ0aWZhY3RzCjIuICoqQ29sbGVjdCBhcnRpZmFjdCBkYXRhKiogZm9yIHJlY2VudCB3b3JrZmxvdyBydW5zIChsYXN0IDMwIGRheXMgcmVjb21tZW5kZWQpCjMuICoqR2VuZXJhdGUgYSBzdW1tYXJ5IHRhYmxlKiogd2l0aCB0aGUgZm9sbG93aW5nIGNvbHVtbnM6CiAgIC0gV29ya2Zsb3cgTmFtZQogICAtIFRvdGFsIEFydGlmYWN0cyBDb3VudAogICAtIFRvdGFsIFNpemUgKGluIE1CL0dCKQogICAtIEF2ZXJhZ2UgU2l6ZSBwZXIgQXJ0aWZhY3QKICAgLSBMYXRlc3QgUnVuIERhdGUKICAgLSBTdGF0dXMgKEFjdGl2ZS9JbmFjdGl2ZSkKCiMjIEFuYWx5c2lzIEluc3RydWN0aW9ucwoKUGxlYXNlOgoKMS4gKipMaXN0IGFsbCB3b3JrZmxvd3MqKiBpbiB0aGUgcmVwb3NpdG9yeSB1c2luZyB0aGUgR2l0SHViIEFQSQoyLiAqKkZvciBlYWNoIHdvcmtmbG93KiosIGdldCByZWNlbnQgcnVucyBhbmQgdGhlaXIgYXJ0aWZhY3RzCjMuICoqQ2FsY3VsYXRlIHN0YXRpc3RpY3MqKjoKICAgLSBUb3RhbCBudW1iZXIgb2YgYXJ0aWZhY3RzIHBlciB3b3JrZmxvdwogICAtIFRvdGFsIHNpemUgb2YgYWxsIGFydGlmYWN0cyBwZXIgd29ya2Zsb3cKICAgLSBBdmVyYWdlIGFydGlmYWN0IHNpemUKICAgLSBNb3N0IHJlY2VudCBydW4gZGF0ZQo0LiAqKkNyZWF0ZSBhIG1hcmtkb3duIHRhYmxlKiogd2l0aCB0aGUgc3VtbWFyeQo1LiAqKkluY2x1ZGUgaW5zaWdodHMqKiBzdWNoIGFzOgogICAtIFdoaWNoIHdvcmtmbG93cyBnZW5lcmF0ZSB0aGUgbW9zdCBhcnRpZmFjdHMKICAgLSBXaGljaCB3b3JrZmxvd3MgdXNlIHRoZSBtb3N0IHN0b3JhZ2UKICAgLSBUcmVuZHMgaW4gYXJ0aWZhY3QgdXNhZ2UKICAgLSBSZWNvbW1lbmRhdGlvbnMgZm9yIG9wdGltaXphdGlvbgoKIyMgT3V0cHV0IEZvcm1hdAoKQ3JlYXRlIGFuIGlzc3VlIHdpdGggYSBtYXJrZG93biB0YWJsZSBsaWtlIHRoaXM6CgpgYGBtYXJrZG93bgojIEFydGlmYWN0cyBVc2FnZSBSZXBvcnQKCnwgV29ya2Zsb3cgTmFtZSB8IEFydGlmYWN0cyBDb3VudCB8IFRvdGFsIFNpemUgfCBBdmcgU2l6ZSB8IExhdGVzdCBSdW4gfCBTdGF0dXMgfAp8LS0tLS0tLS0tLS0tLS0tfC0tLS0tLS0tLS0tLS0tLS0tfC0tLS0tLS0tLS0tLXwtLS0tLS0tLS0tfC0tLS0tLS0tLS0tLXwtLS0tLS0tLXwKfCB3b3JrZmxvdy0xICAgIHwgNDUgICAgICAgICAgICAgfCAyLjMgR0IgICAgIHwgNTIgTUIgICAgfCAyMDI0LTAxLTE1IHwgQWN0aXZlIHwKfCB3b3JrZmxvdy0yICAgIHwgMTIgICAgICAgICAgICAgfCA0NTYgTUIgICAgIHwgMzggTUIgICAgfCAyMDI0LTAxLTEwIHwgQWN0aXZlIHwKCiMjIEluc2lnaHRzICYgUmVjb21tZW5kYXRpb25zCltZb3VyIGFuYWx5c2lzIGFuZCByZWNvbW1lbmRhdGlvbnMgaGVyZV0KYGBgCgojIyBJbXBvcnRhbnQgTm90ZXMKCi0gRm9jdXMgb24gd29ya2Zsb3dzIHRoYXQgYWN0dWFsbHkgZ2VuZXJhdGUgYXJ0aWZhY3RzIChza2lwIHRob3NlIHdpdGhvdXQgYW55KQotIENvbnZlcnQgc2l6ZXMgdG8gaHVtYW4tcmVhZGFibGUgZm9ybWF0cyAoTUIsIEdCKQotIENvbnNpZGVyIGFydGlmYWN0IHJldGVudGlvbiBwb2xpY2llcyBpbiB5b3VyIGFuYWx5c2lzCi0gSW5jbHVkZSBib3RoIHN1Y2Nlc3NmdWwgYW5kIGZhaWxlZCBydW5zIGluIHRoZSBhbmFseXNpcywgaWdub3JlIGNhbmNlbGxlZCBydW5zCg==' | base64 -d > /tmp/gh-aw/templates/workflow.md
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Artifacts Summary"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Artifacts Summary\n\nGenerate a comprehensive summary table of GitHub Actions artifacts usage in the repository ${{ github.repository }}.\n\n## Task Requirements\n\n1. **Analyze all workflows** in the repository to identify which ones generate artifacts\n2. **Collect artifact data** for recent workflow runs (last 30 days recommended)\n3. **Generate a summary table** with the following columns:\n   - Workflow Name\n   - Total Artifacts Count\n   - Total Size (in MB/GB)\n   - Average Size per Artifact\n   - Latest Run Date\n   - Status (Active/Inactive)\n\n## Analysis Instructions\n\nPlease:\n\n1. **List all workflows** in the repository using the GitHub API\n2. **For each workflow**, get recent runs and their artifacts\n3. **Calculate statistics**:\n   - Total number of artifacts per workflow\n   - Total size of all artifacts per workflow\n   - Average artifact size\n   - Most recent run date\n4. **Create a markdown table** with the summary\n5. **Include insights** such as:\n   - Which workflows generate the most artifacts\n   - Which workflows use the most storage\n   - Trends in artifact usage\n   - Recommendations for optimization\n\n## Output Format\n\nCreate an issue with a markdown table like this:\n\n```markdown\n# Artifacts Usage Report\n\n| Workflow Name | Artifacts Count | Total Size | Avg Size | Latest Run | Status |\n|---------------|-----------------|------------|----------|------------|--------|\n| workflow-1    | 45             | 2.3 GB     | 52 MB    | 2024-01-15 | Active |\n| workflow-2    | 12             | 456 MB     | 38 MB    | 2024-01-10 | Active |\n\n## Insights & Recommendations\n[Your analysis and recommendations here]\n```\n\n## Important Notes\n\n- Focus on workflows that actually generate artifacts (skip those without any)\n- Convert sizes to human-readable formats (MB, GB)\n- Consider artifact retention policies in your analysis\n- Include both successful and failed runs in the analysis, ignore cancelled runs\n"
         with:
           script: |
             const fs = require('fs');
@@ -2947,6 +2950,18 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            const workflowMarkdownPath = '/tmp/gh-aw/templates/workflow.md';
+            let workflowMarkdown = 'No content provided';
+            if (fs.existsSync(workflowMarkdownPath)) {
+              try {
+                workflowMarkdown = fs.readFileSync(workflowMarkdownPath, 'utf8');
+                core.info('Workflow markdown loaded from file (' + workflowMarkdown.length + ' bytes)');
+              } catch (error) {
+                core.warning('Failed to read workflow markdown file: ' + error.message);
+              }
+            } else {
+              core.warning('Workflow markdown file not found at: ' + workflowMarkdownPath);
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -2992,7 +3007,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_MARKDOWN}/g, workflowMarkdown)
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;

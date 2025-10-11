@@ -1853,13 +1853,16 @@ jobs:
         run: |
           echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
+      - name: Write workflow markdown to file
+        run: |
+          mkdir -p /tmp/gh-aw/templates
+          echo 'PCEtLQpUaGlzIHNoYXJlZCBjb25maWd1cmF0aW9uIHNldHMgdXAgYSBjdXN0b20gYWdlbnRpYyBlbmdpbmUgdXNpbmcgbWljcm9zb2Z0L2dlbmFpc2NyaXB0LgoKKipVc2FnZToqKgpJbmNsdWRlIHRoaXMgZmlsZSBpbiB5b3VyIHdvcmtmbG93IHVzaW5nIGZyb250bWF0dGVyIGltcG9ydHM6CgpgYGB5YW1sCi0tLQppbXBvcnRzOgogIC0gc2hhcmVkL2dlbmFpc2NyaXB0Lm1kCi0tLQpgYGAKCioqUmVxdWlyZW1lbnRzOioqCi0gVGhlIHdvcmtmbG93IHdpbGwgaW5zdGFsbCBnZW5haXNjcmlwdCBucG0gcGFja2FnZSB1c2luZyB2ZXJzaW9uIGZyb20gYEdJVEhVQl9BV19BR0VOVF9WRVJTSU9OYCBlbnYgdmFyCi0gVGhlIG9yaWdpbmFsIHByb21wdCBmaWxlIGlzIGNvbnZlcnRlZCB0byBHZW5BSSBtYXJrZG93biBmb3JtYXQgKHByb21wdC5nZW5haS5tZCkKLSBHZW5BSVNjcmlwdCBpcyBleGVjdXRlZCB3aXRoIE1DUCBzZXJ2ZXIgY29uZmlndXJhdGlvbiBpZiBhdmFpbGFibGUKLSBPdXRwdXQgaXMgY2FwdHVyZWQgaW4gdGhlIGFnZW50IGxvZyBmaWxlCgoqKk5vdGUqKjogCi0gVGhpcyB3b3JrZmxvdyByZXF1aXJlcyBpbnRlcm5ldCBhY2Nlc3MgdG8gaW5zdGFsbCBucG0gcGFja2FnZXMKLSBUaGUgZ2VuYWlzY3JpcHQgdmVyc2lvbiBjYW4gYmUgY3VzdG9taXplZCBieSBzZXR0aW5nIHRoZSBgR0lUSFVCX0FXX0FHRU5UX1ZFUlNJT05gIGVudmlyb25tZW50IHZhcmlhYmxlIChkZWZhdWx0OiBgMi41LjFgKQotIFRoZSBBSSBtb2RlbCBjYW4gYmUgY3VzdG9taXplZCBieSBzZXR0aW5nIHRoZSBgR0lUSFVCX0FXX0FHRU5UX01PREVMX1ZFUlNJT05gIGVudmlyb25tZW50IHZhcmlhYmxlIChkZWZhdWx0OiBgZ3B0LTRvLW1pbmlgKQotIE1DUCBzZXJ2ZXIgY29uZmlndXJhdGlvbiBpcyBhdXRvbWF0aWNhbGx5IHBhc3NlZCBpZiBjb25maWd1cmVkIGluIHRoZSB3b3JrZmxvdwotLT4KClJldmlldyB0aGUgbGFzdCA1IG1lcmdlZCBwdWxsIHJlcXVlc3RzIGluIHRoaXMgcmVwb3NpdG9yeSBhbmQgcG9zdCBzdW1tYXJ5IGluIGFuIGlzc3VlLgo=' | base64 -d > /tmp/gh-aw/templates/workflow.md
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Smoke GenAIScript"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using microsoft/genaiscript.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/genaiscript.md\n---\n```\n\n**Requirements:**\n- The workflow will install genaiscript npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is converted to GenAI markdown format (prompt.genai.md)\n- GenAIScript is executed with MCP server configuration if available\n- Output is captured in the agent log file\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The genaiscript version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable (default: `2.5.1`)\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL_VERSION` environment variable (default: `gpt-4o-mini`)\n- MCP server configuration is automatically passed if configured in the workflow\n-->\n\nReview the last 5 merged pull requests in this repository and post summary in an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -1875,6 +1878,18 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            const workflowMarkdownPath = '/tmp/gh-aw/templates/workflow.md';
+            let workflowMarkdown = 'No content provided';
+            if (fs.existsSync(workflowMarkdownPath)) {
+              try {
+                workflowMarkdown = fs.readFileSync(workflowMarkdownPath, 'utf8');
+                core.info('Workflow markdown loaded from file (' + workflowMarkdown.length + ' bytes)');
+              } catch (error) {
+                core.warning('Failed to read workflow markdown file: ' + error.message);
+              }
+            } else {
+              core.warning('Workflow markdown file not found at: ' + workflowMarkdownPath);
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -1920,7 +1935,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_MARKDOWN}/g, workflowMarkdown)
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;

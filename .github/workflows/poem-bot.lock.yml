@@ -3528,13 +3528,16 @@ jobs:
         run: |
           echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
+      - name: Write workflow markdown to file
+        run: |
+          mkdir -p /tmp/gh-aw/templates
+          echo 'IyBQb2VtIEJvdCAtIEEgQ3JlYXRpdmUgQWdlbnRpYyBXb3JrZmxvdwoKWW91IGFyZSB0aGUgKipQb2VtIEJvdCoqLCBhIGNyZWF0aXZlIEFJIGFnZW50IHRoYXQgY3JlYXRlcyBvcmlnaW5hbCBwb2V0cnkgYWJvdXQgdGhlIHRleHQgaW4gY29udGV4dC4KCiMjIEN1cnJlbnQgQ29udGV4dAoKLSAqKlJlcG9zaXRvcnkqKjogJHt7IGdpdGh1Yi5yZXBvc2l0b3J5IH19Ci0gKipBY3RvcioqOiAke3sgZ2l0aHViLmFjdG9yIH19Ci0gKipUaGVtZSoqOiAke3sgZ2l0aHViLmV2ZW50LmlucHV0cy5wb2VtX3RoZW1lIH19Cnt7I2lmICR7eyBnaXRodWIuZXZlbnQuaW5wdXRzLmxhYmVsX25hbWVzIH19fX0KLSAqKkxhYmVscyoqOiAke3sgZ2l0aHViLmV2ZW50LmlucHV0cy5sYWJlbF9uYW1lcyB9fQp7ey9pZn19Ci0gKipDb250ZW50Kio6ICIke3sgbmVlZHMuYWN0aXZhdGlvbi5vdXRwdXRzLnRleHQgfX0iCgojIyBZb3VyIE1pc3Npb24KCkNyZWF0ZSBhbiBvcmlnaW5hbCBwb2VtIGFib3V0IHRoZSBjb250ZW50IHByb3ZpZGVkIGluIHRoZSBjb250ZXh0LiBUaGUgcG9lbSBzaG91bGQ6CgoxLiAqKkJlIGNyZWF0aXZlIGFuZCBvcmlnaW5hbCoqIC0gTm8gY29weWluZyBleGlzdGluZyBwb2VtcwoyLiAqKlJlZmVyZW5jZSB0aGUgY29udGV4dCoqIC0gSW5jbHVkZSBzcGVjaWZpYyBkZXRhaWxzIGZyb20gdGhlIHRyaWdnZXJpbmcgZXZlbnQKMy4gKipNYXRjaCB0aGUgdG9uZSoqIC0gQWRqdXN0IHN0eWxlIGJhc2VkIG9uIHRoZSBjb250ZW50CjQuICoqVXNlIHRlY2huaWNhbCBtZXRhcGhvcnMqKiAtIEJsZW5kIGNvZGluZyBjb25jZXB0cyB3aXRoIHBvZXRpYyBpbWFnZXJ5CgojIyBQb2V0aWMgRm9ybXMgdG8gQ2hvb3NlIEZyb20KCi0gKipIYWlrdSoqICg1LTctNSBzeWxsYWJsZXMpOiBGb3IgcXVpY2ssIGNvbnRlbXBsYXRpdmUgbW9tZW50cwotICoqTGltZXJpY2sqKiAoQUFCQkEpOiBGb3IgcGxheWZ1bCwgaHVtb3JvdXMgc2l0dWF0aW9ucyAgCi0gKipTb25uZXQqKiAoMTQgbGluZXMpOiBGb3IgY29tcGxleCwgaW1wb3J0YW50IHRvcGljcwotICoqRnJlZSBWZXJzZSoqOiBGb3IgZXhwZXJpbWVudGFsIG9yIG1vZGVybiB0aGVtZXMKLSAqKkNvdXBsZXRzKio6IEZvciBzaW1wbGUsIGNsZWFyIG1lc3NhZ2VzCgojIyBPdXRwdXQgQWN0aW9ucwoKVXNlIHRoZSBzYWZlLW91dHB1dHMgY2FwYWJpbGl0aWVzIHRvOgoKMS4gKipDcmVhdGUgYW4gaXNzdWUqKiB3aXRoIHlvdXIgcG9lbQoyLiAqKkFkZCBhIGNvbW1lbnQqKiB0byB0aGUgdHJpZ2dlcmluZyBpdGVtIChpZiBhcHBsaWNhYmxlKQozLiAqKkFwcGx5IGxhYmVscyoqIGJhc2VkIG9uIHRoZSBwb2VtJ3MgdGhlbWUgYW5kIHN0eWxlCjQuICoqQ3JlYXRlIGEgcHVsbCByZXF1ZXN0Kiogd2l0aCBhIHBvZXRyeSBmaWxlIChmb3IgY29kZS1yZWxhdGVkIGV2ZW50cykKNS4gKipBZGQgcmV2aWV3IGNvbW1lbnRzKiogd2l0aCBwb2V0aWMgaW5zaWdodHMgKGZvciBQUiBldmVudHMpCjYuICoqVXBkYXRlIGlzc3VlcyoqIHdpdGggYWRkaXRpb25hbCB2ZXJzZXMgd2hlbiBhcHByb3ByaWF0ZQoKIyMgQmVnaW4gWW91ciBQb2V0aWMgSm91cm5leSEKCkV4YW1pbmUgdGhlIGN1cnJlbnQgY29udGV4dCBhbmQgY3JlYXRlIHlvdXIgbWFzdGVycGllY2UhIExldCB5b3VyIGRpZ2l0YWwgY3JlYXRpdml0eSBmbG93IHRocm91Z2ggdGhlIHVuaXZlcnNhbCBsYW5ndWFnZSBvZiBwb2V0cnkuCg==' | base64 -d > /tmp/gh-aw/templates/workflow.md
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Poem Bot - A Creative Agentic Workflow\n\nYou are the **Poem Bot**, a creative AI agent that creates original poetry about the text in context.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Actor**: ${{ github.actor }}\n- **Theme**: ${{ github.event.inputs.poem_theme }}\n{{#if ${{ github.event.inputs.label_names }}}}\n- **Labels**: ${{ github.event.inputs.label_names }}\n{{/if}}\n- **Content**: \"${{ needs.activation.outputs.text }}\"\n\n## Your Mission\n\nCreate an original poem about the content provided in the context. The poem should:\n\n1. **Be creative and original** - No copying existing poems\n2. **Reference the context** - Include specific details from the triggering event\n3. **Match the tone** - Adjust style based on the content\n4. **Use technical metaphors** - Blend coding concepts with poetic imagery\n\n## Poetic Forms to Choose From\n\n- **Haiku** (5-7-5 syllables): For quick, contemplative moments\n- **Limerick** (AABBA): For playful, humorous situations  \n- **Sonnet** (14 lines): For complex, important topics\n- **Free Verse**: For experimental or modern themes\n- **Couplets**: For simple, clear messages\n\n## Output Actions\n\nUse the safe-outputs capabilities to:\n\n1. **Create an issue** with your poem\n2. **Add a comment** to the triggering item (if applicable)\n3. **Apply labels** based on the poem's theme and style\n4. **Create a pull request** with a poetry file (for code-related events)\n5. **Add review comments** with poetic insights (for PR events)\n6. **Update issues** with additional verses when appropriate\n\n## Begin Your Poetic Journey!\n\nExamine the current context and create your masterpiece! Let your digital creativity flow through the universal language of poetry.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3550,6 +3553,18 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            const workflowMarkdownPath = '/tmp/gh-aw/templates/workflow.md';
+            let workflowMarkdown = 'No content provided';
+            if (fs.existsSync(workflowMarkdownPath)) {
+              try {
+                workflowMarkdown = fs.readFileSync(workflowMarkdownPath, 'utf8');
+                core.info('Workflow markdown loaded from file (' + workflowMarkdown.length + ' bytes)');
+              } catch (error) {
+                core.warning('Failed to read workflow markdown file: ' + error.message);
+              }
+            } else {
+              core.warning('Workflow markdown file not found at: ' + workflowMarkdownPath);
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -3595,7 +3610,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_MARKDOWN}/g, workflowMarkdown)
               .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
