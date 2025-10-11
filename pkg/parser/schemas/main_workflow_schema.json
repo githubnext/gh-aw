@@ -1643,6 +1643,11 @@
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "discussion": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Target discussion comments instead of issue/PR comments. Must be true if present."
                 }
               },
               "additionalProperties": false

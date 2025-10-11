@@ -17,9 +17,61 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL)
   return footer;
 }
 
+/**
+ * Comment on a GitHub Discussion using GraphQL
+ * @param {any} github - GitHub REST API instance  
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} discussionNumber - Discussion number
+ * @param {string} message - Comment body
+ * @returns {Promise<{id: string, html_url: string, discussion_url: string}>} Comment details
+ */
+async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
+  // 1. Retrieve discussion node ID
+  const { repository } = await github.graphql(`
+    query($owner: String!, $repo: String!, $num: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $num) { 
+          id 
+          url
+        }
+      }
+    }`, { owner, repo, num: discussionNumber });
+
+  if (!repository || !repository.discussion) {
+    throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+  }
+
+  const discussionId = repository.discussion.id;
+  const discussionUrl = repository.discussion.url;
+
+  // 2. Add comment
+  const result = await github.graphql(`
+    mutation($dId: ID!, $body: String!) {
+      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+        comment { 
+          id 
+          body 
+          createdAt 
+          url
+        }
+      }
+    }`, { dId: discussionId, body: message });
+
+  const comment = result.addDiscussionComment.comment;
+  
+  return {
+    id: comment.id,
+    html_url: comment.url,
+    discussion_url: discussionUrl
+  };
+}
+
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  // Check if we're targeting discussions
+  const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
 
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -85,12 +137,22 @@ async function main() {
     for (let i = 0; i < commentItems.length; i++) {
       const item = commentItems[i];
       summaryContent += `### Comment ${i + 1}\n`;
-      if (item.issue_number) {
-        const repoUrl = getRepositoryUrl();
-        const issueUrl = `${repoUrl}/issues/${item.issue_number}`;
-        summaryContent += `**Target Issue:** [#${item.issue_number}](${issueUrl})\n\n`;
+      if (isDiscussion) {
+        if (item.issue_number) {
+          const repoUrl = getRepositoryUrl();
+          const discussionUrl = `${repoUrl}/discussions/${item.issue_number}`;
+          summaryContent += `**Target Discussion:** [#${item.issue_number}](${discussionUrl})\n\n`;
+        } else {
+          summaryContent += `**Target:** Current discussion\n\n`;
+        }
       } else {
-        summaryContent += `**Target:** Current issue/PR\n\n`;
+        if (item.issue_number) {
+          const repoUrl = getRepositoryUrl();
+          const issueUrl = `${repoUrl}/issues/${item.issue_number}`;
+          summaryContent += `**Target Issue:** [#${item.issue_number}](${issueUrl})\n\n`;
+        } else {
+          summaryContent += `**Target:** Current issue/PR\n\n`;
+        }
       }
       summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
       summaryContent += "---\n\n";
@@ -105,6 +167,7 @@ async function main() {
   // Get the target configuration from environment variable
   const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
   core.info(`Comment target configuration: ${commentTarget}`);
+  core.info(`Discussion mode: ${isDiscussion}`);
 
   // Check if we're in an issue or pull request context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
@@ -190,19 +253,35 @@ async function main() {
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
     body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL);
 
-    core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-    core.info(`Comment content length: ${body.length}`);
-
     try {
-      // Create the comment using GitHub API
-      const { data: comment } = await github.rest.issues.createComment({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: issueNumber,
-        body: body,
-      });
+      let comment;
+      
+      if (isDiscussion) {
+        core.info(`Creating comment on discussion #${issueNumber}`);
+        core.info(`Comment content length: ${body.length}`);
+        
+        // Create discussion comment using GraphQL
+        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, issueNumber, body);
+        core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+        
+        // Add discussion_url to the comment object for consistency
+        comment.discussion_url = comment.discussion_url;
+      } else {
+        core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+        core.info(`Comment content length: ${body.length}`);
+        
+        // Create regular issue/PR comment using REST API
+        const { data: restComment } = await github.rest.issues.createComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issue_number: issueNumber,
+          body: body,
+        });
+        
+        comment = restComment;
+        core.info("Created comment #" + comment.id + ": " + comment.html_url);
+      }
 
-      core.info("Created comment #" + comment.id + ": " + comment.html_url);
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)
