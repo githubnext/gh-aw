@@ -38,6 +38,11 @@ func TestValidateExpressionSafety(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "allowed_github_event_discussion_number",
+			content:     "Discussion number: ${{ github.event.discussion.number }}",
+			expectError: false,
+		},
+		{
 			name:        "allowed_needs_task_outputs_text",
 			content:     "Task output: ${{ needs.activation.outputs.text }}",
 			expectError: false,

@@ -209,29 +209,47 @@ The following GitHub Actions context expressions are permitted in the markdown c
 - `${{ github.event.after }}` - The SHA of the most recent commit on the ref after the push
 - `${{ github.event.before }}` - The SHA of the most recent commit on the ref before the push
 - `${{ github.event.check_run.id }}` - The ID of the check run that triggered the workflow
+- `${{ github.event.check_run.number }}` - The number of the check run that triggered the workflow
 - `${{ github.event.check_suite.id }}` - The ID of the check suite that triggered the workflow
+- `${{ github.event.check_suite.number }}` - The number of the check suite that triggered the workflow
 - `${{ github.event.comment.id }}` - The ID of the comment that triggered the workflow
 - `${{ github.event.deployment.id }}` - The ID of the deployment that triggered the workflow
+- `${{ github.event.deployment.environment }}` - The environment name of the deployment that triggered the workflow
 - `${{ github.event.deployment_status.id }}` - The ID of the deployment status that triggered the workflow
 - `${{ github.event.head_commit.id }}` - The ID of the head commit for the push event
 - `${{ github.event.installation.id }}` - The ID of the GitHub App installation
 - `${{ github.event.issue.number }}` - The number of the issue that triggered the workflow
+- `${{ github.event.issue.state }}` - The state of the issue (open or closed)
+- `${{ github.event.issue.title }}` - The title of the issue that triggered the workflow
+- `${{ github.event.discussion.number }}` - The number of the discussion that triggered the workflow
+- `${{ github.event.discussion.title }}` - The title of the discussion that triggered the workflow
+- `${{ github.event.discussion.category.name }}` - The category name of the discussion
 - `${{ github.event.label.id }}` - The ID of the label that triggered the workflow
 - `${{ github.event.milestone.id }}` - The ID of the milestone that triggered the workflow
+- `${{ github.event.milestone.number }}` - The number of the milestone that triggered the workflow
 - `${{ github.event.organization.id }}` - The ID of the organization that triggered the workflow
 - `${{ github.event.page.id }}` - The ID of the page build that triggered the workflow
 - `${{ github.event.project.id }}` - The ID of the project that triggered the workflow
 - `${{ github.event.project_card.id }}` - The ID of the project card that triggered the workflow
 - `${{ github.event.project_column.id }}` - The ID of the project column that triggered the workflow
 - `${{ github.event.pull_request.number }}` - The number of the pull request that triggered the workflow
+- `${{ github.event.pull_request.state }}` - The state of the pull request (open or closed)
+- `${{ github.event.pull_request.title }}` - The title of the pull request that triggered the workflow
+- `${{ github.event.pull_request.head.sha }}` - The SHA of the head commit of the pull request
+- `${{ github.event.pull_request.base.sha }}` - The SHA of the base commit of the pull request
 - `${{ github.event.release.assets[0].id }}` - The ID of the first asset in a release
 - `${{ github.event.release.id }}` - The ID of the release that triggered the workflow
+- `${{ github.event.release.name }}` - The name of the release that triggered the workflow
 - `${{ github.event.release.tag_name }}` - The tag name of the release that triggered the workflow
 - `${{ github.event.repository.id }}` - The ID of the repository that triggered the workflow
+- `${{ github.event.repository.default_branch }}` - The default branch of the repository
 - `${{ github.event.review.id }}` - The ID of the pull request review that triggered the workflow
 - `${{ github.event.review_comment.id }}` - The ID of the review comment that triggered the workflow
 - `${{ github.event.sender.id }}` - The ID of the user who triggered the workflow
+- `${{ github.event.workflow_job.id }}` - The ID of the workflow job that triggered the current workflow
+- `${{ github.event.workflow_job.run_id }}` - The run ID of the workflow job that triggered the current workflow
 - `${{ github.event.workflow_run.id }}` - The ID of the workflow run that triggered the current workflow
+- `${{ github.event.workflow_run.number }}` - The number of the workflow run that triggered the current workflow
 - `${{ github.event.workflow_run.conclusion }}` - The conclusion of the workflow run that triggered the current workflow
 - `${{ github.event.workflow_run.html_url }}` - The URL of the workflow run that triggered the current workflow
 - `${{ github.event.workflow_run.head_sha }}` - The head SHA of the workflow run that triggered the current workflow
