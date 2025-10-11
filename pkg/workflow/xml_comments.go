@@ -13,33 +13,41 @@ func removeXMLComments(content string) string {
 	inXMLComment := false
 
 	for _, line := range lines {
-		// Check for code block markers (3 or more ` or ~)
-		trimmedLine := strings.TrimSpace(line)
+		// If we're in a code block, preserve the line as-is (ignore XML comment processing)
+		// Code blocks that started BEFORE any XML comment take precedence
+		if inCodeBlock {
+			trimmedLine := strings.TrimSpace(line)
+			// Check if this line closes the code block
+			if isMatchingCodeBlockMarker(trimmedLine, openMarker) {
+				inCodeBlock = false
+				openMarker = ""
+			}
+			result = append(result, line)
+			continue
+		}
+
+		// Process the line for XML comments (not in a code block)
+		processedLine, wasInComment, isInComment := removeXMLCommentsFromLine(line, inXMLComment)
+		inXMLComment = isInComment
+
+		// If we're in an XML comment, skip this line entirely (including code block markers)
+		if wasInComment && isInComment {
+			// In the middle of a comment, skip the line completely
+			continue
+		}
+
+		// Check for code block markers (3 or more ` or ~) - but only if not in XML comment
+		trimmedLine := strings.TrimSpace(processedLine)
 
 		if !inCodeBlock && isValidCodeBlockMarker(trimmedLine) {
 			// Opening a code block
 			openMarker, _ = extractCodeBlockMarker(trimmedLine)
 			inCodeBlock = true
-			result = append(result, line)
-			continue
-		} else if inCodeBlock && isMatchingCodeBlockMarker(trimmedLine, openMarker) {
-			// Closing the code block with matching marker
-			inCodeBlock = false
-			openMarker = ""
-			result = append(result, line)
+			result = append(result, processedLine)
 			continue
 		}
 
-		// If we're in a code block, preserve the line as-is
-		if inCodeBlock {
-			result = append(result, line)
-			continue
-		}
-
-		// Process the line for XML comments
-		processedLine, wasInComment, isInComment := removeXMLCommentsFromLine(line, inXMLComment)
-		inXMLComment = isInComment
-
+		// Handle XML comment boundaries
 		if !wasInComment && !isInComment {
 			// Line had no comment involvement, keep as-is
 			result = append(result, processedLine)
@@ -55,7 +63,6 @@ func removeXMLComments(content string) string {
 				result = append(result, processedLine)
 			}
 		}
-		// If wasInComment && isInComment, we're in the middle of a comment, skip the line
 	}
 
 	return strings.Join(result, "\n")

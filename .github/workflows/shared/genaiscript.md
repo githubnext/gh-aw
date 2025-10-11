@@ -12,11 +12,14 @@ engine:
     
     - name: Convert prompt to GenAI format
       run: |
-        cp "$GITHUB_AW_PROMPT" /tmp/gh-aw/aw-prompts/prompt.genai.md
-        sed -i '1i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
-        sed -i "2i model: ${GITHUB_AW_AGENT_MODEL_VERSION}" /tmp/gh-aw/aw-prompts/prompt.genai.md
-        sed -i '3i ---' /tmp/gh-aw/aw-prompts/prompt.genai.md
-        echo "Generated GenAI prompt file"
+        echo "---" > /tmp/gh-aw/aw-prompts/prompt.genai.md
+        echo "model: ${GITHUB_AW_AGENT_MODEL_VERSION}" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
+        echo "system: []" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
+        echo "system-safety: false" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
+        echo "---" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
+        cat "$GITHUB_AW_PROMPT" >> /tmp/gh-aw/aw-prompts/prompt.genai.md
+        echo "Generated GenAI prompt file:"
+        cat /tmp/gh-aw/aw-prompts/prompt.genai.md
       env:
         GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
         GITHUB_AW_AGENT_MODEL_VERSION: ${{ env.GITHUB_AW_AGENT_MODEL_VERSION }}
