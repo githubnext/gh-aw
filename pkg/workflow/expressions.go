@@ -205,29 +205,30 @@ func buildConditionTree(existingCondition string, draftCondition string) Conditi
 	return &AndNode{Left: existingNode, Right: draftNode}
 }
 
-func buildOr(left ConditionNode, right ConditionNode) ConditionNode {
-	return &OrNode{Left: left, Right: right}
-}
-
-func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
-	return &AndNode{Left: left, Right: right}
-}
-
-// buildDisjunction creates a disjunction (OR) of multiple conditions
-func buildDisjunction(conditions ...ConditionNode) ConditionNode {
+// buildOr creates an OR condition from two or more condition nodes.
+// When called with 2 arguments, it creates a simple OR node.
+// When called with more arguments, it creates a right-associative OR tree: a || (b || (c || ...))
+func buildOr(conditions ...ConditionNode) ConditionNode {
 	if len(conditions) == 0 {
 		return nil
 	}
 	if len(conditions) == 1 {
 		return conditions[0]
 	}
+	if len(conditions) == 2 {
+		return &OrNode{Left: conditions[0], Right: conditions[1]}
+	}
 
-	// Build a right-associative OR tree: a || (b || (c || ...))
+	// Build a right-associative OR tree for 3+ conditions: a || (b || (c || ...))
 	result := conditions[len(conditions)-1]
 	for i := len(conditions) - 2; i >= 0; i-- {
-		result = buildOr(conditions[i], result)
+		result = &OrNode{Left: conditions[i], Right: result}
 	}
 	return result
+}
+
+func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
+	return &AndNode{Left: left, Right: right}
 }
 
 // buildReactionCondition creates a condition tree for the add_reaction job

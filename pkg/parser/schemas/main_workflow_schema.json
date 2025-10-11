@@ -270,6 +270,54 @@
                 }
               }
             },
+            "discussion": {
+              "description": "Discussion event trigger that runs when a discussion is created, edited, or otherwise modified",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of discussion events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "category_changed",
+                      "answered",
+                      "unanswered"
+                    ]
+                  }
+                }
+              }
+            },
+            "discussion_comment": {
+              "description": "Discussion comment event trigger that runs when a comment on a discussion is created, edited, or deleted",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of discussion comment events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
+                }
+              }
+            },
             "schedule": {
               "type": "array",
               "description": "Scheduled trigger events",

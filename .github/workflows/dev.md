@@ -1,6 +1,9 @@
 ---
 on: 
-  workflow_dispatch:
+  discussion:
+    types: [created]
+  discussion_comment:
+    types: [created]
 name: Dev
 engine: codex
 permissions:
@@ -15,7 +18,6 @@ tools:
 safe-outputs:
   staged: true
   add-comment:
-    target: "*"
 ---
 
-Write a delightful poem about the last 3 pull requests and add it as a comment to discussion #1.
+Write a delightful poem about the last 3 pull requests and add it as a comment to the discussion.

@@ -722,6 +722,86 @@ func TestConvenienceHelpers(t *testing.T) {
 	})
 }
 
+// TestBuildOr tests the variadic buildOr function
+func TestBuildOr(t *testing.T) {
+	tests := []struct {
+		name       string
+		conditions []ConditionNode
+		expected   string
+	}{
+		{
+			name:       "nil conditions",
+			conditions: nil,
+			expected:   "",
+		},
+		{
+			name:       "empty conditions",
+			conditions: []ConditionNode{},
+			expected:   "",
+		},
+		{
+			name: "single condition",
+			conditions: []ConditionNode{
+				BuildPropertyAccess("github.event.issue.number"),
+			},
+			expected: "github.event.issue.number",
+		},
+		{
+			name: "two conditions",
+			conditions: []ConditionNode{
+				BuildPropertyAccess("github.event.issue.number"),
+				BuildPropertyAccess("github.event.pull_request.number"),
+			},
+			expected: "(github.event.issue.number) || (github.event.pull_request.number)",
+		},
+		{
+			name: "three conditions",
+			conditions: []ConditionNode{
+				BuildPropertyAccess("github.event.issue.number"),
+				BuildPropertyAccess("github.event.pull_request.number"),
+				BuildPropertyAccess("github.event.discussion.number"),
+			},
+			expected: "(github.event.issue.number) || ((github.event.pull_request.number) || (github.event.discussion.number))",
+		},
+		{
+			name: "four conditions",
+			conditions: []ConditionNode{
+				&ExpressionNode{Expression: "a"},
+				&ExpressionNode{Expression: "b"},
+				&ExpressionNode{Expression: "c"},
+				&ExpressionNode{Expression: "d"},
+			},
+			expected: "(a) || ((b) || ((c) || (d)))",
+		},
+		{
+			name: "mixed node types",
+			conditions: []ConditionNode{
+				BuildActionEquals("opened"),
+				BuildEventTypeEquals("pull_request"),
+				BuildPropertyAccess("github.event.issue.number"),
+			},
+			expected: "(github.event.action == 'opened') || ((github.event_name == 'pull_request') || (github.event.issue.number))",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildOr(tt.conditions...)
+			if result == nil {
+				if tt.expected != "" {
+					t.Errorf("Expected '%s', got nil", tt.expected)
+				}
+				return
+			}
+
+			rendered := result.Render()
+			if rendered != tt.expected {
+				t.Errorf("Expected '%s', got '%s'", tt.expected, rendered)
+			}
+		})
+	}
+}
+
 // TestRealWorldExpressionPatterns tests common expression patterns used in GitHub Actions
 func TestRealWorldExpressionPatterns(t *testing.T) {
 	tests := []struct {
