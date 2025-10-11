@@ -415,10 +415,110 @@ The system validates workflow specifications:
 - **Document local modifications** in comments
 - **Consider contributing improvements** back to source repositories
 
+## Reference: Repository Specification
+
+Format: `owner/repo[@version]`
+
+**Components:**
+- `owner` - GitHub username or organization
+- `repo` - Repository name  
+- `version` - Optional tag, branch, or commit SHA
+
+**Examples:**
+```bash
+gh aw add githubnext/agentics              # default branch
+gh aw add githubnext/agentics@v1.0.0       # version tag
+gh aw add githubnext/agentics@main         # branch
+```
+
+**Validation:**
+- Owner and repo required in format `owner/repo`
+- Alphanumeric, hyphens, underscores (cannot start/end with hyphen)
+- Version can be tag, branch, or 40-character commit SHA
+
+## Reference: Workflow Specification
+
+Format: `owner/repo/workflow-name[@version]` or `owner/repo/path/to/workflow.md[@version]` or full GitHub URL
+
+**Short form** (3 parts): Automatically adds `workflows/` prefix and `.md` extension
+```bash
+gh aw add owner/repo/workflow@v1.0.0
+# → workflows/workflow.md@v1.0.0
+```
+
+**Explicit form** (4+ parts): Requires full path with `.md` extension
+```bash
+gh aw add owner/repo/workflows/ci-doctor.md@v1.0.0
+gh aw add owner/repo/custom/path/workflow.md@main
+```
+
+**GitHub URL form**: Full GitHub URL to workflow file
+```bash
+gh aw add https://github.com/owner/repo/blob/main/workflows/ci-doctor.md
+gh aw add https://github.com/owner/repo/blob/v1.0.0/custom/path/workflow.md
+gh aw add https://github.com/owner/repo/tree/develop/workflows/helper.md
+```
+
+**GitHub /files/ path form**: GitHub UI file path format
+```bash
+gh aw add owner/repo/files/main/.github/workflows/ci-doctor.md
+gh aw add owner/repo/files/fc7992627494253a869e177e5d1985d25f3bb316/workflows/helper.md
+```
+
+**Raw GitHub URL form**: raw.githubusercontent.com URLs
+```bash
+gh aw add https://raw.githubusercontent.com/owner/repo/refs/heads/main/workflows/ci-doctor.md
+gh aw add https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0.0/workflows/helper.md
+gh aw add https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/workflows/helper.md
+```
+
+**Validation:**
+- Minimum 3 parts (owner/repo/workflow-name) for spec format
+- Explicit paths must end with `.md` extension
+- Version optional (tag, branch, or commit SHA)
+- GitHub URLs support github.com and raw.githubusercontent.com domains
+- GitHub URLs must use /blob/, /tree/, or /raw/ format for github.com
+- GitHub URLs automatically extract branch/tag/commit from the URL path
+- /files/ format automatically extracts ref from path
+
+## Reference: Source Specification
+
+Used in workflow frontmatter to track workflow origin.
+
+Format: `source: "owner/repo/path/to/workflow.md[@ref]"`
+
+**Examples:**
+```yaml
+source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"  # tag
+source: "githubnext/agentics/workflows/ci-doctor.md@main"    # branch
+source: "githubnext/agentics/workflows/ci-doctor.md"          # default branch
+```
+
+## Reference: Versions
+
+**Semantic version tags** (with or without `v` prefix):
+```
+v1.0.0, v1.2.3, 1.0.0, v2.0.0-beta
+```
+
+**Branch names:**
+```
+main, develop, feature/new-feature
+```
+
+**Commit SHAs** (40-character hexadecimal):
+```
+abc123def456789012345678901234567890abcdef
+```
+
+**No version** (uses repository default branch):
+```
+owner/repo/workflow
+```
+
 ## Related Documentation
 
 - [CLI Commands](/gh-aw/tools/cli/) - Complete CLI reference
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
-- [Spec Syntax](/gh-aw/reference/spec-syntax/) - Detailed specification syntax reference
 - [Imports](/gh-aw/reference/imports/) - Include directive details
