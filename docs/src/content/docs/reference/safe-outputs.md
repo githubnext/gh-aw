@@ -7,6 +7,8 @@ sidebar:
 
 One of the primary security features of GitHub Agentic Workflows is "safe output processing", enabling the creation of GitHub issues, comments, pull requests, and other outputs without giving the agentic portion of the workflow write permissions.
 
+## Overview
+
 The `safe-outputs:` element of your workflow's frontmatter declares that your agentic workflow should conclude with optional automated actions based on the agentic workflow's output. This enables your workflow to write content that is then automatically processed to create GitHub issues, comments, pull requests, or add labels—all without giving the agentic portion of the workflow any write permissions.
 
 **How It Works:**
@@ -37,6 +39,8 @@ This declares that the workflow should create at most one new issue.
 | **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 | ❌ |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited | ❌ |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality (enabled by default when safe-outputs is configured) | unlimited | ❌ |
+
+Custom safe output types can be defined through [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
 
 ### New Issue Creation (`create-issue:`)
 
