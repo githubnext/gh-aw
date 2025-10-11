@@ -130,7 +130,7 @@ describe("add_comment.cjs", () => {
     await eval(`(async () => { ${createCommentScript} })()`);
 
     expect(mockCore.info).toHaveBeenCalledWith(
-      'Target is "triggering" but not running in issue or pull request context, skipping comment creation'
+      'Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation'
     );
     expect(mockGithub.rest.issues.createComment).not.toHaveBeenCalled();
   });
