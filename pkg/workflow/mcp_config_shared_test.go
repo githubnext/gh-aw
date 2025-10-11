@@ -72,7 +72,12 @@ func TestRenderPlaywrightMCPConfigShared(t *testing.T) {
 
 			// Check correct ending
 			if !strings.HasSuffix(result, tt.wantEnding) {
-				t.Errorf("renderPlaywrightMCPConfig() ending = %q, want suffix %q", result[len(result)-10:], tt.wantEnding)
+				// Show last part of result for debugging, but handle short strings
+				endSnippet := result
+				if len(result) > 10 {
+					endSnippet = result[len(result)-10:]
+				}
+				t.Errorf("renderPlaywrightMCPConfig() ending = %q, want suffix %q", endSnippet, tt.wantEnding)
 			}
 		})
 	}
@@ -129,7 +134,12 @@ func TestRenderSafeOutputsMCPConfigShared(t *testing.T) {
 
 			// Check correct ending
 			if !strings.HasSuffix(result, tt.wantEnding) {
-				t.Errorf("renderSafeOutputsMCPConfig() ending = %q, want suffix %q", result[len(result)-10:], tt.wantEnding)
+				// Show last part of result for debugging, but handle short strings
+				endSnippet := result
+				if len(result) > 10 {
+					endSnippet = result[len(result)-10:]
+				}
+				t.Errorf("renderSafeOutputsMCPConfig() ending = %q, want suffix %q", endSnippet, tt.wantEnding)
 			}
 		})
 	}
@@ -203,7 +213,12 @@ func TestRenderCustomMCPConfigWrapperShared(t *testing.T) {
 
 			// Check correct ending
 			if !strings.HasSuffix(result, tt.wantEnding) {
-				t.Errorf("renderCustomMCPConfigWrapper() ending = %q, want suffix %q", result[len(result)-10:], tt.wantEnding)
+				// Show last part of result for debugging, but handle short strings
+				endSnippet := result
+				if len(result) > 10 {
+					endSnippet = result[len(result)-10:]
+				}
+				t.Errorf("renderCustomMCPConfigWrapper() ending = %q, want suffix %q", endSnippet, tt.wantEnding)
 			}
 		})
 	}
