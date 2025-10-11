@@ -3,9 +3,6 @@ on:
   workflow_dispatch:
 name: Dev
 engine: codex
-tools:
-  github:
-    mode: remote
 permissions:
   contents: read
   actions: read
