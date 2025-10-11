@@ -88,8 +88,11 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	var jobCondition = BuildSafeOutputType("add-comment", data.SafeOutputs.AddComments.Min)
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
 		eventCondition := buildOr(
-			BuildPropertyAccess("github.event.issue.number"),
-			BuildPropertyAccess("github.event.pull_request.number"),
+			buildOr(
+				BuildPropertyAccess("github.event.issue.number"),
+				BuildPropertyAccess("github.event.pull_request.number"),
+			),
+			BuildPropertyAccess("github.event.discussion.number"),
 		)
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}

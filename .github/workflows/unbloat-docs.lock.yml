@@ -3313,8 +3313,8 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && ((github.event.issue.number) ||
-      (github.event.pull_request.number))
+      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && (((github.event.issue.number) ||
+      (github.event.pull_request.number)) || (github.event.discussion.number))
     runs-on: ubuntu-latest
     permissions:
       contents: read

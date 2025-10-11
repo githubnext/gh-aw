@@ -74,7 +74,7 @@ var AllowedExpressions = []string{
 	"github.event.pull_request.number",
 	"github.event.milestone.number",
 	"github.event.check_run.number",
-	"github.event.check_suite.number", 
+	"github.event.check_suite.number",
 	"github.event.workflow_job.run_id",
 	"github.event.workflow_run.number",
 	"github.event.label.id",
