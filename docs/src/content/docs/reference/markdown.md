@@ -7,6 +7,20 @@ sidebar:
 
 The markdown content is where you write natural language instructions for the AI agent. 
 
+For example:
+
+```aw wrap
+---
+...frontmatter...
+---
+
+# Issue Triage
+
+Read the issue #${{ github.event.issue.number }}. Add a comment to the issue listing useful resources and links.
+```
+
+The markdown is the most important part of your agentic workflow, and should describe its intended operation.
+
 ## Writing Good Agentic Markdown
 
 Effective agentic markdown combines clear instructions, contextual information, and structured guidance to help AI agents perform tasks accurately and consistently.
