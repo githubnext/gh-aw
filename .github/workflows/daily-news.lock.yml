@@ -2811,13 +2811,14 @@ jobs:
               }
             }
             function shouldSkipLine(line) {
-              if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+GITHUB_AW_ERROR_PATTERNS:/.test(line)) {
+              const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GITHUB_AW_ERROR_PATTERNS:").test(line)) {
                 return true;
               }
               if (/^\s+GITHUB_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
                 return true;
               }
-              if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+env:/.test(line)) {
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
                 return true;
               }
               return false;
