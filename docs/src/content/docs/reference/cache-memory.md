@@ -8,7 +8,9 @@ sidebar:
 "Memory" for agentic workflows can be implemented in several ways:
 
 - GitHub Issues, Discussions, Issue Comments, files and other GitHub information elements can be emitted to act as the "memory" of the agentic workflow, which it re-reads on each workflow run
-- A dedicated "cache memory" feature is available to use GitHub Actions Caches as a persisitent file storage. 
+- A "cache memory" feature is available to use GitHub Actions Caches as a persisitent file storage. 
+
+This document covers "cache memory".
 
 ## Cache Memory
 
