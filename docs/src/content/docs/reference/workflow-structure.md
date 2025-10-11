@@ -10,7 +10,7 @@ sidebar:
 Each workflow consists of:
 
 1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter](/gh-aw/reference/frontmatter/) for details.
-2. **Markdown Content**: Natural language instructions for the AI. See [Markdown Content](/gh-aw/reference/markdown/).
+2. **Markdown**: Natural language instructions for the AI. See [Markdown](/gh-aw/reference/markdown/).
 
 The markdown content is where you write natural language instructions for the AI agent. 
 
@@ -66,7 +66,7 @@ gh aw compile
 ## Related Documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/) - Configuration options for workflows
-- [Markdown Content](/gh-aw/reference/markdown/) - The main markdown content of workflows
+- [Markdown](/gh-aw/reference/markdown/) - The main markdown content of workflows
 - [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol configuration

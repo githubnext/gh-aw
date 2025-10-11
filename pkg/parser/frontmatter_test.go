@@ -387,10 +387,10 @@ func TestExtractMarkdownContent(t *testing.T) {
 title: Test
 ---
 
-# Markdown Content
+# Markdown
 
 This is markdown.`,
-			expected: "# Markdown Content\n\nThis is markdown.",
+			expected: "# Markdown\n\nThis is markdown.",
 		},
 		{
 			name:     "no frontmatter",

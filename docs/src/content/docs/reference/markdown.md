@@ -1,5 +1,5 @@
 ---
-title: Markdown Content
+title: Markdown
 description: Learn agentic workflow markdown content
 sidebar:
   order: 300

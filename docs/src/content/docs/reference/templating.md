@@ -218,6 +218,6 @@ These limitations are intentional to keep the template system simple, safe, and 
 
 ## Related Documentation
 
-- [Markdown Content](/gh-aw/reference/markdown/) - Writing effective agentic markdown
+- [Markdown](/gh-aw/reference/markdown/) - Writing effective agentic markdown
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration
