@@ -5,15 +5,12 @@
 
 name: "Dev"
 on:
-  push:
-    paths:
-    - .github/workflows/dev.lock.yml
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}"
 
 run-name: "Dev"
 
@@ -134,9 +131,10 @@ jobs:
     permissions:
       actions: read
       contents: read
+      discussions: write
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1,\"target\":\"*\"},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -199,7 +197,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create-issue":{"max":1},"missing-tool":{}}
+          {"add-comment":{"max":1,"target":"*"},"missing-tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -877,7 +875,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1,\"target\":\"*\"},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/config.toml << EOF
@@ -905,7 +903,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Write a poem about the last 3 pull requests and publish an issue.
+          Write a delightful poem about the last 3 pull requests and add it as a comment to discussion #1.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -948,13 +946,13 @@ jobs:
           
           ---
           
-          ## Creating an IssueReporting Missing Tools or Functionality
+          ## Adding a Comment to an Issue or Pull Request, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Creating an Issue**
+          **Adding a Comment to an Issue or Pull Request**
           
-          To create an issue, use the create-issue tool from the safe-outputs MCP
+          To add a comment to an issue or pull request, use the add-comments tool from the safe-outputs MCP
           
           **Reporting Missing Tools or Functionality**
           
@@ -1045,7 +1043,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-issue\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1,\"target\":\"*\"},\"missing-tool\":{}}"
         with:
           script: |
             async function main() {
@@ -2420,7 +2418,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Write a poem about the last 3 pull requests and publish an issue.\n"
+          WORKFLOW_MARKDOWN: "Write a delightful poem about the last 3 pull requests and add it as a comment to discussion #1.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2565,45 +2563,39 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  create_issue:
+  add_comment:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
+      pull-requests: write
+      discussions: write
     timeout-minutes: 10
     outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      comment_id: ${{ steps.add_comment.outputs.comment_id }}
+      comment_url: ${{ steps.add_comment.outputs.comment_url }}
     steps:
-      - name: Create Output Issue
-        id: create_issue
+      - name: Debug agent outputs
+        env:
+          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+        run: |
+          echo "Output: $AGENT_OUTPUT"
+          echo "Output types: $AGENT_OUTPUT_TYPES"
+      - name: Add Issue Comment
+        id: add_comment
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Dev"
-          GITHUB_AW_ISSUE_TITLE_PREFIX: "[dev] "
-          GITHUB_AW_ISSUE_LABELS: "dev,sub-task,poetry"
+          GITHUB_AW_COMMENT_TARGET: "*"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
             function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL) {
               let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
               if (workflowSource && workflowSourceURL) {
@@ -2635,74 +2627,122 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
+              const commentItems = validatedOutput.items.filter( item => item.type === "add-comment");
+              if (commentItems.length === 0) {
+                core.info("No add-comment items found in agent output");
                 return;
               }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
+              core.info(`Found ${commentItems.length} add-comment item(s)`);
+              function getRepositoryUrl() {
+                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+                if (targetRepoSlug) {
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  return `${githubServer}/${targetRepoSlug}`;
+                } else if (context.payload.repository) {
+                  return context.payload.repository.html_url;
+                } else {
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+                }
+              }
               if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
+                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                for (let i = 0; i < commentItems.length; i++) {
+                  const item = commentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  if (item.issue_number) {
+                    const repoUrl = getRepositoryUrl();
+                    const issueUrl = `${repoUrl}/issues/${item.issue_number}`;
+                    summaryContent += `**Target Issue:** [#${item.issue_number}](${issueUrl})\n\n`;
+                  } else {
+                    summaryContent += `**Target:** Current issue/PR\n\n`;
                   }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
-                  }
+                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
                   summaryContent += "---\n\n";
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
+                core.info("📝 Comment creation preview written to step summary");
                 return;
               }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
-                core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
-                );
-                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
-                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
+              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+              core.info(`Comment target configuration: ${commentTarget}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
+                return;
+              }
+              const createdComments = [];
+              for (let i = 0; i < commentItems.length; i++) {
+                const commentItem = commentItems[i];
+                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
+                let issueNumber;
+                let discussionId; 
+                let commentEndpoint;
+                if (commentTarget === "*") {
+                  if (commentItem.issue_number) {
+                    issueNumber = parseInt(commentItem.issue_number, 10);
+                    if (isNaN(issueNumber) || issueNumber <= 0) {
+                      core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
+                      continue;
+                    }
+                    commentEndpoint = "issues";
+                  } else if (commentItem.discussion_number) {
+                    issueNumber = parseInt(commentItem.discussion_number, 10);
+                    if (isNaN(issueNumber) || issueNumber <= 0) {
+                      core.info(`Invalid discussion number specified: ${commentItem.discussion_number}`);
+                      continue;
+                    }
+                    commentEndpoint = "discussions";
+                  } else {
+                    core.info('Target is "*" but no issue_number or discussion_number specified in comment item');
+                    continue;
+                  }
+                } else if (commentTarget && commentTarget !== "triggering") {
+                  issueNumber = parseInt(commentTarget, 10);
+                  if (isNaN(issueNumber) || issueNumber <= 0) {
+                    core.info(`Invalid issue number in target configuration: ${commentTarget}`);
+                    continue;
+                  }
+                  commentEndpoint = "issues";
+                } else {
+                  if (isIssueContext) {
+                    if (context.payload.issue) {
+                      issueNumber = context.payload.issue.number;
+                      commentEndpoint = "issues";
+                    } else {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else if (isPRContext) {
+                    if (context.payload.pull_request) {
+                      issueNumber = context.payload.pull_request.number;
+                      commentEndpoint = "issues"; 
+                    } else {
+                      core.info("Pull request context detected but no pull request found in payload");
+                      continue;
+                    }
+                  } else if (isDiscussionContext) {
+                    if (context.payload.discussion) {
+                      issueNumber = context.payload.discussion.number;
+                      discussionId = context.payload.discussion.node_id;
+                      commentEndpoint = "discussions";
+                    } else {
+                      core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
+                  }
                 }
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels];
+                if (!issueNumber) {
+                  core.info("Could not determine issue, pull request, or discussion number");
+                  continue;
                 }
-                labels = labels
-                  .filter(label => !!label)
-                  .map(label => String(label).trim())
-                  .filter(label => label)
-                  .map(label => sanitizeLabelContent(label))
-                  .filter(label => label)
-                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                  .filter((label, index, arr) => arr.indexOf(label) === index);
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
-                if (!title) {
-                  title = createIssueItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
-                }
+                let body = commentItem.body.trim();
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
                 const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
@@ -2711,106 +2751,84 @@ jobs:
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                bodyLines.push(``, ``, generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL).trimEnd(), "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
-                core.info(`Body length: ${body.length}`);
+                body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL);
+                core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+                core.info(`Comment content length: ${body.length}`);
                 try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  if (effectiveParentIssueNumber) {
-                    try {
-                      const getIssueNodeIdQuery = `
-                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                  let comment;
+                  if (commentEndpoint === "discussions") {
+                    if (!discussionId) {
+                      const discussionQuery = `
+                        query($owner: String!, $repo: String!, $number: Int!) {
                           repository(owner: $owner, name: $repo) {
-                            issue(number: $issueNumber) {
+                            discussion(number: $number) {
                               id
                             }
                           }
                         }
                       `;
-                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
+                      const queryResult = await github.graphql(discussionQuery, {
                         owner: context.repo.owner,
                         repo: context.repo.repo,
-                        issueNumber: effectiveParentIssueNumber,
+                        number: issueNumber,
                       });
-                      const parentNodeId = parentResult.repository.issue.id;
-                      const childResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: issue.number,
-                      });
-                      const childNodeId = childResult.repository.issue.id;
-                      const addSubIssueMutation = `
-                        mutation($parentId: ID!, $subIssueId: ID!) {
-                          addSubIssue(input: {
-                            parentId: $parentId,
-                            subIssueId: $subIssueId
-                          }) {
-                            subIssue {
-                              id
-                              number
-                            }
-                          }
-                        }
-                      `;
-                      await github.graphql(addSubIssueMutation, {
-                        parentId: parentNodeId,
-                        subIssueId: childNodeId,
-                      });
-                      core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-                      try {
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: effectiveParentIssueNumber,
-                          body: `Created related issue: #${issue.number}`,
-                        });
-                        core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
-                      } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
-                      }
+                      discussionId = queryResult.repository.discussion.id;
                     }
+                    const addDiscussionCommentMutation = `
+                      mutation($discussionId: ID!, $body: String!) {
+                        addDiscussionComment(input: {
+                          discussionId: $discussionId,
+                          body: $body
+                        }) {
+                          comment {
+                            id
+                            url
+                            databaseId
+                          }
+                        }
+                      }
+                    `;
+                    const mutationResult = await github.graphql(addDiscussionCommentMutation, {
+                      discussionId: discussionId,
+                      body: body,
+                    });
+                    const discussionComment = mutationResult.addDiscussionComment.comment;
+                    comment = {
+                      id: discussionComment.databaseId,
+                      html_url: discussionComment.url,
+                    };
+                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                  } else {
+                    const { data: restComment } = await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issueNumber,
+                      body: body,
+                    });
+                    comment = restComment;
+                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
                   }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
+                  createdComments.push(comment);
+                  if (i === commentItems.length - 1) {
+                    core.setOutput("comment_id", comment.id);
+                    core.setOutput("comment_url", comment.html_url);
                   }
                 } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
-                    continue;
-                  }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
                 }
               }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+              if (createdComments.length > 0) {
+                let summaryContent = "\n\n## GitHub Comments\n";
+                for (const comment of createdComments) {
+                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+              core.info(`Successfully created ${createdComments.length} comment(s)`);
+              return createdComments;
             }
-            (async () => {
-              await main();
-            })();
+            await main();
 
   missing_tool:
     needs:

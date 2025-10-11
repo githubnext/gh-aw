@@ -213,6 +213,23 @@ func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
 	return &AndNode{Left: left, Right: right}
 }
 
+// buildDisjunction creates a disjunction (OR) of multiple conditions
+func buildDisjunction(conditions ...ConditionNode) ConditionNode {
+	if len(conditions) == 0 {
+		return nil
+	}
+	if len(conditions) == 1 {
+		return conditions[0]
+	}
+
+	// Build a right-associative OR tree: a || (b || (c || ...))
+	result := conditions[len(conditions)-1]
+	for i := len(conditions) - 2; i >= 0; i-- {
+		result = buildOr(conditions[i], result)
+	}
+	return result
+}
+
 // buildReactionCondition creates a condition tree for the add_reaction job
 func buildReactionCondition() ConditionNode {
 	// Build a list of event types that should trigger reactions using the new expression nodes
