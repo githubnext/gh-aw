@@ -97,9 +97,7 @@ tools:
 ---
 ```
 
-### Artifact Retention
-
-Configure how long cache data artifacts are retained:
+Artifact Retention configures how long cache data artifacts are retained:
 
 ```aw wrap
 ---
