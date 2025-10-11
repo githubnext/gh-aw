@@ -14,6 +14,7 @@ type AddCommentsConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	Target               string `yaml:"target,omitempty"`      // Target for comments: "triggering" (default), "*" (any issue), or explicit issue number
 	TargetRepoSlug       string `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository comments
+	Discussion           *bool  `yaml:"discussion,omitempty"`  // Target discussion comments instead of issue/PR comments. Must be true if present.
 }
 
 // buildCreateOutputAddCommentJob creates the add_comment job
@@ -46,6 +47,10 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	// Pass the comment target configuration
 	if data.SafeOutputs.AddComments.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_COMMENT_TARGET: %q\n", data.SafeOutputs.AddComments.Target))
+	}
+	// Pass the discussion flag configuration
+	if data.SafeOutputs.AddComments.Discussion != nil && *data.SafeOutputs.AddComments.Discussion {
+		customEnvVars = append(customEnvVars, "          GITHUB_AW_COMMENT_DISCUSSION: \"true\"\n")
 	}
 	if c.trialMode || data.SafeOutputs.Staged {
 		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
@@ -83,8 +88,11 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 	var jobCondition = BuildSafeOutputType("add-comment", data.SafeOutputs.AddComments.Min)
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
 		eventCondition := buildOr(
-			BuildPropertyAccess("github.event.issue.number"),
-			BuildPropertyAccess("github.event.pull_request.number"),
+			buildOr(
+				BuildPropertyAccess("github.event.issue.number"),
+				BuildPropertyAccess("github.event.pull_request.number"),
+			),
+			BuildPropertyAccess("github.event.discussion.number"),
 		)
 		jobCondition = buildAnd(jobCondition, eventCondition)
 	}
@@ -93,7 +101,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		Name:           "add_comment",
 		If:             jobCondition.Render(),
 		RunsOn:         c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write",
+		Permissions:    "permissions:\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write",
 		TimeoutMinutes: 10, // 10-minute timeout as required
 		Steps:          steps,
 		Outputs:        outputs,
@@ -128,6 +136,17 @@ func (c *Compiler) parseCommentsConfig(outputMap map[string]any) *AddCommentsCon
 						return nil // Invalid configuration, return nil to cause validation error
 					}
 					commentsConfig.TargetRepoSlug = targetRepoStr
+				}
+			}
+
+			// Parse discussion
+			if discussion, exists := configMap["discussion"]; exists {
+				if discussionBool, ok := discussion.(bool); ok {
+					// Validate that discussion must be true if present
+					if !discussionBool {
+						return nil // Invalid configuration, return nil to cause validation error
+					}
+					commentsConfig.Discussion = &discussionBool
 				}
 			}
 		}

@@ -490,7 +490,7 @@ jobs:
               },
               {
                 name: "add_comment",
-                description: "Add a comment to a GitHub issue or pull request",
+                description: "Add a comment to a GitHub issue, pull request, or discussion",
                 inputSchema: {
                   type: "object",
                   required: ["body"],
@@ -498,7 +498,15 @@ jobs:
                     body: { type: "string", description: "Comment body/content" },
                     issue_number: {
                       type: "number",
-                      description: "Issue or PR number (optional for current context)",
+                      description: "Issue number (optional for current context)",
+                    },
+                    pull_number: {
+                      type: "number",
+                      description: "Pull request number (optional, alternative to issue_number)",
+                    },
+                    discussion_number: {
+                      type: "number",
+                      description: "Discussion number for discussion comments (optional, alternative to issue_number)",
                     },
                   },
                   additionalProperties: false,
@@ -975,15 +983,6 @@ jobs:
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
-      - name: Print prompt to step summary
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
@@ -1556,10 +1555,26 @@ jobs:
                         errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
                         continue;
                       }
-                      const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-                      if (!issueNumValidation.isValid) {
-                        if (issueNumValidation.error) errors.push(issueNumValidation.error);
-                        continue;
+                      if (item.issue_number !== undefined) {
+                        const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
+                        if (!issueNumValidation.isValid) {
+                          if (issueNumValidation.error) errors.push(issueNumValidation.error);
+                          continue;
+                        }
+                      }
+                      if (item.discussion_number !== undefined) {
+                        const discussionNumValidation = validateIssueOrPRNumber(item.discussion_number, "add_comment 'discussion_number'", i + 1);
+                        if (!discussionNumValidation.isValid) {
+                          if (discussionNumValidation.error) errors.push(discussionNumValidation.error);
+                          continue;
+                        }
+                      }
+                      if (item.pull_number !== undefined) {
+                        const pullNumValidation = validateIssueOrPRNumber(item.pull_number, "add_comment 'pull_number'", i + 1);
+                        if (!pullNumValidation.isValid) {
+                          if (pullNumValidation.error) errors.push(pullNumValidation.error);
+                          continue;
+                        }
                       }
                       item.body = sanitizeContent(item.body);
                       break;
@@ -1850,18 +1865,6 @@ jobs:
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
               core.setOutput("output_types", outputTypes.join(","));
-              try {
-                await core.summary
-                  .addRaw("## Processed Output\n\n")
-                  .addRaw("```json\n")
-                  .addRaw(JSON.stringify(validatedOutput))
-                  .addRaw("\n```\n")
-                  .write();
-                core.info("Successfully wrote processed output to step summary");
-              } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error);
-                core.warning(`Failed to write to step summary: ${errorMsg}`);
-              }
             }
             await main();
       - name: Upload sanitized agent output
@@ -2143,16 +2146,7 @@ jobs:
                 if (!Array.isArray(logEntries) || logEntries.length === 0) {
                   return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
                 }
-                let markdown = "";
-                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-                if (initEntry) {
-                  markdown += "## 🚀 Initialization\n\n";
-                  markdown += formatInitializationSummary(initEntry);
-                  markdown += "\n";
-                }
-                markdown += "## 🤖 Commands and Tools\n\n";
                 const toolUsePairs = new Map(); 
-                const commandSummary = []; 
                 for (const entry of logEntries) {
                   if (entry.type === "user" && entry.message?.content) {
                     for (const content of entry.message.content) {
@@ -2162,6 +2156,34 @@ jobs:
                     }
                   }
                 }
+                let markdown = "";
+                const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+                if (initEntry) {
+                  markdown += "## 🚀 Initialization\n\n";
+                  markdown += formatInitializationSummary(initEntry);
+                  markdown += "\n";
+                }
+                markdown += "\n## 🤖 Reasoning\n\n";
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "text" && content.text) {
+                        const text = content.text.trim();
+                        if (text && text.length > 0) {
+                          markdown += text + "\n\n";
+                        }
+                      } else if (content.type === "tool_use") {
+                        const toolResult = toolUsePairs.get(content.id);
+                        const toolMarkdown = formatToolUseWithDetails(content, toolResult);
+                        if (toolMarkdown) {
+                          markdown += toolMarkdown;
+                        }
+                      }
+                    }
+                  }
+                }
+                markdown += "## 🤖 Commands and Tools\n\n";
+                const commandSummary = []; 
                 for (const entry of logEntries) {
                   if (entry.type === "assistant" && entry.message?.content) {
                     for (const content of entry.message.content) {
@@ -2220,25 +2242,6 @@ jobs:
                       if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
                       if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
                       markdown += "\n";
-                    }
-                  }
-                }
-                markdown += "\n## 🤖 Reasoning\n\n";
-                for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "text" && content.text) {
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + "\n\n";
-                        }
-                      } else if (content.type === "tool_use") {
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUseWithDetails(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
-                        }
-                      }
                     }
                   }
                 }
@@ -2649,6 +2652,15 @@ jobs:
               };
             }
             main();
+      - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4

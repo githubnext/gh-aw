@@ -1488,8 +1488,8 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 					}
 				}
 
-				// Start with default commands
-				mergedCommands := make([]any, 0, len(constants.DefaultBashTools)+len(bashArray))
+				// Start with default commands (append handles capacity automatically)
+				var mergedCommands []any
 				for _, cmd := range constants.DefaultBashTools {
 					if !existingCommands[cmd] {
 						mergedCommands = append(mergedCommands, cmd)
@@ -2242,6 +2242,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
+	// Add step to print prompt to GitHub step summary for debugging. Putting this after
+	// the main summary.
+	c.generatePrintPromptToSummary(yaml)
+
 	// upload agent logs
 	var _ string = logFile
 	c.generateUploadAgentLogs(yaml, logFileFull)
@@ -2582,8 +2586,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add template rendering step if conditional patterns are detected
 	c.generateTemplateRenderingStep(yaml, data)
+}
 
-	// Add step to print prompt to GitHub step summary for debugging
+func (*Compiler) generatePrintPromptToSummary(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")

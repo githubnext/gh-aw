@@ -89,6 +89,19 @@ function parseClaudeLog(logContent) {
       };
     }
 
+    const toolUsePairs = new Map(); // Map tool_use_id to tool_result
+
+    // First pass: collect tool results by tool_use_id
+    for (const entry of logEntries) {
+      if (entry.type === "user" && entry.message?.content) {
+        for (const content of entry.message.content) {
+          if (content.type === "tool_result" && content.tool_use_id) {
+            toolUsePairs.set(content.tool_use_id, content);
+          }
+        }
+      }
+    }
+
     let markdown = "";
     const mcpFailures = [];
 
@@ -103,20 +116,32 @@ function parseClaudeLog(logContent) {
       markdown += "\n";
     }
 
-    markdown += "## 🤖 Commands and Tools\n\n";
-    const toolUsePairs = new Map(); // Map tool_use_id to tool_result
-    const commandSummary = []; // For the succinct summary
+    markdown += "\n## 🤖 Reasoning\n\n";
 
-    // First pass: collect tool results by tool_use_id
+    // Second pass: process assistant messages in sequence
     for (const entry of logEntries) {
-      if (entry.type === "user" && entry.message?.content) {
+      if (entry.type === "assistant" && entry.message?.content) {
         for (const content of entry.message.content) {
-          if (content.type === "tool_result" && content.tool_use_id) {
-            toolUsePairs.set(content.tool_use_id, content);
+          if (content.type === "text" && content.text) {
+            // Add reasoning text directly (no header)
+            const text = content.text.trim();
+            if (text && text.length > 0) {
+              markdown += text + "\n\n";
+            }
+          } else if (content.type === "tool_use") {
+            // Process tool use with its result
+            const toolResult = toolUsePairs.get(content.id);
+            const toolMarkdown = formatToolUse(content, toolResult);
+            if (toolMarkdown) {
+              markdown += toolMarkdown;
+            }
           }
         }
       }
     }
+
+    markdown += "## 🤖 Commands and Tools\n\n";
+    const commandSummary = []; // For the succinct summary
 
     // Collect all tool uses for summary
     for (const entry of logEntries) {
@@ -198,30 +223,6 @@ function parseClaudeLog(logContent) {
 
       if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
         markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
-      }
-    }
-
-    markdown += "\n## 🤖 Reasoning\n\n";
-
-    // Second pass: process assistant messages in sequence
-    for (const entry of logEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "text" && content.text) {
-            // Add reasoning text directly (no header)
-            const text = content.text.trim();
-            if (text && text.length > 0) {
-              markdown += text + "\n\n";
-            }
-          } else if (content.type === "tool_use") {
-            // Process tool use with its result
-            const toolResult = toolUsePairs.get(content.id);
-            const toolMarkdown = formatToolUse(content, toolResult);
-            if (toolMarkdown) {
-              markdown += toolMarkdown;
-            }
-          }
-        }
       }
     }
 

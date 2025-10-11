@@ -27,7 +27,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'schedule')"
+          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule', 'fork', 'create', 'delete', 'public', 'watch', 'workflow_call')"
         },
         {
           "type": "object",
@@ -131,9 +131,32 @@
               "properties": {
                 "types": {
                   "type": "array",
-                  "description": "List of pull request event types to trigger on (e.g., 'opened', 'edited', 'closed', 'synchronize')",
+                  "description": "List of pull request event types to trigger on",
                   "items": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                      "assigned",
+                      "unassigned",
+                      "labeled",
+                      "unlabeled",
+                      "opened",
+                      "edited",
+                      "closed",
+                      "reopened",
+                      "synchronize",
+                      "converted_to_draft",
+                      "locked",
+                      "unlocked",
+                      "enqueued",
+                      "dequeued",
+                      "milestoned",
+                      "demilestoned",
+                      "ready_for_review",
+                      "review_requested",
+                      "review_request_removed",
+                      "auto_merge_enabled",
+                      "auto_merge_disabled"
+                    ]
                   }
                 },
                 "branches": {
@@ -229,7 +252,9 @@
                       "locked",
                       "unlocked",
                       "milestoned",
-                      "demilestoned"
+                      "demilestoned",
+                      "typed",
+                      "untyped"
                     ]
                   }
                 },
@@ -259,6 +284,54 @@
                 "types": {
                   "type": "array",
                   "description": "Types of issue comment events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
+                }
+              }
+            },
+            "discussion": {
+              "description": "Discussion event trigger that runs the workflow when repository discussions are created, updated, or managed",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of discussion events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "category_changed",
+                      "answered",
+                      "unanswered"
+                    ]
+                  }
+                }
+              }
+            },
+            "discussion_comment": {
+              "description": "Discussion comment event trigger that runs the workflow when comments on discussions are created, updated, or deleted",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of discussion comment events",
                   "items": {
                     "type": "string",
                     "enum": [
@@ -359,7 +432,8 @@
                     "type": "string",
                     "enum": [
                       "completed",
-                      "requested"
+                      "requested",
+                      "in_progress"
                     ]
                   }
                 },
@@ -420,6 +494,398 @@
                   }
                 }
               }
+            },
+            "branch_protection_rule": {
+              "description": "Branch protection rule event trigger that runs when branch protection rules are changed",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of branch protection rule events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
+                }
+              }
+            },
+            "check_run": {
+              "description": "Check run event trigger that runs when a check run is created, rerequested, completed, or has a requested action",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of check run events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "rerequested",
+                      "completed",
+                      "requested_action"
+                    ]
+                  }
+                }
+              }
+            },
+            "check_suite": {
+              "description": "Check suite event trigger that runs when check suite activity occurs",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of check suite events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "completed"
+                    ]
+                  }
+                }
+              }
+            },
+            "create": {
+              "description": "Create event trigger that runs when a Git reference (branch or tag) is created",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple create event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "delete": {
+              "description": "Delete event trigger that runs when a Git reference (branch or tag) is deleted",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple delete event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "deployment": {
+              "description": "Deployment event trigger that runs when a deployment is created",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple deployment event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "deployment_status": {
+              "description": "Deployment status event trigger that runs when a deployment status is updated",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple deployment status event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "fork": {
+              "description": "Fork event trigger that runs when someone forks the repository",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple fork event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "gollum": {
+              "description": "Gollum event trigger that runs when someone creates or updates a Wiki page",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple gollum event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "label": {
+              "description": "Label event trigger that runs when a label is created, edited, or deleted",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of label events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
+                }
+              }
+            },
+            "merge_group": {
+              "description": "Merge group event trigger that runs when a pull request is added to a merge queue",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of merge group events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "checks_requested"
+                    ]
+                  }
+                }
+              }
+            },
+            "milestone": {
+              "description": "Milestone event trigger that runs when a milestone is created, closed, opened, edited, or deleted",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of milestone events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "closed",
+                      "opened",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
+                }
+              }
+            },
+            "page_build": {
+              "description": "Page build event trigger that runs when someone pushes to a GitHub Pages publishing source branch",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple page build event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "public": {
+              "description": "Public event trigger that runs when a repository changes from private to public",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple public event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "pull_request_target": {
+              "description": "Pull request target event trigger that runs in the context of the base repository (secure for fork PRs)",
+              "type": "object",
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "List of pull request target event types to trigger on",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "assigned",
+                      "unassigned",
+                      "labeled",
+                      "unlabeled",
+                      "opened",
+                      "edited",
+                      "closed",
+                      "reopened",
+                      "synchronize",
+                      "converted_to_draft",
+                      "locked",
+                      "unlocked",
+                      "enqueued",
+                      "dequeued",
+                      "review_requested",
+                      "review_request_removed",
+                      "auto_merge_enabled",
+                      "auto_merge_disabled"
+                    ]
+                  }
+                },
+                "branches": {
+                  "type": "array",
+                  "description": "Branches to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "branches-ignore": {
+                  "type": "array",
+                  "description": "Branches to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths": {
+                  "type": "array",
+                  "description": "Paths to filter on",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "paths-ignore": {
+                  "type": "array",
+                  "description": "Paths to ignore",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "draft": {
+                  "type": "boolean",
+                  "description": "Filter by draft pull request state"
+                },
+                "forks": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single fork pattern"
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of allowed fork repositories with glob support",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "pull_request_review": {
+              "description": "Pull request review event trigger that runs when a pull request review is submitted, edited, or dismissed",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of pull request review events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "submitted",
+                      "edited",
+                      "dismissed"
+                    ]
+                  }
+                }
+              }
+            },
+            "registry_package": {
+              "description": "Registry package event trigger that runs when a package is published or updated",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of registry package events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "published",
+                      "updated"
+                    ]
+                  }
+                }
+              }
+            },
+            "repository_dispatch": {
+              "description": "Repository dispatch event trigger for custom webhook events",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Custom event types to trigger on",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "status": {
+              "description": "Status event trigger that runs when the status of a Git commit changes",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple status event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "watch": {
+              "description": "Watch event trigger that runs when someone stars the repository",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of watch events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "started"
+                    ]
+                  }
+                }
+              }
+            },
+            "workflow_call": {
+              "description": "Workflow call event trigger that allows this workflow to be called by another workflow",
+              "oneOf": [
+                {
+                  "type": "null",
+                  "description": "Simple workflow call event trigger"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              ]
             },
             "stop-after": {
               "type": "string",
@@ -1643,6 +2109,11 @@
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "discussion": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Target discussion comments instead of issue/PR comments. Must be true if present."
                 }
               },
               "additionalProperties": false

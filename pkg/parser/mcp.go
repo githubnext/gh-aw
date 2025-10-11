@@ -32,7 +32,12 @@ func EnsureLocalhostDomains(domains []string) []string {
 		}
 	}
 
-	result := make([]string, 0, len(domains)+4)
+	// CWE-190: Allocation Size Overflow Prevention
+	// Instead of pre-calculating capacity (len(domains)+4), which could overflow
+	// if domains is extremely large, we let Go's append handle capacity growth
+	// automatically. This is safe and efficient for domain arrays which are
+	// typically small in practice.
+	var result []string
 
 	// Always add localhost domains first (with and without port specifications)
 	if !hasLocalhost {

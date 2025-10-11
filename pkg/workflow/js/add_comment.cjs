@@ -17,9 +17,67 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL)
   return footer;
 }
 
+/**
+ * Comment on a GitHub Discussion using GraphQL
+ * @param {any} github - GitHub REST API instance
+ * @param {string} owner - Repository owner
+ * @param {string} repo - Repository name
+ * @param {number} discussionNumber - Discussion number
+ * @param {string} message - Comment body
+ * @returns {Promise<{id: string, html_url: string, discussion_url: string}>} Comment details
+ */
+async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
+  // 1. Retrieve discussion node ID
+  const { repository } = await github.graphql(
+    `
+    query($owner: String!, $repo: String!, $num: Int!) {
+      repository(owner: $owner, name: $repo) {
+        discussion(number: $num) { 
+          id 
+          url
+        }
+      }
+    }`,
+    { owner, repo, num: discussionNumber }
+  );
+
+  if (!repository || !repository.discussion) {
+    throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+  }
+
+  const discussionId = repository.discussion.id;
+  const discussionUrl = repository.discussion.url;
+
+  // 2. Add comment
+  const result = await github.graphql(
+    `
+    mutation($dId: ID!, $body: String!) {
+      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+        comment { 
+          id 
+          body 
+          createdAt 
+          url
+        }
+      }
+    }`,
+    { dId: discussionId, body: message }
+  );
+
+  const comment = result.addDiscussionComment.comment;
+
+  return {
+    id: comment.id,
+    html_url: comment.url,
+    discussion_url: discussionUrl,
+  };
+}
+
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+  // Check if we're targeting discussions
+  const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
 
   // Read the validated output content from environment variable
   const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -77,6 +135,20 @@ async function main() {
     }
   }
 
+  // Helper function to get the target number (issue, discussion, or pull request)
+  function getTargetNumber(item) {
+    if (item.issue_number !== undefined) {
+      return item.issue_number;
+    }
+    if (item.pull_number !== undefined) {
+      return item.pull_number;
+    }
+    if (item.discussion_number !== undefined) {
+      return item.discussion_number;
+    }
+    return undefined;
+  }
+
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -85,12 +157,22 @@ async function main() {
     for (let i = 0; i < commentItems.length; i++) {
       const item = commentItems[i];
       summaryContent += `### Comment ${i + 1}\n`;
-      if (item.issue_number) {
+      const targetNumber = getTargetNumber(item);
+      if (targetNumber) {
         const repoUrl = getRepositoryUrl();
-        const issueUrl = `${repoUrl}/issues/${item.issue_number}`;
-        summaryContent += `**Target Issue:** [#${item.issue_number}](${issueUrl})\n\n`;
+        if (isDiscussion) {
+          const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+          summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+        } else {
+          const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+          summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+        }
       } else {
-        summaryContent += `**Target:** Current issue/PR\n\n`;
+        if (isDiscussion) {
+          summaryContent += `**Target:** Current discussion\n\n`;
+        } else {
+          summaryContent += `**Target:** Current issue/PR\n\n`;
+        }
       }
       summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
       summaryContent += "---\n\n";
@@ -105,17 +187,19 @@ async function main() {
   // Get the target configuration from environment variable
   const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
   core.info(`Comment target configuration: ${commentTarget}`);
+  core.info(`Discussion mode: ${isDiscussion}`);
 
-  // Check if we're in an issue or pull request context
+  // Check if we're in an issue, pull request, or discussion context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
   const isPRContext =
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment";
+  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
 
   // Validate context based on target configuration
-  if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-    core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
+  if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+    core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
     return;
   }
 
@@ -131,49 +215,59 @@ async function main() {
     let commentEndpoint;
 
     if (commentTarget === "*") {
-      // For target "*", we need an explicit issue number from the comment item
-      if (commentItem.issue_number) {
-        issueNumber = parseInt(commentItem.issue_number, 10);
+      // For target "*", we need an explicit number from the comment item
+      const targetNumber = getTargetNumber(commentItem);
+      if (targetNumber) {
+        issueNumber = parseInt(targetNumber, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
+          core.info(`Invalid target number specified: ${targetNumber}`);
           continue;
         }
-        commentEndpoint = "issues";
+        commentEndpoint = isDiscussion ? "discussions" : "issues";
       } else {
-        core.info('Target is "*" but no issue_number specified in comment item');
+        const expectedFields = isDiscussion ? "discussion_number" : "issue_number or pull_number";
+        core.info(`Target is "*" but no ${expectedFields} specified in comment item`);
         continue;
       }
     } else if (commentTarget && commentTarget !== "triggering") {
-      // Explicit issue number specified in target
+      // Explicit number specified in target configuration
       issueNumber = parseInt(commentTarget, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        core.info(`Invalid issue number in target configuration: ${commentTarget}`);
+        core.info(`Invalid target number in target configuration: ${commentTarget}`);
         continue;
       }
-      commentEndpoint = "issues";
+      commentEndpoint = isDiscussion ? "discussions" : "issues";
     } else {
-      // Default behavior: use triggering issue/PR
+      // Default behavior: use triggering issue/PR/discussion
       if (isIssueContext) {
+        issueNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
         if (context.payload.issue) {
-          issueNumber = context.payload.issue.number;
           commentEndpoint = "issues";
         } else {
           core.info("Issue context detected but no issue found in payload");
           continue;
         }
       } else if (isPRContext) {
+        issueNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
         if (context.payload.pull_request) {
-          issueNumber = context.payload.pull_request.number;
           commentEndpoint = "issues"; // PR comments use the issues API endpoint
         } else {
           core.info("Pull request context detected but no pull request found in payload");
+          continue;
+        }
+      } else if (isDiscussionContext) {
+        issueNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+        if (context.payload.discussion) {
+          commentEndpoint = "discussions"; // Discussion comments use GraphQL via commentOnDiscussion
+        } else {
+          core.info("Discussion context detected but no discussion found in payload");
           continue;
         }
       }
     }
 
     if (!issueNumber) {
-      core.info("Could not determine issue or pull request number");
+      core.info("Could not determine issue, pull request, or discussion number");
       continue;
     }
 
@@ -190,19 +284,35 @@ async function main() {
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
     body += generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL);
 
-    core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
-    core.info(`Comment content length: ${body.length}`);
-
     try {
-      // Create the comment using GitHub API
-      const { data: comment } = await github.rest.issues.createComment({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: issueNumber,
-        body: body,
-      });
+      let comment;
 
-      core.info("Created comment #" + comment.id + ": " + comment.html_url);
+      if (isDiscussion) {
+        core.info(`Creating comment on discussion #${issueNumber}`);
+        core.info(`Comment content length: ${body.length}`);
+
+        // Create discussion comment using GraphQL
+        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, issueNumber, body);
+        core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+
+        // Add discussion_url to the comment object for consistency
+        comment.discussion_url = comment.discussion_url;
+      } else {
+        core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+        core.info(`Comment content length: ${body.length}`);
+
+        // Create regular issue/PR comment using REST API
+        const { data: restComment } = await github.rest.issues.createComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issue_number: issueNumber,
+          body: body,
+        });
+
+        comment = restComment;
+        core.info("Created comment #" + comment.id + ": " + comment.html_url);
+      }
+
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)

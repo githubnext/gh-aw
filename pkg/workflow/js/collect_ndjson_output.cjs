@@ -437,10 +437,27 @@ async function main() {
             errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
             continue;
           }
-          const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-          if (!issueNumValidation.isValid) {
-            if (issueNumValidation.error) errors.push(issueNumValidation.error);
-            continue;
+          // Validate issue_number, discussion_number, or pull_number (all are optional but treated as synonyms)
+          if (item.issue_number !== undefined) {
+            const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
+            if (!issueNumValidation.isValid) {
+              if (issueNumValidation.error) errors.push(issueNumValidation.error);
+              continue;
+            }
+          }
+          if (item.discussion_number !== undefined) {
+            const discussionNumValidation = validateIssueOrPRNumber(item.discussion_number, "add_comment 'discussion_number'", i + 1);
+            if (!discussionNumValidation.isValid) {
+              if (discussionNumValidation.error) errors.push(discussionNumValidation.error);
+              continue;
+            }
+          }
+          if (item.pull_number !== undefined) {
+            const pullNumValidation = validateIssueOrPRNumber(item.pull_number, "add_comment 'pull_number'", i + 1);
+            if (!pullNumValidation.isValid) {
+              if (pullNumValidation.error) errors.push(pullNumValidation.error);
+              continue;
+            }
           }
           item.body = sanitizeContent(item.body);
           break;
@@ -731,17 +748,5 @@ async function main() {
   const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
   core.info(`output_types: ${outputTypes.join(", ")}`);
   core.setOutput("output_types", outputTypes.join(","));
-  try {
-    await core.summary
-      .addRaw("## Processed Output\n\n")
-      .addRaw("```json\n")
-      .addRaw(JSON.stringify(validatedOutput))
-      .addRaw("\n```\n")
-      .write();
-    core.info("Successfully wrote processed output to step summary");
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    core.warning(`Failed to write to step summary: ${errorMsg}`);
-  }
 }
 await main();

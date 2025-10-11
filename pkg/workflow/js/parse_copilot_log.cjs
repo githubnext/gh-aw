@@ -126,20 +126,7 @@ function parseCopilotLog(logContent) {
       return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
     }
 
-    let markdown = "";
-
-    // Check for initialization data first
-    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
-
-    if (initEntry) {
-      markdown += "## 🚀 Initialization\n\n";
-      markdown += formatInitializationSummary(initEntry);
-      markdown += "\n";
-    }
-
-    markdown += "## 🤖 Commands and Tools\n\n";
     const toolUsePairs = new Map(); // Map tool_use_id to tool_result
-    const commandSummary = []; // For the succinct summary
 
     // First pass: collect tool results by tool_use_id
     for (const entry of logEntries) {
@@ -151,6 +138,44 @@ function parseCopilotLog(logContent) {
         }
       }
     }
+    let markdown = "";
+
+    // Check for initialization data first
+    const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
+
+    if (initEntry) {
+      markdown += "## 🚀 Initialization\n\n";
+      markdown += formatInitializationSummary(initEntry);
+      markdown += "\n";
+    }
+
+    markdown += "\n## 🤖 Reasoning\n\n";
+
+    // Second pass: process assistant messages in sequence
+    for (const entry of logEntries) {
+      if (entry.type === "assistant" && entry.message?.content) {
+        for (const content of entry.message.content) {
+          if (content.type === "text" && content.text) {
+            // Add user message text directly as markdown
+            const text = content.text.trim();
+            if (text && text.length > 0) {
+              markdown += text + "\n\n";
+            }
+          } else if (content.type === "tool_use") {
+            // Process tool use with its result using HTML details
+            const toolResult = toolUsePairs.get(content.id);
+            const toolMarkdown = formatToolUseWithDetails(content, toolResult);
+            if (toolMarkdown) {
+              markdown += toolMarkdown;
+            }
+          }
+        }
+      }
+    }
+
+    markdown += "## 🤖 Commands and Tools\n\n";
+
+    const commandSummary = []; // For the succinct summary
 
     // Collect all tool uses for summary
     for (const entry of logEntries) {
@@ -226,30 +251,6 @@ function parseCopilotLog(logContent) {
           if (usage.cache_read_input_tokens) markdown += `- Cache Read: ${usage.cache_read_input_tokens.toLocaleString()}\n`;
           if (usage.output_tokens) markdown += `- Output: ${usage.output_tokens.toLocaleString()}\n`;
           markdown += "\n";
-        }
-      }
-    }
-
-    markdown += "\n## 🤖 Reasoning\n\n";
-
-    // Second pass: process assistant messages in sequence
-    for (const entry of logEntries) {
-      if (entry.type === "assistant" && entry.message?.content) {
-        for (const content of entry.message.content) {
-          if (content.type === "text" && content.text) {
-            // Add user message text directly as markdown
-            const text = content.text.trim();
-            if (text && text.length > 0) {
-              markdown += text + "\n\n";
-            }
-          } else if (content.type === "tool_use") {
-            // Process tool use with its result using HTML details
-            const toolResult = toolUsePairs.get(content.id);
-            const toolMarkdown = formatToolUseWithDetails(content, toolResult);
-            if (toolMarkdown) {
-              markdown += toolMarkdown;
-            }
-          }
         }
       }
     }
