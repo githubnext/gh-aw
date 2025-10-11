@@ -67,6 +67,7 @@ var AllowedExpressions = []string{
 	"github.event.comment.id",
 	"github.event.deployment.id",
 	"github.event.deployment_status.id",
+	"github.event.discussion.number",
 	"github.event.head_commit.id",
 	"github.event.installation.id",
 	"github.event.issue.number",

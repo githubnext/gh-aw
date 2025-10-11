@@ -11,6 +11,12 @@ on:
   discussion_comment:
     types:
     - created
+  workflow_dispatch:
+    inputs:
+      discussion_number:
+        description: Discussion number to add comment to
+        required: true
+        type: string
 
 permissions: {}
 
@@ -139,7 +145,7 @@ jobs:
       discussions: write
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1,\"target\":\"*\"},\"missing-tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -202,7 +208,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"add-comment":{"max":1},"missing-tool":{}}
+          {"add-comment":{"max":1,"target":"*"},"missing-tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -880,7 +886,7 @@ jobs:
       - name: Setup MCPs
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1,\"target\":\"*\"},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/config.toml << EOF
@@ -908,7 +914,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Write a delightful poem about the last 3 pull requests and add it as a comment to the discussion.
+          Write a delightful poem about the last 3 pull requests and add it as a comment to discussion #${{ github.event.inputs.discussion_number || github.event.discussion.number }}.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1048,7 +1054,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1,\"target\":\"*\"},\"missing-tool\":{}}"
         with:
           script: |
             async function main() {
@@ -2423,7 +2429,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Write a delightful poem about the last 3 pull requests and add it as a comment to the discussion.\n"
+          WORKFLOW_MARKDOWN: "Write a delightful poem about the last 3 pull requests and add it as a comment to discussion #${{ github.event.inputs.discussion_number || github.event.discussion.number }}.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2572,9 +2578,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && (github.event.issue.number ||
-      github.event.pull_request.number || github.event.discussion.number)
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -2599,6 +2603,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Dev"
+          GITHUB_AW_COMMENT_TARGET: "*"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |
