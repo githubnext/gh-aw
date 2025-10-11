@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-// TestForceLevelOverride tests that ForceLevel field correctly overrides level inference
-func TestForceLevelOverride(t *testing.T) {
+// TestSeverityOverride tests that Severity field correctly overrides level inference
+func TestSeverityOverride(t *testing.T) {
 	tests := []struct {
 		name           string
 		logContent     string
@@ -21,7 +21,7 @@ func TestForceLevelOverride(t *testing.T) {
 					Pattern:      `(?i)\berror\b.*permission.*denied`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					ForceLevel:   "warning",
+					Severity:     "warning",
 					Description:  "Permission denied error forced to warning",
 				},
 			},
@@ -36,7 +36,7 @@ func TestForceLevelOverride(t *testing.T) {
 					Pattern:      `(?i)authentication failed`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					ForceLevel:   "warning",
+					Severity:     "warning",
 					Description:  "Authentication failure forced to warning",
 				},
 			},
@@ -54,28 +54,28 @@ repository permission check failed`,
 					Pattern:      `(?i)\berror\b.*permission.*denied`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					ForceLevel:   "warning",
+					Severity:     "warning",
 					Description:  "Permission denied",
 				},
 				{
 					Pattern:      `(?i)\berror\b.*unauthorized`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					ForceLevel:   "warning",
+					Severity:     "warning",
 					Description:  "Unauthorized",
 				},
 				{
 					Pattern:      `(?i)configuration error.*required permissions not specified`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					ForceLevel:   "warning",
+					Severity:     "warning",
 					Description:  "Config error",
 				},
 				{
 					Pattern:      `(?i)repository permission check failed`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					ForceLevel:   "warning",
+					Severity:     "warning",
 					Description:  "Permission check failed",
 				},
 			},
@@ -90,7 +90,7 @@ repository permission check failed`,
 					Pattern:      `(?i)authentication failed`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					ForceLevel:   "warning", // Force to warning despite "ERROR" in content
+					Severity:     "warning", // Force to warning despite "ERROR" in content
 					Description:  "Auth failure",
 				},
 			},
@@ -105,7 +105,7 @@ repository permission check failed`,
 					Pattern:      `(?i)\berror\b.*permission.*denied`,
 					LevelGroup:   0,
 					MessageGroup: 0,
-					// No ForceLevel - should infer as error
+					// No Severity - should infer as error
 					Description: "Permission denied without force level",
 				},
 			},
@@ -150,11 +150,11 @@ func TestCodexEnginePermissionPatternsAreWarnings(t *testing.T) {
 			}
 		}
 
-		// If it's a permission pattern (but not a timestamped ERROR/WARN), it should have ForceLevel="warning"
+		// If it's a permission pattern (but not a timestamped ERROR/WARN), it should have Severity="warning"
 		if isPermissionPattern && pattern.LevelGroup != 2 {
-			if pattern.ForceLevel != "warning" {
-				t.Errorf("Permission-related pattern should have ForceLevel='warning':\n  Pattern: %s\n  Description: %s\n  ForceLevel: %s",
-					pattern.Pattern, pattern.Description, pattern.ForceLevel)
+			if pattern.Severity != "warning" {
+				t.Errorf("Permission-related pattern should have Severity='warning':\n  Pattern: %s\n  Description: %s\n  Severity: %s",
+					pattern.Pattern, pattern.Description, pattern.Severity)
 			}
 		}
 	}
@@ -179,14 +179,14 @@ func TestCopilotEnginePermissionPatternsAreWarnings(t *testing.T) {
 			}
 		}
 
-		// If it's a permission/auth pattern (but not a timestamped ERROR/WARN), it should have ForceLevel="warning"
+		// If it's a permission/auth pattern (but not a timestamped ERROR/WARN), it should have Severity="warning"
 		// Exclude patterns with explicit level groups (those are properly categorized by their level group)
 		if isPermissionPattern && pattern.LevelGroup == 0 &&
 			!containsIgnoreCase(pattern.Pattern, `\[(ERROR|WARN|WARNING)\]`) &&
 			!containsIgnoreCase(pattern.Pattern, `(ERROR|WARN|WARNING):`) {
-			if pattern.ForceLevel != "warning" {
-				t.Errorf("Permission-related pattern should have ForceLevel='warning':\n  Pattern: %s\n  Description: %s\n  ForceLevel: %s",
-					pattern.Pattern, pattern.Description, pattern.ForceLevel)
+			if pattern.Severity != "warning" {
+				t.Errorf("Permission-related pattern should have Severity='warning':\n  Pattern: %s\n  Description: %s\n  Severity: %s",
+					pattern.Pattern, pattern.Description, pattern.Severity)
 			}
 		}
 	}

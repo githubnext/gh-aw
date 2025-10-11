@@ -88,9 +88,9 @@ type ErrorPattern struct {
 	MessageGroup int `json:"message_group"`
 	// Description is a human-readable description of what this pattern matches
 	Description string `json:"description"`
-	// ForceLevel explicitly sets the level for this pattern, overriding inference
+	// Severity explicitly sets the level for this pattern, overriding inference
 	// Valid values: "error", "warning", or empty string (use inference)
-	ForceLevel string `json:"force_level,omitempty"`
+	Severity string `json:"severity,omitempty"`
 }
 
 // BaseEngine provides common functionality for agentic engines
