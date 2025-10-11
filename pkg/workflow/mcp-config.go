@@ -9,6 +9,84 @@ import (
 	"github.com/githubnext/gh-aw/pkg/parser"
 )
 
+// renderPlaywrightMCPConfig generates the Playwright MCP server configuration
+// Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
+// This is a shared function used by both Claude and Custom engines
+func renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
+	args := generatePlaywrightDockerArgs(playwrightTool)
+	customArgs := getPlaywrightCustomArgs(playwrightTool)
+
+	yaml.WriteString("              \"playwright\": {\n")
+	yaml.WriteString("                \"command\": \"npx\",\n")
+	yaml.WriteString("                \"args\": [\n")
+	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
+	yaml.WriteString("                  \"--output-dir\",\n")
+	yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
+	if len(args.AllowedDomains) > 0 {
+		yaml.WriteString(",\n")
+		yaml.WriteString("                  \"--allowed-origins\",\n")
+		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
+	}
+
+	// Append custom args if present
+	writeArgsToYAML(yaml, customArgs, "                  ")
+
+	yaml.WriteString("\n")
+	yaml.WriteString("                ]\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
+// This is a shared function used by both Claude and Custom engines
+func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
+	yaml.WriteString("              \"safe_outputs\": {\n")
+	yaml.WriteString("                \"command\": \"node\",\n")
+	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderCustomMCPConfigWrapper generates custom MCP server configuration wrapper
+// This is a shared function used by both Claude and Custom engines
+func renderCustomMCPConfigWrapper(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
+
+	// Use the shared MCP config renderer with JSON format
+	renderer := MCPConfigRenderer{
+		IndentLevel: "                ",
+		Format:      "json",
+	}
+
+	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
+	if err != nil {
+		return err
+	}
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+
+	return nil
+}
+
 // MCPConfigRenderer contains configuration options for rendering MCP config
 type MCPConfigRenderer struct {
 	// IndentLevel controls the indentation level for properties (e.g., "                " for JSON, "          " for TOML)

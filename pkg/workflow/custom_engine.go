@@ -228,56 +228,12 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 // renderPlaywrightMCPConfig generates the Playwright MCP server configuration using shared logic
 // Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
 func (e *CustomEngine) renderPlaywrightMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
-	args := generatePlaywrightDockerArgs(playwrightTool)
-	customArgs := getPlaywrightCustomArgs(playwrightTool)
-
-	yaml.WriteString("              \"playwright\": {\n")
-	yaml.WriteString("                \"command\": \"npx\",\n")
-	yaml.WriteString("                \"args\": [\n")
-	yaml.WriteString("                  \"@playwright/mcp@latest\",\n")
-	yaml.WriteString("                  \"--output-dir\",\n")
-	yaml.WriteString("                  \"/tmp/gh-aw/mcp-logs/playwright\"")
-	if len(args.AllowedDomains) > 0 {
-		yaml.WriteString(",\n")
-		yaml.WriteString("                  \"--allowed-origins\",\n")
-		yaml.WriteString("                  \"" + strings.Join(args.AllowedDomains, ";") + "\"")
-	}
-
-	// Append custom args if present
-	writeArgsToYAML(yaml, customArgs, "                  ")
-
-	yaml.WriteString("\n")
-	yaml.WriteString("                ]\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
 }
 
 // renderCustomMCPConfig generates custom MCP server configuration using shared logic
 func (e *CustomEngine) renderCustomMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
-	fmt.Fprintf(yaml, "              \"%s\": {\n", toolName)
-
-	// Use the shared MCP config renderer with JSON format
-	renderer := MCPConfigRenderer{
-		IndentLevel: "                ",
-		Format:      "json",
-	}
-
-	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
-	if err != nil {
-		return err
-	}
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
-
-	return nil
+	return renderCustomMCPConfigWrapper(yaml, toolName, toolConfig, isLast)
 }
 
 // renderCacheMemoryMCPConfig generates the Memory MCP server configuration using shared logic
@@ -293,22 +249,7 @@ func (e *CustomEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 func (e *CustomEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
-	yaml.WriteString("              \"safe_outputs\": {\n")
-	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
-	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\"\n")
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	renderSafeOutputsMCPConfig(yaml, isLast)
 }
 
 // ParseLogMetrics implements basic log parsing for custom engine
