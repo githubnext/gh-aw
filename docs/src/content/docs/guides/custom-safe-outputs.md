@@ -188,22 +188,196 @@ Search for the GitHub Issues page in Notion using the read-only Notion tools, th
 3. The agent calls the `notion-add-comment` tool (registered from the safe-job)
 4. The safe-job executes with appropriate permissions after the main job completes
 
+## Safe Jobs Technical Specification
+
+The `safe-outputs.jobs:` element of your workflow's frontmatter enables you to define custom post-processing jobs that execute after the main agentic workflow completes. Safe-jobs provide a powerful way to create sophisticated automation workflows while maintaining security through controlled job execution.
+
+**How It Works:**
+1. Safe-jobs are defined under the `safe-outputs.jobs` section of the frontmatter
+2. Each safe-job **must have an "inputs" section with at least one input** - these inputs become the arguments of the MCP tool
+3. Each safe-job has access to all standard GitHub Actions job properties (runs-on, if, needs, env, permissions, steps)
+4. Safe-jobs automatically download the agent output artifact and can process it using jq
+5. Safe-jobs become available as callable tools in the safe-outputs MCP server
+6. Safe-jobs can be imported from included workflows with automatic conflict detection
+
+**Important Requirement**: Every safe-job definition must include an `inputs` section with at least one input parameter. These inputs define the MCP tool's arguments and enable the agentic workflow to call the safe-job with appropriate parameters.
+
+### GitHub Actions Job Properties
+
+Safe-jobs support all standard GitHub Actions job properties:
+
+```yaml
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      if: github.event.issue.number
+      timeout-minutes: 30
+      permissions:
+        contents: write
+        deployments: write
+      env:
+        DEPLOY_ENV: production
+      inputs:
+        confirm:
+          description: "Confirm deployment"
+          required: true
+          type: boolean
+          default: "false"
+    steps:
+      - name: Deploy
+        run: echo "Deploying..."
+```
+
+### Safe Job Inputs
+
+**Every safe-job must define inputs** using workflow_dispatch syntax for parameterization. The inputs become the MCP tool arguments:
+
+```yaml
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      inputs:
+        environment:
+          description: "Target deployment environment"
+          required: true
+          type: choice
+          options: ["staging", "production"]
+        force:
+          description: "Force deployment even if tests fail"
+          required: false
+          type: boolean
+          default: "false"
+    steps:
+      - name: Deploy application
+        run: |
+          if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+            ENV=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "deploy") | .environment // "staging"')
+            echo "Deploying to $ENV"
+          fi
+```
+
+### Custom Output Messages
+
+Safe-jobs can return custom response messages via the MCP server:
+
+```yaml
+safe-outputs:
+  jobs:
+    notify:
+      runs-on: ubuntu-latest
+      output: "Notification sent successfully!"
+      inputs:
+        message:
+          description: "Notification message"
+          required: true
+          type: string
+      steps:
+        - name: Send notification
+          run: echo "Sending notification..."
+```
+
+### Agent Output Processing
+
+Safe-jobs automatically receive access to the agent output artifact:
+
+```yaml
+safe-outputs:
+  jobs:
+    analyze:
+      runs-on: ubuntu-latest
+      inputs:
+        data_type:
+          description: "Type of data to analyze"
+          required: true
+          type: string
+      steps:
+        - name: Process agent output
+          run: |
+            if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
+              # Extract specific data from agent output
+              RESULT=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
+              echo "Agent analysis result: $RESULT"
+            else
+              echo "No agent output available"
+            fi
+```
+
+### Include Support
+
+Safe-jobs can be imported from included workflows with automatic conflict detection:
+
+**Main workflow:**
+```aw wrap
+---
+safe-outputs:
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      inputs:
+        target:
+          description: "Deployment target"
+          required: true
+          type: string
+      steps:
+        - name: Deploy
+          run: echo "Deploying..."
+---
+
+@import shared/common-jobs.md
+```
+
+**Imported file (shared/common-jobs.md):**
+```aw wrap
+---
+safe-outputs:
+  jobs:
+    test:
+      runs-on: ubuntu-latest
+      inputs:
+        suite:
+          description: "Test suite to run"
+          required: true
+          type: string
+      steps:
+        - name: Test
+          run: echo "Testing..."
+---
+```
+
+**Result:** Both `deploy` and `test` safe-jobs are available.
+
+**Conflict Detection:** If both files define a safe-job with the same name, compilation fails with:
+```
+failed to merge safe-jobs: safe-job name conflict: 'deploy' is defined in both main workflow and included files
+```
+
+### MCP Server Integration
+
+Safe-jobs are automatically registered as tools in the safe-outputs MCP server, allowing the agentic workflow to call them:
+
+```yaml
+safe-outputs:
+  jobs:
+    database-backup:
+      runs-on: ubuntu-latest
+      inputs:
+        database:
+          description: "Database to backup"
+          required: true
+          type: string
+      steps:
+        - name: Backup database
+          run: echo "Backing up database..."
+```
+
+The agent can then call this safe-job:
+```
+Please backup the user database using the database-backup safe-job.
+```
+
 ## Best Practices
-
-### Security
-
-**✓ DO:**
-- Use read-only tools in the MCP server
-- Implement write operations in safe-jobs
-- Validate all inputs in safe-job steps
-- Use GitHub Secrets for API tokens
-- Set minimal required permissions on safe-jobs
-
-**✗ DON'T:**
-- Give write permissions to the main agentic job
-- Include write operations in MCP server tools
-- Hardcode API tokens or credentials
-- Skip input validation
 
 ### Error Handling
 
@@ -236,103 +410,3 @@ core.warning('Warning message');
 core.error('Error message');
 core.setFailed('Failure message that stops the job');
 ```
-
-### Input Validation
-
-Define clear input schemas:
-
-```yaml
-inputs:
-  page_id:
-    description: "The Notion page ID (UUID format)"
-    required: true
-    type: string
-  comment:
-    description: "Comment text (max 2000 characters)"
-    required: true
-    type: string
-  priority:
-    description: "Comment priority level"
-    required: false
-    type: choice
-    options: ["low", "medium", "high"]
-    default: "medium"
-```
-
-## Complete Examples
-
-### Notion Integration
-
-**File:** `.github/workflows/shared/mcp/notion.md`
-
-```aw wrap
----
-mcp-servers:
-  notion:
-    container: "mcp/notion"
-    env:
-      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-    allowed:
-      - "search_pages"
-      - "get_page"
-      - "get_database"
-      - "query_database"
-
-safe-outputs:
-  jobs:
-    notion-add-comment:
-      description: "Add a comment to a Notion page"
-      runs-on: ubuntu-latest
-      output: "Comment added to Notion successfully!"
-      permissions:
-        contents: read
-      inputs:
-        page_id:
-          description: "The Notion page ID to add a comment to"
-          required: true
-          type: string
-        comment:
-          description: "The comment text to add"
-          required: true
-          type: string
-      steps:
-        - name: Add comment to Notion page
-          uses: actions/github-script@v8
-          env:
-            NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-            PAGE_ID: "${{ inputs.page_id }}"
-            COMMENT: "${{ inputs.comment }}"
-          with:
-            script: |
-              const notionToken = process.env.NOTION_TOKEN;
-              const pageId = process.env.PAGE_ID;
-              const comment = process.env.COMMENT;
-              
-              if (!notionToken) {
-                core.setFailed('NOTION_TOKEN secret is not configured');
-                return;
-              }
-              
-              try {
-                const response = await fetch('https://api.notion.com/v1/comments', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${notionToken}`,
-                    'Notion-Version': '2022-06-28',
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    parent: { page_id: pageId },
-                    rich_text: [{ type: 'text', text: { content: comment } }]
-                  })
-                });
-                
-                if (!response.ok) {
-                  throw new Error(`API error: ${response.status}`);
-                }
-                
-                core.info('Comment added successfully');
-              } catch (error) {
-                core.setFailed(`Failed: ${error.message}`);
-              }
----

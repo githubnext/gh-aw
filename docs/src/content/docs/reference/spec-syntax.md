@@ -2,7 +2,7 @@
 title: Spec Syntax
 description: Reference guide for repository and workflow specification syntax used in CLI commands and workflow source fields.
 sidebar:
-  order: 1200
+  order: 1600
 ---
 
 Specification syntax for referencing repositories and workflows in CLI commands and workflow frontmatter.
