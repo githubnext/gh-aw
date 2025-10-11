@@ -13,9 +13,9 @@ on:
     types: [opened]
 ```
 
-GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for cost control, user feedback, and advanced filtering.
+GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for reactions, cost control, and advanced filtering.
 
-## Dispatch Triggers (`workflow_dispatch:`)
+### Dispatch Triggers (`workflow_dispatch:`)
 
 You can create manual triggers using `workflow_dispatch:` to run workflows on-demand from the GitHub UI or API.
 
@@ -36,7 +36,7 @@ on:
 
 See GitHub Docs for more details: [Events that trigger workflows - Schedule](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
 
-## Issue Triggers (`issues:`)
+### Issue Triggers (`issues:`)
 ```yaml
 on:
   issues:
@@ -68,11 +68,11 @@ on:
   reaction: "eyes"
 ```
 
-## Command Triggers (`command:`)
+### Command Triggers (`command:`)
 
 An additional kind of trigger called `command:` is supported, see [Command Triggers](/gh-aw/reference/command-triggers/) for special `/my-bot` triggers and context text functionality.
 
-## Label Filtering (`names:`)
+### Label Filtering (`names:`)
 
 An additional kind of issue and pull request trigger is available in GitHub Agentic Workflows to specific label names using the `names:` field:
 
@@ -85,7 +85,7 @@ on:
 
 This filtering is especially useful for [LabelOps workflows](/gh-aw/guides/labelops/) where specific labels trigger different automation behaviors.
 
-## Reactions (`reaction:`)
+### Reactions (`reaction:`)
 
 An additional option  `reaction:` is available within the `on:` section to enable emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status:
 
@@ -116,7 +116,7 @@ The `add_reaction` job exposes the following outputs for use by downstream jobs:
 - `rocket` (🚀)
 - `eyes` (👀)
 
-## Stop After Configuration (`stop-after:`)
+### Stop After Configuration (`stop-after:`)
 
 An additional configuration option `stop-after:` is available within the `on:` section as a cost-control measure to automatically disable workflow triggering after a deadline:
 
