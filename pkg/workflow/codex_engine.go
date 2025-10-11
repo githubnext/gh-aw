@@ -547,7 +547,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	if githubType == "remote" {
 		// Remote mode - use hosted GitHub MCP server with streamable HTTP
 		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
-		
+
 		// Use bearer_token_env_var for authentication
 		yaml.WriteString("          bearer_token_env_var = \"GITHUB_MCP_TOKEN\"\n")
 
