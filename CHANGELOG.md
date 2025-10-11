@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.18.1 - 2025-10-11
+
+### Bug Fixes
+
+#### Security Fix: Allocation Size Overflow in Bash Tool Merging (Alert #7)
+
+Fixed a potential allocation size overflow vulnerability (CWE-190) in the workflow compiler's bash tool merging logic. The fix implements input validation, overflow detection, and reasonable limits to prevent integer overflow when computing capacity for merged command arrays. This is a preventive security fix that maintains backward compatibility with no breaking changes.
+
+#### Security Fix: Allocation Size Overflow in Domain List Merging (Alert #6)
+
+Fixed CWE-190 (Integer Overflow or Wraparound) vulnerability in the `EnsureLocalhostDomains` function. The function was vulnerable to allocation size overflow when computing capacity for the merged domain list. The fix eliminates the overflow risk by removing pre-allocation and relying on Go's append function to handle capacity growth automatically, preventing potential denial-of-service issues with extremely large domain configurations.
+
+#### Fixed unsafe quoting vulnerability in network hook generation (CodeQL Alert #9)
+
+Implemented proper quote escaping using `strconv.Quote()` when embedding JSON-encoded domain data into Python script templates. This prevents potential code injection vulnerabilities (CWE-78, CWE-89, CWE-94) that could occur if domain data contained special characters. The fix uses Go's standard library for safe string escaping and adds `json.loads()` parsing in the generated Python scripts for defense in depth.
+
+#### Refactor: Extract duplicate MCP config renderers to shared functions
+
+Eliminated 124 lines of duplicate code by extracting MCP configuration rendering logic into shared functions. The Playwright, safe outputs, and custom MCP configuration renderers are now centralized in `mcp-config.go`, ensuring consistency between Claude and Custom engines while maintaining 100% backward compatibility.
+
+#### Update agentic CLI versions
+
+Updates the default versions for agentic CLIs:
+- Claude Code: 2.0.13 → 2.0.14
+- GitHub Copilot CLI: 0.0.338 → 0.0.339
+
+These are patch version updates and should not contain breaking changes. Users of gh-aw will automatically use these newer versions when they are specified in workflows.
+
+
 ## v0.18.0 - 2025-10-11
 
 ### Features
