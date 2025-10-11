@@ -731,17 +731,5 @@ async function main() {
   const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
   core.info(`output_types: ${outputTypes.join(", ")}`);
   core.setOutput("output_types", outputTypes.join(","));
-  try {
-    await core.summary
-      .addRaw("## Processed Output\n\n")
-      .addRaw("```json\n")
-      .addRaw(JSON.stringify(validatedOutput))
-      .addRaw("\n```\n")
-      .write();
-    core.info("Successfully wrote processed output to step summary");
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    core.warning(`Failed to write to step summary: ${errorMsg}`);
-  }
 }
 await main();

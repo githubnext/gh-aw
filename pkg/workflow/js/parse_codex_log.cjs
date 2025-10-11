@@ -36,11 +36,79 @@ function main() {
 function parseCodexLog(logContent) {
   try {
     const lines = logContent.split("\n");
-    let markdown = "## 🤖 Commands and Tools\n\n";
 
     // Look-ahead window size for finding tool results
     // New format has verbose debug logs, so requires larger window
     const LOOKAHEAD_WINDOW = 50;
+
+    let markdown = "";
+
+    markdown += "## 🤖 Reasoning\n\n";
+
+    // Second pass: process full conversation flow with interleaved reasoning and tools
+    let inThinkingSection = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Skip metadata lines (including Rust debug lines)
+      if (
+        line.includes("OpenAI Codex") ||
+        line.startsWith("--------") ||
+        line.includes("workdir:") ||
+        line.includes("model:") ||
+        line.includes("provider:") ||
+        line.includes("approval:") ||
+        line.includes("sandbox:") ||
+        line.includes("reasoning effort:") ||
+        line.includes("reasoning summaries:") ||
+        line.includes("tokens used:") ||
+        line.includes("DEBUG codex") ||
+        line.includes("INFO codex") ||
+        line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
+      ) {
+        continue;
+      }
+
+      // Thinking section starts with standalone "thinking" line
+      if (line.trim() === "thinking") {
+        inThinkingSection = true;
+        continue;
+      }
+
+      // Tool call line "tool github.list_pull_requests(...)"
+      const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
+      if (toolMatch) {
+        inThinkingSection = false;
+        const server = toolMatch[1];
+        const toolName = toolMatch[2];
+
+        // Look ahead to find the result status
+        let statusIcon = "❓"; // Unknown by default
+        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
+          const nextLine = lines[j];
+          if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
+            statusIcon = "✅";
+            break;
+          } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
+            statusIcon = "❌";
+            break;
+          }
+        }
+
+        markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
+        continue;
+      }
+
+      // Process thinking content (filter out timestamp lines and very short lines)
+      if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
+        const trimmed = line.trim();
+        // Add thinking content directly
+        markdown += `${trimmed}\n\n`;
+      }
+    }
+
+    markdown += "## 🤖 Commands and Tools\n\n";
 
     // First pass: collect tool calls with details
     for (let i = 0; i < lines.length; i++) {
@@ -184,71 +252,6 @@ function parseCodexLog(logContent) {
 
     if (toolCalls > 0) {
       markdown += `**Tool Calls:** ${toolCalls}\n\n`;
-    }
-
-    markdown += "\n## 🤖 Reasoning\n\n";
-
-    // Second pass: process full conversation flow with interleaved reasoning and tools
-    let inThinkingSection = false;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Skip metadata lines (including Rust debug lines)
-      if (
-        line.includes("OpenAI Codex") ||
-        line.startsWith("--------") ||
-        line.includes("workdir:") ||
-        line.includes("model:") ||
-        line.includes("provider:") ||
-        line.includes("approval:") ||
-        line.includes("sandbox:") ||
-        line.includes("reasoning effort:") ||
-        line.includes("reasoning summaries:") ||
-        line.includes("tokens used:") ||
-        line.includes("DEBUG codex") ||
-        line.includes("INFO codex") ||
-        line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s+(DEBUG|INFO|WARN|ERROR)/)
-      ) {
-        continue;
-      }
-
-      // Thinking section starts with standalone "thinking" line
-      if (line.trim() === "thinking") {
-        inThinkingSection = true;
-        continue;
-      }
-
-      // Tool call line "tool github.list_pull_requests(...)"
-      const toolMatch = line.match(/^tool\s+(\w+)\.(\w+)\(/);
-      if (toolMatch) {
-        inThinkingSection = false;
-        const server = toolMatch[1];
-        const toolName = toolMatch[2];
-
-        // Look ahead to find the result status
-        let statusIcon = "❓"; // Unknown by default
-        for (let j = i + 1; j < Math.min(i + LOOKAHEAD_WINDOW, lines.length); j++) {
-          const nextLine = lines[j];
-          if (nextLine.includes(`${server}.${toolName}(`) && nextLine.includes("success in")) {
-            statusIcon = "✅";
-            break;
-          } else if (nextLine.includes(`${server}.${toolName}(`) && (nextLine.includes("failed in") || nextLine.includes("error"))) {
-            statusIcon = "❌";
-            break;
-          }
-        }
-
-        markdown += `${statusIcon} ${server}::${toolName}(...)\n\n`;
-        continue;
-      }
-
-      // Process thinking content (filter out timestamp lines and very short lines)
-      if (inThinkingSection && line.trim().length > 20 && !line.match(/^\d{4}-\d{2}-\d{2}T/)) {
-        const trimmed = line.trim();
-        // Add thinking content directly
-        markdown += `${trimmed}\n\n`;
-      }
     }
 
     return markdown;

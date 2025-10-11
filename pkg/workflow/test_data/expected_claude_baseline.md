@@ -26,24 +26,6 @@
 - compact, context, cost, init, output-style:new, and 7 more
 
 
-## 🤖 Commands and Tools
-
-* ✅ `safe_outputs::missing-tool(...)`
-
-## 📊 Information
-
-**Turns:** 10
-
-**Duration:** 0m 25s
-
-**Total Cost:** $0.1789
-
-**Token Usage:**
-- Input: 25
-- Cache Creation: 34,686
-- Cache Read: 120,119
-- Output: 832
-
 
 ## 🤖 Reasoning
 
@@ -112,3 +94,21 @@ I attempted to call the `draw_pelican` tool as requested, but this tool does not
 4. **Updated the execution plan** with current progress
 
 The `draw_pelican` tool has been reported as missing functionality, along with potential alternatives like ASCII art generation, text-based descriptions, or code-based drawing solutions. The task has been completed within the constraints of the available tools.
+
+## 🤖 Commands and Tools
+
+* ✅ `safe_outputs::missing-tool(...)`
+
+## 📊 Information
+
+**Turns:** 10
+
+**Duration:** 0m 25s
+
+**Total Cost:** $0.1789
+
+**Token Usage:**
+- Input: 25
+- Cache Creation: 34,686
+- Cache Read: 120,119
+- Output: 832

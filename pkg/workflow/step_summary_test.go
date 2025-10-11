@@ -61,16 +61,6 @@ This workflow tests that the step summary includes both JSONL and processed outp
 		t.Error("Did not expect 'Print sanitized agent output' step (should be in JavaScript now)")
 	}
 
-	// Verify that the JavaScript code includes the new processed output section via core.summary
-	if !strings.Contains(lockContent, "## Processed Output") {
-		t.Error("Expected '## Processed Output' section in JavaScript code")
-	}
-
-	// Verify that the JavaScript code uses core.summary to write processed output
-	if !strings.Contains(lockContent, "core.summary") {
-		t.Error("Expected 'core.summary' usage in JavaScript code")
-	}
-
 	// Verify that the JavaScript uses addRaw to build the summary
 	if strings.Count(lockContent, ".addRaw(") < 2 {
 		t.Error("Expected at least 2 '.addRaw(' calls in JavaScript code for summary building")
