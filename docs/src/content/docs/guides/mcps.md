@@ -25,10 +25,13 @@ Add MCP servers to your workflow's frontmatter using the `mcp-servers:` section:
 ```aw wrap
 ---
 on: issues
+
 permissions:
   contents: read
   issues: write
+
 engine: claude
+
 mcp-servers:
   tavily:
     url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
