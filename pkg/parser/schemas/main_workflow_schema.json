@@ -1618,7 +1618,7 @@
           "oneOf": [
             {
               "type": "object",
-              "description": "Configuration for automatically creating GitHub issue or pull request comments from AI workflow output. The main job does not need write permissions.",
+              "description": "Configuration for automatically creating GitHub issue, pull request, or discussion comments from AI workflow output. The main job does not need write permissions.",
               "properties": {
                 "max": {
                   "type": "integer",
@@ -1634,7 +1634,7 @@
                 },
                 "target": {
                   "type": "string",
-                  "description": "Target for comments: 'triggering' (default), '*' (any issue), or explicit issue number"
+                  "description": "Target for comments: 'triggering' (default), '*' (any issue/discussion), or explicit issue/discussion number"
                 },
                 "target-repo": {
                   "type": "string",
@@ -1649,7 +1649,7 @@
             },
             {
               "type": "null",
-              "description": "Enable issue comment creation with default configuration"
+              "description": "Enable issue, pull request, and discussion comment creation with default configuration"
             }
           ]
         },

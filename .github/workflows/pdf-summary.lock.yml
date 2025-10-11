@@ -873,7 +873,7 @@ jobs:
               },
               {
                 name: "add_comment",
-                description: "Add a comment to a GitHub issue or pull request",
+                description: "Add a comment to a GitHub issue, pull request, or discussion",
                 inputSchema: {
                   type: "object",
                   required: ["body"],
@@ -882,6 +882,10 @@ jobs:
                     issue_number: {
                       type: "number",
                       description: "Issue or PR number (optional for current context)",
+                    },
+                    discussion_number: {
+                      type: "number",
+                      description: "Discussion number (optional for current context)",
                     },
                   },
                   additionalProperties: false,
@@ -3601,13 +3605,14 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && ((github.event.issue.number) ||
-      (github.event.pull_request.number))
+      ((always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))) && (((github.event.issue.number) ||
+      (github.event.pull_request.number)) || (github.event.discussion.number))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
       pull-requests: write
+      discussions: write
     timeout-minutes: 10
     outputs:
       comment_id: ${{ steps.add_comment.outputs.comment_id }}
@@ -3704,8 +3709,9 @@ jobs:
                 context.eventName === "pull_request" ||
                 context.eventName === "pull_request_review" ||
                 context.eventName === "pull_request_review_comment";
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-                core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
                 return;
               }
               const createdComments = [];
@@ -3713,6 +3719,7 @@ jobs:
                 const commentItem = commentItems[i];
                 core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
                 let issueNumber;
+                let discussionId; 
                 let commentEndpoint;
                 if (commentTarget === "*") {
                   if (commentItem.issue_number) {
@@ -3722,8 +3729,15 @@ jobs:
                       continue;
                     }
                     commentEndpoint = "issues";
+                  } else if (commentItem.discussion_number) {
+                    issueNumber = parseInt(commentItem.discussion_number, 10);
+                    if (isNaN(issueNumber) || issueNumber <= 0) {
+                      core.info(`Invalid discussion number specified: ${commentItem.discussion_number}`);
+                      continue;
+                    }
+                    commentEndpoint = "discussions";
                   } else {
-                    core.info('Target is "*" but no issue_number specified in comment item');
+                    core.info('Target is "*" but no issue_number or discussion_number specified in comment item');
                     continue;
                   }
                 } else if (commentTarget && commentTarget !== "triggering") {
@@ -3750,10 +3764,19 @@ jobs:
                       core.info("Pull request context detected but no pull request found in payload");
                       continue;
                     }
+                  } else if (isDiscussionContext) {
+                    if (context.payload.discussion) {
+                      issueNumber = context.payload.discussion.number;
+                      discussionId = context.payload.discussion.node_id;
+                      commentEndpoint = "discussions";
+                    } else {
+                      core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
                   }
                 }
                 if (!issueNumber) {
-                  core.info("Could not determine issue or pull request number");
+                  core.info("Could not determine issue, pull request, or discussion number");
                   continue;
                 }
                 let body = commentItem.body.trim();
@@ -3769,13 +3792,59 @@ jobs:
                 core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
                 core.info(`Comment content length: ${body.length}`);
                 try {
-                  const { data: comment } = await github.rest.issues.createComment({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    body: body,
-                  });
-                  core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                  let comment;
+                  if (commentEndpoint === "discussions") {
+                    if (!discussionId) {
+                      const discussionQuery = `
+                        query($owner: String!, $repo: String!, $number: Int!) {
+                          repository(owner: $owner, name: $repo) {
+                            discussion(number: $number) {
+                              id
+                            }
+                          }
+                        }
+                      `;
+                      const queryResult = await github.graphql(discussionQuery, {
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        number: issueNumber,
+                      });
+                      discussionId = queryResult.repository.discussion.id;
+                    }
+                    const addDiscussionCommentMutation = `
+                      mutation($discussionId: ID!, $body: String!) {
+                        addDiscussionComment(input: {
+                          discussionId: $discussionId,
+                          body: $body
+                        }) {
+                          comment {
+                            id
+                            url
+                            databaseId
+                          }
+                        }
+                      }
+                    `;
+                    const mutationResult = await github.graphql(addDiscussionCommentMutation, {
+                      discussionId: discussionId,
+                      body: body,
+                    });
+                    const discussionComment = mutationResult.addDiscussionComment.comment;
+                    comment = {
+                      id: discussionComment.databaseId,
+                      html_url: discussionComment.url,
+                    };
+                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                  } else {
+                    const { data: restComment } = await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issueNumber,
+                      body: body,
+                    });
+                    comment = restComment;
+                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                  }
                   createdComments.push(comment);
                   if (i === commentItems.length - 1) {
                     core.setOutput("comment_id", comment.id);

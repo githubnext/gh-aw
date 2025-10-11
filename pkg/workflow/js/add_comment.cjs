@@ -106,16 +106,17 @@ async function main() {
   const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
   core.info(`Comment target configuration: ${commentTarget}`);
 
-  // Check if we're in an issue or pull request context
+  // Check if we're in an issue, pull request, or discussion context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
   const isPRContext =
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment";
+  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
 
   // Validate context based on target configuration
-  if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-    core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
+  if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+    core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
     return;
   }
 
@@ -126,8 +127,9 @@ async function main() {
     const commentItem = commentItems[i];
     core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
 
-    // Determine the issue/PR number and comment endpoint for this comment
+    // Determine the issue/PR/discussion number and comment endpoint for this comment
     let issueNumber;
+    let discussionId; // GraphQL ID for discussions
     let commentEndpoint;
 
     if (commentTarget === "*") {
@@ -139,8 +141,15 @@ async function main() {
           continue;
         }
         commentEndpoint = "issues";
+      } else if (commentItem.discussion_number) {
+        issueNumber = parseInt(commentItem.discussion_number, 10);
+        if (isNaN(issueNumber) || issueNumber <= 0) {
+          core.info(`Invalid discussion number specified: ${commentItem.discussion_number}`);
+          continue;
+        }
+        commentEndpoint = "discussions";
       } else {
-        core.info('Target is "*" but no issue_number specified in comment item');
+        core.info('Target is "*" but no issue_number or discussion_number specified in comment item');
         continue;
       }
     } else if (commentTarget && commentTarget !== "triggering") {
@@ -152,7 +161,7 @@ async function main() {
       }
       commentEndpoint = "issues";
     } else {
-      // Default behavior: use triggering issue/PR
+      // Default behavior: use triggering issue/PR/discussion
       if (isIssueContext) {
         if (context.payload.issue) {
           issueNumber = context.payload.issue.number;
@@ -169,11 +178,20 @@ async function main() {
           core.info("Pull request context detected but no pull request found in payload");
           continue;
         }
+      } else if (isDiscussionContext) {
+        if (context.payload.discussion) {
+          issueNumber = context.payload.discussion.number;
+          discussionId = context.payload.discussion.node_id;
+          commentEndpoint = "discussions";
+        } else {
+          core.info("Discussion context detected but no discussion found in payload");
+          continue;
+        }
       }
     }
 
     if (!issueNumber) {
-      core.info("Could not determine issue or pull request number");
+      core.info("Could not determine issue, pull request, or discussion number");
       continue;
     }
 
@@ -194,15 +212,67 @@ async function main() {
     core.info(`Comment content length: ${body.length}`);
 
     try {
-      // Create the comment using GitHub API
-      const { data: comment } = await github.rest.issues.createComment({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        issue_number: issueNumber,
-        body: body,
-      });
+      let comment;
+      if (commentEndpoint === "discussions") {
+        // For discussions, we need to use GraphQL mutation
+        // First, we need the discussion ID if we don't have it from context
+        if (!discussionId) {
+          // Fetch the discussion to get its node_id
+          const discussionQuery = `
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                discussion(number: $number) {
+                  id
+                }
+              }
+            }
+          `;
+          const queryResult = await github.graphql(discussionQuery, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            number: issueNumber,
+          });
+          discussionId = queryResult.repository.discussion.id;
+        }
 
-      core.info("Created comment #" + comment.id + ": " + comment.html_url);
+        // Create the discussion comment using GraphQL
+        const addDiscussionCommentMutation = `
+          mutation($discussionId: ID!, $body: String!) {
+            addDiscussionComment(input: {
+              discussionId: $discussionId,
+              body: $body
+            }) {
+              comment {
+                id
+                url
+                databaseId
+              }
+            }
+          }
+        `;
+        const mutationResult = await github.graphql(addDiscussionCommentMutation, {
+          discussionId: discussionId,
+          body: body,
+        });
+        const discussionComment = mutationResult.addDiscussionComment.comment;
+        // Normalize the response to match REST API structure
+        comment = {
+          id: discussionComment.databaseId,
+          html_url: discussionComment.url,
+        };
+        core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+      } else {
+        // Create the comment using GitHub REST API for issues/PRs
+        const { data: restComment } = await github.rest.issues.createComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issue_number: issueNumber,
+          body: body,
+        });
+        comment = restComment;
+        core.info("Created comment #" + comment.id + ": " + comment.html_url);
+      }
+
       createdComments.push(comment);
 
       // Set output for the last created comment (for backward compatibility)

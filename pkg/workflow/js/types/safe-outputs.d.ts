@@ -40,12 +40,16 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
 }
 
 /**
- * JSONL item for adding a comment to an issue or PR
+ * JSONL item for adding a comment to an issue, PR, or discussion
  */
 interface AddCommentItem extends BaseSafeOutputItem {
   type: "add-comment";
   /** Comment body content */
   body: string;
+  /** Optional issue or PR number when using target: "*" */
+  issue_number?: number;
+  /** Optional discussion number when using target: "*" */
+  discussion_number?: number;
 }
 
 /**
