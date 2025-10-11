@@ -110,7 +110,7 @@ try:
 except Exception as e:
     print(f"Network validation error: {e}", file=sys.stderr)
     sys.exit(2)  # Block on errors
-`, quotedJSON)
+`, domainsJSON)
 }
 
 // GenerateNetworkHookWorkflowStep generates a GitHub Actions workflow step that creates the network permissions hook
