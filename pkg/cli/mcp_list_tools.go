@@ -27,45 +27,19 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 		return findWorkflowsWithMCPServer(workflowsDir, mcpServerName, verbose)
 	}
 
-	// Resolve the workflow file path
-	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	// Load the workflow file with MCP configurations
+	workflowInfo, err := loadWorkflowWithMCP(workflowFile, mcpServerName)
 	if err != nil {
 		return err
 	}
 
-	// Convert to absolute path if needed
-	if !filepath.IsAbs(workflowPath) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
-		}
-		workflowPath = filepath.Join(cwd, workflowPath)
-	}
-
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Looking for MCP server '%s' in: %s", mcpServerName, workflowPath)))
-	}
-
-	// Parse the workflow file
-	content, err := os.ReadFile(workflowPath)
-	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
-
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return fmt.Errorf("failed to parse workflow file: %w", err)
-	}
-
-	// Extract MCP configurations, filtering by server name
-	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, mcpServerName)
-	if err != nil {
-		return fmt.Errorf("failed to extract MCP configurations: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Looking for MCP server '%s' in: %s", mcpServerName, workflowInfo.FilePath)))
 	}
 
 	// Find the specific MCP server
 	var targetConfig *parser.MCPServerConfig
-	for _, config := range mcpConfigs {
+	for _, config := range workflowInfo.MCPConfigs {
 		if strings.EqualFold(config.Name, mcpServerName) {
 			targetConfig = &config
 			break
@@ -73,13 +47,13 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 	}
 
 	if targetConfig == nil {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP server '%s' not found in workflow '%s'", mcpServerName, filepath.Base(workflowPath))))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("MCP server '%s' not found in workflow '%s'", mcpServerName, filepath.Base(workflowInfo.FilePath))))
 
 		// Show available servers
-		if len(mcpConfigs) > 0 {
+		if len(workflowInfo.MCPConfigs) > 0 {
 			fmt.Fprintf(os.Stderr, "Available MCP servers: ")
-			serverNames := make([]string, len(mcpConfigs))
-			for i, config := range mcpConfigs {
+			serverNames := make([]string, len(workflowInfo.MCPConfigs))
+			for i, config := range workflowInfo.MCPConfigs {
 				serverNames[i] = config.Name
 			}
 			fmt.Fprintf(os.Stderr, "%s\n", strings.Join(serverNames, ", "))
@@ -110,49 +84,19 @@ func ListToolsForMCP(workflowFile string, mcpServerName string, verbose bool) er
 
 // findWorkflowsWithMCPServer searches for workflows containing a specific MCP server
 func findWorkflowsWithMCPServer(workflowsDir string, mcpServerName string, verbose bool) error {
-	// Check if the workflows directory exists
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("workflows directory not found: %s", workflowsDir)
-	}
-
-	// Find all .md files in the workflows directory
-	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	// Scan workflows directory for workflows with the specific MCP server
+	workflowInfos, err := scanWorkflowsDirectory(workflowsDir, mcpServerName, verbose)
 	if err != nil {
-		return fmt.Errorf("failed to search for workflow files: %w", err)
+		return err
 	}
 
 	var matchingWorkflows []string
 
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		frontmatterData, err := parser.ExtractFrontmatterFromContent(string(content))
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterData.Frontmatter, mcpServerName)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error extracting MCP from %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		// Check if this workflow contains the target MCP server
-		for _, config := range mcpConfigs {
+	// Filter workflows that contain the target MCP server
+	for _, info := range workflowInfos {
+		for _, config := range info.MCPConfigs {
 			if strings.EqualFold(config.Name, mcpServerName) {
-				baseName := strings.TrimSuffix(filepath.Base(file), ".md")
-				matchingWorkflows = append(matchingWorkflows, baseName)
+				matchingWorkflows = append(matchingWorkflows, info.Name)
 				break
 			}
 		}

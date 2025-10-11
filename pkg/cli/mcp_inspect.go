@@ -99,38 +99,20 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		return listWorkflowsWithMCP(workflowsDir, verbose)
 	}
 
-	// Resolve the workflow file path
-	workflowPath, err := ResolveWorkflowPath(workflowFile)
+	// Load the workflow file with MCP configurations
+	workflowInfo, err := loadWorkflowWithMCP(workflowFile, serverFilter)
 	if err != nil {
 		return err
 	}
 
-	// Convert to absolute path if needed
-	if !filepath.IsAbs(workflowPath) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
-		}
-		workflowPath = filepath.Join(cwd, workflowPath)
-	}
+	workflowPath := workflowInfo.FilePath
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Inspecting MCP servers in: %s", workflowPath)))
 	}
 
-	// Parse the workflow file
-	content, err := os.ReadFile(workflowPath)
-	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
-	}
-
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return fmt.Errorf("failed to parse workflow file: %w", err)
-	}
-
 	// Validate frontmatter before analyzing MCPs
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(workflowData.Frontmatter, workflowPath); err != nil {
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(workflowInfo.Frontmatter, workflowPath); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Frontmatter validation failed: %v", err)))
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Continuing with MCP inspection (validation errors may affect results)"))
@@ -143,13 +125,13 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 	// Process imports from frontmatter to merge imported MCP servers
 	markdownDir := filepath.Dir(workflowPath)
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowData.Frontmatter, markdownDir)
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithManifest(workflowInfo.Frontmatter, markdownDir)
 	if err != nil {
 		return fmt.Errorf("failed to process imports from frontmatter: %w", err)
 	}
 
 	// Apply imported MCP servers to frontmatter
-	frontmatterWithImports, err := applyImportsToFrontmatter(workflowData.Frontmatter, importsResult)
+	frontmatterWithImports, err := applyImportsToFrontmatter(workflowInfo.Frontmatter, importsResult)
 	if err != nil {
 		return fmt.Errorf("failed to apply imports: %w", err)
 	}
@@ -213,55 +195,32 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 
 // listWorkflowsWithMCP shows available workflow files that contain MCP configurations
 func listWorkflowsWithMCP(workflowsDir string, verbose bool) error {
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("no .github/workflows directory found")
-	}
-
-	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	// Scan workflows directory for workflows with MCP servers
+	workflowInfos, err := scanWorkflowsDirectory(workflowsDir, "", verbose)
 	if err != nil {
+		// Provide more specific error for missing directory
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no .github/workflows directory found")
+		}
 		return fmt.Errorf("failed to read workflow files: %w", err)
 	}
 
 	var workflowsWithMCP []string
 
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
+	for _, info := range workflowInfos {
+		// Validate frontmatter before including in list (non-verbose mode to avoid spam)
+		if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(info.Frontmatter, info.FilePath); err != nil {
 			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-		if err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		// Validate frontmatter before analyzing MCPs (non-verbose mode to avoid spam)
-		if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(workflowData.Frontmatter, file); err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s due to frontmatter validation: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
-		if err != nil {
-			if verbose {
-				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Skipping %s due to frontmatter validation: %v", filepath.Base(info.FilePath), err)))
 			}
 			continue
 		}
 
 		// Filter out safe-outputs MCP servers for inspection
-		filteredConfigs := filterOutSafeOutputs(mcpConfigs)
+		filteredConfigs := filterOutSafeOutputs(info.MCPConfigs)
 
 		if len(filteredConfigs) > 0 {
-			workflowsWithMCP = append(workflowsWithMCP, filepath.Base(file))
+			workflowsWithMCP = append(workflowsWithMCP, filepath.Base(info.FilePath))
 		}
 	}
 

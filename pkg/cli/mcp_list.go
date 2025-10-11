@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -15,41 +14,25 @@ import (
 func ListWorkflowMCP(workflowFile string, verbose bool) error {
 	// Determine the workflow directory and file
 	workflowsDir := ".github/workflows"
-	var workflowPath string
 
-	if workflowFile != "" {
-		// Resolve the workflow file path
-		var err error
-		workflowPath, err = ResolveWorkflowPath(workflowFile)
-		if err != nil {
-			return err
-		}
-	} else {
+	if workflowFile == "" {
 		// No specific workflow file provided, list all workflows with MCP servers
 		return listWorkflowsWithMCPServers(workflowsDir, verbose)
 	}
 
-	// Parse the specific workflow file
-	content, err := os.ReadFile(workflowPath)
+	// Load the specific workflow file with MCP configurations
+	workflowInfo, err := loadWorkflowWithMCP(workflowFile, "")
 	if err != nil {
-		return fmt.Errorf("failed to read workflow file: %w", err)
+		return err
 	}
 
-	workflowData, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		return fmt.Errorf("failed to parse workflow file: %w", err)
-	}
-
-	// Extract MCP configurations (no server filter for listing)
-	mcpConfigs, err := parser.ExtractMCPConfigurations(workflowData.Frontmatter, "")
-	if err != nil {
-		return fmt.Errorf("failed to extract MCP configurations: %w", err)
-	}
-
-	if len(mcpConfigs) == 0 {
+	if len(workflowInfo.MCPConfigs) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No MCP servers found in workflow"))
 		return nil
 	}
+
+	mcpConfigs := workflowInfo.MCPConfigs
+	workflowPath := workflowInfo.FilePath
 
 	// Display the MCP servers
 	if verbose {
@@ -132,72 +115,39 @@ func ListWorkflowMCP(workflowFile string, verbose bool) error {
 
 // listWorkflowsWithMCPServers shows available workflow files that contain MCP configurations
 func listWorkflowsWithMCPServers(workflowsDir string, verbose bool) error {
-	// Check if the workflows directory exists
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return fmt.Errorf("workflows directory not found: %s", workflowsDir)
-	}
-
-	// Find all .md files in the workflows directory
-	files, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
+	// Scan workflows directory for workflows with MCP servers
+	workflowInfos, err := scanWorkflowsDirectory(workflowsDir, "", verbose)
 	if err != nil {
-		return fmt.Errorf("failed to search for workflow files: %w", err)
+		return err
 	}
 
+	if len(workflowInfos) == 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows with MCP servers found"))
+		return nil
+	}
+
+	// Build workflow data from scanned results
 	var workflowData []struct {
 		name        string
 		serverCount int
 		serverNames []string
 	}
-	var totalMCPCount int
 
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
+	for _, info := range workflowInfos {
+		serverNames := make([]string, len(info.MCPConfigs))
+		for i, config := range info.MCPConfigs {
+			serverNames[i] = config.Name
 		}
 
-		frontmatterData, err := parser.ExtractFrontmatterFromContent(string(content))
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		mcpConfigs, err := parser.ExtractMCPConfigurations(frontmatterData.Frontmatter, "")
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Error extracting MCP from %s: %v", filepath.Base(file), err)))
-			}
-			continue
-		}
-
-		if len(mcpConfigs) > 0 {
-			baseName := strings.TrimSuffix(filepath.Base(file), ".md")
-			serverNames := make([]string, len(mcpConfigs))
-			for i, config := range mcpConfigs {
-				serverNames[i] = config.Name
-			}
-
-			workflowData = append(workflowData, struct {
-				name        string
-				serverCount int
-				serverNames []string
-			}{
-				name:        baseName,
-				serverCount: len(mcpConfigs),
-				serverNames: serverNames,
-			})
-			totalMCPCount += len(mcpConfigs)
-		}
-	}
-
-	if len(workflowData) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflows with MCP servers found"))
-		return nil
+		workflowData = append(workflowData, struct {
+			name        string
+			serverCount int
+			serverNames []string
+		}{
+			name:        info.Name,
+			serverCount: len(info.MCPConfigs),
+			serverNames: serverNames,
+		})
 	}
 
 	// Display results in table format
