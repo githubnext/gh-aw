@@ -21,6 +21,11 @@ import (
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (1MB)
 	MaxLockFileSize = 1048576 // 1MB in bytes
+
+	// MaxExpressionSize is the maximum allowed size for GitHub Actions expression values (21KB)
+	// This includes environment variable values, if conditions, and other expression contexts
+	// See: https://docs.github.com/en/actions/learn-github-actions/usage-limits-billing-and-administration
+	MaxExpressionSize = 21000 // 21KB in bytes
 )
 
 //go:embed schemas/github-workflow.json
@@ -276,6 +281,28 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 				},
 				Type:    "error",
 				Message: fmt.Sprintf("workflow schema validation failed: %v", err),
+			})
+			// Write the invalid YAML to a .invalid.yml file for inspection
+			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+			}
+			return errors.New(formattedErr)
+		}
+
+		// Validate expression sizes
+		if c.verbose {
+			fmt.Println(console.FormatInfoMessage("Validating expression sizes..."))
+		}
+		if err := c.validateExpressionSizes(yamlContent); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("expression size validation failed: %v", err),
 			})
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
