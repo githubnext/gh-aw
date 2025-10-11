@@ -2,7 +2,7 @@
 title: Coding & Development 
 description: Automated workflows for dependency management, documentation updates, and pull request assistance
 sidebar:
-  order: 3
+  order: 300
 ---
 
 Coding and development workflows streamline common development tasks through intelligent automation, reducing manual overhead and improving code quality.

@@ -2,7 +2,7 @@
 title: Quality & Testing
 description: Automated workflows for test coverage improvement and performance optimization
 sidebar:
-  order: 4
+  order: 400
 ---
 
 Quality and testing workflows focus on improving code quality through automated test coverage analysis, performance optimization, and systematic quality improvements.

@@ -2,7 +2,7 @@
 title: Concurrency Control
 description: Complete guide to concurrency control in GitHub Agentic Workflows, including agent job concurrency configuration and engine isolation.
 sidebar:
-  order: 6
+  order: 600
 ---
 
 GitHub Agentic Workflows provides sophisticated concurrency control to manage how many AI-powered agent jobs can run simultaneously. This helps prevent resource exhaustion, control costs, and ensure predictable workflow execution.

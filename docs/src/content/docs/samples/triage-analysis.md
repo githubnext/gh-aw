@@ -2,7 +2,7 @@
 title: Triage & Analysis
 description: Intelligent automation for issue management, accessibility reviews, and CI failure investigation
 sidebar:
-  order: 2
+  order: 200
 ---
 
 Triage and analysis workflows provide intelligent automation for managing issues, investigating problems, and ensuring quality standards through deep analytical capabilities.

@@ -2,7 +2,7 @@
 title: Frontmatter Options
 description: Complete guide to all available frontmatter configuration options for GitHub Agentic Workflows, including triggers, permissions, AI engines, and workflow settings.
 sidebar:
-  order: 2
+  order: 200
 ---
 
 The YAML frontmatter supports standard GitHub Actions properties plus additional agentic-specific options:

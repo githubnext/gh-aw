@@ -1,13 +1,11 @@
 ---
 title: AI Engines
-description: Complete guide to AI engines available in GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
 sidebar:
-  order: 1
+  order: 350
 ---
 
-GitHub Agentic Workflows support multiple AI engines to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
-
-## Agentic Engines
+GitHub Agentic Workflows support multiple AI engines (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 ### GitHub Copilot (Default)
 
