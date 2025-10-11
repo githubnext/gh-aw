@@ -1249,12 +1249,6 @@ jobs:
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
           
-          ```yaml
-          ---
-          imports:
-            - shared/simonw-llm.md
-          ---
-          ```
           
           # Issue Triage
           
