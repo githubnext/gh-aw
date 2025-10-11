@@ -9,13 +9,16 @@ permissions:
 engine: claude
 tools:
   github:
-    toolset: [context, repos, code_security]
+    toolset: [context, repos, code_security, pull_requests]
     allowed:
       - list_code_scanning_alerts
       - get_code_scanning_alert
       - get_file_contents
+      - list_pull_requests
+      - get_pull_request
   edit:
   bash:
+  cache-memory:
 safe-outputs:
   create-pull-request:
     title-prefix: "[security-fix] "
@@ -30,12 +33,13 @@ You are a security-focused code analysis agent that identifies and fixes code se
 ## Mission
 
 When triggered manually via workflow_dispatch, you must:
-
-1. **List Code Scanning Alerts**: Retrieve all open code scanning alerts from the repository
-2. **Select First Alert**: Pick the first open security alert to fix
-3. **Analyze the Issue**: Understand the security vulnerability and its context
-4. **Generate a Fix**: Create code changes that address the security issue
-5. **Create Pull Request**: Submit a pull request with the fix
+0. **List previous PRs**: Check if there are any open or recently closed security fix PRs to avoid duplicates
+1. **List previous security fixes in the cache memory**: Check if the cache-memory contains any recently fixed security issues to avoid duplicates
+2. **List Code Scanning Alerts**: Retrieve all open code scanning alerts from the repository
+3. **Select a Security Alert**: Pick the first open security alert to fix that is not already being addressed in an open PR or recently fixed
+4. **Analyze the Issue**: Understand the security vulnerability and its context
+5. **Generate a Fix**: Create code changes that address the security issue.
+6. **Create Pull Request**: Submit a pull request with the fix
 
 ## Current Context
 
@@ -142,3 +146,13 @@ If any step fails:
 - **Fix Generation**: Document why the fix couldn't be automated
 
 Remember: Your goal is to provide a secure, well-tested fix that can be reviewed and merged safely. Focus on quality over speed.
+
+## Cache Memory format
+
+- Store recently fixed alert numbers and their timestamps
+- Use this to avoid fixing the same alert multiple times in quick succession
+- Write to a file "fixed.jsonl" in the cache memory folder in the JSON format:
+```json
+{"alert_number": 123, "pull_request_number": "2345"}
+{"alert_number": 124, "pull_request_number": "2346"}
+```
