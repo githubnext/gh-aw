@@ -5,6 +5,10 @@ sidebar:
   order: 200
 ---
 
+This guide explains the frontmatter section of GitHub Agentic Workflows, including triggers, permissions, AI engines, and workflow settings.
+
+## Overview
+
 The YAML frontmatter supports standard GitHub Actions properties plus additional agentic-specific options:
 
 **Standard GitHub Actions Properties:**
