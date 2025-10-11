@@ -133,6 +133,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":           "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":             "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		"GH_AW_GITHUB_TOKEN":   "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
@@ -534,23 +535,16 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	// https://developers.openai.com/codex/mcp
 	// Check if remote mode is enabled
 	if githubType == "remote" {
-		// Remote mode - use hosted GitHub MCP server
-		yaml.WriteString("          type = \"http\"\n")
-		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
-
-		// Add authorization header
-		if customGitHubToken != "" {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer " + customGitHubToken + "\"")
-		} else {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
-		}
-
-		// Add X-MCP-Readonly header if read-only mode is enabled
+		// Remote mode - use hosted GitHub MCP server with streamable HTTP
+		// Use readonly endpoint if read-only mode is enabled
 		if readOnly {
-			yaml.WriteString(", \"X-MCP-Readonly\" = \"true\" }\n")
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp-readonly/\"\n")
 		} else {
-			yaml.WriteString(" }\n")
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
 		}
+
+		// Use bearer_token_env_var for authentication
+		yaml.WriteString("          bearer_token_env_var = \"GH_AW_GITHUB_TOKEN\"\n")
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
