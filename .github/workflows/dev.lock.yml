@@ -1031,25 +1031,15 @@ jobs:
           [history]
           persistence = "none"
           
+          # Streamable HTTP requires the experimental rmcp client
+          experimental_use_rmcp_client = true
+          
           [mcp_servers.github]
           user_agent = "dev"
           startup_timeout_sec = 120
           tool_timeout_sec = 120
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "-e",
-            "GITHUB_TOOLSETS",
-            "ghcr.io/github/github-mcp-server:v0.18.0"
-          ]
-          
-          [mcp_servers.github.env]
-          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-          GITHUB_TOOLSETS = "all"
+          url = "https://api.githubcopilot.com/mcp/"
+          bearer_token_env_var = "GITHUB_MCP_TOKEN"
           
           [mcp_servers.safe_outputs]
           command = "node"
@@ -2164,11 +2154,9 @@ jobs:
             await main();
 
         env:
-          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_MCP_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,GITHUB_MCP_TOKEN,OPENAI_API_KEY'
           SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
-          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload engine output files
         uses: actions/upload-artifact@v4

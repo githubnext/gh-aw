@@ -4,6 +4,9 @@ on:
     types: [created]
 name: Dev
 engine: codex
+tools:
+  github:
+    mode: remote
 permissions:
   contents: read
   actions: read
