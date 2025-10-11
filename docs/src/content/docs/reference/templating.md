@@ -103,8 +103,6 @@ allowed: [github.repository, github.actor, github.workflow, ...]
 
 Conditional markdown allows you to conditionally include or exclude sections of your agentic workflow prompt based on simple boolean expressions. This feature is processed **after** GitHub Actions interpolates `${{ }}` expressions, enabling dynamic prompt content.
 
-## Overview
-
 The template renderer is a minimalistic, logic-less postprocessor that:
 - Processes `{{#if ...}} ... {{/if}}` conditional blocks
 - Evaluates expressions as truthy or falsy
@@ -112,7 +110,7 @@ The template renderer is a minimalistic, logic-less postprocessor that:
 - Preserves all markdown formatting
 - Works with any AI engine (Claude, Copilot, Codex, Custom)
 
-## Syntax
+### Syntax
 
 Template conditionals use a simple mustache-style syntax:
 
@@ -161,7 +159,7 @@ This ensures expressions are evaluated to their actual runtime values (e.g., "12
 
 The evaluation is case-insensitive, so `TRUE`, `False`, `NULL`, etc. work as expected.
 
-## How It Works
+### How It Works
 
 The template rendering process:
 
@@ -203,7 +201,7 @@ You are analyzing PR #${{ github.event.pull_request.number }}.
 
 The compiler automatically wraps the expressions in `{{#if}}` blocks with `${{ }}`, so `{{#if github.event.issue.number}}` becomes `{{#if ${{ github.event.issue.number }} }}`. GitHub Actions then evaluates these expressions to their actual values before the template renderer processes the conditionals.
 
-## Limitations
+### Limitations
 
 - **No nesting**: Conditional blocks cannot be nested
 - **No else clauses**: Only `{{#if}}` is supported, no `{{else}}` or `{{else if}}`
@@ -218,3 +216,4 @@ These limitations are intentional to keep the template system simple, safe, and 
 - [Markdown](/gh-aw/reference/markdown/) - Writing effective agentic markdown
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization
 - [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration
+- [Imports](/gh-aw/reference/imports/) - Imports
