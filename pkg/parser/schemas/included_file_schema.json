@@ -237,7 +237,12 @@
           },
           "mcp-servers-field": {
             "type": "string",
-            "description": "Field name for the MCP servers in the configuration file (custom engine only). Common values: 'mcpServers' (default), 'servers'. Used to determine the structure of the generated MCP configuration."
+            "description": "Field name for the MCP servers in the configuration file (custom engine only). Common values: 'mcpServers' (default), 'servers'. Used to determine the structure of the generated MCP configuration. Takes precedence over mcp-servers-shape if both are provided."
+          },
+          "mcp-servers-shape": {
+            "type": "string",
+            "enum": ["array", "map"],
+            "description": "Shape of MCP servers in the configuration file (custom engine only). 'array' generates {\"servers\": [{...}]}, 'map' generates {\"mcpServers\": {\"name\": {...}}}. Default: 'map'. Alternative to mcp-servers-field."
           }
         },
         "required": [

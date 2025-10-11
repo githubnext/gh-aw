@@ -157,8 +157,18 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		if workflowData.EngineConfig.MCPConfigFile != "" {
 			mcpConfigPath = workflowData.EngineConfig.MCPConfigFile
 		}
+		
+		// Support both mcp-servers-field and mcp-servers-shape
+		// mcp-servers-field takes precedence if both are provided
 		if workflowData.EngineConfig.MCPServersField != "" {
 			mcpServersField = workflowData.EngineConfig.MCPServersField
+		} else if workflowData.EngineConfig.MCPServersShape != "" {
+			// Convert shape to field name
+			if workflowData.EngineConfig.MCPServersShape == "array" {
+				mcpServersField = "servers"
+			} else {
+				mcpServersField = "mcpServers"
+			}
 		}
 	}
 
