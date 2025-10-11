@@ -5,14 +5,15 @@
 
 name: "Dev"
 on:
-  issue_comment:
-    types:
-    - created
+  push:
+    paths:
+    - .github/workflows/dev.lock.yml
+  workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
 run-name: "Dev"
 
@@ -110,8 +111,6 @@ jobs:
     needs: check-membership
     if: needs.check-membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
-    outputs:
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -128,156 +127,6 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-      - name: Compute current body text
-        id: compute-text
-        uses: actions/github-script@v8
-        with:
-          script: |
-            function sanitizeContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              let sanitized = content;
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = convertXmlTagsToParentheses(sanitized);
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const maxLength = 524288;
-              if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              if (lines.length > maxLines) {
-                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
-              }
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function convertXmlTagsToParentheses(s) {
-                if (!s || typeof s !== "string") {
-                  return s;
-                }
-                return (
-                  s
-                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
-                      const innerContent = match.slice(1, -1);
-                      return `(${innerContent})`;
-                    })
-                    .replace(/<!--[\s\S]*?-->/g, match => {
-                      const innerContent = match.slice(4, -3); 
-                      return `(!--${innerContent}--)`;
-                    })
-                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
-                      const innerContent = match.slice(9, -3); 
-                      return `(![CDATA[${innerContent}]])`;
-                    })
-                    .replace(/<\?[\s\S]*?\?>/g, match => {
-                      const innerContent = match.slice(2, -2); 
-                      return `(?${innerContent}?)`;
-                    })
-                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
-                      const innerContent = match.slice(9, -1); 
-                      return `(!DOCTYPE${innerContent})`;
-                    })
-                );
-              }
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  return isAllowed ? match : "(redacted)";
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                });
-              }
-              function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function main() {
-              let text = "";
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: owner,
-                repo: repo,
-                username: actor,
-              });
-              const permission = repoPermission.data.permission;
-              core.debug(`Repository permission level: ${permission}`);
-              if (permission !== "admin" && permission !== "maintain") {
-                core.setOutput("text", "");
-                return;
-              }
-              switch (context.eventName) {
-                case "issues":
-                  if (context.payload.issue) {
-                    const title = context.payload.issue.title || "";
-                    const body = context.payload.issue.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request_target":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "issue_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review":
-                  if (context.payload.review) {
-                    text = context.payload.review.body || "";
-                  }
-                  break;
-                default:
-                  text = "";
-                  break;
-              }
-              const sanitizedText = sanitizeContent(text);
-              core.debug(`text: ${sanitizedText}`);
-              core.setOutput("text", sanitizedText);
-            }
-            await main();
 
   agent:
     needs: activation
@@ -1035,22 +884,8 @@ jobs:
           user_agent = "dev"
           startup_timeout_sec = 120
           tool_timeout_sec = 120
-          command = "docker"
-          args = [
-            "run",
-            "-i",
-            "--rm",
-            "-e",
-            "GITHUB_PERSONAL_ACCESS_TOKEN",
-            "-e",
-            "GITHUB_TOOLSETS",
-            "ghcr.io/github/github-mcp-server:v0.18.0"
-          ]
-          
-          [mcp_servers.github.env]
-          GITHUB_PERSONAL_ACCESS_TOKEN = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-          GITHUB_TOOLSETS = "all"
-          tools = ["download_workflow_run_artifact", "get_job_logs", "get_workflow_run", "get_workflow_run_logs", "get_workflow_run_usage", "list_workflow_jobs", "list_workflow_run_artifacts", "list_workflow_runs", "list_workflows", "get_code_scanning_alert", "list_code_scanning_alerts", "get_me", "get_dependabot_alert", "list_dependabot_alerts", "get_discussion", "get_discussion_comments", "list_discussion_categories", "list_discussions", "get_issue", "get_issue_comments", "list_issues", "search_issues", "get_notification_details", "list_notifications", "search_orgs", "get_label", "list_label", "get_pull_request", "get_pull_request_comments", "get_pull_request_diff", "get_pull_request_files", "get_pull_request_reviews", "get_pull_request_status", "list_pull_requests", "pull_request_read", "search_pull_requests", "get_commit", "get_file_contents", "get_tag", "list_branches", "list_commits", "list_tags", "search_code", "search_repositories", "get_secret_scanning_alert", "list_secret_scanning_alerts", "search_users", "get_latest_release", "get_pull_request_review_comments", "get_release_by_tag", "list_issue_types", "list_releases", "list_starred_repositories", "list_sub_issues"]
+          url = "https://api.githubcopilot.com/mcp/"
+          bearer_token_env_var = "GH_AW_GITHUB_TOKEN"
           
           [mcp_servers.safe_outputs]
           command = "node"
@@ -1066,33 +901,7 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Dev Workflow - Create Sub-Issue from Comment
-          
-          When a user comments on an issue, analyze the comment and create a sub-issue with a summary.
-          
-          ## Context
-          - **Repository**: ${{ github.repository }}
-          - **Parent Issue**: #${{ github.event.issue.number }}
-          - **Comment**: "${{ needs.activation.outputs.text }}"
-          
-          ## Task
-          
-          Analyze the comment and create a sub-issue that summarizes the main points or action items mentioned in the comment. Use the `parent` field to explicitly link the new issue as a sub-issue of #${{ github.event.issue.number }}.
-          
-          The sub-issue should include:
-          - A clear title summarizing the comment
-          - A body with the key points or action items
-          - The parent issue number using the `parent` field
-          
-          Example output format:
-          ```json
-          {
-            "type": "create-issue",
-            "title": "Summary of comment discussion",
-            "body": "Key points:\n- Point 1\n- Point 2\n\nOriginal comment by @user in #123",
-            "parent": 123
-          }
-          ```
+          Write a poem about the last 3 pull requests and publish an issue.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1146,28 +955,6 @@ jobs:
           **Reporting Missing Tools or Functionality**
           
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
-          
-          EOF
-      - name: Append PR context instructions to prompt
-        if: |
-          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
-          
-          ---
-          
-          ## Current Branch Context
-          
-          **IMPORTANT**: This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.
-          
-          ### What This Means
-          
-          - The current working directory contains the code from the pull request branch
-          - Any file operations you perform will be on the PR branch code
-          - You can inspect, analyze, and work with the PR changes directly
-          - The PR branch has been checked out using `gh pr checkout`
           
           EOF
       - name: Print prompt to step summary
@@ -1235,6 +1022,7 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2164,10 +1952,9 @@ jobs:
             await main();
 
         env:
-          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY'
+          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,OPENAI_API_KEY'
           SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
           SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
@@ -2629,7 +2416,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Dev Workflow - Create Sub-Issue from Comment\n\nWhen a user comments on an issue, analyze the comment and create a sub-issue with a summary.\n\n## Context\n- **Repository**: ${{ github.repository }}\n- **Parent Issue**: #${{ github.event.issue.number }}\n- **Comment**: \"${{ needs.activation.outputs.text }}\"\n\n## Task\n\nAnalyze the comment and create a sub-issue that summarizes the main points or action items mentioned in the comment. Use the `parent` field to explicitly link the new issue as a sub-issue of #${{ github.event.issue.number }}.\n\nThe sub-issue should include:\n- A clear title summarizing the comment\n- A body with the key points or action items\n- The parent issue number using the `parent` field\n\nExample output format:\n```json\n{\n  \"type\": \"create-issue\",\n  \"title\": \"Summary of comment discussion\",\n  \"body\": \"Key points:\\n- Point 1\\n- Point 2\\n\\nOriginal comment by @user in #123\",\n  \"parent\": 123\n}\n```\n"
+          WORKFLOW_MARKDOWN: "Write a poem about the last 3 pull requests and publish an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2725,6 +2512,7 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -2794,7 +2582,7 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Dev"
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[dev] "
-          GITHUB_AW_ISSUE_LABELS: "dev,sub-task"
+          GITHUB_AW_ISSUE_LABELS: "dev,sub-task,poetry"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           script: |

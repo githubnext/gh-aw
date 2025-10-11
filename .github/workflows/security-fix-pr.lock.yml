@@ -994,14 +994,12 @@ jobs:
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "-e",
-                  "GITHUB_TOOLSETS",
+                  "GITHUB_TOOLSETS=context,repos,code_security",
                   "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
-                  "GITHUB_TOOLSETS": "context,repos,code_security"
-                },
-                "tools": ["list_code_scanning_alerts", "get_code_scanning_alert", "get_file_contents", "download_workflow_run_artifact", "get_job_logs", "get_workflow_run", "get_workflow_run_logs", "get_workflow_run_usage", "list_workflow_jobs", "list_workflow_run_artifacts", "list_workflow_runs", "list_workflows", "get_me", "get_dependabot_alert", "list_dependabot_alerts", "get_discussion", "get_discussion_comments", "list_discussion_categories", "list_discussions", "get_issue", "get_issue_comments", "list_issues", "search_issues", "get_notification_details", "list_notifications", "search_orgs", "get_label", "list_label", "get_pull_request", "get_pull_request_comments", "get_pull_request_diff", "get_pull_request_files", "get_pull_request_reviews", "get_pull_request_status", "list_pull_requests", "pull_request_read", "search_pull_requests", "get_commit", "get_tag", "list_branches", "list_commits", "list_tags", "search_code", "search_repositories", "get_secret_scanning_alert", "list_secret_scanning_alerts", "search_users", "get_latest_release", "get_pull_request_review_comments", "get_release_by_tag", "list_issue_types", "list_releases", "list_starred_repositories", "list_sub_issues"]
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+                }
               },
               "safe_outputs": {
                 "command": "node",

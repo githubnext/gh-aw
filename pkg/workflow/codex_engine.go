@@ -133,6 +133,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":           "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":             "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		"GH_AW_GITHUB_TOKEN":   "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
@@ -535,26 +536,16 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	// https://developers.openai.com/codex/mcp
 	// Check if remote mode is enabled
 	if githubType == "remote" {
-		// Remote mode - use hosted GitHub MCP server
-		yaml.WriteString("          type = \"http\"\n")
-		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
-
-		// Add authorization header
-		if customGitHubToken != "" {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer " + customGitHubToken + "\"")
-		} else {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
-		}
-
-		// Add X-MCP-Readonly header if read-only mode is enabled
+		// Remote mode - use hosted GitHub MCP server with streamable HTTP
+		// Use readonly endpoint if read-only mode is enabled
 		if readOnly {
-			yaml.WriteString(", \"X-MCP-Readonly\" = \"true\" }\n")
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp-readonly/\"\n")
 		} else {
-			yaml.WriteString(" }\n")
+			yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
 		}
 
-		// Generate tools array from allowed list (TOML format)
-		e.renderToolsArrayTOML(yaml, allowed, "          ")
+		// Use bearer_token_env_var for authentication
+		yaml.WriteString("          bearer_token_env_var = \"GH_AW_GITHUB_TOKEN\"\n")
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
@@ -571,8 +562,15 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 			yaml.WriteString("            \"-e\",\n")
 			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
 		}
+
+		// Add GITHUB_TOOLSETS environment variable with value directly in docker args
 		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_TOOLSETS\",\n")
+		if toolsets != "" {
+			yaml.WriteString("            \"GITHUB_TOOLSETS=" + toolsets + "\",\n")
+		} else {
+			yaml.WriteString("            \"GITHUB_TOOLSETS=all\",\n")
+		}
+
 		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present
@@ -591,37 +589,6 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		} else {
 			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
 		}
-
-		// Add toolsets if configured
-		if toolsets != "" {
-			yaml.WriteString("          GITHUB_TOOLSETS = \"" + toolsets + "\"\n")
-		} else {
-			yaml.WriteString("          GITHUB_TOOLSETS = \"all\"\n")
-
-		}
-
-		// Generate tools array from allowed list (TOML format)
-		e.renderToolsArrayTOML(yaml, allowed, "          ")
-	}
-}
-
-// renderToolsArrayTOML generates the "tools" array in TOML format
-// If allowed is nil or empty, outputs tools = ["*"] for all tools
-// Otherwise, outputs the specific allowed tool names
-func (e *CodexEngine) renderToolsArrayTOML(yaml *strings.Builder, allowed []string, indent string) {
-	if allowed == nil || len(allowed) == 0 {
-		// Default to all tools if no allowed list specified
-		yaml.WriteString(indent + "tools = [\"*\"]\n")
-	} else {
-		// Generate array with specific tool names
-		yaml.WriteString(indent + "tools = [")
-		for i, tool := range allowed {
-			if i > 0 {
-				yaml.WriteString(", ")
-			}
-			yaml.WriteString("\"" + tool + "\"")
-		}
-		yaml.WriteString("]\n")
 	}
 }
 

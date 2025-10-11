@@ -67,7 +67,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolset": []string{"repos", "issues", "pull_requests"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS": "repos,issues,pull_requests"`,
+				`"GITHUB_TOOLSETS=repos,issues,pull_requests"`,
 			},
 			notInYAML: []string{},
 		},
@@ -86,7 +86,7 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolset": []string{"all"},
 			},
 			expectedInYAML: []string{
-				`"GITHUB_TOOLSETS": "all"`,
+				`"GITHUB_TOOLSETS=all"`,
 			},
 			notInYAML: []string{},
 		},
@@ -261,7 +261,7 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 				"toolset": []string{"repos", "issues"},
 			},
 			expectedInYAML: []string{
-				`GITHUB_TOOLSETS = "repos,issues"`,
+				`"GITHUB_TOOLSETS=repos,issues"`,
 			},
 			notInYAML: []string{},
 		},

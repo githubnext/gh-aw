@@ -289,11 +289,11 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 		yaml.WriteString("                \"headers\": {\n")
 
-		// Add custom github-token if specified, otherwise use GITHUB_MCP_TOKEN
+		// Add custom github-token if specified, otherwise use GH_AW_GITHUB_TOKEN
 		if customGitHubToken != "" {
 			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"", customGitHubToken))
 		} else {
-			yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
+			yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GH_AW_GITHUB_TOKEN }}\"")
 		}
 
 		// Add X-MCP-Readonly header if read-only mode is enabled

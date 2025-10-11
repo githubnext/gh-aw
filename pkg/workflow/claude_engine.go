@@ -660,11 +660,11 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 		yaml.WriteString("                \"headers\": {\n")
 
-		// Add custom github-token if specified, otherwise use GITHUB_MCP_TOKEN
+		// Add custom github-token if specified, otherwise use GH_AW_GITHUB_TOKEN
 		if customGitHubToken != "" {
 			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"", customGitHubToken))
 		} else {
-			yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
+			yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GH_AW_GITHUB_TOKEN }}\"")
 		}
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
@@ -691,12 +691,19 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		yaml.WriteString("                  \"--rm\",\n")
 		yaml.WriteString("                  \"-e\",\n")
 		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
-		yaml.WriteString("                  \"-e\",\n")
-		yaml.WriteString("                  \"GITHUB_TOOLSETS\",\n")
 		if readOnly {
 			yaml.WriteString("                  \"-e\",\n")
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
 		}
+
+		// Add GITHUB_TOOLSETS environment variable with value directly in docker args
+		yaml.WriteString("                  \"-e\",\n")
+		if toolsets != "" {
+			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS=%s\",\n", toolsets))
+		} else {
+			yaml.WriteString("                  \"GITHUB_TOOLSETS=all\",\n")
+		}
+
 		yaml.WriteString("                  \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present
@@ -711,15 +718,6 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", customGitHubToken))
 		} else {
 			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"")
-		}
-
-		// Add GITHUB_TOOLSETS environment variable if toolsets are configured
-		if toolsets != "" {
-			yaml.WriteString(",\n")
-			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS\": \"%s\"", toolsets))
-		} else {
-			yaml.WriteString(",\n")
-			yaml.WriteString("                  \"GITHUB_TOOLSETS\": \"all\"")
 		}
 
 		yaml.WriteString("\n")
