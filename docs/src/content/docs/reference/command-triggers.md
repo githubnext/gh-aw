@@ -2,7 +2,7 @@
 title: Command Triggers
 description: Learn about command triggers and context text functionality for agentic workflows, including special @mention triggers for interactive automation.
 sidebar:
-  order: 500
+  order: 330
 ---
 
 GitHub Agentic Workflows add the convenience `command:` trigger to create workflows that respond to `/my-bots` in issues and comments.
