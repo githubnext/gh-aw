@@ -1080,145 +1080,22 @@ jobs:
           
           ## Tools by Toolset
           
-          ### Context Toolset
-          Tools for accessing GitHub Actions workflow context and environment information.
+          Organize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.
+          
+          **Example format for each toolset:**
+          
+          ### [Toolset Name] Toolset
+          Brief description of the toolset.
           
           | Tool Name | Purpose | Key Parameters |
           |-----------|---------|----------------|
           | [tool]    | [description] | [params] |
           
-          ### Repositories Toolset
-          Tools for repository management and file operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Issues Toolset
-          Tools for issue management and operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Pull Requests Toolset
-          Tools for pull request operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Actions Toolset
-          Tools for GitHub Actions workflow and run operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Code Security Toolset
-          Tools for code scanning and security alerts.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Dependabot Toolset
-          Tools for Dependabot alert management.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Discussions Toolset
-          Tools for GitHub Discussions operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Experiments Toolset
-          Experimental or preview features.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Gists Toolset
-          Tools for GitHub Gists operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Labels Toolset
-          Tools for label management.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Notifications Toolset
-          Tools for notification management.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Organizations Toolset
-          Tools for organization-level operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Projects Toolset
-          Tools for GitHub Projects operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Secret Protection Toolset
-          Tools for secret scanning and protection.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Security Advisories Toolset
-          Tools for security advisory management.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Stargazers Toolset
-          Tools for repository star management.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
-          
-          ### Users Toolset
-          Tools for user information and operations.
-          
-          | Tool Name | Purpose | Key Parameters |
-          |-----------|---------|----------------|
-          | [tool]    | [description] | [params] |
+          **All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users
           
           ## Usage Examples
           
-          ### Example 1: Repository File Operations
-          [Provide a practical example using repository tools]
-          
-          ### Example 2: Issue Management
-          [Provide a practical example using issue tools]
-          
-          ### Example 3: Pull Request Operations
-          [Provide a practical example using PR tools]
-          
-          ### Example 4: Code Security Analysis
-          [Provide a practical example using security tools]
+          Provide 1-2 brief examples showing how to use common tools.
           
           ## Toolset Configuration Reference
           
@@ -2893,7 +2770,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# GitHub MCP Remote Server Tools Report Generator\n\nYou are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.\n\n## Mission\n\nGenerate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Report Date**: Today's date\n- **MCP Server**: GitHub MCP Remote (mode: remote, toolset: all)\n\n## Report Generation Process\n\n### Phase 1: Tool Discovery\n\n1. **List All Available Tools**:\n   - You have access to the GitHub MCP server in remote mode with all toolsets enabled\n   - Systematically identify all available tools/functions\n   - Note: The tools available to you ARE the tools from the GitHub MCP remote server\n   - Enumerate each tool by attempting to understand what tools you have access to\n\n2. **Categorize Tools by Functionality**:\n   - Group tools by their primary purpose (e.g., repos, issues, pull requests, actions, etc.)\n   - Identify which toolset each tool belongs to based on its function\n\n### Phase 2: Tool Documentation\n\nFor each discovered tool, document:\n\n1. **Tool Name**: The exact function name\n2. **Toolset**: Which toolset category it belongs to (context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users)\n3. **Purpose**: What the tool does (1-2 sentence description)\n4. **Parameters**: Key parameters it accepts (if you can determine them)\n5. **Example Use Case**: A brief example of when you would use this tool\n\n### Phase 3: Generate Comprehensive Report\n\nCreate a detailed markdown report with the following structure:\n\n```markdown\n# GitHub MCP Remote Server Tools Report\n\n**Generated**: [DATE]\n**MCP Mode**: Remote\n**Toolsets**: All\n\n## Executive Summary\n\n- **Total Tools Discovered**: [NUMBER]\n- **Toolset Categories**: [NUMBER]\n- **Report Date**: [DATE]\n\n## Tools by Toolset\n\n### Context Toolset\nTools for accessing GitHub Actions workflow context and environment information.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Repositories Toolset\nTools for repository management and file operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Issues Toolset\nTools for issue management and operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Pull Requests Toolset\nTools for pull request operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Actions Toolset\nTools for GitHub Actions workflow and run operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Code Security Toolset\nTools for code scanning and security alerts.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Dependabot Toolset\nTools for Dependabot alert management.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Discussions Toolset\nTools for GitHub Discussions operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Experiments Toolset\nExperimental or preview features.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Gists Toolset\nTools for GitHub Gists operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Labels Toolset\nTools for label management.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Notifications Toolset\nTools for notification management.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Organizations Toolset\nTools for organization-level operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Projects Toolset\nTools for GitHub Projects operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Secret Protection Toolset\nTools for secret scanning and protection.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Security Advisories Toolset\nTools for security advisory management.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Stargazers Toolset\nTools for repository star management.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n### Users Toolset\nTools for user information and operations.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n## Usage Examples\n\n### Example 1: Repository File Operations\n[Provide a practical example using repository tools]\n\n### Example 2: Issue Management\n[Provide a practical example using issue tools]\n\n### Example 3: Pull Request Operations\n[Provide a practical example using PR tools]\n\n### Example 4: Code Security Analysis\n[Provide a practical example using security tools]\n\n## Toolset Configuration Reference\n\nWhen configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:\n\n```yaml\ntools:\n  github:\n    mode: \"remote\"  # or \"local\"\n    toolset: [all]  # or specific toolsets like [repos, issues, pull_requests]\n```\n\n**Available toolset options**:\n- `context` - GitHub Actions context and environment\n- `repos` - Repository operations\n- `issues` - Issue management\n- `pull_requests` - Pull request operations\n- `actions` - GitHub Actions workflows\n- `code_security` - Code scanning alerts\n- `dependabot` - Dependabot alerts\n- `discussions` - GitHub Discussions\n- `experiments` - Experimental features\n- `gists` - Gist operations\n- `labels` - Label management\n- `notifications` - Notification management\n- `orgs` - Organization operations\n- `projects` - GitHub Projects\n- `secret_protection` - Secret scanning\n- `security_advisories` - Security advisories\n- `stargazers` - Repository stars\n- `users` - User information\n- `all` - Enable all toolsets\n\n## Notes and Observations\n\n[Include any interesting findings, patterns, or recommendations discovered during the tool enumeration]\n\n## Methodology\n\n- **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server\n- **MCP Configuration**: Remote mode with all toolsets enabled\n- **Categorization**: Based on GitHub API domains and functionality\n- **Documentation**: Derived from tool names, descriptions, and usage patterns\n\n---\n\n*Generated by GitHub MCP Remote Server Tools Report Generator*\n*Repository: ${{ github.repository }}*\n```\n\n## Important Guidelines\n\n### Accuracy\n- **Be Thorough**: Discover and document ALL available tools\n- **Be Precise**: Use exact tool names and accurate descriptions\n- **Be Organized**: Group tools logically by toolset\n- **Be Helpful**: Provide clear, actionable documentation\n\n### Report Quality\n- **Clear Structure**: Use tables and sections for readability\n- **Practical Examples**: Include real-world usage examples\n- **Complete Coverage**: Don't miss any tools or toolsets\n- **Useful Reference**: Make the report helpful for developers\n\n### Tool Discovery\n- **Systematic Approach**: Methodically enumerate all tools\n- **Categorization**: Accurately assign tools to toolsets\n- **Description**: Provide clear, concise purpose statements\n- **Parameters**: Document key parameters when identifiable\n\n## Success Criteria\n\nA successful report:\n- ✅ Documents all tools available in the GitHub MCP remote server\n- ✅ Organizes tools by their appropriate toolset categories\n- ✅ Provides clear descriptions and usage information\n- ✅ Includes practical examples\n- ✅ Is formatted as a well-structured markdown document\n- ✅ Is published as a GitHub discussion in the \"audits\" category for easy access and reference\n\n## Output Requirements\n\nYour output MUST:\n1. Create a GitHub discussion with the complete tools report\n2. Use the report template structure provided above\n3. Include ALL discovered tools organized by toolset\n4. Provide accurate tool names, descriptions, and parameters\n5. Include practical usage examples\n6. Be formatted for readability with proper markdown tables\n\nBegin your tool discovery now. Systematically identify all available tools from the GitHub MCP remote server, categorize them appropriately, and generate a comprehensive reference document.\n"
+          WORKFLOW_MARKDOWN: "# GitHub MCP Remote Server Tools Report Generator\n\nYou are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.\n\n## Mission\n\nGenerate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Report Date**: Today's date\n- **MCP Server**: GitHub MCP Remote (mode: remote, toolset: all)\n\n## Report Generation Process\n\n### Phase 1: Tool Discovery\n\n1. **List All Available Tools**:\n   - You have access to the GitHub MCP server in remote mode with all toolsets enabled\n   - Systematically identify all available tools/functions\n   - Note: The tools available to you ARE the tools from the GitHub MCP remote server\n   - Enumerate each tool by attempting to understand what tools you have access to\n\n2. **Categorize Tools by Functionality**:\n   - Group tools by their primary purpose (e.g., repos, issues, pull requests, actions, etc.)\n   - Identify which toolset each tool belongs to based on its function\n\n### Phase 2: Tool Documentation\n\nFor each discovered tool, document:\n\n1. **Tool Name**: The exact function name\n2. **Toolset**: Which toolset category it belongs to (context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users)\n3. **Purpose**: What the tool does (1-2 sentence description)\n4. **Parameters**: Key parameters it accepts (if you can determine them)\n5. **Example Use Case**: A brief example of when you would use this tool\n\n### Phase 3: Generate Comprehensive Report\n\nCreate a detailed markdown report with the following structure:\n\n```markdown\n# GitHub MCP Remote Server Tools Report\n\n**Generated**: [DATE]\n**MCP Mode**: Remote\n**Toolsets**: All\n\n## Executive Summary\n\n- **Total Tools Discovered**: [NUMBER]\n- **Toolset Categories**: [NUMBER]\n- **Report Date**: [DATE]\n\n## Tools by Toolset\n\nOrganize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.\n\n**Example format for each toolset:**\n\n### [Toolset Name] Toolset\nBrief description of the toolset.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n**All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users\n\n## Usage Examples\n\nProvide 1-2 brief examples showing how to use common tools.\n\n## Toolset Configuration Reference\n\nWhen configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:\n\n```yaml\ntools:\n  github:\n    mode: \"remote\"  # or \"local\"\n    toolset: [all]  # or specific toolsets like [repos, issues, pull_requests]\n```\n\n**Available toolset options**:\n- `context` - GitHub Actions context and environment\n- `repos` - Repository operations\n- `issues` - Issue management\n- `pull_requests` - Pull request operations\n- `actions` - GitHub Actions workflows\n- `code_security` - Code scanning alerts\n- `dependabot` - Dependabot alerts\n- `discussions` - GitHub Discussions\n- `experiments` - Experimental features\n- `gists` - Gist operations\n- `labels` - Label management\n- `notifications` - Notification management\n- `orgs` - Organization operations\n- `projects` - GitHub Projects\n- `secret_protection` - Secret scanning\n- `security_advisories` - Security advisories\n- `stargazers` - Repository stars\n- `users` - User information\n- `all` - Enable all toolsets\n\n## Notes and Observations\n\n[Include any interesting findings, patterns, or recommendations discovered during the tool enumeration]\n\n## Methodology\n\n- **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server\n- **MCP Configuration**: Remote mode with all toolsets enabled\n- **Categorization**: Based on GitHub API domains and functionality\n- **Documentation**: Derived from tool names, descriptions, and usage patterns\n\n---\n\n*Generated by GitHub MCP Remote Server Tools Report Generator*\n*Repository: ${{ github.repository }}*\n```\n\n## Important Guidelines\n\n### Accuracy\n- **Be Thorough**: Discover and document ALL available tools\n- **Be Precise**: Use exact tool names and accurate descriptions\n- **Be Organized**: Group tools logically by toolset\n- **Be Helpful**: Provide clear, actionable documentation\n\n### Report Quality\n- **Clear Structure**: Use tables and sections for readability\n- **Practical Examples**: Include real-world usage examples\n- **Complete Coverage**: Don't miss any tools or toolsets\n- **Useful Reference**: Make the report helpful for developers\n\n### Tool Discovery\n- **Systematic Approach**: Methodically enumerate all tools\n- **Categorization**: Accurately assign tools to toolsets\n- **Description**: Provide clear, concise purpose statements\n- **Parameters**: Document key parameters when identifiable\n\n## Success Criteria\n\nA successful report:\n- ✅ Documents all tools available in the GitHub MCP remote server\n- ✅ Organizes tools by their appropriate toolset categories\n- ✅ Provides clear descriptions and usage information\n- ✅ Includes practical examples\n- ✅ Is formatted as a well-structured markdown document\n- ✅ Is published as a GitHub discussion in the \"audits\" category for easy access and reference\n\n## Output Requirements\n\nYour output MUST:\n1. Create a GitHub discussion with the complete tools report\n2. Use the report template structure provided above\n3. Include ALL discovered tools organized by toolset\n4. Provide accurate tool names, descriptions, and parameters\n5. Include practical usage examples\n6. Be formatted for readability with proper markdown tables\n\nBegin your tool discovery now. Systematically identify all available tools from the GitHub MCP remote server, categorize them appropriately, and generate a comprehensive reference document.\n"
         with:
           script: |
             const fs = require('fs');

@@ -75,145 +75,22 @@ Create a detailed markdown report with the following structure:
 
 ## Tools by Toolset
 
-### Context Toolset
-Tools for accessing GitHub Actions workflow context and environment information.
+Organize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.
+
+**Example format for each toolset:**
+
+### [Toolset Name] Toolset
+Brief description of the toolset.
 
 | Tool Name | Purpose | Key Parameters |
 |-----------|---------|----------------|
 | [tool]    | [description] | [params] |
 
-### Repositories Toolset
-Tools for repository management and file operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Issues Toolset
-Tools for issue management and operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Pull Requests Toolset
-Tools for pull request operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Actions Toolset
-Tools for GitHub Actions workflow and run operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Code Security Toolset
-Tools for code scanning and security alerts.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Dependabot Toolset
-Tools for Dependabot alert management.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Discussions Toolset
-Tools for GitHub Discussions operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Experiments Toolset
-Experimental or preview features.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Gists Toolset
-Tools for GitHub Gists operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Labels Toolset
-Tools for label management.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Notifications Toolset
-Tools for notification management.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Organizations Toolset
-Tools for organization-level operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Projects Toolset
-Tools for GitHub Projects operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Secret Protection Toolset
-Tools for secret scanning and protection.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Security Advisories Toolset
-Tools for security advisory management.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Stargazers Toolset
-Tools for repository star management.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
-
-### Users Toolset
-Tools for user information and operations.
-
-| Tool Name | Purpose | Key Parameters |
-|-----------|---------|----------------|
-| [tool]    | [description] | [params] |
+**All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users
 
 ## Usage Examples
 
-### Example 1: Repository File Operations
-[Provide a practical example using repository tools]
-
-### Example 2: Issue Management
-[Provide a practical example using issue tools]
-
-### Example 3: Pull Request Operations
-[Provide a practical example using PR tools]
-
-### Example 4: Code Security Analysis
-[Provide a practical example using security tools]
+Provide 1-2 brief examples showing how to use common tools.
 
 ## Toolset Configuration Reference
 
