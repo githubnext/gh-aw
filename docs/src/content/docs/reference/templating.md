@@ -85,15 +85,13 @@ The following GitHub Actions context expressions are permitted in the markdown c
 - `${{ steps.* }}` - Any outputs from previous steps in the same job
 - `${{ github.event.inputs.* }}` - Any workflow inputs when triggered by workflow_dispatch (e.g., `${{ github.event.inputs.name }}`)
 
-## Prohibited Expressions
+### Prohibited Expressions
 
 All other expressions are disallowed, including:
 - `${{ secrets.* }}` - All secrets
 - `${{ env.* }}` - All environment variables
 - `${{ vars.* }}` - All repository variables
 - Complex functions like `${{ toJson(...) }}`, `${{ fromJson(...) }}`, etc.
-
-## Validation
 
 Expression safety is validated during compilation with `gh aw compile`. If unauthorized expressions are found, you'll see an error like:
 
