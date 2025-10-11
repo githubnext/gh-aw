@@ -681,6 +681,9 @@ gh aw mcp-server
 
 # Start with HTTP/SSE transport - for workflow integration
 gh aw mcp-server --port 3000
+
+# Use custom gh-aw binary path
+gh aw mcp-server --cmd ./gh-aw --port 3000
 ```
 
 **Available Tools:**
@@ -691,6 +694,11 @@ The MCP server exposes four core commands as tools:
 - `compile` - Compile markdown workflows to YAML (validation always enabled)
 - `logs` - Download and analyze workflow logs (output forced to `/tmp/gh-aw/aw-mcp/logs`)
 - `audit` - Investigate workflow runs (output forced to `/tmp/gh-aw/aw-mcp/logs`)
+
+**Configuration Options:**
+
+- `--port` - Port number for HTTP/SSE transport (uses stdio if not specified)
+- `--cmd` - Path to gh-aw command to use (defaults to `gh aw`)
 
 **Workflow Integration:**
 
