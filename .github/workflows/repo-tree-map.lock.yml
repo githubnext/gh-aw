@@ -1202,7 +1202,7 @@ jobs:
         # --allow-tool github(search_users)
         # --allow-tool safe_outputs
         # --allow-tool shell
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)

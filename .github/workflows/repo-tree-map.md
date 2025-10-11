@@ -20,7 +20,7 @@ safe-outputs:
     category: "dev"
     max: 1
 
-timeout_minutes: 10
+timeout_minutes: 5
 ---
 
 # Repository Tree Map Generator
