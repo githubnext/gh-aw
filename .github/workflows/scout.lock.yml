@@ -1154,7 +1154,7 @@ jobs:
                       description: "Pull request number (optional, alternative to issue_number)",
                     },
                     discussion_number: {
-                      type: "number", 
+                      type: "number",
                       description: "Discussion number for discussion comments (optional, alternative to issue_number)",
                     },
                   },
@@ -3995,7 +3995,8 @@ jobs:
               return footer;
             }
             async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
-              const { repository } = await github.graphql(`
+              const { repository } = await github.graphql(
+                `
                 query($owner: String!, $repo: String!, $num: Int!) {
                   repository(owner: $owner, name: $repo) {
                     discussion(number: $num) { 
@@ -4003,13 +4004,16 @@ jobs:
                       url
                     }
                   }
-                }`, { owner, repo, num: discussionNumber });
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
               if (!repository || !repository.discussion) {
                 throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
               }
               const discussionId = repository.discussion.id;
               const discussionUrl = repository.discussion.url;
-              const result = await github.graphql(`
+              const result = await github.graphql(
+                `
                 mutation($dId: ID!, $body: String!) {
                   addDiscussionComment(input: { discussionId: $dId, body: $body }) {
                     comment { 
@@ -4019,12 +4023,14 @@ jobs:
                       url
                     }
                   }
-                }`, { dId: discussionId, body: message });
+                }`,
+                { dId: discussionId, body: message }
+              );
               const comment = result.addDiscussionComment.comment;
               return {
                 id: comment.id,
                 html_url: comment.url,
-                discussion_url: discussionUrl
+                discussion_url: discussionUrl,
               };
             }
             async function main() {

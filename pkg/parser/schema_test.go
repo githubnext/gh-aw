@@ -209,6 +209,38 @@ func TestValidateMainWorkflowFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid frontmatter with discussion trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"discussion": map[string]any{
+						"types": []string{"created", "edited", "answered"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with discussion_comment trigger",
+			frontmatter: map[string]any{
+				"on": map[string]any{
+					"discussion_comment": map[string]any{
+						"types": []string{"created", "edited"},
+					},
+				},
+				"permissions": "read",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid frontmatter with simple discussion trigger",
+			frontmatter: map[string]any{
+				"on":     "discussion",
+				"engine": "claude",
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid frontmatter with complex tools configuration (new format)",
 			frontmatter: map[string]any{
 				"tools": map[string]any{

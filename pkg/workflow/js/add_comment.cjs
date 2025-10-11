@@ -19,7 +19,7 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL)
 
 /**
  * Comment on a GitHub Discussion using GraphQL
- * @param {any} github - GitHub REST API instance  
+ * @param {any} github - GitHub REST API instance
  * @param {string} owner - Repository owner
  * @param {string} repo - Repository name
  * @param {number} discussionNumber - Discussion number
@@ -28,7 +28,8 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL)
  */
 async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
   // 1. Retrieve discussion node ID
-  const { repository } = await github.graphql(`
+  const { repository } = await github.graphql(
+    `
     query($owner: String!, $repo: String!, $num: Int!) {
       repository(owner: $owner, name: $repo) {
         discussion(number: $num) { 
@@ -36,7 +37,9 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
           url
         }
       }
-    }`, { owner, repo, num: discussionNumber });
+    }`,
+    { owner, repo, num: discussionNumber }
+  );
 
   if (!repository || !repository.discussion) {
     throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
@@ -46,7 +49,8 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
   const discussionUrl = repository.discussion.url;
 
   // 2. Add comment
-  const result = await github.graphql(`
+  const result = await github.graphql(
+    `
     mutation($dId: ID!, $body: String!) {
       addDiscussionComment(input: { discussionId: $dId, body: $body }) {
         comment { 
@@ -56,14 +60,16 @@ async function commentOnDiscussion(github, owner, repo, discussionNumber, messag
           url
         }
       }
-    }`, { dId: discussionId, body: message });
+    }`,
+    { dId: discussionId, body: message }
+  );
 
   const comment = result.addDiscussionComment.comment;
-  
+
   return {
     id: comment.id,
     html_url: comment.url,
-    discussion_url: discussionUrl
+    discussion_url: discussionUrl,
   };
 }
 
@@ -271,21 +277,21 @@ async function main() {
 
     try {
       let comment;
-      
+
       if (isDiscussion) {
         core.info(`Creating comment on discussion #${issueNumber}`);
         core.info(`Comment content length: ${body.length}`);
-        
+
         // Create discussion comment using GraphQL
         comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, issueNumber, body);
         core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-        
+
         // Add discussion_url to the comment object for consistency
         comment.discussion_url = comment.discussion_url;
       } else {
         core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
         core.info(`Comment content length: ${body.length}`);
-        
+
         // Create regular issue/PR comment using REST API
         const { data: restComment } = await github.rest.issues.createComment({
           owner: context.repo.owner,
@@ -293,7 +299,7 @@ async function main() {
           issue_number: issueNumber,
           body: body,
         });
-        
+
         comment = restComment;
         core.info("Created comment #" + comment.id + ": " + comment.html_url);
       }

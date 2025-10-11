@@ -382,7 +382,7 @@ const ALL_TOOLS = [
           description: "Pull request number (optional, alternative to issue_number)",
         },
         discussion_number: {
-          type: "number", 
+          type: "number",
           description: "Discussion number for discussion comments (optional, alternative to issue_number)",
         },
       },

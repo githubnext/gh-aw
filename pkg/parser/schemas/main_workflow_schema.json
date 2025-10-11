@@ -27,7 +27,7 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'schedule')"
+          "description": "Simple trigger event name (e.g., 'push', 'issues', 'pull_request', 'discussion', 'schedule')"
         },
         {
           "type": "object",
@@ -259,6 +259,54 @@
                 "types": {
                   "type": "array",
                   "description": "Types of issue comment events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted"
+                    ]
+                  }
+                }
+              }
+            },
+            "discussion": {
+              "description": "Discussion event trigger that runs the workflow when repository discussions are created, updated, or managed",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of discussion events",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "created",
+                      "edited",
+                      "deleted",
+                      "transferred",
+                      "pinned",
+                      "unpinned",
+                      "labeled",
+                      "unlabeled",
+                      "locked",
+                      "unlocked",
+                      "category_changed",
+                      "answered",
+                      "unanswered"
+                    ]
+                  }
+                }
+              }
+            },
+            "discussion_comment": {
+              "description": "Discussion comment event trigger that runs the workflow when comments on discussions are created, updated, or deleted",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "types": {
+                  "type": "array",
+                  "description": "Types of discussion comment events",
                   "items": {
                     "type": "string",
                     "enum": [
