@@ -30,12 +30,14 @@ network:
 
 # Tools configuration
 tools:
+  cache-memory: true
   github:
     allowed:
       - get_repository
       - get_file_contents
       - list_commits
       - get_pull_request
+      - search_pull_requests
   edit:
   bash:
     - "find docs -name '*.md'"
@@ -82,7 +84,26 @@ Documentation bloat includes:
 
 Analyze documentation files in the `docs/` directory and make targeted improvements:
 
-### 1. Find Documentation Files
+### 1. Check Cache Memory for Previous Cleanups
+
+First, check the cache folder for notes about previous cleanups:
+```bash
+ls -la /tmp/gh-aw/cache-memory/
+cat /tmp/gh-aw/cache-memory/cleaned-files.txt 2>/dev/null || echo "No previous cleanups found"
+```
+
+This will help you avoid re-cleaning files that were recently processed.
+
+### 2. Check Recent PRs
+
+Before selecting a file, check if any documentation files are currently being worked on in open PRs:
+```bash
+# Use the search_pull_requests tool to find open PRs with "docs" in the title or that modify docs files
+```
+
+**IMPORTANT**: Do NOT select a file that is already being modified in an open PR to avoid conflicts.
+
+### 3. Find Documentation Files
 
 Scan the `docs/` directory for markdown files:
 ```bash
@@ -101,7 +122,7 @@ Focus on files that were recently modified or are in the `docs/src/content/docs/
 Focus on markdown files in the `docs/` directory that appear in the PR's changed files list.
 {{/if}}
 
-### 2. Select ONE File to Improve
+### 4. Select ONE File to Improve
 
 **IMPORTANT**: Work on only **ONE file at a time** to keep changes small and reviewable.
 
@@ -109,8 +130,10 @@ Choose the file most in need of improvement based on:
 - Recent modification date
 - File size (larger files may have more bloat)
 - Number of bullet points or repetitive patterns
+- **Files NOT in the cleaned-files.txt cache** (avoid duplicating recent work)
+- **Files NOT currently in open PRs** (avoid conflicts)
 
-### 3. Analyze the File
+### 5. Analyze the File
 
 Read the selected file and identify bloat:
 - Count bullet points - are there excessive lists?
@@ -119,7 +142,7 @@ Read the selected file and identify bloat:
 - Identify verbose or wordy sections
 - Find redundant examples
 
-### 4. Remove Bloat
+### 6. Remove Bloat
 
 Make targeted edits to improve clarity:
 
@@ -147,7 +170,7 @@ Make targeted edits to improve clarity:
 - Keep examples minimal yet complete
 - Use realistic but simple scenarios
 
-### 5. Preserve Essential Content
+### 7. Preserve Essential Content
 
 **DO NOT REMOVE**:
 - Technical accuracy or specific details
@@ -156,12 +179,22 @@ Make targeted edits to improve clarity:
 - Critical warnings or notes
 - Frontmatter metadata
 
-### 6. Create Pull Request
+### 8. Update Cache Memory
+
+After improving the file, update the cache memory to track the cleanup:
+```bash
+echo "$(date -u +%Y-%m-%d) - Cleaned: <filename>" >> /tmp/gh-aw/cache-memory/cleaned-files.txt
+```
+
+This helps future runs avoid re-cleaning the same files.
+
+### 9. Create Pull Request
 
 After improving ONE file:
 1. Verify your changes preserve all essential information
-2. Create a pull request with your improvements
-3. Include in the PR description:
+2. Update cache memory with the cleaned file
+3. Create a pull request with your improvements
+4. Include in the PR description:
    - Which file you improved
    - What types of bloat you removed
    - Estimated word count or line reduction

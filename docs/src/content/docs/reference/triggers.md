@@ -13,11 +13,112 @@ on:
     types: [opened]
 ```
 
-GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for cost control, user feedback, and advanced filtering.
+GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for reactions, cost control, and advanced filtering.
 
-## Stop After Configuration (`stop-after:`)
+### Dispatch Triggers (`workflow_dispatch:`)
 
-You can add a `stop-after:` option within the `on:` section as a cost-control measure to automatically disable workflow triggering after a deadline:
+You can create manual triggers using `workflow_dispatch:` to run workflows on-demand from the GitHub UI or API.
+
+```yaml
+on:
+    workflow_dispatch:
+```
+
+See GitHub Docs for more details: [Workflow syntax for GitHub Actions - on](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on).
+
+### Scheduled Triggers (`schedule:`)
+```yaml
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 9 AM
+  stop-after: "+7d"     # Stop after a week
+```
+
+See GitHub Docs for more details: [Events that trigger workflows - Schedule](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule).
+
+### Issue Triggers (`issues:`)
+```yaml
+on:
+  issues:
+    types: [opened, edited, labeled]
+```
+
+See GitHub Docs for more details: [Events that trigger workflows - Issues](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issues).
+
+### Pull Request Triggers (`pull_request:`)
+```yaml
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+    names: [ready-for-review, needs-review]
+  reaction: "rocket"
+```
+
+See GitHub Docs for more details: [Events that trigger workflows - Pull Request](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
+
+### Comment Triggers
+```yaml
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  discussion_comment:
+    types: [created]
+  reaction: "eyes"
+```
+
+### Command Triggers (`command:`)
+
+An additional kind of trigger called `command:` is supported, see [Command Triggers](/gh-aw/reference/command-triggers/) for special `/my-bot` triggers and context text functionality.
+
+### Label Filtering (`names:`)
+
+An additional kind of issue and pull request trigger is available in GitHub Agentic Workflows to specific label names using the `names:` field:
+
+```yaml
+on:
+  issues:
+    types: [labeled, unlabeled]
+    names: [bug, critical, security]
+```
+
+This filtering is especially useful for [LabelOps workflows](/gh-aw/guides/labelops/) where specific labels trigger different automation behaviors.
+
+### Reactions (`reaction:`)
+
+An additional option  `reaction:` is available within the `on:` section to enable emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status:
+
+```yaml
+on:
+  issues:
+    types: [opened]
+  reaction: "eyes"
+```
+
+**Behavior:**
+- **For `issues` and `pull_request` events**: Adds the emoji reaction AND creates a comment with a link to the workflow run
+- **For comment events** (`issue_comment`, `pull_request_review_comment`): Adds the emoji reaction and edits the comment to include the workflow run link (command workflows only)
+
+**Outputs:**
+The `add_reaction` job exposes the following outputs for use by downstream jobs:
+- `reaction_id`: The ID of the created reaction
+- `comment_id`: The ID of the created comment (for `issues`/`pull_request` events)
+- `comment_url`: The URL of the created comment (for `issues`/`pull_request` events)
+
+**Available reactions:**
+- `+1` (👍)
+- `-1` (👎)
+- `laugh` (😄)
+- `confused` (😕)
+- `heart` (❤️)
+- `hooray` (🎉)
+- `rocket` (🚀)
+- `eyes` (👀)
+
+### Stop After Configuration (`stop-after:`)
+
+An additional configuration option `stop-after:` is available within the `on:` section as a cost-control measure to automatically disable workflow triggering after a deadline:
 
 ```yaml
 on:
@@ -48,118 +149,6 @@ on:
 - `m` - minutes
 
 Note that if you specify a relative time, it is calculated at the time of workflow compilation, not when the workflow runs. If you re-compile your workflow, e.g. after a change, the effective stop time will be reset.
-
-## Reactions (`reaction:`)
-
-You can add a `reaction:` option within the `on:` section to enable emoji reactions on the triggering GitHub item (issue, PR, comment, discussion) to provide visual feedback about the workflow status:
-
-```yaml
-on:
-  issues:
-    types: [opened]
-  reaction: "eyes"
-```
-
-**Behavior:**
-- **For `issues` and `pull_request` events**: Adds the emoji reaction AND creates a comment with a link to the workflow run
-- **For comment events** (`issue_comment`, `pull_request_review_comment`): Adds the emoji reaction and edits the comment to include the workflow run link (command workflows only)
-
-**Outputs:**
-The `add_reaction` job exposes the following outputs for use by downstream jobs:
-- `reaction_id`: The ID of the created reaction
-- `comment_id`: The ID of the created comment (for `issues`/`pull_request` events)
-- `comment_url`: The URL of the created comment (for `issues`/`pull_request` events)
-
-**Available reactions:**
-- `+1` (👍)
-- `-1` (👎)
-- `laugh` (😄)
-- `confused` (😕)
-- `heart` (❤️)
-- `hooray` (🎉)
-- `rocket` (🚀)
-- `eyes` (👀)
-
-## Command Triggers (`command:`)
-
-An additional kind of trigger called `command:` is supported, see [Command Triggers](/gh-aw/reference/command-triggers/) for special `/my-bot` triggers and context text functionality.
-
-> [!NOTE]
-> Command workflows automatically enable the "eyes" (👀) reaction by default. This can be customized by explicitly specifying a different reaction in the `reaction:` field.
-
-## Label Filtering (`names:`)
-
-When using `labeled` or `unlabeled` event types for `issues` or `pull_request` triggers, you can filter to specific label names using the `names:` field:
-
-```yaml
-on:
-  issues:
-    types: [labeled, unlabeled]
-    names: [bug, critical, security]
-```
-
-**How it works:**
-- The `names:` field is removed from the final workflow YAML and commented out for documentation
-- A conditional `if` expression is automatically generated to check if the label name matches
-- The workflow only runs when one of the specified labels triggers the event
-
-**Syntax options:**
-
-```yaml
-# Single label name
-names: bug
-
-# Multiple label names (array)
-names: [bug, enhancement, feature]
-```
-
-**Example for pull requests:**
-
-```yaml
-on:
-  pull_request:
-    types: [labeled]
-    names: ready-for-review
-```
-
-This filtering is especially useful for [LabelOps workflows](/gh-aw/guides/labelops/) where specific labels trigger different automation behaviors.
-
-## Common Trigger Patterns
-
-### Issue-based Workflows
-```yaml
-on:
-  issues:
-    types: [opened, edited, labeled]
-  reaction: "eyes"
-```
-
-### Pull Request Workflows
-```yaml
-on:
-  pull_request:
-    types: [opened, synchronize, labeled]
-    names: [ready-for-review, needs-review]
-  reaction: "rocket"
-```
-
-### Scheduled Workflows
-```yaml
-on:
-  schedule:
-    - cron: "0 9 * * 1"  # Every Monday at 9 AM
-  stop-after: "+7d"     # Stop after a week
-```
-
-### Comment-based Workflows
-```yaml
-on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-  reaction: "eyes"
-```
 
 ## Related Documentation
 
