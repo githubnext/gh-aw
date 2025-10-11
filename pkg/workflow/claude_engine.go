@@ -687,6 +687,8 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		yaml.WriteString("                  \"--rm\",\n")
 		yaml.WriteString("                  \"-e\",\n")
 		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
+		yaml.WriteString("                  \"-e\",\n")
+		yaml.WriteString("                  \"GITHUB_TOOLSETS\",\n")
 		if readOnly {
 			yaml.WriteString("                  \"-e\",\n")
 			yaml.WriteString("                  \"GITHUB_READ_ONLY=1\",\n")
@@ -711,6 +713,9 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		if toolsets != "" {
 			yaml.WriteString(",\n")
 			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_TOOLSETS\": \"%s\"", toolsets))
+		} else {
+			yaml.WriteString(",\n")
+			yaml.WriteString("                  \"GITHUB_TOOLSETS\": \"all\"")
 		}
 
 		yaml.WriteString("\n")
@@ -1380,31 +1385,31 @@ func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Configuration error - missing permissions",
 		},
 		{
-			Pattern:      `(?i)error.*permission.*denied`,
+			Pattern:      `(?i)\berror\b.*permission.*denied`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Permission denied error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*unauthorized`,
+			Pattern:      `(?i)\berror\b.*unauthorized`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Unauthorized error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*forbidden`,
+			Pattern:      `(?i)\berror\b.*forbidden`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Forbidden error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*access.*restricted`,
+			Pattern:      `(?i)\berror\b.*access.*restricted`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Access restricted error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*insufficient.*permission`,
+			Pattern:      `(?i)\berror\b.*insufficient.*permission`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Insufficient permissions error (requires error context)",

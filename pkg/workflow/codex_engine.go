@@ -567,6 +567,8 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 			yaml.WriteString("            \"-e\",\n")
 			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
 		}
+		yaml.WriteString("            \"-e\",\n")
+		yaml.WriteString("            \"GITHUB_TOOLSETS\",\n")
 		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present
@@ -589,6 +591,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		// Add toolsets if configured
 		if toolsets != "" {
 			yaml.WriteString("          GITHUB_TOOLSETS = \"" + toolsets + "\"\n")
+		} else {
+			yaml.WriteString("          GITHUB_TOOLSETS = \"all\"\n")
+
 		}
 	}
 }
@@ -700,31 +705,31 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Configuration error - missing permissions",
 		},
 		{
-			Pattern:      `(?i)error.*permission.*denied`,
+			Pattern:      `(?i)\berror\b.*permission.*denied`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Permission denied error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*unauthorized`,
+			Pattern:      `(?i)\berror\b.*unauthorized`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Unauthorized error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*forbidden`,
+			Pattern:      `(?i)\berror\b.*forbidden`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Forbidden error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*access.*restricted`,
+			Pattern:      `(?i)\berror\b.*access.*restricted`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Access restricted error (requires error context)",
 		},
 		{
-			Pattern:      `(?i)error.*insufficient.*permission`,
+			Pattern:      `(?i)\berror\b.*insufficient.*permission`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Insufficient permissions error (requires error context)",
@@ -736,7 +741,7 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Codex tool failed due to permission error",
 		},
 		{
-			Pattern:      `(?i)error in.*permission`,
+			Pattern:      `(?i)\berror\b in.*permission`,
 			LevelGroup:   0,
 			MessageGroup: 0,
 			Description:  "Codex tool error due to permission issue",
