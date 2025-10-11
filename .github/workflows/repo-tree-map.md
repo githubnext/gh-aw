@@ -1,9 +1,6 @@
 ---
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/repo-tree-map.lock.yml'
 
 permissions:
   contents: read
