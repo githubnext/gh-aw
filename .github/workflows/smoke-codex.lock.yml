@@ -1992,6 +1992,7 @@ jobs:
             function parseCodexLog(logContent) {
               try {
                 const lines = logContent.split("\n");
+                const LOOKAHEAD_WINDOW = 50;
                 let markdown = "";
                 markdown += "## 🤖 Reasoning\n\n";
                 let inThinkingSection = false;
@@ -2043,7 +2044,6 @@ jobs:
                   }
                 }
                 markdown += "## 🤖 Commands and Tools\n\n";
-                const LOOKAHEAD_WINDOW = 50;
                 for (let i = 0; i < lines.length; i++) {
                   const line = lines[i];
                   const toolMatch = line.match(/^\[.*?\]\s+tool\s+(\w+)\.(\w+)\((.+)\)/) || line.match(/ToolCall:\s+(\w+)__(\w+)\s+(\{.+\})/);
