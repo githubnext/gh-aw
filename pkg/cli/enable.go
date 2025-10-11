@@ -14,7 +14,7 @@ func EnableWorkflowsByNames(workflowNames []string) error {
 	return toggleWorkflowsByNames(workflowNames, true)
 }
 
-// DisableWorkflowsByNames disables workflows by specific names, or all if no names provided  
+// DisableWorkflowsByNames disables workflows by specific names, or all if no names provided
 func DisableWorkflowsByNames(workflowNames []string) error {
 	return toggleWorkflowsByNames(workflowNames, false)
 }
@@ -27,7 +27,7 @@ func EnableWorkflows(pattern string) error {
 	return fmt.Errorf("no workflows found matching pattern '%s'", pattern)
 }
 
-// Deprecated: Use DisableWorkflowsByNames with specific workflow names instead  
+// Deprecated: Use DisableWorkflowsByNames with specific workflow names instead
 // DisableWorkflows disables workflows matching a pattern (legacy function for tests)
 func DisableWorkflows(pattern string) error {
 	// For test compatibility, always return error when pattern-based search is used
@@ -50,11 +50,11 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 		if err != nil {
 			return fmt.Errorf("no workflow files found to %s: %v", action, err)
 		}
-		
+
 		if len(mdFiles) == 0 {
 			return fmt.Errorf("no markdown workflow files found to %s", action)
 		}
-		
+
 		// Extract all workflow names
 		var allWorkflowNames []string
 		for _, file := range mdFiles {
@@ -62,7 +62,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 			name := strings.TrimSuffix(base, ".md")
 			allWorkflowNames = append(allWorkflowNames, name)
 		}
-		
+
 		// Recursively call with all workflow names
 		return toggleWorkflowsByNames(allWorkflowNames, enable)
 	}
