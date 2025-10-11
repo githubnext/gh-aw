@@ -596,7 +596,7 @@ End`,
 End`,
 		},
 		{
-			name: "XML comment with unusual but valid markers",
+			name:     "XML comment with unusual but valid markers",
 			input:    `Text <!-- comment with  extra  spaces   --> more`,
 			expected: `Text  more`,
 		},
@@ -758,9 +758,9 @@ func TestIsValidCodeBlockMarker(t *testing.T) {
 // TestIsMatchingCodeBlockMarker tests the matching of closing markers
 func TestIsMatchingCodeBlockMarker(t *testing.T) {
 	tests := []struct {
-		name       string
-		closing    string
-		opening    string
+		name        string
+		closing     string
+		opening     string
 		shouldMatch bool
 	}{
 		{"Same backticks", "```", "```", true},
@@ -790,76 +790,76 @@ func TestIsMatchingCodeBlockMarker(t *testing.T) {
 // TestRemoveXMLCommentsFromLine tests the single-line processing function
 func TestRemoveXMLCommentsFromLine(t *testing.T) {
 	tests := []struct {
-		name            string
-		line            string
-		inComment       bool
-		expectedResult  string
-		expectedWasIn   bool
-		expectedIsIn    bool
+		name           string
+		line           string
+		inComment      bool
+		expectedResult string
+		expectedWasIn  bool
+		expectedIsIn   bool
 	}{
 		{
-			name:            "No comment, not in comment",
-			line:            "Regular text",
-			inComment:       false,
-			expectedResult:  "Regular text",
-			expectedWasIn:   false,
-			expectedIsIn:    false,
+			name:           "No comment, not in comment",
+			line:           "Regular text",
+			inComment:      false,
+			expectedResult: "Regular text",
+			expectedWasIn:  false,
+			expectedIsIn:   false,
 		},
 		{
-			name:            "Complete comment on line",
-			line:            "Before <!-- comment --> after",
-			inComment:       false,
-			expectedResult:  "Before  after",
-			expectedWasIn:   false,
-			expectedIsIn:    false,
+			name:           "Complete comment on line",
+			line:           "Before <!-- comment --> after",
+			inComment:      false,
+			expectedResult: "Before  after",
+			expectedWasIn:  false,
+			expectedIsIn:   false,
 		},
 		{
-			name:            "Start multiline comment",
-			line:            "Text before <!-- comment starts",
-			inComment:       false,
-			expectedResult:  "Text before ",
-			expectedWasIn:   false,
-			expectedIsIn:    true,
+			name:           "Start multiline comment",
+			line:           "Text before <!-- comment starts",
+			inComment:      false,
+			expectedResult: "Text before ",
+			expectedWasIn:  false,
+			expectedIsIn:   true,
 		},
 		{
-			name:            "Inside multiline comment",
-			line:            "This line is entirely in comment",
-			inComment:       true,
-			expectedResult:  "",
-			expectedWasIn:   true,
-			expectedIsIn:    true,
+			name:           "Inside multiline comment",
+			line:           "This line is entirely in comment",
+			inComment:      true,
+			expectedResult: "",
+			expectedWasIn:  true,
+			expectedIsIn:   true,
 		},
 		{
-			name:            "End multiline comment",
-			line:            "comment ends --> after comment",
-			inComment:       true,
-			expectedResult:  " after comment",
-			expectedWasIn:   true,
-			expectedIsIn:    false,
+			name:           "End multiline comment",
+			line:           "comment ends --> after comment",
+			inComment:      true,
+			expectedResult: " after comment",
+			expectedWasIn:  true,
+			expectedIsIn:   false,
 		},
 		{
-			name:            "Multiple comments on same line",
-			line:            "<!-- c1 --> text <!-- c2 --> more",
-			inComment:       false,
-			expectedResult:  " text  more",
-			expectedWasIn:   false,
-			expectedIsIn:    false,
+			name:           "Multiple comments on same line",
+			line:           "<!-- c1 --> text <!-- c2 --> more",
+			inComment:      false,
+			expectedResult: " text  more",
+			expectedWasIn:  false,
+			expectedIsIn:   false,
 		},
 		{
-			name:            "Empty comment",
-			line:            "Text <!---> more",
-			inComment:       false,
-			expectedResult:  "Text  more",
-			expectedWasIn:   false,
-			expectedIsIn:    false,
+			name:           "Empty comment",
+			line:           "Text <!---> more",
+			inComment:      false,
+			expectedResult: "Text  more",
+			expectedWasIn:  false,
+			expectedIsIn:   false,
 		},
 		{
-			name:            "Comment with no spaces",
-			line:            "a<!--b-->c",
-			inComment:       false,
-			expectedResult:  "ac",
-			expectedWasIn:   false,
-			expectedIsIn:    false,
+			name:           "Comment with no spaces",
+			line:           "a<!--b-->c",
+			inComment:      false,
+			expectedResult: "ac",
+			expectedWasIn:  false,
+			expectedIsIn:   false,
 		},
 	}
 
@@ -890,13 +890,13 @@ func TestRemoveXMLCommentsComplexNesting(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "Code block, then comment, then code block",
-			input: "```\ncode1\n```\n<!-- comment -->\n```\ncode2\n```",
+			name:     "Code block, then comment, then code block",
+			input:    "```\ncode1\n```\n<!-- comment -->\n```\ncode2\n```",
 			expected: "```\ncode1\n```\n\n```\ncode2\n```",
 		},
 		{
-			name: "Comment, then code block, then comment",
-			input: "<!-- c1 -->\n```\ncode\n```\n<!-- c2 -->",
+			name:     "Comment, then code block, then comment",
+			input:    "<!-- c1 -->\n```\ncode\n```\n<!-- c2 -->",
 			expected: "\n```\ncode\n```\n",
 		},
 		{
