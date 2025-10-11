@@ -7,7 +7,7 @@ sidebar:
 
 Using imports in frontmatter or markdown allows you to modularize and reuse workflow components across multiple workflows.
 
-## Overview
+## Syntax
 
 Imports can be specified either in frontmatter or in markdown. In frontmatter the `imports:` field is used:
 
