@@ -7,6 +7,8 @@ sidebar:
 
 The `imports` fields in frontmatter or markdown allow you to modularize and reuse workflow components across multiple workflows.
 
+## Overview
+
 Imports can be specified either in frontmatter or in markdown. In frontmatter the `imports:` field is used:
 
 ```aw wrap
