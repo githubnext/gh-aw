@@ -9,6 +9,7 @@ permissions:
 engine: claude
 tools:
   github:
+    mode: remote
     toolset: [context, repos, code_security]
     allowed:
       - list_code_scanning_alerts
