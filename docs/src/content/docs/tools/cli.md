@@ -559,7 +559,7 @@ The `mcp` command provides comprehensive tools for discovering, listing, and ins
 
 > **📘 Complete MCP Guide**: For comprehensive MCP setup, configuration examples, and troubleshooting, see the [MCPs](/gh-aw/guides/mcps/).
 > 
-> **🔧 MCP Server**: To run gh-aw as an MCP server exposing CLI tools, see the [MCP Server Guide](/gh-aw/guides/mcp-server/).
+> **🔧 MCP Server**: To run gh-aw as an MCP server exposing CLI tools, see the [MCP Server Guide](/gh-aw/tools/mcp-server/).
 
 ### MCP Server Discovery
 
@@ -669,7 +669,7 @@ For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](/gh-a
 
 The `mcp-server` command runs gh-aw as a Model Context Protocol (MCP) server, exposing CLI commands as tools that can be called by AI agents and other MCP clients. This enables secure, isolated access to gh-aw functionality.
 
-> **📘 Complete MCP Server Guide**: For comprehensive setup, security architecture, workflow integration examples, and troubleshooting, see the [MCP Server Guide](/gh-aw/guides/mcp-server/).
+> **📘 Complete MCP Server Guide**: For comprehensive setup, security architecture, workflow integration examples, and troubleshooting, see the [MCP Server Guide](/gh-aw/tools/mcp-server/).
 
 **Starting the Server:**
 
@@ -712,7 +712,7 @@ imports:
 
 The MCP server uses a subprocess wrapper architecture where each tool invocation spawns a `gh aw` CLI subprocess. This ensures GitHub tokens and secrets remain isolated from the MCP server process, preventing credential leakage to agentic workflows.
 
-For complete documentation including examples, security details, and troubleshooting, see the [MCP Server Guide](/gh-aw/guides/mcp-server/).
+For complete documentation including examples, security details, and troubleshooting, see the [MCP Server Guide](/gh-aw/tools/mcp-server/).
 
 ## 👀 Watch Mode for Development
 The `--watch` flag provides automatic recompilation during workflow development, monitoring for file changes in real-time. See [Authoring in VS Code](/gh-aw/tools/vscode/).
