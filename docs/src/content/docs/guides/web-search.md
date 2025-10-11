@@ -1,6 +1,8 @@
 ---
 title: Using Web Search
 description: Learn how to add web search capabilities to GitHub Agentic Workflows using Tavily MCP server.
+sidebar:
+  order: 210
 ---
 
 This guide covers how to add web search capabilities to workflows using the Tavily MCP server.

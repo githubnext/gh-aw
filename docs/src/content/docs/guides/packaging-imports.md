@@ -17,82 +17,6 @@ The GitHub Agentic Workflows system provides powerful capabilities for:
 - **Version management** with semantic versioning and branch tracking
 - **Source tracking** to maintain provenance and enable updates
 
-## Workflow Specifications
-
-Workflow specifications define how to reference workflows in external repositories. The system supports both short and explicit forms.
-
-### Short Form (3 parts)
-
-The short form automatically adds the `workflows/` prefix and `.md` extension:
-
-```bash
-gh aw add owner/repo/workflow@v1.0.0
-# Resolves to: workflows/workflow.md@v1.0.0
-```
-
-**Format:** `owner/repo/workflow-name[@version]`
-
-**Examples:**
-```bash
-gh aw add githubnext/agentics/ci-doctor              # default branch
-gh aw add githubnext/agentics/ci-doctor@v1.0.0       # version tag
-gh aw add githubnext/agentics/issue-triage@main      # branch
-```
-
-### Explicit Form (4+ parts)
-
-The explicit form requires the full path with `.md` extension:
-
-```bash
-gh aw add owner/repo/workflows/ci-doctor.md@v1.0.0
-gh aw add owner/repo/custom/path/workflow.md@main
-```
-
-**Format:** `owner/repo/path/to/workflow.md[@version]`
-
-**Examples:**
-```bash
-gh aw add githubnext/agentics/workflows/ci-doctor.md@v1.0.0
-gh aw add githubnext/agentics/examples/custom.md@develop
-```
-
-### Version References
-
-Version references can be:
-
-- **Semantic version tags** (with or without `v` prefix): `v1.0.0`, `v1.2.3`, `1.0.0`, `v2.0.0-beta`
-- **Branch names**: `main`, `develop`, `feature/new-feature`
-- **Commit SHAs** (40-character hexadecimal): `abc123def456789012345678901234567890abcdef`
-- **No version** (uses repository default branch): `owner/repo/workflow`
-
-### GitHub URL Forms
-
-The system supports multiple GitHub URL formats for convenience:
-
-**GitHub.com URLs:**
-```bash
-gh aw add https://github.com/owner/repo/blob/main/workflows/ci-doctor.md
-gh aw add https://github.com/owner/repo/tree/develop/workflows/helper.md
-gh aw add https://github.com/owner/repo/raw/v1.0.0/workflows/helper.md
-```
-
-**GitHub /files/ Path Format:**
-```bash
-# When copying paths from GitHub UI
-gh aw add owner/repo/files/main/.github/workflows/ci-doctor.md
-gh aw add owner/repo/files/COMMIT_SHA/workflows/helper.md
-```
-
-**Raw GitHub URLs:**
-```bash
-# raw.githubusercontent.com URLs
-gh aw add https://raw.githubusercontent.com/owner/repo/refs/heads/main/workflows/ci-doctor.md
-gh aw add https://raw.githubusercontent.com/owner/repo/refs/tags/v1.0.0/workflows/helper.md
-gh aw add https://raw.githubusercontent.com/owner/repo/COMMIT_SHA/workflows/helper.md
-```
-
-All URL formats automatically extract the branch/tag/commit reference from the URL path.
-
 ## Adding Workflows
 
 The `add` command installs workflows from external repositories into your project.
@@ -147,17 +71,6 @@ gh aw add githubnext/agentics/ci-doctor --engine copilot
 # Show detailed information during installation
 gh aw add githubnext/agentics/ci-doctor --verbose
 ```
-
-### What Happens When Adding
-
-When you add a workflow:
-
-1. **Downloads the workflow** from the specified repository and version
-2. **Processes imports field** in frontmatter, replacing local file references with workflow specifications
-3. **Processes legacy import directives** (if present), replacing local references with workflow specifications
-4. **Adds source field** to frontmatter for tracking origin and enabling updates
-5. **Saves the workflow** to `.github/workflows/` directory
-6. **Compiles the workflow** to generate the GitHub Actions `.lock.yml` file
 
 ### Source Field Tracking
 
@@ -215,40 +128,25 @@ gh aw update ci-doctor --engine copilot
 gh aw update --verbose
 ```
 
-### Update Logic
-
 The update command intelligently determines how to update based on the current ref in the source field:
 
-#### Semantic Version Tags (e.g., `v1.2.3`)
+**Semantic Version Tags** (e.g., `v1.2.3`)
 
 - Fetches the latest compatible release from the repository
 - By default, only updates within the same major version
 - Use `--major` flag to allow major version updates
 - Example: `v1.0.0` → `v1.2.5` (same major), or `v2.0.0` with `--major`
 
-#### Branch References (e.g., `main`, `develop`)
+**Branch References** (e.g., `main`, `develop`)
 
 - Fetches the latest commit SHA from that specific branch
 - Keeps the branch name in the source field but updates content
 - Example: `main` → latest commit on `main` branch
 
-#### No Reference or Other
+**No Reference**
 
 - Fetches the latest commit from the repository's default branch
 - Automatically determines the default branch (usually `main` or `master`)
-
-### Update Process
-
-The update process follows these steps:
-
-1. **Parses the source field** to extract repository, path, and current ref
-2. **Resolves the latest compatible version/commit** based on the ref type
-3. **Downloads versions** - the base version (original from source) and new version from GitHub
-4. **Performs a 3-way merge** using `git merge-file` to intelligently combine changes:
-   - Preserves both local modifications and upstream improvements when possible
-   - Detects conflicts when both versions modify the same content
-   - Uses diff3-style conflict markers for manual resolution when needed
-5. **Automatically recompiles** the updated workflow (skips compilation if conflicts exist)
 
 ### Merge Behavior and Conflict Resolution
 
@@ -262,33 +160,12 @@ Example: Local adds markdown section, upstream adds frontmatter field → both i
 
 **Conflicts:**
 
-When both versions modify the same content, conflict markers are added:
-
-```yaml
-<<<<<<< current (local changes)
-permissions:
-  issues: write
-||||||| base (original)
-=======
-permissions:
-  pull-requests: write
->>>>>>> new (upstream)
-```
-
-**To resolve conflicts:**
+When both versions modify the same content, conflict markers are added. To resolve conflicts:
 
 1. Review the conflict markers in the updated workflow file
 2. Manually edit to keep desired changes from both sides
 3. Remove conflict markers (`<<<<<<<`, `|||||||`, `=======`, `>>>>>>>`)
 4. Run `gh aw compile` to recompile the resolved workflow
-
-**Conflict Notification:**
-
-When conflicts occur, the update command displays a warning:
-
-```
-⚠ Updated ci-doctor.md from v1.0.0 to v1.1.0 with CONFLICTS - please review and resolve manually
-```
 
 ## Imports Field in Frontmatter
 
@@ -328,62 +205,6 @@ imports:
 ```
 
 This maintains references to the source repository and enables proper version tracking.
-
-### Frontmatter Merging
-
-- **Only `tools:` and `mcp-servers:` frontmatter** is allowed in imported files; other entries give a warning
-- **Tool merging**: `allowed:` tools are merged across all imported files
-- **MCP server merging**: MCP servers defined in imported files are merged with the main workflow
-
-**Example Tool Merging:**
-
-```aw wrap
-# Base workflow
----
-on: issues
-tools:
-  github:
-    allowed: [get_issue]
-imports:
-  - shared/extra-tools.md
----
-```
-
-```aw wrap
-# shared/extra-tools.md
----
-tools:
-  github:
-    allowed: [add_issue_comment, update_issue]
-  edit:
----
-```
-
-**Result:** Final workflow has `github.allowed: [get_issue, add_issue_comment, update_issue]` and Claude Edit tool.
-
-**Example MCP Server Merging:**
-
-```aw wrap
-# Base workflow
----
-on: issues
-engine: copilot
-imports:
-  - shared/mcp/tavily.md
----
-```
-
-```aw wrap
-# shared/mcp/tavily.md
----
-mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
-    allowed: ["*"]
----
-```
-
-**Result:** Final workflow has the Tavily MCP server configured and available to the AI engine.
 
 ## Practical Examples
 
