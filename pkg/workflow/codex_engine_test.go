@@ -311,6 +311,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"[mcp_servers.github.env]",
 				"GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"",
 				"GITHUB_TOOLSETS = \"all\"",
+				"tools = [\"*\"]",
 				"EOF",
 			},
 		},

@@ -557,6 +557,44 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 				`}`,
 			},
 		},
+		{
+			name: "GitHub MCP with allowed tools",
+			githubTool: map[string]any{
+				"allowed": []string{"create_issue", "update_issue", "add_issue_comment"},
+			},
+			isLast: false,
+			expectedStrs: []string{
+				`"github": {`,
+				`"type": "local",`,
+				`"command": "docker",`,
+				`"tools": ["create_issue", "update_issue", "add_issue_comment"]`,
+				`},`,
+			},
+		},
+		{
+			name: "GitHub MCP with single allowed tool",
+			githubTool: map[string]any{
+				"allowed": []string{"get_repository"},
+			},
+			isLast: true,
+			expectedStrs: []string{
+				`"github": {`,
+				`"tools": ["get_repository"]`,
+				`}`,
+			},
+		},
+		{
+			name: "GitHub MCP with empty allowed array",
+			githubTool: map[string]any{
+				"allowed": []string{},
+			},
+			isLast: true,
+			expectedStrs: []string{
+				`"github": {`,
+				`"tools": ["*"]`,
+				`}`,
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -115,6 +115,88 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 	}
 }
 
+func TestClaudeEngineGitHubAllowedToolsRendering(t *testing.T) {
+	tests := []struct {
+		name           string
+		githubTool     any
+		expectedInYAML []string
+		notInYAML      []string
+	}{
+		{
+			name: "Allowed tools configured with array",
+			githubTool: map[string]any{
+				"allowed": []string{"create_issue", "update_issue", "add_issue_comment"},
+			},
+			expectedInYAML: []string{
+				`"tools": ["create_issue", "update_issue", "add_issue_comment"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Single allowed tool",
+			githubTool: map[string]any{
+				"allowed": []string{"get_repository"},
+			},
+			expectedInYAML: []string{
+				`"tools": ["get_repository"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name:       "No allowed tools configured (default to all)",
+			githubTool: map[string]any{},
+			expectedInYAML: []string{
+				`"tools": ["*"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Empty allowed array (default to all)",
+			githubTool: map[string]any{
+				"allowed": []string{},
+			},
+			expectedInYAML: []string{
+				`"tools": ["*"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Allowed tools with toolsets",
+			githubTool: map[string]any{
+				"allowed": []string{"create_issue", "update_issue"},
+				"toolset": []string{"repos", "issues"},
+			},
+			expectedInYAML: []string{
+				`"tools": ["create_issue", "update_issue"]`,
+				`"GITHUB_TOOLSETS": "repos,issues"`,
+			},
+			notInYAML: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine := &ClaudeEngine{}
+			var yaml strings.Builder
+			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true)
+
+			result := yaml.String()
+
+			for _, expected := range tt.expectedInYAML {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected YAML to contain %q, but it didn't.\nYAML:\n%s", expected, result)
+				}
+			}
+
+			for _, notExpected := range tt.notInYAML {
+				if strings.Contains(result, notExpected) {
+					t.Errorf("Expected YAML to NOT contain %q, but it did.\nYAML:\n%s", notExpected, result)
+				}
+			}
+		})
+	}
+}
+
 func TestCopilotEngineGitHubToolsetsRendering(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -199,6 +281,92 @@ func TestCodexEngineGitHubToolsetsRendering(t *testing.T) {
 			engine := &CodexEngine{}
 			var yaml strings.Builder
 			workflowData := &WorkflowData{Name: "test-workflow"}
+			engine.renderGitHubCodexMCPConfig(&yaml, tt.githubTool, workflowData)
+
+			result := yaml.String()
+
+			for _, expected := range tt.expectedInYAML {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected YAML to contain %q, but it didn't.\nYAML:\n%s", expected, result)
+				}
+			}
+
+			for _, notExpected := range tt.notInYAML {
+				if strings.Contains(result, notExpected) {
+					t.Errorf("Expected YAML to NOT contain %q, but it did.\nYAML:\n%s", notExpected, result)
+				}
+			}
+		})
+	}
+}
+
+func TestCodexEngineGitHubAllowedToolsRendering(t *testing.T) {
+	tests := []struct {
+		name           string
+		githubTool     any
+		expectedInYAML []string
+		notInYAML      []string
+	}{
+		{
+			name: "Allowed tools configured with array",
+			githubTool: map[string]any{
+				"allowed": []string{"create_issue", "update_issue", "add_issue_comment"},
+			},
+			expectedInYAML: []string{
+				`tools = ["create_issue", "update_issue", "add_issue_comment"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Single allowed tool",
+			githubTool: map[string]any{
+				"allowed": []string{"get_repository"},
+			},
+			expectedInYAML: []string{
+				`tools = ["get_repository"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name:       "No allowed tools configured (default to all)",
+			githubTool: map[string]any{},
+			expectedInYAML: []string{
+				`tools = ["*"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Empty allowed array (default to all)",
+			githubTool: map[string]any{
+				"allowed": []string{},
+			},
+			expectedInYAML: []string{
+				`tools = ["*"]`,
+			},
+			notInYAML: []string{},
+		},
+		{
+			name: "Allowed tools with toolsets",
+			githubTool: map[string]any{
+				"allowed": []string{"create_issue", "update_issue"},
+				"toolset": []string{"repos", "issues"},
+			},
+			expectedInYAML: []string{
+				`tools = ["create_issue", "update_issue"]`,
+				`GITHUB_TOOLSETS = "repos,issues"`,
+			},
+			notInYAML: []string{},
+		},
+	}
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine := &CodexEngine{}
+			var yaml strings.Builder
 			engine.renderGitHubCodexMCPConfig(&yaml, tt.githubTool, workflowData)
 
 			result := yaml.String()

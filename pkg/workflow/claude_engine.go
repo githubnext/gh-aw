@@ -649,6 +649,7 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
+	allowed := getGitHubAllowed(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -674,7 +675,10 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 			yaml.WriteString("\n")
 		}
 
-		yaml.WriteString("                }\n")
+		yaml.WriteString("                },\n")
+		// Generate tools array from allowed list
+		e.renderToolsArray(yaml, allowed, "                ")
+		yaml.WriteString("              ")
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
@@ -719,13 +723,36 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		}
 
 		yaml.WriteString("\n")
-		yaml.WriteString("                }\n")
+		yaml.WriteString("                },\n")
+		// Generate tools array from allowed list
+		e.renderToolsArray(yaml, allowed, "                ")
+		yaml.WriteString("              ")
 	}
 
 	if isLast {
-		yaml.WriteString("              }\n")
+		yaml.WriteString("}\n")
 	} else {
-		yaml.WriteString("              },\n")
+		yaml.WriteString("},\n")
+	}
+}
+
+// renderToolsArray generates the "tools" array in MCP configuration JSON
+// If allowed is nil or empty, outputs ["*"] for all tools
+// Otherwise, outputs the specific allowed tool names
+func (e *ClaudeEngine) renderToolsArray(yaml *strings.Builder, allowed []string, indent string) {
+	if allowed == nil || len(allowed) == 0 {
+		// Default to all tools if no allowed list specified
+		yaml.WriteString(indent + "\"tools\": [\"*\"]\n")
+	} else {
+		// Generate array with specific tool names
+		yaml.WriteString(indent + "\"tools\": [")
+		for i, tool := range allowed {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + tool + "\"")
+		}
+		yaml.WriteString("]\n")
 	}
 }
 

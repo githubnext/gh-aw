@@ -512,6 +512,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
+	allowed := getGitHubAllowed(githubTool)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
@@ -551,6 +552,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		} else {
 			yaml.WriteString(" }\n")
 		}
+
+		// Generate tools array from allowed list (TOML format)
+		e.renderToolsArrayTOML(yaml, allowed, "          ")
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
@@ -595,6 +599,29 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 			yaml.WriteString("          GITHUB_TOOLSETS = \"all\"\n")
 
 		}
+
+		// Generate tools array from allowed list (TOML format)
+		e.renderToolsArrayTOML(yaml, allowed, "          ")
+	}
+}
+
+// renderToolsArrayTOML generates the "tools" array in TOML format
+// If allowed is nil or empty, outputs tools = ["*"] for all tools
+// Otherwise, outputs the specific allowed tool names
+func (e *CodexEngine) renderToolsArrayTOML(yaml *strings.Builder, allowed []string, indent string) {
+	if allowed == nil || len(allowed) == 0 {
+		// Default to all tools if no allowed list specified
+		yaml.WriteString(indent + "tools = [\"*\"]\n")
+	} else {
+		// Generate array with specific tool names
+		yaml.WriteString(indent + "tools = [")
+		for i, tool := range allowed {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			yaml.WriteString("\"" + tool + "\"")
+		}
+		yaml.WriteString("]\n")
 	}
 }
 
