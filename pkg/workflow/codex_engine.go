@@ -567,6 +567,8 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 			yaml.WriteString("            \"-e\",\n")
 			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
 		}
+		yaml.WriteString("            \"-e\",\n")
+		yaml.WriteString("            \"GITHUB_TOOLSETS\",\n")
 		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present
@@ -589,6 +591,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		// Add toolsets if configured
 		if toolsets != "" {
 			yaml.WriteString("          GITHUB_TOOLSETS = \"" + toolsets + "\"\n")
+		} else {
+			yaml.WriteString("          GITHUB_TOOLSETS = \"all\"\n")
+
 		}
 	}
 }

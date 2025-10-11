@@ -1224,6 +1224,8 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+                  "-e",
+                  "GITHUB_TOOLSETS=all",
                   "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
                 "tools": ["*"]
