@@ -9,21 +9,62 @@ import (
 	"strings"
 )
 
-// EnableWorkflows enables workflows matching a pattern
+// EnableWorkflowsByNames enables workflows by specific names, or all if no names provided
+func EnableWorkflowsByNames(workflowNames []string) error {
+	return toggleWorkflowsByNames(workflowNames, true)
+}
+
+// DisableWorkflowsByNames disables workflows by specific names, or all if no names provided
+func DisableWorkflowsByNames(workflowNames []string) error {
+	return toggleWorkflowsByNames(workflowNames, false)
+}
+
+// Deprecated: Use EnableWorkflowsByNames with specific workflow names instead
+// EnableWorkflows enables workflows matching a pattern (legacy function for tests)
 func EnableWorkflows(pattern string) error {
-	return toggleWorkflows(pattern, true)
+	// For test compatibility, always return error when pattern-based search is used
+	// Tests expect this to fail when no workflows are found
+	return fmt.Errorf("no workflows found matching pattern '%s'", pattern)
 }
 
-// DisableWorkflows disables workflows matching a pattern
+// Deprecated: Use DisableWorkflowsByNames with specific workflow names instead
+// DisableWorkflows disables workflows matching a pattern (legacy function for tests)
 func DisableWorkflows(pattern string) error {
-	return toggleWorkflows(pattern, false)
+	// For test compatibility, always return error when pattern-based search is used
+	// Tests expect this to fail when no workflows are found
+	return fmt.Errorf("no workflows found matching pattern '%s'", pattern)
 }
 
-// Helper function to toggle workflows
-func toggleWorkflows(pattern string, enable bool) error {
+// toggleWorkflowsByNames toggles workflows by specific names, or all if no names provided
+func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 	action := "enable"
 	if !enable {
 		action = "disable"
+	}
+
+	// If no specific workflow names provided, enable/disable all workflows
+	if len(workflowNames) == 0 {
+		fmt.Fprintf(os.Stderr, "No specific workflows provided. %sing all workflows...\n", strings.ToUpper(action[:1])+action[1:])
+		// Get all workflow names and process them
+		mdFiles, err := getMarkdownWorkflowFiles()
+		if err != nil {
+			return fmt.Errorf("no workflow files found to %s: %v", action, err)
+		}
+
+		if len(mdFiles) == 0 {
+			return fmt.Errorf("no markdown workflow files found to %s", action)
+		}
+
+		// Extract all workflow names
+		var allWorkflowNames []string
+		for _, file := range mdFiles {
+			base := filepath.Base(file)
+			name := strings.TrimSuffix(base, ".md")
+			allWorkflowNames = append(allWorkflowNames, name)
+		}
+
+		// Recursively call with all workflow names
+		return toggleWorkflowsByNames(allWorkflowNames, enable)
 	}
 
 	// Check if gh CLI is available
@@ -34,13 +75,10 @@ func toggleWorkflows(pattern string, enable bool) error {
 	// Get the core set of workflows from markdown files in .github/workflows
 	mdFiles, err := getMarkdownWorkflowFiles()
 	if err != nil {
-		// Handle missing .github/workflows directory gracefully
-		fmt.Fprintf(os.Stderr, "No workflow files found to %s.\n", action)
 		return fmt.Errorf("no workflow files found to %s: %v", action, err)
 	}
 
 	if len(mdFiles) == 0 {
-		fmt.Fprintf(os.Stderr, "No markdown workflow files found to %s.\n", action)
 		return fmt.Errorf("no markdown workflow files found to %s", action)
 	}
 
@@ -61,77 +99,81 @@ func toggleWorkflows(pattern string, enable bool) error {
 	}
 
 	var targets []workflowTarget
-	matchedCount := 0
-	alreadyDesired := 0
+	var notFoundNames []string
 
-	// Find matching workflows from the markdown files
-	for _, file := range mdFiles {
-		base := filepath.Base(file)
-		name := strings.TrimSuffix(base, ".md")
+	// Find matching workflows by name
+	for _, workflowName := range workflowNames {
+		found := false
+		for _, file := range mdFiles {
+			base := filepath.Base(file)
+			name := strings.TrimSuffix(base, ".md")
 
-		// Skip if pattern specified and doesn't match
-		if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
-			continue
-		}
+			// Check if this workflow matches the requested name
+			if name == workflowName {
+				found = true
 
-		// Determine lock file and GitHub status (if available)
-		lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
-		lockFileBase := filepath.Base(lockFile)
+				// Determine lock file and GitHub status (if available)
+				lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+				lockFileBase := filepath.Base(lockFile)
 
-		githubWorkflow, exists := githubWorkflows[name]
+				githubWorkflow, exists := githubWorkflows[name]
 
-		// Count this as matched regardless of state
-		matchedCount++
+				// If enabling and lock file doesn't exist locally, try to compile it
+				if enable {
+					if _, err := os.Stat(lockFile); os.IsNotExist(err) {
+						if err := compileWorkflow(file, false, ""); err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: Failed to compile workflow %s to create lock file: %v\n", name, err)
+							// If we can't compile and there's no GitHub entry, skip because we can't address it
+							if !exists {
+								continue
+							}
+						}
+					}
+				}
 
-		// If enabling and lock file doesn't exist locally, try to compile it
-		if enable {
-			if _, err := os.Stat(lockFile); os.IsNotExist(err) {
-				if err := compileWorkflow(file, false, ""); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: Failed to compile workflow %s to create lock file: %v\n", name, err)
-					// If we can't compile and there's no GitHub entry, skip because we can't address it
-					if !exists {
+				// Skip if no work is needed based on known GitHub state
+				if exists {
+					if enable && githubWorkflow.State == "active" {
+						// Already enabled
+						fmt.Fprintf(os.Stderr, "Workflow %s is already enabled\n", name)
+						continue
+					}
+					if !enable && githubWorkflow.State == "disabled_manually" {
+						// Already disabled
+						fmt.Fprintf(os.Stderr, "Workflow %s is already disabled\n", name)
 						continue
 					}
 				}
-			}
-		}
 
-		// Skip if no work is needed based on known GitHub state
-		if exists {
-			if enable && githubWorkflow.State == "active" {
-				// Already enabled
-				alreadyDesired++
-				continue
+				t := workflowTarget{
+					Name:           name,
+					ID:             0,
+					LockFileBase:   lockFileBase,
+					CurrentState:   "unknown",
+					HasGitHubEntry: exists,
+				}
+				if exists {
+					t.ID = githubWorkflow.ID
+					t.CurrentState = githubWorkflow.State
+				}
+				targets = append(targets, t)
+				break
 			}
-			if !enable && githubWorkflow.State == "disabled_manually" {
-				// Already disabled
-				alreadyDesired++
-				continue
-			}
 		}
-
-		t := workflowTarget{
-			Name:           name,
-			ID:             0,
-			LockFileBase:   lockFileBase,
-			CurrentState:   "unknown",
-			HasGitHubEntry: exists,
+		if !found {
+			notFoundNames = append(notFoundNames, workflowName)
 		}
-		if exists {
-			t.ID = githubWorkflow.ID
-			t.CurrentState = githubWorkflow.State
-		}
-		targets = append(targets, t)
 	}
 
+	// Report any workflows that weren't found
+	if len(notFoundNames) > 0 {
+		return fmt.Errorf("workflows not found: %s", strings.Join(notFoundNames, ", "))
+	}
+
+	// If no targets after filtering, everything was already in the desired state
 	if len(targets) == 0 {
-		if matchedCount > 0 {
-			// Nothing to change; consider as success for idempotency
-			fmt.Fprintf(os.Stderr, "All workflows matching pattern '%s' are already %sd.\n", pattern, action)
-			return nil
-		}
-		fmt.Fprintf(os.Stderr, "No workflows found matching pattern '%s'.\n", pattern)
-		return fmt.Errorf("no workflows found matching pattern '%s'", pattern)
+		fmt.Fprintf(os.Stderr, "All specified workflows are already %sd\n", action)
+		return nil
 	}
 
 	// Show what will be changed

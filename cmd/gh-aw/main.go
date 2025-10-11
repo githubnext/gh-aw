@@ -99,14 +99,16 @@ var statusCmd = &cobra.Command{
 }
 
 var enableCmd = &cobra.Command{
-	Use:   "enable [pattern]",
+	Use:   "enable [workflow-name]...",
 	Short: "Enable natural language action workflows",
+	Long: `Enable one or more workflows by name, or all workflows if no names are provided.
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` enable                    # Enable all workflows
+  ` + constants.CLIExtensionPrefix + ` enable ci-doctor         # Enable specific workflow
+  ` + constants.CLIExtensionPrefix + ` enable ci-doctor daily   # Enable multiple workflows`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var pattern string
-		if len(args) > 0 {
-			pattern = args[0]
-		}
-		if err := cli.EnableWorkflows(pattern); err != nil {
+		if err := cli.EnableWorkflowsByNames(args); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -114,14 +116,16 @@ var enableCmd = &cobra.Command{
 }
 
 var disableCmd = &cobra.Command{
-	Use:   "disable [pattern]",
+	Use:   "disable [workflow-name]...",
 	Short: "Disable natural language action workflows and cancel any in-progress runs",
+	Long: `Disable one or more workflows by name, or all workflows if no names are provided.
+
+Examples:
+  ` + constants.CLIExtensionPrefix + ` disable                    # Disable all workflows
+  ` + constants.CLIExtensionPrefix + ` disable ci-doctor         # Disable specific workflow
+  ` + constants.CLIExtensionPrefix + ` disable ci-doctor daily   # Disable multiple workflows`,
 	Run: func(cmd *cobra.Command, args []string) {
-		var pattern string
-		if len(args) > 0 {
-			pattern = args[0]
-		}
-		if err := cli.DisableWorkflows(pattern); err != nil {
+		if err := cli.DisableWorkflowsByNames(args); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
