@@ -1,6 +1,8 @@
 ---
 title: MCP Server
 description: Use the gh-aw MCP server to expose CLI tools to AI agents via Model Context Protocol, enabling secure workflow management.
+sidebar:
+  order: 400
 ---
 
 The `gh aw mcp-server` command exposes `gh aw` CLI tools (status, compile, logs, audit) to AI agents through the Model Context Protocol. The MCP server enables AI agents to:

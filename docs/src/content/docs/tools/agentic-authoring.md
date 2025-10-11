@@ -1,6 +1,8 @@
 ---
 title: Authoring Agentic Workflows
 description: Learn how to use the create-agentic-workflow.prompt.md file in VS Code to author agentic workflows in natural language.
+sidebar:
+  order: 100
 ---
 
 GitHub Agentic Workflows provide a prompt file that turns your favorite agent into 

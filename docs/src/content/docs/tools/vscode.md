@@ -1,6 +1,8 @@
 ---
 title: VS Code Integration
 description: Learn about the gh aw CLI tools for improving your developer experience in VS Code and other IDEs, including Copilot instructions.
+sidebar:
+  order: 300
 ---
 
 The `gh aw` cli provides a few tools to improve your developer experience in VS Code (or other IDEs).
