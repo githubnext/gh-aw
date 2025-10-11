@@ -73,8 +73,12 @@ This should all be safely base64 encoded and written to a file.`
 		t.Error("Expected lock file to create /tmp/gh-aw/templates directory")
 	}
 
-	if !strings.Contains(lockContent, "base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md") {
-		t.Error("Expected lock file to use base64 decoding from .b64 file to write workflow.md")
+	if !strings.Contains(lockContent, "cat > /tmp/gh-aw/templates/workflow.md <<'WORKFLOW_MARKDOWN_EOF'") {
+		t.Error("Expected lock file to use here-document to write workflow.md")
+	}
+
+	if !strings.Contains(lockContent, "WORKFLOW_MARKDOWN_EOF") {
+		t.Error("Expected lock file to contain WORKFLOW_MARKDOWN_EOF delimiter")
 	}
 
 	// Verify WORKFLOW_MARKDOWN is NOT in environment variables
@@ -116,12 +120,11 @@ This should all be safely base64 encoded and written to a file.`
 	}
 
 	// Verify that the actual markdown content is NOT in the environment variables section
-	// but IS in the base64-encoded shell step
 	if strings.Contains(setupSection, "Lorem ipsum dolor sit amet") {
 		t.Error("Expected markdown content to NOT be in plain text in environment variables")
 	}
 
-	// Find the file-writing step and verify base64 content exists there
+	// Find the file-writing step and verify here-document exists there
 	writeStepIndex := strings.Index(lockContent, "Write workflow markdown to file")
 	if writeStepIndex == -1 {
 		t.Fatal("Could not find 'Write workflow markdown to file' step")
@@ -133,17 +136,18 @@ This should all be safely base64 encoded and written to a file.`
 	}
 	writeStepSection := lockContent[writeStepIndex : writeStepIndex+writeStepEnd]
 
-	// The base64-encoded content should be written to a .b64 file first
-	if !strings.Contains(writeStepSection, "echo '") {
-		t.Error("Expected base64-encoded content in write step")
+	// The markdown content should be in a here-document
+	if !strings.Contains(writeStepSection, "cat > /tmp/gh-aw/templates/workflow.md <<'WORKFLOW_MARKDOWN_EOF'") {
+		t.Error("Expected here-document with WORKFLOW_MARKDOWN_EOF delimiter")
 	}
 
-	if !strings.Contains(writeStepSection, "/tmp/gh-aw/templates/workflow.b64") {
-		t.Error("Expected base64 content to be written to workflow.b64 file")
+	if !strings.Contains(writeStepSection, "WORKFLOW_MARKDOWN_EOF") {
+		t.Error("Expected WORKFLOW_MARKDOWN_EOF delimiter to close here-document")
 	}
 
-	if !strings.Contains(writeStepSection, "base64 -d /tmp/gh-aw/templates/workflow.b64") {
-		t.Error("Expected base64 decoding from workflow.b64 file")
+	// The actual markdown content should be present in the section (not base64 encoded)
+	if !strings.Contains(writeStepSection, "Lorem ipsum") {
+		t.Error("Expected actual markdown content to be present (not encoded)")
 	}
 }
 

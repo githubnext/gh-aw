@@ -2928,8 +2928,65 @@ jobs:
       - name: Write workflow markdown to file
         run: |
           mkdir -p /tmp/gh-aw/templates
-          echo 'IyBBcnRpZmFjdHMgU3VtbWFyeQoKR2VuZXJhdGUgYSBjb21wcmVoZW5zaXZlIHN1bW1hcnkgdGFibGUgb2YgR2l0SHViIEFjdGlvbnMgYXJ0aWZhY3RzIHVzYWdlIGluIHRoZSByZXBvc2l0b3J5ICR7eyBnaXRodWIucmVwb3NpdG9yeSB9fS4KCiMjIFRhc2sgUmVxdWlyZW1lbnRzCgoxLiAqKkFuYWx5emUgYWxsIHdvcmtmbG93cyoqIGluIHRoZSByZXBvc2l0b3J5IHRvIGlkZW50aWZ5IHdoaWNoIG9uZXMgZ2VuZXJhdGUgYXJ0aWZhY3RzCjIuICoqQ29sbGVjdCBhcnRpZmFjdCBkYXRhKiogZm9yIHJlY2VudCB3b3JrZmxvdyBydW5zIChsYXN0IDMwIGRheXMgcmVjb21tZW5kZWQpCjMuICoqR2VuZXJhdGUgYSBzdW1tYXJ5IHRhYmxlKiogd2l0aCB0aGUgZm9sbG93aW5nIGNvbHVtbnM6CiAgIC0gV29ya2Zsb3cgTmFtZQogICAtIFRvdGFsIEFydGlmYWN0cyBDb3VudAogICAtIFRvdGFsIFNpemUgKGluIE1CL0dCKQogICAtIEF2ZXJhZ2UgU2l6ZSBwZXIgQXJ0aWZhY3QKICAgLSBMYXRlc3QgUnVuIERhdGUKICAgLSBTdGF0dXMgKEFjdGl2ZS9JbmFjdGl2ZSkKCiMjIEFuYWx5c2lzIEluc3RydWN0aW9ucwoKUGxlYXNlOgoKMS4gKipMaXN0IGFsbCB3b3JrZmxvd3MqKiBpbiB0aGUgcmVwb3NpdG9yeSB1c2luZyB0aGUgR2l0SHViIEFQSQoyLiAqKkZvciBlYWNoIHdvcmtmbG93KiosIGdldCByZWNlbnQgcnVucyBhbmQgdGhlaXIgYXJ0aWZhY3RzCjMuICoqQ2FsY3VsYXRlIHN0YXRpc3RpY3MqKjoKICAgLSBUb3RhbCBudW1iZXIgb2YgYXJ0aWZhY3RzIHBlciB3b3JrZmxvdwogICAtIFRvdGFsIHNpemUgb2YgYWxsIGFydGlmYWN0cyBwZXIgd29ya2Zsb3cKICAgLSBBdmVyYWdlIGFydGlmYWN0IHNpemUKICAgLSBNb3N0IHJlY2VudCBydW4gZGF0ZQo0LiAqKkNyZWF0ZSBhIG1hcmtkb3duIHRhYmxlKiogd2l0aCB0aGUgc3VtbWFyeQo1LiAqKkluY2x1ZGUgaW5zaWdodHMqKiBzdWNoIGFzOgogICAtIFdoaWNoIHdvcmtmbG93cyBnZW5lcmF0ZSB0aGUgbW9zdCBhcnRpZmFjdHMKICAgLSBXaGljaCB3b3JrZmxvd3MgdXNlIHRoZSBtb3N0IHN0b3JhZ2UKICAgLSBUcmVuZHMgaW4gYXJ0aWZhY3QgdXNhZ2UKICAgLSBSZWNvbW1lbmRhdGlvbnMgZm9yIG9wdGltaXphdGlvbgoKIyMgT3V0cHV0IEZvcm1hdAoKQ3JlYXRlIGFuIGlzc3VlIHdpdGggYSBtYXJrZG93biB0YWJsZSBsaWtlIHRoaXM6CgpgYGBtYXJrZG93bgojIEFydGlmYWN0cyBVc2FnZSBSZXBvcnQKCnwgV29ya2Zsb3cgTmFtZSB8IEFydGlmYWN0cyBDb3VudCB8IFRvdGFsIFNpemUgfCBBdmcgU2l6ZSB8IExhdGVzdCBSdW4gfCBTdGF0dXMgfAp8LS0tLS0tLS0tLS0tLS0tfC0tLS0tLS0tLS0tLS0tLS0tfC0tLS0tLS0tLS0tLXwtLS0tLS0tLS0tfC0tLS0tLS0tLS0tLXwtLS0tLS0tLXwKfCB3b3JrZmxvdy0xICAgIHwgNDUgICAgICAgICAgICAgfCAyLjMgR0IgICAgIHwgNTIgTUIgICAgfCAyMDI0LTAxLTE1IHwgQWN0aXZlIHwKfCB3b3JrZmxvdy0yICAgIHwgMTIgICAgICAgICAgICAgfCA0NTYgTUIgICAgIHwgMzggTUIgICAgfCAyMDI0LTAxLTEwIHwgQWN0aXZlIHwKCiMjIEluc2lnaHRzICYgUmVjb21tZW5kYXRpb25zCltZb3VyIGFuYWx5c2lzIGFuZCByZWNvbW1lbmRhdGlvbnMgaGVyZV0KYGBgCgojIyBJbXBvcnRhbnQgTm90ZXMKCi0gRm9jdXMgb24gd29ya2Zsb3dzIHRoYXQgYWN0dWFsbHkgZ2VuZXJhdGUgYXJ0aWZhY3RzIChza2lwIHRob3NlIHdpdGhvdXQgYW55KQotIENvbnZlcnQgc2l6ZXMgdG8gaHVtYW4tcmVhZGFibGUgZm9ybWF0cyAoTUIsIEdCKQotIENvbnNpZGVyIGFydGlmYWN0IHJldGVudGlvbiBwb2xpY2llcyBpbiB5b3VyIGFuYWx5c2lzCi0gSW5jbHVkZSBib3RoIHN1Y2Nlc3NmdWwgYW5kIGZhaWxlZCBydW5zIGluIHRoZSBhbmFseXNpcywgaWdub3JlIGNhbmNlbGxlZCBydW5zCg==' > /tmp/gh-aw/templates/workflow.b64
-          base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md
+          cat > /tmp/gh-aw/templates/workflow.md <<'WORKFLOW_MARKDOWN_EOF'
+          # Artifacts Summary
+          
+          Generate a comprehensive summary table of GitHub Actions artifacts usage in the repository ${{ github.repository }}.
+          
+          ## Task Requirements
+          
+          1. **Analyze all workflows** in the repository to identify which ones generate artifacts
+          2. **Collect artifact data** for recent workflow runs (last 30 days recommended)
+          3. **Generate a summary table** with the following columns:
+             - Workflow Name
+             - Total Artifacts Count
+             - Total Size (in MB/GB)
+             - Average Size per Artifact
+             - Latest Run Date
+             - Status (Active/Inactive)
+          
+          ## Analysis Instructions
+          
+          Please:
+          
+          1. **List all workflows** in the repository using the GitHub API
+          2. **For each workflow**, get recent runs and their artifacts
+          3. **Calculate statistics**:
+             - Total number of artifacts per workflow
+             - Total size of all artifacts per workflow
+             - Average artifact size
+             - Most recent run date
+          4. **Create a markdown table** with the summary
+          5. **Include insights** such as:
+             - Which workflows generate the most artifacts
+             - Which workflows use the most storage
+             - Trends in artifact usage
+             - Recommendations for optimization
+          
+          ## Output Format
+          
+          Create an issue with a markdown table like this:
+          
+          ```markdown
+          # Artifacts Usage Report
+          
+          | Workflow Name | Artifacts Count | Total Size | Avg Size | Latest Run | Status |
+          |---------------|-----------------|------------|----------|------------|--------|
+          | workflow-1    | 45             | 2.3 GB     | 52 MB    | 2024-01-15 | Active |
+          | workflow-2    | 12             | 456 MB     | 38 MB    | 2024-01-10 | Active |
+          
+          ## Insights & Recommendations
+          [Your analysis and recommendations here]
+          ```
+          
+          ## Important Notes
+          
+          - Focus on workflows that actually generate artifacts (skip those without any)
+          - Convert sizes to human-readable formats (MB, GB)
+          - Consider artifact retention policies in your analysis
+          - Include both successful and failed runs in the analysis, ignore cancelled runs
+          
+          WORKFLOW_MARKDOWN_EOF
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:

@@ -2,7 +2,6 @@ package workflow
 
 import (
 	_ "embed"
-	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -154,37 +153,24 @@ func (c *Compiler) buildWriteWorkflowMarkdownStep(data *WorkflowData) []string {
 		workflowMarkdown = "No content provided"
 	}
 
-	// Use base64 encoding to safely write the content without escaping issues
-	encoded := base64.StdEncoding.EncodeToString([]byte(workflowMarkdown))
-
-	// Split the base64 string into chunks to avoid hitting GitHub Actions expression size limits
-	// Each line should be under 20KB to stay within GitHub's 21KB limit
-	const maxLineLength = 15000 // Use 15KB to have a safety margin
-	var chunks []string
-	for i := 0; i < len(encoded); i += maxLineLength {
-		end := i + maxLineLength
-		if end > len(encoded) {
-			end = len(encoded)
-		}
-		chunks = append(chunks, encoded[i:end])
+	// Indent each line of the markdown content to match YAML literal block scalar requirements
+	// All lines in a YAML literal block must have consistent indentation
+	lines := strings.Split(workflowMarkdown, "\n")
+	var indentedLines []string
+	for _, line := range lines {
+		indentedLines = append(indentedLines, "          "+line+"\n")
 	}
+	indentedContent := strings.Join(indentedLines, "")
 
-	// Build the echo commands to write the base64 content
-	var echoCommands string
-	for i, chunk := range chunks {
-		if i == 0 {
-			echoCommands = fmt.Sprintf("          echo '%s' > /tmp/gh-aw/templates/workflow.b64\n", chunk)
-		} else {
-			echoCommands += fmt.Sprintf("          echo '%s' >> /tmp/gh-aw/templates/workflow.b64\n", chunk)
-		}
-	}
-
+	// Use a here-document to write the content safely without encoding
+	// This avoids issues with special characters and doesn't bloat the YAML
 	return []string{
 		"      - name: Write workflow markdown to file\n",
 		"        run: |\n",
 		"          mkdir -p /tmp/gh-aw/templates\n",
-		echoCommands,
-		"          base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md\n",
+		"          cat > /tmp/gh-aw/templates/workflow.md <<'WORKFLOW_MARKDOWN_EOF'\n",
+		indentedContent,
+		"          WORKFLOW_MARKDOWN_EOF\n",
 	}
 }
 

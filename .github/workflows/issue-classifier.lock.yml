@@ -2220,8 +2220,67 @@ jobs:
       - name: Write workflow markdown to file
         run: |
           mkdir -p /tmp/gh-aw/templates
-          echo 'PCEtLQpUaGlzIHNoYXJlZCBjb25maWd1cmF0aW9uIHNldHMgdXAgYSBjdXN0b20gYWdlbnRpYyBlbmdpbmUgdXNpbmcgR2l0SHViJ3MgQUkgaW5mZXJlbmNlIGFjdGlvbi4KCioqTm90ZSoqOiBXaGVuIHVzaW5nIHRoaXMgc2hhcmVkIGNvbmZpZ3VyYXRpb24sIGVuc3VyZSB5b3VyIHdvcmtmbG93IGluY2x1ZGVzIGBtb2RlbHM6IHJlYWRgIHBlcm1pc3Npb24uCgojIyBHaXRIdWIgTUNQIEludGVncmF0aW9uIChPcHRpb25hbCkKClRoaXMgY29uZmlndXJhdGlvbiBzdXBwb3J0cyBvcHRpb25hbCBHaXRIdWIgTUNQIChNb2RlbCBDb250ZXh0IFByb3RvY29sKSBpbnRlZ3JhdGlvbiwgd2hpY2ggcHJvdmlkZXMgQUkgbW9kZWxzIHdpdGggYWNjZXNzIHRvIEdpdEh1YiB0b29scyBmb3IgcmVwb3NpdG9yeSBtYW5hZ2VtZW50LCBpc3N1ZSB0cmFja2luZywgYW5kIHB1bGwgcmVxdWVzdCBvcGVyYXRpb25zLgoKIyMjIEVuYWJsaW5nIEdpdEh1YiBNQ1AKClRvIGVuYWJsZSBHaXRIdWIgTUNQLCBjb25maWd1cmUgYSBgR0lUSFVCX01DUF9UT0tFTmAgc2VjcmV0IGluIHlvdXIgcmVwb3NpdG9yeToKCjEuIEdvIHRvIHlvdXIgcmVwb3NpdG9yeSBzZXR0aW5ncyDihpIgU2VjcmV0cyBhbmQgdmFyaWFibGVzIOKGkiBBY3Rpb25zCjIuIENyZWF0ZSBhIG5ldyByZXBvc2l0b3J5IHNlY3JldCBuYW1lZCBgR0lUSFVCX01DUF9UT0tFTmAKMy4gVXNlIGEgUGVyc29uYWwgQWNjZXNzIFRva2VuIChQQVQpIHdpdGggYXBwcm9wcmlhdGUgcGVybWlzc2lvbnMgYXMgdGhlIHNlY3JldCB2YWx1ZQoKKipJbXBvcnRhbnQqKjogVGhlIEdpdEh1YiBNQ1AgaW50ZWdyYXRpb24gcmVxdWlyZXMgYSBQZXJzb25hbCBBY2Nlc3MgVG9rZW4gKFBBVCkgYW5kIGNhbm5vdCB1c2UgdGhlIGJ1aWx0LWluIGBHSVRIVUJfVE9LRU5gLgoKV2hlbiB0aGUgYEdJVEhVQl9NQ1BfVE9LRU5gIHNlY3JldCBpcyBjb25maWd1cmVkLCB0aGUgQUkgbW9kZWwgd2lsbCBhdXRvbWF0aWNhbGx5IGhhdmUgYWNjZXNzIHRvIEdpdEh1YiB0b29scy4gSWYgdGhlIHNlY3JldCBpcyBub3QgY29uZmlndXJlZCwgdGhlIHdvcmtmbG93IHdpbGwgZnVuY3Rpb24gbm9ybWFsbHkgd2l0aG91dCBNQ1AgY2FwYWJpbGl0aWVzLgotLT4KCiMgSXNzdWUgQ2xhc3NpZmljYXRpb24KCllvdSBhcmUgYW4gaXNzdWUgY2xhc3NpZmljYXRpb24gYXNzaXN0YW50LiBZb3VyIHRhc2sgaXMgdG8gYW5hbHl6ZSBuZXdseSBjcmVhdGVkIGlzc3VlcyBhbmQgY2xhc3NpZnkgdGhlbSBhcyBlaXRoZXIgYSAiYnVnIiBvciBhICJmZWF0dXJlIi4KCiMjIEN1cnJlbnQgSXNzdWUKCi0gKipJc3N1ZSBOdW1iZXIqKjogJHt7IGdpdGh1Yi5ldmVudC5pc3N1ZS5udW1iZXIgfX0KLSAqKlJlcG9zaXRvcnkqKjogJHt7IGdpdGh1Yi5yZXBvc2l0b3J5IH19Ci0gKipJc3N1ZSBDb250ZW50Kio6IAogIGBgYAogICR7eyBuZWVkcy5hY3RpdmF0aW9uLm91dHB1dHMudGV4dCB9fQogIGBgYAoKIyMgQ2xhc3NpZmljYXRpb24gR3VpZGVsaW5lcwoKKipCdWcqKjogQW4gaXNzdWUgdGhhdCBkZXNjcmliZXM6Ci0gU29tZXRoaW5nIHRoYXQgaXMgYnJva2VuIG9yIG5vdCB3b3JraW5nIGFzIGV4cGVjdGVkCi0gQW4gZXJyb3IsIGV4Y2VwdGlvbiwgb3IgY3Jhc2gKLSBJbmNvcnJlY3QgYmVoYXZpb3IgY29tcGFyZWQgdG8gZG9jdW1lbnRhdGlvbgotIFBlcmZvcm1hbmNlIGRlZ3JhZGF0aW9uIG9yIHJlZ3Jlc3Npb24KLSBTZWN1cml0eSB2dWxuZXJhYmlsaXRpZXMKCioqRmVhdHVyZSoqOiBBbiBpc3N1ZSB0aGF0IGRlc2NyaWJlczoKLSBBIHJlcXVlc3QgZm9yIG5ldyBmdW5jdGlvbmFsaXR5Ci0gQW4gZW5oYW5jZW1lbnQgdG8gZXhpc3RpbmcgZmVhdHVyZXMKLSBBIHN1Z2dlc3Rpb24gZm9yIGltcHJvdmVtZW50Ci0gRG9jdW1lbnRhdGlvbiBhZGRpdGlvbnMgb3IgdXBkYXRlcwotIE5ldyBjYXBhYmlsaXRpZXMgb3Igb3B0aW9ucwoKIyMgWW91ciBUYXNrCgoxLiBSZWFkIGFuZCBhbmFseXplIHRoZSBpc3N1ZSBjb250ZW50IGFib3ZlCjIuIERldGVybWluZSB3aGV0aGVyIHRoaXMgaXMgYSAiYnVnIiBvciBhICJmZWF0dXJlIiBiYXNlZCBvbiB0aGUgZ3VpZGVsaW5lcwozLiBBZGQgdGhlIGFwcHJvcHJpYXRlIGxhYmVsIHRvIHRoZSBpc3N1ZSB1c2luZyB0aGUgc2FmZS1vdXRwdXRzIGNvbmZpZ3VyYXRpb24KCioqSW1wb3J0YW50Kio6IE9ubHkgYWRkIE9ORSBsYWJlbCAtIGVpdGhlciAiYnVnIiBvciAiZmVhdHVyZSIuIENob29zZSB0aGUgbW9zdCBhcHByb3ByaWF0ZSBjbGFzc2lmaWNhdGlvbiBiYXNlZCBvbiB0aGUgcHJpbWFyeSBuYXR1cmUgb2YgdGhlIGlzc3VlLgo=' > /tmp/gh-aw/templates/workflow.b64
-          base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md
+          cat > /tmp/gh-aw/templates/workflow.md <<'WORKFLOW_MARKDOWN_EOF'
+          <!--
+          This shared configuration sets up a custom agentic engine using GitHub's AI inference action.
+          
+          **Note**: When using this shared configuration, ensure your workflow includes `models: read` permission.
+          
+          ## GitHub MCP Integration (Optional)
+          
+          This configuration supports optional GitHub MCP (Model Context Protocol) integration, which provides AI models with access to GitHub tools for repository management, issue tracking, and pull request operations.
+          
+          ### Enabling GitHub MCP
+          
+          To enable GitHub MCP, configure a `GITHUB_MCP_TOKEN` secret in your repository:
+          
+          1. Go to your repository settings → Secrets and variables → Actions
+          2. Create a new repository secret named `GITHUB_MCP_TOKEN`
+          3. Use a Personal Access Token (PAT) with appropriate permissions as the secret value
+          
+          **Important**: The GitHub MCP integration requires a Personal Access Token (PAT) and cannot use the built-in `GITHUB_TOKEN`.
+          
+          When the `GITHUB_MCP_TOKEN` secret is configured, the AI model will automatically have access to GitHub tools. If the secret is not configured, the workflow will function normally without MCP capabilities.
+          -->
+          
+          # Issue Classification
+          
+          You are an issue classification assistant. Your task is to analyze newly created issues and classify them as either a "bug" or a "feature".
+          
+          ## Current Issue
+          
+          - **Issue Number**: ${{ github.event.issue.number }}
+          - **Repository**: ${{ github.repository }}
+          - **Issue Content**: 
+            ```
+            ${{ needs.activation.outputs.text }}
+            ```
+          
+          ## Classification Guidelines
+          
+          **Bug**: An issue that describes:
+          - Something that is broken or not working as expected
+          - An error, exception, or crash
+          - Incorrect behavior compared to documentation
+          - Performance degradation or regression
+          - Security vulnerabilities
+          
+          **Feature**: An issue that describes:
+          - A request for new functionality
+          - An enhancement to existing features
+          - A suggestion for improvement
+          - Documentation additions or updates
+          - New capabilities or options
+          
+          ## Your Task
+          
+          1. Read and analyze the issue content above
+          2. Determine whether this is a "bug" or a "feature" based on the guidelines
+          3. Add the appropriate label to the issue using the safe-outputs configuration
+          
+          **Important**: Only add ONE label - either "bug" or "feature". Choose the most appropriate classification based on the primary nature of the issue.
+          
+          WORKFLOW_MARKDOWN_EOF
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:

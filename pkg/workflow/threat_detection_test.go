@@ -688,10 +688,8 @@ func TestBuildWriteWorkflowMarkdownStep(t *testing.T) {
 			expectContains: []string{
 				"Write workflow markdown to file",
 				"mkdir -p /tmp/gh-aw/templates",
-				"base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md",
-			},
-			notExpectContain: []string{
-				"# Test Workflow", // Should be base64 encoded, not plain text
+				"cat > /tmp/gh-aw/templates/workflow.md <<'WORKFLOW_MARKDOWN_EOF'",
+				"WORKFLOW_MARKDOWN_EOF",
 			},
 		},
 		{
@@ -699,7 +697,7 @@ func TestBuildWriteWorkflowMarkdownStep(t *testing.T) {
 			markdownContent: "",
 			expectContains: []string{
 				"Write workflow markdown to file",
-				"base64 -d /tmp/gh-aw/templates/workflow.b64",
+				"cat > /tmp/gh-aw/templates/workflow.md",
 			},
 		},
 		{
@@ -707,11 +705,8 @@ func TestBuildWriteWorkflowMarkdownStep(t *testing.T) {
 			markdownContent: "# Test\n\nWith 'quotes' and \"double quotes\" and $variables",
 			expectContains: []string{
 				"Write workflow markdown to file",
-				"base64 -d",
-			},
-			notExpectContain: []string{
-				"'quotes'", // Should be encoded
-				"$variables",
+				"cat > /tmp/gh-aw/templates/workflow.md",
+				"WORKFLOW_MARKDOWN_EOF",
 			},
 		},
 	}
