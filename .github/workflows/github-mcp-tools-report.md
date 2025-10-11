@@ -12,9 +12,8 @@ tools:
     mode: "remote"
     toolset: [all]
 safe-outputs:
-  create-issue:
-    title-prefix: "[mcp-report] "
-    labels: [documentation, mcp-tools]
+  create-discussion:
+    category: "audits"
     max: 1
 timeout_minutes: 15
 ---
@@ -293,12 +292,12 @@ A successful report:
 - ✅ Provides clear descriptions and usage information
 - ✅ Includes practical examples
 - ✅ Is formatted as a well-structured markdown document
-- ✅ Is published as a GitHub issue for easy access and reference
+- ✅ Is published as a GitHub discussion in the "audits" category for easy access and reference
 
 ## Output Requirements
 
 Your output MUST:
-1. Create a GitHub issue with the complete tools report
+1. Create a GitHub discussion with the complete tools report
 2. Use the report template structure provided above
 3. Include ALL discovered tools organized by toolset
 4. Provide accurate tool names, descriptions, and parameters
