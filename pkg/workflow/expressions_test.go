@@ -761,7 +761,7 @@ func TestBuildOr(t *testing.T) {
 				BuildPropertyAccess("github.event.pull_request.number"),
 				BuildPropertyAccess("github.event.discussion.number"),
 			},
-			expected: "(github.event.issue.number) || ((github.event.pull_request.number) || (github.event.discussion.number))",
+			expected: "github.event.issue.number || github.event.pull_request.number || github.event.discussion.number",
 		},
 		{
 			name: "four conditions",
@@ -771,7 +771,7 @@ func TestBuildOr(t *testing.T) {
 				&ExpressionNode{Expression: "c"},
 				&ExpressionNode{Expression: "d"},
 			},
-			expected: "(a) || ((b) || ((c) || (d)))",
+			expected: "a || b || c || d",
 		},
 		{
 			name: "mixed node types",
@@ -780,7 +780,7 @@ func TestBuildOr(t *testing.T) {
 				BuildEventTypeEquals("pull_request"),
 				BuildPropertyAccess("github.event.issue.number"),
 			},
-			expected: "(github.event.action == 'opened') || ((github.event_name == 'pull_request') || (github.event.issue.number))",
+			expected: "github.event.action == 'opened' || github.event_name == 'pull_request' || github.event.issue.number",
 		},
 	}
 

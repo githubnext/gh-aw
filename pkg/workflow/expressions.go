@@ -207,7 +207,7 @@ func buildConditionTree(existingCondition string, draftCondition string) Conditi
 
 // buildOr creates an OR condition from two or more condition nodes.
 // When called with 2 arguments, it creates a simple OR node.
-// When called with more arguments, it creates a right-associative OR tree: a || (b || (c || ...))
+// When called with more arguments, it creates a DisjunctionNode to avoid deep nesting.
 func buildOr(conditions ...ConditionNode) ConditionNode {
 	if len(conditions) == 0 {
 		return nil
@@ -219,12 +219,8 @@ func buildOr(conditions ...ConditionNode) ConditionNode {
 		return &OrNode{Left: conditions[0], Right: conditions[1]}
 	}
 
-	// Build a right-associative OR tree for 3+ conditions: a || (b || (c || ...))
-	result := conditions[len(conditions)-1]
-	for i := len(conditions) - 2; i >= 0; i-- {
-		result = &OrNode{Left: conditions[i], Right: result}
-	}
-	return result
+	// Use DisjunctionNode for 3+ conditions to avoid deep nesting
+	return &DisjunctionNode{Terms: conditions}
 }
 
 func buildAnd(left ConditionNode, right ConditionNode) ConditionNode {
