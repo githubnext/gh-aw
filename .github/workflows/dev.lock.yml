@@ -5,12 +5,15 @@
 
 name: "Dev"
 on:
+  push:
+    paths:
+    - .github/workflows/dev.lock.yml
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
 run-name: "Dev"
 

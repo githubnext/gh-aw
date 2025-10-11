@@ -1,6 +1,9 @@
 ---
 on: 
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/dev.lock.yml'
 name: Dev
 engine: codex
 permissions:
