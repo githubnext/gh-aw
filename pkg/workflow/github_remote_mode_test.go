@@ -191,23 +191,26 @@ This is a test workflow for GitHub remote mode configuration.
 			case "remote":
 				// Codex uses TOML format, others use JSON
 				if tt.engineType == "codex" {
-					// Check for TOML format
-					if !strings.Contains(lockContent, `type = "http"`) {
-						t.Errorf("Expected HTTP configuration but didn't find 'type = \"http\"' in:\n%s", lockContent)
+					// Check for new streamable HTTP format
+					if !strings.Contains(lockContent, `experimental_use_rmcp_client = true`) {
+						t.Errorf("Expected experimental_use_rmcp_client flag but didn't find it in:\n%s", lockContent)
 					}
 					if tt.expectedURL != "" && !strings.Contains(lockContent, `url = "`+tt.expectedURL+`"`) {
 						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
-					if tt.expectedToken != "" {
-						if !strings.Contains(lockContent, `"Authorization" = "Bearer `+tt.expectedToken+`"`) {
-							t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
-						}
+					// Check for bearer_token_env_var instead of Authorization header
+					if !strings.Contains(lockContent, `bearer_token_env_var = "GITHUB_MCP_TOKEN"`) {
+						t.Errorf("Expected bearer_token_env_var but didn't find it in:\n%s", lockContent)
 					}
 					// Check for X-MCP-Readonly header if this is a read-only test
 					if strings.Contains(tt.name, "read-only") {
-						if !strings.Contains(lockContent, `"X-MCP-Readonly" = "true"`) {
+						if !strings.Contains(lockContent, `X-MCP-Readonly = "true"`) {
 							t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
 						}
+					}
+					// Should NOT contain old-style type = "http"
+					if strings.Contains(lockContent, `type = "http"`) {
+						t.Errorf("Expected no 'type = \"http\"' (old format) but found it in:\n%s", lockContent)
 					}
 					// Should NOT contain Docker configuration
 					if strings.Contains(lockContent, `command = "docker"`) {
@@ -262,6 +265,9 @@ This is a test workflow for GitHub remote mode configuration.
 				if tt.engineType == "codex" {
 					if strings.Contains(lockContent, `type = "http"`) {
 						t.Errorf("Expected no HTTP type but found it in:\n%s", lockContent)
+					}
+					if strings.Contains(lockContent, `experimental_use_rmcp_client`) {
+						t.Errorf("Expected no experimental_use_rmcp_client flag but found it in:\n%s", lockContent)
 					}
 				} else {
 					if strings.Contains(lockContent, `"type": "http"`) {

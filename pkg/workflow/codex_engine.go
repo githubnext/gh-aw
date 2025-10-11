@@ -133,6 +133,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":           "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":             "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
+		"GITHUB_MCP_TOKEN":     "${{ secrets.GITHUB_MCP_TOKEN }}",
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
@@ -242,6 +243,16 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 
 	// Expand neutral tools (like playwright: null) to include the copilot agent tools
 	expandedTools := e.expandNeutralToolsToCodexTools(tools)
+
+	// Check if GitHub tool is in remote mode and add experimental flag
+	if githubTool, hasGitHub := expandedTools["github"]; hasGitHub {
+		githubType := getGitHubType(githubTool)
+		if githubType == "remote" {
+			yaml.WriteString("          \n")
+			yaml.WriteString("          # Streamable HTTP requires the experimental rmcp client\n")
+			yaml.WriteString("          experimental_use_rmcp_client = true\n")
+		}
+	}
 
 	// Generate [mcp_servers] section
 	for _, toolName := range mcpTools {
@@ -534,22 +545,17 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	// https://developers.openai.com/codex/mcp
 	// Check if remote mode is enabled
 	if githubType == "remote" {
-		// Remote mode - use hosted GitHub MCP server
-		yaml.WriteString("          type = \"http\"\n")
+		// Remote mode - use hosted GitHub MCP server with streamable HTTP
 		yaml.WriteString("          url = \"https://api.githubcopilot.com/mcp/\"\n")
-
-		// Add authorization header
-		if customGitHubToken != "" {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer " + customGitHubToken + "\"")
-		} else {
-			yaml.WriteString("          headers = { \"Authorization\" = \"Bearer ${{ secrets.GITHUB_MCP_TOKEN }}\"")
-		}
+		
+		// Use bearer_token_env_var for authentication
+		yaml.WriteString("          bearer_token_env_var = \"GITHUB_MCP_TOKEN\"\n")
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
-			yaml.WriteString(", \"X-MCP-Readonly\" = \"true\" }\n")
-		} else {
-			yaml.WriteString(" }\n")
+			yaml.WriteString("          \n")
+			yaml.WriteString("          [mcp_servers.github.headers]\n")
+			yaml.WriteString("          X-MCP-Readonly = \"true\"\n")
 		}
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
