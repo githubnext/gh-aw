@@ -36,25 +36,6 @@ function formatErrorMessage(msg) {
 }
 
 /**
- * Prompt user for confirmation
- * @param {string} question - The question to ask
- * @returns {Promise<boolean>} True if user confirms, false otherwise
- */
-async function promptConfirmation(question) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
-  return new Promise((resolve) => {
-    rl.question(`${question} (y/N): `, (answer) => {
-      rl.close();
-      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
-    });
-  });
-}
-
-/**
  * Parse a changeset markdown file
  * @param {string} filePath - Path to the changeset file
  * @returns {Object} Parsed changeset entry
@@ -334,6 +315,25 @@ function checkGitPrerequisites() {
   if (!isGitTreeClean()) {
     throw new Error('Working tree is not clean. Commit or stash your changes before creating a release.');
   }
+}
+
+/**
+ * Prompt user for confirmation
+ * @param {string} question - The question to ask
+ * @returns {Promise<boolean>} True if user confirms, false otherwise
+ */
+async function promptConfirmation(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question(`${question} (y/N): `, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
 }
 
 /**
