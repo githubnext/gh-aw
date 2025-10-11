@@ -3,7 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
+	// "strconv" removed; no longer needed
 	"strings"
 )
 
@@ -22,12 +22,12 @@ func (g *NetworkHookGenerator) GenerateNetworkHookScript(allowedDomains []string
 		domainsJSON = string(jsonBytes)
 	}
 
-	// Use strconv.Quote to safely escape the JSON string for Python
+	// Embed domain list JSON directly as a Python literal (safe for []string from json.Marshal)
 	// This prevents any quote-related injection vulnerabilities (CWE-78, CWE-89, CWE-94)
-	quotedJSON := strconv.Quote(domainsJSON)
+	// Use domainsJSON directly for ALLOWED_DOMAINS assignment
 
 	// Build the Python script using a safe template approach
-	// The JSON string is properly quoted and escaped, then parsed at runtime
+	// The JSON array is embedded directly as a Python list literal
 	return fmt.Sprintf(`#!/usr/bin/env python3
 """
 Network permissions validator for Claude Code engine.
@@ -40,8 +40,8 @@ import urllib.parse
 import re
 
 # Domain allow-list (populated during generation)
-# JSON string is safely escaped using Go's strconv.Quote
-ALLOWED_DOMAINS = json.loads(%s)
+# JSON array safely embedded as Python list literal
+ALLOWED_DOMAINS = %s
 
 def extract_domain(url_or_query):
     """Extract domain from URL or search query."""
