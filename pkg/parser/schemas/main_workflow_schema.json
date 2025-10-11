@@ -2852,7 +2852,7 @@
                 },
                 {
                   "type": "object",
-                  "description": "GitHub Actions concurrency configuration for the agent job. Controls how many agent jobs can run concurrently.",
+                  "description": "GitHub Actions concurrency configuration for the agent job. Controls how many agentic workflow runs can run concurrently.",
                   "properties": {
                     "group": {
                       "type": "string",
@@ -2860,7 +2860,7 @@
                     },
                     "cancel-in-progress": {
                       "type": "boolean",
-                      "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agent jobs."
+                      "description": "Whether to cancel in-progress runs of the same concurrency group. Defaults to false for agentic workflow runs."
                     }
                   },
                   "required": ["group"],

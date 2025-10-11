@@ -2,7 +2,7 @@
 title: Tools Configuration
 description: Configure GitHub API tools, browser automation, and AI capabilities available to your agentic workflows, including GitHub tools, Playwright, and custom MCP servers.
 sidebar:
-  order: 500
+  order: 600
 ---
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and engine-specific tools.

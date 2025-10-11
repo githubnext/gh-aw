@@ -1,5 +1,5 @@
 ---
-title: MCP Integration
+title: MCP Guide
 description: Learn how to use Model Context Protocol (MCP) servers with GitHub Agentic Workflows to connect AI agents to external tools, databases, and services.
 ---
 

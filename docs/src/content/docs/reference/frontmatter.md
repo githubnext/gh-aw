@@ -474,7 +474,7 @@ engine:
 
 ### Agent Job Concurrency
 
-The `concurrency` field in the engine configuration controls how many agent jobs can run concurrently. It uses GitHub Actions concurrency syntax:
+The `concurrency` field in the engine configuration controls how many agentic workflow runs can run concurrently. It uses GitHub Actions concurrency syntax:
 
 ```yaml
 engine:

@@ -2,81 +2,20 @@
 title: Concurrency Control
 description: Complete guide to concurrency control in GitHub Agentic Workflows, including agent job concurrency configuration and engine isolation.
 sidebar:
-  order: 600
+  order: 1300
 ---
 
-GitHub Agentic Workflows provides sophisticated concurrency control to manage how many AI-powered agent jobs can run simultaneously. This helps prevent resource exhaustion, control costs, and ensure predictable workflow execution.
+GitHub Agentic Workflows provides concurrency control to manage how many AI-powered agentic workflow runs can run simultaneously. This helps prevent resource exhaustion, control costs, and ensure predictable workflow execution.
 
-## Overview
+Concurrency control uses a dual-level approach:
+- **Workflow-level concurrency**: Limit based on workflow name and type (name, issue, PR, branch, etc.)
+- **Agent job concurrency**: Limit based on AI engine via the `engine.concurrency` field
 
-Concurrency control in GitHub Agentic Workflows uses a dual-level approach:
-- **Workflow-level concurrency**: Context-specific limiting based on workflow type (issue, PR, branch, etc.)
-- **Agent job concurrency**: Controls concurrent execution of agent jobs using the `engine.concurrency` field
+This provides both fine-grained control per workflow and flexible resource management for AI execution.
 
-This dual-level approach provides both fine-grained control per workflow and flexible resource management for AI execution.
+## Workflow-Level Concurrency
 
-## Agent Job Concurrency Configuration
-
-The `concurrency` field under the `engine` section controls concurrency for the agent job. It uses GitHub Actions concurrency syntax:
-
-```yaml
-engine:
-  id: claude
-  concurrency:
-    group: "my-group-${{ github.workflow }}"
-    cancel-in-progress: true
-```
-
-### Default Behavior
-
-**Default:** Single job per engine across all workflows
-
-When no `engine.concurrency` is specified, the default pattern is:
-```yaml
-concurrency:
-  group: "gh-aw-{engine-id}"
-```
-
-This ensures only one agent job runs at a time for each engine across all workflows and refs, preventing resource exhaustion.
-
-### Configuration Examples
-
-**Default (single job per engine):**
-```yaml
-engine:
-  id: claude
-  # No concurrency specified - uses gh-aw-claude
-```
-
-**Per-workflow concurrency:**
-```yaml
-engine:
-  id: claude
-  concurrency:
-    group: "gh-aw-claude-${{ github.workflow }}"
-```
-
-**Per-branch concurrency with cancellation:**
-```yaml
-engine:
-  id: copilot
-  concurrency:
-    group: "gh-aw-copilot-${{ github.ref }}"
-    cancel-in-progress: true
-```
-
-**Simple string format:**
-```yaml
-engine:
-  id: claude
-  concurrency: "custom-group-${{ github.workflow }}"
-```
-
-## How It Works
-
-### Workflow-Level Concurrency
-
-The workflow-level concurrency uses context-specific keys based on the trigger type:
+By default, the workflow-level concurrency uses context-specific keys based on workflow name and the trigger type:
 
 **For issue workflows:**
 ```yaml
@@ -126,19 +65,17 @@ jobs:
       cancel-in-progress: true
 ```
 
-This controls concurrent execution of agent jobs across all workflows, preventing resource exhaustion from too many concurrent AI executions.
+This controls concurrent execution of agentic workflow runs across all workflows, preventing resource exhaustion from too many concurrent AI executions.
 
 ### Complete Example
 
-Here's how both levels work together in a generated workflow:
+Here's how both levels work together in a workflow:
 
 ```yaml
 name: "Issue Responder"
 on:
   issues:
     types: [opened]
-
-permissions: {}
 
 # Workflow-level: Context-specific concurrency
 concurrency:
@@ -155,13 +92,6 @@ jobs:
       - name: Execute workflow
         ...
 ```
-
-### Dual-Level Application
-
-The dual-level concurrency provides complementary control:
-
-1. **Workflow-level**: Prevents conflicts between runs of the same workflow on different contexts (e.g., different issues or PRs)
-2. **Agent job concurrency**: Controls concurrent execution of agent jobs based on configured pattern
 
 **Example scenario:**
 - 5 different issues trigger the same workflow
@@ -224,8 +154,8 @@ engine:
   # Default: gh-aw-claude
 ```
 
-- Copilot agent jobs use the `gh-aw-copilot` concurrency group
-- Claude agent jobs use the `gh-aw-claude` concurrency group
+- Copilot agentic workflow runs use the `gh-aw-copilot` concurrency group
+- Claude agentic workflow runs use the `gh-aw-claude` concurrency group
 - Both can run simultaneously without conflict
 
 ## Cancellation Behavior
@@ -243,28 +173,6 @@ concurrency:
   group: "gh-aw-copilot-${{ github.run_id % 3 }}"
   cancel-in-progress: true
 ```
-
-## Benefits
-
-### Cost Control
-- **Prevents runaway costs**: Controls concurrent AI job execution
-- **Predictable resource usage**: Known concurrency patterns
-- **Flexible configuration**: Customize per workflow or engine
-
-### Resource Management
-- **Prevents resource exhaustion**: Ensures system stability with default single-job-per-engine pattern
-- **Fair resource distribution**: Agent jobs queue when concurrency limit is reached
-- **Maintains throughput**: Activation and other jobs continue running
-
-### Engine Isolation
-- **Independent limits**: Each engine has its own default concurrency group
-- **No cross-engine interference**: Copilot agent jobs don't block Claude agent jobs
-- **Flexible configuration**: Customize concurrency per engine
-
-### Simplicity
-- **Default global lock**: Single job per engine by default
-- **Standard GitHub Actions syntax**: Familiar concurrency configuration
-- **Consistent behavior**: Predictable execution patterns
 
 ## Custom Concurrency
 
@@ -332,45 +240,6 @@ engine:
   concurrency:
     group: "gh-aw-copilot-${{ github.workflow }}"  # Per-workflow concurrency
 ```
-
-### Monitoring and Adjustment
-
-1. **Monitor workflow execution**: Use GitHub Actions insights
-2. **Track costs**: Review AI model usage and expenses
-3. **Adjust patterns**: Change concurrency groups based on needs
-4. **Test changes**: Validate new patterns with test workflows
-
-## Troubleshooting
-
-### Agent Jobs Queuing
-
-**Symptom**: Agent jobs wait in queue instead of running
-
-**Cause**: Concurrency group is blocking (e.g., default single-job-per-engine pattern)
-
-**Solution**: 
-- Customize `engine.concurrency` to allow more parallel execution
-- Use per-workflow or per-branch patterns if appropriate
-- Consider using different engines for different workflows
-
-### Too Many Concurrent Runs
-
-**Symptom**: High costs or resource usage from concurrent agent jobs
-
-**Cause**: Concurrency pattern allows too many parallel executions
-
-**Solution**:
-- Use more restrictive concurrency pattern (e.g., default `gh-aw-{engine-id}`)
-- Monitor usage patterns
-- Set appropriate patterns per engine
-
-### Workflows Not Canceling
-
-**Symptom**: Old pull request workflows continue running after new commits
-
-**Cause**: Custom concurrency without `cancel-in-progress`
-
-**Solution**: Ensure pull request workflows have `cancel-in-progress: true` in custom concurrency configuration
 
 ## Related Documentation
 
