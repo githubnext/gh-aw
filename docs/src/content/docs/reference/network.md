@@ -2,18 +2,14 @@
 title: Network Permissions
 description: Control network access for AI engines using ecosystem identifiers and domain allowlists
 sidebar:
-  order: 700
+  order: 1200
 ---
 
 Control network access for AI engines using the top-level `network` field. Network permissions provide fine-grained control over which domains and services your agentic workflows can access during execution.
 
 > **Note**: Network permissions are currently only supported by the Claude engine.
 
-## Default Behavior
-
 If no `network:` permission is specified, it defaults to `network: defaults` which uses a curated allow-list of common development and package manager domains for basic infrastructure needs.
-
-## Configuration Formats
 
 ### Basic Configuration
 

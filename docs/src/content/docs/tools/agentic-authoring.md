@@ -1,12 +1,29 @@
 ---
-title: Agentic Authoring
-description: Learn how to use the create-agentic-workflow.prompt.md file in VS Code with GitHub Copilot to author agentic workflows in natural language.
+title: Authoring Agentic Workflows
+description: Learn how to use the create-agentic-workflow.prompt.md file in VS Code to author agentic workflows in natural language.
 ---
 
 GitHub Agentic Workflows provide a prompt file that turns your favorite agent into 
 a powerful workflow authoring tool. This guide explains how to use this mode to author agentic workflows in natural language.
 
-## What is the create-agentic-workflow prompt?
+## Quick Start
+
+Initialize your repository to set up GitHub Copilot instructions and prompt files for authoring agentic workflows:
+
+```bash wrap
+gh aw init
+```
+
+This creates:
+- `.github/instructions/github-agentic-workflows.instructions.md` - Custom Copilot instructions for better workflow authoring
+- `.github/prompts/create-agentic-workflow.prompt.md` - The `/create-agentic-workflow` command for Copilot Chat
+- `.github/prompts/create-shared-agentic-workflow.prompt.md` - The `/create-shared-agentic-workflow` command for creating reusable workflow components
+
+:::tip[VS Code integration]
+Once initialized, GitHub Copilot will automatically use these instructions when you edit workflow files in VS Code. See [VS Code Integration](/gh-aw/tools/vscode/) for more details.
+:::
+
+## What is the `/create-agentic-workflow` prompt?
 
 `.github/prompts/create-agentic-workflow.prompt.md` is a prompt file that contains the structure and instructions the Copilot-style assistant will use to generate a workflow markdown file that the `gh aw` CLI understands.
 
@@ -22,11 +39,11 @@ To get this file in your repository, run the compile command:
 gh aw compile
 ```
 
-## How to use the create-agentic-workflow prompt
+## How to use the `/create-agentic-workflow` prompt
 
 ### GitHub Copilot Chat in Visual Studio Code
 
-In Visual Studio Code and the GitHub Copilot Chat, you can load it using the `create-agentic-workflow` command.
+In Visual Studio Code and the GitHub Copilot Chat, you can load it using the `/create-agentic-workflow` command.
 
 ```sh
 /create-agentic-workflow
@@ -63,7 +80,6 @@ Assuming you have the GitHub Copilot CLI installed, you can load the file in a s
 ```bash
 load @.github/prompts/create-agentic-workflow.prompt.md
 ```
-
 
 ## After compiling
 

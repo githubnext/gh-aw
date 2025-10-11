@@ -392,6 +392,7 @@ on:
 
 ## Additional Resources
 
+- [Trigger Events](/gh-aw/reference/triggers/) - Complete trigger configuration including label filtering
 - [IssueOps Guide](/gh-aw/guides/issueops) - Learn about issue-triggered workflows
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs) - Secure output handling
 - [Frontmatter Reference](/gh-aw/reference/frontmatter) - Complete workflow configuration options

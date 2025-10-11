@@ -1,5 +1,5 @@
 ---
-title: Web Search Guide
+title: Using Web Search
 description: Learn how to add web search capabilities to GitHub Agentic Workflows using Tavily MCP server.
 ---
 

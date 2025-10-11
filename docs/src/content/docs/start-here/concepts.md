@@ -126,7 +126,7 @@ Learn more in [Tools Configuration](/gh-aw/reference/tools/) and [MCPs](/gh-aw/g
 
 Ready to build more sophisticated workflows? Explore:
 
-- **[Packaging and Imports](/gh-aw/guides/packaging-imports/)** — Complete guide to adding, updating, and importing workflows
+- **[Pacakging and Updating](/gh-aw/guides/packaging-imports/)** — Complete guide to adding, updating, and importing workflows
 - **[Workflow Structure](/gh-aw/reference/workflow-structure/)** — Detailed file organization and security
 - **[Frontmatter Options](/gh-aw/reference/frontmatter/)** — Complete configuration reference
 - **[Tools Configuration](/gh-aw/reference/tools/)** — Available tools and permissions

@@ -727,7 +727,7 @@ gh aw compile --watch --verbose
 
 ## Related Documentation
 
-- [Packaging and Imports](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
+- [Pacakging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and file organization
 - [Frontmatter Options](/gh-aw/reference/frontmatter/) - Configuration options for workflows
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Secure output processing including issue updates
