@@ -2,7 +2,7 @@
 title: Triggers
 description: Triggers in GitHub Agentic Workflows
 sidebar:
-  order: 325
+  order: 400
 ---
 
 The `on:` section uses standard GitHub Actions syntax to define workflow triggers. Here are some common examples:
@@ -153,6 +153,6 @@ Note that if you specify a relative time, it is calculated at the time of workfl
 ## Related Documentation
 
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
+- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration
 - [LabelOps Guide](/gh-aw/guides/labelops/) - Label-based automation workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization

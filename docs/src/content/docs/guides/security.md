@@ -519,7 +519,7 @@ Copilot and Claude expose richer default tools and optional Bash; Codex relies m
 
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/)
 - [Network Configuration](/gh-aw/reference/network/)
-- [Tools Configuration](/gh-aw/reference/tools/)
+- [Tools](/gh-aw/reference/tools/)
 - [MCPs](/gh-aw/guides/mcps/)
 - [Workflow Structure](/gh-aw/reference/workflow-structure/)
 

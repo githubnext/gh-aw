@@ -1,8 +1,8 @@
 ---
-title: Safe Output Processing
+title: Safe Outputs
 description: Learn about safe output processing features that enable creating GitHub issues, comments, and pull requests without giving workflows write permissions.
 sidebar:
-  order: 600
+  order: 800
 ---
 
 One of the primary security features of GitHub Agentic Workflows is "safe output processing", enabling the creation of GitHub issues, comments, pull requests, and other outputs without giving the agentic portion of the workflow write permissions.
@@ -901,7 +901,7 @@ safe-outputs:
 
 ## Related Documentation
 
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options for workflows
+- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options for workflows
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special /my-bot triggers and context text
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management

@@ -206,7 +206,7 @@ mcp-servers:
 
 ## GitHub MCP Integration
 
-GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools Configuration](/gh-aw/reference/tools/) for details.
+GitHub Agentic Workflows includes built-in GitHub MCP integration with comprehensive repository access. See [Tools](/gh-aw/reference/tools/) for details.
 
 You can configure the docker image version for GitHub tools:
 
@@ -383,10 +383,10 @@ Error: Tool 'my_tool' not found
 
 ## Related Documentation
 
-- [Tools Configuration](/gh-aw/reference/tools/) - Complete tools reference
+- [Tools](/gh-aw/reference/tools/) - Complete tools reference
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands including `mcp inspect`
-- [Include Directives](/gh-aw/reference/include-directives/) - Modularizing workflows with includes
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options
+- [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
+- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory organization
 
 ## External Resources

@@ -51,7 +51,7 @@ Analyze this issue and provide helpful triage comments...
 
 One crucial difference from traditional agentic prompting is that GitHub Agentic Workflows can contain triggers, permissions and other declarative elements. This works towards more reliable and more secure agentic programming, setting the AI up to contribute to success, in a partially sandboxed way, at the right time in your team's work.
 
-See [Workflow Structure](/gh-aw/reference/workflow-structure/) and [Frontmatter Options](/gh-aw/reference/frontmatter/) for details of file layout and configuration options.
+See [Workflow Structure](/gh-aw/reference/workflow-structure/) and [Frontmatter](/gh-aw/reference/frontmatter/) for details of file layout and configuration options.
 
 ## Understanding AI Engines
 
@@ -104,7 +104,7 @@ Workflows can use various tools through the Model Context Protocol (MCP):
 - **File operations** — Read, write, and analyze repository files
 - **Custom MCPs** — Build your own tool integrations
 
-Learn more in [Tools Configuration](/gh-aw/reference/tools/) and [MCPs](/gh-aw/guides/mcps/).
+Learn more in [Tools](/gh-aw/reference/tools/) and [MCPs](/gh-aw/guides/mcps/).
 
 ## Best Practices
 
@@ -126,10 +126,10 @@ Learn more in [Tools Configuration](/gh-aw/reference/tools/) and [MCPs](/gh-aw/g
 
 Ready to build more sophisticated workflows? Explore:
 
-- **[Pacakging and Updating](/gh-aw/guides/packaging-imports/)** — Complete guide to adding, updating, and importing workflows
+- **[Packaging and Updating](/gh-aw/guides/packaging-imports/)** — Complete guide to adding, updating, and importing workflows
 - **[Workflow Structure](/gh-aw/reference/workflow-structure/)** — Detailed file organization and security
-- **[Frontmatter Options](/gh-aw/reference/frontmatter/)** — Complete configuration reference
-- **[Tools Configuration](/gh-aw/reference/tools/)** — Available tools and permissions
+- **[Frontmatter](/gh-aw/reference/frontmatter/)** — Complete configuration reference
+- **[Tools](/gh-aw/reference/tools/)** — Available tools and permissions
 - **[Security Guide](/gh-aw/guides/security/)** — Important security considerations
 - **[VS Code Integration](/gh-aw/tools/vscode/)** — Enhanced authoring experience
 

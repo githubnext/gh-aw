@@ -1,5 +1,5 @@
 ---
-title: Frontmatter Options
+title: Frontmatter
 description: Complete guide to all available frontmatter configuration options for GitHub Agentic Workflows, including triggers, permissions, AI engines, and workflow settings.
 sidebar:
   order: 200
@@ -25,7 +25,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 **Properties specific to GitHub Agentic Workflows:**
 - `description`: Human-readable description rendered as a comment in the lock file
 - `source`: Source reference tracking where the workflow was added from (format: `owner/repo/path@ref`)
-- `imports`: List of files to import (see [Pacakging and Updating](/gh-aw/guides/packaging-imports/))
+- `imports`: List of files to import (see [Packaging and Updating](/gh-aw/guides/packaging-imports/))
 - `engine`: AI engine configuration (copilot/claude/codex) with optional max-turns setting
 - `strict`: Enable strict mode validation (boolean, defaults to false)
 - `roles`: Permission restrictions based on repository access levels
@@ -435,7 +435,7 @@ jobs:
 
 The concurrency group applies **only** to the agent job (not the workflow level). This ensures concurrency control for AI execution while allowing activation jobs to run freely.
 
-## Tools Configuration (`tools:`)
+## Tools (`tools:`)
 
 The `tools:` section specifies which tools and MCP (Model Context Protocol) servers are available to the AI engine. This enables integration with GitHub APIs, browser automation, and other external services.
 
@@ -449,7 +449,7 @@ tools:
   bash: ["echo", "ls", "git status"]
 ```
 
-For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools Configuration](/gh-aw/reference/tools/).
+For complete tool configuration options, including GitHub tools, Playwright browser automation, custom MCP servers, and security considerations, see [Tools](/gh-aw/reference/tools/).
 
 ## Network Permissions (`network:`)
 
@@ -604,5 +604,5 @@ cache:
 - [Network Permissions](/gh-aw/reference/network/) - Network access control configuration
 - [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
-- [Tools Configuration](/gh-aw/reference/tools/) - GitHub and other tools setup
-- [Include Directives](/gh-aw/reference/include-directives/) - Modularizing workflows with includes
+- [Tools](/gh-aw/reference/tools/) - GitHub and other tools setup
+- [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes

@@ -1,5 +1,5 @@
 ---
-title: Pacakging and Updating
+title: Packaging and Updating
 description: Complete guide to adding, updating, and importing workflows from external repositories using workflow specifications and import directives.
 sidebar:
   order: 600
@@ -625,6 +625,6 @@ The system validates workflow specifications:
 
 - [CLI Commands](/gh-aw/tools/cli/) - Complete CLI reference
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options
+- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
 - [Spec Syntax](/gh-aw/reference/spec-syntax/) - Detailed specification syntax reference
-- [Include Directives](/gh-aw/reference/include-directives/) - Include directive details
+- [Imports](/gh-aw/reference/imports/) - Include directive details

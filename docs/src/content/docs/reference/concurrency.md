@@ -2,7 +2,7 @@
 title: Concurrency Control
 description: Complete guide to concurrency control in GitHub Agentic Workflows, including agent job concurrency configuration and engine isolation.
 sidebar:
-  order: 1300
+  order: 1400
 ---
 
 GitHub Agentic Workflows provides concurrency control to manage how many AI-powered agentic workflow runs can run simultaneously. This helps prevent resource exhaustion, control costs, and ensure predictable workflow execution.
@@ -244,5 +244,5 @@ engine:
 ## Related Documentation
 
 - [AI Engines](/gh-aw/reference/engines/) - Engine configuration and capabilities
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete frontmatter reference
+- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter reference
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization

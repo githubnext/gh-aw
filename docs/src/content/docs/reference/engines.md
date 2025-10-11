@@ -2,7 +2,7 @@
 title: AI Engines
 description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
 sidebar:
-  order: 350
+  order: 600
 ---
 
 GitHub Agentic Workflows support multiple AI engines (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
@@ -209,7 +209,7 @@ Note that engine-specific features may not be available when switching engines.
 
 ## Related Documentation
 
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete configuration reference
-- [Tools Configuration](/gh-aw/reference/tools/) - Available tools and MCP servers
+- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete configuration reference
+- [Tools](/gh-aw/reference/tools/) - Available tools and MCP servers
 - [Security Guide](/gh-aw/guides/security/) - Security considerations for AI engines
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration

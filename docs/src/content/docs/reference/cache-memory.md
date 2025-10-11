@@ -2,7 +2,7 @@
 title: Cache Memory
 description: Complete guide to using cache-memory for persistent file storage across workflow runs using GitHub Actions cache and simple file operations.
 sidebar:
-  order: 1400
+  order: 1500
 ---
 
 The `cache-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using GitHub Actions cache infrastructure and simple file operations.
@@ -347,6 +347,6 @@ If migrating from the previous MCP memory server approach:
 
 ## Related Documentation
 
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
+- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
 - [Safe Outputs](/gh-aw/reference/safe-outputs/) - Output processing and automation
 - [GitHub Actions Cache Documentation](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows) - Official GitHub cache documentation

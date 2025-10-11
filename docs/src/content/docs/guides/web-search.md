@@ -99,7 +99,7 @@ The Copilot engine doesn't require explicit network permissions as MCP servers r
 ## Related Documentation
 
 - [MCP Integration](/gh-aw/guides/mcps/) - Complete MCP server guide
-- [Tools Configuration](/gh-aw/reference/tools/) - Tool configuration reference
+- [Tools](/gh-aw/reference/tools/) - Tool configuration reference
 - [AI Engines](/gh-aw/reference/engines/) - Engine capabilities and limitations
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands including `mcp inspect`
 

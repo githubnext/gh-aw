@@ -2,7 +2,7 @@
 title: Imports
 description: Learn how to modularize and reuse workflow components across multiple workflows using the imports field in frontmatter for better organization and maintainability.
 sidebar:
-  order: 400
+  order: 1000
 ---
 
 The `imports:` field in frontmatter allows you to modularize and reuse workflow components across multiple workflows.
@@ -76,9 +76,9 @@ mcp-servers:
 
 ## Related Documentation
 
-- [Pacakging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
+- [Packaging and Updating](/gh-aw/guides/packaging-imports/) - Complete guide to adding, updating, and importing workflows
 - [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
 - [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
-- [Frontmatter Options](/gh-aw/reference/frontmatter/) - All configuration options
-- [Tools Configuration](/gh-aw/reference/tools/) - GitHub and other tools setup
+- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
+- [Tools](/gh-aw/reference/tools/) - GitHub and other tools setup
 - [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
