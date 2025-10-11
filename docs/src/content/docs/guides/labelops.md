@@ -3,11 +3,11 @@ title: LabelOps
 description: Learn how to use GitHub labels as workflow triggers with AI-powered automation for intelligent issue and pull request management using label filtering.
 ---
 
+LabelOps uses GitHub labels for workflow triggers, metadata, and state markers. GitHub Agentic Workflows supports LabelOps through label-based triggers with filtering, allowing workflows to activate only for specific label changes while maintaining secure, automated responses.
+
+## Overview
+
 LabelOps is a practice that uses GitHub labels as more than just tags — they become powerful workflow triggers, metadata, and state markers. Combined with AI-driven automation, LabelOps enables intelligent, event-driven issue and pull request management.
-
-GitHub Agentic Workflows supports LabelOps through label-based triggers with filtering, allowing workflows to activate only for specific label changes while maintaining secure, automated responses.
-
-## What is LabelOps?
 
 **LabelOps** transforms labels on GitHub Issues and PRs into:
 - **Workflow triggers** - Drive automation in GitHub Actions or bots

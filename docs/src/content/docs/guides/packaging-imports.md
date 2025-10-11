@@ -385,33 +385,6 @@ mcp-servers:
 
 **Result:** Final workflow has the Tavily MCP server configured and available to the AI engine.
 
-## Legacy Import Directives (Deprecated)
-
-:::caution[Deprecated]
-The `{{#import}}`, `@include`, and `@import` directive syntax is deprecated. Use the `imports:` field in frontmatter instead. The old syntax will continue to work but may be removed in future versions.
-
-**Migration example:**
-```diff
-# Old approach - using directives in markdown body
----
-on: issues
-engine: copilot
----
-
-- {{#import shared/tools.md}}
-- @include shared/mcp/tavily.md
-
-# New approach - using imports in frontmatter
-+ ---
-+ on: issues
-+ engine: copilot
-+ imports:
-+   - shared/tools.md
-+   - shared/mcp/tavily.md
-+ ---
-```
-:::
-
 ## Practical Examples
 
 ### Example 1: Adding a Versioned Workflow
