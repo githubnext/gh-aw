@@ -213,7 +213,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.14
+        run: npm install -g @anthropic-ai/claude-code@2.0.13
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -250,7 +250,6 @@ jobs:
           import re
           
           # Domain allow-list (populated during generation)
-          # JSON array safely embedded as Python list literal
           ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]
           
           def extract_domain(url_or_query):
@@ -621,7 +620,7 @@ jobs:
               },
               {
                 name: "add_comment",
-                description: "Add a comment to a GitHub issue, pull request, or discussion",
+                description: "Add a comment to a GitHub issue or pull request",
                 inputSchema: {
                   type: "object",
                   required: ["body"],
@@ -629,15 +628,7 @@ jobs:
                     body: { type: "string", description: "Comment body/content" },
                     issue_number: {
                       type: "number",
-                      description: "Issue number (optional for current context)",
-                    },
-                    pull_number: {
-                      type: "number",
-                      description: "Pull request number (optional, alternative to issue_number)",
-                    },
-                    discussion_number: {
-                      type: "number",
-                      description: "Discussion number for discussion comments (optional, alternative to issue_number)",
+                      description: "Issue or PR number (optional for current context)",
                     },
                   },
                   additionalProperties: false,
@@ -1012,7 +1003,7 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-discussion\":{\"max\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'
           {
             "mcpServers": {
               "github": {
@@ -1023,9 +1014,7 @@ jobs:
                   "--rm",
                   "-e",
                   "GITHUB_PERSONAL_ACCESS_TOKEN",
-                  "-e",
-                  "GITHUB_TOOLSETS=all",
-                  "ghcr.io/github/github-mcp-server:v0.18.0"
+                  "ghcr.io/github/github-mcp-server:sha-09deac4"
                 ],
                 "env": {
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
@@ -1460,6 +1449,15 @@ jobs:
           To report a missing tool use the missing-tool tool from the safe-outputs MCP.
           
           EOF
+      - name: Print prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```markdown' >> $GITHUB_STEP_SUMMARY
+          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
@@ -1546,7 +1544,6 @@ jobs:
         # - mcp__github__get_issue
         # - mcp__github__get_issue_comments
         # - mcp__github__get_job_logs
-        # - mcp__github__get_label
         # - mcp__github__get_latest_release
         # - mcp__github__get_me
         # - mcp__github__get_notification_details
@@ -1571,7 +1568,6 @@ jobs:
         # - mcp__github__list_discussions
         # - mcp__github__list_issue_types
         # - mcp__github__list_issues
-        # - mcp__github__list_label
         # - mcp__github__list_notifications
         # - mcp__github__list_pull_requests
         # - mcp__github__list_releases
@@ -1583,7 +1579,6 @@ jobs:
         # - mcp__github__list_workflow_run_artifacts
         # - mcp__github__list_workflow_runs
         # - mcp__github__list_workflows
-        # - mcp__github__pull_request_read
         # - mcp__github__search_code
         # - mcp__github__search_issues
         # - mcp__github__search_orgs
@@ -1594,7 +1589,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -2050,39 +2045,16 @@ jobs:
                       if (item.labels && Array.isArray(item.labels)) {
                         item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
                       }
-                      if (item.parent !== undefined) {
-                        const parentValidation = validateIssueOrPRNumber(item.parent, "create_issue 'parent'", i + 1);
-                        if (!parentValidation.isValid) {
-                          if (parentValidation.error) errors.push(parentValidation.error);
-                          continue;
-                        }
-                      }
                       break;
                     case "add-comment":
                       if (!item.body || typeof item.body !== "string") {
                         errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
                         continue;
                       }
-                      if (item.issue_number !== undefined) {
-                        const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-                        if (!issueNumValidation.isValid) {
-                          if (issueNumValidation.error) errors.push(issueNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.discussion_number !== undefined) {
-                        const discussionNumValidation = validateIssueOrPRNumber(item.discussion_number, "add_comment 'discussion_number'", i + 1);
-                        if (!discussionNumValidation.isValid) {
-                          if (discussionNumValidation.error) errors.push(discussionNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.pull_number !== undefined) {
-                        const pullNumValidation = validateIssueOrPRNumber(item.pull_number, "add_comment 'pull_number'", i + 1);
-                        if (!pullNumValidation.isValid) {
-                          if (pullNumValidation.error) errors.push(pullNumValidation.error);
-                          continue;
-                        }
+                      const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
+                      if (!issueNumValidation.isValid) {
+                        if (issueNumValidation.error) errors.push(issueNumValidation.error);
+                        continue;
                       }
                       item.body = sanitizeContent(item.body);
                       break;
@@ -2373,6 +2345,18 @@ jobs:
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
               core.setOutput("output_types", outputTypes.join(","));
+              try {
+                await core.summary
+                  .addRaw("## Processed Output\n\n")
+                  .addRaw("```json\n")
+                  .addRaw(JSON.stringify(validatedOutput))
+                  .addRaw("\n```\n")
+                  .write();
+                core.info("Successfully wrote processed output to step summary");
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to write to step summary: ${errorMsg}`);
+              }
             }
             await main();
       - name: Upload sanitized agent output
@@ -2465,16 +2449,6 @@ jobs:
                     mcpFailures: [],
                   };
                 }
-                const toolUsePairs = new Map(); 
-                for (const entry of logEntries) {
-                  if (entry.type === "user" && entry.message?.content) {
-                    for (const content of entry.message.content) {
-                      if (content.type === "tool_result" && content.tool_use_id) {
-                        toolUsePairs.set(content.tool_use_id, content);
-                      }
-                    }
-                  }
-                }
                 let markdown = "";
                 const mcpFailures = [];
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
@@ -2485,27 +2459,18 @@ jobs:
                   mcpFailures.push(...initResult.mcpFailures);
                   markdown += "\n";
                 }
-                markdown += "\n## 🤖 Reasoning\n\n";
+                markdown += "## 🤖 Commands and Tools\n\n";
+                const toolUsePairs = new Map(); 
+                const commandSummary = []; 
                 for (const entry of logEntries) {
-                  if (entry.type === "assistant" && entry.message?.content) {
+                  if (entry.type === "user" && entry.message?.content) {
                     for (const content of entry.message.content) {
-                      if (content.type === "text" && content.text) {
-                        const text = content.text.trim();
-                        if (text && text.length > 0) {
-                          markdown += text + "\n\n";
-                        }
-                      } else if (content.type === "tool_use") {
-                        const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUse(content, toolResult);
-                        if (toolMarkdown) {
-                          markdown += toolMarkdown;
-                        }
+                      if (content.type === "tool_result" && content.tool_use_id) {
+                        toolUsePairs.set(content.tool_use_id, content);
                       }
                     }
                   }
                 }
-                markdown += "## 🤖 Commands and Tools\n\n";
-                const commandSummary = []; 
                 for (const entry of logEntries) {
                   if (entry.type === "assistant" && entry.message?.content) {
                     for (const content of entry.message.content) {
@@ -2568,6 +2533,25 @@ jobs:
                   }
                   if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
                     markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                  }
+                }
+                markdown += "\n## 🤖 Reasoning\n\n";
+                for (const entry of logEntries) {
+                  if (entry.type === "assistant" && entry.message?.content) {
+                    for (const content of entry.message.content) {
+                      if (content.type === "text" && content.text) {
+                        const text = content.text.trim();
+                        if (text && text.length > 0) {
+                          markdown += text + "\n\n";
+                        }
+                      } else if (content.type === "tool_use") {
+                        const toolResult = toolUsePairs.get(content.id);
+                        const toolMarkdown = formatToolUse(content, toolResult);
+                        if (toolMarkdown) {
+                          markdown += toolMarkdown;
+                        }
+                      }
+                    }
                   }
                 }
                 return { markdown, mcpFailures };
@@ -2786,15 +2770,6 @@ jobs:
               };
             }
             main();
-      - name: Print prompt to step summary
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
       - name: Upload Agent Stdio
         if: always()
         uses: actions/upload-artifact@v4
@@ -2807,7 +2782,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"error.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"error.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"error.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"error.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"error.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
         with:
           script: |
             function main() {
@@ -3095,7 +3070,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.14
+        run: npm install -g @anthropic-ai/claude-code@2.0.13
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -3330,10 +3305,9 @@ jobs:
                 }
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  : `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                 bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
                 const body = bodyLines.join("\n").trim();
                 core.info(`Creating discussion with title: ${title}`);

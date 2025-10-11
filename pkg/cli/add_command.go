@@ -817,7 +817,7 @@ func addSourceToWorkflow(content, source string) (string, error) {
 		// Source field doesn't exist, insert it manually to preserve formatting
 		frontmatterLines := make([]string, len(result.FrontmatterLines))
 		copy(frontmatterLines, result.FrontmatterLines)
-		
+
 		// Add source field at the end of the frontmatter, preserving original formatting
 		sourceField := fmt.Sprintf("source: %s", source)
 		frontmatterLines = append(frontmatterLines, sourceField)
