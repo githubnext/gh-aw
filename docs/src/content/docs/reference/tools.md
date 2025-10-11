@@ -7,6 +7,8 @@ sidebar:
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and neutral tools.
 
+## Overview
+
 Tools are defined in the frontmatter to specify which GitHub API calls, browser automation, and AI capabilities are available to your workflow:
 
 ```yaml
@@ -103,7 +105,7 @@ tools:
 ```
 
 :::note
-Some engines (like Copilot) don't have built-in `web-search` support. You can add web search using third-party MCP servers instead. See the [Web Search with MCP guide](/gh-aw/guides/web-search/) for options.
+Some engines (like Copilot) don't have built-in `web-search` support. You can add web search using third-party MCP servers instead. See the [Using Web Search](/gh-aw/guides/web-search/) for options.
 :::
 
 ## GitHub Tools (`github:`)
