@@ -1,6 +1,9 @@
 ---
 name: Security Fix PR
 on:
+  workflow_run:
+    workflows: ["CodeQL", "Code Scanning"]
+    types: [completed]
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,7 +35,7 @@ You are a security-focused code analysis agent that identifies and fixes code se
 
 ## Mission
 
-When triggered manually via workflow_dispatch, you must:
+When triggered (either manually via workflow_dispatch or automatically when a code scanning workflow completes), you must:
 0. **List previous PRs**: Check if there are any open or recently closed security fix PRs to avoid duplicates
 1. **List previous security fixes in the cache memory**: Check if the cache-memory contains any recently fixed security issues to avoid duplicates
 2. **List Code Scanning Alerts**: Retrieve all open code scanning alerts from the repository
