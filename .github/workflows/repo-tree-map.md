@@ -13,22 +13,7 @@ engine: copilot
 
 tools:
   bash:
-    - "find *"
-    - "ls *"
-    - "du *"
-    - "wc *"
-    - "cat *"
-    - "head *"
-    - "tail *"
-    - "sort *"
-    - "jq *"
-    - "uniq *"
-    - "awk *"
-    - "sed *"
-    - "grep *"
-    - "tree *"
-    - "stat *"
-    - "pwd *"
+    - "*"
 
 safe-outputs:
   create-discussion:
