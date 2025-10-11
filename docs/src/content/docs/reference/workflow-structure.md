@@ -10,7 +10,7 @@ Each workflow consists of:
 1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter](/gh-aw/reference/frontmatter/) for details.
 2. **Markdown**: Natural language instructions for the AI. See [Markdown](/gh-aw/reference/markdown/).
 
-The markdown content is where you write natural language instructions for the AI agent. 
+The markdown content is where you write natural language instructions for the agentic workflow. 
 
 Create a markdown file in `.github/workflows/` with the following structure:
 

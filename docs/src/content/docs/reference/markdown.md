@@ -5,9 +5,7 @@ sidebar:
   order: 300
 ---
 
-The markdown content is where you write natural language instructions for the AI agent. 
-
-For example:
+The markdown content is where you write natural language instructions for the agentic workflow.  For example:
 
 ```aw wrap
 ---
