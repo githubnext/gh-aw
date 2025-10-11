@@ -5,12 +5,15 @@
 
 name: "Repository Tree Map Generator"
 on:
+  push:
+    paths:
+    - .github/workflows/repo-tree-map.lock.yml
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
 run-name: "Repository Tree Map Generator"
 
@@ -991,34 +994,7 @@ jobs:
           └─ cmd/ [45 files, 2.1 MB] ██░░
           ```
           
-          ### 3. Include Summary Statistics
-          
-          Create a summary section with:
-          
-          **Repository Overview:**
-          - Total files: [count]
-          - Total size: [size]
-          - Average file size: [size]
-          - Total directories: [count]
-          - Maximum directory depth: [levels]
-          
-          **File Type Distribution (Top 10):**
-          - .go: [count] files ([percentage]%)
-          - .md: [count] files ([percentage]%)
-          - .js: [count] files ([percentage]%)
-          - ... etc
-          
-          **Largest Files:**
-          1. path/to/file.ext - [size]
-          2. path/to/file2.ext - [size]
-          ... (top 10)
-          
-          **Largest Directories:**
-          1. pkg/workflow - [size] ([file count] files)
-          2. docs/src - [size] ([file count] files)
-          ... (top 10)
-          
-          ### 4. Visualization Guidelines
+          ### Visualization Guidelines
           
           - Use **box-drawing characters** for tree structure: │ ├ └ ─
           - Use **block characters** for size bars: █ ▓ ▒ ░
@@ -1037,11 +1013,11 @@ jobs:
           - **Title**: "Repository Tree Map - [current date]"
           - **Body**: Your complete tree map visualization with all sections
           - Use proper markdown formatting with code blocks for the ASCII art
-          - Include a timestamp and repository information
           
           ## Important Notes
           
           - **Exclude .git directory** from all calculations to avoid skewing results
+          - **Exclude package manager directories** (node_modules, vendor, etc.) if present
           - **Handle special characters** in filenames properly
           - **Format sizes** in human-readable units (KB, MB, GB)
           - **Round percentages** to 1-2 decimal places
@@ -1056,6 +1032,10 @@ jobs:
           - Don't execute any code files
           - Don't read sensitive files (.env, secrets, etc.)
           - Focus on file metadata (sizes, counts, names) rather than content
+          
+          ## Tips
+          
+          Your terminal is already in the workspace root. No need to use `cd`.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1221,36 +1201,12 @@ jobs:
         # --allow-tool github(search_repositories)
         # --allow-tool github(search_users)
         # --allow-tool safe_outputs
-        # --allow-tool shell(awk *)
-        # --allow-tool shell(cat *)
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(du *)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(find *)
-        # --allow-tool shell(grep *)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head *)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls *)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sed *)
-        # --allow-tool shell(sort *)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(stat *)
-        # --allow-tool shell(tail *)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(tree *)
-        # --allow-tool shell(uniq *)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc *)
-        # --allow-tool shell(wc)
-        timeout-minutes: 10
+        # --allow-tool shell
+        timeout-minutes: 5
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(awk *)' --allow-tool 'shell(cat *)' --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(du *)' --allow-tool 'shell(echo)' --allow-tool 'shell(find *)' --allow-tool 'shell(grep *)' --allow-tool 'shell(grep)' --allow-tool 'shell(head *)' --allow-tool 'shell(head)' --allow-tool 'shell(ls *)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sed *)' --allow-tool 'shell(sort *)' --allow-tool 'shell(sort)' --allow-tool 'shell(stat *)' --allow-tool 'shell(tail *)' --allow-tool 'shell(tail)' --allow-tool 'shell(tree *)' --allow-tool 'shell(uniq *)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc *)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool shell --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -3021,7 +2977,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Repository Tree Map Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Repository Tree Map Generator\n\nGenerate a comprehensive ASCII tree map visualization of the repository file structure.\n\n## Mission\n\nYour task is to analyze the repository structure and create an ASCII tree map that visualizes:\n1. Directory hierarchy\n2. File sizes (relative visualization)\n3. File counts per directory\n4. Key statistics about the repository\n\n## Analysis Steps\n\n### 1. Collect Repository Statistics\n\nUse bash tools to gather:\n- **Total file count** across the repository\n- **Total repository size** (excluding .git directory)\n- **File type distribution** (count by extension)\n- **Largest files** in the repository (top 10)\n- **Largest directories** by total size\n- **Directory depth** and structure\n\nExample commands you might use:\n```bash\n# Count total files\nfind . -type f -not -path \"./.git/*\" | wc -l\n\n# Get repository size\ndu -sh . --exclude=.git\n\n# Count files by extension\nfind . -type f -not -path \"./.git/*\" | sed 's/.*\\.//' | sort | uniq -c | sort -rn | head -20\n\n# Find largest files\nfind . -type f -not -path \"./.git/*\" -exec du -h {} + | sort -rh | head -10\n\n# Directory sizes\ndu -h --max-depth=2 --exclude=.git . | sort -rh | head -15\n```\n\n### 2. Generate ASCII Tree Map\n\nCreate an ASCII visualization that shows:\n- **Directory tree structure** with indentation\n- **Size indicators** using symbols or bars (e.g., █ ▓ ▒ ░)\n- **File counts** in brackets [count]\n- **Relative size representation** (larger files/directories shown with more bars)\n\nExample visualization format:\n```\nRepository Tree Map\n===================\n\n/ [1234 files, 45.2 MB]\n│\n├─ .github/ [156 files, 2.3 MB] ████████░░\n│  ├─ workflows/ [89 files, 1.8 MB] ██████░░\n│  └─ actions/ [12 files, 234 KB] ██░░\n│\n├─ pkg/ [456 files, 28.5 MB] ██████████████████░░\n│  ├─ cli/ [78 files, 5.2 MB] ████░░\n│  ├─ parser/ [34 files, 3.1 MB] ███░░\n│  └─ workflow/ [124 files, 12.8 MB] ████████░░\n│\n├─ docs/ [234 files, 8.7 MB] ██████░░\n│  └─ src/ [189 files, 7.2 MB] █████░░\n│\n└─ cmd/ [45 files, 2.1 MB] ██░░\n```\n\n### 3. Include Summary Statistics\n\nCreate a summary section with:\n\n**Repository Overview:**\n- Total files: [count]\n- Total size: [size]\n- Average file size: [size]\n- Total directories: [count]\n- Maximum directory depth: [levels]\n\n**File Type Distribution (Top 10):**\n- .go: [count] files ([percentage]%)\n- .md: [count] files ([percentage]%)\n- .js: [count] files ([percentage]%)\n- ... etc\n\n**Largest Files:**\n1. path/to/file.ext - [size]\n2. path/to/file2.ext - [size]\n... (top 10)\n\n**Largest Directories:**\n1. pkg/workflow - [size] ([file count] files)\n2. docs/src - [size] ([file count] files)\n... (top 10)\n\n### 4. Visualization Guidelines\n\n- Use **box-drawing characters** for tree structure: │ ├ └ ─\n- Use **block characters** for size bars: █ ▓ ▒ ░\n- Scale the visualization bars **proportionally** to sizes\n- Keep the tree **readable** - don't go too deep (max 3-4 levels recommended)\n- Add **color indicators** using emojis:\n  - 📁 for directories\n  - 📄 for files\n  - 🔧 for config files\n  - 📚 for documentation\n  - 🧪 for test files\n\n### 5. Output Format\n\nCreate a GitHub discussion with:\n- **Title**: \"Repository Tree Map - [current date]\"\n- **Body**: Your complete tree map visualization with all sections\n- Use proper markdown formatting with code blocks for the ASCII art\n- Include a timestamp and repository information\n\n## Important Notes\n\n- **Exclude .git directory** from all calculations to avoid skewing results\n- **Handle special characters** in filenames properly\n- **Format sizes** in human-readable units (KB, MB, GB)\n- **Round percentages** to 1-2 decimal places\n- **Sort intelligently** - largest first for most sections\n- **Be creative** with the ASCII visualization but keep it readable\n- **Test your bash commands** before including them in analysis\n- The tree map should give a **quick visual understanding** of the repository structure and size distribution\n\n## Security\n\nTreat all repository content as trusted since you're analyzing the repository you're running in. However:\n- Don't execute any code files\n- Don't read sensitive files (.env, secrets, etc.)\n- Focus on file metadata (sizes, counts, names) rather than content\n"
+          WORKFLOW_MARKDOWN: "# Repository Tree Map Generator\n\nGenerate a comprehensive ASCII tree map visualization of the repository file structure.\n\n## Mission\n\nYour task is to analyze the repository structure and create an ASCII tree map that visualizes:\n1. Directory hierarchy\n2. File sizes (relative visualization)\n3. File counts per directory\n4. Key statistics about the repository\n\n## Analysis Steps\n\n### 1. Collect Repository Statistics\n\nUse bash tools to gather:\n- **Total file count** across the repository\n- **Total repository size** (excluding .git directory)\n- **File type distribution** (count by extension)\n- **Largest files** in the repository (top 10)\n- **Largest directories** by total size\n- **Directory depth** and structure\n\nExample commands you might use:\n```bash\n# Count total files\nfind . -type f -not -path \"./.git/*\" | wc -l\n\n# Get repository size\ndu -sh . --exclude=.git\n\n# Count files by extension\nfind . -type f -not -path \"./.git/*\" | sed 's/.*\\.//' | sort | uniq -c | sort -rn | head -20\n\n# Find largest files\nfind . -type f -not -path \"./.git/*\" -exec du -h {} + | sort -rh | head -10\n\n# Directory sizes\ndu -h --max-depth=2 --exclude=.git . | sort -rh | head -15\n```\n\n### 2. Generate ASCII Tree Map\n\nCreate an ASCII visualization that shows:\n- **Directory tree structure** with indentation\n- **Size indicators** using symbols or bars (e.g., █ ▓ ▒ ░)\n- **File counts** in brackets [count]\n- **Relative size representation** (larger files/directories shown with more bars)\n\nExample visualization format:\n```\nRepository Tree Map\n===================\n\n/ [1234 files, 45.2 MB]\n│\n├─ .github/ [156 files, 2.3 MB] ████████░░\n│  ├─ workflows/ [89 files, 1.8 MB] ██████░░\n│  └─ actions/ [12 files, 234 KB] ██░░\n│\n├─ pkg/ [456 files, 28.5 MB] ██████████████████░░\n│  ├─ cli/ [78 files, 5.2 MB] ████░░\n│  ├─ parser/ [34 files, 3.1 MB] ███░░\n│  └─ workflow/ [124 files, 12.8 MB] ████████░░\n│\n├─ docs/ [234 files, 8.7 MB] ██████░░\n│  └─ src/ [189 files, 7.2 MB] █████░░\n│\n└─ cmd/ [45 files, 2.1 MB] ██░░\n```\n\n### Visualization Guidelines\n\n- Use **box-drawing characters** for tree structure: │ ├ └ ─\n- Use **block characters** for size bars: █ ▓ ▒ ░\n- Scale the visualization bars **proportionally** to sizes\n- Keep the tree **readable** - don't go too deep (max 3-4 levels recommended)\n- Add **color indicators** using emojis:\n  - 📁 for directories\n  - 📄 for files\n  - 🔧 for config files\n  - 📚 for documentation\n  - 🧪 for test files\n\n### 5. Output Format\n\nCreate a GitHub discussion with:\n- **Title**: \"Repository Tree Map - [current date]\"\n- **Body**: Your complete tree map visualization with all sections\n- Use proper markdown formatting with code blocks for the ASCII art\n\n## Important Notes\n\n- **Exclude .git directory** from all calculations to avoid skewing results\n- **Exclude package manager directories** (node_modules, vendor, etc.) if present\n- **Handle special characters** in filenames properly\n- **Format sizes** in human-readable units (KB, MB, GB)\n- **Round percentages** to 1-2 decimal places\n- **Sort intelligently** - largest first for most sections\n- **Be creative** with the ASCII visualization but keep it readable\n- **Test your bash commands** before including them in analysis\n- The tree map should give a **quick visual understanding** of the repository structure and size distribution\n\n## Security\n\nTreat all repository content as trusted since you're analyzing the repository you're running in. However:\n- Don't execute any code files\n- Don't read sensitive files (.env, secrets, etc.)\n- Focus on file metadata (sizes, counts, names) rather than content\n\n## Tips\n\nYour terminal is already in the workspace root. No need to use `cd`.\n"
         with:
           script: |
             const fs = require('fs');

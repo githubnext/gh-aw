@@ -1,6 +1,9 @@
 ---
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/repo-tree-map.lock.yml'
 
 permissions:
   contents: read
@@ -10,27 +13,14 @@ engine: copilot
 
 tools:
   bash:
-    - "find *"
-    - "ls *"
-    - "du *"
-    - "wc *"
-    - "cat *"
-    - "head *"
-    - "tail *"
-    - "sort *"
-    - "uniq *"
-    - "awk *"
-    - "sed *"
-    - "grep *"
-    - "tree *"
-    - "stat *"
+    - "*"
 
 safe-outputs:
   create-discussion:
     category: "dev"
     max: 1
 
-timeout_minutes: 10
+timeout_minutes: 5
 ---
 
 # Repository Tree Map Generator
@@ -105,34 +95,7 @@ Repository Tree Map
 └─ cmd/ [45 files, 2.1 MB] ██░░
 ```
 
-### 3. Include Summary Statistics
-
-Create a summary section with:
-
-**Repository Overview:**
-- Total files: [count]
-- Total size: [size]
-- Average file size: [size]
-- Total directories: [count]
-- Maximum directory depth: [levels]
-
-**File Type Distribution (Top 10):**
-- .go: [count] files ([percentage]%)
-- .md: [count] files ([percentage]%)
-- .js: [count] files ([percentage]%)
-- ... etc
-
-**Largest Files:**
-1. path/to/file.ext - [size]
-2. path/to/file2.ext - [size]
-... (top 10)
-
-**Largest Directories:**
-1. pkg/workflow - [size] ([file count] files)
-2. docs/src - [size] ([file count] files)
-... (top 10)
-
-### 4. Visualization Guidelines
+### Visualization Guidelines
 
 - Use **box-drawing characters** for tree structure: │ ├ └ ─
 - Use **block characters** for size bars: █ ▓ ▒ ░
@@ -151,11 +114,11 @@ Create a GitHub discussion with:
 - **Title**: "Repository Tree Map - [current date]"
 - **Body**: Your complete tree map visualization with all sections
 - Use proper markdown formatting with code blocks for the ASCII art
-- Include a timestamp and repository information
 
 ## Important Notes
 
 - **Exclude .git directory** from all calculations to avoid skewing results
+- **Exclude package manager directories** (node_modules, vendor, etc.) if present
 - **Handle special characters** in filenames properly
 - **Format sizes** in human-readable units (KB, MB, GB)
 - **Round percentages** to 1-2 decimal places
@@ -170,3 +133,7 @@ Treat all repository content as trusted since you're analyzing the repository yo
 - Don't execute any code files
 - Don't read sensitive files (.env, secrets, etc.)
 - Focus on file metadata (sizes, counts, names) rather than content
+
+## Tips
+
+Your terminal is already in the workspace root. No need to use `cd`.
