@@ -268,7 +268,8 @@ Workflows can also enable strict mode declaratively using `strict: true` in thei
 
 These commands control the execution and state of your compiled agentic workflows within GitHub Actions.
 
-**Workflow Execution:**
+### Workflow Execution
+
 ```bash
 # Run a single workflow immediately in GitHub Actions
 gh aw run WorkflowName
@@ -286,7 +287,7 @@ gh aw run weekly-research --enable-if-needed
 gh aw run weekly-research --input priority=high
 ```
 
-**Trial Mode Execution:**
+### Trial Mode Execution
 
 Trial mode creates a temporary private repository, installs the specified workflow(s), and runs them in a safe environment that captures outputs without affecting the target repository.
 
@@ -355,7 +356,8 @@ For multiple workflow trials, both individual and combined result files are gene
 > [!TIP]
 > Trial mode automatically uses the `GH_AW_GITHUB_TOKEN` environment variable if set, allowing you to override authentication for testing purposes. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management) for token management best practices.
 
-**Workflow State Management:**
+### Workflow State Management
+
 ```bash
 # Show status of all agentic workflows
 gh aw status
@@ -392,7 +394,7 @@ The `status` command shows comprehensive information about your agentic workflow
 - **`disable`**: Stops workflows from executing automatically and cancels any currently running workflow instances
 - Both commands support pattern matching to operate on multiple workflows at once
 
-## 📊 Log Analysis and Monitoring
+### Log Analysis and Monitoring
 
 The `logs` command provides comprehensive analysis of workflow execution history, including performance metrics, cost tracking, and error analysis.
 
@@ -487,7 +489,7 @@ Each engine's parser formats the output differently based on the log structure:
 - **Codex**: Parses thinking sections and command execution logs
 - **Copilot**: Formats conversation flow and tool interactions
 
-## 🔎 Single Run Audit
+### Single Run Audit
 
 The `audit` command investigates a single GitHub Actions workflow run and generates a concise markdown report suitable for AI agent consumption. It provides focused, detailed analysis of individual runs with smart permission handling.
 
@@ -555,7 +557,7 @@ The audit command generates a structured markdown report with:
 - Reusable cache saves time and API calls
 - Concise format optimized for AI agent parsing
 
-## 🔍 MCP Server Management
+### MCP Server Management
 
 The `mcp` command provides comprehensive tools for discovering, listing, and inspecting Model Context Protocol (MCP) servers configured in your workflows.
 
@@ -648,8 +650,6 @@ gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
 - **Transport Selection**: Supports stdio, HTTP, and Docker transports
 - **Custom Registries**: Can connect to private or custom MCP registries
 
-
-
 **Key Features:**
 - **`mcp list`**: Quick overview of MCP servers across workflows with structured table output
 - **`mcp inspect`**: Deep inspection with server connection testing and tool capability analysis
@@ -667,7 +667,7 @@ gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
 
 For detailed MCP debugging and troubleshooting guides, see [MCP Debugging](/gh-aw/guides/mcps/#debugging-and-troubleshooting).
 
-## 🔧 MCP Server
+### MCP Server for gh aw
 
 The `mcp-server` command runs gh-aw as a Model Context Protocol (MCP) server, exposing CLI commands as tools that can be called by AI agents and other MCP clients. This enables secure, isolated access to gh-aw functionality.
 
