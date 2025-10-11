@@ -161,6 +161,8 @@ on:
 
 will mean the agentic workflow no longer operates 7 days after time of compilation.
 
+For complete documentation on `stop-after:` configuration and supported formats, see [Trigger Events](/gh-aw/reference/triggers/#stop-after-configuration-stop-after).
+
 #### Limit workflow runs by engine `max-turns:`
 
 Use `max-turns:` in the engine configuration to limit the number of chat iterations per run. This prevents runaway loops and excessive resource consumption. For example:

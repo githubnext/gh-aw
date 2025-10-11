@@ -1,5 +1,5 @@
 ---
-title: Packaging and Imports
+title: Pacakging and Updating
 description: Complete guide to adding, updating, and importing workflows from external repositories using workflow specifications and import directives.
 sidebar:
   order: 600
