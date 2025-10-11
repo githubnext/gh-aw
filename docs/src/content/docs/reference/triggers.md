@@ -56,7 +56,7 @@ on:
 
 See GitHub Docs for more details: [Events that trigger workflows - Pull Request](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request).
 
-### Comment Triggers (`issue_comment:`, `pull_request_review_comment:`, `discussion_comment:`)
+### Comment Triggers
 ```yaml
 on:
   issue_comment:
