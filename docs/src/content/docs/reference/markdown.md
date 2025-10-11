@@ -11,8 +11,6 @@ The markdown content is where you write natural language instructions for the AI
 
 Effective agentic markdown combines clear instructions, contextual information, and structured guidance to help AI agents perform tasks accurately and consistently.
 
-### Core Principles
-
 #### Be Clear and Specific
 Write instructions as if you're explaining the task to a new team member. Avoid ambiguity and provide concrete examples.
 
@@ -198,7 +196,7 @@ Before deploying workflows:
 
 ## Templating
 
-Agentic markdown supports GitHub Actions expressions and templating for content. See [Templating](/gh-aw/reference/templating/) for details.
+Agentic markdown supports GitHub Actions expression substitutions and conditional templating for content. See [Templating and Substitutions](/gh-aw/reference/templating/) for details.
 
 ## Related Documentation
 
