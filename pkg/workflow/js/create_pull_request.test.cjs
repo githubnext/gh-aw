@@ -4,21 +4,25 @@ import path from "path";
 
 // Create standalone test functions by extracting parts of the script
 const createTestableFunction = scriptContent => {
-  // Extract just the main function content and wrap it properly
-  const mainFunctionMatch = scriptContent.match(/async function main\(\) \{([\s\S]*?)\}\s*await main\(\);?\s*$/);
-  if (!mainFunctionMatch) {
-    throw new Error("Could not extract main function from script");
+  // Extract everything before await main() - this includes helper functions and the main function
+  const beforeMainCall = scriptContent.match(/^([\s\S]*?)\s*await main\(\);?\s*$/);
+  if (!beforeMainCall) {
+    throw new Error("Could not extract script content before await main()");
   }
 
-  const mainFunctionBody = mainFunctionMatch[1];
+  let scriptBody = beforeMainCall[1];
+
+  // Remove const declarations for fs and crypto since they'll be provided as parameters
+  scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("fs"\)\} \*\/\s*const fs = require\("fs"\);?\s*/g, "");
+  scriptBody = scriptBody.replace(/\/\*\* @type \{typeof import\("crypto"\)\} \*\/\s*const crypto = require\("crypto"\);?\s*/g, "");
 
   // Create a testable function that has the same logic but can be called with dependencies
   return new Function(`
     const { fs, crypto, github, core, context, process, console } = arguments[0];
     
-    return async function main() {
-      ${mainFunctionBody}
-    };
+    ${scriptBody}
+    
+    return main;
   `);
 };
 
