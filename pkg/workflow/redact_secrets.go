@@ -88,7 +88,9 @@ func (c *Compiler) generateSecretRedactionStep(yaml *strings.Builder, yamlConten
 	for _, secretName := range secretReferences {
 		// Escape secret name to prevent injection in YAML
 		escapedSecretName := escapeSingleQuote(secretName)
-		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, escapedSecretName))
+		// Use original secretName in GitHub Actions expression since it's already validated
+		// to only contain safe characters (uppercase letters, numbers, underscores)
+		yaml.WriteString(fmt.Sprintf("          SECRET_%s: ${{ secrets.%s }}\n", escapedSecretName, secretName))
 	}
 }
 
