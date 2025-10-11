@@ -99,6 +99,37 @@ function getErrorPatternsFromEnv() {
 }
 
 /**
+ * Determine if a log line should be skipped during error validation.
+ * This prevents false positives from environment variable definitions and other metadata.
+ * @param {string} line - The log line to check
+ * @returns {boolean} - True if the line should be skipped
+ */
+function shouldSkipLine(line) {
+  // GitHub Actions timestamp format: YYYY-MM-DDTHH:MM:SS.MMMZ
+  const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
+
+  // Skip GitHub Actions environment variable declarations
+  // Format: "2025-10-11T21:23:50.7459810Z   GITHUB_AW_ERROR_PATTERNS: [..."
+  if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GITHUB_AW_ERROR_PATTERNS:").test(line)) {
+    return true;
+  }
+
+  // Skip lines that are showing environment variables in GitHub Actions format
+  // Format: "   GITHUB_AW_ERROR_PATTERNS: [..."
+  if (/^\s+GITHUB_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
+    return true;
+  }
+
+  // Skip lines showing env: section in GitHub Actions logs
+  // Format: "2025-10-11T21:23:50.7453806Z env:"
+  if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * @param {string} logContent
  * @param {any[]} patterns
  * @returns {boolean}
@@ -126,6 +157,13 @@ function validateErrors(logContent, patterns) {
 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       const line = lines[lineIndex];
+
+      // Skip lines that are environment variable definitions from GitHub Actions logs
+      // These lines contain the error patterns themselves and create false positives
+      if (shouldSkipLine(line)) {
+        continue;
+      }
+
       let match;
       let iterationCount = 0;
       let lastIndex = -1;
@@ -236,6 +274,7 @@ if (typeof module !== "undefined" && module.exports) {
     extractMessage,
     getErrorPatternsFromEnv,
     truncateString,
+    shouldSkipLine,
   };
 }
 

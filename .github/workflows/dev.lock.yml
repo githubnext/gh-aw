@@ -2303,6 +2303,19 @@ jobs:
                 throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
               }
             }
+            function shouldSkipLine(line) {
+              const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GITHUB_AW_ERROR_PATTERNS:").test(line)) {
+                return true;
+              }
+              if (/^\s+GITHUB_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
+                return true;
+              }
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
+                return true;
+              }
+              return false;
+            }
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
               let hasErrors = false;
@@ -2321,6 +2334,9 @@ jobs:
                 }
                 for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
                   const line = lines[lineIndex];
+                  if (shouldSkipLine(line)) {
+                    continue;
+                  }
                   let match;
                   let iterationCount = 0;
                   let lastIndex = -1;
@@ -2392,6 +2408,7 @@ jobs:
                 extractMessage,
                 getErrorPatternsFromEnv,
                 truncateString,
+                shouldSkipLine,
               };
             }
             if (typeof module === "undefined" || require.main === module) {
