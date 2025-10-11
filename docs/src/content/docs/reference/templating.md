@@ -5,10 +5,11 @@ sidebar:
   order: 350
 ---
 
-Agentic workflows support two simple templating/substitution mechanisms, mostly used in the **markdown content** 
+Agentic workflows support three simple templating/substitution mechanisms: 
 
-* GitHub Actions `${{ ... }}` expressions
-* Conditional Templating `{{#if ...}} ... {{/if}}` blocks.
+* GitHub Actions expressions in frontmatter or markdown
+* Conditional Templating blocks in markdown
+* [Imports](/gh-aw/reference/imports/) in frontmatter or markdown
 
 ## GitHub Actions Expressions
 
