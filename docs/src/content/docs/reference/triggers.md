@@ -5,13 +5,15 @@ sidebar:
   order: 400
 ---
 
-The `on:` section uses standard GitHub Actions syntax to define workflow triggers. Here are some common examples:
+The `on:` section uses standard GitHub Actions syntax to define workflow triggers. For example:
 
 ```yaml
 on:
   issues:
     types: [opened]
 ```
+
+## Trigger Types
 
 GitHub Agentic Workflows supports all standard GitHub Actions triggers plus additional enhancements for reactions, cost control, and advanced filtering.
 
