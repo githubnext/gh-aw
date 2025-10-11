@@ -18,8 +18,13 @@ type WorkflowMCPInfo struct {
 	MCPConfigs  []parser.MCPServerConfig // Extracted MCP server configurations
 }
 
-// scanWorkflowsDirectory scans the workflows directory for .md files and extracts MCP configurations
-// It returns a slice of WorkflowMCPInfo for workflows that contain MCP servers
+// scanWorkflowsDirectory scans the workflows directory for .md files and extracts MCP configurations.
+// It returns a slice of WorkflowMCPInfo for workflows that contain MCP servers.
+//
+// Parameters:
+//   - workflowsDir: Path to the workflows directory (typically .github/workflows)
+//   - serverFilter: Optional filter for MCP server names. Empty string means no filtering (returns all servers)
+//   - verbose: If true, prints warning messages for skipped files
 func scanWorkflowsDirectory(workflowsDir string, serverFilter string, verbose bool) ([]WorkflowMCPInfo, error) {
 	// Check if the workflows directory exists
 	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
@@ -74,7 +79,15 @@ func scanWorkflowsDirectory(workflowsDir string, serverFilter string, verbose bo
 	return workflowInfos, nil
 }
 
-// loadWorkflowWithMCP loads a workflow file and extracts its frontmatter and MCP configurations
+// loadWorkflowWithMCP loads a workflow file and extracts its frontmatter and MCP configurations.
+//
+// Parameters:
+//   - workflowFile: Path to the workflow file (with or without .md extension)
+//   - serverFilter: Optional filter for MCP server names. Empty string means no filtering (returns all servers)
+//
+// Returns:
+//   - WorkflowMCPInfo containing the parsed workflow data and MCP configurations
+//   - Error if the file cannot be read or parsed
 func loadWorkflowWithMCP(workflowFile string, serverFilter string) (*WorkflowMCPInfo, error) {
 	// Resolve the workflow file path
 	workflowPath, err := ResolveWorkflowPath(workflowFile)
