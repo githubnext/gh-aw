@@ -19,8 +19,6 @@ Agentic workflows restrict which GitHub Actions expressions can be used in **mar
 
 The following GitHub Actions context expressions are permitted in the markdown content:
 
-### GitHub Context Expressions
-
 - `${{ github.event.after }}` - The SHA of the most recent commit on the ref after the push
 - `${{ github.event.before }}` - The SHA of the most recent commit on the ref before the push
 - `${{ github.event.check_run.id }}` - The ID of the check run that triggered the workflow
