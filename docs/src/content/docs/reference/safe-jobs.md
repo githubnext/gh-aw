@@ -2,7 +2,7 @@
 title: Safe Jobs
 description: Learn about safe-jobs feature that enables defining custom post-processing workflows with GitHub Actions job properties and artifact access.
 sidebar:
-  order: 600
+  order: 650
 ---
 
 The `safe-outputs.jobs:` element of your workflow's frontmatter enables you to define custom post-processing jobs that execute after the main agentic workflow completes. Safe-jobs provide a powerful way to create sophisticated automation workflows while maintaining security through controlled job execution.
