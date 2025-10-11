@@ -1480,6 +1480,14 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		} else if bashArray, ok := bashTool.([]any); ok {
 			// bash is an array - merge default commands with custom commands
 			if len(bashArray) > 0 {
+				// Security: Guard against allocation size overflow (CWE-190)
+				// Ensure the combined size doesn't exceed a reasonable limit
+				const maxBashCommands = 10000 // Reasonable limit for bash commands
+				if len(bashArray) > maxBashCommands {
+					// Silently truncate to prevent overflow while maintaining functionality
+					bashArray = bashArray[:maxBashCommands]
+				}
+
 				// Create a set to track existing commands to avoid duplicates
 				existingCommands := make(map[string]bool)
 				for _, cmd := range bashArray {
@@ -1489,7 +1497,17 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 				}
 
 				// Start with default commands
-				mergedCommands := make([]any, 0, len(constants.DefaultBashTools)+len(bashArray))
+				// Check for overflow: ensure sum won't exceed int max
+				defaultLen := len(constants.DefaultBashTools)
+				arrayLen := len(bashArray)
+				capacity := defaultLen + arrayLen
+
+				// Additional safety: verify the capacity is reasonable
+				if capacity < 0 || capacity > maxBashCommands {
+					capacity = maxBashCommands
+				}
+
+				mergedCommands := make([]any, 0, capacity)
 				for _, cmd := range constants.DefaultBashTools {
 					if !existingCommands[cmd] {
 						mergedCommands = append(mergedCommands, cmd)
