@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -53,6 +54,11 @@ Examples:
 
 // runMCPServer starts the MCP server on stdio or HTTP transport
 func runMCPServer(port int) error {
+	// Validate that the CLI and secrets are properly configured
+	if err := validateMCPServerConfiguration(); err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
 	// Create the server configuration
 	server := createMCPServer()
 
@@ -63,6 +69,31 @@ func runMCPServer(port int) error {
 
 	// Run stdio transport
 	return server.Run(context.Background(), &mcp.StdioTransport{})
+}
+
+// validateMCPServerConfiguration validates that the CLI is properly configured
+// by running the status command as a test
+func validateMCPServerConfiguration() error {
+	// Try to run the status command to verify CLI is working
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "gh", "aw", "status")
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		// Check for common error cases
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("status command timed out - this may indicate a configuration issue")
+		}
+
+		// If the command failed, provide helpful error message
+		return fmt.Errorf("failed to run status command: %w\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install githubnext/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
+	}
+
+	// Status command succeeded - configuration is valid
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✅ Configuration validated successfully"))
+	return nil
 }
 
 // createMCPServer creates and configures the MCP server with all tools
