@@ -317,6 +317,27 @@ function checkGitPrerequisites() {
 }
 
 /**
+ * Prompt for user confirmation
+ * @param {string} message - Message to display
+ * @returns {boolean} True if user confirmed
+ */
+function promptConfirmation(message) {
+  const readline = require('readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  
+  return new Promise((resolve) => {
+    rl.question(`${message} (y/N): `, (answer) => {
+      rl.close();
+      const confirmed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+      resolve(confirmed);
+    });
+  });
+}
+
+/**
  * Update CHANGELOG.md with new version and changes
  * @param {string} version - Version string
  * @param {Array} changesets - Array of changesets
@@ -445,7 +466,7 @@ function runVersion() {
  * Run the release command
  * @param {string} releaseType - Optional release type (patch, minor, major)
  */
-function runRelease(releaseType) {
+async function runRelease(releaseType) {
   // Check git prerequisites (clean tree, main branch)
   checkGitPrerequisites();
   
@@ -477,6 +498,13 @@ function runRelease(releaseType) {
   console.log(formatInfoMessage(`Next version: ${versionString}`));
   console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
   
+  // Show what will be included in the release
+  console.log('');
+  console.log(formatInfoMessage('Changes to be included:'));
+  for (const cs of changesets) {
+    console.log(`  [${cs.bumpType}] ${extractFirstLine(cs.description)}`);
+  }
+  
   // Update changelog
   updateChangelog(versionString, changesets, false);
   
@@ -487,7 +515,17 @@ function runRelease(releaseType) {
   console.log(formatSuccessMessage('Updated CHANGELOG.md'));
   console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
   
-  // Execute git operations automatically
+  // Ask for confirmation before git operations
+  console.log('');
+  const confirmed = await promptConfirmation(formatInfoMessage('Proceed with creating the release (commit, tag, and push)?'));
+  
+  if (!confirmed) {
+    console.log(formatInfoMessage('Release cancelled. CHANGELOG.md has been updated but no git operations were performed.'));
+    console.log(formatInfoMessage('You can manually complete the release later or revert the changelog changes.'));
+    return;
+  }
+  
+  // Execute git operations
   console.log('');
   console.log(formatInfoMessage('Executing git operations...'));
   
@@ -550,7 +588,7 @@ function showHelp() {
 }
 
 // Main entry point
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
@@ -566,7 +604,7 @@ function main() {
         runVersion();
         break;
       case 'release':
-        runRelease(args[1]);
+        await runRelease(args[1]);
         break;
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));
