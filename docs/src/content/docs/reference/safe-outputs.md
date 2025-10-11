@@ -84,7 +84,7 @@ The compiled workflow will have additional prompting describing that, to create 
 
 ### Issue Comment Creation (`add-comment:`)
 
-Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments based on the workflow's output. By default, comments are posted on the triggering issue or pull request, but this can be configured using the `target` option.
+Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments based on the workflow's output. By default, comments are posted on the triggering issue, pull request, or discussion, but this can be configured using the `target` option.
 
 **Basic Configuration:**
 ```yaml
@@ -98,9 +98,9 @@ safe-outputs:
   add-comment:
     max: 3                          # Optional: maximum number of comments (default: 1)
     target: "*"                     # Optional: target for comments
-                                    # "triggering" (default) - only comment on triggering issue/PR
-                                    # "*" - allow comments on any issue (requires issue_number in agent output)
-                                    # explicit number - comment on specific issue number
+                                    # "triggering" (default) - only comment on triggering issue/PR/discussion
+                                    # "*" - allow comments on any issue/discussion (requires issue_number or discussion_number in agent output)
+                                    # explicit number - comment on specific issue/discussion number
     target-repo: "owner/target-repo" # Optional: create comments in a different repository (requires github-token with appropriate permissions)
 ```
 
@@ -122,13 +122,39 @@ safe-outputs:
     max: 3
 ---
 
-# Issue/PR Analysis Agent
+# Issue/PR/Discussion Analysis Agent
 
-Analyze the issue or pull request and provide feedback.
-Create issue comments on the triggering issue or PR with your analysis findings. Each comment should provide specific insights about different aspects of the issue.
+Analyze the issue, pull request, or discussion and provide feedback.
+Create comments on the triggering issue, PR, or discussion with your analysis findings. Each comment should provide specific insights about different aspects of the content.
 ```
 
 The compiled workflow will have additional prompting describing that, to create comments, it should write the comment content to a special file.
+
+**Discussion Support:**
+
+Comments can also be added to GitHub discussions. When triggered by a discussion event, the workflow will use GraphQL to create discussion comments:
+
+```aw wrap
+---
+on:
+  discussion:
+    types: [created]
+permissions:
+  contents: read
+  discussions: write
+  actions: read
+engine: claude
+safe-outputs:
+  add-comment:
+---
+
+# Discussion Response Agent
+
+Analyze the discussion and provide a helpful response.
+Create a comment on the discussion with your insights.
+```
+
+**Note:** Discussion events require the `discussions: write` permission. The add-comment job automatically includes this permission.
 
 ### Add Issue Label (`add-labels:`)
 
