@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,33 +19,38 @@ import (
 func NewUpdateCommand(validateEngine func(string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update [workflow-name]...",
-		Short: "Update workflows from their source repositories",
-		Long: `Update one or more workflows from their source repositories.
+		Short: "Update workflows from their source repositories and check for gh-aw updates",
+		Long: `Update one or more workflows from their source repositories and check for gh-aw updates.
 
-The command uses the 'source' field in the workflow frontmatter to determine
-the source repository and version. It then fetches the latest version based on
-the current ref:
+The command:
+1. Checks if a newer version of gh-aw is available
+2. Updates workflows using the 'source' field in the workflow frontmatter
+3. Recompiles all workflows
+
+For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a tag, it updates to the latest release (use --major for major version updates)
 - If the ref is a branch, it fetches the latest commit from that branch
 - Otherwise, it fetches the latest commit from the default branch
 
 Examples:
-  ` + constants.CLIExtensionPrefix + ` update                    # Update all workflows with source field
-  ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Update specific workflow
+  ` + constants.CLIExtensionPrefix + ` update                    # Check gh-aw updates and update all workflows
+  ` + constants.CLIExtensionPrefix + ` update ci-doctor         # Check gh-aw updates and update specific workflow
   ` + constants.CLIExtensionPrefix + ` update ci-doctor --major # Allow major version updates
+  ` + constants.CLIExtensionPrefix + ` update --pr              # Create PR with changes
   ` + constants.CLIExtensionPrefix + ` update --force           # Force update even if no changes`,
 		Run: func(cmd *cobra.Command, args []string) {
 			majorFlag, _ := cmd.Flags().GetBool("major")
 			forceFlag, _ := cmd.Flags().GetBool("force")
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			prFlag, _ := cmd.Flags().GetBool("pr")
 
 			if err := validateEngine(engineOverride); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
 
-			if err := UpdateWorkflows(args, majorFlag, forceFlag, verbose, engineOverride); err != nil {
+			if err := UpdateWorkflowsWithExtensionCheck(args, majorFlag, forceFlag, verbose, engineOverride, prFlag); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -54,8 +60,186 @@ Examples:
 	cmd.Flags().Bool("major", false, "Allow major version updates when updating tagged releases")
 	cmd.Flags().Bool("force", false, "Force update even if no changes detected")
 	cmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot)")
+	cmd.Flags().Bool("pr", false, "Create a pull request with the workflow changes")
 
 	return cmd
+}
+
+// checkExtensionUpdate checks if a newer version of gh-aw is available
+func checkExtensionUpdate(verbose bool) error {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Checking for gh-aw extension updates..."))
+	}
+
+	// Run gh extension upgrade --dry-run to check for updates
+	cmd := exec.Command("gh", "extension", "upgrade", "githubnext/gh-aw", "--dry-run")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check for extension updates: %v", err)))
+		}
+		return nil // Don't fail the whole command if update check fails
+	}
+
+	outputStr := strings.TrimSpace(string(output))
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Extension update check output: %s", outputStr)))
+	}
+
+	// Parse the output to see if an update is available
+	// Expected format: "[aw]: would have upgraded from v0.14.0 to v0.18.1"
+	lines := strings.Split(outputStr, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "[aw]: would have upgraded from") {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(line))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run 'gh extension upgrade githubnext/gh-aw' to update"))
+			return nil
+		}
+	}
+
+	if strings.Contains(outputStr, "✓ Successfully checked extension upgrades") {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("gh-aw extension is up to date"))
+		}
+	}
+
+	return nil
+}
+
+// runCompileWorkflows runs the compile command to recompile all workflows
+func runCompileWorkflows(verbose bool, engineOverride string) error {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Compiling workflows..."))
+	}
+
+	// Create a compiler instance similar to how compile command does it
+	compiler := workflow.NewCompiler(verbose, engineOverride, GetVersion())
+
+	// Compile all workflows in the workflows directory
+	workflowsDir := getWorkflowsDir()
+	err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
+	if err != nil {
+		return fmt.Errorf("failed to compile workflows: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully compiled all workflows"))
+	}
+	return nil
+}
+
+// UpdateWorkflowsWithExtensionCheck performs the complete update process:
+// 1. Check for gh-aw extension updates
+// 2. Update workflows from source repositories
+// 3. Compile all workflows
+// 4. Optionally create a PR
+func UpdateWorkflowsWithExtensionCheck(workflowNames []string, allowMajor, force, verbose bool, engineOverride string, createPR bool) error {
+	// Step 1: Check for gh-aw extension updates
+	if err := checkExtensionUpdate(verbose); err != nil {
+		return fmt.Errorf("extension update check failed: %w", err)
+	}
+
+	// Step 2: Update workflows from source repositories
+	if err := UpdateWorkflows(workflowNames, allowMajor, force, verbose, engineOverride); err != nil {
+		return fmt.Errorf("workflow update failed: %w", err)
+	}
+
+	// Step 3: Compile all workflows
+	if err := runCompileWorkflows(verbose, engineOverride); err != nil {
+		return fmt.Errorf("compile failed: %w", err)
+	}
+
+	// Step 4: Optionally create PR if flag is set
+	if createPR {
+		if err := createUpdatePR(verbose); err != nil {
+			return fmt.Errorf("failed to create PR: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// hasGitChanges checks if there are any uncommitted changes
+func hasGitChanges() (bool, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	return len(strings.TrimSpace(string(output))) > 0, nil
+}
+
+// runGitCommand runs a git command with the specified arguments
+func runGitCommand(args ...string) error {
+	cmd := exec.Command("git", args...)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git %s failed: %w", strings.Join(args, " "), err)
+	}
+	return nil
+}
+
+// createUpdatePR creates a pull request with the workflow changes
+func createUpdatePR(verbose bool) error {
+	// Check if GitHub CLI is available
+	if !isGHCLIAvailable() {
+		return fmt.Errorf("GitHub CLI (gh) is required for PR creation but not found in PATH")
+	}
+
+	// Check if there are any changes to commit
+	hasChanges, err := hasGitChanges()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	if !hasChanges {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No changes to create PR for"))
+		return nil
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Creating pull request with workflow updates..."))
+	}
+
+	// Create a branch name with timestamp
+	randomNum := rand.Intn(9000) + 1000 // Generate number between 1000-9999
+	branchName := fmt.Sprintf("update-workflows-%d", randomNum)
+
+	// Create and checkout new branch
+	if err := runGitCommand("checkout", "-b", branchName); err != nil {
+		return fmt.Errorf("failed to create branch: %w", err)
+	}
+
+	// Add all changes
+	if err := runGitCommand("add", "."); err != nil {
+		return fmt.Errorf("failed to add changes: %w", err)
+	}
+
+	// Commit changes
+	commitMsg := "Update workflows and recompile"
+	if err := runGitCommand("commit", "-m", commitMsg); err != nil {
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	// Push branch
+	if err := runGitCommand("push", "-u", "origin", branchName); err != nil {
+		return fmt.Errorf("failed to push branch: %w", err)
+	}
+
+	// Create PR
+	cmd := exec.Command("gh", "pr", "create",
+		"--title", "Update workflows and recompile",
+		"--body", "This PR updates workflows from their source repositories and recompiles them.\n\nGenerated by `gh aw update --pr`")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to create PR: %w\nOutput: %s", err, string(output))
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully created pull request"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(strings.TrimSpace(string(output))))
+
+	return nil
 }
 
 // UpdateWorkflows updates workflows from their source repositories

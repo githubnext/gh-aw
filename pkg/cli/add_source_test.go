@@ -79,6 +79,41 @@ This workflow has complex 'on' triggers.`,
 			expectError: false,
 			checkSource: true,
 		},
+		{
+			name: "preserve_formatting_with_comments_and_blank_lines",
+			content: `---
+on:
+    workflow_dispatch:
+
+    schedule:
+        # Run daily at 2am UTC, all days except Saturday and Sunday
+        - cron: "0 2 * * 1-5"
+
+    stop-after: +48h # workflow will no longer trigger after 48 hours
+
+timeout_minutes: 30
+
+permissions: read-all
+
+network: defaults
+
+engine: claude
+
+tools:
+    # Web tools for testing
+    web-search: null
+    
+    # Memory cache
+    cache-memory: true
+---
+
+# Well Formatted Workflow
+
+This workflow has proper formatting with comments and blank lines.`,
+			source:      "githubnext/agentics/workflows/formatted.md@v1.0.0",
+			expectError: false,
+			checkSource: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,10 +148,30 @@ This workflow has complex 'on' triggers.`,
 				if strings.Contains(tt.content, "# Test Workflow") && !strings.Contains(result, "# Test Workflow") {
 					t.Errorf("addSourceToWorkflow() result does not preserve markdown content")
 				}
+				if strings.Contains(tt.content, "# Well Formatted Workflow") && !strings.Contains(result, "# Well Formatted Workflow") {
+					t.Errorf("addSourceToWorkflow() result does not preserve markdown content")
+				}
 
 				// Verify that "on" keyword is not quoted
 				if strings.Contains(result, `"on":`) {
 					t.Errorf("addSourceToWorkflow() result contains quoted 'on' keyword, should be unquoted. Result:\n%s", result)
+				}
+
+				// For the formatting preservation test, verify that comments and blank lines are preserved
+				if tt.name == "preserve_formatting_with_comments_and_blank_lines" {
+					if !strings.Contains(result, "# Run daily at 2am UTC, all days except Saturday and Sunday") {
+						t.Errorf("addSourceToWorkflow() result does not preserve comments")
+					}
+					if !strings.Contains(result, "stop-after: +48h # workflow will no longer trigger") {
+						t.Errorf("addSourceToWorkflow() result does not preserve inline comments")
+					}
+					if !strings.Contains(result, "    # Web tools for testing") {
+						t.Errorf("addSourceToWorkflow() result does not preserve indented comments")
+					}
+					// Check that there are still blank lines by checking for consecutive newlines
+					if !strings.Contains(result, "\n\n") {
+						t.Errorf("addSourceToWorkflow() result does not preserve blank lines")
+					}
 				}
 			}
 		})
