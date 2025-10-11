@@ -27,7 +27,7 @@ func isYAMLBooleanKeyword(key string) bool {
 // This is necessary because yaml.Marshal adds quotes around some keys.
 // The function only replaces the quoted key if it appears at the start of a line
 // (optionally preceded by whitespace) to avoid replacing quoted strings in values.
-// 
+//
 // IMPORTANT: YAML boolean keywords (on, off, yes, no, true, false) are NOT unquoted
 // because they would be interpreted as boolean values instead of string keys.
 func UnquoteYAMLKey(yamlStr string, key string) string {
