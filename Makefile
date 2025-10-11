@@ -222,8 +222,6 @@ help:
 	@echo "  recompile        - Recompile all workflow files (depends on build)"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
-	@echo "  patch-release    - Create and push patch release (increments patch version)"
-	@echo "  minor-release    - Create and push minor release (increments minor version, resets patch to 0)"
 	@echo "  changeset-version   - Preview next version from changesets"
 	@echo "  changeset-release   - Create release using changesets"
 	@echo "  help             - Show this help message"
