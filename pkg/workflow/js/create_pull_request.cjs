@@ -4,6 +4,27 @@ const fs = require("fs");
 const crypto = require("crypto");
 
 async function main() {
+  /**
+   * Generate a patch preview with max 500 lines for issue body
+   * @param {string} patchContent - The full patch content
+   * @returns {string} Formatted patch preview
+   */
+  function generatePatchPreview(patchContent) {
+    if (!patchContent || !patchContent.trim()) {
+      return "";
+    }
+
+    const lines = patchContent.split("\n");
+    const maxLines = 500;
+
+    if (lines.length <= maxLines) {
+      return `\n\n<details><summary>Show patch (${lines.length} lines)</summary>\n\n\`\`\`diff\n${patchContent}\n\`\`\`\n\n</details>`;
+    }
+
+    const preview = lines.slice(0, maxLines).join("\n");
+    return `\n\n<details><summary>Show patch preview (${maxLines} of ${lines.length} lines)</summary>\n\n\`\`\`diff\n${preview}\n... (truncated)\n\`\`\`\n\n</details>`;
+  }
+
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
@@ -308,6 +329,13 @@ async function main() {
         ? `${context.payload.repository.html_url}/actions/runs/${runId}`
         : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
 
+      // Read patch content for preview
+      let patchPreview = "";
+      if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+        const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+        patchPreview = generatePatchPreview(patchContent);
+      }
+
       const fallbackBody = `${body}
 
 ---
@@ -329,7 +357,7 @@ gh run download ${runId} -n aw.patch
 # Apply the patch
 git am aw.patch
 \`\`\`
-`;
+${patchPreview}`;
 
       try {
         const { data: issue } = await github.rest.issues.create({
@@ -442,6 +470,13 @@ git am aw.patch
       ? `${context.payload.repository.html_url}/tree/${branchName}`
       : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
 
+    // Read patch content for preview
+    let patchPreview = "";
+    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+      const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      patchPreview = generatePatchPreview(patchContent);
+    }
+
     const fallbackBody = `${body}
 
 ---
@@ -450,7 +485,7 @@ git am aw.patch
 
 **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
 
-You can manually create a pull request from the branch if needed.`;
+You can manually create a pull request from the branch if needed.${patchPreview}`;
 
     try {
       const { data: issue } = await github.rest.issues.create({

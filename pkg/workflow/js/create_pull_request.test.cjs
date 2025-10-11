@@ -534,6 +534,104 @@ describe("create_pull_request.cjs", () => {
     expect(mockDependencies.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("## Fallback Issue Created"));
   });
 
+  it("should include patch preview in fallback issue when PR creation fails", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "PR with patch preview",
+          body: "This PR will fail and create an issue with patch preview.",
+        },
+      ],
+    });
+
+    // Create a patch with multiple lines (over 500 lines to test truncation)
+    const patchLines = ["diff --git a/file.txt b/file.txt", "--- a/file.txt", "+++ b/file.txt", "@@ -1,1 +1,1 @@"];
+    for (let i = 0; i < 600; i++) {
+      patchLines.push(`+Line ${i}`);
+    }
+    const largePatch = patchLines.join("\n");
+    mockDependencies.fs.readFileSync.mockReturnValue(largePatch);
+
+    // Mock PR creation to fail
+    const prError = new Error("Pull request creation is disabled");
+    mockDependencies.github.rest.pulls.create.mockRejectedValue(prError);
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 789,
+      html_url: "https://github.com/testowner/testrepo/issues/789",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+    await mainFunction();
+
+    // Verify fallback issue was created with patch preview
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+    const issueCreateCall = mockDependencies.github.rest.issues.create.mock.calls[0][0];
+
+    // Should include patch preview with details tag and diff code block
+    expect(issueCreateCall.body).toMatch(/<details><summary>Show patch preview \(500 of 604 lines\)<\/summary>/);
+    expect(issueCreateCall.body).toMatch(/```diff/);
+    expect(issueCreateCall.body).toMatch(/\.\.\. \(truncated\)/);
+
+    // Should include first few lines but not all 604 lines
+    expect(issueCreateCall.body).toContain("+Line 0");
+    expect(issueCreateCall.body).toContain("+Line 100");
+    expect(issueCreateCall.body).not.toContain("+Line 550"); // Should be truncated before this
+  });
+
+  it("should include full patch when under 500 lines in fallback issue", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "PR with small patch",
+          body: "This PR will fail and create an issue with full patch.",
+        },
+      ],
+    });
+
+    // Create a small patch (under 500 lines)
+    const smallPatch = "diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1,1 +1,1 @@\n+Small change";
+    mockDependencies.fs.readFileSync.mockReturnValue(smallPatch);
+
+    // Mock PR creation to fail
+    const prError = new Error("Pull request creation is disabled");
+    mockDependencies.github.rest.pulls.create.mockRejectedValue(prError);
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 790,
+      html_url: "https://github.com/testowner/testrepo/issues/790",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+    await mainFunction();
+
+    // Verify fallback issue was created with full patch
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+    const issueCreateCall = mockDependencies.github.rest.issues.create.mock.calls[0][0];
+
+    // Should include full patch without truncation
+    expect(issueCreateCall.body).toMatch(/<details><summary>Show patch \(5 lines\)<\/summary>/);
+    expect(issueCreateCall.body).toMatch(/```diff/);
+    expect(issueCreateCall.body).toContain("+Small change");
+    expect(issueCreateCall.body).not.toContain("... (truncated)");
+  });
+
   it("should fail when both PR and fallback issue creation fail", async () => {
     mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
     mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
@@ -665,6 +763,62 @@ describe("create_pull_request.cjs", () => {
     // Verify appropriate logging
     expect(mockDependencies.core.error).toHaveBeenCalledWith(expect.stringContaining("Git push failed"));
     expect(mockDependencies.core.warning).toHaveBeenCalledWith(expect.stringContaining("Git push operation failed"));
+  });
+
+  it("should include patch preview in fallback issue when git push fails", async () => {
+    mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
+    mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
+    mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create-pull-request",
+          title: "Push will fail with patch",
+          body: "Git push will fail and create issue with patch preview.",
+        },
+      ],
+    });
+
+    // Create a patch with multiple lines to test preview
+    const patchLines = ["diff --git a/test.js b/test.js", "--- a/test.js", "+++ b/test.js", "@@ -1,1 +1,1 @@"];
+    for (let i = 0; i < 100; i++) {
+      patchLines.push(`+Test line ${i}`);
+    }
+    const testPatch = patchLines.join("\n");
+    mockDependencies.fs.readFileSync.mockReturnValue(testPatch);
+
+    // Mock git push to fail
+    global.exec.exec = vi.fn().mockImplementation(async (cmd, args, options) => {
+      if (typeof cmd === "string" && cmd.includes("git push")) {
+        throw new Error("Permission denied (publickey)");
+      }
+      if (typeof cmd === "string" && cmd.includes("git ls-remote")) {
+        return 0;
+      }
+      return 0;
+    });
+
+    // Mock issue creation to succeed
+    const mockIssue = {
+      number: 890,
+      html_url: "https://github.com/testowner/testrepo/issues/890",
+    };
+    mockDependencies.github.rest.issues = {
+      ...mockDependencies.github.rest.issues,
+      create: vi.fn().mockResolvedValue({ data: mockIssue }),
+    };
+
+    const mainFunction = createMainFunction(mockDependencies);
+    await mainFunction();
+
+    // Verify fallback issue was created with patch preview
+    expect(mockDependencies.github.rest.issues.create).toHaveBeenCalled();
+    const issueCreateCall = mockDependencies.github.rest.issues.create.mock.calls[0][0];
+
+    // Should include patch preview in the issue body
+    expect(issueCreateCall.body).toMatch(/<details><summary>Show patch \(104 lines\)<\/summary>/);
+    expect(issueCreateCall.body).toMatch(/```diff/);
+    expect(issueCreateCall.body).toContain("diff --git a/test.js b/test.js");
+    expect(issueCreateCall.body).toContain("+Test line 0");
   });
 
   it("should fail when both git push and fallback issue creation fail", async () => {
