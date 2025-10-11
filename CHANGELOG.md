@@ -2,6 +2,71 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.18.0 - 2025-10-11
+
+### Features
+
+#### Add simonw/llm CLI integration with issue triage workflow
+
+This adds support for using the simonw/llm CLI tool as a custom agentic engine in GitHub Agentic Workflows, with a complete issue triage workflow example. The integration includes:
+
+- A reusable shared component (`.github/workflows/shared/simonw-llm.md`) that enables any workflow to use simonw/llm CLI as its execution engine
+- Support for multiple LLM providers: OpenAI, Anthropic Claude, and GitHub Models (free tier)
+- Automatic configuration and plugin management
+- Safe-outputs integration for GitHub API operations
+- An example workflow (`issue-triage-llm.md`) demonstrating automated issue triage
+- Comprehensive documentation with setup instructions and examples
+- Support for both automatic triggering (on issue opened) and manual workflow dispatch
+
+
+### Bug Fixes
+
+#### Add repo-tree-map workflow for visualizing repository structure
+
+This introduces a new agentic workflow that generates an ASCII tree map visualization of the repository file structure and publishes it as a GitHub Discussion. The workflow uses bash tools to gather repository statistics and create a formatted report with directory hierarchy, file size distributions, and repository metadata.
+
+#### Add security-fix-pr workflow for automated security issue remediation
+
+This adds a new agentic workflow that automatically generates pull requests to fix code security issues detected by GitHub Code Scanning. The workflow can be triggered manually via workflow_dispatch and will identify the first open security alert, analyze the vulnerability, generate a fix, and create a draft pull request for review.
+
+#### Improve Copilot error detection to treat permission denied messages as warnings
+
+Updated error pattern classification in the Copilot engine to correctly identify "Permission denied and could not request permission from user" messages as warnings instead of errors. This change improves error reporting accuracy and reduces false positives in workflow execution metrics.
+
+#### Fix error pattern false positives in workflow validation
+
+The error validation step was incorrectly flagging false positives when workflow output contained filenames or text with "error" as a substring. Updated error patterns across all AI engines (Copilot, Claude, and Codex) to use word boundaries (`\berror\b`) instead of matching any occurrence of "error", ensuring validation correctly distinguishes between actual error messages and informational text.
+
+#### Fix import directive parsing for new {{#import}} syntax
+
+Fixed a bug in `processIncludesWithWorkflowSpec` where the new `{{#import}}` syntax was incorrectly parsed using manual regex group extraction, causing malformed workflowspec paths. The function now uses the `ParseImportDirective` helper that correctly handles both legacy `@include` and new `{{#import}}` syntax. Also added safety checks for empty file paths and comprehensive unit tests.
+
+#### Add security-events permission to security workflow
+
+Fixed a permissions error in the security-fix-pr workflow that prevented it from accessing code scanning alerts. The workflow now includes the required `security-events: read` permission to successfully query GitHub's Code Scanning API for vulnerability analysis and automated fix generation.
+
+#### Security Fix: Unsafe Quoting in Import Directive Warning (Alert #8)
+
+Fixed unsafe string quoting in the `processIncludesWithVisited` function that could lead to potential injection vulnerabilities. The fix applies Go's `%q` format specifier to safely escape special characters in deprecation warning messages, replacing the unsafe `'%s'` pattern. This addresses CodeQL alert #8 (go/unsafe-quoting) related to CWE-78 (OS Command Injection), CWE-89 (SQL Injection), and CWE-94 (Code Injection).
+
+#### Security fix: Prevent injection vulnerability in secret redaction YAML generation
+
+Fixed a critical security vulnerability (CodeQL go/unsafe-quoting) where secret names containing single quotes could break out of enclosing quotes in generated YAML strings, potentially leading to command injection, SQL injection, or code injection attacks. Added proper escaping via a new `escapeSingleQuote()` helper function that sanitizes secret references before embedding them in YAML.
+
+#### Fix XML comment removal in imported workflows and update GenAI prompt generation
+
+- Fixed a bug where code blocks within XML comments were incorrectly preserved instead of being removed during workflow parsing
+- Refactored GenAI prompt generation to use echo commands instead of sed for better readability and maintainability
+- Removed the Issue Summarizer workflow
+- Updated workflow trigger configurations to run on lock file changes
+- Added comprehensive test suite for XML comment handling
+- Simplified repository tree map workflow by reducing timeout and streamlining tool permissions
+
+#### Update Codex remote GitHub MCP configuration to new streamable HTTP format
+
+Updated the Codex engine's remote GitHub MCP server configuration to use the new streamable HTTP format with `bearer_token_env_var` instead of deprecated HTTP headers. This includes adding the `experimental_use_rmcp_client` flag, using the `/mcp-readonly/` endpoint for read-only mode, and standardizing on `GH_AW_GITHUB_TOKEN` across workflows. The configuration now aligns with OpenAI Codex documentation requirements.
+
+
 ## v0.17.0 - 2025-10-10
 
 ### Features
