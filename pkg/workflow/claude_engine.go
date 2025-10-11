@@ -599,7 +599,7 @@ func (e *ClaudeEngine) generateAllowedToolsComment(allowedToolsStr string, inden
 }
 
 func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
-	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << 'EOF'\n")
+	yaml.WriteString("          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 

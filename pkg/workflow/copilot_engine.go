@@ -207,7 +207,7 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
-	yaml.WriteString("          cat > /home/runner/.copilot/mcp-config.json << 'EOF'\n")
+	yaml.WriteString("          cat > /home/runner/.copilot/mcp-config.json << EOF\n")
 	yaml.WriteString("          {\n")
 	yaml.WriteString("            \"mcpServers\": {\n")
 
