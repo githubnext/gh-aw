@@ -57,42 +57,6 @@ on:
 - `pull_request_review_comment` - Pull request review comments
 - `*` - All comment-related events (default when omitted)
 
-**Examples:**
-
-Only respond in issue contexts:
-```yaml wrap
-on:
-  command:
-    name: triage
-    events: [issues, issue_comment]
-```
-
-Only respond in pull request contexts:
-```yaml wrap
-on:
-  command:
-    name: review
-    events: [pull_request, pull_request_comment, pull_request_review_comment]
-```
-
-Only respond in comments (not bodies):
-```yaml wrap
-on:
-  command:
-    name: help
-    events: [issue_comment, pull_request_comment]
-```
-
-**Implementation Details:**
-
-Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event. The compiler automatically generates appropriate filters:
-- `issue_comment`: Adds condition `github.event.issue.pull_request == null` (comments on issues)
-- `pull_request_comment`: Adds condition `github.event.issue.pull_request != null` (comments on PRs)
-
-This provides precise control over where your commands are active without needing manual condition writing.
-
-**Note**: Using this feature results in the addition of `.github/actions/check-team-member/action.yml` file to the repository when the workflow is compiled. This file is used to check if the user triggering the workflow has appropriate permissions to operate in the repository.
-
 ### Example command workflow
 
 Using object format:
@@ -117,25 +81,7 @@ analyze and provide a helpful summary.
 The current context text is: "${{ needs.activation.outputs.text }}"
 ```
 
-Or using the shorthand string format (same behavior, more concise):
-
-```aw wrap
----
-on:
-  command: "summarize-issue"  # Shorthand: string directly specifies command name
-permissions:
-  issues: write
-tools:
-  github:
-    allowed: [add_issue_comment]
----
-
-# Issue Summarizer
-
-Same workflow as above, just using the shorthand string syntax.
-```
-
-## Context Text (`needs.activation.outputs.text`)
+## Context Text
 
 All workflows have access to a special computed `needs.activation.outputs.text` value that provides **sanitized** context based on the triggering event:
 
@@ -172,13 +118,9 @@ Title: "${{ github.event.issue.title }}"
 Body: "${{ github.event.issue.body }}"
 ```
 
-**Note**: Using this feature results in the addition of `.github/actions/compute-text/action.yml` file to the repository when the workflow is compiled.
-
 ## Reactions
 
-Command workflows **automatically** provide immediate visual feedback by adding the "eyes" (👀) emoji reaction to triggering comments and automatically editing them with workflow run links.
-
-This default behavior can be customized by explicitly specifying a different reaction:
+Command workflows **automatically** provide immediate visual feedback by adding the "eyes" (👀) emoji reaction to triggering comments and automatically editing them with workflow run links. This default behavior can be customized by explicitly specifying a different reaction:
 
 ```yaml
 on:
@@ -191,16 +133,7 @@ When someone mentions `/my-bot` in a comment, the workflow will:
 1. Add the emoji reaction (👀 by default, or your custom choice) to the comment
 2. Automatically edit the comment to include a link to the workflow run
 
-:::note
-For non-command workflows triggered by `issues` or `pull_request` events with reactions enabled, the behavior is slightly different:
-- A reaction is added to the issue/PR
-- A new comment is created with the workflow run link (instead of editing an existing comment)
-- The comment ID and URL are exposed as job outputs (`comment_id` and `comment_url`)
-:::
-
-This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution.
-
-See [Reactions](/gh-aw/reference/frontmatter/) for the complete list of available reactions and detailed behavior.
+This provides users with immediate feedback that their request was received and gives them easy access to monitor the workflow execution. See [Reactions](/gh-aw/reference/frontmatter/) for the complete list of available reactions and detailed behavior.
 
 ## Related Documentation
 
