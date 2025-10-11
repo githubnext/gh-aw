@@ -367,7 +367,7 @@ const ALL_TOOLS = [
   },
   {
     name: "add_comment",
-    description: "Add a comment to a GitHub issue or pull request",
+    description: "Add a comment to a GitHub issue, pull request, or discussion",
     inputSchema: {
       type: "object",
       required: ["body"],
@@ -375,7 +375,15 @@ const ALL_TOOLS = [
         body: { type: "string", description: "Comment body/content" },
         issue_number: {
           type: "number",
-          description: "Issue or PR number (optional for current context)",
+          description: "Issue number (optional for current context)",
+        },
+        pull_number: {
+          type: "number",
+          description: "Pull request number (optional, alternative to issue_number)",
+        },
+        discussion_number: {
+          type: "number",
+          description: "Discussion number for discussion comments (optional, alternative to issue_number)",
         },
       },
       additionalProperties: false,

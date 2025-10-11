@@ -39,7 +39,7 @@ This declares that the workflow should create at most one new issue.
 | Output Type | Configuration Key | Description | Default Max | Cross-Repository |
 |-------------|------------------|-------------|-------------|------------------|
 | **Create Issue** | `create-issue:` | Create GitHub issues based on workflow output | 1 | ✅ |
-| **Add Issue Comments** | `add-comment:` | Post comments on issues or pull requests | 1 | ✅ |
+| **Add Comments** | `add-comment:` | Post comments on issues, pull requests, or discussions | 1 | ✅ |
 | **Update Issues** | `update-issue:` | Update issue status, title, or body | 1 | ✅ |
 | **Add Issue Label** | `add-labels:` | Add labels to issues or pull requests | 3 | ✅ |
 | **Create Pull Request** | `create-pull-request:` | Create pull requests with code changes | 1 | ✅ |
@@ -82,9 +82,9 @@ Create new issues with your findings. For each issue, provide a title starting w
 
 The compiled workflow will have additional prompting describing that, to create issues, it should write the issue details to a file.
 
-### Issue Comment Creation (`add-comment:`)
+### Comment Creation (`add-comment:`)
 
-Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments based on the workflow's output. By default, comments are posted on the triggering issue or pull request, but this can be configured using the `target` option.
+Adding comment creation to the `safe-outputs:` section declares that the workflow should conclude with posting comments based on the workflow's output. By default, comments are posted on the triggering issue or pull request, but this can be configured to target discussions or specific issues/PRs using the `target` and `discussion` options.
 
 **Basic Configuration:**
 ```yaml
@@ -99,8 +99,9 @@ safe-outputs:
     max: 3                          # Optional: maximum number of comments (default: 1)
     target: "*"                     # Optional: target for comments
                                     # "triggering" (default) - only comment on triggering issue/PR
-                                    # "*" - allow comments on any issue (requires issue_number in agent output)
+                                    # "*" - allow comments on any issue (requires target number in agent output)
                                     # explicit number - comment on specific issue number
+    discussion: true                # Optional: target discussions instead of issues/PRs (must be true if present)
     target-repo: "owner/target-repo" # Optional: create comments in a different repository (requires github-token with appropriate permissions)
 ```
 
