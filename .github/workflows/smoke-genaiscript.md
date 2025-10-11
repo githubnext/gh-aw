@@ -9,6 +9,9 @@ imports:
   - shared/genaiscript.md
 tools:
   github:
+    allowed:
+      - list_pull_requests
+      - get_pull_request
   safety-prompt: false
 safe-outputs:
     staged: true
