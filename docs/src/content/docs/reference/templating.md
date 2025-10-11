@@ -1,14 +1,14 @@
 ---
-title: Templating and Substitutions
-description: Conditional content and substitutions in agentic workflows
+title: Templating
+description: Expressions and conditional templating in agentic workflows
 sidebar:
   order: 350
 ---
 
 Agentic workflows support two simple templating/substitution mechanisms, mostly used in the **markdown content** 
 
-* Handlebars-style `{{#if ...}} ... {{/if}}` blocks
-* GitHub Actions `${{ ... }}` expressions.
+* GitHub Actions `${{ ... }}` expressions
+* Conditional Templating `{{#if ...}} ... {{/if}}` blocks.
 
 ## GitHub Actions Expressions
 
