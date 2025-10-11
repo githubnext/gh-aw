@@ -129,6 +129,20 @@ async function main() {
     }
   }
 
+  // Helper function to get the target number (issue, discussion, or pull request)
+  function getTargetNumber(item) {
+    if (item.issue_number !== undefined) {
+      return item.issue_number;
+    }
+    if (item.pull_number !== undefined) {
+      return item.pull_number;
+    }
+    if (item.discussion_number !== undefined) {
+      return item.discussion_number;
+    }
+    return undefined;
+  }
+
   // If in staged mode, emit step summary instead of creating comments
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -137,19 +151,19 @@ async function main() {
     for (let i = 0; i < commentItems.length; i++) {
       const item = commentItems[i];
       summaryContent += `### Comment ${i + 1}\n`;
-      if (isDiscussion) {
-        if (item.issue_number) {
-          const repoUrl = getRepositoryUrl();
-          const discussionUrl = `${repoUrl}/discussions/${item.issue_number}`;
-          summaryContent += `**Target Discussion:** [#${item.issue_number}](${discussionUrl})\n\n`;
+      const targetNumber = getTargetNumber(item);
+      if (targetNumber) {
+        const repoUrl = getRepositoryUrl();
+        if (isDiscussion) {
+          const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+          summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
         } else {
-          summaryContent += `**Target:** Current discussion\n\n`;
+          const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+          summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
         }
       } else {
-        if (item.issue_number) {
-          const repoUrl = getRepositoryUrl();
-          const issueUrl = `${repoUrl}/issues/${item.issue_number}`;
-          summaryContent += `**Target Issue:** [#${item.issue_number}](${issueUrl})\n\n`;
+        if (isDiscussion) {
+          summaryContent += `**Target:** Current discussion\n\n`;
         } else {
           summaryContent += `**Target:** Current issue/PR\n\n`;
         }
@@ -194,26 +208,28 @@ async function main() {
     let commentEndpoint;
 
     if (commentTarget === "*") {
-      // For target "*", we need an explicit issue number from the comment item
-      if (commentItem.issue_number) {
-        issueNumber = parseInt(commentItem.issue_number, 10);
+      // For target "*", we need an explicit number from the comment item
+      const targetNumber = getTargetNumber(commentItem);
+      if (targetNumber) {
+        issueNumber = parseInt(targetNumber, 10);
         if (isNaN(issueNumber) || issueNumber <= 0) {
-          core.info(`Invalid issue number specified: ${commentItem.issue_number}`);
+          core.info(`Invalid target number specified: ${targetNumber}`);
           continue;
         }
-        commentEndpoint = "issues";
+        commentEndpoint = isDiscussion ? "discussions" : "issues";
       } else {
-        core.info('Target is "*" but no issue_number specified in comment item');
+        const expectedFields = isDiscussion ? "discussion_number" : "issue_number or pull_number";
+        core.info(`Target is "*" but no ${expectedFields} specified in comment item`);
         continue;
       }
     } else if (commentTarget && commentTarget !== "triggering") {
-      // Explicit issue number specified in target
+      // Explicit number specified in target configuration
       issueNumber = parseInt(commentTarget, 10);
       if (isNaN(issueNumber) || issueNumber <= 0) {
-        core.info(`Invalid issue number in target configuration: ${commentTarget}`);
+        core.info(`Invalid target number in target configuration: ${commentTarget}`);
         continue;
       }
-      commentEndpoint = "issues";
+      commentEndpoint = isDiscussion ? "discussions" : "issues";
     } else {
       // Default behavior: use triggering issue/PR
       if (isIssueContext) {
