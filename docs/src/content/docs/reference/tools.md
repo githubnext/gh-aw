@@ -7,34 +7,34 @@ sidebar:
 
 This guide covers the available tools that can be configured in agentic workflows, including GitHub tools, Playwright browser automation, custom MCP servers, and neutral tools.
 
-## Overview
-
 Tools are defined in the frontmatter to specify which GitHub API calls, browser automation, and AI capabilities are available to your workflow:
 
 ```yaml
 tools:
   edit:
-  bash:
-  github:
-    allowed: [create_issue, update_issue]
-  playwright:
-    allowed_domains: ["github.com", "*.example.com"]
+  bash: true
 ```
 
-All tools declared in included components are merged into the final workflow.
+Some tools are available by default. All tools declared in imported components are merged into the final workflow.
 
-## Neutral Tools (`edit:`, `web-fetch:`, `web-search:`, `bash:`)
+## Edit Tool (`edit:`)
+
+This is an engine-neutral tool that allows file editing by the agentic workflow on the local workspace in GitHub Actions. This means local file edits can be made in the GitHub Actions VM on the checked out copy of the code.
 
 ```yaml
 tools:
   edit:         # File editing capabilities
-  web-fetch:    # Web content fetching
-  web-search:   # Web search capabilities
+```
+
+## Bash Tool (`bash:`)
+
+This is an engine-neutral tool that allows shell command execution by the agentic workflow in the local workspace in GitHub Actions.
+
+```yaml
+tools:
   bash: true    # Default safe commands (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date)
   # bash: ["echo", "ls", "git status"]  # Or specify custom commands
 ```
-
-### Bash Command Configuration
 
 The bash tool provides access to shell commands with different levels of control and security.
 
@@ -61,7 +61,7 @@ tools:
 - **`bash: ["cmd1", "cmd2"]`** → Only specified commands allowed
 - **`bash: [":*"]`** → All bash commands allowed (unrestricted access)
 
-#### Default Bash Commands
+**Default Bash Commands:**
 
 When `bash: true` or `bash: null` is specified, the system automatically provides these safe, read-only commands:
 
@@ -71,7 +71,7 @@ When `bash: true` or `bash: null` is specified, the system automatically provide
 
 These defaults ensure consistent behavior across Claude and Copilot engines while maintaining security.
 
-#### Bash Wildcards
+**Bash Wildcards:**
 
 ```yaml
 tools:
@@ -84,7 +84,23 @@ tools:
 - **`:*`**: Allows **all bash commands** without restriction
 - **`command:*`**: Allows **all invocations of a specific command** with any arguments
 
+## Web Fetch Tool (`web-fetch:`)
+
+This tool allows use of a web fetch capability.
+
+```yaml
+tools:
+  web-fetch:    # Web content fetching
+```
+
 ## Web Search Tool (`web-search:`)
+
+This tool allows use of a web search capability if the AI engine supports it.
+
+```yaml
+tools:
+  web-search:   # Web search capabilities
+```
 
 :::note
 Some engines (like Copilot) don't have built-in `web-search` support. You can add web search using third-party MCP servers instead. See the [Web Search with MCP guide](/gh-aw/guides/web-search/) for options.
@@ -114,7 +130,7 @@ tools:
     toolset: [repos, issues, pull_requests]   # Optional: array of toolset groups to enable
 ```
 
-### GitHub Toolsets and Tools
+### GitHub Toolsets
 
 The `toolset` field allows you to enable or disable specific groups of GitHub API functionalities. This helps the AI model with tool selection and reduces context size by only exposing relevant tools.
 
@@ -204,11 +220,6 @@ tools:
     read-only: true
 ```
 
-**Implementation:**
-
-- **Local mode**: Sets the `GITHUB_READ_ONLY=1` environment variable in the Docker container
-- **Remote mode**: Sends the `X-MCP-Readonly: true` header to the hosted server
-
 **Default behavior**: When the GitHub tool is specified without any configuration (just `github:` with no properties), the default behavior provides read-only access with all read-only tools available.
 
 ## Playwright Tool (`playwright:`)
@@ -230,8 +241,6 @@ tools:
     allowed_domains: ["defaults", "github", "*.custom.com"]  # Domain access control
 ```
 
-### Playwright Args Configuration
-
 The `args` field allows you to pass additional command-line arguments to the Playwright MCP server:
 
 ```yaml
@@ -240,17 +249,8 @@ tools:
     args: ["--browser", "chromium"]
 ```
 
-Common use cases include custom flags for debugging or testing scenarios.
-
-**Note**: Only Chromium browser is supported.
-
-Arguments are appended to the generated MCP server command and properly escaped for special characters.
-
-### Domain Configuration
-
 The `allowed_domains` field supports the same ecosystem bundle resolution as the top-level `network:` configuration, with **localhost-only** as the default for enhanced security:
 
-**Ecosystem Bundle Examples:**
 ```yaml
 tools:
   playwright:
