@@ -150,7 +150,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			expectedType:  "remote",
-			expectedURL:   "https://api.githubcopilot.com/mcp/",
+			expectedURL:   "https://api.githubcopilot.com/mcp-readonly/",
 			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
 			engineType:    "codex",
 		},
@@ -202,12 +202,8 @@ This is a test workflow for GitHub remote mode configuration.
 					if !strings.Contains(lockContent, `bearer_token_env_var = "GITHUB_MCP_TOKEN"`) {
 						t.Errorf("Expected bearer_token_env_var but didn't find it in:\n%s", lockContent)
 					}
-					// Check for X-MCP-Readonly header if this is a read-only test
-					if strings.Contains(tt.name, "read-only") {
-						if !strings.Contains(lockContent, `X-MCP-Readonly = "true"`) {
-							t.Errorf("Expected X-MCP-Readonly header but didn't find it in:\n%s", lockContent)
-						}
-					}
+					// For read-only mode, the endpoint URL should include /mcp-readonly/
+					// No need to check for X-MCP-Readonly header since we use the endpoint URL
 					// Should NOT contain old-style type = "http"
 					if strings.Contains(lockContent, `type = "http"`) {
 						t.Errorf("Expected no 'type = \"http\"' (old format) but found it in:\n%s", lockContent)
