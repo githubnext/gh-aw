@@ -17,7 +17,7 @@ GitHub Agentic Workflows supports all standard GitHub Actions triggers plus addi
 
 ### Dispatch Triggers (`workflow_dispatch:`)
 
-You can create manual triggers using `workflow_dispatch:` to run workflows on-demand from the GitHub UI or API.
+You can create manual triggers using `workflow_dispatch:` to run workflows on-demand from the GitHub UI, GitHub API or by using `gh aw run` or `gh aw trial`.
 
 ```yaml
 on:
