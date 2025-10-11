@@ -688,7 +688,7 @@ func TestBuildWriteWorkflowMarkdownStep(t *testing.T) {
 			expectContains: []string{
 				"Write workflow markdown to file",
 				"mkdir -p /tmp/gh-aw/templates",
-				"base64 -d > /tmp/gh-aw/templates/workflow.md",
+				"base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md",
 			},
 			notExpectContain: []string{
 				"# Test Workflow", // Should be base64 encoded, not plain text
@@ -699,7 +699,7 @@ func TestBuildWriteWorkflowMarkdownStep(t *testing.T) {
 			markdownContent: "",
 			expectContains: []string{
 				"Write workflow markdown to file",
-				"base64 -d > /tmp/gh-aw/templates/workflow.md",
+				"base64 -d /tmp/gh-aw/templates/workflow.b64",
 			},
 		},
 		{

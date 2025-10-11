@@ -2874,7 +2874,8 @@ jobs:
       - name: Write workflow markdown to file
         run: |
           mkdir -p /tmp/gh-aw/templates
-          echo 'UmV2aWV3IHRoZSBsYXN0IDUgbWVyZ2VkIHB1bGwgcmVxdWVzdHMgaW4gdGhpcyByZXBvc2l0b3J5IGFuZCBwb3N0IHN1bW1hcnkgaW4gYW4gaXNzdWUuCg==' | base64 -d > /tmp/gh-aw/templates/workflow.md
+          echo 'UmV2aWV3IHRoZSBsYXN0IDUgbWVyZ2VkIHB1bGwgcmVxdWVzdHMgaW4gdGhpcyByZXBvc2l0b3J5IGFuZCBwb3N0IHN1bW1hcnkgaW4gYW4gaXNzdWUuCg==' > /tmp/gh-aw/templates/workflow.b64
+          base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:

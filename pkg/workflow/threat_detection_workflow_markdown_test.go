@@ -73,8 +73,8 @@ This should all be safely base64 encoded and written to a file.`
 		t.Error("Expected lock file to create /tmp/gh-aw/templates directory")
 	}
 
-	if !strings.Contains(lockContent, "base64 -d > /tmp/gh-aw/templates/workflow.md") {
-		t.Error("Expected lock file to use base64 decoding to write workflow.md")
+	if !strings.Contains(lockContent, "base64 -d /tmp/gh-aw/templates/workflow.b64 > /tmp/gh-aw/templates/workflow.md") {
+		t.Error("Expected lock file to use base64 decoding from .b64 file to write workflow.md")
 	}
 
 	// Verify WORKFLOW_MARKDOWN is NOT in environment variables
@@ -133,13 +133,17 @@ This should all be safely base64 encoded and written to a file.`
 	}
 	writeStepSection := lockContent[writeStepIndex : writeStepIndex+writeStepEnd]
 
-	// The base64-encoded content should be in this section
+	// The base64-encoded content should be written to a .b64 file first
 	if !strings.Contains(writeStepSection, "echo '") {
 		t.Error("Expected base64-encoded content in write step")
 	}
 
-	if !strings.Contains(writeStepSection, "' | base64 -d") {
-		t.Error("Expected base64 decoding command in write step")
+	if !strings.Contains(writeStepSection, "/tmp/gh-aw/templates/workflow.b64") {
+		t.Error("Expected base64 content to be written to workflow.b64 file")
+	}
+
+	if !strings.Contains(writeStepSection, "base64 -d /tmp/gh-aw/templates/workflow.b64") {
+		t.Error("Expected base64 decoding from workflow.b64 file")
 	}
 }
 
