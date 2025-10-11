@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.18.2 - 2025-10-11
+
+### Bug Fixes
+
+#### Add GitHub Copilot agent setup workflow
+
+Adds a `.github/workflows/copilot-setup-steps.yml` workflow file to configure the GitHub Copilot coding agent environment with preinstalled tools and dependencies. The workflow mirrors the setup steps from the CI workflow's build job, including Node.js, Go, JavaScript dependencies, development tools, and build step. This provides Copilot agents with a fully configured development environment and speeds up agent workflows.
+
+#### Add compiler validation for GitHub Actions 21KB expression size limit
+
+The compiler now validates that expressions in generated YAML files don't exceed GitHub Actions' 21KB limit. This prevents silent failures at runtime by catching oversized environment variables and expressions during compilation. When violations are detected, compilation fails with a descriptive error message and saves the invalid YAML to `*.invalid.yml` for debugging.
+
+#### Enhance CLI version checker workflow with comprehensive version analysis
+
+Enhanced the CLI version checker workflow to perform deeper research summaries when updates are detected. The workflow now includes:
+
+- Version-by-version analysis for all intermediate versions
+- Categorized change tracking (breaking changes, features, bugs, security, performance)
+- Impact assessment on gh-aw workflows
+- Timeline analysis with release dates
+- Risk assessment (Low/Medium/High)
+- Enhanced research sources and methods documentation
+- Improved PR description templates with comprehensive version progression documentation
+
+This internal tooling improvement helps maintainers make more informed decisions about CLI dependency updates.
+
+#### Fix compiler issue generating invalid lock files due to heredoc delimiter
+
+Fixed a critical bug in the workflow compiler where using single-quoted heredoc delimiters (`<< 'EOF'`) prevented GitHub Actions expressions from being evaluated in MCP server configuration files. Changed to unquoted delimiters (`<< EOF`) to allow proper expression evaluation at runtime. This fix affects all generated workflow lock files and ensures MCP configurations are correctly populated with environment variables.
+
+#### Move init command to pkg/cli folder
+
+Refactored the init command structure by moving `NewInitCommand()` from `cmd/gh-aw/init.go` to `pkg/cli/init_command.go` to follow the established pattern for command organization used by other commands in the repository.
+
+#### Remove push trigger from repo-tree-map agentic workflow
+
+The workflow now only triggers via manual `workflow_dispatch`, preventing unnecessary automatic runs when the workflow lock file is modified.
+
+#### Update documentation unbloater workflow with cache-memory and PR checking
+
+Enhanced the unbloat-docs workflow to improve coordination and avoid duplicate work:
+- Added cache-memory tool for persistent storage of cleanup notes across runs
+- Added search_pull_requests GitHub API tool to check for conflicting PRs
+- Updated workflow instructions to check cache and open PRs before selecting files to clean
+
+
 ## v0.18.1 - 2025-10-11
 
 ### Bug Fixes
