@@ -74,11 +74,6 @@ func runMCPServer(port int) error {
 // validateMCPServerConfiguration validates that the CLI is properly configured
 // by running the status command as a test
 func validateMCPServerConfiguration() error {
-	// Allow skipping validation via environment variable (useful for tests)
-	if os.Getenv("GH_AW_SKIP_MCP_VALIDATION") == "1" {
-		return nil
-	}
-
 	// Try to run the status command to verify CLI is working
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

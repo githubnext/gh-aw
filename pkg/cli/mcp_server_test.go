@@ -27,8 +27,6 @@ func TestMCPServer_ListTools(t *testing.T) {
 
 	// Start the MCP server as a subprocess
 	serverCmd := exec.Command(binaryPath, "mcp-server")
-	// Skip validation for testing
-	serverCmd.Env = append(os.Environ(), "GH_AW_SKIP_MCP_VALIDATION=1")
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -115,8 +113,6 @@ This is a test workflow.
 	// Start the MCP server as a subprocess
 	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
 	serverCmd.Dir = tmpDir
-	// Skip validation for testing
-	serverCmd.Env = append(os.Environ(), "GH_AW_SKIP_MCP_VALIDATION=1")
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -172,8 +168,6 @@ func TestMCPServer_AuditTool(t *testing.T) {
 
 	// Start the MCP server as a subprocess
 	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
-	// Skip validation for testing
-	serverCmd.Env = append(os.Environ(), "GH_AW_SKIP_MCP_VALIDATION=1")
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -270,8 +264,6 @@ This is a test workflow for compilation.
 	// Start the MCP server as a subprocess
 	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
 	serverCmd.Dir = tmpDir
-	// Skip validation for testing
-	serverCmd.Env = append(os.Environ(), "GH_AW_SKIP_MCP_VALIDATION=1")
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -330,8 +322,6 @@ This is a test workflow for compilation.
 
 // 	// Start the MCP server as a subprocess
 // 	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
-// 	// Skip validation for testing
-// 	serverCmd.Env = append(os.Environ(), "GH_AW_SKIP_MCP_VALIDATION=1")
 // 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 // 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -394,8 +384,6 @@ func TestMCPServer_ServerInfo(t *testing.T) {
 
 	// Start the MCP server as a subprocess
 	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
-	// Skip validation for testing
-	serverCmd.Env = append(os.Environ(), "GH_AW_SKIP_MCP_VALIDATION=1")
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -484,8 +472,6 @@ This is the second test workflow.
 	// Start the MCP server as a subprocess
 	serverCmd := exec.Command(filepath.Join(originalDir, binaryPath), "mcp-server")
 	serverCmd.Dir = tmpDir
-	// Skip validation for testing
-	serverCmd.Env = append(os.Environ(), "GH_AW_SKIP_MCP_VALIDATION=1")
 	transport := &mcp.CommandTransport{Command: serverCmd}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -525,63 +511,4 @@ This is the second test workflow.
 	} else {
 		t.Error("Expected text content from compile tool")
 	}
-}
-
-// TestValidateMCPServerConfiguration tests the validation function
-func TestValidateMCPServerConfiguration(t *testing.T) {
-	// Create a temporary directory with a workflow file
-	tmpDir := t.TempDir()
-	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		t.Fatalf("Failed to create workflows directory: %v", err)
-	}
-
-	// Create a test workflow file
-	workflowContent := `---
-on: push
-engine: copilot
----
-# Test Workflow
-
-This is a test workflow for validation.
-`
-	workflowPath := filepath.Join(workflowsDir, "test-validation.md")
-	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
-		t.Fatalf("Failed to write workflow file: %v", err)
-	}
-
-	// Initialize git repository in the temp directory
-	initCmd := exec.Command("git", "init")
-	initCmd.Dir = tmpDir
-	if err := initCmd.Run(); err != nil {
-		t.Fatalf("Failed to initialize git repository: %v", err)
-	}
-
-	// Change to the temporary directory
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-	os.Chdir(tmpDir)
-
-	// Test validation - it should fail because gh aw is not available
-	err := validateMCPServerConfiguration()
-	if err == nil {
-		t.Error("Expected validation to fail when gh aw is not available")
-	} else {
-		// Verify the error message contains helpful information
-		errStr := err.Error()
-		if !stringContains(errStr, "status command") {
-			t.Errorf("Expected error message to mention 'status command', got: %s", errStr)
-		}
-		t.Logf("Validation failed as expected: %v", err)
-	}
-}
-
-// Helper function to check if a string contains a substring
-func stringContains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
