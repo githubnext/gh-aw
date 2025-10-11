@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const readline = require('readline');
 
 // ANSI color codes for terminal output
 const colors = {
@@ -32,6 +33,25 @@ function formatSuccessMessage(msg) {
 
 function formatErrorMessage(msg) {
   return `${colors.error}✗ ${msg}${colors.reset}`;
+}
+
+/**
+ * Prompt user for confirmation
+ * @param {string} question - The question to ask
+ * @returns {Promise<boolean>} True if user confirms, false otherwise
+ */
+async function promptConfirmation(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question(`${question} (y/N): `, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
 }
 
 /**
@@ -445,21 +465,27 @@ function runVersion() {
  * Run the release command
  * @param {string} releaseType - Optional release type (patch, minor, major)
  */
-function runRelease(releaseType) {
+async function runRelease(releaseType) {
   // Check git prerequisites (clean tree, main branch)
   checkGitPrerequisites();
   
   const changesets = readChangesets();
   
-  if (changesets.length === 0) {
-    console.error(formatErrorMessage('No changesets found to release'));
-    process.exit(1);
-  }
-  
   // Determine bump type
   let bumpType = releaseType;
   if (!bumpType) {
-    bumpType = determineVersionBump(changesets);
+    if (changesets.length === 0) {
+      // No changesets - default to patch for patch releases without changeset
+      bumpType = 'patch';
+    } else {
+      bumpType = determineVersionBump(changesets);
+    }
+  }
+  
+  // If no changesets and trying to do non-patch release, error out
+  if (changesets.length === 0 && bumpType !== 'patch') {
+    console.error(formatErrorMessage(`Cannot create ${bumpType} release without changesets. Add changeset files or use 'patch' release type.`));
+    process.exit(1);
   }
   
   // Safety check for major releases
@@ -475,30 +501,54 @@ function runRelease(releaseType) {
   console.log(formatInfoMessage(`Current version: ${formatVersion(currentVersion)}`));
   console.log(formatInfoMessage(`Bump type: ${bumpType}`));
   console.log(formatInfoMessage(`Next version: ${versionString}`));
-  console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
   
-  // Update changelog
-  updateChangelog(versionString, changesets, false);
+  if (changesets.length === 0) {
+    console.log(formatInfoMessage('No changesets found - creating patch release'));
+  } else {
+    console.log(formatInfoMessage('Changes:'));
+    for (const cs of changesets) {
+      console.log(`  [${cs.bumpType}] ${extractFirstLine(cs.description)}`);
+    }
+  }
   
-  // Delete changeset files
-  deleteChangesetFiles(changesets, false);
+  // Confirm with user before proceeding
+  console.log('');
+  const confirmed = await promptConfirmation(`Create ${bumpType} release ${versionString}?`);
+  if (!confirmed) {
+    console.log(formatInfoMessage('Release cancelled'));
+    process.exit(0);
+  }
   
   console.log('');
-  console.log(formatSuccessMessage('Updated CHANGELOG.md'));
-  console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
+  console.log(formatInfoMessage(`Creating ${bumpType} release: ${versionString}`));
+  
+  // Update changelog only if there are changesets
+  if (changesets.length > 0) {
+    updateChangelog(versionString, changesets, false);
+    console.log(formatSuccessMessage('Updated CHANGELOG.md'));
+    
+    // Delete changeset files
+    deleteChangesetFiles(changesets, false);
+    console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
+  } else {
+    console.log(formatInfoMessage('No changelog updates (no changesets)'));
+  }
   
   // Execute git operations automatically
   console.log('');
   console.log(formatInfoMessage('Executing git operations...'));
   
   try {
-    // Stage changes
+    // Stage changes (CHANGELOG and changesets if they exist)
     console.log(formatInfoMessage('Staging changes...'));
-    execSync('git add CHANGELOG.md .changeset/', { encoding: 'utf8' });
+    if (changesets.length > 0) {
+      execSync('git add CHANGELOG.md .changeset/', { encoding: 'utf8' });
+    }
     
-    // Commit changes
+    // Commit changes - allow empty commit for patch releases without changesets
     console.log(formatInfoMessage('Committing changes...'));
-    execSync(`git commit -m "Release ${versionString}"`, { encoding: 'utf8' });
+    const commitFlags = changesets.length === 0 ? '--allow-empty ' : '';
+    execSync(`git commit ${commitFlags}-m "Release ${versionString}"`, { encoding: 'utf8' });
     
     // Create tag
     console.log(formatInfoMessage('Creating tag...'));
@@ -520,8 +570,12 @@ function runRelease(releaseType) {
     console.error(formatErrorMessage('Git operation failed: ' + error.message));
     console.log('');
     console.log(formatInfoMessage('You can complete the release manually with:'));
-    console.log(`  git add CHANGELOG.md .changeset/`);
-    console.log(`  git commit -m "Release ${versionString}"`);
+    if (changesets.length > 0) {
+      console.log(`  git add CHANGELOG.md .changeset/`);
+      console.log(`  git commit -m "Release ${versionString}"`);
+    } else {
+      console.log(`  git commit --allow-empty -m "Release ${versionString}"`);
+    }
     console.log(`  git tag -a ${versionString} -m "Release ${versionString}"`);
     console.log(`  git push`);
     console.log(`  git push origin ${versionString}`);
@@ -550,7 +604,7 @@ function showHelp() {
 }
 
 // Main entry point
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
@@ -566,7 +620,7 @@ function main() {
         runVersion();
         break;
       case 'release':
-        runRelease(args[1]);
+        await runRelease(args[1]);
         break;
       default:
         console.error(formatErrorMessage(`Unknown command: ${command}`));
