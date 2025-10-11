@@ -66,16 +66,16 @@ export default defineConfig({
 					autogenerate: { directory: 'reference' },
 				},
 				{
-					label: 'Tools',
-					autogenerate: { directory: 'tools' },
-				},
-				{
 					label: 'Guides',
 					autogenerate: { directory: 'guides' },
 				},
 				{
 					label: 'Application Areas',
 					autogenerate: { directory: 'samples' },
+				},
+				{
+					label: 'Tools',
+					autogenerate: { directory: 'tools' },
 				},
 				// ...makeChangelogsSidebarLinks([
 				// 	{ type: 'all', base: 'changelog', label: 'Changelog' }

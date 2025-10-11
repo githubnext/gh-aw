@@ -14,17 +14,6 @@ The `safe-outputs:` element of your workflow's frontmatter declares that your ag
 2. The compiler automatically generates additional jobs that read this output and perform the requested actions
 3. Only these generated jobs receive the necessary write permissions
 
-**Cross-Repository Support:**
-Many safe output types support cross-repository operations using the `target-repo` configuration. This enables workflows to create issues, comments, and other outputs in repositories other than the one where the workflow is running:
-
-```yaml
-safe-outputs:
-  create-issue:
-    target-repo: "owner/target-repository"
-```
-
-The `target-repo` field accepts repository identifiers in the format `"owner/repository"` and takes precedence over any trial mode repository settings.
-
 For example:
 
 ```yaml
@@ -133,7 +122,7 @@ The compiled workflow will have additional prompting describing that, to create 
 
 ### Add Issue Label (`add-labels:`)
 
-Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to issues or pull requests based on the coding agent's analysis. By default, labels are added to the triggering issue or pull request, but this can be configured using the `target` option.
+Adding `add-labels:` to the `safe-outputs:` section of your workflow declares that the workflow should conclude with adding labels to issues or pull requests based on the coding agent's analysis. By default, labels are added to the triggering issue, pull request or discussion, but this can be configured using the `target` option.
 
 **Basic Configuration:**
 ```yaml

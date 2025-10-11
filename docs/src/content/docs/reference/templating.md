@@ -2,7 +2,7 @@
 title: Templating and Substitutions
 description: Conditional content and substitutions in agentic workflows
 sidebar:
-  order: 1100
+  order: 350
 ---
 
 Agentic workflows support two simple templating/substitution mechanisms, mostly used in the **markdown content** 

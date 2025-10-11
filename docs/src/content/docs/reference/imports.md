@@ -2,7 +2,7 @@
 title: Imports
 description: Learn how to modularize and reuse workflow components across multiple workflows using the imports field in frontmatter for better organization and maintainability.
 sidebar:
-  order: 1000
+  order: 325
 ---
 
 The `imports:` field in frontmatter allows you to modularize and reuse workflow components across multiple workflows.
