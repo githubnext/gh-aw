@@ -49,10 +49,16 @@ node scripts/changeset.js release minor
 
 This command:
 - Checks prerequisites (clean tree, main branch)
-- Updates `CHANGELOG.md` with the new version and changes
+- **Prompts for confirmation** before proceeding with the release
+- Updates `CHANGELOG.md` with the new version and changes (if changesets exist)
 - Deletes processed changeset files
 - Automatically commits the changes
 - Creates and pushes a git tag for the release
+
+**Patch releases without changesets:**
+- Patch releases can be created without any changeset files
+- Use `node scripts/changeset.js release patch` to create a patch release without changesets
+- Non-patch releases (minor, major) require changeset files
 
 ## Changeset File Format
 
@@ -108,12 +114,25 @@ $ node scripts/changeset.js release
    node scripts/changeset.js release
    ```
    
-   This will automatically:
-   - Update CHANGELOG.md
-   - Delete changeset files
+   This will:
+   - Show the version that will be created
+   - **Ask for confirmation** (y/N)
+   - Update CHANGELOG.md (if changesets exist)
+   - Delete changeset files (if any)
    - Commit the changes
    - Create a git tag
    - Push the tag to remote
+
+4. **Patch releases without changesets:**
+   ```bash
+   # Create a patch release without any changesets
+   node scripts/changeset.js release patch
+   ```
+   
+   This is useful for:
+   - Emergency hotfixes
+   - Version bumps without feature changes
+   - Infrastructure updates that don't affect functionality
 
 ## Features
 
@@ -121,6 +140,8 @@ $ node scripts/changeset.js release
 - ✅ **CHANGELOG Generation**: Creates formatted entries with proper categorization (Breaking Changes, Features, Bug Fixes)
 - ✅ **Git Integration**: Reads current version from git tags
 - ✅ **Automated Git Operations**: Automatically commits, tags, and pushes releases
+- ✅ **User Confirmation**: Prompts for confirmation before executing release operations
+- ✅ **Patch Releases Without Changesets**: Allows patch releases without requiring changeset files
 - ✅ **Safety First**: Requires explicit specification for major releases
 - ✅ **Clean Workflow**: Deletes processed changesets after release
 - ✅ **Zero Dependencies**: Pure Node.js implementation
