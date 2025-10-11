@@ -877,15 +877,12 @@ jobs:
           [history]
           persistence = "none"
           
-          # Streamable HTTP requires the experimental rmcp client
-          experimental_use_rmcp_client = true
-          
           [mcp_servers.github]
           user_agent = "dev"
           startup_timeout_sec = 120
           tool_timeout_sec = 120
           url = "https://api.githubcopilot.com/mcp/"
-          bearer_token_env_var = "GITHUB_MCP_TOKEN"
+          bearer_token_env_var = "GH_AW_GITHUB_TOKEN"
           
           [mcp_servers.safe_outputs]
           command = "node"
@@ -1022,11 +1019,11 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
-          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Upload Safe Outputs
@@ -1952,9 +1949,9 @@ jobs:
             await main();
 
         env:
-          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,GITHUB_MCP_TOKEN,OPENAI_API_KEY'
+          GITHUB_AW_SECRET_NAMES: 'CODEX_API_KEY,GH_AW_GITHUB_TOKEN,OPENAI_API_KEY'
           SECRET_CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
-          SECRET_GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
+          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           SECRET_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Upload engine output files
         uses: actions/upload-artifact@v4
@@ -2512,9 +2509,9 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/mcp-config
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_MCP_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug
       - name: Parse threat detection results

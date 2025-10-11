@@ -35,7 +35,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 			engineType:    "claude",
 		},
 		{
@@ -65,7 +65,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 			engineType:    "claude",
 		},
 		{
@@ -92,7 +92,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 			engineType:    "copilot",
 		},
 		{
@@ -107,7 +107,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 			engineType:    "copilot",
 		},
 		{
@@ -121,7 +121,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp/",
-			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 			engineType:    "codex",
 		},
 		{
@@ -151,7 +151,7 @@ tools:
 ---`,
 			expectedType:  "remote",
 			expectedURL:   "https://api.githubcopilot.com/mcp-readonly/",
-			expectedToken: "${{ secrets.GITHUB_MCP_TOKEN }}",
+			expectedToken: "${{ secrets.GH_AW_GITHUB_TOKEN }}",
 			engineType:    "codex",
 		},
 	}
@@ -191,15 +191,11 @@ This is a test workflow for GitHub remote mode configuration.
 			case "remote":
 				// Codex uses TOML format, others use JSON
 				if tt.engineType == "codex" {
-					// Check for new streamable HTTP format
-					if !strings.Contains(lockContent, `experimental_use_rmcp_client = true`) {
-						t.Errorf("Expected experimental_use_rmcp_client flag but didn't find it in:\n%s", lockContent)
-					}
 					if tt.expectedURL != "" && !strings.Contains(lockContent, `url = "`+tt.expectedURL+`"`) {
 						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
 					// Check for bearer_token_env_var instead of Authorization header
-					if !strings.Contains(lockContent, `bearer_token_env_var = "GITHUB_MCP_TOKEN"`) {
+					if !strings.Contains(lockContent, `bearer_token_env_var = "GH_AW_GITHUB_TOKEN"`) {
 						t.Errorf("Expected bearer_token_env_var but didn't find it in:\n%s", lockContent)
 					}
 					// For read-only mode, the endpoint URL should include /mcp-readonly/
