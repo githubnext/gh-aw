@@ -505,6 +505,15 @@ async function runRelease(releaseType) {
     console.log(`  [${cs.bumpType}] ${extractFirstLine(cs.description)}`);
   }
   
+  // Ask for confirmation before making any changes
+  console.log('');
+  const confirmed = await promptConfirmation(formatInfoMessage('Proceed with creating the release (update files, commit, tag, and push)?'));
+  
+  if (!confirmed) {
+    console.log(formatInfoMessage('Release cancelled. No changes have been made.'));
+    return;
+  }
+  
   // Update changelog
   updateChangelog(versionString, changesets, false);
   
@@ -514,16 +523,6 @@ async function runRelease(releaseType) {
   console.log('');
   console.log(formatSuccessMessage('Updated CHANGELOG.md'));
   console.log(formatSuccessMessage(`Removed ${changesets.length} changeset file(s)`));
-  
-  // Ask for confirmation before git operations
-  console.log('');
-  const confirmed = await promptConfirmation(formatInfoMessage('Proceed with creating the release (commit, tag, and push)?'));
-  
-  if (!confirmed) {
-    console.log(formatInfoMessage('Release cancelled. CHANGELOG.md has been updated but no git operations were performed.'));
-    console.log(formatInfoMessage('You can manually complete the release later or revert the changelog changes.'));
-    return;
-  }
   
   // Execute git operations
   console.log('');
