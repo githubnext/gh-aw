@@ -85,7 +85,7 @@ safe-outputs:
 		compiler := NewCompiler(false, "", "test")
 		compiler.SetSkipValidation(false) // Enable validation to test expression size limits
 		err := compiler.CompileWorkflow(testFile)
-		
+
 		// This should fail with an expression size validation error
 		if err == nil {
 			t.Error("Expected error for workflow with oversized expressions, got nil")
@@ -108,10 +108,10 @@ safe-outputs:
 		testLineSize := int64(25000) // 25KB, exceeds limit
 		actualSize := pretty.FormatFileSize(testLineSize)
 		maxSizeFormatted := pretty.FormatFileSize(int64(MaxExpressionSize))
-		
-		expectedMessage := fmt.Sprintf("expression value for 'WORKFLOW_MARKDOWN' (%s) exceeds maximum allowed size (%s)", 
+
+		expectedMessage := fmt.Sprintf("expression value for 'WORKFLOW_MARKDOWN' (%s) exceeds maximum allowed size (%s)",
 			actualSize, maxSizeFormatted)
-		
+
 		// Verify the message contains expected elements
 		if !strings.Contains(expectedMessage, "exceeds maximum allowed size") {
 			t.Error("Error message should contain 'exceeds maximum allowed size'")
@@ -122,7 +122,7 @@ safe-outputs:
 		if !strings.Contains(expectedMessage, "WORKFLOW_MARKDOWN") {
 			t.Error("Error message should identify the problematic key")
 		}
-		
+
 		t.Logf("Generated error message: %s", expectedMessage)
 	})
 }
