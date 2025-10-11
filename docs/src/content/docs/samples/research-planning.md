@@ -2,7 +2,7 @@
 title: Research, Status & Planning
 description: Automated workflows for research, team coordination, and project planning
 sidebar:
-  order: 1
+  order: 100
 ---
 
 Research and planning workflows help teams stay informed, coordinate activities, and maintain strategic direction through automated intelligence gathering and status reporting.

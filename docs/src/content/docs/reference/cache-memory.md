@@ -1,6 +1,8 @@
 ---
 title: Cache Memory
 description: Complete guide to using cache-memory for persistent file storage across workflow runs using GitHub Actions cache and simple file operations.
+sidebar:
+  order: 1400
 ---
 
 The `cache-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using GitHub Actions cache infrastructure and simple file operations.

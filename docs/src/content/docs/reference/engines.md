@@ -1,13 +1,11 @@
 ---
 title: AI Engines
-description: Complete guide to AI engines available in GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
+description: Complete guide to AI engines (coding agents) usable with GitHub Agentic Workflows, including Claude, Copilot, Codex, and custom engines with their specific configuration options.
 sidebar:
-  order: 1
+  order: 350
 ---
 
-GitHub Agentic Workflows support multiple AI engines to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
-
-## Agentic Engines
+GitHub Agentic Workflows support multiple AI engines (coding agents) to interpret and execute natural language instructions. Each engine has unique capabilities and configuration options.
 
 ### GitHub Copilot (Default)
 
@@ -36,9 +34,9 @@ The Copilot engine does not have built-in `web-search` support. You can add web 
 **Environment Variables:**
 - **`COPILOT_MODEL`**: Alternative way to set the model (e.g., `gpt-5`)
 
-#### Secrets
+**Secrets:**
 
-- `COPILOT_CLI_TOKEN` secret is required for authentication.
+- **`COPILOT_CLI_TOKEN`** secret is required for authentication.
 
 Please [create a GitHub Personal Access Token (PAT) for an account with a GitHub Copilot subscription](https://github.com/settings/tokens) and add this as a repository secret:
 
@@ -46,7 +44,7 @@ Please [create a GitHub Personal Access Token (PAT) for an account with a GitHub
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-github-pat>"
 ```
 
-- `GITHUB_MCP_TOKEN` secret (optional) is required when using remote mode for GitHub tools.
+- **`GITHUB_MCP_TOKEN`** secret (optional) is required when using remote mode for GitHub tools.
 
 If you use `mode: remote` for GitHub tools (for faster startup without Docker), you'll need a separate GitHub Personal Access Token:
 
@@ -76,9 +74,9 @@ engine:
     DEBUG_MODE: "true"
 ```
 
-#### Secrets
+**Secrets:**
 
-- `ANTHROPIC_API_KEY` secret is required for authentication.
+- **`ANTHROPIC_API_KEY`** secret is required for authentication.
 
 Use this to set the secret for your repo:
 
@@ -86,7 +84,7 @@ Use this to set the secret for your repo:
 gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
 ```
 
-- `GITHUB_MCP_TOKEN` secret (optional) is required when using remote mode for GitHub tools.
+- **`GITHUB_MCP_TOKEN`** secret (optional) is required when using remote mode for GitHub tools.
 
 If you use `mode: remote` for GitHub tools (for faster startup without Docker), you'll need a GitHub Personal Access Token:
 
@@ -122,26 +120,21 @@ engine:
     retries = 3
 ```
 
-**Features:**
-- Code-focused AI engine
-- Generates `config.toml` for MCP server configuration
-- Supports custom TOML configuration via `config` field
-- Configurable user agent for GitHub MCP server
-- Requires `CODEX_API_KEY` or `OPENAI_API_KEY` secret
-
 **Codex-specific fields:**
 - **`user-agent`** (optional): Custom user agent string for GitHub MCP server configuration
 - **`config`** (optional): Additional TOML configuration text appended to generated config.toml
 
-#### Secrets
+**Secrets:**
 
-- `OPENAI_API_KEY` secret is required for authentication.
+- **`OPENAI_API_KEY`** secret is required for authentication.
 
 Use this to set the secret for your repo:
 
 ```bash
 gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
 ```
+
+The Codex engine supports additional customization through the `config` field, which allows you to append raw TOML configuration to the generated `config.toml` file.
 
 ### Custom Engine
 
@@ -165,9 +158,7 @@ engine:
 - No AI interpretation - direct step execution
 - Useful for deterministic workflows or hybrid approaches
 
-## Engine-Specific Configuration
-
-### Environment Variables
+## Engine Environment Variables
 
 All engines support custom environment variables through the `env` field:
 
@@ -180,15 +171,9 @@ engine:
     CUSTOM_API_ENDPOINT: https://api.example.com
 ```
 
-**Common use cases:**
-- Override default API keys (e.g., `OPENAI_API_KEY` for Codex)
-- Set region-specific configuration
-- Enable debug modes
-- Configure custom endpoints
+## Engine Error Patterns
 
-### Error Patterns
-
-Claude, Copilot, and Codex engines support custom error pattern recognition for enhanced log validation:
+All engines support custom error pattern recognition for enhanced log validation:
 
 ```yaml
 engine:
@@ -199,68 +184,6 @@ engine:
       message_group: 3
       description: "Custom error format with timestamp"
 ```
-
-## Codex Engine Advanced Configuration
-
-The Codex engine supports additional customization through the `config` field, which allows you to append raw TOML configuration to the generated `config.toml` file.
-
-### Custom Configuration Example
-
-```yaml
-engine:
-  id: codex
-  config: |
-    # Custom logging configuration
-    [logging]
-    level = "debug"
-    file = "/tmp/gh-aw/codex-debug.log"
-    
-    # Server timeout settings
-    [server]
-    timeout = 120
-    max_connections = 10
-    
-    # Custom tool configurations
-    [tools.custom_analyzer]
-    enabled = true
-    mode = "strict"
-```
-
-### Generated Output
-
-This configuration generates a `config.toml` file with the structure:
-
-```toml
-[history]
-persistence = "none"
-
-[mcp_servers.github]
-user_agent = "workflow-name"
-command = "docker"
-args = ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server:sha-09deac4"]
-env = { "GITHUB_PERSONAL_ACCESS_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }
-
-# Custom configuration
-[logging]
-level = "debug"
-file = "/tmp/gh-aw/codex-debug.log"
-
-[server]
-timeout = 120
-max_connections = 10
-
-[tools.custom_analyzer]
-enabled = true
-mode = "strict"
-```
-
-### Best Practices for Custom Config
-
-1. **Validate TOML**: Ensure your configuration is valid TOML syntax
-2. **Avoid conflicts**: Don't override standard sections like `[history]` or `[mcp_servers.*]`
-3. **Use descriptive sections**: Name your configuration sections clearly
-4. **Document purpose**: Include comments in your TOML to explain custom settings
-5. **Test thoroughly**: Validate that your custom configuration works as expected
 
 ## Migration Between Engines
 
@@ -282,7 +205,7 @@ engine:
   version: latest
 ```
 
-Note that engine-specific features (like `config` for Codex, `max-turns` for Claude, or `model` for Copilot) may not be available when switching engines.
+Note that engine-specific features may not be available when switching engines.
 
 ## Related Documentation
 

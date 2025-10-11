@@ -2,7 +2,7 @@
 title: Frontmatter Options
 description: Complete guide to all available frontmatter configuration options for GitHub Agentic Workflows, including triggers, permissions, AI engines, and workflow settings.
 sidebar:
-  order: 2
+  order: 200
 ---
 
 The YAML frontmatter supports standard GitHub Actions properties plus additional agentic-specific options:
@@ -474,7 +474,7 @@ engine:
 
 ### Agent Job Concurrency
 
-The `concurrency` field in the engine configuration controls how many agent jobs can run concurrently. It uses GitHub Actions concurrency syntax:
+The `concurrency` field in the engine configuration controls how many agentic workflow runs can run concurrently. It uses GitHub Actions concurrency syntax:
 
 ```yaml
 engine:

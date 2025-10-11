@@ -2,7 +2,7 @@
 title: Quick Start Guide
 description: Get your first agentic workflow running in minutes. Install the extension, add a sample workflow, set up secrets, and run your first AI-powered automation.
 sidebar:
-  order: 2
+  order: 200
 ---
 
 This guide will get you from zero to a running agentic workflow in minutes. You'll install the extension, add a sample workflow, set up the required secrets, and run it.

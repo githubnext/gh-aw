@@ -2,7 +2,7 @@
 title: Template Rendering
 description: Conditional content rendering in agentic workflows
 sidebar:
-  order: 12
+  order: 1200
 ---
 
 Template rendering allows you to conditionally include or exclude sections of your agentic workflow prompt based on simple boolean expressions. This feature is processed **after** GitHub Actions interpolates `${{ }}` expressions, enabling dynamic prompt content.

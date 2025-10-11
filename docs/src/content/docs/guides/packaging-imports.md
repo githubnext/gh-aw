@@ -2,7 +2,7 @@
 title: Packaging and Imports
 description: Complete guide to adding, updating, and importing workflows from external repositories using workflow specifications and import directives.
 sidebar:
-  order: 6
+  order: 600
 ---
 
 This guide covers the complete workflow for packaging and importing agentic workflows from external repositories, including workflow specifications, CLI commands, and import mechanisms.

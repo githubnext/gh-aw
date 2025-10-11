@@ -2,7 +2,7 @@
 title: Custom Safe Outputs
 description: Learn how to create custom safe outputs for third-party integrations using safe-jobs and MCP servers.
 sidebar:
-  order: 7
+  order: 700
 ---
 
 Custom safe outputs enable you to extend GitHub Agentic Workflows with your own output processing logic for third-party services like Notion, Slack, Jira, or any custom API. This guide demonstrates how to create reusable, secure integrations using safe-jobs combined with MCP servers.

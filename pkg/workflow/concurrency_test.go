@@ -307,7 +307,7 @@ func TestGenerateConcurrencyConfig(t *testing.T) {
 	}
 }
 
-// TestGenerateJobConcurrencyConfig tests the job-level concurrency configuration for agent jobs
+// TestGenerateJobConcurrencyConfig tests the job-level concurrency configuration for agentic workflow runs
 func TestGenerateJobConcurrencyConfig(t *testing.T) {
 	tests := []struct {
 		name         string

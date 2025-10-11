@@ -1,6 +1,8 @@
 ---
 title: Security Guide
 description: Important security considerations for GitHub Agentic Workflows, including sandboxing, permissions, and best practices for safe agentic automation.
+sidebar:
+  order: 100
 ---
 
 > [!WARNING]
