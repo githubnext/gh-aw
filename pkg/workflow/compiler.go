@@ -21,6 +21,11 @@ import (
 const (
 	// MaxLockFileSize is the maximum allowed size for generated lock workflow files (1MB)
 	MaxLockFileSize = 1048576 // 1MB in bytes
+
+	// MaxExpressionSize is the maximum allowed size for GitHub Actions expression values (21KB)
+	// This includes environment variable values, if conditions, and other expression contexts
+	// See: https://docs.github.com/en/actions/learn-github-actions/usage-limits-billing-and-administration
+	MaxExpressionSize = 21000 // 21KB in bytes
 )
 
 //go:embed schemas/github-workflow.json
@@ -284,6 +289,28 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			}
 			return errors.New(formattedErr)
 		}
+
+		// Validate expression sizes
+		if c.verbose {
+			fmt.Println(console.FormatInfoMessage("Validating expression sizes..."))
+		}
+		if err := c.validateExpressionSizes(yamlContent); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("expression size validation failed: %v", err),
+			})
+			// Write the invalid YAML to a .invalid.yml file for inspection
+			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
+			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), 0644); writeErr == nil {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Invalid workflow YAML written to: %s", console.ToRelativePath(invalidFile))))
+			}
+			return errors.New(formattedErr)
+		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 	}
@@ -342,6 +369,41 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			fmt.Println(console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
 		}
 	}
+	return nil
+}
+
+// validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
+func (c *Compiler) validateExpressionSizes(yamlContent string) error {
+	lines := strings.Split(yamlContent, "\n")
+	maxSize := MaxExpressionSize
+	
+	for lineNum, line := range lines {
+		// Check the line length (actual content that will be in the YAML)
+		if len(line) > maxSize {
+			// Extract the key/value for better error message
+			trimmed := strings.TrimSpace(line)
+			key := ""
+			if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
+				key = strings.TrimSpace(trimmed[:colonIdx])
+			}
+			
+			// Format sizes for display
+			actualSize := pretty.FormatFileSize(int64(len(line)))
+			maxSizeFormatted := pretty.FormatFileSize(int64(maxSize))
+			
+			var errorMsg string
+			if key != "" {
+				errorMsg = fmt.Sprintf("expression value for '%s' (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead.", 
+					key, actualSize, maxSizeFormatted, lineNum+1)
+			} else {
+				errorMsg = fmt.Sprintf("line %d (%s) exceeds maximum allowed expression size (%s). GitHub Actions has a 21KB limit for expression values.", 
+					lineNum+1, actualSize, maxSizeFormatted)
+			}
+			
+			return errors.New(errorMsg)
+		}
+	}
+	
 	return nil
 }
 
