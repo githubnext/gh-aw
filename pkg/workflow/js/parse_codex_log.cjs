@@ -37,6 +37,10 @@ function parseCodexLog(logContent) {
   try {
     const lines = logContent.split("\n");
 
+    // Look-ahead window size for finding tool results
+    // New format has verbose debug logs, so requires larger window
+    const LOOKAHEAD_WINDOW = 50;
+
     let markdown = "";
 
     markdown += "## 🤖 Reasoning\n\n";
@@ -105,10 +109,6 @@ function parseCodexLog(logContent) {
     }
 
     markdown += "## 🤖 Commands and Tools\n\n";
-
-    // Look-ahead window size for finding tool results
-    // New format has verbose debug logs, so requires larger window
-    const LOOKAHEAD_WINDOW = 50;
 
     // First pass: collect tool calls with details
     for (let i = 0; i < lines.length; i++) {
