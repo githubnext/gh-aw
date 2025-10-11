@@ -9,11 +9,12 @@ imports:
   - shared/genaiscript.md
 tools:
   github:
+  safety-prompt: false
 safe-outputs:
     staged: true
     create-issue:
       min: 1
-timeout_minutes: 10
+timeout_minutes: 5
 strict: true
 ---
 
