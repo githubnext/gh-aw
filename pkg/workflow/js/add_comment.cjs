@@ -189,16 +189,17 @@ async function main() {
   core.info(`Comment target configuration: ${commentTarget}`);
   core.info(`Discussion mode: ${isDiscussion}`);
 
-  // Check if we're in an issue or pull request context
+  // Check if we're in an issue, pull request, or discussion context
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
   const isPRContext =
     context.eventName === "pull_request" ||
     context.eventName === "pull_request_review" ||
     context.eventName === "pull_request_review_comment";
+  const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
 
   // Validate context based on target configuration
-  if (commentTarget === "triggering" && !isIssueContext && !isPRContext) {
-    core.info('Target is "triggering" but not running in issue or pull request context, skipping comment creation');
+  if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+    core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
     return;
   }
 
@@ -237,28 +238,36 @@ async function main() {
       }
       commentEndpoint = isDiscussion ? "discussions" : "issues";
     } else {
-      // Default behavior: use triggering issue/PR
+      // Default behavior: use triggering issue/PR/discussion
       if (isIssueContext) {
+        issueNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
         if (context.payload.issue) {
-          issueNumber = context.payload.issue.number;
           commentEndpoint = "issues";
         } else {
           core.info("Issue context detected but no issue found in payload");
           continue;
         }
       } else if (isPRContext) {
+        issueNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
         if (context.payload.pull_request) {
-          issueNumber = context.payload.pull_request.number;
           commentEndpoint = "issues"; // PR comments use the issues API endpoint
         } else {
           core.info("Pull request context detected but no pull request found in payload");
+          continue;
+        }
+      } else if (isDiscussionContext) {
+        issueNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+        if (context.payload.discussion) {
+          commentEndpoint = "discussions"; // Discussion comments use GraphQL via commentOnDiscussion
+        } else {
+          core.info("Discussion context detected but no discussion found in payload");
           continue;
         }
       }
     }
 
     if (!issueNumber) {
-      core.info("Could not determine issue or pull request number");
+      core.info("Could not determine issue, pull request, or discussion number");
       continue;
     }
 
