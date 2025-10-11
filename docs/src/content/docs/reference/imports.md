@@ -5,7 +5,7 @@ sidebar:
   order: 325
 ---
 
-The `imports` fields in frontmatter or markdown allow you to modularize and reuse workflow components across multiple workflows.
+Using imports in frontmatter or markdown allows you to modularize and reuse workflow components across multiple workflows.
 
 ## Overview
 
