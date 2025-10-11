@@ -513,7 +513,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
-	allowed := getGitHubAllowed(githubTool)
+	//allowed := getGitHubAllowed(githubTool)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.github]\n")
