@@ -567,8 +567,15 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 			yaml.WriteString("            \"-e\",\n")
 			yaml.WriteString("            \"GITHUB_READ_ONLY=1\",\n")
 		}
+
+		// Add GITHUB_TOOLSETS environment variable with value directly in docker args
 		yaml.WriteString("            \"-e\",\n")
-		yaml.WriteString("            \"GITHUB_TOOLSETS\",\n")
+		if toolsets != "" {
+			yaml.WriteString("            \"GITHUB_TOOLSETS=" + toolsets + "\",\n")
+		} else {
+			yaml.WriteString("            \"GITHUB_TOOLSETS=all\",\n")
+		}
+
 		yaml.WriteString("            \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"")
 
 		// Append custom args if present
@@ -586,14 +593,6 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + customGitHubToken + "\"\n")
 		} else {
 			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
-		}
-
-		// Add toolsets if configured
-		if toolsets != "" {
-			yaml.WriteString("          GITHUB_TOOLSETS = \"" + toolsets + "\"\n")
-		} else {
-			yaml.WriteString("          GITHUB_TOOLSETS = \"all\"\n")
-
 		}
 	}
 }
