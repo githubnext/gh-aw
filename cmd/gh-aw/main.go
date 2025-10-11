@@ -248,7 +248,7 @@ func init() {
 	trialCmd := cli.NewTrialCommand(validateEngine)
 
 	// Create and setup init command
-	initCmd := NewInitCommand()
+	initCmd := cli.NewInitCommand()
 
 	// Add force flag to new command
 	newCmd.Flags().Bool("force", false, "Overwrite existing workflow files")
