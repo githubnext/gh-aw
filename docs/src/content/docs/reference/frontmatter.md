@@ -5,13 +5,26 @@ sidebar:
   order: 200
 ---
 
-This guide explains the frontmatter section of GitHub Agentic Workflows, including triggers, permissions, AI engines, and workflow settings.
+The frontmatter section of GitHub Agentic Workflows includes the triggers, permissions, AI engines, and workflow settings. For example:
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+
+tools:
+  edit:
+  bash: ["gh issue comment"]
+---
+...markdown instructions...
+```
 
 ## Frontmatter Elements
 
-The YAML frontmatter supports standard GitHub Actions properties plus additional agentic-specific options:
+The frontmatter is a combination of standard GitHub Actions properties with some additional elements and options specific to GitHub Agentic Workflows.
 
-**Standard GitHub Actions Properties:**
+**Standard GitHub Actions Elements:**
 - `on`: Trigger events for the workflow
 - `permissions`: Required permissions for the workflow
 - `run-name`: Name of the workflow run
@@ -26,7 +39,7 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `steps`: Custom steps for the job
 - `cache`: Cache configuration for workflow dependencies
 
-**Properties specific to GitHub Agentic Workflows:**
+**Elements specific to GitHub Agentic Workflows:**
 - `description`: Human-readable description rendered as a comment in the lock file
 - `source`: Source reference tracking where the workflow was added from (format: `owner/repo/path@ref`)
 - `imports`: List of files to import (see [Packaging and Updating](/gh-aw/guides/packaging-imports/))
@@ -37,6 +50,8 @@ The YAML frontmatter supports standard GitHub Actions properties plus additional
 - `network`: Network access control for AI engines
 - `tools`: Available tools and MCP servers for the AI engine
 - `cache-memory`: [Persistent memory configuration](/gh-aw/reference/cache-memory/)
+
+The sections below describe each frontmatter element in detail.
 
 ### Trigger Events (`on:`)
 
