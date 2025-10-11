@@ -8,7 +8,7 @@
 #     - shared/mcp/ast-grep.md
 
 name: "Go Pattern Detector"
-on:
+"on":
   push:
     branches:
     - main

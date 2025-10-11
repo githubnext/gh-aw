@@ -8,7 +8,7 @@
 #     - shared/mcp/gh-aw.md
 
 name: "Agentic Workflow Audit Agent"
-on:
+"on":
   schedule:
   - cron: 0 0 * * *
   workflow_dispatch: null

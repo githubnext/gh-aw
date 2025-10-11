@@ -61,16 +61,12 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) {
 			mergedEventsYAML, err := yaml.Marshal(map[string]any{"on": commandEventsMap})
 			if err == nil {
 				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
-
-				// Clean up quoted keys - replace "on": with on: at the start of a line
-				// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-				yamlStr = UnquoteYAMLKey(yamlStr, "on")
-
+				// Keep "on" quoted as it's a YAML boolean keyword
 				data.On = yamlStr
 			} else {
 				// If conversion fails, build a basic YAML string manually
 				var builder strings.Builder
-				builder.WriteString("on:")
+				builder.WriteString(`"on":`)
 				for _, event := range filteredEvents {
 					builder.WriteString("\n  ")
 					builder.WriteString(event.EventName)
@@ -263,8 +259,7 @@ func (c *Compiler) injectWorkflowDispatchForIssue(onSection string) string {
 			updatedOnData := map[string]any{"on": triggers}
 			if yamlBytes, err := yaml.Marshal(updatedOnData); err == nil {
 				yamlStr := string(yamlBytes)
-				// Clean up quoted keys
-				yamlStr = UnquoteYAMLKey(yamlStr, "on")
+				// Keep "on" quoted as it's a YAML boolean keyword
 				return strings.TrimSuffix(yamlStr, "\n")
 			}
 		}

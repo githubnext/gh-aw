@@ -296,7 +296,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: `on:
+			expectedOn: `"on":
   workflow_dispatch: null`,
 		},
 		{
@@ -311,7 +311,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: `on:
+			expectedOn: `"on":
   pull_request:
     branches:
     - main
@@ -332,7 +332,7 @@ tools:
   github:
     allowed: [list_issues]
 ---`,
-			expectedOn: `on:
+			expectedOn: `"on":
   issues:
     types:
     - opened
@@ -537,7 +537,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-dispatch.md",
-			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
+			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  workflow_dispatch: null",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "test-bot",
 			shouldError:     false,
@@ -555,7 +555,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-schedule.md",
-			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
+			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  schedule:\n  - cron: 0 9 * * 1",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "schedule-bot",
 			shouldError:     false,
@@ -574,7 +574,7 @@ tools:
     allowed: [list_issues]
 ---`,
 			filename:        "command-with-multiple.md",
-			expectedOn:      "on:\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
+			expectedOn:      "\"on\":\n  issue_comment:\n    types:\n    - created\n    - edited\n  issues:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request:\n    types:\n    - opened\n    - edited\n    - reopened\n  pull_request_review_comment:\n    types:\n    - created\n    - edited\n  push:\n    branches:\n    - main\n  workflow_dispatch: null",
 			expectedIf:      "github.event_name == 'issues'",
 			expectedCommand: "multi-bot",
 			shouldError:     false,
@@ -1712,7 +1712,7 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 		{
 			name:     "top-level on section should be found",
 			key:      "on",
-			expected: "on:\n  workflow_dispatch: null",
+			expected: "\"on\":\n  workflow_dispatch: null",
 		},
 		{
 			name:     "top-level timeout_minutes should be found",
@@ -5599,9 +5599,9 @@ This is a test workflow to verify description field rendering.
 	}
 }
 
-// TestOnSectionWithoutQuotes tests that the "on" keyword is not quoted in the generated YAML
-// when using reaction or stop-after fields that trigger re-marshaling
-func TestOnSectionWithoutQuotes(t *testing.T) {
+// TestOnSectionWithQuotes tests that the "on" keyword IS quoted in the generated YAML
+// to prevent YAML parsers from interpreting it as a boolean value
+func TestOnSectionWithQuotes(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "on-quotes-test")
 	if err != nil {
@@ -5630,7 +5630,7 @@ tools:
   github:
     allowed: [get_issue]
 ---`,
-			description: "Test that 'on' is not quoted when reaction is present",
+			description: "Test that 'on' IS quoted when reaction is present",
 		},
 		{
 			name: "on section with stop-after",
@@ -5647,7 +5647,7 @@ tools:
   github:
     allowed: [list_commits]
 ---`,
-			description: "Test that 'on' is not quoted when stop-after is present",
+			description: "Test that 'on' IS quoted when stop-after is present",
 		},
 		{
 			name: "on section with both reaction and stop-after",
@@ -5665,7 +5665,7 @@ tools:
   github:
     allowed: [get_issue]
 ---`,
-			description: "Test that 'on' is not quoted when both reaction and stop-after are present",
+			description: "Test that 'on' IS quoted when both reaction and stop-after are present",
 		},
 	}
 
@@ -5696,14 +5696,9 @@ tools:
 				t.Fatalf("Failed to generate YAML: %v", err)
 			}
 
-			// Check that "on": is NOT present (quoted form)
-			if strings.Contains(yamlContent, `"on":`) {
-				t.Errorf("Generated YAML contains quoted 'on' keyword:\n%s", yamlContent)
-			}
-
-			// Check that on: IS present (unquoted form)
-			if !strings.Contains(yamlContent, "on:") {
-				t.Errorf("Generated YAML does not contain unquoted 'on' keyword:\n%s", yamlContent)
+			// Check that "on": IS present (quoted form)
+			if !strings.Contains(yamlContent, `"on":`) {
+				t.Errorf("Generated YAML does not contain quoted 'on' keyword:\n%s", yamlContent)
 			}
 
 			// Additional verification: parse the generated YAML to ensure it's valid
