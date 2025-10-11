@@ -5,8 +5,6 @@ sidebar:
   order: 100
 ---
 
-## Workflow File Format
-
 Each workflow consists of:
 
 1. **YAML Frontmatter**: Configuration options wrapped in `---`. See [Frontmatter](/gh-aw/reference/frontmatter/) for details.
