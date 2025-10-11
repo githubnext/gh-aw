@@ -1,10 +1,9 @@
-package main
+package cli
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/githubnext/gh-aw/pkg/cli"
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/spf13/cobra"
@@ -32,7 +31,7 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` init -v`,
 		Run: func(cmd *cobra.Command, args []string) {
 			verbose, _ := cmd.Flags().GetBool("verbose")
-			if err := cli.InitRepository(verbose); err != nil {
+			if err := InitRepository(verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
