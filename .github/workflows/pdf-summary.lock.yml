@@ -498,7 +498,7 @@ jobs:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
     outputs:
-      output: ${{ steps.collect_output.outputs.output }}
+      output-artifact: ${{ steps.collect_output.outputs.output-artifact }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository

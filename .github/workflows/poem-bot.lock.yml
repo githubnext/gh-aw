@@ -481,7 +481,7 @@ jobs:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":3,\"target\":\"*\"},\"add-labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create-issue\":{\"max\":2},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{\"max\":2},\"upload-asset\":{}}"
     outputs:
-      output: ${{ steps.collect_output.outputs.output }}
+      output-artifact: ${{ steps.collect_output.outputs.output-artifact }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
     steps:
       - name: Checkout repository

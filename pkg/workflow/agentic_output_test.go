@@ -77,9 +77,9 @@ This workflow tests the agentic output collection functionality.
 		t.Error("Expected 'Upload sanitized agent output' step to be in generated workflow")
 	}
 
-	// Verify job output declaration for GITHUB_AW_SAFE_OUTPUTS
-	if !strings.Contains(lockContent, "outputs:\n      output: ${{ steps.collect_output.outputs.output }}") {
-		t.Error("Expected job output declaration for 'output'")
+	// Verify job output declaration for GITHUB_AW_SAFE_OUTPUTS with output-artifact
+	if !strings.Contains(lockContent, "outputs:\n      output-artifact: ${{ steps.collect_output.outputs.output-artifact }}") {
+		t.Error("Expected job output declaration for 'output-artifact'")
 	}
 
 	// Verify GITHUB_AW_SAFE_OUTPUTS is passed to Claude
@@ -184,9 +184,9 @@ This workflow tests that Codex engine gets GITHUB_AW_SAFE_OUTPUTS but not engine
 		t.Errorf("Codex workflow should reference %s artifact (GITHUB_AW_SAFE_OUTPUTS)", constants.SafeOutputArtifactName)
 	}
 
-	// Verify that job outputs section includes output for GITHUB_AW_SAFE_OUTPUTS
-	if !strings.Contains(lockContent, "outputs:\n      output: ${{ steps.collect_output.outputs.output }}") {
-		t.Error("Codex workflow should have job output declaration for 'output' (GITHUB_AW_SAFE_OUTPUTS)")
+	// Verify that job outputs section includes output-artifact for GITHUB_AW_SAFE_OUTPUTS
+	if !strings.Contains(lockContent, "outputs:\n      output-artifact: ${{ steps.collect_output.outputs.output-artifact }}") {
+		t.Error("Codex workflow should have job output declaration for 'output-artifact' (GITHUB_AW_SAFE_OUTPUTS)")
 	}
 
 	// Verify that Codex workflow DOES have engine output collection steps
