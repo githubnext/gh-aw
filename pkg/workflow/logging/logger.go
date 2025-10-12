@@ -4,53 +4,135 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 // Logger wraps slog.Logger with convenience methods for compiler logging
 type Logger struct {
 	*slog.Logger
-	verbose bool
+	verbose  bool
+	category string
 }
 
 // NewLogger creates a new Logger instance
 // If verbose is true, sets level to Debug, otherwise Info
 func NewLogger(verbose bool) *Logger {
+	return NewLoggerWithCategory(verbose, "")
+}
+
+// NewLoggerWithCategory creates a new Logger instance with a category
+// Category is used for filtering logs via environment variables
+// Set GH_AW_LOG_FILTER to a comma-separated list of categories to enable (e.g., "compiler,parser")
+// Set GH_AW_LOG_FILTER to "all" to enable all categories
+func NewLoggerWithCategory(verbose bool, category string) *Logger {
 	level := slog.LevelInfo
 	if verbose {
 		level = slog.LevelDebug
+	}
+
+	// Check if this category should be enabled based on environment variable
+	enabled := isCategoryEnabled(category)
+	if !enabled && category != "" {
+		// If category is disabled, set level to a very high value to suppress all logs
+		level = slog.Level(1000)
 	}
 
 	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: level,
 	})
 
+	logger := slog.New(handler)
+	if category != "" {
+		// Add category as a field to all log messages
+		logger = logger.With("category", category)
+	}
+
 	return &Logger{
-		Logger:  slog.New(handler),
-		verbose: verbose,
+		Logger:   logger,
+		verbose:  verbose,
+		category: category,
 	}
 }
 
 // NewLoggerWithWriter creates a new Logger with custom output writer
 // Useful for testing and capturing log output
 func NewLoggerWithWriter(verbose bool, writer io.Writer) *Logger {
+	return NewLoggerWithWriterAndCategory(verbose, writer, "")
+}
+
+// NewLoggerWithWriterAndCategory creates a new Logger with custom output writer and category
+// Useful for testing and capturing log output
+func NewLoggerWithWriterAndCategory(verbose bool, writer io.Writer, category string) *Logger {
 	level := slog.LevelInfo
 	if verbose {
 		level = slog.LevelDebug
+	}
+
+	// Check if this category should be enabled based on environment variable
+	enabled := isCategoryEnabled(category)
+	if !enabled && category != "" {
+		// If category is disabled, set level to a very high value to suppress all logs
+		level = slog.Level(1000)
 	}
 
 	handler := slog.NewTextHandler(writer, &slog.HandlerOptions{
 		Level: level,
 	})
 
-	return &Logger{
-		Logger:  slog.New(handler),
-		verbose: verbose,
+	logger := slog.New(handler)
+	if category != "" {
+		// Add category as a field to all log messages
+		logger = logger.With("category", category)
 	}
+
+	return &Logger{
+		Logger:   logger,
+		verbose:  verbose,
+		category: category,
+	}
+}
+
+// isCategoryEnabled checks if a category is enabled based on GH_AW_LOG_FILTER environment variable
+// Returns true if:
+// - category is empty (default logger)
+// - GH_AW_LOG_FILTER is not set (all categories enabled by default)
+// - GH_AW_LOG_FILTER contains "all"
+// - GH_AW_LOG_FILTER contains the category name
+func isCategoryEnabled(category string) bool {
+	if category == "" {
+		return true // Default logger is always enabled
+	}
+
+	filter := os.Getenv("GH_AW_LOG_FILTER")
+	if filter == "" {
+		return true // If no filter is set, all categories are enabled
+	}
+
+	filter = strings.ToLower(strings.TrimSpace(filter))
+	if filter == "all" {
+		return true
+	}
+
+	// Check if category is in the comma-separated list
+	categories := strings.Split(filter, ",")
+	categoryLower := strings.ToLower(strings.TrimSpace(category))
+	for _, cat := range categories {
+		if strings.TrimSpace(cat) == categoryLower {
+			return true
+		}
+	}
+
+	return false
 }
 
 // IsVerbose returns whether verbose logging is enabled
 func (l *Logger) IsVerbose() bool {
 	return l.verbose
+}
+
+// GetCategory returns the logger's category
+func (l *Logger) GetCategory() string {
+	return l.category
 }
 
 // Infof logs an info message with format string

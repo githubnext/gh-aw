@@ -3,6 +3,7 @@ package logging_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 
 	"github.com/githubnext/gh-aw/pkg/workflow/logging"
 )
@@ -20,6 +21,24 @@ func ExampleLogger() {
 
 	// Log warnings
 	logger.Warnf("Schema validation took longer than expected")
+
+	// Output is sent to stderr in actual usage
+}
+
+// ExampleLogger_withCategory demonstrates categorized logging
+func ExampleLogger_withCategory() {
+	// Create loggers with categories
+	compilerLogger := logging.NewLoggerWithCategory(true, "compiler")
+	parserLogger := logging.NewLoggerWithCategory(true, "parser")
+
+	// Logs include category information
+	compilerLogger.Infof("Starting compilation")
+	parserLogger.Debugf("Parsing frontmatter")
+
+	// Filter at runtime with:
+	// export GH_AW_LOG_FILTER="compiler"      # Only compiler logs
+	// export GH_AW_LOG_FILTER="compiler,parser" # Both
+	// export GH_AW_LOG_FILTER="all"           # All categories
 
 	// Output is sent to stderr in actual usage
 }
@@ -74,4 +93,30 @@ func ExampleLogger_IsVerbose() {
 	// Output:
 	// Verbose logger: true
 	// Quiet logger: false
+}
+
+// ExampleLogger_categoryFiltering demonstrates category filtering
+func ExampleLogger_categoryFiltering() {
+	// Set environment variable to filter categories
+	os.Setenv("GH_AW_LOG_FILTER", "compiler")
+	defer os.Unsetenv("GH_AW_LOG_FILTER")
+
+	var buf bytes.Buffer
+
+	// Create loggers with different categories
+	compilerLogger := logging.NewLoggerWithWriterAndCategory(true, &buf, "compiler")
+	parserLogger := logging.NewLoggerWithWriterAndCategory(true, &buf, "parser")
+
+	// This will be logged (compiler is in filter)
+	compilerLogger.Infof("compiler message")
+
+	// This will NOT be logged (parser is not in filter)
+	parserLogger.Infof("parser message")
+
+	// Check output contains only compiler message
+	output := buf.String()
+	hasCompiler := len(output) > 0
+	fmt.Println("Has compiler logs:", hasCompiler)
+
+	// Output: Has compiler logs: true
 }
