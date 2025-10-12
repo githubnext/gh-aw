@@ -3560,7 +3560,7 @@ jobs:
                 }
               }
               function getTargetNumber(item) {
-                return item.number;
+                return item.item_number;
               }
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";

@@ -137,7 +137,7 @@ async function main() {
 
   // Helper function to get the target number (issue, discussion, or pull request)
   function getTargetNumber(item) {
-    return item.number;
+    return item.item_number;
   }
 
   // If in staged mode, emit step summary instead of creating comments
