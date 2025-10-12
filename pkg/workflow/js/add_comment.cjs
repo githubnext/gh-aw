@@ -137,16 +137,7 @@ async function main() {
 
   // Helper function to get the target number (issue, discussion, or pull request)
   function getTargetNumber(item) {
-    if (item.issue_number !== undefined) {
-      return item.issue_number;
-    }
-    if (item.pull_number !== undefined) {
-      return item.pull_number;
-    }
-    if (item.discussion_number !== undefined) {
-      return item.discussion_number;
-    }
-    return undefined;
+    return item.number;
   }
 
   // If in staged mode, emit step summary instead of creating comments
@@ -211,28 +202,27 @@ async function main() {
     core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
 
     // Determine the issue/PR number and comment endpoint for this comment
-    let issueNumber;
+    let itemNumber;
     let commentEndpoint;
 
     if (commentTarget === "*") {
       // For target "*", we need an explicit number from the comment item
       const targetNumber = getTargetNumber(commentItem);
       if (targetNumber) {
-        issueNumber = parseInt(targetNumber, 10);
-        if (isNaN(issueNumber) || issueNumber <= 0) {
+        itemNumber = parseInt(targetNumber, 10);
+        if (isNaN(itemNumber) || itemNumber <= 0) {
           core.info(`Invalid target number specified: ${targetNumber}`);
           continue;
         }
         commentEndpoint = isDiscussion ? "discussions" : "issues";
       } else {
-        const expectedFields = isDiscussion ? "discussion_number" : "issue_number or pull_number";
-        core.info(`Target is "*" but no ${expectedFields} specified in comment item`);
+        core.info(`Target is "*" but no number specified in comment item`);
         continue;
       }
     } else if (commentTarget && commentTarget !== "triggering") {
       // Explicit number specified in target configuration
-      issueNumber = parseInt(commentTarget, 10);
-      if (isNaN(issueNumber) || issueNumber <= 0) {
+      itemNumber = parseInt(commentTarget, 10);
+      if (isNaN(itemNumber) || itemNumber <= 0) {
         core.info(`Invalid target number in target configuration: ${commentTarget}`);
         continue;
       }
@@ -240,7 +230,7 @@ async function main() {
     } else {
       // Default behavior: use triggering issue/PR/discussion
       if (isIssueContext) {
-        issueNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
+        itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
         if (context.payload.issue) {
           commentEndpoint = "issues";
         } else {
@@ -248,7 +238,7 @@ async function main() {
           continue;
         }
       } else if (isPRContext) {
-        issueNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
+        itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
         if (context.payload.pull_request) {
           commentEndpoint = "issues"; // PR comments use the issues API endpoint
         } else {
@@ -256,7 +246,7 @@ async function main() {
           continue;
         }
       } else if (isDiscussionContext) {
-        issueNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+        itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
         if (context.payload.discussion) {
           commentEndpoint = "discussions"; // Discussion comments use GraphQL via commentOnDiscussion
         } else {
@@ -266,7 +256,7 @@ async function main() {
       }
     }
 
-    if (!issueNumber) {
+    if (!itemNumber) {
       core.info("Could not determine issue, pull request, or discussion number");
       continue;
     }
@@ -288,24 +278,24 @@ async function main() {
       let comment;
 
       if (isDiscussion) {
-        core.info(`Creating comment on discussion #${issueNumber}`);
+        core.info(`Creating comment on discussion #${itemNumber}`);
         core.info(`Comment content length: ${body.length}`);
 
         // Create discussion comment using GraphQL
-        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, issueNumber, body);
+        comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
         core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
 
         // Add discussion_url to the comment object for consistency
         comment.discussion_url = comment.discussion_url;
       } else {
-        core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+        core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
         core.info(`Comment content length: ${body.length}`);
 
         // Create regular issue/PR comment using REST API
         const { data: restComment } = await github.rest.issues.createComment({
           owner: context.repo.owner,
           repo: context.repo.repo,
-          issue_number: issueNumber,
+          issue_number: itemNumber,
           body: body,
         });
 

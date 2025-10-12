@@ -43,8 +43,8 @@ async function main() {
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
     summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
-    if (labelsItem.issue_number) {
-      summaryContent += `**Target Issue:** #${labelsItem.issue_number}\n\n`;
+    if (labelsItem.item_number) {
+      summaryContent += `**Target Issue:** #${labelsItem.item_number}\n\n`;
     } else {
       summaryContent += `**Target:** Current issue/PR\n\n`;
     }
@@ -85,23 +85,23 @@ async function main() {
     core.info('Target is "triggering" but not running in issue or pull request context, skipping label addition');
     return;
   }
-  let issueNumber;
+  let itemNumber;
   let contextType;
   if (labelsTarget === "*") {
-    if (labelsItem.issue_number) {
-      issueNumber = typeof labelsItem.issue_number === "number" ? labelsItem.issue_number : parseInt(String(labelsItem.issue_number), 10);
-      if (isNaN(issueNumber) || issueNumber <= 0) {
-        core.setFailed(`Invalid issue number specified: ${labelsItem.issue_number}`);
+    if (labelsItem.item_number) {
+      itemNumber = typeof labelsItem.item_number === "number" ? labelsItem.item_number : parseInt(String(labelsItem.item_number), 10);
+      if (isNaN(itemNumber) || itemNumber <= 0) {
+        core.setFailed(`Invalid item_number specified: ${labelsItem.item_number}`);
         return;
       }
       contextType = "issue";
     } else {
-      core.setFailed('Target is "*" but no issue_number specified in labels item');
+      core.setFailed('Target is "*" but no item_number specified in labels item');
       return;
     }
   } else if (labelsTarget && labelsTarget !== "triggering") {
-    issueNumber = parseInt(labelsTarget, 10);
-    if (isNaN(issueNumber) || issueNumber <= 0) {
+    itemNumber = parseInt(labelsTarget, 10);
+    if (isNaN(itemNumber) || itemNumber <= 0) {
       core.setFailed(`Invalid issue number in target configuration: ${labelsTarget}`);
       return;
     }
@@ -109,7 +109,7 @@ async function main() {
   } else {
     if (isIssueContext) {
       if (context.payload.issue) {
-        issueNumber = context.payload.issue.number;
+        itemNumber = context.payload.issue.number;
         contextType = "issue";
       } else {
         core.setFailed("Issue context detected but no issue found in payload");
@@ -117,7 +117,7 @@ async function main() {
       }
     } else if (isPRContext) {
       if (context.payload.pull_request) {
-        issueNumber = context.payload.pull_request.number;
+        itemNumber = context.payload.pull_request.number;
         contextType = "pull request";
       } else {
         core.setFailed("Pull request context detected but no pull request found in payload");
@@ -125,7 +125,7 @@ async function main() {
       }
     }
   }
-  if (!issueNumber) {
+  if (!itemNumber) {
     core.setFailed("Could not determine issue or pull request number");
     return;
   }
@@ -169,15 +169,15 @@ No labels were added (no valid labels found in agent output).
       .write();
     return;
   }
-  core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${issueNumber}: ${JSON.stringify(uniqueLabels)}`);
+  core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
   try {
     await github.rest.issues.addLabels({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      issue_number: issueNumber,
+      issue_number: itemNumber,
       labels: uniqueLabels,
     });
-    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${issueNumber}`);
+    core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
     core.setOutput("labels_added", uniqueLabels.join("\n"));
     const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
     await core.summary
@@ -185,7 +185,7 @@ No labels were added (no valid labels found in agent output).
         `
 ## Label Addition
 
-Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${issueNumber}:
+Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
 
 ${labelsListMarkdown}
 `

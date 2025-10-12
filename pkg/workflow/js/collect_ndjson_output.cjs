@@ -437,25 +437,11 @@ async function main() {
             errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
             continue;
           }
-          // Validate issue_number, discussion_number, or pull_number (all are optional but treated as synonyms)
-          if (item.issue_number !== undefined) {
-            const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-            if (!issueNumValidation.isValid) {
-              if (issueNumValidation.error) errors.push(issueNumValidation.error);
-              continue;
-            }
-          }
-          if (item.discussion_number !== undefined) {
-            const discussionNumValidation = validateIssueOrPRNumber(item.discussion_number, "add_comment 'discussion_number'", i + 1);
-            if (!discussionNumValidation.isValid) {
-              if (discussionNumValidation.error) errors.push(discussionNumValidation.error);
-              continue;
-            }
-          }
-          if (item.pull_number !== undefined) {
-            const pullNumValidation = validateIssueOrPRNumber(item.pull_number, "add_comment 'pull_number'", i + 1);
-            if (!pullNumValidation.isValid) {
-              if (pullNumValidation.error) errors.push(pullNumValidation.error);
+          // Validate number
+          if (item.item_number !== undefined) {
+            const itemNumberValidation = validateIssueOrPRNumber(item.item_number, "add_comment 'item_number'", i + 1);
+            if (!itemNumberValidation.isValid) {
+              if (itemNumberValidation.error) errors.push(itemNumberValidation.error);
               continue;
             }
           }
@@ -490,9 +476,9 @@ async function main() {
             errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
             continue;
           }
-          const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
-          if (!labelsIssueNumValidation.isValid) {
-            if (labelsIssueNumValidation.error) errors.push(labelsIssueNumValidation.error);
+          const labelsItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add-labels 'item_number'", i + 1);
+          if (!labelsItemNumberValidation.isValid) {
+            if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
             continue;
           }
           item.labels = item.labels.map(label => sanitizeContent(label));
