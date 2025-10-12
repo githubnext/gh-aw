@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -607,3 +609,111 @@ func TestDescribeFile(t *testing.T) {
 	}
 }
 
+func TestRenderJSON(t *testing.T) {
+	// Create test audit data
+	auditData := AuditData{
+		Overview: OverviewData{
+			RunID:        123456,
+			WorkflowName: "Test Workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			Event:        "push",
+			Branch:       "main",
+			URL:          "https://github.com/org/repo/actions/runs/123456",
+		},
+		Metrics: MetricsData{
+			TokenUsage:    1500,
+			EstimatedCost: 0.025,
+			Turns:         5,
+			ErrorCount:    1,
+			WarningCount:  1,
+		},
+		Jobs: []JobData{
+			{
+				Name:       "test-job",
+				Status:     "completed",
+				Conclusion: "success",
+				Duration:   "2m30s",
+			},
+		},
+		DownloadedFiles: []FileInfo{
+			{
+				Path:          "aw_info.json",
+				Size:          1024,
+				SizeFormatted: "1.0 KB",
+				Description:   "Engine configuration and workflow metadata",
+				IsDirectory:   false,
+			},
+		},
+		MissingTools: []MissingToolReport{
+			{
+				Tool:   "missing_tool",
+				Reason: "Tool not available",
+			},
+		},
+		Errors: []ErrorInfo{
+			{
+				File:    "agent.log",
+				Line:    42,
+				Type:    "error",
+				Message: "Test error",
+			},
+		},
+		Warnings: []ErrorInfo{
+			{
+				File:    "agent.log",
+				Line:    50,
+				Type:    "warning",
+				Message: "Test warning",
+			},
+		},
+	}
+
+	// Render to JSON
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := renderJSON(auditData)
+	w.Close()
+
+	// Read the output
+	var buf strings.Builder
+	io.Copy(&buf, r)
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("renderJSON failed: %v", err)
+	}
+
+	jsonOutput := buf.String()
+
+	// Verify it's valid JSON
+	var parsed AuditData
+	if err := json.Unmarshal([]byte(jsonOutput), &parsed); err != nil {
+		t.Fatalf("Failed to parse JSON output: %v", err)
+	}
+
+	// Verify key fields
+	if parsed.Overview.RunID != 123456 {
+		t.Errorf("Expected run ID 123456, got %d", parsed.Overview.RunID)
+	}
+	if parsed.Metrics.TokenUsage != 1500 {
+		t.Errorf("Expected token usage 1500, got %d", parsed.Metrics.TokenUsage)
+	}
+	if len(parsed.Jobs) != 1 {
+		t.Errorf("Expected 1 job, got %d", len(parsed.Jobs))
+	}
+	if len(parsed.DownloadedFiles) != 1 {
+		t.Errorf("Expected 1 downloaded file, got %d", len(parsed.DownloadedFiles))
+	}
+	if len(parsed.MissingTools) != 1 {
+		t.Errorf("Expected 1 missing tool, got %d", len(parsed.MissingTools))
+	}
+	if len(parsed.Errors) != 1 {
+		t.Errorf("Expected 1 error, got %d", len(parsed.Errors))
+	}
+	if len(parsed.Warnings) != 1 {
+		t.Errorf("Expected 1 warning, got %d", len(parsed.Warnings))
+	}
+}

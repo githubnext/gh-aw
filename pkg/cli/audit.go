@@ -221,6 +221,12 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool, jsonOutput bo
 		}
 	}
 
+	// Fetch detailed job information including durations
+	jobDetails, err := fetchJobDetails(run.DatabaseID, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
+	}
+
 	// Extract missing tools
 	missingTools, err := extractMissingToolsFromRun(runOutputDir, run, verbose)
 	if err != nil && verbose {
@@ -238,6 +244,7 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool, jsonOutput bo
 		Run:          run,
 		MissingTools: missingTools,
 		MCPFailures:  mcpFailures,
+		JobDetails:   jobDetails,
 	}
 
 	// Build structured audit data

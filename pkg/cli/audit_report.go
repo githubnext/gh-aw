@@ -60,11 +60,11 @@ type JobData struct {
 
 // FileInfo contains information about downloaded artifact files
 type FileInfo struct {
-	Path        string `json:"path"`
-	Size        int64  `json:"size"`
+	Path          string `json:"path"`
+	Size          int64  `json:"size"`
 	SizeFormatted string `json:"size_formatted"`
-	Description string `json:"description"`
-	IsDirectory bool   `json:"is_directory"`
+	Description   string `json:"description"`
+	IsDirectory   bool   `json:"is_directory"`
 }
 
 // ErrorInfo contains detailed error information
@@ -86,7 +86,7 @@ type ToolUsageInfo struct {
 // buildAuditData creates structured audit data from workflow run information
 func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 	run := processedRun.Run
-	
+
 	// Build overview
 	overview := OverviewData{
 		RunID:        run.DatabaseID,
@@ -111,6 +111,20 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		Turns:         run.Turns,
 		ErrorCount:    run.ErrorCount,
 		WarningCount:  run.WarningCount,
+	}
+
+	// Build job data
+	var jobs []JobData
+	for _, jobDetail := range processedRun.JobDetails {
+		job := JobData{
+			Name:       jobDetail.Name,
+			Status:     jobDetail.Status,
+			Conclusion: jobDetail.Conclusion,
+		}
+		if jobDetail.Duration > 0 {
+			job.Duration = formatDuration(jobDetail.Duration)
+		}
+		jobs = append(jobs, job)
 	}
 
 	// Build downloaded files list
@@ -168,6 +182,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 	return AuditData{
 		Overview:        overview,
 		Metrics:         metricsData,
+		Jobs:            jobs,
 		DownloadedFiles: downloadedFiles,
 		MissingTools:    processedRun.MissingTools,
 		MCPFailures:     processedRun.MCPFailures,
@@ -189,7 +204,7 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 	for _, entry := range entries {
 		name := entry.Name()
 		fullPath := filepath.Join(logsPath, name)
-		
+
 		fileInfo := FileInfo{
 			Path:        name,
 			IsDirectory: entry.IsDir(),
@@ -219,12 +234,12 @@ func extractDownloadedFiles(logsPath string) []FileInfo {
 // describeFile provides a short description for known artifact files
 func describeFile(filename string) string {
 	descriptions := map[string]string{
-		"aw_info.json":       "Engine configuration and workflow metadata",
-		"safe_output.jsonl":  "Safe outputs from workflow execution",
-		"agent_output.json":  "Validated safe outputs",
-		"aw.patch":           "Git patch of changes made during execution",
-		"agent-stdio.log":    "Agent standard output/error logs",
-		"log.md":             "Human-readable agent session summary",
+		"aw_info.json":      "Engine configuration and workflow metadata",
+		"safe_output.jsonl": "Safe outputs from workflow execution",
+		"agent_output.json": "Validated safe outputs",
+		"aw.patch":          "Git patch of changes made during execution",
+		"agent-stdio.log":   "Agent standard output/error logs",
+		"log.md":            "Human-readable agent session summary",
 	}
 
 	if desc, ok := descriptions[filename]; ok {
@@ -248,7 +263,7 @@ func describeFile(filename string) string {
 func calculateDirectorySize(dirPath string) int64 {
 	var totalSize int64
 
-	filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -312,6 +327,27 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Printf("  Errors:           %d\n", data.Metrics.ErrorCount)
 	fmt.Printf("  Warnings:         %d\n", data.Metrics.WarningCount)
 	fmt.Println()
+
+	// Jobs Section
+	if len(data.Jobs) > 0 {
+		fmt.Println(console.FormatInfoMessage("## Jobs"))
+		fmt.Println()
+		fmt.Printf("  %-40s %-15s %-15s %15s\n", "Name", "Status", "Conclusion", "Duration")
+		fmt.Printf("  %s\n", strings.Repeat("-", 87))
+		for _, job := range data.Jobs {
+			conclusion := job.Conclusion
+			if conclusion == "" {
+				conclusion = "-"
+			}
+			duration := job.Duration
+			if duration == "" {
+				duration = "-"
+			}
+			fmt.Printf("  %-40s %-15s %-15s %15s\n",
+				truncateString(job.Name, 40), job.Status, conclusion, duration)
+		}
+		fmt.Println()
+	}
 
 	// Downloaded Files Section
 	if len(data.DownloadedFiles) > 0 {
@@ -383,7 +419,7 @@ func renderConsole(data AuditData, logsPath string) {
 	if len(data.Errors) > 0 || len(data.Warnings) > 0 {
 		fmt.Println(console.FormatInfoMessage("## Errors and Warnings"))
 		fmt.Println()
-		
+
 		if len(data.Errors) > 0 {
 			fmt.Println(console.FormatErrorMessage(fmt.Sprintf("  Errors (%d):", len(data.Errors))))
 			for _, err := range data.Errors {

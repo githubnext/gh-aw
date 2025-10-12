@@ -61,6 +61,7 @@ type ProcessedRun struct {
 	AccessAnalysis *DomainAnalysis
 	MissingTools   []MissingToolReport
 	MCPFailures    []MCPFailureReport
+	JobDetails     []JobInfoWithDuration
 }
 
 // MissingToolReport represents a missing tool reported by an agentic workflow
@@ -140,6 +141,54 @@ func fetchJobStatuses(runID int64, verbose bool) (int, error) {
 	return failedJobs, nil
 }
 
+// fetchJobDetails gets detailed job information including durations for a workflow run
+func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
+	args := []string{"api", fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID), "--jq", ".jobs[] | {name: .name, status: .status, conclusion: .conclusion, started_at: .started_at, completed_at: .completed_at}"}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
+	}
+
+	cmd := exec.Command("gh", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", runID, err)))
+		}
+		// Don't fail the entire operation if we can't get job info
+		return nil, nil
+	}
+
+	var jobs []JobInfoWithDuration
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		var job JobInfo
+		if err := json.Unmarshal([]byte(line), &job); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to parse job info: %s", line)))
+			}
+			continue
+		}
+
+		jobWithDuration := JobInfoWithDuration{
+			JobInfo: job,
+		}
+
+		// Calculate duration if both timestamps are available
+		if !job.StartedAt.IsZero() && !job.CompletedAt.IsZero() {
+			jobWithDuration.Duration = job.CompletedAt.Sub(job.StartedAt)
+		}
+
+		jobs = append(jobs, jobWithDuration)
+	}
+
+	return jobs, nil
+}
+
 // DownloadResult represents the result of downloading artifacts for a single run
 type DownloadResult struct {
 	Run            WorkflowRun
@@ -154,9 +203,17 @@ type DownloadResult struct {
 
 // JobInfo represents basic information about a workflow job
 type JobInfo struct {
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Conclusion string `json:"conclusion"`
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	Conclusion  string    `json:"conclusion"`
+	StartedAt   time.Time `json:"started_at,omitempty"`
+	CompletedAt time.Time `json:"completed_at,omitempty"`
+}
+
+// JobInfoWithDuration extends JobInfo with calculated duration
+type JobInfoWithDuration struct {
+	JobInfo
+	Duration time.Duration
 }
 
 // AwInfo represents the structure of aw_info.json files
