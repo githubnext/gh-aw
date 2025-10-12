@@ -254,10 +254,8 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
 		}
 
-		// Add --json flag when jq filter is provided
-		if args.JqFilter != "" {
-			cmdArgs = append(cmdArgs, "--json")
-		}
+		// Always use --json mode in MCP server
+		cmdArgs = append(cmdArgs, "--json")
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
