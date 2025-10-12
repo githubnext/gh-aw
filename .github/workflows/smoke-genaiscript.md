@@ -9,6 +9,7 @@ imports:
   - shared/genaiscript.md
 tools:
   github:
+    toolset: [pull_requests]
     allowed:
       - list_pull_requests
       - get_pull_request
