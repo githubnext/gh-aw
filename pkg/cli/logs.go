@@ -85,11 +85,13 @@ type MCPFailureReport struct {
 
 // MissingToolSummary aggregates missing tool reports across runs
 type MissingToolSummary struct {
-	Tool        string   `json:"tool" console:"header:Tool"`
-	Count       int      `json:"count" console:"header:Occurrences"`
-	Workflows   []string `json:"workflows" console:"-"`    // List of workflow names that reported this tool
-	FirstReason string   `json:"first_reason" console:"-"` // Reason from the first occurrence
-	RunIDs      []int64  `json:"run_ids" console:"-"`      // List of run IDs where this tool was reported
+	Tool               string   `json:"tool" console:"header:Tool"`
+	Count              int      `json:"count" console:"header:Occurrences"`
+	Workflows          []string `json:"workflows" console:"-"`           // List of workflow names that reported this tool
+	WorkflowsDisplay   string   `json:"-" console:"header:Workflows"`    // Formatted display of workflows
+	FirstReason        string   `json:"first_reason" console:"-"`        // Reason from the first occurrence
+	FirstReasonDisplay string   `json:"-" console:"header:First Reason"` // Formatted display of first reason
+	RunIDs             []int64  `json:"run_ids" console:"-"`             // List of run IDs where this tool was reported
 }
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts
@@ -2012,10 +2014,11 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 
 // MCPFailureSummary aggregates MCP server failures across runs
 type MCPFailureSummary struct {
-	ServerName string   `json:"server_name" console:"header:Server"`
-	Count      int      `json:"count" console:"header:Failures"`
-	Workflows  []string `json:"workflows" console:"-"` // List of workflow names that had this server fail
-	RunIDs     []int64  `json:"run_ids" console:"-"`   // List of run IDs where this server failed
+	ServerName       string   `json:"server_name" console:"header:Server"`
+	Count            int      `json:"count" console:"header:Failures"`
+	Workflows        []string `json:"workflows" console:"-"`        // List of workflow names that had this server fail
+	WorkflowsDisplay string   `json:"-" console:"header:Workflows"` // Formatted display of workflows
+	RunIDs           []int64  `json:"run_ids" console:"-"`          // List of run IDs where this server failed
 }
 
 // displayMCPFailuresAnalysis displays a summary of MCP server failures across all runs

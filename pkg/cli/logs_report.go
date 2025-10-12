@@ -16,25 +16,25 @@ import (
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary      LogsSummary          `json:"summary"`
-	Runs         []RunData            `json:"runs"`
-	ToolUsage    []ToolUsageSummary   `json:"tool_usage,omitempty"`
-	MissingTools []MissingToolSummary `json:"missing_tools,omitempty"`
-	MCPFailures  []MCPFailureSummary  `json:"mcp_failures,omitempty"`
-	AccessLog    *AccessLogSummary    `json:"access_log,omitempty"`
-	LogsLocation string               `json:"logs_location"`
+	Summary      LogsSummary          `json:"summary" console:"title:Workflow Logs Summary"`
+	Runs         []RunData            `json:"runs" console:"title:Workflow Logs Overview"`
+	ToolUsage    []ToolUsageSummary   `json:"tool_usage,omitempty" console:"title:🛠️  Tool Usage Summary,omitempty"`
+	MissingTools []MissingToolSummary `json:"missing_tools,omitempty" console:"title:🛠️  Missing Tools Summary,omitempty"`
+	MCPFailures  []MCPFailureSummary  `json:"mcp_failures,omitempty" console:"title:⚠️  MCP Server Failures,omitempty"`
+	AccessLog    *AccessLogSummary    `json:"access_log,omitempty" console:"title:Access Log Analysis,omitempty"`
+	LogsLocation string               `json:"logs_location" console:"-"`
 }
 
 // LogsSummary contains aggregate metrics across all runs
 type LogsSummary struct {
-	TotalRuns         int     `json:"total_runs"`
-	TotalDuration     string  `json:"total_duration"`
-	TotalTokens       int     `json:"total_tokens"`
-	TotalCost         float64 `json:"total_cost"`
-	TotalTurns        int     `json:"total_turns"`
-	TotalErrors       int     `json:"total_errors"`
-	TotalWarnings     int     `json:"total_warnings"`
-	TotalMissingTools int     `json:"total_missing_tools"`
+	TotalRuns         int     `json:"total_runs" console:"header:Total Runs"`
+	TotalDuration     string  `json:"total_duration" console:"header:Total Duration"`
+	TotalTokens       int     `json:"total_tokens" console:"header:Total Tokens,format:number"`
+	TotalCost         float64 `json:"total_cost" console:"header:Total Cost,format:cost"`
+	TotalTurns        int     `json:"total_turns" console:"header:Total Turns"`
+	TotalErrors       int     `json:"total_errors" console:"header:Total Errors"`
+	TotalWarnings     int     `json:"total_warnings" console:"header:Total Warnings"`
+	TotalMissingTools int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
 }
 
 // RunData contains information about a single workflow run
@@ -60,21 +60,22 @@ type RunData struct {
 
 // ToolUsageSummary contains aggregated tool usage statistics
 type ToolUsageSummary struct {
-	Name          string `json:"name" console:"header:Tool"`
-	TotalCalls    int    `json:"total_calls" console:"header:Total Calls,format:number"`
-	Runs          int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
-	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:number,omitempty"`
-	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+	Name             string `json:"name" console:"header:Tool"`
+	TotalCalls       int    `json:"total_calls" console:"header:Total Calls,format:number"`
+	Runs             int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
+	MaxOutputSize    int    `json:"max_output_size,omitempty" console:"-"`
+	MaxOutputDisplay string `json:"-" console:"header:Max Output,omitempty"` // Formatted display of MaxOutputSize
+	MaxDuration      string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
 }
 
 // AccessLogSummary contains aggregated access log analysis
 type AccessLogSummary struct {
-	TotalRequests  int                        `json:"total_requests"`
-	AllowedCount   int                        `json:"allowed_count"`
-	DeniedCount    int                        `json:"denied_count"`
-	AllowedDomains []string                   `json:"allowed_domains"`
-	DeniedDomains  []string                   `json:"denied_domains"`
-	ByWorkflow     map[string]*DomainAnalysis `json:"by_workflow,omitempty"`
+	TotalRequests  int                        `json:"total_requests" console:"header:Total Requests"`
+	AllowedCount   int                        `json:"allowed_count" console:"header:Allowed"`
+	DeniedCount    int                        `json:"denied_count" console:"header:Denied"`
+	AllowedDomains []string                   `json:"allowed_domains" console:"-"`
+	DeniedDomains  []string                   `json:"denied_domains" console:"-"`
+	ByWorkflow     map[string]*DomainAnalysis `json:"by_workflow,omitempty" console:"-"`
 }
 
 // buildLogsData creates structured logs data from processed runs
@@ -213,6 +214,12 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 
 	var result []ToolUsageSummary
 	for _, info := range toolStats {
+		// Populate display field for MaxOutputSize
+		if info.MaxOutputSize > 0 {
+			info.MaxOutputDisplay = pretty.FormatFileSize(int64(info.MaxOutputSize))
+		} else {
+			info.MaxOutputDisplay = "N/A"
+		}
 		result = append(result, *info)
 	}
 
@@ -258,6 +265,20 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 
 	var result []MissingToolSummary
 	for _, summary := range toolSummary {
+		// Populate display fields
+		workflowList := strings.Join(summary.Workflows, ", ")
+		if len(workflowList) > 40 {
+			summary.WorkflowsDisplay = workflowList[:37] + "..."
+		} else {
+			summary.WorkflowsDisplay = workflowList
+		}
+
+		if len(summary.FirstReason) > 50 {
+			summary.FirstReasonDisplay = summary.FirstReason[:47] + "..."
+		} else {
+			summary.FirstReasonDisplay = summary.FirstReason
+		}
+
 		result = append(result, *summary)
 	}
 
@@ -302,6 +323,14 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 
 	var result []MCPFailureSummary
 	for _, summary := range failureSummary {
+		// Populate display field for workflows
+		workflowList := strings.Join(summary.Workflows, ", ")
+		if len(workflowList) > 60 {
+			summary.WorkflowsDisplay = workflowList[:57] + "..."
+		} else {
+			summary.WorkflowsDisplay = workflowList
+		}
+
 		result = append(result, *summary)
 	}
 
@@ -374,244 +403,9 @@ func renderLogsJSON(data LogsData) error {
 
 // renderLogsConsole outputs the logs data as formatted console output
 func renderLogsConsole(data LogsData, verbose bool) {
-	// Display overview table
-	displayLogsOverviewFromData(data, verbose)
-
-	// Display tool usage
-	if len(data.ToolUsage) > 0 {
-		displayToolUsageFromData(data.ToolUsage, verbose)
-	}
-
-	// Display MCP failures
-	if len(data.MCPFailures) > 0 {
-		displayMCPFailuresFromData(data.MCPFailures, verbose)
-	}
-
-	// Display missing tools
-	if len(data.MissingTools) > 0 {
-		displayMissingToolsFromData(data.MissingTools, verbose)
-	}
-
-	// Display access log analysis
-	if data.AccessLog != nil {
-		displayAccessLogFromData(data.AccessLog, verbose)
-	}
+	// Use unified console rendering for the entire logs data structure
+	fmt.Print(console.RenderStruct(data))
 
 	// Display logs location
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", data.Summary.TotalRuns, data.LogsLocation)))
-}
-
-// displayLogsOverviewFromData displays the overview table from LogsData
-func displayLogsOverviewFromData(data LogsData, verbose bool) {
-	headers := []string{"Run ID", "Workflow", "Status", "Duration", "Tokens", "Cost ($)", "Turns", "Errors", "Warnings", "Missing", "Created", "Logs Path"}
-	var rows [][]string
-
-	for _, run := range data.Runs {
-		// Format cost
-		costStr := ""
-		if run.EstimatedCost > 0 {
-			costStr = fmt.Sprintf("%.3f", run.EstimatedCost)
-		}
-
-		// Format tokens
-		tokensStr := ""
-		if run.TokenUsage > 0 {
-			tokensStr = formatNumber(run.TokenUsage)
-		}
-
-		// Format turns
-		turnsStr := ""
-		if run.Turns > 0 {
-			turnsStr = fmt.Sprintf("%d", run.Turns)
-		}
-
-		// Truncate workflow name if too long
-		workflowName := run.WorkflowName
-		if len(workflowName) > 20 {
-			workflowName = workflowName[:17] + "..."
-		}
-
-		// Format relative path
-		relPath, _ := filepath.Rel(".", run.LogsPath)
-
-		// Format status - show conclusion directly for completed runs
-		statusStr := run.Status
-		if run.Status == "completed" && run.Conclusion != "" {
-			statusStr = run.Conclusion
-		}
-
-		row := []string{
-			fmt.Sprintf("%d", run.DatabaseID),
-			workflowName,
-			statusStr,
-			run.Duration,
-			tokensStr,
-			costStr,
-			turnsStr,
-			fmt.Sprintf("%d", run.ErrorCount),
-			fmt.Sprintf("%d", run.WarningCount),
-			fmt.Sprintf("%d", run.MissingToolCount),
-			run.CreatedAt.Format("2006-01-02"),
-			relPath,
-		}
-		rows = append(rows, row)
-	}
-
-	// Prepare total row
-	totalRow := []string{
-		fmt.Sprintf("TOTAL (%d runs)", data.Summary.TotalRuns),
-		"",
-		"",
-		data.Summary.TotalDuration,
-		formatNumber(data.Summary.TotalTokens),
-		fmt.Sprintf("%.3f", data.Summary.TotalCost),
-		fmt.Sprintf("%d", data.Summary.TotalTurns),
-		fmt.Sprintf("%d", data.Summary.TotalErrors),
-		fmt.Sprintf("%d", data.Summary.TotalWarnings),
-		fmt.Sprintf("%d", data.Summary.TotalMissingTools),
-		"",
-		"",
-	}
-
-	// Render table using console helper
-	tableConfig := console.TableConfig{
-		Title:     "Workflow Logs Overview",
-		Headers:   headers,
-		Rows:      rows,
-		ShowTotal: true,
-		TotalRow:  totalRow,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-}
-
-// displayToolUsageFromData displays tool usage statistics
-func displayToolUsageFromData(toolUsage []ToolUsageSummary, verbose bool) {
-	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Tool Usage Summary"))
-
-	headers := []string{"Tool", "Total Calls", "Runs", "Max Output", "Max Duration"}
-	var rows [][]string
-
-	for _, tool := range toolUsage {
-		outputStr := "N/A"
-		if tool.MaxOutputSize > 0 {
-			outputStr = pretty.FormatFileSize(int64(tool.MaxOutputSize))
-		}
-		durationStr := "N/A"
-		if tool.MaxDuration != "" {
-			durationStr = tool.MaxDuration
-		}
-
-		rows = append(rows, []string{
-			tool.Name,
-			formatNumber(tool.TotalCalls),
-			fmt.Sprintf("%d", tool.Runs),
-			outputStr,
-			durationStr,
-		})
-	}
-
-	tableConfig := console.TableConfig{
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-}
-
-// displayMCPFailuresFromData displays MCP failures
-func displayMCPFailuresFromData(mcpFailures []MCPFailureSummary, verbose bool) {
-	fmt.Printf("\n%s\n", console.FormatListHeader("⚠️  MCP Server Failures"))
-
-	headers := []string{"Server", "Failures", "Workflows"}
-	var rows [][]string
-
-	for _, failure := range mcpFailures {
-		workflowList := strings.Join(failure.Workflows, ", ")
-		if len(workflowList) > 60 {
-			workflowList = workflowList[:57] + "..."
-		}
-
-		rows = append(rows, []string{
-			failure.ServerName,
-			fmt.Sprintf("%d", failure.Count),
-			workflowList,
-		})
-	}
-
-	tableConfig := console.TableConfig{
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-}
-
-// displayMissingToolsFromData displays missing tools
-func displayMissingToolsFromData(missingTools []MissingToolSummary, verbose bool) {
-	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Missing Tools Summary"))
-
-	headers := []string{"Tool", "Occurrences", "Workflows", "First Reason"}
-	var rows [][]string
-
-	for _, summary := range missingTools {
-		workflowList := strings.Join(summary.Workflows, ", ")
-		if len(workflowList) > 40 {
-			workflowList = workflowList[:37] + "..."
-		}
-
-		reason := summary.FirstReason
-		if len(reason) > 50 {
-			reason = reason[:47] + "..."
-		}
-
-		rows = append(rows, []string{
-			summary.Tool,
-			fmt.Sprintf("%d", summary.Count),
-			workflowList,
-			reason,
-		})
-	}
-
-	tableConfig := console.TableConfig{
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-
-	// Display total summary
-	totalReports := 0
-	for _, summary := range missingTools {
-		totalReports += summary.Count
-	}
-	fmt.Printf("\n📊 %s: %d unique missing tools reported %d times across workflows\n",
-		console.FormatCountMessage("Total"),
-		len(missingTools),
-		totalReports)
-}
-
-// displayAccessLogFromData displays access log analysis
-func displayAccessLogFromData(accessLog *AccessLogSummary, verbose bool) {
-	fmt.Printf("\n%s\n", console.FormatListHeader("🌐 Network Access Analysis"))
-
-	fmt.Printf("\nTotal Requests: %d (%d allowed, %d denied)\n",
-		accessLog.TotalRequests, accessLog.AllowedCount, accessLog.DeniedCount)
-
-	// Display allowed domains
-	if len(accessLog.AllowedDomains) > 0 {
-		fmt.Printf("\n✅ Allowed Domains (%d):\n", len(accessLog.AllowedDomains))
-		for _, domain := range accessLog.AllowedDomains {
-			fmt.Printf("   • %s\n", domain)
-		}
-	}
-
-	// Display denied domains
-	if len(accessLog.DeniedDomains) > 0 {
-		fmt.Printf("\n❌ Denied Domains (%d):\n", len(accessLog.DeniedDomains))
-		for _, domain := range accessLog.DeniedDomains {
-			fmt.Printf("   • %s\n", domain)
-		}
-	}
-	fmt.Println()
 }
