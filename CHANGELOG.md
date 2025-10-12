@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.19.0 - 2025-10-12
+
+### Features
+
+#### Add validation step to mcp-server command startup
+
+The `mcp-server` command now validates configuration before starting the server. It runs `gh aw status` to verify that the gh CLI and gh-aw extension are properly installed, and that the working directory is a valid git repository with `.github/workflows`. This provides immediate, actionable feedback to users about configuration issues instead of cryptic errors when tools are invoked.
+
+
+### Bug Fixes
+
+#### Add git patch preview in fallback issue messages
+
+When the create_pull_request safe output handler fails to push changes or create a PR, it now includes a preview of the git patch (max 500 lines) in the fallback issue message. This improves debugging by providing immediate visibility into the changes that failed to be pushed or converted to a PR.
+
+#### Add lockfile statistics analysis workflow for nightly audits
+
+Adds a new agentic workflow that performs comprehensive statistical and structural analysis of all `.lock.yml` files in the repository, publishing insights to the "audits" discussion category. The workflow runs nightly at 3am UTC and provides valuable visibility into workflow usage patterns, trigger types, safe outputs, file sizes, and structural characteristics.
+
+#### Fix false positives in error validation from environment variable dumps in logs
+
+The audit workflow was failing due to false positives in error pattern matching. The error validation script was matching error pattern definitions that appeared in GitHub Actions logs as environment variable dumps, creating a recursive false positive issue. Added a `shouldSkipLine()` function that filters out GitHub Actions metadata lines (environment variable declarations and section headers) before validation, allowing the audit workflow to successfully parse agent logs without false positives.
+
+#### Fix YAML boolean keyword quoting to prevent workflow validation failures
+
+Fixed the compiler to prevent unquoting the "on" key in generated workflow YAML files. This prevents YAML parsers from misinterpreting "on" as the boolean value `True` instead of a string key, which was causing GitHub Actions workflow validation failures. The fix ensures all compiled workflows generate valid YAML that passes GitHub Actions validation.
+
+#### Mark permission-related error patterns as warnings to reduce false positives
+
+Permission-related error patterns were being classified as fatal errors, causing workflow runs to fail unnecessarily when encountering informational messages about permissions, authentication, or authorization. This change introduces a `Severity` field to the `ErrorPattern` struct that allows explicit override of the automatic level detection logic, enabling fine-grained control over which patterns should be treated as errors versus warnings.
+
+Updated 26 permission and authentication-related patterns across the Codex and Copilot engines to be classified as warnings instead of errors, improving workflow reliability while maintaining visibility of permission issues for troubleshooting.
+
+
 ## v0.18.2 - 2025-10-11
 
 ### Bug Fixes
