@@ -274,7 +274,8 @@ func createMCPServer(cmdPath string) *mcp.Server {
 
 	// Add audit tool
 	type auditArgs struct {
-		RunID int64 `json:"run_id" jsonschema:"GitHub Actions workflow run ID to audit"`
+		RunID    int64  `json:"run_id" jsonschema:"GitHub Actions workflow run ID to audit"`
+		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "audit",
@@ -297,9 +298,23 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			}, nil, nil
 		}
 
+		// Apply jq filter if provided
+		outputStr := string(output)
+		if args.JqFilter != "" {
+			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
+			if err != nil {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+					},
+				}, nil, nil
+			}
+			outputStr = filteredOutput
+		}
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(output)},
+				&mcp.TextContent{Text: outputStr},
 			},
 		}, nil, nil
 	})
