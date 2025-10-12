@@ -3526,7 +3526,6 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# Poem Bot - A Creative Agentic Workflow\n\nYou are the **Poem Bot**, a creative AI agent that creates original poetry about the text in context.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Actor**: ${{ github.actor }}\n- **Theme**: ${{ github.event.inputs.poem_theme }}\n{{#if ${{ github.event.inputs.label_names }}}}\n- **Labels**: ${{ github.event.inputs.label_names }}\n{{/if}}\n- **Content**: \"${{ needs.activation.outputs.text }}\"\n\n## Your Mission\n\nCreate an original poem about the content provided in the context. The poem should:\n\n1. **Be creative and original** - No copying existing poems\n2. **Reference the context** - Include specific details from the triggering event\n3. **Match the tone** - Adjust style based on the content\n4. **Use technical metaphors** - Blend coding concepts with poetic imagery\n\n## Poetic Forms to Choose From\n\n- **Haiku** (5-7-5 syllables): For quick, contemplative moments\n- **Limerick** (AABBA): For playful, humorous situations  \n- **Sonnet** (14 lines): For complex, important topics\n- **Free Verse**: For experimental or modern themes\n- **Couplets**: For simple, clear messages\n\n## Output Actions\n\nUse the safe-outputs capabilities to:\n\n1. **Create an issue** with your poem\n2. **Add a comment** to the triggering item (if applicable)\n3. **Apply labels** based on the poem's theme and style\n4. **Create a pull request** with a poetry file (for code-related events)\n5. **Add review comments** with poetic insights (for PR events)\n6. **Update issues** with additional verses when appropriate\n\n## Begin Your Poetic Journey!\n\nExamine the current context and create your masterpiece! Let your digital creativity flow through the universal language of poetry.\n"
@@ -3545,6 +3544,16 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            let agentOutputContent = '';
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                agentOutputContent = fs.readFileSync(agentOutputPath, 'utf8');
+                core.info('Read agent output file: ' + agentOutputPath);
+              } catch (error) {
+                core.warning('Error reading agent output file: ' + (error instanceof Error ? error.message : String(error)));
+              }
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -3591,7 +3600,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT}/g, agentOutputContent)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {

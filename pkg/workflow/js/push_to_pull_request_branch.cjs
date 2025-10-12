@@ -15,7 +15,7 @@ async function main() {
   } catch (error) {
     core.warning(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
   }
-  
+
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     return;

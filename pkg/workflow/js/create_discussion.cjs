@@ -2,7 +2,7 @@ async function main() {
   // Read the validated output content from the downloaded artifact file
   const fs = require("fs");
   const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
-  
+
   let outputContent;
   try {
     if (!fs.existsSync(agentOutputPath)) {
@@ -14,7 +14,7 @@ async function main() {
     core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
-  
+
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     return;

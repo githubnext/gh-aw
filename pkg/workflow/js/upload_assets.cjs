@@ -29,7 +29,7 @@ async function main() {
     core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
-  
+
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     core.setOutput("upload_count", "0");

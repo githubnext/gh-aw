@@ -5,7 +5,7 @@ async function main() {
   // Read the validated output content from the downloaded artifact file
   const fs = require("fs");
   const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
-  
+
   let outputContent;
   try {
     if (!fs.existsSync(agentOutputPath)) {

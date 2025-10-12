@@ -294,7 +294,8 @@ func TestMissingToolScriptEmbedding(t *testing.T) {
 	// Verify it contains expected JavaScript content
 	expectedContent := []string{
 		"async function main()",
-		"GITHUB_AW_AGENT_OUTPUT",
+		"agentOutputPath",
+		"/tmp/gh-aw/safe-outputs/agent_output.json",
 		"GITHUB_AW_MISSING_TOOL_MAX",
 		"missing-tool",
 		"JSON.parse",

@@ -168,7 +168,6 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 		"      - name: Setup threat detection\n",
 		"        uses: actions/github-script@v8\n",
 		"        env:\n",
-		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
 
@@ -227,13 +226,25 @@ if (fs.existsSync(patchPath)) {
   core.info('No patch file found at: ' + patchPath);
 }
 
+// Read agent output from the downloaded artifact file
+let agentOutputContent = '';
+const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+if (fs.existsSync(agentOutputPath)) {
+  try {
+    agentOutputContent = fs.readFileSync(agentOutputPath, 'utf8');
+    core.info('Read agent output file: ' + agentOutputPath);
+  } catch (error) {
+    core.warning('Error reading agent output file: ' + (error instanceof Error ? error.message : String(error)));
+  }
+}
+
 // Create threat detection prompt with embedded template
 const templateContent = %s;
 let promptContent = templateContent
   .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
   .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-  .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+  .replace(/{AGENT_OUTPUT}/g, agentOutputContent)
   .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
 
 // Append custom prompt instructions if provided

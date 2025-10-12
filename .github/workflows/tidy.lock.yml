@@ -3290,7 +3290,6 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Tidy"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# Code Tidying Agent\n\nYou are a code maintenance agent responsible for keeping the codebase clean, formatted, and properly linted. Your task is to format, lint, fix issues, recompile workflows, run tests, and create or update a pull request if changes are needed.\n\n## Your Mission\n\nPerform the following steps in order:\n\n### 0. Check for Existing Tidy Pull Request\nBefore starting any work, check if there's already an open pull request for tidying:\n- Search for open pull requests that have BOTH:\n  - Title starting with \"[tidy]\" prefix\n  - The \"automation\" label attached\n- If an existing tidy PR meeting these criteria is found, note its branch name and number for reuse\n- Only PRs that match BOTH criteria should be considered for reuse\n\n### 1. Format Code\nRun `make fmt` to format all Go code according to the project standards.\n\n### 2. Lint Code  \nRun `make lint` to check for linting issues across the entire codebase (Go and JavaScript).\n\n### 3. Fix Linting Issues\nIf any linting issues are found, analyze and fix them:\n- Review the linting output carefully\n- Make the necessary code changes to address each issue\n- Focus on common issues like unused variables, imports, formatting problems\n- Be conservative - only fix clear, obvious issues\n\n### 4. Format and Lint Again\nAfter fixing issues:\n- Run `make fmt` again to ensure formatting is correct\n- Run `make lint` again to verify all issues are resolved\n\n### 5. Recompile Workflows\nRun `make recompile` to recompile all agentic workflow files and ensure they are up to date.\n\n### 6. Run Tests\nRun `make test` to ensure your changes don't break anything. If tests fail:\n- Analyze the test failures\n- Only fix test failures that are clearly related to your formatting/linting changes\n- Do not attempt to fix unrelated test failures\n\n### 7. Create or Update Pull Request\nIf any changes were made during the above steps:\n- **If an existing tidy PR was found in step 0**: Use the `push_to_pull_request_branch` tool to push changes to that existing PR branch\n- **If no existing tidy PR was found**: Use the `create_pull_request` tool to create a new pull request\n- Provide a clear title describing what was tidied (e.g., \"Fix linting issues and update formatting\")\n- In the PR description, summarize what changes were made and why\n- Include details about any specific issues that were fixed\n- If updating an existing PR, mention that this is an update with new tidy changes\n\n## Important Guidelines\n\n- **Reuse Existing PRs**: Always prefer updating an existing tidy PR over creating a new one\n- **Safety First**: Only make changes that are clearly needed for formatting, linting, or compilation\n- **Test Validation**: Always run tests after making changes  \n- **Minimal Changes**: Don't make unnecessary modifications to working code\n- **Clear Communication**: Explain what you changed and why in the pull request\n- **Skip if Clean**: If no changes are needed, simply report that everything is already tidy\n\n## Environment Setup\n\nThe repository has all necessary tools installed:\n- Go toolchain with gofmt, golangci-lint\n- Node.js with prettier for JavaScript formatting\n- All dependencies are already installed\n\nStart by checking for existing tidy pull requests, then proceed with the tidying process.\n"
@@ -3309,6 +3308,16 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            let agentOutputContent = '';
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                agentOutputContent = fs.readFileSync(agentOutputPath, 'utf8');
+                core.info('Read agent output file: ' + agentOutputPath);
+              } catch (error) {
+                core.warning('Error reading agent output file: ' + (error instanceof Error ? error.message : String(error)));
+              }
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -3355,7 +3364,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT}/g, agentOutputContent)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {

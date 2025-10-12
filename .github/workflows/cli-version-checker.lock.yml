@@ -2800,7 +2800,6 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "CLI Version Checker"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# CLI Version Checker\n\nMonitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.\n\n**Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}\n\n## Process\n\nFor each CLI/MCP server:\n1. Fetch latest version from NPM registry or GitHub releases\n2. Compare with current version in `./pkg/constants/constants.go`\n3. If newer version exists, research changes and prepare update\n\n### Version Sources\n- **Claude Code**: `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`\n- **Copilot CLI**: `https://registry.npmjs.org/@github/copilot/latest`\n- **Codex**: `https://registry.npmjs.org/@openai/codex/latest`\n- **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`\n\n### Research & Analysis\nFor each update, analyze intermediate versions:\n- Categorize changes: Breaking, Features, Fixes, Security, Performance\n- Assess impact on gh-aw workflows\n- Document migration requirements\n- Assign risk level (Low/Medium/High)\n\n### Update Process\n1. Edit `./pkg/constants/constants.go` with new version(s)\n2. Run `make recompile` to update workflows\n3. Verify changes with `git status`\n4. Create PR via safe-outputs with detailed analysis\n\n## PR Format\nInclude for each updated CLI:\n- **Version**: old → new (list intermediate versions if multiple)\n- **Release Timeline**: dates and intervals\n- **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance\n- **Impact Assessment**: Risk level, affected features, migration notes\n- **Changelog Links**: NPM/GitHub release notes\n\nTemplate structure:\n```\n# Update [CLI Name]\n- Previous: [version] → New: [version]\n- Timeline: [dates and frequency]\n- Breaking Changes: [list or \"None\"]\n- New Features: [list]\n- Bug Fixes: [list]\n- Security: [CVEs/patches or \"None\"]\n- Impact: Risk [Low/Medium/High], affects [features]\n- Migration: [Yes/No - details if yes]\n```\n\n## Guidelines\n- Only update stable versions (no pre-releases)\n- Prioritize security updates\n- Document all intermediate versions\n- Test with `make recompile` before creating PR\n- **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly\n\n## Error Handling\n- Retry NPM registry failures once after 30s\n- Continue if individual changelog fetch fails\n- Skip PR creation if recompile fails\n- Exit successfully if no updates found\n- Document incomplete research if rate-limited\n"
@@ -2819,6 +2818,16 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            let agentOutputContent = '';
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                agentOutputContent = fs.readFileSync(agentOutputPath, 'utf8');
+                core.info('Read agent output file: ' + agentOutputPath);
+              } catch (error) {
+                core.warning('Error reading agent output file: ' + (error instanceof Error ? error.message : String(error)));
+              }
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -2865,7 +2874,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT}/g, agentOutputContent)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {

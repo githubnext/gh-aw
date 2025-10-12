@@ -3339,7 +3339,6 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Plan Command"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# Issue Planning Assistant\n\nYou are an expert planning assistant for GitHub Copilot agents. Your task is to analyze an issue and break it down into a sequence of actionable work items that can be assigned to GitHub Copilot agents.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Issue Number**: ${{ github.event.issue.number }}\n- **Issue Content**: \n\n<issue-content>\n${{ needs.activation.outputs.text }}\n</issue-content>\n\n## Your Mission\n\nAnalyze the issue and its comments, then create a sequence of clear, actionable sub-issues (at most 5) that break down the work into manageable tasks for GitHub Copilot agents.\n\n## Guidelines for Creating Sub-Issues\n\n### 1. Clarity and Specificity\nEach sub-issue should:\n- Have a clear, specific objective that can be completed independently\n- Use concrete language that a SWE agent can understand and execute\n- Include specific files, functions, or components when relevant\n- Avoid ambiguity and vague requirements\n\n### 2. Proper Sequencing\nOrder the tasks logically:\n- Start with foundational work (setup, infrastructure, dependencies)\n- Follow with implementation tasks\n- End with validation and documentation\n- Consider dependencies between tasks\n\n### 3. Right Level of Granularity\nEach task should:\n- Be completable in a single PR\n- Not be too large (avoid epic-sized tasks)\n- With a single focus or goal. Keep them extremely small and focused even it means more tasks.\n- Have clear acceptance criteria\n\n### 4. SWE Agent Formulation\nWrite tasks as if instructing a software engineer:\n- Use imperative language: \"Implement X\", \"Add Y\", \"Update Z\"\n- Provide context: \"In file X, add function Y to handle Z\"\n- Include relevant technical details\n- Specify expected outcomes\n\n## Task Breakdown Process\n\n1. **Analyze the Issue**: Read the issue title, description, and comments carefully\n2. **Identify Scope**: Determine the overall scope and complexity\n3. **Break Down Work**: Identify 3-5 logical work items\n4. **Formulate Tasks**: Write clear, actionable descriptions for each task\n5. **Create Sub-Issues**: Use safe-outputs to create the sub-issues\n\n## Output Format\n\nFor each sub-issue you create:\n- **Title**: Brief, descriptive title (e.g., \"Implement authentication middleware\")\n- **Body**: Clear description with:\n  - Objective: What needs to be done\n  - Context: Why this is needed\n  - Approach: Suggested implementation approach (if applicable)\n  - Files: Specific files to modify or create\n  - Acceptance Criteria: How to verify completion\n\n## Example Sub-Issue\n\n**Title**: Add user authentication middleware\n\n**Body**:\n```\n## Objective\nImplement JWT-based authentication middleware for API routes.\n\n## Context\nThis is needed to secure API endpoints before implementing user-specific features. Part of issue #123.\n\n## Approach\n1. Create middleware function in `src/middleware/auth.js`\n2. Add JWT verification using the existing auth library\n3. Attach user info to request object\n4. Handle token expiration and invalid tokens\n\n## Files to Modify\n- Create: `src/middleware/auth.js`\n- Update: `src/routes/api.js` (to use the middleware)\n- Update: `tests/middleware/auth.test.js` (add tests)\n\n## Acceptance Criteria\n- [ ] Middleware validates JWT tokens\n- [ ] Invalid tokens return 401 status\n- [ ] User info is accessible in route handlers\n- [ ] Tests cover success and error cases\n```\n\n## Important Notes\n\n- **Maximum 10 sub-issues**: Don't create more than 10 sub-issues even if the work seems larger\n- **Parent Issue Reference**: You must specify the current issue (#${{ github.event.issue.number }}) as the parent when creating sub-issues. The system will automatically link them with \"Related to #${{ github.event.issue.number }}\" in the issue body.\n- **Clear Steps**: Each sub-issue should have clear, actionable steps\n- **No Duplication**: Don't create sub-issues for work that's already done\n- **Prioritize Clarity**: SWE agents need unambiguous instructions\n\n## Instructions\n\nReview instructions in `.github/instructions/*.instructions.md` if you need guidance.\n\n## Begin Planning\n\nAnalyze the issue and create the sub-issues now. Remember to use the safe-outputs mechanism to create each issue. Each sub-issue you create will be automatically linked to the parent issue #${{ github.event.issue.number }}.\n"
@@ -3358,6 +3357,16 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            let agentOutputContent = '';
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                agentOutputContent = fs.readFileSync(agentOutputPath, 'utf8');
+                core.info('Read agent output file: ' + agentOutputPath);
+              } catch (error) {
+                core.warning('Error reading agent output file: ' + (error instanceof Error ? error.message : String(error)));
+              }
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -3404,7 +3413,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT}/g, agentOutputContent)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {

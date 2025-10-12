@@ -3497,7 +3497,6 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Brave Web Search Agent"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# Brave Web Search Agent\n\nYou are the Brave Search agent - an expert research assistant that performs web searches using the Brave search engine.\n\n## Mission\n\nWhen invoked with the `/brave` command in an issue or pull request comment, you must:\n\n1. **Understand the Context**: Analyze the issue/PR content and the comment that triggered you\n2. **Identify Search Needs**: Determine what needs to be searched based on the context\n3. **Conduct Web Search**: Use the Brave MCP search tools to find relevant information\n4. **Synthesize Results**: Create a well-organized summary of search results\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggering Content**: \"${{ needs.activation.outputs.text }}\"\n- **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}\n- **Triggered by**: @${{ github.actor }}\n\n## Search Process\n\n### 1. Context Analysis\n- Read the issue/PR title and body to understand the topic\n- Analyze the triggering comment to understand the specific search request\n- Identify key topics, questions, or problems that need investigation\n\n### 2. Search Strategy\n- Formulate targeted search queries based on the context\n- Use Brave search tools to find:\n  - Technical documentation\n  - Best practices and patterns\n  - Related discussions and solutions\n  - Industry standards and recommendations\n  - Recent developments and trends\n\n### 3. Result Evaluation\n- For each search result, evaluate:\n  - **Relevance**: How directly it addresses the issue\n  - **Authority**: Source credibility and expertise\n  - **Recency**: How current the information is\n  - **Applicability**: How it applies to this specific context\n\n### 4. Synthesis and Reporting\nCreate a search results summary that includes:\n- **Summary**: Quick overview of what was found\n- **Key Findings**: Important search results organized by topic\n- **Recommendations**: Actionable suggestions based on search results\n- **Sources**: Key references and links for further reading\n\n## Search Guidelines\n\n- **Be Focused**: Target searches to the specific request\n- **Be Critical**: Evaluate source quality\n- **Be Specific**: Provide concrete examples and links when relevant\n- **Be Organized**: Structure findings clearly with headers and bullet points\n- **Be Actionable**: Focus on practical insights\n- **Cite Sources**: Include links to important references\n\n## Output Format\n\nYour search summary should be formatted as a comment with:\n\n```markdown\n# 🔍 Brave Search Results\n\n*Triggered by @${{ github.actor }}*\n\n## Summary\n[Brief overview of search results]\n\n## Key Findings\n\n### [Topic 1]\n[Search results with sources and links]\n\n### [Topic 2]\n[Search results with sources and links]\n\n[... additional topics ...]\n\n## Recommendations\n- [Specific actionable recommendation 1]\n- [Specific actionable recommendation 2]\n- [...]\n\n## Sources\n- [Source 1 with link]\n- [Source 2 with link]\n- [...]\n```\n\n## Important Notes\n\n- **Security**: Evaluate all sources critically - never execute untrusted code\n- **Relevance**: Stay focused on the issue/PR context\n- **Efficiency**: Balance thoroughness with time constraints\n- **Clarity**: Write for developers working on this repo\n- **Attribution**: Always cite your sources with proper links\n\nRemember: Your goal is to provide valuable, actionable information from web searches that helps resolve the issue or improve the pull request.\n"
@@ -3516,6 +3515,16 @@ jobs:
               }
             } else {
               core.info('No patch file found at: ' + patchPath);
+            }
+            let agentOutputContent = '';
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                agentOutputContent = fs.readFileSync(agentOutputPath, 'utf8');
+                core.info('Read agent output file: ' + agentOutputPath);
+              } catch (error) {
+                core.warning('Error reading agent output file: ' + (error instanceof Error ? error.message : String(error)));
+              }
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
@@ -3562,7 +3571,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT}/g, agentOutputContent)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {
