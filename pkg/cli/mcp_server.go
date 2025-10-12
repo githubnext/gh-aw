@@ -135,9 +135,19 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		Pattern  string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
 		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
+
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "status",
-		Description: "Show status of agentic workflow files and workflows",
+		Name: "status",
+		Description: `Show status of agentic workflow files and workflows.
+
+Returns a JSON array where each element has the following structure:
+- workflow: Name of the workflow file
+- agent: AI engine used (e.g., "copilot", "claude", "codex")
+- compiled: Whether the workflow is compiled ("Yes", "No", or "N/A")
+- status: GitHub workflow status ("active", "disabled", "Unknown")
+- time_remaining: Time remaining until workflow deadline (if applicable)
+
+Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments - always use JSON for MCP
 		cmdArgs := []string{"status", "--json"}
@@ -160,11 +170,11 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
-			if err != nil {
+			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
+			if jqErr != nil {
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
 					},
 				}, nil, nil
 			}
@@ -295,9 +305,23 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		RunID    int64  `json:"run_id" jsonschema:"GitHub Actions workflow run ID to audit"`
 		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
+
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "audit",
-		Description: "Investigate a workflow run and generate a concise report",
+		Name: "audit",
+		Description: `Investigate a workflow run and generate a concise report.
+
+Returns JSON with the following structure:
+- overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url)
+- metrics: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
+- jobs: List of job details (name, status, conclusion, duration)
+- downloaded_files: List of artifact files (path, size, size_formatted, description, is_directory)
+- missing_tools: Tools that were requested but not available (tool, reason, alternatives, timestamp, workflow_name, run_id)
+- mcp_failures: MCP server failures (server_name, status, timestamp, workflow_name, run_id)
+- errors: Error details (file, line, type, message)
+- warnings: Warning details (file, line, type, message)
+- tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
+
+Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
@@ -319,11 +343,11 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
-			if err != nil {
+			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
+			if jqErr != nil {
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
 					},
 				}, nil, nil
 			}
