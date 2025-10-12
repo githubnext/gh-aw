@@ -3,6 +3,7 @@ package console
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -264,11 +265,13 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 
 // consoleTag represents parsed console struct tag
 type consoleTag struct {
-	title     string
-	header    string
-	format    string
-	omitempty bool
-	skip      bool
+	title      string
+	header     string
+	format     string
+	defaultVal string // Default value for zero/empty values
+	maxLen     int    // Maximum length for string truncation
+	omitempty  bool
+	skip       bool
 }
 
 // parseConsoleTag parses the console struct tag
@@ -291,6 +294,13 @@ func parseConsoleTag(tag string) consoleTag {
 			result.header = strings.TrimPrefix(part, "header:")
 		} else if strings.HasPrefix(part, "format:") {
 			result.format = strings.TrimPrefix(part, "format:")
+		} else if strings.HasPrefix(part, "default:") {
+			result.defaultVal = strings.TrimPrefix(part, "default:")
+		} else if strings.HasPrefix(part, "maxlen:") {
+			maxLenStr := strings.TrimPrefix(part, "maxlen:")
+			if len, err := strconv.Atoi(maxLenStr); err == nil {
+				result.maxLen = len
+			}
 		}
 	}
 
@@ -417,57 +427,119 @@ func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
 	// Get the base formatted value
 	baseValue := formatFieldValue(val)
 
-	// If no format specified or value is "-", return as is
-	if tag.format == "" || baseValue == "-" {
-		return baseValue
+	// Check if value is zero/empty and apply default if specified
+	if tag.defaultVal != "" && isZeroValue(val) {
+		baseValue = tag.defaultVal
 	}
 
 	// Apply format based on tag
-	switch tag.format {
-	case "number":
-		// Format as human-readable number (e.g., "1k", "1.2M")
-		if val.CanInterface() {
-			switch v := val.Interface().(type) {
-			case int:
-				return formatNumberForDisplay(v)
-			case int64:
-				return formatNumberForDisplay(int(v))
-			case int32:
-				return formatNumberForDisplay(int(v))
-			case uint:
-				return formatNumberForDisplay(int(v))
-			case uint64:
-				return formatNumberForDisplay(int(v))
-			case uint32:
-				return formatNumberForDisplay(int(v))
-			}
-		}
-		// Fallback: try to parse from baseValue if it's an integer
-		if val.Kind() >= reflect.Int && val.Kind() <= reflect.Uint64 {
-			return formatNumberForDisplay(int(val.Int()))
-		}
-	case "cost":
-		// Format as currency with $ prefix
-		if val.CanInterface() {
-			switch v := val.Interface().(type) {
-			case float64:
-				if v > 0 {
-					return fmt.Sprintf("$%.3f", v)
-				}
-			case float32:
-				if v > 0 {
-					return fmt.Sprintf("$%.3f", v)
+	if tag.format != "" && baseValue != "-" {
+		switch tag.format {
+		case "number":
+			// Format as human-readable number (e.g., "1k", "1.2M")
+			if val.CanInterface() {
+				switch v := val.Interface().(type) {
+				case int:
+					return formatNumberForDisplay(v)
+				case int64:
+					return formatNumberForDisplay(int(v))
+				case int32:
+					return formatNumberForDisplay(int(v))
+				case uint:
+					return formatNumberForDisplay(int(v))
+				case uint64:
+					return formatNumberForDisplay(int(v))
+				case uint32:
+					return formatNumberForDisplay(int(v))
 				}
 			}
-		}
-		if val.Kind() == reflect.Float64 || val.Kind() == reflect.Float32 {
-			if val.Float() > 0 {
-				return fmt.Sprintf("$%.3f", val.Float())
+			// Fallback: try to parse from baseValue if it's an integer
+			if val.Kind() >= reflect.Int && val.Kind() <= reflect.Uint64 {
+				return formatNumberForDisplay(int(val.Int()))
 			}
+		case "cost":
+			// Format as currency with $ prefix
+			if val.CanInterface() {
+				switch v := val.Interface().(type) {
+				case float64:
+					if v > 0 {
+						return fmt.Sprintf("$%.3f", v)
+					}
+				case float32:
+					if v > 0 {
+						return fmt.Sprintf("$%.3f", v)
+					}
+				}
+			}
+			if val.Kind() == reflect.Float64 || val.Kind() == reflect.Float32 {
+				if val.Float() > 0 {
+					return fmt.Sprintf("$%.3f", val.Float())
+				}
+			}
+		case "filesize":
+			// Format as human-readable file size (e.g., "1.2 MB", "3.4 KB")
+			if val.CanInterface() {
+				switch v := val.Interface().(type) {
+				case int:
+					return formatFileSize(int64(v))
+				case int64:
+					return formatFileSize(v)
+				case int32:
+					return formatFileSize(int64(v))
+				case uint:
+					return formatFileSize(int64(v))
+				case uint64:
+					return formatFileSize(int64(v))
+				case uint32:
+					return formatFileSize(int64(v))
+				}
+			}
+			// Fallback for integer kinds
+			if val.Kind() >= reflect.Int && val.Kind() <= reflect.Int64 {
+				return formatFileSize(val.Int())
+			}
+			if val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64 {
+				return formatFileSize(int64(val.Uint()))
+			}
+		}
+	}
+
+	// Apply maxlen truncation if specified
+	if tag.maxLen > 0 && len(baseValue) > tag.maxLen {
+		if tag.maxLen > 3 {
+			baseValue = baseValue[:tag.maxLen-3] + "..."
+		} else {
+			baseValue = baseValue[:tag.maxLen]
 		}
 	}
 
 	return baseValue
+}
+
+// formatFileSize formats file sizes in a human-readable way (e.g., "1.2 KB", "3.4 MB")
+func formatFileSize(size int64) string {
+	if size == 0 {
+		return "0 B"
+	}
+
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	units := []string{"KB", "MB", "GB", "TB"}
+	if exp >= len(units) {
+		exp = len(units) - 1
+		div = int64(1) << (10 * (exp + 1))
+	}
+
+	return fmt.Sprintf("%.1f %s", float64(size)/float64(div), units[exp])
 }
 
 // formatNumberForDisplay formats large numbers in a human-readable way (e.g., "1k", "1.2M")
