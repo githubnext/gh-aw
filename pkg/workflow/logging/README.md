@@ -4,12 +4,11 @@ The `logging` package provides a structured logging interface for the compiler u
 
 ## Overview
 
-The package wraps `log/slog.Logger` with convenience methods for common logging patterns and supports both verbose and non-verbose modes. It also supports categorized logging with environment variable-based filtering.
+The package wraps `log/slog.Logger` with convenience methods for common logging patterns and supports categorized logging with environment variable-based filtering.
 
 ## Features
 
 - **Structured Logging**: Built on top of `log/slog` for modern structured logging
-- **Verbose Mode**: Debug-level logging when verbose mode is enabled
 - **Category Filtering**: Create loggers with categories that can be selectively enabled/disabled via environment variables
 - **Format Methods**: Convenient `*f` methods for formatted messages
 - **Field Methods**: Structured logging with key-value pairs
@@ -22,22 +21,19 @@ The package wraps `log/slog.Logger` with convenience methods for common logging 
 ```go
 import "github.com/githubnext/gh-aw/pkg/workflow/logging"
 
-// Create a logger with verbose mode enabled
-logger := logging.NewLogger(true)
-
-// Create a logger with verbose mode disabled
-logger := logging.NewLogger(false)
+// Create a logger
+logger := logging.NewLogger()
 
 // Create a logger with a category
-logger := logging.NewLoggerWithCategory(true, "compiler")
+logger := logging.NewLoggerWithCategory("compiler")
 
 // Create a logger with custom output writer (for testing)
 var buf bytes.Buffer
-logger := logging.NewLoggerWithWriter(true, &buf)
+logger := logging.NewLoggerWithWriter(&buf)
 
 // Create a logger with custom output writer and category
 var buf bytes.Buffer
-logger := logging.NewLoggerWithWriterAndCategory(true, &buf, "parser")
+logger := logging.NewLoggerWithWriterAndCategory(&buf, "parser")
 ```
 
 ### Category Filtering
@@ -157,16 +153,16 @@ When a logger has a category, it will be included in the output as `category=<na
 
 ```go
 // Create categorized loggers for different components
-compilerLogger := logging.NewLoggerWithCategory(true, "compiler")
-parserLogger := logging.NewLoggerWithCategory(true, "parser")
-validatorLogger := logging.NewLoggerWithCategory(true, "validator")
+compilerLogger := logging.NewLoggerWithCategory("compiler")
+parserLogger := logging.NewLoggerWithCategory("parser")
+validatorLogger := logging.NewLoggerWithCategory("validator")
 
 // Logs from these will include category information
 compilerLogger.Infof("Starting compilation")
 // Output: time=... level=INFO msg="Starting compilation" category=compiler
 
-parserLogger.Debugf("Parsing frontmatter")
-// Output: time=... level=DEBUG msg="Parsing frontmatter" category=parser
+parserLogger.Infof("Parsing frontmatter")
+// Output: time=... level=INFO msg="Parsing frontmatter" category=parser
 
 validatorLogger.Warnf("Schema validation warning")
 // Output: time=... level=WARN msg="Schema validation warning" category=validator
@@ -179,20 +175,19 @@ validatorLogger.Warnf("Schema validation warning")
 
 ## Log Levels
 
-- **DEBUG**: Detailed diagnostic information (only shown in verbose mode)
 - **INFO**: Informational messages about normal operations
 - **WARN**: Warning messages about potential issues
 - **ERROR**: Error messages about failures
+- **DEBUG**: Detailed diagnostic information (not logged at INFO level)
 
 ## Best Practices
 
-1. **Use Debug for Detailed Information**: Reserve debug logs for detailed diagnostic information that's only needed when troubleshooting
+1. **Use Appropriate Log Levels**: Use INFO for normal operations, WARN for potential issues, ERROR for failures
 2. **Use Structured Fields**: Prefer `*WithFields` methods over string formatting when logging structured data
-3. **Check Verbose Mode**: Use `IsVerbose()` to avoid expensive operations when debug logging is disabled
-4. **Consistent Field Names**: Use consistent field names across log messages (e.g., always use "workflow" not "workflow_name")
-5. **Log Errors with Context**: Include relevant context when logging errors
-6. **Use Categories for Components**: Create categorized loggers for different components (compiler, parser, validator, etc.) to enable selective filtering
-7. **Default Logger for General Use**: Use the default logger (no category) for general-purpose logging that should always be visible
+3. **Consistent Field Names**: Use consistent field names across log messages (e.g., always use "workflow" not "workflow_name")
+4. **Log Errors with Context**: Include relevant context when logging errors
+5. **Use Categories for Components**: Create categorized loggers for different components (compiler, parser, validator, etc.) to enable selective filtering
+6. **Default Logger for General Use**: Use the default logger (no category) for general-purpose logging that should always be visible
 
 ## Examples
 
@@ -202,7 +197,7 @@ validatorLogger.Warnf("Schema validation warning")
 c := NewCompiler(verbose, "", "1.0.0")
 
 c.logger.Infof("Starting compilation of: %s", workflowPath)
-c.logger.DebugWithFields("Workflow data loaded",
+c.logger.InfoWithFields("Workflow data loaded",
     "name", data.Name,
     "engine", data.EngineConfig.ID,
 )
@@ -224,7 +219,7 @@ c.logger.Infof("Compilation successful")
 func TestCompilerLogging(t *testing.T) {
     var buf bytes.Buffer
     c := NewCompiler(true, "", "1.0.0")
-    c.SetLogger(logging.NewLoggerWithWriter(true, &buf))
+    c.SetLogger(logging.NewLoggerWithWriter(&buf))
 
     // Perform operations...
 

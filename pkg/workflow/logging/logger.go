@@ -10,25 +10,20 @@ import (
 // Logger wraps slog.Logger with convenience methods for compiler logging
 type Logger struct {
 	*slog.Logger
-	verbose  bool
 	category string
 }
 
 // NewLogger creates a new Logger instance
-// If verbose is true, sets level to Debug, otherwise Info
-func NewLogger(verbose bool) *Logger {
-	return NewLoggerWithCategory(verbose, "")
+func NewLogger() *Logger {
+	return NewLoggerWithCategory("")
 }
 
 // NewLoggerWithCategory creates a new Logger instance with a category
 // Category is used for filtering logs via environment variables
 // Set GH_AW_LOG_FILTER to a comma-separated list of categories to enable (e.g., "compiler,parser")
 // Set GH_AW_LOG_FILTER to "all" to enable all categories
-func NewLoggerWithCategory(verbose bool, category string) *Logger {
+func NewLoggerWithCategory(category string) *Logger {
 	level := slog.LevelInfo
-	if verbose {
-		level = slog.LevelDebug
-	}
 
 	// Check if this category should be enabled based on environment variable
 	enabled := isCategoryEnabled(category)
@@ -49,24 +44,20 @@ func NewLoggerWithCategory(verbose bool, category string) *Logger {
 
 	return &Logger{
 		Logger:   logger,
-		verbose:  verbose,
 		category: category,
 	}
 }
 
 // NewLoggerWithWriter creates a new Logger with custom output writer
 // Useful for testing and capturing log output
-func NewLoggerWithWriter(verbose bool, writer io.Writer) *Logger {
-	return NewLoggerWithWriterAndCategory(verbose, writer, "")
+func NewLoggerWithWriter(writer io.Writer) *Logger {
+	return NewLoggerWithWriterAndCategory(writer, "")
 }
 
 // NewLoggerWithWriterAndCategory creates a new Logger with custom output writer and category
 // Useful for testing and capturing log output
-func NewLoggerWithWriterAndCategory(verbose bool, writer io.Writer, category string) *Logger {
+func NewLoggerWithWriterAndCategory(writer io.Writer, category string) *Logger {
 	level := slog.LevelInfo
-	if verbose {
-		level = slog.LevelDebug
-	}
 
 	// Check if this category should be enabled based on environment variable
 	enabled := isCategoryEnabled(category)
@@ -87,7 +78,6 @@ func NewLoggerWithWriterAndCategory(verbose bool, writer io.Writer, category str
 
 	return &Logger{
 		Logger:   logger,
-		verbose:  verbose,
 		category: category,
 	}
 }
@@ -123,11 +113,6 @@ func isCategoryEnabled(category string) bool {
 	}
 
 	return false
-}
-
-// IsVerbose returns whether verbose logging is enabled
-func (l *Logger) IsVerbose() bool {
-	return l.verbose
 }
 
 // GetCategory returns the logger's category
