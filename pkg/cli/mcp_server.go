@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -9,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -162,7 +160,7 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			filteredOutput, err := applyJqFilter(outputStr, args.JqFilter)
+			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
 			if err != nil {
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{
@@ -306,28 +304,6 @@ func createMCPServer(cmdPath string) *mcp.Server {
 	})
 
 	return server
-}
-
-// applyJqFilter applies a jq filter to JSON input
-func applyJqFilter(jsonInput string, jqFilter string) (string, error) {
-	// Check if jq is available
-	jqPath, err := exec.LookPath("jq")
-	if err != nil {
-		return "", fmt.Errorf("jq not found in PATH")
-	}
-
-	// Pipe through jq
-	cmd := exec.Command(jqPath, jqFilter)
-	cmd.Stdin = strings.NewReader(jsonInput)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("jq filter failed: %w, stderr: %s", err, stderr.String())
-	}
-
-	return stdout.String(), nil
 }
 
 // responseWriter wraps http.ResponseWriter to capture the status code.
