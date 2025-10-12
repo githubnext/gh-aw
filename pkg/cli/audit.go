@@ -57,8 +57,9 @@ Examples:
 
 			outputDir, _ := cmd.Flags().GetString("output")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			mcpMode, _ := cmd.Flags().GetBool("mcp")
 
-			if err := AuditWorkflowRun(runID, outputDir, verbose); err != nil {
+			if err := AuditWorkflowRun(runID, outputDir, verbose, mcpMode); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -67,6 +68,7 @@ Examples:
 
 	// Add flags to audit command
 	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
+	auditCmd.Flags().Bool("mcp", false, "Output format optimized for LLM tool responses (MCP)")
 
 	return auditCmd
 }
@@ -111,7 +113,7 @@ func isPermissionError(err error) bool {
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report
-func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
+func AuditWorkflowRun(runID int64, outputDir string, verbose bool, mcpMode bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runID)))
 	}
@@ -239,7 +241,12 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 	}
 
 	// Generate and display report
-	report := generateAuditReport(processedRun, metrics)
+	var report string
+	if mcpMode {
+		report = generateMCPOptimizedReport(processedRun, metrics)
+	} else {
+		report = generateAuditReport(processedRun, metrics)
+	}
 	fmt.Println(report)
 
 	// Always attempt to render agentic log (similar to `logs --parse`) if engine & logs are available
@@ -506,6 +513,178 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 		report.WriteString("\n")
 	} else if err == nil && len(entries) == 0 {
 		report.WriteString("(No artifact or log files were present for this run)\n\n")
+	}
+
+	return report.String()
+}
+
+// generateMCPOptimizedReport generates a concise, action-oriented report optimized for LLM consumption
+// This format is designed for agentic SWE workflows running LLMs like GPT-5 or Claude
+func generateMCPOptimizedReport(processedRun ProcessedRun, metrics LogMetrics) string {
+	run := processedRun.Run
+	var report strings.Builder
+
+	// Executive Summary - most critical info first
+	report.WriteString("# Workflow Run Analysis\n\n")
+
+	// Status and outcome (most important)
+	report.WriteString("## Status\n")
+	if run.Status == "completed" && run.Conclusion != "" {
+		report.WriteString(fmt.Sprintf("**Result**: %s\n", strings.ToUpper(run.Conclusion)))
+	} else {
+		report.WriteString(fmt.Sprintf("**Status**: %s\n", run.Status))
+	}
+
+	// Critical metrics upfront
+	if run.ErrorCount > 0 {
+		report.WriteString(fmt.Sprintf("**Errors**: %d\n", run.ErrorCount))
+	}
+	if run.WarningCount > 0 {
+		report.WriteString(fmt.Sprintf("**Warnings**: %d\n", run.WarningCount))
+	}
+	report.WriteString("\n")
+
+	// Key Details
+	report.WriteString("## Key Details\n")
+	report.WriteString(fmt.Sprintf("- Run ID: %d\n", run.DatabaseID))
+	report.WriteString(fmt.Sprintf("- Workflow: %s\n", run.WorkflowName))
+	if run.Duration > 0 {
+		report.WriteString(fmt.Sprintf("- Duration: %s\n", formatDuration(run.Duration)))
+	}
+	if run.TokenUsage > 0 {
+		report.WriteString(fmt.Sprintf("- Tokens: %s", formatNumber(run.TokenUsage)))
+		if run.EstimatedCost > 0 {
+			report.WriteString(fmt.Sprintf(" ($%.3f)", run.EstimatedCost))
+		}
+		report.WriteString("\n")
+	}
+	if run.Turns > 0 {
+		report.WriteString(fmt.Sprintf("- Turns: %d\n", run.Turns))
+	}
+	report.WriteString(fmt.Sprintf("- URL: %s\n", run.URL))
+	report.WriteString("\n")
+
+	// Critical Issues (errors and warnings) - prioritized for action
+	if run.ErrorCount > 0 || run.WarningCount > 0 {
+		report.WriteString("## Issues Detected\n\n")
+
+		if len(metrics.Errors) > 0 {
+			// Group by type for better readability
+			errorsByType := make(map[string][]workflow.LogError)
+			for _, logErr := range metrics.Errors {
+				errorsByType[logErr.Type] = append(errorsByType[logErr.Type], logErr)
+			}
+
+			// Display errors first, then warnings
+			if errors, hasErrors := errorsByType["error"]; hasErrors {
+				report.WriteString("### Errors\n")
+				for _, logErr := range errors {
+					report.WriteString(fmt.Sprintf("- **%s**: %s", logErr.File, logErr.Message))
+					if logErr.Line > 0 {
+						report.WriteString(fmt.Sprintf(" (line %d)", logErr.Line))
+					}
+					report.WriteString("\n")
+				}
+				report.WriteString("\n")
+			}
+
+			if warnings, hasWarnings := errorsByType["warning"]; hasWarnings {
+				report.WriteString("### Warnings\n")
+				for _, logErr := range warnings {
+					report.WriteString(fmt.Sprintf("- **%s**: %s", logErr.File, logErr.Message))
+					if logErr.Line > 0 {
+						report.WriteString(fmt.Sprintf(" (line %d)", logErr.Line))
+					}
+					report.WriteString("\n")
+				}
+				report.WriteString("\n")
+			}
+		}
+	}
+
+	// MCP Failures - important for debugging tool issues
+	if len(processedRun.MCPFailures) > 0 {
+		report.WriteString("## MCP Server Issues\n")
+		for _, failure := range processedRun.MCPFailures {
+			report.WriteString(fmt.Sprintf("- %s: %s\n", failure.ServerName, failure.Status))
+		}
+		report.WriteString("\n")
+	}
+
+	// Missing Tools - actionable information
+	if len(processedRun.MissingTools) > 0 {
+		report.WriteString("## Missing Tools\n")
+		for _, tool := range processedRun.MissingTools {
+			report.WriteString(fmt.Sprintf("- **%s**: %s\n", tool.Tool, tool.Reason))
+			if tool.Alternatives != "" {
+				report.WriteString(fmt.Sprintf("  - Alternatives: %s\n", tool.Alternatives))
+			}
+		}
+		report.WriteString("\n")
+	}
+
+	// Tool Usage Summary - condensed for quick scanning
+	if len(metrics.ToolCalls) > 0 {
+		report.WriteString("## Tool Usage\n")
+
+		// Aggregate and sort by call count
+		toolStats := make(map[string]*workflow.ToolCallInfo)
+		for _, toolCall := range metrics.ToolCalls {
+			displayKey := workflow.PrettifyToolName(toolCall.Name)
+			if existing, exists := toolStats[displayKey]; exists {
+				existing.CallCount += toolCall.CallCount
+			} else {
+				toolStats[displayKey] = &workflow.ToolCallInfo{
+					Name:      displayKey,
+					CallCount: toolCall.CallCount,
+				}
+			}
+		}
+
+		// Show compact list
+		for name, tool := range toolStats {
+			report.WriteString(fmt.Sprintf("- %s: %d calls\n", name, tool.CallCount))
+		}
+		report.WriteString("\n")
+	}
+
+	// Artifacts Location - where to find detailed logs
+	report.WriteString("## Artifacts\n")
+	report.WriteString(fmt.Sprintf("Location: `%s`\n\n", run.LogsPath))
+
+	// List key artifact files for quick reference
+	keyArtifacts := []struct {
+		filename string
+		desc     string
+	}{
+		{"aw_info.json", "engine config"},
+		{"safe_output.jsonl", "safe outputs"},
+		{"aw.patch", "code changes"},
+		{constants.AgentOutputArtifactName, "validated outputs"},
+		{"log.md", "agent session log"},
+	}
+
+	hasArtifacts := false
+	for _, artifact := range keyArtifacts {
+		if _, err := os.Stat(filepath.Join(run.LogsPath, artifact.filename)); err == nil {
+			if !hasArtifacts {
+				report.WriteString("Key files:\n")
+				hasArtifacts = true
+			}
+			report.WriteString(fmt.Sprintf("- `%s` - %s\n", artifact.filename, artifact.desc))
+		}
+	}
+
+	if hasArtifacts {
+		report.WriteString("\n")
+	}
+
+	// Context information for reference (minimal)
+	report.WriteString("## Context\n")
+	report.WriteString(fmt.Sprintf("- Event: %s\n", run.Event))
+	report.WriteString(fmt.Sprintf("- Branch: %s\n", run.HeadBranch))
+	if !run.CreatedAt.IsZero() {
+		report.WriteString(fmt.Sprintf("- Created: %s\n", run.CreatedAt.Format(time.RFC3339)))
 	}
 
 	return report.String()

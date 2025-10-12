@@ -267,7 +267,8 @@ func createMCPServer(cmdPath string) *mcp.Server {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
-		cmdArgs := []string{"audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/gh-aw/aw-mcp/logs"}
+		// Enable --mcp flag for LLM-optimized output format
+		cmdArgs := []string{"audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/gh-aw/aw-mcp/logs", "--mcp"}
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)

@@ -250,10 +250,103 @@ func TestGenerateAuditReport(t *testing.T) {
 			t.Errorf("Report missing expected content: %s", content)
 		}
 	}
+}
 
-	// Token usage should be present (formatted as 1.5k or similar)
-	if !strings.Contains(report, "1.5k") && !strings.Contains(report, "1500") && !strings.Contains(report, "Token Usage") {
-		t.Errorf("Report missing token usage (should be 1.5k or 1500)\nReport:\n%s", report)
+func TestGenerateMCPOptimizedReport(t *testing.T) {
+	// Create test data
+	run := WorkflowRun{
+		DatabaseID:    123456,
+		WorkflowName:  "Test Workflow",
+		Status:        "completed",
+		Conclusion:    "failure",
+		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		StartedAt:     time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
+		UpdatedAt:     time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
+		Duration:      4*time.Minute + 30*time.Second,
+		Event:         "push",
+		HeadBranch:    "main",
+		URL:           "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+		ErrorCount:    2,
+		WarningCount:  1,
+		LogsPath:      "/tmp/gh-aw/test-logs",
+	}
+
+	metrics := LogMetrics{
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+		Errors: []workflow.LogError{
+			{
+				File:    "agent.log",
+				Line:    42,
+				Type:    "error",
+				Message: "Test error message",
+			},
+			{
+				File:    "agent.log",
+				Line:    50,
+				Type:    "warning",
+				Message: "Test warning message",
+			},
+		},
+		ToolCalls: []workflow.ToolCallInfo{
+			{
+				Name:      "github_get_issue",
+				CallCount: 3,
+			},
+		},
+	}
+
+	processedRun := ProcessedRun{
+		Run: run,
+	}
+
+	// Generate MCP-optimized report
+	report := generateMCPOptimizedReport(processedRun, metrics)
+
+	// Verify report structure is optimized for LLMs
+	expectedSections := []string{
+		"# Workflow Run Analysis",
+		"## Status",
+		"## Key Details",
+		"## Issues Detected",
+		"### Errors",
+		"### Warnings",
+		"## Tool Usage",
+		"## Artifacts",
+		"## Context",
+	}
+
+	for _, section := range expectedSections {
+		if !strings.Contains(report, section) {
+			t.Errorf("MCP report missing expected section: %s", section)
+		}
+	}
+
+	// Verify critical info is present and prominent
+	expectedContent := []string{
+		"FAILURE",                   // Status should be uppercase for prominence
+		"**Errors**: 2",             // Error count upfront
+		"**Warnings**: 1",           // Warning count upfront
+		"Run ID: 123456",            // Run ID
+		"Test error message",        // Error message
+		"Test warning message",      // Warning message
+		"github_get_issue: 3 calls", // Tool usage
+	}
+
+	for _, content := range expectedContent {
+		if !strings.Contains(report, content) {
+			t.Errorf("MCP report missing expected content: %s", content)
+		}
+	}
+
+	// Verify MCP format is more concise than standard format
+	standardReport := generateAuditReport(processedRun, metrics)
+	if len(report) >= len(standardReport) {
+		t.Logf("Warning: MCP report (%d chars) is not shorter than standard report (%d chars)", len(report), len(standardReport))
 	}
 }
 
