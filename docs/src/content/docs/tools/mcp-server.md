@@ -22,6 +22,46 @@ command: gh
 args: [aw, mcp-server]
 ```
 
+## Configuration Options
+
+### Using a Custom Command Path
+
+Use the `--cmd` flag to specify a custom path to the gh-aw binary instead of using the default `gh aw` command:
+
+```bash
+gh aw mcp-server --cmd ./gh-aw
+```
+
+This is useful when:
+- Running a local build of gh-aw for development
+- Using a specific version of gh-aw in CI/CD workflows
+- Running the MCP server in environments where the gh CLI extension is not available
+
+Example in an agentic workflow:
+```yaml
+steps:
+  - name: Build gh-aw
+    run: make build
+  - name: Start MCP server
+    run: |
+      set -e
+      ./gh-aw mcp-server --cmd ./gh-aw --port 8765 &
+      MCP_PID=$!
+      sleep 2
+      if ! kill -0 $MCP_PID 2>/dev/null; then
+        echo "MCP server failed to start"
+        exit 1
+      fi
+```
+
+### HTTP Server Mode
+
+Use the `--port` flag to run the server with HTTP/SSE transport instead of stdio:
+
+```bash
+gh aw mcp-server --port 8080
+```
+
 ## Available Tools
 
 The MCP server provides these tools:

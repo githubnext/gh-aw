@@ -17,6 +17,7 @@ import (
 // NewMCPServerCommand creates the mcp-server command
 func NewMCPServerCommand() *cobra.Command {
 	var port int
+	var cmdPath string
 
 	cmd := &cobra.Command{
 		Use:   "mcp-server",
@@ -38,9 +39,10 @@ an HTTP server with SSE (Server-Sent Events) transport instead.
 
 Examples:
   gh aw mcp-server              # Run with stdio transport
-  gh aw mcp-server --port 8080  # Run HTTP server on port 8080`,
+  gh aw mcp-server --port 8080  # Run HTTP server on port 8080
+  gh aw mcp-server --cmd ./gh-aw # Use custom gh-aw binary`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if err := runMCPServer(port); err != nil {
+			if err := runMCPServer(port, cmdPath); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -48,19 +50,20 @@ Examples:
 	}
 
 	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port to run HTTP server on (uses stdio if not specified)")
+	cmd.Flags().StringVar(&cmdPath, "cmd", "", "Path to gh-aw command to use (defaults to 'gh aw')")
 
 	return cmd
 }
 
 // runMCPServer starts the MCP server on stdio or HTTP transport
-func runMCPServer(port int) error {
+func runMCPServer(port int, cmdPath string) error {
 	// Validate that the CLI and secrets are properly configured
-	if err := validateMCPServerConfiguration(); err != nil {
+	if err := validateMCPServerConfiguration(cmdPath); err != nil {
 		return fmt.Errorf("configuration validation failed: %w", err)
 	}
 
 	// Create the server configuration
-	server := createMCPServer()
+	server := createMCPServer(cmdPath)
 
 	if port > 0 {
 		// Run HTTP server with SSE transport
@@ -73,12 +76,19 @@ func runMCPServer(port int) error {
 
 // validateMCPServerConfiguration validates that the CLI is properly configured
 // by running the status command as a test
-func validateMCPServerConfiguration() error {
+func validateMCPServerConfiguration(cmdPath string) error {
 	// Try to run the status command to verify CLI is working
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "gh", "aw", "status")
+	var cmd *exec.Cmd
+	if cmdPath != "" {
+		// Use custom command path
+		cmd = exec.CommandContext(ctx, cmdPath, "status")
+	} else {
+		// Use default gh aw command
+		cmd = exec.CommandContext(ctx, "gh", "aw", "status")
+	}
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -88,6 +98,9 @@ func validateMCPServerConfiguration() error {
 		}
 
 		// If the command failed, provide helpful error message
+		if cmdPath != "" {
+			return fmt.Errorf("failed to run status command with custom command '%s': %w\nOutput: %s\n\nPlease ensure:\n  - The command path is correct and executable\n  - You are in a git repository with .github/workflows directory", cmdPath, err, string(output))
+		}
 		return fmt.Errorf("failed to run status command: %w\nOutput: %s\n\nPlease ensure:\n  - gh CLI is installed and in PATH\n  - gh aw extension is installed (run: gh extension install githubnext/gh-aw)\n  - You are in a git repository with .github/workflows directory", err, string(output))
 	}
 
@@ -97,7 +110,17 @@ func validateMCPServerConfiguration() error {
 }
 
 // createMCPServer creates and configures the MCP server with all tools
-func createMCPServer() *mcp.Server {
+func createMCPServer(cmdPath string) *mcp.Server {
+	// Helper function to execute command with proper path
+	execCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		if cmdPath != "" {
+			// Use custom command path
+			return exec.CommandContext(ctx, cmdPath, args...)
+		}
+		// Use default gh aw command
+		return exec.CommandContext(ctx, "gh", append([]string{"aw"}, args...)...)
+	}
+
 	// Create MCP server
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "gh-aw",
@@ -113,13 +136,13 @@ func createMCPServer() *mcp.Server {
 		Description: "Show status of agentic workflow files and workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
-		cmdArgs := []string{"aw", "status"}
+		cmdArgs := []string{"status"}
 		if args.Pattern != "" {
 			cmdArgs = append(cmdArgs, args.Pattern)
 		}
 
 		// Execute the CLI command
-		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
@@ -147,11 +170,11 @@ func createMCPServer() *mcp.Server {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Always validate (validation is enabled by default)
-		cmdArgs := []string{"aw", "compile"}
+		cmdArgs := []string{"compile"}
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
 		// Execute the CLI command
-		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
@@ -186,7 +209,7 @@ func createMCPServer() *mcp.Server {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
-		cmdArgs := []string{"aw", "logs", "-o", "/tmp/gh-aw/aw-mcp/logs"}
+		cmdArgs := []string{"logs", "-o", "/tmp/gh-aw/aw-mcp/logs"}
 		if args.WorkflowName != "" {
 			cmdArgs = append(cmdArgs, args.WorkflowName)
 		}
@@ -213,7 +236,7 @@ func createMCPServer() *mcp.Server {
 		}
 
 		// Execute the CLI command
-		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
@@ -241,10 +264,10 @@ func createMCPServer() *mcp.Server {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
-		cmdArgs := []string{"aw", "audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/gh-aw/aw-mcp/logs"}
+		cmdArgs := []string{"audit", strconv.FormatInt(args.RunID, 10), "-o", "/tmp/gh-aw/aw-mcp/logs"}
 
 		// Execute the CLI command
-		cmd := exec.CommandContext(ctx, "gh", cmdArgs...)
+		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
