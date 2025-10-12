@@ -158,12 +158,11 @@ func TestDetectFromCustomSteps(t *testing.T) {
 			expected: []string{"node", "python"},
 		},
 		{
-			name: "skips when setup-node exists",
+			name: "detects node even when setup-node exists (filtering happens later)",
 			customSteps: `steps:
   - uses: actions/setup-node@v4
   - run: npm install`,
-			expected:       []string{},
-			skipIfHasSetup: true,
+			expected: []string{"node"}, // Changed: now detects, filtering happens in DetectRuntimeRequirements
 		},
 	}
 
@@ -171,11 +170,6 @@ func TestDetectFromCustomSteps(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			requirements := make(map[string]*RuntimeRequirement)
 			detectFromCustomSteps(tt.customSteps, requirements)
-
-			if tt.skipIfHasSetup && len(requirements) != 0 {
-				t.Errorf("Expected no requirements when setup action exists, got %v", getRequirementIDs(requirements))
-				return
-			}
 
 			if len(requirements) != len(tt.expected) {
 				t.Errorf("Expected %d requirements, got %d: %v", len(tt.expected), len(requirements), getRequirementIDs(requirements))
@@ -396,16 +390,16 @@ func TestShouldSkipRuntimeSetup(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "skip when setup action exists in custom steps",
+			name: "never skip - runtime filtering handles existing setup actions",
 			data: &WorkflowData{
 				CustomSteps: `steps:
   - uses: actions/setup-node@v4
   - run: npm install`,
 			},
-			expected: true,
+			expected: false, // Changed: we no longer skip, we filter instead
 		},
 		{
-			name: "don't skip when no setup actions",
+			name: "never skip when no setup actions",
 			data: &WorkflowData{
 				CustomSteps: `steps:
   - run: npm install`,
@@ -413,7 +407,7 @@ func TestShouldSkipRuntimeSetup(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "don't skip when no custom steps",
+			name:     "never skip when no custom steps",
 			data:     &WorkflowData{},
 			expected: false,
 		},
@@ -439,15 +433,6 @@ func getRequirementIDs(requirements map[string]*RuntimeRequirement) []string {
 	return ids
 }
 
-func findRuntimeByID(id string) *Runtime {
-	for _, runtime := range knownRuntimes {
-		if runtime.ID == id {
-			return runtime
-		}
-	}
-	return nil
-}
-
 func stepsToString(steps []GitHubActionStep) string {
 	var result string
 	for _, step := range steps {
@@ -456,4 +441,85 @@ func stepsToString(steps []GitHubActionStep) string {
 		}
 	}
 	return result
+}
+
+func TestUVDetectionAddsPython(t *testing.T) {
+	// Test that when uv is detected, python is also added
+	workflowData := &WorkflowData{
+		Tools: map[string]any{
+			"serena": map[string]any{
+				"command": "uvx",
+				"args":    []any{"--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server"},
+			},
+		},
+	}
+
+	requirements := DetectRuntimeRequirements(workflowData)
+
+	// Check that both uv and python are detected
+	foundUV := false
+	foundPython := false
+	for _, req := range requirements {
+		if req.Runtime.ID == "uv" {
+			foundUV = true
+		}
+		if req.Runtime.ID == "python" {
+			foundPython = true
+		}
+	}
+
+	if !foundUV {
+		t.Error("Expected uv to be detected from uvx command")
+	}
+
+	if !foundPython {
+		t.Error("Expected python to be auto-added when uv is detected")
+	}
+}
+
+func TestRuntimeFilteringWithExistingSetupActions(t *testing.T) {
+	// Test that runtimes with existing setup actions are filtered out
+	workflowData := &WorkflowData{
+		CustomSteps: `steps:
+  - uses: actions/setup-go@v5
+    with:
+      go-version-file: go.mod
+  - run: go build
+  - run: uv pip install package`,
+		Tools: map[string]any{
+			"serena": map[string]any{
+				"command": "uvx",
+			},
+		},
+	}
+
+	requirements := DetectRuntimeRequirements(workflowData)
+
+	// Check that uv and python are detected, but go is filtered out
+	foundUV := false
+	foundPython := false
+	foundGo := false
+	for _, req := range requirements {
+		if req.Runtime.ID == "uv" {
+			foundUV = true
+		}
+		if req.Runtime.ID == "python" {
+			foundPython = true
+		}
+		if req.Runtime.ID == "go" {
+			foundGo = true
+		}
+	}
+
+	if !foundUV {
+		t.Error("Expected uv to be detected from uvx command and uv pip")
+	}
+
+	if !foundPython {
+		t.Error("Expected python to be auto-added when uv is detected")
+	}
+
+	if foundGo {
+		t.Error("Expected go to be filtered out since it has existing setup action")
+	}
 }

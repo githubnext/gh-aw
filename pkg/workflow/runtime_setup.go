@@ -163,6 +163,30 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		applyRuntimeOverrides(workflowData.Runtimes, requirements)
 	}
 
+	// Add Python as dependency when uv is detected (uv requires Python)
+	if _, hasUV := requirements["uv"]; hasUV {
+		if _, hasPython := requirements["python"]; !hasPython {
+			pythonRuntime := findRuntimeByID("python")
+			if pythonRuntime != nil {
+				updateRequiredRuntime(pythonRuntime, "", requirements)
+			}
+		}
+	}
+
+	// Filter out runtimes that already have setup actions in custom steps or engine steps
+	if workflowData.CustomSteps != "" {
+		filterExistingSetupActions(workflowData.CustomSteps, requirements)
+	}
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
+		for _, step := range workflowData.EngineConfig.Steps {
+			if uses, hasUses := step["uses"]; hasUses {
+				if usesStr, ok := uses.(string); ok {
+					filterExistingSetupAction(usesStr, requirements)
+				}
+			}
+		}
+	}
+
 	// Convert map to sorted slice (alphabetically by runtime ID)
 	var result []RuntimeRequirement
 	var runtimeIDs []string
@@ -180,11 +204,6 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 
 // detectFromCustomSteps scans custom steps YAML for runtime commands
 func detectFromCustomSteps(customSteps string, requirements map[string]*RuntimeRequirement) {
-	// First check if setup actions already exist using action repo detection
-	if hasExistingSetupActionByRepo(customSteps) {
-		return // Don't auto-add if user already has setup actions
-	}
-
 	lines := strings.Split(customSteps, "\n")
 	for _, line := range lines {
 		// Look for run: commands
@@ -271,6 +290,26 @@ func hasExistingSetupActionByRepo(customSteps string) bool {
 	return false
 }
 
+// filterExistingSetupActions removes runtimes from requirements if they already have setup actions in the custom steps
+func filterExistingSetupActions(customSteps string, requirements map[string]*RuntimeRequirement) {
+	for _, runtime := range knownRuntimes {
+		// Check if the action repo is referenced in the custom steps
+		if strings.Contains(customSteps, runtime.ActionRepo) {
+			// Remove this runtime from requirements as it already has a setup action
+			delete(requirements, runtime.ID)
+		}
+	}
+}
+
+// filterExistingSetupAction removes a runtime from requirements if it has a setup action
+func filterExistingSetupAction(usesStr string, requirements map[string]*RuntimeRequirement) {
+	for _, runtime := range knownRuntimes {
+		if strings.Contains(usesStr, runtime.ActionRepo) {
+			delete(requirements, runtime.ID)
+		}
+	}
+}
+
 // updateRequiredRuntime updates the version requirement, choosing the highest version
 func updateRequiredRuntime(runtime *Runtime, newVersion string, requirements map[string]*RuntimeRequirement) {
 	existing, exists := requirements[runtime.ID]
@@ -349,28 +388,9 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 }
 
 // ShouldSkipRuntimeSetup checks if we should skip automatic runtime setup
-// This returns true if the workflow already has setup actions in custom steps
+// Deprecated: Runtime detection now smartly filters out existing runtimes instead of skipping entirely
+// This function now always returns false for backward compatibility
 func ShouldSkipRuntimeSetup(workflowData *WorkflowData) bool {
-	// Check custom steps for existing setup actions
-	if workflowData.CustomSteps != "" && hasExistingSetupActionByRepo(workflowData.CustomSteps) {
-		return true
-	}
-
-	// Check engine steps for existing setup actions
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			if uses, hasUses := step["uses"]; hasUses {
-				if usesStr, ok := uses.(string); ok {
-					for _, runtime := range knownRuntimes {
-						if strings.Contains(usesStr, runtime.ActionRepo) {
-							return true
-						}
-					}
-				}
-			}
-		}
-	}
-
 	return false
 }
 
@@ -482,4 +502,14 @@ func applyRuntimeOverrides(runtimes map[string]any, requirements map[string]*Run
 			// If runtime is unknown and no action-repo specified, skip it (user might have typo)
 		}
 	}
+}
+
+// findRuntimeByID finds a runtime configuration by its ID
+func findRuntimeByID(id string) *Runtime {
+	for _, runtime := range knownRuntimes {
+		if runtime.ID == id {
+			return runtime
+		}
+	}
+	return nil
 }
