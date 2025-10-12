@@ -91,7 +91,9 @@ var statusCmd = &cobra.Command{
 		if len(args) > 0 {
 			pattern = args[0]
 		}
-		if err := cli.StatusWorkflows(pattern, verboseFlag); err != nil {
+		jsonFlag, _ := cmd.Flags().GetBool("json")
+		jqFilter, _ := cmd.Flags().GetString("jq")
+		if err := cli.StatusWorkflows(pattern, verboseFlag, jsonFlag, jqFilter); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
@@ -272,6 +274,10 @@ func init() {
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
+
+	// Add flags to status command
+	statusCmd.Flags().Bool("json", false, "Output status in JSON format")
+	statusCmd.Flags().String("jq", "", "Apply a jq filter to the JSON output (requires --json or implies --json)")
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)

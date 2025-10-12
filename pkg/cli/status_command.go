@@ -2,8 +2,10 @@ package cli
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,8 +15,22 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
-func StatusWorkflows(pattern string, verbose bool) error {
-	if verbose {
+// WorkflowStatus represents the status of a single workflow for JSON output
+type WorkflowStatus struct {
+	Workflow      string `json:"workflow"`
+	Agent         string `json:"agent"`
+	Compiled      string `json:"compiled"`
+	Status        string `json:"status"`
+	TimeRemaining string `json:"time_remaining"`
+}
+
+func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, jqFilter string) error {
+	// If jq filter is provided, imply JSON output
+	if jqFilter != "" {
+		jsonOutput = true
+	}
+
+	if verbose && !jsonOutput {
 		fmt.Printf("Checking status of workflow files\n")
 		if pattern != "" {
 			fmt.Printf("Filtering by pattern: %s\n", pattern)
@@ -28,28 +44,95 @@ func StatusWorkflows(pattern string, verbose bool) error {
 	}
 
 	if len(mdFiles) == 0 {
+		if jsonOutput {
+			// Output empty array for JSON
+			output := []WorkflowStatus{}
+			return outputJSON(output, jqFilter)
+		}
 		fmt.Println("No workflow files found.")
 		return nil
 	}
 
-	if verbose {
+	if verbose && !jsonOutput {
 		fmt.Printf("Found %d markdown workflow files\n", len(mdFiles))
 		fmt.Printf("Fetching GitHub workflow status...\n")
 	}
 
 	// Get GitHub workflows data
-	githubWorkflows, err := fetchGitHubWorkflows(verbose)
+	githubWorkflows, err := fetchGitHubWorkflows(verbose && !jsonOutput)
 	if err != nil {
-		if verbose {
+		if verbose && !jsonOutput {
 			fmt.Printf("Verbose: Failed to fetch GitHub workflows: %v\n", err)
 		}
-		fmt.Printf("Warning: Could not fetch GitHub workflow status: %v\n", err)
+		if !jsonOutput {
+			fmt.Printf("Warning: Could not fetch GitHub workflow status: %v\n", err)
+		}
 		githubWorkflows = make(map[string]*GitHubWorkflow)
-	} else if verbose {
+	} else if verbose && !jsonOutput {
 		fmt.Printf("Successfully fetched %d GitHub workflows\n", len(githubWorkflows))
 	}
 
-	// Build table configuration
+	// Build table configuration or JSON output
+	if jsonOutput {
+		// Build JSON output
+		var statuses []WorkflowStatus
+		for _, file := range mdFiles {
+			base := filepath.Base(file)
+			name := strings.TrimSuffix(base, ".md")
+
+			// Skip if pattern specified and doesn't match
+			if pattern != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(pattern)) {
+				continue
+			}
+
+			// Extract engine ID from workflow file
+			agent := extractEngineIDFromFile(file)
+
+			// Check if compiled (.lock.yml file is in .github/workflows)
+			lockFile := strings.TrimSuffix(file, ".md") + ".lock.yml"
+			compiled := "N/A"
+			timeRemaining := "N/A"
+
+			if _, err := os.Stat(lockFile); err == nil {
+				// Check if up to date
+				mdStat, _ := os.Stat(file)
+				lockStat, _ := os.Stat(lockFile)
+				if mdStat.ModTime().After(lockStat.ModTime()) {
+					compiled = "No"
+				} else {
+					compiled = "Yes"
+				}
+
+				// Extract stop-time from lock file
+				if stopTime := workflow.ExtractStopTimeFromLockFile(lockFile); stopTime != "" {
+					timeRemaining = calculateTimeRemaining(stopTime)
+				}
+			}
+
+			// Get GitHub workflow status
+			status := "Unknown"
+			if workflow, exists := githubWorkflows[name]; exists {
+				if workflow.State == "disabled_manually" {
+					status = "disabled"
+				} else {
+					status = workflow.State
+				}
+			}
+
+			// Build status object
+			statuses = append(statuses, WorkflowStatus{
+				Workflow:      name,
+				Agent:         agent,
+				Compiled:      compiled,
+				Status:        status,
+				TimeRemaining: timeRemaining,
+			})
+		}
+
+		return outputJSON(statuses, jqFilter)
+	}
+
+	// Build table for text output
 	headers := []string{"Workflow", "Agent", "Compiled", "Status", "Time Remaining"}
 	var rows [][]string
 
@@ -236,4 +319,37 @@ func extractEngineIDFromFile(filePath string) string {
 	}
 
 	return "copilot" // Default engine
+}
+
+// outputJSON outputs the status data as JSON, optionally piping through jq
+func outputJSON(statuses []WorkflowStatus, jqFilter string) error {
+	// Marshal to JSON
+	jsonBytes, err := json.MarshalIndent(statuses, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	// If no jq filter, just output JSON
+	if jqFilter == "" {
+		fmt.Println(string(jsonBytes))
+		return nil
+	}
+
+	// Check if jq is available
+	jqPath, err := exec.LookPath("jq")
+	if err != nil {
+		return fmt.Errorf("jq not found in PATH. Please install jq or use --json without --jq")
+	}
+
+	// Pipe through jq
+	cmd := exec.Command(jqPath, jqFilter)
+	cmd.Stdin = strings.NewReader(string(jsonBytes))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("jq filter failed: %w", err)
+	}
+
+	return nil
 }

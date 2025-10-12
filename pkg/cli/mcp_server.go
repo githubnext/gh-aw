@@ -132,16 +132,20 @@ func createMCPServer(cmdPath string) *mcp.Server {
 
 	// Add status tool
 	type statusArgs struct {
-		Pattern string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
+		Pattern  string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
+		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "status",
 		Description: "Show status of agentic workflow files and workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
-		// Build command arguments
-		cmdArgs := []string{"status"}
+		// Build command arguments - always use JSON for MCP
+		cmdArgs := []string{"status", "--json"}
 		if args.Pattern != "" {
 			cmdArgs = append(cmdArgs, args.Pattern)
+		}
+		if args.JqFilter != "" {
+			cmdArgs = append(cmdArgs, "--jq", args.JqFilter)
 		}
 
 		// Execute the CLI command

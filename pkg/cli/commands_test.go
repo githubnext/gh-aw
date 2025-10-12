@@ -216,7 +216,7 @@ func TestRemoveWorkflows(t *testing.T) {
 }
 
 func TestStatusWorkflows(t *testing.T) {
-	err := StatusWorkflows("test-pattern", false)
+	err := StatusWorkflows("test-pattern", false, false, "")
 
 	// Should not error since it's a stub implementation
 	if err != nil {
@@ -401,7 +401,7 @@ func TestAllCommandsExist(t *testing.T) {
 			return err
 		}, false, "CompileWorkflows"}, // Should compile existing markdown files successfully
 		{func() error { return RemoveWorkflows("test", false) }, false, "RemoveWorkflows"},                        // Should handle missing directory gracefully
-		{func() error { return StatusWorkflows("test", false) }, false, "StatusWorkflows"},                        // Should handle missing directory gracefully
+		{func() error { return StatusWorkflows("test", false, false, "") }, false, "StatusWorkflows"},             // Should handle missing directory gracefully
 		{func() error { return EnableWorkflows("test") }, true, "EnableWorkflows"},                                // Should now error when no workflows found to enable
 		{func() error { return DisableWorkflows("test") }, true, "DisableWorkflows"},                              // Should now also error when no workflows found to disable
 		{func() error { return RunWorkflowOnGitHub("", false, false) }, true, "RunWorkflowOnGitHub"},              // Should error with empty workflow name
