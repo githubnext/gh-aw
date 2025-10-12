@@ -273,12 +273,13 @@ For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
 Examples:
   ` + constants.CLIExtensionPrefix + ` logs                           # Download logs for all workflows
   ` + constants.CLIExtensionPrefix + ` logs weekly-research           # Download logs for specific agentic workflow
-  ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 runs
-  ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Filter runs after date
-  ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Filter runs before date
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w          # Filter runs from last week
-  ` + constants.CLIExtensionPrefix + ` logs --end-date -1d            # Filter runs until yesterday
-  ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Filter runs from last month
+  ` + constants.CLIExtensionPrefix + ` logs -c 10                     # Download last 10 matching runs
+  ` + constants.CLIExtensionPrefix + ` logs --start-date 2024-01-01   # Download all runs after date
+  ` + constants.CLIExtensionPrefix + ` logs --end-date 2024-01-31     # Download all runs before date
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w          # Download all runs from last week
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1w -c 5     # Download all runs from last week, show up to 5
+  ` + constants.CLIExtensionPrefix + ` logs --end-date -1d            # Download all runs until yesterday
+  ` + constants.CLIExtensionPrefix + ` logs --start-date -1mo         # Download all runs from last month
   ` + constants.CLIExtensionPrefix + ` logs --engine claude           # Filter logs by claude engine
   ` + constants.CLIExtensionPrefix + ` logs --engine codex            # Filter logs by codex engine
   ` + constants.CLIExtensionPrefix + ` logs --engine copilot          # Filter logs by copilot engine
@@ -288,7 +289,6 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000       # Filter runs after run ID 1000
   ` + constants.CLIExtensionPrefix + ` logs --before-run-id 2000      # Filter runs before run ID 2000
   ` + constants.CLIExtensionPrefix + ` logs --after-run-id 1000 --before-run-id 2000  # Filter runs in range
-  ` + constants.CLIExtensionPrefix + ` logs -o ./my-logs              # Custom output directory
   ` + constants.CLIExtensionPrefix + ` logs --tool-graph              # Generate Mermaid tool sequence graph`,
 		Run: func(cmd *cobra.Command, args []string) {
 			var workflowName string
@@ -379,7 +379,7 @@ Examples:
 	}
 
 	// Add flags to logs command
-	logsCmd.Flags().IntP("count", "c", 20, "Maximum number of workflow runs to fetch")
+	logsCmd.Flags().IntP("count", "c", 20, "Maximum number of matching workflow runs to return (after applying filters)")
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
@@ -405,12 +405,26 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	var beforeDate string
 	iteration := 0
 
-	// Iterative algorithm: keep fetching runs until we have enough with artifacts
-	for len(processedRuns) < count && iteration < MaxIterations {
+	// Determine if we should fetch all runs (when date filters are specified) or limit by count
+	// When date filters are specified, we fetch all runs within that range and apply count to final output
+	// When no date filters, we fetch up to 'count' runs with artifacts (old behavior for backward compatibility)
+	fetchAllInRange := startDate != "" || endDate != ""
+
+	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
+	for iteration < MaxIterations {
+		// Stop if we've collected enough processed runs AND we're not fetching all in range
+		if !fetchAllInRange && len(processedRuns) >= count {
+			break
+		}
+
 		iteration++
 
 		if verbose && iteration > 1 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Need %d more runs with artifacts, fetching more...", iteration, count-len(processedRuns))))
+			if fetchAllInRange {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Fetching more runs in date range...", iteration)))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Need %d more runs with artifacts, fetching more...", iteration, count-len(processedRuns))))
+			}
 		}
 
 		// Fetch a batch of runs
@@ -420,7 +434,9 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			// since there may be many CI runs interspersed with agentic runs
 			batchSize = BatchSizeForAllWorkflows
 		}
-		if count-len(processedRuns) < batchSize {
+
+		// When not fetching all in range, optimize batch size based on how many we still need
+		if !fetchAllInRange && count-len(processedRuns) < batchSize {
 			// If we need fewer runs than the batch size, request exactly what we need
 			// but add some buffer since many runs might not have artifacts
 			needed := count - len(processedRuns)
@@ -452,11 +468,16 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		// Process each run in this batch
 		batchProcessed := 0
-		downloadResults := downloadRunArtifactsConcurrent(runs, outputDir, verbose, count-len(processedRuns))
+		// When fetching all in range, don't limit downloads; otherwise limit to remaining count
+		maxDownloads := 0 // 0 means no limit
+		if !fetchAllInRange {
+			maxDownloads = count - len(processedRuns)
+		}
+		downloadResults := downloadRunArtifactsConcurrent(runs, outputDir, verbose, maxDownloads)
 
 		for _, result := range downloadResults {
-			// Stop if we've reached our target count
-			if len(processedRuns) >= count {
+			// When not fetching all in range, stop if we've reached our target count
+			if !fetchAllInRange && len(processedRuns) >= count {
 				break
 			}
 
@@ -582,7 +603,11 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		}
 
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d/%d)", batchProcessed, iteration, len(processedRuns), count)))
+			if fetchAllInRange {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d)", batchProcessed, iteration, len(processedRuns))))
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processed %d runs with artifacts in batch %d (total: %d/%d)", batchProcessed, iteration, len(processedRuns), count)))
+			}
 		}
 
 		// Prepare for next iteration: set beforeDate to the oldest run from this batch
@@ -601,13 +626,25 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	}
 
 	// Check if we hit the maximum iterations limit
-	if iteration >= MaxIterations && len(processedRuns) < count {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts out of %d requested", MaxIterations, len(processedRuns), count)))
+	if iteration >= MaxIterations {
+		if fetchAllInRange {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts", MaxIterations, len(processedRuns))))
+		} else if len(processedRuns) < count {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Reached maximum iterations (%d), collected %d runs with artifacts out of %d requested", MaxIterations, len(processedRuns), count)))
+		}
 	}
 
 	if len(processedRuns) == 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("No workflow runs with artifacts found matching the specified criteria"))
 		return nil
+	}
+
+	// Apply count limit to final results (truncate to count if we fetched more)
+	if len(processedRuns) > count {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Limiting output to %d most recent runs (fetched %d total)", count, len(processedRuns))))
+		}
+		processedRuns = processedRuns[:count]
 	}
 
 	// Update MissingToolCount in runs
