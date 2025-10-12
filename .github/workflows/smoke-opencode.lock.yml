@@ -980,7 +980,7 @@ jobs:
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Install OpenCode
-        run: npm install -g opencode-ai@${GITHUB_AW_AGENT_VERSION} && opencode --version
+        run: npm install -g opencode-ai@${GITHUB_AW_AGENT_VERSION}
         env:
           GITHUB_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
           GITHUB_AW_AGENT_VERSION: 0.1.0
@@ -1920,7 +1920,7 @@ jobs:
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
       - name: Install OpenCode
-        run: npm install -g opencode-ai@${GITHUB_AW_AGENT_VERSION} && opencode --version
+        run: npm install -g opencode-ai@${GITHUB_AW_AGENT_VERSION}
         env:
           GITHUB_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
           GITHUB_AW_AGENT_VERSION: 0.1.0

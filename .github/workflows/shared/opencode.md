@@ -6,7 +6,7 @@ engine:
     GITHUB_AW_AGENT_MODEL: "anthropic/claude-3-5-sonnet-20241022"
   steps:
     - name: Install OpenCode
-      run: npm install -g opencode-ai@${GITHUB_AW_AGENT_VERSION} && opencode --version
+      run: npm install -g opencode-ai@${GITHUB_AW_AGENT_VERSION}
       env:
         GITHUB_AW_AGENT_VERSION: ${{ env.GITHUB_AW_AGENT_VERSION }}
     
