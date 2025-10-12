@@ -585,7 +585,7 @@ func updateWorkflow(wf *workflowWithSource, allowMajor, force, verbose bool, eng
 	}
 
 	// Perform 3-way merge using git merge-file
-	mergedContent, hasConflicts, err := mergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
+	mergedContent, hasConflicts, err := MergeWorkflowContent(string(baseContent), string(currentContent), string(newContent), wf.SourceSpec, latestRef, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to merge workflow content: %w", err)
 	}
@@ -635,16 +635,51 @@ func downloadWorkflowContent(repo, path, ref string, verbose bool) ([]byte, erro
 	return content, nil
 }
 
-// mergeWorkflowContent performs a 3-way merge of workflow content using git merge-file
+// normalizeWhitespace normalizes trailing whitespace and newlines to reduce spurious conflicts
+func normalizeWhitespace(content string) string {
+	// Split into lines and trim trailing whitespace from each line
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " \t")
+	}
+
+	// Join back and ensure exactly one trailing newline if content is not empty
+	normalized := strings.Join(lines, "\n")
+	normalized = strings.TrimRight(normalized, "\n")
+	if len(normalized) > 0 {
+		normalized += "\n"
+	}
+
+	return normalized
+}
+
+// MergeWorkflowContent performs a 3-way merge of workflow content using git merge-file
 // It returns the merged content, whether conflicts exist, and any error
-func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verbose bool) (string, bool, error) {
+func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verbose bool) (string, bool, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Performing 3-way merge using git merge-file"))
 	}
 
-	// First, update the source field in the new content before merging
-	// This ensures the source field is correct even if there are conflicts
-	newWithUpdatedSource, err := updateSourceFieldInContent(new, oldSourceSpec, newRef)
+	// Parse the old source spec to get the current ref
+	sourceSpec, err := parseSourceSpec(oldSourceSpec)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse source spec: %w", err)
+	}
+	currentSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, sourceSpec.Ref)
+
+	// Fix the base version by adding the source field to match what both current and new have
+	// This prevents unnecessary conflicts over the source field
+	baseWithSource, err := UpdateFieldInFrontmatter(base, "source", currentSourceSpec)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to add source to base content: %v", err)))
+		}
+		// Continue with original base content
+		baseWithSource = base
+	}
+
+	// Update the source field in the new content with the new ref
+	newWithUpdatedSource, err := UpdateFieldInFrontmatter(new, "source", fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRef))
 	if err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update source in new content: %v", err)))
@@ -652,6 +687,11 @@ func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 		// Continue with original new content
 		newWithUpdatedSource = new
 	}
+
+	// Normalize whitespace in all three versions to reduce spurious conflicts
+	baseNormalized := normalizeWhitespace(baseWithSource)
+	currentNormalized := normalizeWhitespace(current)
+	newNormalized := normalizeWhitespace(newWithUpdatedSource)
 
 	// Create temporary directory for merge files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-merge-*")
@@ -665,13 +705,13 @@ func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 	currentFile := filepath.Join(tmpDir, "current.md")
 	newFile := filepath.Join(tmpDir, "new.md")
 
-	if err := os.WriteFile(baseFile, []byte(base), 0644); err != nil {
+	if err := os.WriteFile(baseFile, []byte(baseNormalized), 0644); err != nil {
 		return "", false, fmt.Errorf("failed to write base file: %w", err)
 	}
-	if err := os.WriteFile(currentFile, []byte(current), 0644); err != nil {
+	if err := os.WriteFile(currentFile, []byte(currentNormalized), 0644); err != nil {
 		return "", false, fmt.Errorf("failed to write current file: %w", err)
 	}
-	if err := os.WriteFile(newFile, []byte(newWithUpdatedSource), 0644); err != nil {
+	if err := os.WriteFile(newFile, []byte(newNormalized), 0644); err != nil {
 		return "", false, fmt.Errorf("failed to write new file: %w", err)
 	}
 
@@ -748,16 +788,6 @@ func mergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 
 // updateSourceFieldInContent updates the source field in workflow content
 func updateSourceFieldInContent(content, oldSourceSpec, newRef string) (string, error) {
-	// Parse the content
-	result, err := parser.ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
-	}
-
-	if result.Frontmatter == nil {
-		result.Frontmatter = make(map[string]any)
-	}
-
 	// Parse the old source spec to construct the new one
 	sourceSpec, err := parseSourceSpec(oldSourceSpec)
 	if err != nil {
@@ -766,35 +796,7 @@ func updateSourceFieldInContent(content, oldSourceSpec, newRef string) (string, 
 
 	// Update with new ref
 	newSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRef)
-	result.Frontmatter["source"] = newSourceSpec
 
-	// Reconstruct the workflow file
-	return reconstructWorkflowFile(result.Frontmatter, result.Markdown)
-}
-
-// reconstructWorkflowFile reconstructs a workflow file from frontmatter and markdown
-func reconstructWorkflowFile(frontmatter map[string]any, markdown string) (string, error) {
-	// Convert frontmatter to YAML with proper field ordering
-	// Use PriorityWorkflowFields to ensure consistent ordering of top-level fields
-	updatedFrontmatter, err := workflow.MarshalWithFieldOrder(frontmatter, constants.PriorityWorkflowFields)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal frontmatter: %w", err)
-	}
-
-	// Clean up the YAML - remove trailing newline
-	// Keep "on" quoted as it's a YAML boolean keyword
-	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
-
-	// Reconstruct the file
-	var lines []string
-	lines = append(lines, "---")
-	if frontmatterStr != "" {
-		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
-	}
-	lines = append(lines, "---")
-	if markdown != "" {
-		lines = append(lines, markdown)
-	}
-
-	return strings.Join(lines, "\n"), nil
+	// Use shared frontmatter updating logic that preserves formatting
+	return UpdateFieldInFrontmatter(content, "source", newSourceSpec)
 }

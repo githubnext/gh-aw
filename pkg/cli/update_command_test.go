@@ -18,10 +18,11 @@ engine: claude
 
 This is the base content.`
 
-	// Local adds to markdown only
+	// Local adds to markdown only, and has source field from previous update
 	current := `---
 on: push
 engine: claude
+source: test/repo/workflow.md@v1.0.0
 ---
 
 # Base Workflow
@@ -48,7 +49,7 @@ This is the base content.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := mergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -105,7 +106,7 @@ This is the upstream modified content.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := mergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -143,6 +144,7 @@ Base content here.`
 	current := `---
 on: push
 engine: claude
+source: test/repo/workflow.md@v1.0.0
 ---
 
 # Original
@@ -178,7 +180,7 @@ Base content here.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := mergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -212,6 +214,7 @@ on: push
 engine: claude
 permissions:
   contents: read
+source: test/repo/workflow.md@v1.0.0
 ---
 
 # Workflow
@@ -233,7 +236,7 @@ Content remains the same.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := mergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, false)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -266,10 +269,7 @@ source: old/repo/workflow.md@v1.0.0
 
 # Test Workflow`
 
-	oldSourceSpec := "old/repo/workflow.md@v1.0.0"
-	newRef := "v2.0.0"
-
-	updated, err := updateSourceFieldInContent(content, oldSourceSpec, newRef)
+	updated, err := UpdateFieldInFrontmatter(content, "source", "old/repo/workflow.md@v2.0.0")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
@@ -278,8 +278,8 @@ source: old/repo/workflow.md@v1.0.0
 		t.Errorf("Expected source field to be updated to v2.0.0, got:\n%s", updated)
 	}
 
-	// Ensure other content is preserved (on key is now quoted)
-	if !strings.Contains(updated, `"on": push`) {
+	// Ensure other content is preserved (formatting should be preserved)
+	if !strings.Contains(updated, `on: push`) {
 		t.Errorf("Expected other frontmatter fields to be preserved, got:\n%s", updated)
 	}
 
@@ -309,6 +309,7 @@ on: push
 permissions:
   contents: read
   issues: write
+source: test/repo/workflow.md@v1.0.0
 ---
 
 # Test Workflow
@@ -330,7 +331,7 @@ Base content with upstream notes.`
 	oldSourceSpec := "test/repo/workflow.md@v1.0.0"
 	newRef := "v1.1.0"
 
-	merged, hasConflicts, err := mergeWorkflowContent(base, current, new, oldSourceSpec, newRef, true)
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, true)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}

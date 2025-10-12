@@ -11,7 +11,6 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
-	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
 )
@@ -798,78 +797,6 @@ func createPR(branchName, title, body string, verbose bool) error {
 
 // addSourceToWorkflow adds the source field to the workflow's frontmatter
 func addSourceToWorkflow(content, source string) (string, error) {
-	// Parse frontmatter using parser package
-	result, err := parser.ExtractFrontmatterFromContent(content)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
-	}
-
-	// Try to preserve original frontmatter formatting by manually inserting the source field
-	if len(result.FrontmatterLines) > 0 {
-		// Check if source field already exists
-		if result.Frontmatter != nil {
-			if _, exists := result.Frontmatter["source"]; exists {
-				// Source field exists, replace it by parsing and re-marshaling (fallback behavior)
-				return addSourceToWorkflowFallback(result, source)
-			}
-		}
-
-		// Source field doesn't exist, insert it manually to preserve formatting
-		frontmatterLines := make([]string, len(result.FrontmatterLines))
-		copy(frontmatterLines, result.FrontmatterLines)
-
-		// Add source field at the end of the frontmatter, preserving original formatting
-		sourceField := fmt.Sprintf("source: %s", source)
-		frontmatterLines = append(frontmatterLines, sourceField)
-
-		// Reconstruct the file with preserved formatting
-		var lines []string
-		lines = append(lines, "---")
-		lines = append(lines, frontmatterLines...)
-		lines = append(lines, "---")
-		if result.Markdown != "" {
-			lines = append(lines, result.Markdown)
-		}
-
-		return strings.Join(lines, "\n"), nil
-	}
-
-	// Fallback to original behavior if no frontmatter lines are available
-	return addSourceToWorkflowFallback(result, source)
-}
-
-// addSourceToWorkflowFallback implements the original behavior as a fallback
-func addSourceToWorkflowFallback(result *parser.FrontmatterResult, source string) (string, error) {
-	// Initialize frontmatter if it doesn't exist
-	if result.Frontmatter == nil {
-		result.Frontmatter = make(map[string]any)
-	}
-
-	// Add source field (will be last in YAML output due to alphabetical sorting)
-	result.Frontmatter["source"] = source
-
-	// Convert back to YAML with proper field ordering
-	// Use PriorityWorkflowFields to ensure consistent ordering of top-level fields
-	updatedFrontmatter, err := workflow.MarshalWithFieldOrder(result.Frontmatter, constants.PriorityWorkflowFields)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal updated frontmatter: %w", err)
-	}
-
-	// Clean up quoted keys - replace "on": with on: at the start of a line
-	// This handles cases where YAML marshaling adds unnecessary quotes around reserved words like "on"
-	frontmatterStr := strings.TrimSuffix(string(updatedFrontmatter), "\n")
-	frontmatterStr = workflow.UnquoteYAMLKey(frontmatterStr, "on")
-
-	// Reconstruct the file
-	var lines []string
-	lines = append(lines, "---")
-	if frontmatterStr != "" {
-		lines = append(lines, strings.Split(frontmatterStr, "\n")...)
-	}
-	lines = append(lines, "---")
-	if result.Markdown != "" {
-		lines = append(lines, result.Markdown)
-	}
-
-	return strings.Join(lines, "\n"), nil
+	// Use shared frontmatter logic that preserves formatting
+	return addFieldToFrontmatter(content, "source", source)
 }
