@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -265,7 +266,7 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		if claudeMetrics.Turns > 0 || claudeMetrics.TokenUsage > 0 || claudeMetrics.EstimatedCost > 0 {
 			// Found structured data, use Claude parsing
 			if verbose {
-				fmt.Println("Custom engine: Using Claude-style parsing for logs")
+				fmt.Fprintln(os.Stderr, "Custom engine: Using Claude-style parsing for logs")
 			}
 			return claudeMetrics
 		}
@@ -278,7 +279,7 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		if codexMetrics.Turns > 0 || codexMetrics.TokenUsage > 0 {
 			// Found some data, use Codex parsing
 			if verbose {
-				fmt.Println("Custom engine: Using Codex-style parsing for logs")
+				fmt.Fprintln(os.Stderr, "Custom engine: Using Codex-style parsing for logs")
 			}
 			return codexMetrics
 		}
@@ -286,7 +287,7 @@ func (e *CustomEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 	// Fall back to basic parsing if neither Claude nor Codex approaches work
 	if verbose {
-		fmt.Println("Custom engine: Using basic fallback parsing for logs")
+		fmt.Fprintln(os.Stderr, "Custom engine: Using basic fallback parsing for logs")
 	}
 
 	lines := strings.Split(logContent, "\n")
