@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -135,6 +136,10 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		Pattern  string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
 		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
+
+	// Note: Output schema not set for status tool because it returns an array directly,
+	// but MCP requires output schemas to be objects. The helper GenerateOutputSchema
+	// is available for future use if the status command is modified to return an object.
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "status",
 		Description: "Show status of agentic workflow files and workflows",
@@ -160,17 +165,18 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
-			if err != nil {
+			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
+			if jqErr != nil {
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
 					},
 				}, nil, nil
 			}
 			outputStr = filteredOutput
 		}
 
+		// Return text content (output schema not supported for array return types)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
@@ -222,10 +228,20 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
 		JqFilter     string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
+
+	// Generate output schema for logs tool
+	logsOutputSchema, schemaErr := GenerateOutputSchema[LogsData]()
+	if schemaErr != nil {
+		// Log error but don't fail server startup
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate output schema for logs tool: %v", schemaErr)))
+		logsOutputSchema = nil
+	}
+
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "logs",
-		Description: "Download and analyze workflow logs",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, any, error) {
+		Name:         "logs",
+		Description:  "Download and analyze workflow logs",
+		OutputSchema: logsOutputSchema,
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args logsArgs) (*mcp.CallToolResult, *LogsData, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server
 		cmdArgs := []string{"logs", "-o", "/tmp/gh-aw/aw-mcp/logs"}
@@ -272,22 +288,34 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
-			if err != nil {
+			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
+			if jqErr != nil {
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
 					},
 				}, nil, nil
 			}
 			outputStr = filteredOutput
 		}
 
+		// Parse the JSON output into structured data
+		var logsData LogsData
+		if parseErr := json.Unmarshal([]byte(outputStr), &logsData); parseErr != nil {
+			// If parsing fails, return text content only (graceful degradation)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: outputStr},
+				},
+			}, nil, nil
+		}
+
+		// Return both text and structured content
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
 			},
-		}, nil, nil
+		}, &logsData, nil
 	})
 
 	// Add audit tool
@@ -295,10 +323,20 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		RunID    int64  `json:"run_id" jsonschema:"GitHub Actions workflow run ID to audit"`
 		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
+
+	// Generate output schema for audit tool
+	auditOutputSchema, schemaErr := GenerateOutputSchema[AuditData]()
+	if schemaErr != nil {
+		// Log error but don't fail server startup
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate output schema for audit tool: %v", schemaErr)))
+		auditOutputSchema = nil
+	}
+
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "audit",
-		Description: "Investigate a workflow run and generate a concise report",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
+		Name:         "audit",
+		Description:  "Investigate a workflow run and generate a concise report",
+		OutputSchema: auditOutputSchema,
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, *AuditData, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
 		// Use --json flag to output structured JSON for MCP consumption
@@ -319,22 +357,34 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		// Apply jq filter if provided
 		outputStr := string(output)
 		if args.JqFilter != "" {
-			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
-			if err != nil {
+			filteredOutput, jqErr := ApplyJqFilter(outputStr, args.JqFilter)
+			if jqErr != nil {
 				return &mcp.CallToolResult{
 					Content: []mcp.Content{
-						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", jqErr)},
 					},
 				}, nil, nil
 			}
 			outputStr = filteredOutput
 		}
 
+		// Parse the JSON output into structured data
+		var auditData AuditData
+		if parseErr := json.Unmarshal([]byte(outputStr), &auditData); parseErr != nil {
+			// If parsing fails, return text content only (graceful degradation)
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: outputStr},
+				},
+			}, nil, nil
+		}
+
+		// Return both text and structured content
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
 			},
-		}, nil, nil
+		}, &auditData, nil
 	})
 
 	return server
