@@ -33,6 +33,14 @@ func GetAllCommentEvents() []CommentEventMapping {
 			EventName: "pull_request_review_comment",
 			Types:     []string{"created", "edited"},
 		},
+		{
+			EventName: "discussion",
+			Types:     []string{"created", "edited"},
+		},
+		{
+			EventName: "discussion_comment",
+			Types:     []string{"created", "edited"},
+		},
 	}
 }
 

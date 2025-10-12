@@ -24,6 +24,8 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 	hasPRComment := slices.Contains(eventNames, "pull_request_comment")
 	hasPR := slices.Contains(eventNames, "pull_request")
 	hasPRReview := slices.Contains(eventNames, "pull_request_review_comment")
+	hasDiscussion := slices.Contains(eventNames, "discussion")
+	hasDiscussionComment := slices.Contains(eventNames, "discussion_comment")
 
 	if hasIssues {
 		// issues event - check github.event.issue.body only when event is 'issues'
@@ -97,6 +99,30 @@ func buildEventAwareCommandCondition(commandName string, commandEvents []string,
 			),
 		}
 		commandChecks = append(commandChecks, prBodyCheck)
+	}
+
+	if hasDiscussion {
+		// discussion event - check github.event.discussion.body only when event is 'discussion'
+		discussionBodyCheck := &AndNode{
+			Left: BuildEventTypeEquals("discussion"),
+			Right: BuildContains(
+				BuildPropertyAccess("github.event.discussion.body"),
+				BuildStringLiteral(commandText),
+			),
+		}
+		commandChecks = append(commandChecks, discussionBodyCheck)
+	}
+
+	if hasDiscussionComment {
+		// discussion_comment event - check github.event.comment.body only when event is 'discussion_comment'
+		discussionCommentBodyCheck := &AndNode{
+			Left: BuildEventTypeEquals("discussion_comment"),
+			Right: BuildContains(
+				BuildPropertyAccess("github.event.comment.body"),
+				BuildStringLiteral(commandText),
+			),
+		}
+		commandChecks = append(commandChecks, discussionCommentBodyCheck)
 	}
 
 	// Combine all command checks with OR using BuildDisjunction helper

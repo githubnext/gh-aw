@@ -13,6 +13,14 @@
 
 name: "Scout"
 "on":
+  discussion:
+    types:
+    - created
+    - edited
+  discussion_comment:
+    types:
+    - created
+    - edited
   issue_comment:
     types:
     - created
@@ -48,13 +56,19 @@ jobs:
   check-membership:
     if: >
       ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment') && ((github.event_name == 'issues') &&
-      (contains(github.event.issue.body, '/scout')) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/scout')) ||
-      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/scout')))) || (!(github.event_name == 'issues' ||
-      github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'))
+      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
+      ((github.event_name == 'issues') && (contains(github.event.issue.body, '/scout')) || (github.event_name == 'issue_comment') &&
+      ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request == null)) ||
+      (github.event_name == 'issue_comment') &&
+      ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request != null)) ||
+      (github.event_name == 'pull_request_review_comment') &&
+      (contains(github.event.comment.body, '/scout')) || (github.event_name == 'pull_request') &&
+      (contains(github.event.pull_request.body, '/scout')) ||
+      (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/scout')) ||
+      (github.event_name == 'discussion_comment') &&
+      (contains(github.event.comment.body, '/scout')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check-membership.outputs.error_message }}
@@ -147,15 +161,17 @@ jobs:
     needs: check-membership
     if: >
       (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment') && ((github.event_name == 'issues') &&
-      (contains(github.event.issue.body, '/scout')) || (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/scout')) &&
-      (github.event.issue.pull_request == null)) || (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) &&
-      (github.event.issue.pull_request != null)) || (github.event_name == 'pull_request_review_comment') &&
-      (contains(github.event.comment.body, '/scout')) || (github.event_name == 'pull_request') &&
-      (contains(github.event.pull_request.body, '/scout')))) ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/scout')) ||
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request == null)) ||
+      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request != null)) ||
+      (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/scout')) ||
+      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/scout')) ||
+      (github.event_name == 'discussion') &&
+      (contains(github.event.discussion.body, '/scout')) || (github.event_name == 'discussion_comment') &&
+      (contains(github.event.comment.body, '/scout')))) ||
       (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment')))
+      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment')))
     runs-on: ubuntu-latest
     outputs:
       text: ${{ steps.compute-text.outputs.text }}
@@ -314,6 +330,18 @@ jobs:
                 case "pull_request_review":
                   if (context.payload.review) {
                     text = context.payload.review.body || "";
+                  }
+                  break;
+                case "discussion":
+                  if (context.payload.discussion) {
+                    const title = context.payload.discussion.title || "";
+                    const body = context.payload.discussion.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "discussion_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
                   }
                   break;
                 default:

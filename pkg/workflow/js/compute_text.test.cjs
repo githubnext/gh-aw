@@ -301,6 +301,33 @@ describe("compute_text.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Review body");
     });
 
+    it("should extract text from discussion payload", async () => {
+      mockContext.eventName = "discussion";
+      mockContext.payload = {
+        discussion: {
+          title: "Test Discussion",
+          body: "Discussion description",
+        },
+      };
+
+      await testMain();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Test Discussion\n\nDiscussion description");
+    });
+
+    it("should extract text from discussion comment payload", async () => {
+      mockContext.eventName = "discussion_comment";
+      mockContext.payload = {
+        comment: {
+          body: "Discussion comment text",
+        },
+      };
+
+      await testMain();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("text", "Discussion comment text");
+    });
+
     it("should handle unknown event types", async () => {
       mockContext.eventName = "unknown_event";
       mockContext.payload = {};

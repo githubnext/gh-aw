@@ -363,6 +363,57 @@ tools:
 			expectedBodyChecks:   []string{"github.event.pull_request.body"},
 			unexpectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body"},
 		},
+		{
+			name: "command with events: [discussion]",
+			frontmatter: `---
+on:
+  command:
+    name: discussion-bot
+    events: [discussion]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:             "command-discussion-only.md",
+			expectedEvents:       []string{"discussion:"},
+			unexpectedEvents:     []string{"issues:", "issue_comment:", "pull_request:", "discussion_comment:"},
+			expectedBodyChecks:   []string{"github.event.discussion.body"},
+			unexpectedBodyChecks: []string{"github.event.issue.body", "github.event.comment.body", "github.event.pull_request.body"},
+		},
+		{
+			name: "command with events: [discussion_comment]",
+			frontmatter: `---
+on:
+  command:
+    name: discussion-comment-bot
+    events: [discussion_comment]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:             "command-discussion-comment-only.md",
+			expectedEvents:       []string{"discussion_comment:"},
+			unexpectedEvents:     []string{"issues:", "issue_comment:", "pull_request:", "discussion:"},
+			expectedBodyChecks:   []string{"github.event.comment.body"},
+			unexpectedBodyChecks: []string{"github.event.issue.body", "github.event.pull_request.body", "github.event.discussion.body"},
+		},
+		{
+			name: "command with events: [discussion, discussion_comment]",
+			frontmatter: `---
+on:
+  command:
+    name: both-discussion-bot
+    events: [discussion, discussion_comment]
+tools:
+  github:
+    allowed: [list_issues]
+---`,
+			filename:             "command-both-discussion.md",
+			expectedEvents:       []string{"discussion:", "discussion_comment:"},
+			unexpectedEvents:     []string{"issues:", "issue_comment:", "pull_request:"},
+			expectedBodyChecks:   []string{"github.event.discussion.body", "github.event.comment.body"},
+			unexpectedBodyChecks: []string{"github.event.issue.body", "github.event.pull_request.body"},
+		},
 	}
 
 	for _, tt := range tests {
