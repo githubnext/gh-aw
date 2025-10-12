@@ -286,73 +286,6 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 	}
 }
 
-// TestApplySafeOutputEnvToAnyMap verifies the helper function for map[string]any env variables
-func TestApplySafeOutputEnvToAnyMap(t *testing.T) {
-	tests := []struct {
-		name         string
-		workflowData *WorkflowData
-		expected     map[string]any
-	}{
-		{
-			name: "nil SafeOutputs",
-			workflowData: &WorkflowData{
-				SafeOutputs: nil,
-			},
-			expected: map[string]any{},
-		},
-		{
-			name: "basic safe outputs",
-			workflowData: &WorkflowData{
-				SafeOutputs: &SafeOutputsConfig{},
-			},
-			expected: map[string]any{
-				"GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-			},
-		},
-		{
-			name: "trial mode with assets",
-			workflowData: &WorkflowData{
-				TrialMode:       true,
-				TrialTargetRepo: "owner/repo",
-				SafeOutputs: &SafeOutputsConfig{
-					UploadAssets: &UploadAssetsConfig{
-						BranchName:  "assets",
-						MaxSizeKB:   5120,
-						AllowedExts: []string{".png"},
-					},
-				},
-			},
-			expected: map[string]any{
-				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"GITHUB_AW_SAFE_OUTPUTS_STAGED": "true",
-				"GITHUB_AW_TARGET_REPO_SLUG":    "owner/repo",
-				"GITHUB_AW_ASSETS_BRANCH":       "\"assets\"",
-				"GITHUB_AW_ASSETS_MAX_SIZE_KB":  "5120",
-				"GITHUB_AW_ASSETS_ALLOWED_EXTS": "\".png\"",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			env := make(map[string]any)
-			applySafeOutputEnvToAnyMap(env, tt.workflowData)
-
-			if len(env) != len(tt.expected) {
-				t.Errorf("Expected %d env vars, got %d", len(tt.expected), len(env))
-			}
-
-			for key, expectedValue := range tt.expected {
-				if actualValue, exists := env[key]; !exists {
-					t.Errorf("Expected env var %q not found", key)
-				} else if actualValue != expectedValue {
-					t.Errorf("Env var %q: expected %v, got %v", key, expectedValue, actualValue)
-				}
-			}
-		})
-	}
-}
-
 // TestApplySafeOutputEnvToSlice verifies the helper function for YAML string slices
 func TestApplySafeOutputEnvToSlice(t *testing.T) {
 	tests := []struct {
@@ -551,19 +484,15 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 		},
 	}
 
-	// Test map-based helper (used by copilot and codex)
+	// Test map-based helper (used by copilot, codex, and custom)
 	envMap := make(map[string]string)
 	applySafeOutputEnvToMap(envMap, workflowData)
-
-	// Test any-map-based helper (used by custom engine)
-	envAnyMap := make(map[string]any)
-	applySafeOutputEnvToAnyMap(envAnyMap, workflowData)
 
 	// Test slice-based helper (used by claude)
 	var stepLines []string
 	applySafeOutputEnvToSlice(&stepLines, workflowData)
 
-	// Verify all three approaches produce the same env vars
+	// Verify both approaches produce the same env vars
 	expectedKeys := []string{
 		"GITHUB_AW_SAFE_OUTPUTS",
 		"GITHUB_AW_SAFE_OUTPUTS_STAGED",
@@ -577,13 +506,6 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 	for _, key := range expectedKeys {
 		if _, exists := envMap[key]; !exists {
 			t.Errorf("envMap missing expected key: %s", key)
-		}
-	}
-
-	// Check any map
-	for _, key := range expectedKeys {
-		if _, exists := envAnyMap[key]; !exists {
-			t.Errorf("envAnyMap missing expected key: %s", key)
 		}
 	}
 

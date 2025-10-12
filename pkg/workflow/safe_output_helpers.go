@@ -84,31 +84,6 @@ func applySafeOutputEnvToMap(env map[string]string, workflowData *WorkflowData) 
 	}
 }
 
-// applySafeOutputEnvToAnyMap adds safe-output related environment variables to an env map[string]any
-// This is for the custom engine which uses map[string]any for environment variables
-func applySafeOutputEnvToAnyMap(env map[string]any, workflowData *WorkflowData) {
-	if workflowData.SafeOutputs == nil {
-		return
-	}
-
-	env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-
-	// Add staged flag if specified
-	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
-	}
-	if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-		env["GITHUB_AW_TARGET_REPO_SLUG"] = workflowData.TrialTargetRepo
-	}
-
-	// Add branch name if upload assets is configured
-	if workflowData.SafeOutputs.UploadAssets != nil {
-		env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", workflowData.SafeOutputs.UploadAssets.BranchName)
-		env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-		env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
-	}
-}
-
 // applySafeOutputEnvToSlice adds safe-output related environment variables to a YAML string slice
 // This is for engines that build YAML line-by-line (like Claude)
 func applySafeOutputEnvToSlice(stepLines *[]string, workflowData *WorkflowData) {
