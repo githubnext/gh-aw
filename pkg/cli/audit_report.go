@@ -406,19 +406,19 @@ func renderOverview(overview OverviewData) {
 	// Format Run ID
 	fmt.Printf("  %-14s %d\n", "Run ID:", overview.RunID)
 	fmt.Printf("  %-14s %s\n", "Workflow:", overview.WorkflowName)
-	
+
 	// Format Status with optional Conclusion
 	statusLine := overview.Status
 	if overview.Conclusion != "" && overview.Status == "completed" {
 		statusLine = fmt.Sprintf("%s (%s)", overview.Status, overview.Conclusion)
 	}
 	fmt.Printf("  %-14s %s\n", "Status:", statusLine)
-	
+
 	// Optional Duration
 	if overview.Duration != "" {
 		fmt.Printf("  %-14s %s\n", "Duration:", overview.Duration)
 	}
-	
+
 	fmt.Printf("  %-14s %s\n", "Event:", overview.Event)
 	fmt.Printf("  %-14s %s\n", "Branch:", overview.Branch)
 	fmt.Printf("  %-14s %s\n", "URL:", overview.URL)
@@ -457,7 +457,7 @@ func renderJobsTable(jobs []JobData) {
 		if duration == "" {
 			duration = "-"
 		}
-		
+
 		row := []string{
 			truncateString(job.Name, 40),
 			job.Status,

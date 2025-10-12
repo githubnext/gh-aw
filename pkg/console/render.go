@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // RenderStruct renders a Go struct to console output using reflection and struct tags.
@@ -63,16 +64,16 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 		field := val.Field(i)
 		fieldType := typ.Field(i)
 		tag := parseConsoleTag(fieldType.Tag.Get("console"))
-		
+
 		if tag.skip || (tag.omitempty && isZeroValue(field)) {
 			continue
 		}
-		
+
 		fieldName := fieldType.Name
 		if tag.header != "" {
 			fieldName = tag.header
 		}
-		
+
 		if len(fieldName) > maxFieldLen {
 			maxFieldLen = len(fieldName)
 		}
@@ -101,8 +102,8 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 		}
 
 		// Render based on field type
-		if field.Kind() == reflect.Struct {
-			// Nested struct - render recursively with title
+		if field.Kind() == reflect.Struct && field.Type().String() != "time.Time" {
+			// Nested struct - render recursively with title (but not time.Time)
 			subTitle := tag.title
 			if subTitle == "" {
 				subTitle = fieldName
@@ -297,6 +298,17 @@ func isZeroValue(val reflect.Value) bool {
 		return true
 	}
 
+	// Special handling for time.Time
+	if val.Type().String() == "time.Time" {
+		if val.CanInterface() {
+			if t, ok := val.Interface().(time.Time); ok {
+				return t.IsZero()
+			}
+		}
+		// For unexported time.Time fields, we can't easily check, so assume not zero
+		return false
+	}
+
 	switch val.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return val.Len() == 0
@@ -337,9 +349,59 @@ func formatFieldValue(val reflect.Value) string {
 		}
 		// For numeric types, return "0" or the actual value
 		if val.Kind() >= reflect.Int && val.Kind() <= reflect.Float64 {
-			return fmt.Sprintf("%v", val.Interface())
+			// For numeric types, we can safely use Interface()
+			if val.CanInterface() {
+				return fmt.Sprintf("%v", val.Interface())
+			}
+			// Fallback for unexported fields
+			switch val.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				return fmt.Sprintf("%d", val.Int())
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				return fmt.Sprintf("%d", val.Uint())
+			case reflect.Float32, reflect.Float64:
+				return fmt.Sprintf("%f", val.Float())
+			}
 		}
 		return "-"
+	}
+
+	// Special handling for time.Time to avoid unexported field panic
+	if val.Type().String() == "time.Time" {
+		// Can't use Interface() on unexported fields, so use Format method via reflection
+		if val.CanInterface() {
+			if timeVal, ok := val.Interface().(time.Time); ok {
+				return timeVal.Format("2006-01-02 15:04:05")
+			}
+		}
+		// For unexported time.Time fields, try to call the String method
+		stringMethod := val.MethodByName("String")
+		if stringMethod.IsValid() {
+			result := stringMethod.Call(nil)
+			if len(result) > 0 {
+				return result[0].String()
+			}
+		}
+		return val.Type().String() // return type name as fallback
+	}
+
+	// Only call Interface() if we can
+	if !val.CanInterface() {
+		// For unexported fields, try to format based on kind
+		switch val.Kind() {
+		case reflect.Bool:
+			return fmt.Sprintf("%t", val.Bool())
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return fmt.Sprintf("%d", val.Int())
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return fmt.Sprintf("%d", val.Uint())
+		case reflect.Float32, reflect.Float64:
+			return fmt.Sprintf("%f", val.Float())
+		case reflect.String:
+			return val.String()
+		default:
+			return val.Type().String()
+		}
 	}
 
 	return fmt.Sprintf("%v", val.Interface())
