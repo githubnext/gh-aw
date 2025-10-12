@@ -28,34 +28,34 @@ type AuditData struct {
 
 // OverviewData contains basic information about the workflow run
 type OverviewData struct {
-	RunID        int64     `json:"run_id"`
-	WorkflowName string    `json:"workflow_name"`
-	Status       string    `json:"status"`
-	Conclusion   string    `json:"conclusion,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	StartedAt    time.Time `json:"started_at,omitempty"`
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
-	Duration     string    `json:"duration,omitempty"`
-	Event        string    `json:"event"`
-	Branch       string    `json:"branch"`
-	URL          string    `json:"url"`
+	RunID        int64     `json:"run_id" console:"header:Run ID"`
+	WorkflowName string    `json:"workflow_name" console:"header:Workflow"`
+	Status       string    `json:"status" console:"header:Status"`
+	Conclusion   string    `json:"conclusion,omitempty" console:"header:Conclusion,omitempty"`
+	CreatedAt    time.Time `json:"created_at" console:"header:Created At"`
+	StartedAt    time.Time `json:"started_at,omitempty" console:"header:Started At,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty" console:"header:Updated At,omitempty"`
+	Duration     string    `json:"duration,omitempty" console:"header:Duration,omitempty"`
+	Event        string    `json:"event" console:"header:Event"`
+	Branch       string    `json:"branch" console:"header:Branch"`
+	URL          string    `json:"url" console:"header:URL"`
 }
 
 // MetricsData contains execution metrics
 type MetricsData struct {
-	TokenUsage    int     `json:"token_usage,omitempty"`
-	EstimatedCost float64 `json:"estimated_cost,omitempty"`
-	Turns         int     `json:"turns,omitempty"`
-	ErrorCount    int     `json:"error_count"`
-	WarningCount  int     `json:"warning_count"`
+	TokenUsage    int     `json:"token_usage,omitempty" console:"header:Token Usage,omitempty"`
+	EstimatedCost float64 `json:"estimated_cost,omitempty" console:"header:Estimated Cost,omitempty"`
+	Turns         int     `json:"turns,omitempty" console:"header:Turns,omitempty"`
+	ErrorCount    int     `json:"error_count" console:"header:Errors"`
+	WarningCount  int     `json:"warning_count" console:"header:Warnings"`
 }
 
 // JobData contains information about individual jobs
 type JobData struct {
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Conclusion string `json:"conclusion,omitempty"`
-	Duration   string `json:"duration,omitempty"`
+	Name       string `json:"name" console:"header:Name"`
+	Status     string `json:"status" console:"header:Status"`
+	Conclusion string `json:"conclusion,omitempty" console:"header:Conclusion,omitempty"`
+	Duration   string `json:"duration,omitempty" console:"header:Duration,omitempty"`
 }
 
 // FileInfo contains information about downloaded artifact files
@@ -77,10 +77,10 @@ type ErrorInfo struct {
 
 // ToolUsageInfo contains aggregated tool usage statistics
 type ToolUsageInfo struct {
-	Name          string `json:"name"`
-	CallCount     int    `json:"call_count"`
-	MaxOutputSize int    `json:"max_output_size,omitempty"`
-	MaxDuration   string `json:"max_duration,omitempty"`
+	Name          string `json:"name" console:"header:Tool"`
+	CallCount     int    `json:"call_count" console:"header:Calls"`
+	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,omitempty"`
+	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
 }
 
 // buildAuditData creates structured audit data from workflow run information
@@ -294,59 +294,21 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Println(console.FormatInfoMessage("# Workflow Run Audit Report"))
 	fmt.Println()
 
-	// Overview Section
+	// Overview Section - use new rendering system
 	fmt.Println(console.FormatInfoMessage("## Overview"))
 	fmt.Println()
-	fmt.Printf("  Run ID:        %d\n", data.Overview.RunID)
-	fmt.Printf("  Workflow:      %s\n", data.Overview.WorkflowName)
-	fmt.Printf("  Status:        %s", data.Overview.Status)
-	if data.Overview.Conclusion != "" && data.Overview.Status == "completed" {
-		fmt.Printf(" (%s)", data.Overview.Conclusion)
-	}
-	fmt.Println()
-	if data.Overview.Duration != "" {
-		fmt.Printf("  Duration:      %s\n", data.Overview.Duration)
-	}
-	fmt.Printf("  Event:         %s\n", data.Overview.Event)
-	fmt.Printf("  Branch:        %s\n", data.Overview.Branch)
-	fmt.Printf("  URL:           %s\n", data.Overview.URL)
-	fmt.Println()
+	renderOverview(data.Overview)
 
-	// Metrics Section
+	// Metrics Section - use new rendering system
 	fmt.Println(console.FormatInfoMessage("## Metrics"))
 	fmt.Println()
-	if data.Metrics.TokenUsage > 0 {
-		fmt.Printf("  Token Usage:      %s\n", formatNumber(data.Metrics.TokenUsage))
-	}
-	if data.Metrics.EstimatedCost > 0 {
-		fmt.Printf("  Estimated Cost:   $%.3f\n", data.Metrics.EstimatedCost)
-	}
-	if data.Metrics.Turns > 0 {
-		fmt.Printf("  Turns:            %d\n", data.Metrics.Turns)
-	}
-	fmt.Printf("  Errors:           %d\n", data.Metrics.ErrorCount)
-	fmt.Printf("  Warnings:         %d\n", data.Metrics.WarningCount)
-	fmt.Println()
+	renderMetrics(data.Metrics)
 
-	// Jobs Section
+	// Jobs Section - use new table rendering
 	if len(data.Jobs) > 0 {
 		fmt.Println(console.FormatInfoMessage("## Jobs"))
 		fmt.Println()
-		fmt.Printf("  %-40s %-15s %-15s %15s\n", "Name", "Status", "Conclusion", "Duration")
-		fmt.Printf("  %s\n", strings.Repeat("-", 87))
-		for _, job := range data.Jobs {
-			conclusion := job.Conclusion
-			if conclusion == "" {
-				conclusion = "-"
-			}
-			duration := job.Duration
-			if duration == "" {
-				duration = "-"
-			}
-			fmt.Printf("  %-40s %-15s %-15s %15s\n",
-				truncateString(job.Name, 40), job.Status, conclusion, duration)
-		}
-		fmt.Println()
+		renderJobsTable(data.Jobs)
 	}
 
 	// Downloaded Files Section
@@ -394,25 +356,11 @@ func renderConsole(data AuditData, logsPath string) {
 		fmt.Println()
 	}
 
-	// Tool Usage Section
+	// Tool Usage Section - use new table rendering
 	if len(data.ToolUsage) > 0 {
 		fmt.Println(console.FormatInfoMessage("## Tool Usage"))
 		fmt.Println()
-		fmt.Printf("  %-40s %10s %15s %15s\n", "Tool", "Calls", "Max Output", "Max Duration")
-		fmt.Printf("  %s\n", strings.Repeat("-", 82))
-		for _, tool := range data.ToolUsage {
-			outputStr := "N/A"
-			if tool.MaxOutputSize > 0 {
-				outputStr = formatNumber(tool.MaxOutputSize)
-			}
-			durationStr := "N/A"
-			if tool.MaxDuration != "" {
-				durationStr = tool.MaxDuration
-			}
-			fmt.Printf("  %-40s %10d %15s %15s\n",
-				truncateString(tool.Name, 40), tool.CallCount, outputStr, durationStr)
-		}
-		fmt.Println()
+		renderToolUsageTable(data.ToolUsage)
 	}
 
 	// Errors and Warnings Section
@@ -451,6 +399,104 @@ func renderConsole(data AuditData, logsPath string) {
 	absPath, _ := filepath.Abs(logsPath)
 	fmt.Printf("  %s\n", absPath)
 	fmt.Println()
+}
+
+// renderOverview renders the overview section using struct tags
+func renderOverview(overview OverviewData) {
+	// Format Run ID
+	fmt.Printf("  %-14s %d\n", "Run ID:", overview.RunID)
+	fmt.Printf("  %-14s %s\n", "Workflow:", overview.WorkflowName)
+	
+	// Format Status with optional Conclusion
+	statusLine := overview.Status
+	if overview.Conclusion != "" && overview.Status == "completed" {
+		statusLine = fmt.Sprintf("%s (%s)", overview.Status, overview.Conclusion)
+	}
+	fmt.Printf("  %-14s %s\n", "Status:", statusLine)
+	
+	// Optional Duration
+	if overview.Duration != "" {
+		fmt.Printf("  %-14s %s\n", "Duration:", overview.Duration)
+	}
+	
+	fmt.Printf("  %-14s %s\n", "Event:", overview.Event)
+	fmt.Printf("  %-14s %s\n", "Branch:", overview.Branch)
+	fmt.Printf("  %-14s %s\n", "URL:", overview.URL)
+	fmt.Println()
+}
+
+// renderMetrics renders the metrics section with custom formatting
+func renderMetrics(metrics MetricsData) {
+	if metrics.TokenUsage > 0 {
+		fmt.Printf("  %-20s %s\n", "Token Usage:", formatNumber(metrics.TokenUsage))
+	}
+	if metrics.EstimatedCost > 0 {
+		fmt.Printf("  %-20s $%.3f\n", "Estimated Cost:", metrics.EstimatedCost)
+	}
+	if metrics.Turns > 0 {
+		fmt.Printf("  %-20s %d\n", "Turns:", metrics.Turns)
+	}
+	fmt.Printf("  %-20s %d\n", "Errors:", metrics.ErrorCount)
+	fmt.Printf("  %-20s %d\n", "Warnings:", metrics.WarningCount)
+	fmt.Println()
+}
+
+// renderJobsTable renders the jobs as a table using console.RenderTable
+func renderJobsTable(jobs []JobData) {
+	config := console.TableConfig{
+		Headers: []string{"Name", "Status", "Conclusion", "Duration"},
+		Rows:    make([][]string, 0, len(jobs)),
+	}
+
+	for _, job := range jobs {
+		conclusion := job.Conclusion
+		if conclusion == "" {
+			conclusion = "-"
+		}
+		duration := job.Duration
+		if duration == "" {
+			duration = "-"
+		}
+		
+		row := []string{
+			truncateString(job.Name, 40),
+			job.Status,
+			conclusion,
+			duration,
+		}
+		config.Rows = append(config.Rows, row)
+	}
+
+	fmt.Print(console.RenderTable(config))
+}
+
+// renderToolUsageTable renders tool usage as a table with custom formatting
+func renderToolUsageTable(toolUsage []ToolUsageInfo) {
+	config := console.TableConfig{
+		Headers: []string{"Tool", "Calls", "Max Output", "Max Duration"},
+		Rows:    make([][]string, 0, len(toolUsage)),
+	}
+
+	for _, tool := range toolUsage {
+		outputStr := "N/A"
+		if tool.MaxOutputSize > 0 {
+			outputStr = formatNumber(tool.MaxOutputSize)
+		}
+		durationStr := "N/A"
+		if tool.MaxDuration != "" {
+			durationStr = tool.MaxDuration
+		}
+
+		row := []string{
+			truncateString(tool.Name, 40),
+			fmt.Sprintf("%d", tool.CallCount),
+			outputStr,
+			durationStr,
+		}
+		config.Rows = append(config.Rows, row)
+	}
+
+	fmt.Print(console.RenderTable(config))
 }
 
 // truncateString truncates a string to maxLen, adding "..." if truncated
