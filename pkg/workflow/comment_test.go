@@ -8,9 +8,9 @@ import (
 func TestGetAllCommentEvents(t *testing.T) {
 	events := GetAllCommentEvents()
 
-	// Should have exactly 5 events (added pull_request_comment)
-	if len(events) != 5 {
-		t.Errorf("Expected 5 comment events, got %d", len(events))
+	// Should have exactly 7 events (added pull_request_comment, discussion, discussion_comment)
+	if len(events) != 7 {
+		t.Errorf("Expected 7 comment events, got %d", len(events))
 	}
 
 	// Check that all expected events are present
@@ -20,6 +20,8 @@ func TestGetAllCommentEvents(t *testing.T) {
 		"pull_request_comment":        {"created", "edited"},
 		"pull_request":                {"opened", "edited", "reopened"},
 		"pull_request_review_comment": {"created", "edited"},
+		"discussion":                  {"created", "edited"},
+		"discussion_comment":          {"created", "edited"},
 	}
 
 	for _, event := range events {
@@ -66,6 +68,16 @@ func TestGetCommentEventByIdentifier(t *testing.T) {
 			name:       "GitHub Actions event name 'pull_request_comment'",
 			identifier: "pull_request_comment",
 			wantEvent:  "pull_request_comment",
+		},
+		{
+			name:       "GitHub Actions event name 'discussion'",
+			identifier: "discussion",
+			wantEvent:  "discussion",
+		},
+		{
+			name:       "GitHub Actions event name 'discussion_comment'",
+			identifier: "discussion_comment",
+			wantEvent:  "discussion_comment",
 		},
 		{
 			name:       "invalid identifier",
@@ -179,14 +191,14 @@ func TestFilterCommentEvents(t *testing.T) {
 		{
 			name:        "nil identifiers returns all events",
 			identifiers: nil,
-			wantCount:   5,
-			wantEvents:  []string{"issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"},
+			wantCount:   7,
+			wantEvents:  []string{"issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"},
 		},
 		{
 			name:        "empty identifiers returns all events",
 			identifiers: []string{},
-			wantCount:   5,
-			wantEvents:  []string{"issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment"},
+			wantCount:   7,
+			wantEvents:  []string{"issues", "issue_comment", "pull_request_comment", "pull_request", "pull_request_review_comment", "discussion", "discussion_comment"},
 		},
 		{
 			name:        "single identifier",
