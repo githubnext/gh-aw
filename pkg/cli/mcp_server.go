@@ -59,8 +59,10 @@ Examples:
 // runMCPServer starts the MCP server on stdio or HTTP transport
 func runMCPServer(port int, cmdPath string) error {
 	// Validate that the CLI and secrets are properly configured
+	// Note: Validation failures are logged as warnings but don't prevent server startup
+	// This allows the server to start in test environments or non-repository directories
 	if err := validateMCPServerConfiguration(cmdPath); err != nil {
-		return fmt.Errorf("configuration validation failed: %w", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Configuration validation warning: %v", err)))
 	}
 
 	// Create the server configuration
