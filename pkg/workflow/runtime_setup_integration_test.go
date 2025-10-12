@@ -281,3 +281,67 @@ steps:
 		t.Errorf("Expected 'Setup Python' to appear once, but found %d occurrences", count)
 	}
 }
+
+func TestUVDetectionAddsPythonDependency(t *testing.T) {
+	// Test that when uv is detected via MCP server, Python is automatically added
+	workflowMarkdown := `---
+on: push
+engine: copilot
+mcp-servers:
+  serena:
+    command: "uvx"
+    args:
+      - "--from"
+      - "git+https://github.com/oraios/serena"
+      - "serena"
+      - "start-mcp-server"
+steps:
+  - name: Verify uv
+    run: uv --version
+---
+
+# Test workflow with uv`
+
+	tmpDir := t.TempDir()
+	testFile := tmpDir + "/test-workflow.md"
+
+	if err := os.WriteFile(testFile, []byte(workflowMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Should have Python setup
+	if !strings.Contains(lockContent, "Setup Python") {
+		t.Error("Expected 'Setup Python' to be added as dependency for uv")
+	}
+
+	// Should have uv setup
+	if !strings.Contains(lockContent, "Setup uv") {
+		t.Error("Expected 'Setup uv' to be added")
+	}
+
+	// Python setup should come before uv setup
+	pythonIndex := strings.Index(lockContent, "Setup Python")
+	uvIndex := strings.Index(lockContent, "Setup uv")
+	if pythonIndex > uvIndex {
+		t.Error("Setup Python should come before Setup uv (Python is a dependency of uv)")
+	}
+
+	// Both should come before "Verify uv" step
+	verifyIndex := strings.Index(lockContent, "Verify uv")
+	if pythonIndex > verifyIndex || uvIndex > verifyIndex {
+		t.Error("Setup steps should come before 'Verify uv' step")
+	}
+}
