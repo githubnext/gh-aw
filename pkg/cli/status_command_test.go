@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 func TestStatusWorkflows_JSONOutput(t *testing.T) {
@@ -211,4 +213,52 @@ func TestStatusCommand_JSONOutputWithPattern(t *testing.T) {
 	}
 
 	t.Logf("Successfully parsed %d filtered workflow status entries", len(statuses))
+}
+
+// TestWorkflowStatus_ConsoleRendering tests that WorkflowStatus uses console.RenderStruct correctly
+func TestWorkflowStatus_ConsoleRendering(t *testing.T) {
+	// Create test data
+	statuses := []WorkflowStatus{
+		{
+			Workflow:      "test-workflow-1",
+			Agent:         "copilot",
+			Compiled:      "Yes",
+			Status:        "active",
+			TimeRemaining: "N/A",
+		},
+		{
+			Workflow:      "test-workflow-2",
+			Agent:         "claude",
+			Compiled:      "No",
+			Status:        "disabled",
+			TimeRemaining: "2h 30m",
+		},
+	}
+
+	// Render using console.RenderStruct
+	output := console.RenderStruct(statuses)
+
+	// Verify the output contains table headers from console tags
+	expectedHeaders := []string{"Workflow", "Agent", "Compiled", "Status", "Time Remaining"}
+	for _, header := range expectedHeaders {
+		if !strings.Contains(output, header) {
+			t.Errorf("Expected output to contain header '%s', got:\n%s", header, output)
+		}
+	}
+
+	// Verify the output contains the data values
+	expectedValues := []string{
+		"test-workflow-1", "copilot", "Yes", "active",
+		"test-workflow-2", "claude", "No", "disabled", "2h 30m",
+	}
+	for _, value := range expectedValues {
+		if !strings.Contains(output, value) {
+			t.Errorf("Expected output to contain value '%s', got:\n%s", value, output)
+		}
+	}
+
+	// Verify it's formatted as a table (contains separators)
+	if !strings.Contains(output, "-") {
+		t.Error("Expected table output to contain separator lines")
+	}
 }
