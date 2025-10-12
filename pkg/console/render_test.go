@@ -40,7 +40,7 @@ func TestRenderStruct_SimpleStruct(t *testing.T) {
 
 	// Check that basic fields are present (using header names from tags)
 	if !strings.Contains(output, "Run ID") {
-		t.Error("Output should contain Run ID field")
+		t.Errorf("Output should contain Run ID field, got:\n%s", output)
 	}
 	if !strings.Contains(output, "12345") {
 		t.Error("Output should contain RunID value")
@@ -256,5 +256,71 @@ func TestFormatFieldValue(t *testing.T) {
 				t.Errorf("got %v, want %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestRenderStruct_ComplexExample(t *testing.T) {
+	// Test a more complex nested structure
+	type Address struct {
+		Street string `console:"header:Street"`
+		City   string `console:"header:City"`
+	}
+
+	type Person struct {
+		Name    string  `console:"header:Name"`
+		Age     int     `console:"header:Age"`
+		Address Address `console:"title:Address"`
+		Email   string  `console:"header:Email,omitempty"`
+	}
+
+	data := Person{
+		Name: "John Doe",
+		Age:  30,
+		Address: Address{
+			Street: "123 Main St",
+			City:   "Anytown",
+		},
+		Email: "", // Should be omitted
+	}
+
+	output := RenderStruct(data)
+
+	// Check that basic fields are present
+	if !strings.Contains(output, "John Doe") {
+		t.Error("Output should contain Name value")
+	}
+	if !strings.Contains(output, "30") {
+		t.Error("Output should contain Age value")
+	}
+	if !strings.Contains(output, "123 Main St") {
+		t.Error("Output should contain nested Street value")
+	}
+
+	// Check that nested struct has a title
+	if !strings.Contains(output, "Address") {
+		t.Error("Output should contain Address section title")
+	}
+}
+
+func TestBuildTableConfig(t *testing.T) {
+	jobs := []TestJob{
+		{Name: "job-1", Status: "completed", Conclusion: "success"},
+		{Name: "job-2", Status: "in_progress", Conclusion: ""},
+	}
+
+	val := reflect.ValueOf(jobs)
+	config := buildTableConfig(val, "Test Jobs")
+
+	if len(config.Headers) != 3 {
+		t.Errorf("Expected 3 headers (excluding omitempty empty fields), got %d", len(config.Headers))
+	}
+
+	if len(config.Rows) != 2 {
+		t.Errorf("Expected 2 rows, got %d", len(config.Rows))
+	}
+
+	// Check first row
+	if config.Rows[0][0] != "job-1" {
+		t.Errorf("Expected first row name to be 'job-1', got %s", config.Rows[0][0])
 	}
 }
