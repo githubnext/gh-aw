@@ -63,17 +63,8 @@ type ToolUsageSummary struct {
 	Name          string `json:"name" console:"header:Tool"`
 	TotalCalls    int    `json:"total_calls" console:"header:Total Calls,format:number"`
 	Runs          int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
-	MaxOutputSize int    `json:"max_output_size,omitempty" console:"-"`
+	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:number,omitempty"`
 	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
-}
-
-// ToolUsageDisplay is a display-optimized version of ToolUsageSummary for console rendering
-type ToolUsageDisplay struct {
-	Name        string `console:"header:Tool"`
-	TotalCalls  string `console:"header:Total Calls"`
-	Runs        int    `console:"header:Runs"`
-	MaxOutput   string `console:"header:Max Output"`
-	MaxDuration string `console:"header:Max Duration,omitempty"`
 }
 
 // AccessLogSummary contains aggregated access log analysis
@@ -498,58 +489,71 @@ func displayLogsOverviewFromData(data LogsData, verbose bool) {
 func displayToolUsageFromData(toolUsage []ToolUsageSummary, verbose bool) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Tool Usage Summary"))
 
-	// Convert to display-optimized struct
-	displayData := make([]ToolUsageDisplay, 0, len(toolUsage))
+	headers := []string{"Tool", "Total Calls", "Runs", "Max Output", "Max Duration"}
+	var rows [][]string
+
 	for _, tool := range toolUsage {
 		outputStr := "N/A"
 		if tool.MaxOutputSize > 0 {
 			outputStr = pretty.FormatFileSize(int64(tool.MaxOutputSize))
 		}
-		durationStr := tool.MaxDuration
-		if durationStr == "" {
-			durationStr = "N/A"
+		durationStr := "N/A"
+		if tool.MaxDuration != "" {
+			durationStr = tool.MaxDuration
 		}
 
-		displayData = append(displayData, ToolUsageDisplay{
-			Name:        tool.Name,
-			TotalCalls:  formatNumber(tool.TotalCalls),
-			Runs:        tool.Runs,
-			MaxOutput:   outputStr,
-			MaxDuration: durationStr,
+		rows = append(rows, []string{
+			tool.Name,
+			formatNumber(tool.TotalCalls),
+			fmt.Sprintf("%d", tool.Runs),
+			outputStr,
+			durationStr,
 		})
 	}
 
-	fmt.Print(console.RenderStruct(displayData))
+	tableConfig := console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}
+
+	fmt.Print(console.RenderTable(tableConfig))
 }
 
 // displayMCPFailuresFromData displays MCP failures
 func displayMCPFailuresFromData(mcpFailures []MCPFailureSummary, verbose bool) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("⚠️  MCP Server Failures"))
 
-	// Convert to display-optimized struct
-	displayData := make([]MCPFailureDisplay, 0, len(mcpFailures))
+	headers := []string{"Server", "Failures", "Workflows"}
+	var rows [][]string
+
 	for _, failure := range mcpFailures {
 		workflowList := strings.Join(failure.Workflows, ", ")
 		if len(workflowList) > 60 {
 			workflowList = workflowList[:57] + "..."
 		}
 
-		displayData = append(displayData, MCPFailureDisplay{
-			ServerName: failure.ServerName,
-			Count:      failure.Count,
-			Workflows:  workflowList,
+		rows = append(rows, []string{
+			failure.ServerName,
+			fmt.Sprintf("%d", failure.Count),
+			workflowList,
 		})
 	}
 
-	fmt.Print(console.RenderStruct(displayData))
+	tableConfig := console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}
+
+	fmt.Print(console.RenderTable(tableConfig))
 }
 
 // displayMissingToolsFromData displays missing tools
 func displayMissingToolsFromData(missingTools []MissingToolSummary, verbose bool) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Missing Tools Summary"))
 
-	// Convert to display-optimized struct
-	displayData := make([]MissingToolDisplay, 0, len(missingTools))
+	headers := []string{"Tool", "Occurrences", "Workflows", "First Reason"}
+	var rows [][]string
+
 	for _, summary := range missingTools {
 		workflowList := strings.Join(summary.Workflows, ", ")
 		if len(workflowList) > 40 {
@@ -561,15 +565,20 @@ func displayMissingToolsFromData(missingTools []MissingToolSummary, verbose bool
 			reason = reason[:47] + "..."
 		}
 
-		displayData = append(displayData, MissingToolDisplay{
-			Tool:        summary.Tool,
-			Count:       summary.Count,
-			Workflows:   workflowList,
-			FirstReason: reason,
+		rows = append(rows, []string{
+			summary.Tool,
+			fmt.Sprintf("%d", summary.Count),
+			workflowList,
+			reason,
 		})
 	}
 
-	fmt.Print(console.RenderStruct(displayData))
+	tableConfig := console.TableConfig{
+		Headers: headers,
+		Rows:    rows,
+	}
+
+	fmt.Print(console.RenderTable(tableConfig))
 
 	// Display total summary
 	totalReports := 0
