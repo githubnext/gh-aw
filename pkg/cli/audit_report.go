@@ -401,44 +401,70 @@ func renderConsole(data AuditData, logsPath string) {
 	fmt.Println()
 }
 
-// renderOverview renders the overview section using struct tags
+// renderOverview renders the overview section using the new rendering system
 func renderOverview(overview OverviewData) {
-	// Format Run ID
-	fmt.Printf("  %-14s %d\n", "Run ID:", overview.RunID)
-	fmt.Printf("  %-14s %s\n", "Workflow:", overview.WorkflowName)
+	// Special handling for Status with Conclusion
+	type OverviewDisplay struct {
+		RunID    int64  `console:"header:Run ID"`
+		Workflow string `console:"header:Workflow"`
+		Status   string `console:"header:Status"`
+		Duration string `console:"header:Duration,omitempty"`
+		Event    string `console:"header:Event"`
+		Branch   string `console:"header:Branch"`
+		URL      string `console:"header:URL"`
+	}
 
 	// Format Status with optional Conclusion
 	statusLine := overview.Status
 	if overview.Conclusion != "" && overview.Status == "completed" {
 		statusLine = fmt.Sprintf("%s (%s)", overview.Status, overview.Conclusion)
 	}
-	fmt.Printf("  %-14s %s\n", "Status:", statusLine)
 
-	// Optional Duration
-	if overview.Duration != "" {
-		fmt.Printf("  %-14s %s\n", "Duration:", overview.Duration)
+	display := OverviewDisplay{
+		RunID:    overview.RunID,
+		Workflow: overview.WorkflowName,
+		Status:   statusLine,
+		Duration: overview.Duration,
+		Event:    overview.Event,
+		Branch:   overview.Branch,
+		URL:      overview.URL,
 	}
 
-	fmt.Printf("  %-14s %s\n", "Event:", overview.Event)
-	fmt.Printf("  %-14s %s\n", "Branch:", overview.Branch)
-	fmt.Printf("  %-14s %s\n", "URL:", overview.URL)
-	fmt.Println()
+	fmt.Print(console.RenderStruct(display))
 }
 
-// renderMetrics renders the metrics section with custom formatting
+// renderMetrics renders the metrics section using the new rendering system
 func renderMetrics(metrics MetricsData) {
+	// Create a display struct with custom formatting
+	type MetricsDisplay struct {
+		TokenUsage    string `console:"header:Token Usage,omitempty"`
+		EstimatedCost string `console:"header:Estimated Cost,omitempty"`
+		Turns         string `console:"header:Turns,omitempty"`
+		Errors        int    `console:"header:Errors"`
+		Warnings      int    `console:"header:Warnings"`
+	}
+
+	display := MetricsDisplay{
+		Errors:   metrics.ErrorCount,
+		Warnings: metrics.WarningCount,
+	}
+
+	// Format token usage
 	if metrics.TokenUsage > 0 {
-		fmt.Printf("  %-20s %s\n", "Token Usage:", formatNumber(metrics.TokenUsage))
+		display.TokenUsage = formatNumber(metrics.TokenUsage)
 	}
+
+	// Format cost
 	if metrics.EstimatedCost > 0 {
-		fmt.Printf("  %-20s $%.3f\n", "Estimated Cost:", metrics.EstimatedCost)
+		display.EstimatedCost = fmt.Sprintf("$%.3f", metrics.EstimatedCost)
 	}
+
+	// Format turns
 	if metrics.Turns > 0 {
-		fmt.Printf("  %-20s %d\n", "Turns:", metrics.Turns)
+		display.Turns = fmt.Sprintf("%d", metrics.Turns)
 	}
-	fmt.Printf("  %-20s %d\n", "Errors:", metrics.ErrorCount)
-	fmt.Printf("  %-20s %d\n", "Warnings:", metrics.WarningCount)
-	fmt.Println()
+
+	fmt.Print(console.RenderStruct(display))
 }
 
 // renderJobsTable renders the jobs as a table using console.RenderTable
