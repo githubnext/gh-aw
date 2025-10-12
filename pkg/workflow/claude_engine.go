@@ -216,24 +216,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Set MCP_TIMEOUT to 60000ms for MCP server communication
 	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
 
-	if workflowData.SafeOutputs != nil {
-		stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}")
-
-		// Add staged flag if specified
-		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-			stepLines = append(stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
-		}
-		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q", workflowData.TrialTargetRepo))
-		}
-
-		// Add branch name if upload assets is configured
-		if workflowData.SafeOutputs.UploadAssets != nil {
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q", workflowData.SafeOutputs.UploadAssets.BranchName))
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB))
-			stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")))
-		}
-	}
+	applySafeOutputEnvToSlice(&stepLines, workflowData)
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
