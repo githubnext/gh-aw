@@ -197,3 +197,323 @@ func TestBuildGitHubScriptStepMaintainsOrder(t *testing.T) {
 		t.Error("Custom vars should come before safe-outputs.env vars")
 	}
 }
+
+// TestApplySafeOutputEnvToMap verifies the helper function for map[string]string env variables
+func TestApplySafeOutputEnvToMap(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     map[string]string
+	}{
+		{
+			name: "nil SafeOutputs",
+			workflowData: &WorkflowData{
+				SafeOutputs: nil,
+			},
+			expected: map[string]string{},
+		},
+		{
+			name: "basic safe outputs",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{},
+			},
+			expected: map[string]string{
+				"GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+			},
+		},
+		{
+			name: "safe outputs with staged flag",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					Staged: true,
+				},
+			},
+			expected: map[string]string{
+				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_SAFE_OUTPUTS_STAGED": "true",
+			},
+		},
+		{
+			name: "trial mode",
+			workflowData: &WorkflowData{
+				TrialMode:       true,
+				TrialTargetRepo: "owner/repo",
+				SafeOutputs:     &SafeOutputsConfig{},
+			},
+			expected: map[string]string{
+				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_SAFE_OUTPUTS_STAGED": "true",
+				"GITHUB_AW_TARGET_REPO_SLUG":    "owner/repo",
+			},
+		},
+		{
+			name: "upload assets config",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					UploadAssets: &UploadAssetsConfig{
+						BranchName:  "gh-aw-assets",
+						MaxSizeKB:   10240,
+						AllowedExts: []string{".png", ".jpg", ".jpeg"},
+					},
+				},
+			},
+			expected: map[string]string{
+				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
+				"GITHUB_AW_ASSETS_MAX_SIZE_KB":  "10240",
+				"GITHUB_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := make(map[string]string)
+			applySafeOutputEnvToMap(env, tt.workflowData)
+
+			if len(env) != len(tt.expected) {
+				t.Errorf("Expected %d env vars, got %d", len(tt.expected), len(env))
+			}
+
+			for key, expectedValue := range tt.expected {
+				if actualValue, exists := env[key]; !exists {
+					t.Errorf("Expected env var %q not found", key)
+				} else if actualValue != expectedValue {
+					t.Errorf("Env var %q: expected %q, got %q", key, expectedValue, actualValue)
+				}
+			}
+		})
+	}
+}
+
+// TestApplySafeOutputEnvToSlice verifies the helper function for YAML string slices
+func TestApplySafeOutputEnvToSlice(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     []string
+	}{
+		{
+			name: "nil SafeOutputs",
+			workflowData: &WorkflowData{
+				SafeOutputs: nil,
+			},
+			expected: []string{},
+		},
+		{
+			name: "basic safe outputs",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{},
+			},
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+			},
+		},
+		{
+			name: "safe outputs with staged flag",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					Staged: true,
+				},
+			},
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"",
+			},
+		},
+		{
+			name: "trial mode",
+			workflowData: &WorkflowData{
+				TrialMode:       true,
+				TrialTargetRepo: "owner/repo",
+				SafeOutputs:     &SafeOutputsConfig{},
+			},
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"",
+				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/repo\"",
+			},
+		},
+		{
+			name: "upload assets config",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{
+					UploadAssets: &UploadAssetsConfig{
+						BranchName:  "gh-aw-assets",
+						MaxSizeKB:   10240,
+						AllowedExts: []string{".png", ".jpg", ".jpeg"},
+					},
+				},
+			},
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"          GITHUB_AW_ASSETS_BRANCH: \"gh-aw-assets\"",
+				"          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240",
+				"          GITHUB_AW_ASSETS_ALLOWED_EXTS: \".png,.jpg,.jpeg\"",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stepLines []string
+			applySafeOutputEnvToSlice(&stepLines, tt.workflowData)
+
+			if len(stepLines) != len(tt.expected) {
+				t.Errorf("Expected %d lines, got %d", len(tt.expected), len(stepLines))
+			}
+
+			for i, expectedLine := range tt.expected {
+				if i >= len(stepLines) {
+					t.Errorf("Missing expected line %d: %q", i, expectedLine)
+					continue
+				}
+				if stepLines[i] != expectedLine {
+					t.Errorf("Line %d: expected %q, got %q", i, expectedLine, stepLines[i])
+				}
+			}
+		})
+	}
+}
+
+// TestBuildSafeOutputJobEnvVars verifies the helper function for safe-output job env vars
+func TestBuildSafeOutputJobEnvVars(t *testing.T) {
+	tests := []struct {
+		name                 string
+		trialMode            bool
+		trialLogicalRepoSlug string
+		staged               bool
+		targetRepoSlug       string
+		expected             []string
+	}{
+		{
+			name:     "no flags",
+			expected: []string{},
+		},
+		{
+			name:   "staged only",
+			staged: true,
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+			},
+		},
+		{
+			name:      "trial mode only",
+			trialMode: true,
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+			},
+		},
+		{
+			name:                 "trial mode with trial repo slug",
+			trialMode:            true,
+			trialLogicalRepoSlug: "owner/trial-repo",
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/trial-repo\"\n",
+			},
+		},
+		{
+			name:           "target repo slug only",
+			targetRepoSlug: "owner/target-repo",
+			expected: []string{
+				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
+			},
+		},
+		{
+			name:                 "target repo slug overrides trial repo slug",
+			trialMode:            true,
+			trialLogicalRepoSlug: "owner/trial-repo",
+			targetRepoSlug:       "owner/target-repo",
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
+			},
+		},
+		{
+			name:                 "all flags",
+			trialMode:            true,
+			trialLogicalRepoSlug: "owner/trial-repo",
+			staged:               true,
+			targetRepoSlug:       "owner/target-repo",
+			expected: []string{
+				"          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n",
+				"          GITHUB_AW_TARGET_REPO_SLUG: \"owner/target-repo\"\n",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildSafeOutputJobEnvVars(
+				tt.trialMode,
+				tt.trialLogicalRepoSlug,
+				tt.staged,
+				tt.targetRepoSlug,
+			)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("Expected %d env vars, got %d", len(tt.expected), len(result))
+			}
+
+			for i, expectedVar := range tt.expected {
+				if i >= len(result) {
+					t.Errorf("Missing expected env var %d: %q", i, expectedVar)
+					continue
+				}
+				if result[i] != expectedVar {
+					t.Errorf("Env var %d: expected %q, got %q", i, expectedVar, result[i])
+				}
+			}
+		})
+	}
+}
+
+// TestEnginesUseSameHelperLogic ensures all engines produce consistent env vars
+func TestEnginesUseSameHelperLogic(t *testing.T) {
+	workflowData := &WorkflowData{
+		TrialMode:       true,
+		TrialTargetRepo: "owner/trial-repo",
+		SafeOutputs: &SafeOutputsConfig{
+			Staged: true,
+			UploadAssets: &UploadAssetsConfig{
+				BranchName:  "gh-aw-assets",
+				MaxSizeKB:   10240,
+				AllowedExts: []string{".png", ".jpg"},
+			},
+		},
+	}
+
+	// Test map-based helper (used by copilot, codex, and custom)
+	envMap := make(map[string]string)
+	applySafeOutputEnvToMap(envMap, workflowData)
+
+	// Test slice-based helper (used by claude)
+	var stepLines []string
+	applySafeOutputEnvToSlice(&stepLines, workflowData)
+
+	// Verify both approaches produce the same env vars
+	expectedKeys := []string{
+		"GITHUB_AW_SAFE_OUTPUTS",
+		"GITHUB_AW_SAFE_OUTPUTS_STAGED",
+		"GITHUB_AW_TARGET_REPO_SLUG",
+		"GITHUB_AW_ASSETS_BRANCH",
+		"GITHUB_AW_ASSETS_MAX_SIZE_KB",
+		"GITHUB_AW_ASSETS_ALLOWED_EXTS",
+	}
+
+	// Check map
+	for _, key := range expectedKeys {
+		if _, exists := envMap[key]; !exists {
+			t.Errorf("envMap missing expected key: %s", key)
+		}
+	}
+
+	// Check slice (should contain all keys)
+	sliceContent := strings.Join(stepLines, "\n")
+	for _, key := range expectedKeys {
+		if !strings.Contains(sliceContent, key) {
+			t.Errorf("stepLines missing expected key: %s", key)
+		}
+	}
+}

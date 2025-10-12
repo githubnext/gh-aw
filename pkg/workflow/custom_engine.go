@@ -47,7 +47,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			}
 
 			// Prepare environment variables to merge
-			envVars := make(map[string]any)
+			envVars := make(map[string]string)
 
 			// Always add GITHUB_AW_PROMPT for agentic workflows
 			envVars["GITHUB_AW_PROMPT"] = "/tmp/gh-aw/aw-prompts/prompt.txt"
@@ -56,24 +56,7 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			envVars["GITHUB_AW_MCP_CONFIG"] = "/tmp/gh-aw/mcp-config/mcp-servers.json"
 
 			// Add GITHUB_AW_SAFE_OUTPUTS if safe-outputs feature is used
-			if workflowData.SafeOutputs != nil {
-				envVars["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-
-				// Add staged flag if specified
-				if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-					envVars["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
-				}
-				if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-					envVars["GITHUB_AW_TARGET_REPO_SLUG"] = workflowData.TrialTargetRepo
-				}
-
-				// Add branch name if upload assets is configured
-				if workflowData.SafeOutputs.UploadAssets != nil {
-					envVars["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
-					envVars["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-					envVars["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
-				}
-			}
+			applySafeOutputEnvToMap(envVars, workflowData)
 
 			// Add GITHUB_AW_MAX_TURNS if max-turns is configured
 			if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
@@ -98,11 +81,21 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 						stepCopy["env"] = envMap
 					} else {
 						// If env is not a map, replace it with our combined env
-						stepCopy["env"] = envVars
+						// Convert string map to any map for compatibility
+						envAny := make(map[string]any)
+						for k, v := range envVars {
+							envAny[k] = v
+						}
+						stepCopy["env"] = envAny
 					}
 				} else {
 					// If no env section exists, add our env vars
-					stepCopy["env"] = envVars
+					// Convert string map to any map for compatibility
+					envAny := make(map[string]any)
+					for k, v := range envVars {
+						envAny[k] = v
+					}
+					stepCopy["env"] = envAny
 				}
 			}
 

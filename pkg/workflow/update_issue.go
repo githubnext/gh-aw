@@ -29,16 +29,14 @@ func (c *Compiler) buildCreateOutputUpdateIssueJob(data *WorkflowData, mainJobNa
 	if data.SafeOutputs.UpdateIssues.Target != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_UPDATE_TARGET: %q\n", data.SafeOutputs.UpdateIssues.Target))
 	}
-	if c.trialMode || data.SafeOutputs.Staged {
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
 
-	// Pass target repository - prefer explicit config over trial mode setting
-	if data.SafeOutputs.UpdateIssues.TargetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.UpdateIssues.TargetRepoSlug))
-	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
-	}
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		data.SafeOutputs.UpdateIssues.TargetRepoSlug,
+	)...)
 
 	// Get token from config
 	var token string

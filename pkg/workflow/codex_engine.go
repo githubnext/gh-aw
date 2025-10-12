@@ -137,25 +137,7 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
-	hasOutput := workflowData.SafeOutputs != nil
-	if hasOutput {
-		env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
-
-		// Add staged flag if specified
-		if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
-			env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
-		}
-		if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-			env["GITHUB_AW_TARGET_REPO_SLUG"] = workflowData.TrialTargetRepo
-		}
-
-		// Add branch name if upload assets is configured
-		if workflowData.SafeOutputs.UploadAssets != nil {
-			env["GITHUB_AW_ASSETS_BRANCH"] = workflowData.SafeOutputs.UploadAssets.BranchName
-			env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ",")
-		}
-	}
+	applySafeOutputEnvToMap(env, workflowData)
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {

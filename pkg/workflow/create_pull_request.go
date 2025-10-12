@@ -73,16 +73,13 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 	}
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
-	// Pass the staged flag if it's set to true
-	if c.trialMode || data.SafeOutputs.Staged {
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
-	// Set GITHUB_AW_TARGET_REPO_SLUG - prefer target-repo config over trial target repo
-	if data.SafeOutputs.CreatePullRequests.TargetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.CreatePullRequests.TargetRepoSlug))
-	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
-	}
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		data.SafeOutputs.CreatePullRequests.TargetRepoSlug,
+	)...)
 
 	// Step 4: Create pull request using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{

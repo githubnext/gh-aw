@@ -45,17 +45,13 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_LABELS_TARGET: %q\n", data.SafeOutputs.AddLabels.Target))
 	}
 
-	// Pass the staged flag if it's set to true
-	if c.trialMode || data.SafeOutputs.Staged {
-		customEnvVars = append(customEnvVars, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
-
-	// Pass target repository - prefer explicit config over trial mode setting
-	if data.SafeOutputs.AddLabels.TargetRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", data.SafeOutputs.AddLabels.TargetRepoSlug))
-	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
-	}
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		data.SafeOutputs.AddLabels.TargetRepoSlug,
+	)...)
 
 	// Get token from config
 	token := ""
