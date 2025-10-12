@@ -10,21 +10,13 @@ engine:
       env:
         GITHUB_AW_AGENT_VERSION: ${{ env.GITHUB_AW_AGENT_VERSION }}
     
-    - name: Read prompt file
-      id: read-prompt
-      run: |
-        echo "prompt<<EOF" >> $GITHUB_OUTPUT
-        cat "$GITHUB_AW_PROMPT" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-      env:
-        GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
-    
     - name: Run OpenCode
       id: opencode
       run: |
-        opencode run "${{ steps.read-prompt.outputs.prompt }}" --model "${GITHUB_AW_AGENT_MODEL}" --no-tui
+        opencode run "$(cat "$GITHUB_AW_PROMPT")" --model "${GITHUB_AW_AGENT_MODEL}" --no-tui
       env:
         GITHUB_AW_AGENT_MODEL: ${{ env.GITHUB_AW_AGENT_MODEL }}
+        GITHUB_AW_PROMPT: ${{ env.GITHUB_AW_PROMPT }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -45,7 +37,7 @@ imports:
 
 **Requirements:**
 - The workflow will install opencode-ai npm package using version from `GITHUB_AW_AGENT_VERSION` env var
-- The original prompt file is read and passed to OpenCode CLI
+- The prompt file is read directly in the Run OpenCode step using command substitution
 - OpenCode is executed in non-TUI mode with the specified model
 - Output is captured in the agent log file
 

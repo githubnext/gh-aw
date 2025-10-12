@@ -988,23 +988,10 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-      - name: Read prompt file
-        id: read-prompt
-        run: |
-          echo "prompt<<EOF" >> $GITHUB_OUTPUT
-          cat "$GITHUB_AW_PROMPT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
-          GITHUB_AW_AGENT_VERSION: 0.1.0
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
       - name: Run OpenCode
         id: opencode
         run: |
-          opencode run "${{ steps.read-prompt.outputs.prompt }}" --model "${GITHUB_AW_AGENT_MODEL}" --no-tui
+          opencode run "$(cat "$GITHUB_AW_PROMPT")" --model "${GITHUB_AW_AGENT_MODEL}" --no-tui
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
@@ -1838,7 +1825,7 @@ jobs:
           AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Smoke OpenCode"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using sst/opencode.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/opencode.md\n---\n```\n\n**Requirements:**\n- The workflow will install opencode-ai npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The original prompt file is read and passed to OpenCode CLI\n- OpenCode is executed in non-TUI mode with the specified model\n- Output is captured in the agent log file\n\n**Environment Variables:**\n- `GITHUB_AW_AGENT_VERSION`: OpenCode version (default: `0.1.0`)\n- `GITHUB_AW_AGENT_MODEL`: AI model in `provider/model` format (default: `anthropic/claude-3-5-sonnet-20241022`)\n- `ANTHROPIC_API_KEY`: Required if using Anthropic models\n- `OPENAI_API_KEY`: Required if using OpenAI models\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The opencode version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL` environment variable\n- OpenCode is provider-agnostic and supports multiple LLM providers\n-->\n\nReview the last 5 merged pull requests in this repository and post summary in an issue.\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using sst/opencode.\n\n**Usage:**\nInclude this file in your workflow using frontmatter imports:\n\n```yaml\n---\nimports:\n  - shared/opencode.md\n---\n```\n\n**Requirements:**\n- The workflow will install opencode-ai npm package using version from `GITHUB_AW_AGENT_VERSION` env var\n- The prompt file is read directly in the Run OpenCode step using command substitution\n- OpenCode is executed in non-TUI mode with the specified model\n- Output is captured in the agent log file\n\n**Environment Variables:**\n- `GITHUB_AW_AGENT_VERSION`: OpenCode version (default: `0.1.0`)\n- `GITHUB_AW_AGENT_MODEL`: AI model in `provider/model` format (default: `anthropic/claude-3-5-sonnet-20241022`)\n- `ANTHROPIC_API_KEY`: Required if using Anthropic models\n- `OPENAI_API_KEY`: Required if using OpenAI models\n\n**Note**: \n- This workflow requires internet access to install npm packages\n- The opencode version can be customized by setting the `GITHUB_AW_AGENT_VERSION` environment variable\n- The AI model can be customized by setting the `GITHUB_AW_AGENT_MODEL` environment variable\n- OpenCode is provider-agnostic and supports multiple LLM providers\n-->\n\nReview the last 5 merged pull requests in this repository and post summary in an issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -1928,23 +1915,10 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
-      - name: Read prompt file
-        id: read-prompt
-        run: |
-          echo "prompt<<EOF" >> $GITHUB_OUTPUT
-          cat "$GITHUB_AW_PROMPT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
-          GITHUB_AW_AGENT_VERSION: 0.1.0
-          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
       - name: Run OpenCode
         id: opencode
         run: |
-          opencode run "${{ steps.read-prompt.outputs.prompt }}" --model "${GITHUB_AW_AGENT_MODEL}" --no-tui
+          opencode run "$(cat "$GITHUB_AW_PROMPT")" --model "${GITHUB_AW_AGENT_MODEL}" --no-tui
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_AW_AGENT_MODEL: anthropic/claude-3-5-sonnet-20241022
