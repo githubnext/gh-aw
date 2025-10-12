@@ -2583,6 +2583,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add XPIA security prompt as separate step if enabled (before other prompts)
 	c.generateXPIAPromptStep(yaml, data)
 
+	// Add temporary folder usage instructions
+	c.generateTempFolderPromptStep(yaml, data)
+
 	// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 	// if len(trialTargetRepoName) == 2 {
 	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
