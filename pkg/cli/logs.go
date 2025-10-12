@@ -325,6 +325,7 @@ Examples:
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
 			parse, _ := cmd.Flags().GetBool("parse")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -364,7 +365,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse, jsonOutput); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -386,12 +387,13 @@ Examples:
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
+	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool, jsonOutput bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -605,34 +607,28 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		return nil
 	}
 
-	// Display overview table
-	workflowRuns := make([]WorkflowRun, len(processedRuns))
-	for i, pr := range processedRuns {
-		run := pr.Run
-		run.MissingToolCount = len(pr.MissingTools)
-		workflowRuns[i] = run
-	}
-	displayLogsOverview(processedRuns, verbose)
-
-	// Display MCP failures analysis
-	displayMCPFailuresAnalysis(processedRuns, verbose)
-
-	// Display tool call report
-	displayToolCallReport(processedRuns, verbose)
-	// Display missing tools analysis
-	displayMissingToolsAnalysis(processedRuns, verbose)
-
-	// Display access log analysis
-	displayAccessLogAnalysis(processedRuns, verbose)
-
-	// Generate tool sequence graph if requested
-	if toolGraph {
-		generateToolGraph(processedRuns, verbose)
+	// Update MissingToolCount in runs
+	for i := range processedRuns {
+		processedRuns[i].Run.MissingToolCount = len(processedRuns[i].MissingTools)
 	}
 
-	// Display logs location prominently
-	absOutputDir, _ := filepath.Abs(outputDir)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", len(processedRuns), absOutputDir)))
+	// Build structured logs data
+	logsData := buildLogsData(processedRuns, outputDir, verbose)
+
+	// Render output based on format preference
+	if jsonOutput {
+		if err := renderLogsJSON(logsData); err != nil {
+			return fmt.Errorf("failed to render JSON output: %w", err)
+		}
+	} else {
+		renderLogsConsole(logsData, verbose)
+
+		// Generate tool sequence graph if requested (console output only)
+		if toolGraph {
+			generateToolGraph(processedRuns, verbose)
+		}
+	}
+
 	return nil
 }
 
