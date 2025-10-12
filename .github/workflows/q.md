@@ -3,6 +3,7 @@ name: Q
 on:
   command:
     name: q
+  reaction: rocket
 permissions:
   contents: read
   actions: read
