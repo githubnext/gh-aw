@@ -11,6 +11,7 @@ tools:
   github:
     mode: "remote"
     toolset: [all]
+  cache-memory: true
 safe-outputs:
   create-discussion:
     category: "audits"
@@ -34,17 +35,28 @@ Generate a comprehensive report of all tools/functions available in the GitHub M
 
 ## Report Generation Process
 
-### Phase 1: Tool Discovery
+### Phase 1: Tool Discovery and Comparison
 
-1. **List All Available Tools**:
+1. **Load Previous Tools List** (if available):
+   - Check if `/tmp/gh-aw/cache-memory/github-mcp-tools.json` exists from the previous run
+   - If it exists, read and parse the previous tools list
+   - This will be used for comparison to detect changes
+
+2. **List All Available Tools**:
    - You have access to the GitHub MCP server in remote mode with all toolsets enabled
    - Systematically identify all available tools/functions
    - Note: The tools available to you ARE the tools from the GitHub MCP remote server
    - Enumerate each tool by attempting to understand what tools you have access to
 
-2. **Categorize Tools by Functionality**:
+3. **Categorize Tools by Functionality**:
    - Group tools by their primary purpose (e.g., repos, issues, pull requests, actions, etc.)
    - Identify which toolset each tool belongs to based on its function
+
+4. **Compare with Previous Tools** (if previous data exists):
+   - Identify **new tools** that were added since the last run
+   - Identify **removed tools** that existed before but are now missing
+   - Identify tools that remain **unchanged**
+   - Calculate statistics on the changes
 
 ### Phase 2: Tool Documentation
 
@@ -66,12 +78,39 @@ Create a detailed markdown report with the following structure:
 **Generated**: [DATE]
 **MCP Mode**: Remote
 **Toolsets**: All
+**Previous Report**: [DATE or "None" if first run]
 
 ## Executive Summary
 
 - **Total Tools Discovered**: [NUMBER]
 - **Toolset Categories**: [NUMBER]
 - **Report Date**: [DATE]
+- **Changes Since Last Report**: [If previous data exists, show changes summary]
+  - **New Tools**: [NUMBER]
+  - **Removed Tools**: [NUMBER]
+  - **Unchanged Tools**: [NUMBER]
+
+## Changes Since Last Report
+
+[Only include this section if previous data exists]
+
+### New Tools Added ✨
+
+List any tools that were added since the last report, organized by toolset:
+
+| Toolset | Tool Name | Purpose |
+|---------|-----------|---------|
+| [toolset] | [tool] | [description] |
+
+### Removed Tools 🗑️
+
+List any tools that were removed since the last report:
+
+| Toolset | Tool Name | Purpose (from previous report) |
+|---------|-----------|--------------------------------|
+| [toolset] | [tool] | [description] |
+
+[If no changes: "No tools were added or removed since the last report."]
 
 ## Tools by Toolset
 
@@ -159,21 +198,58 @@ tools:
 ## Success Criteria
 
 A successful report:
+- ✅ Loads previous tools list from cache if available
 - ✅ Documents all tools available in the GitHub MCP remote server
+- ✅ Compares with previous run and identifies changes (new/removed tools)
+- ✅ Saves current tools list to cache for next run
 - ✅ Organizes tools by their appropriate toolset categories
 - ✅ Provides clear descriptions and usage information
 - ✅ Includes practical examples
 - ✅ Is formatted as a well-structured markdown document
 - ✅ Is published as a GitHub discussion in the "audits" category for easy access and reference
+- ✅ Includes change tracking and diff information when previous data exists
 
 ## Output Requirements
 
 Your output MUST:
-1. Create a GitHub discussion with the complete tools report
-2. Use the report template structure provided above
-3. Include ALL discovered tools organized by toolset
-4. Provide accurate tool names, descriptions, and parameters
-5. Include practical usage examples
-6. Be formatted for readability with proper markdown tables
+1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists
+2. Discover all current tools from the GitHub MCP remote server
+3. Compare current tools with previous tools (if available) and identify changes
+4. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run
+   - Use a structured JSON format with tool names, toolsets, and descriptions
+   - Include timestamp and metadata
+5. Create a GitHub discussion with the complete tools report
+6. Use the report template structure provided above
+7. Include the changes summary section if previous data exists
+8. Include ALL discovered tools organized by toolset
+9. Provide accurate tool names, descriptions, and parameters
+10. Include practical usage examples
+11. Be formatted for readability with proper markdown tables
 
-Begin your tool discovery now. Systematically identify all available tools from the GitHub MCP remote server, categorize them appropriately, and generate a comprehensive reference document.
+**Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):
+```json
+{
+  "timestamp": "2024-01-15T06:00:00Z",
+  "total_tools": 42,
+  "toolsets": {
+    "repos": [
+      {"name": "get_repository", "purpose": "Get repository details"},
+      {"name": "list_commits", "purpose": "List repository commits"}
+    ],
+    "issues": [
+      {"name": "get_issue", "purpose": "Get issue details"},
+      {"name": "list_issues", "purpose": "List repository issues"}
+    ]
+  }
+}
+```
+
+Begin your tool discovery now. Follow these steps:
+
+1. **Load previous data**: Check for `/tmp/gh-aw/cache-memory/github-mcp-tools.json` and load it if it exists
+2. **Discover current tools**: Systematically identify all available tools from the GitHub MCP remote server
+3. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes
+4. **Document**: Categorize tools appropriately and create comprehensive documentation
+5. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
+6. **Generate report**: Create the final markdown report including change tracking (if applicable)
+7. **Publish**: Create a GitHub discussion with the complete tools report
