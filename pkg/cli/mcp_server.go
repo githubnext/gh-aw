@@ -220,6 +220,7 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		Branch       string `json:"branch,omitempty" jsonschema:"Filter runs by branch name"`
 		AfterRunID   int64  `json:"after_run_id,omitempty" jsonschema:"Filter runs with database ID after this value (exclusive)"`
 		BeforeRunID  int64  `json:"before_run_id,omitempty" jsonschema:"Filter runs with database ID before this value (exclusive)"`
+		JqFilter     string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "logs",
@@ -253,6 +254,11 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			cmdArgs = append(cmdArgs, "--before-run-id", strconv.FormatInt(args.BeforeRunID, 10))
 		}
 
+		// Add --json flag when jq filter is provided
+		if args.JqFilter != "" {
+			cmdArgs = append(cmdArgs, "--json")
+		}
+
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
 		output, err := cmd.CombinedOutput()
@@ -265,9 +271,23 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			}, nil, nil
 		}
 
+		// Apply jq filter if provided
+		outputStr := string(output)
+		if args.JqFilter != "" {
+			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
+			if err != nil {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+					},
+				}, nil, nil
+			}
+			outputStr = filteredOutput
+		}
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(output)},
+				&mcp.TextContent{Text: outputStr},
 			},
 		}, nil, nil
 	})
