@@ -83,23 +83,6 @@ var removeCmd = &cobra.Command{
 	},
 }
 
-var statusCmd = &cobra.Command{
-	Use:   "status [pattern]",
-	Short: "Show status of natural language action files and workflows",
-	Run: func(cmd *cobra.Command, args []string) {
-		var pattern string
-		if len(args) > 0 {
-			pattern = args[0]
-		}
-		jsonFlag, _ := cmd.Flags().GetBool("json")
-		jqFilter, _ := cmd.Flags().GetString("jq")
-		if err := cli.StatusWorkflows(pattern, verboseFlag, jsonFlag, jqFilter); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
-			os.Exit(1)
-		}
-	},
-}
-
 var enableCmd = &cobra.Command{
 	Use:   "enable [workflow-name]...",
 	Short: "Enable natural language action workflows",
@@ -275,9 +258,8 @@ func init() {
 	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 
-	// Add flags to status command
-	statusCmd.Flags().Bool("json", false, "Output status in JSON format")
-	statusCmd.Flags().String("jq", "", "Apply a jq filter to the JSON output (requires --json or implies --json)")
+	// Create and setup status command
+	statusCmd := cli.NewStatusCommand()
 
 	// Add all commands to root
 	rootCmd.AddCommand(addCmd)

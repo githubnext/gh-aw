@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -24,12 +23,7 @@ type WorkflowStatus struct {
 	TimeRemaining string `json:"time_remaining"`
 }
 
-func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, jqFilter string) error {
-	// If jq filter is provided, imply JSON output
-	if jqFilter != "" {
-		jsonOutput = true
-	}
-
+func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 	if verbose && !jsonOutput {
 		fmt.Printf("Checking status of workflow files\n")
 		if pattern != "" {
@@ -47,7 +41,9 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, jqFilter str
 		if jsonOutput {
 			// Output empty array for JSON
 			output := []WorkflowStatus{}
-			return outputJSON(output, jqFilter)
+			jsonBytes, _ := json.MarshalIndent(output, "", "  ")
+			fmt.Println(string(jsonBytes))
+			return nil
 		}
 		fmt.Println("No workflow files found.")
 		return nil
@@ -129,7 +125,13 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool, jqFilter str
 			})
 		}
 
-		return outputJSON(statuses, jqFilter)
+		// Output JSON
+		jsonBytes, err := json.MarshalIndent(statuses, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+		return nil
 	}
 
 	// Build table for text output
@@ -319,37 +321,4 @@ func extractEngineIDFromFile(filePath string) string {
 	}
 
 	return "copilot" // Default engine
-}
-
-// outputJSON outputs the status data as JSON, optionally piping through jq
-func outputJSON(statuses []WorkflowStatus, jqFilter string) error {
-	// Marshal to JSON
-	jsonBytes, err := json.MarshalIndent(statuses, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	// If no jq filter, just output JSON
-	if jqFilter == "" {
-		fmt.Println(string(jsonBytes))
-		return nil
-	}
-
-	// Check if jq is available
-	jqPath, err := exec.LookPath("jq")
-	if err != nil {
-		return fmt.Errorf("jq not found in PATH. Please install jq or use --json without --jq")
-	}
-
-	// Pipe through jq
-	cmd := exec.Command(jqPath, jqFilter)
-	cmd.Stdin = strings.NewReader(string(jsonBytes))
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("jq filter failed: %w", err)
-	}
-
-	return nil
 }
