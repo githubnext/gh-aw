@@ -16,11 +16,11 @@ import (
 
 // WorkflowStatus represents the status of a single workflow for JSON output
 type WorkflowStatus struct {
-	Workflow      string `json:"workflow"`
-	Agent         string `json:"agent"`
-	Compiled      string `json:"compiled"`
-	Status        string `json:"status"`
-	TimeRemaining string `json:"time_remaining"`
+	Workflow      string `json:"workflow" console:"header:Workflow"`
+	Agent         string `json:"agent" console:"header:Agent"`
+	Compiled      string `json:"compiled" console:"header:Compiled"`
+	Status        string `json:"status" console:"header:Status"`
+	TimeRemaining string `json:"time_remaining" console:"header:Time Remaining"`
 }
 
 func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
@@ -134,9 +134,8 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 		return nil
 	}
 
-	// Build table for text output
-	headers := []string{"Workflow", "Agent", "Compiled", "Status", "Time Remaining"}
-	var rows [][]string
+	// Build status list for text output
+	var statuses []WorkflowStatus
 
 	for _, file := range mdFiles {
 		base := filepath.Base(file)
@@ -181,18 +180,18 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 			}
 		}
 
-		// Build row data
-		row := []string{name, agent, compiled, status, timeRemaining}
-		rows = append(rows, row)
+		// Build status object
+		statuses = append(statuses, WorkflowStatus{
+			Workflow:      name,
+			Agent:         agent,
+			Compiled:      compiled,
+			Status:        status,
+			TimeRemaining: timeRemaining,
+		})
 	}
 
-	// Render the table
-	tableConfig := console.TableConfig{
-		Title:   "",
-		Headers: headers,
-		Rows:    rows,
-	}
-	fmt.Print(console.RenderTable(tableConfig))
+	// Render the table using struct-based rendering
+	fmt.Print(console.RenderStruct(statuses))
 
 	return nil
 }
