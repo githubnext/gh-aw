@@ -242,6 +242,13 @@ function parseCopilotLog(logContent) {
         markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
       }
 
+      // Display premium request consumption if using a premium model
+      const isPremiumModel =
+        initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+      if (isPremiumModel && lastEntry.num_turns) {
+        markdown += `**Premium Requests Consumed:** ${lastEntry.num_turns}\n\n`;
+      }
+
       if (lastEntry.usage) {
         const usage = lastEntry.usage;
         if (usage.input_tokens || usage.output_tokens) {
