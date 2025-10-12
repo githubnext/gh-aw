@@ -28,11 +28,12 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				Token:       "",
 			},
 			expectedInSteps: []string{
+				"- name: Download agent output artifact",
+				"uses: actions/download-artifact@v5",
+				"name: ${{ needs.main_job.outputs.output-artifact }}",
 				"- name: Test Step",
 				"id: test_step",
 				"uses: actions/github-script@v8",
-				"env:",
-				"GITHUB_AW_AGENT_OUTPUT: ${{ needs.main_job.outputs.output }}",
 				"with:",
 				"script: |",
 				"console.log('test');",
@@ -55,10 +56,13 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				Token:  "",
 			},
 			expectedInSteps: []string{
+				"- name: Download agent output artifact",
+				"uses: actions/download-artifact@v5",
+				"name: ${{ needs.agent.outputs.output-artifact }}",
 				"- name: Create Issue",
 				"id: create_issue",
 				"uses: actions/github-script@v8",
-				"GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
+				"env:",
 				"GITHUB_AW_ISSUE_TITLE_PREFIX: \"[bot] \"",
 				"GITHUB_AW_ISSUE_LABELS: \"automation,ai\"",
 				"const issue = true;",
@@ -83,9 +87,12 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				Token:       "",
 			},
 			expectedInSteps: []string{
+				"- name: Download agent output artifact",
+				"uses: actions/download-artifact@v5",
+				"name: ${{ needs.main.outputs.output-artifact }}",
 				"- name: Process Output",
 				"id: process",
-				"GITHUB_AW_AGENT_OUTPUT: ${{ needs.main.outputs.output }}",
+				"env:",
 				"CUSTOM_VAR_1: value1",
 				"CUSTOM_VAR_2: value2",
 			},
@@ -103,6 +110,9 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 				Token:       "${{ secrets.CUSTOM_TOKEN }}",
 			},
 			expectedInSteps: []string{
+				"- name: Download agent output artifact",
+				"uses: actions/download-artifact@v5",
+				"name: ${{ needs.main.outputs.output-artifact }}",
 				"- name: Secure Action",
 				"id: secure",
 				"with:",
@@ -135,11 +145,12 @@ func TestBuildGitHubScriptStep(t *testing.T) {
 			if !strings.Contains(stepsStr, "uses: actions/github-script@v8") {
 				t.Error("Expected step to use actions/github-script@v8")
 			}
-			if !strings.Contains(stepsStr, "env:") {
-				t.Error("Expected step to have 'env:' section")
-			}
 			if !strings.Contains(stepsStr, "with:") {
 				t.Error("Expected step to have 'with:' section")
+			}
+			// Note: env: section is now optional based on config
+			if !strings.Contains(stepsStr, "uses: actions/download-artifact@v5") {
+				t.Error("Expected step to download agent output artifact")
 			}
 			if !strings.Contains(stepsStr, "script: |") {
 				t.Error("Expected step to have 'script: |' section")
@@ -174,14 +185,15 @@ func TestBuildGitHubScriptStepMaintainsOrder(t *testing.T) {
 	steps := compiler.buildGitHubScriptStep(workflowData, config)
 	stepsStr := strings.Join(steps, "")
 
-	// Verify GITHUB_AW_AGENT_OUTPUT comes first (after env: line)
-	agentOutputIdx := strings.Index(stepsStr, "GITHUB_AW_AGENT_OUTPUT")
+	// Verify artifact download step is present
+	if !strings.Contains(stepsStr, "Download agent output artifact") {
+		t.Error("Download agent output artifact step not found in output")
+	}
+
+	// Verify environment variables are in order (custom vars before safe-outputs.env vars)
 	customVarIdx := strings.Index(stepsStr, "CUSTOM_VAR")
 	safeOutputVarIdx := strings.Index(stepsStr, "SAFE_OUTPUT_VAR")
 
-	if agentOutputIdx == -1 {
-		t.Error("GITHUB_AW_AGENT_OUTPUT not found in output")
-	}
 	if customVarIdx == -1 {
 		t.Error("CUSTOM_VAR not found in output")
 	}
@@ -189,10 +201,7 @@ func TestBuildGitHubScriptStepMaintainsOrder(t *testing.T) {
 		t.Error("SAFE_OUTPUT_VAR not found in output")
 	}
 
-	// Verify order: GITHUB_AW_AGENT_OUTPUT -> custom vars -> safe-outputs.env vars
-	if agentOutputIdx > customVarIdx {
-		t.Error("GITHUB_AW_AGENT_OUTPUT should come before custom vars")
-	}
+	// Verify order: custom vars -> safe-outputs.env vars
 	if customVarIdx > safeOutputVarIdx {
 		t.Error("Custom vars should come before safe-outputs.env vars")
 	}

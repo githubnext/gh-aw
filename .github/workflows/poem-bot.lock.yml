@@ -2400,7 +2400,7 @@ jobs:
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 core.error(`Failed to write agent output file: ${errorMsg}`);
               }
-              core.setOutput("output", JSON.stringify(validatedOutput));
+              core.setOutput("output-artifact", "agent_output.json");
               core.setOutput("raw_output", outputContent);
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
@@ -3508,7 +3508,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
-          name: agent_output.json
+          name: ${{ needs.agent.outputs.output-artifact }}
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
@@ -3518,10 +3518,10 @@ jobs:
           path: /tmp/gh-aw/threat-detection/
       - name: Echo agent outputs
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_OUTPUT_ARTIFACT: ${{ needs.agent.outputs.output-artifact }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
+          echo "Agent output artifact: $AGENT_OUTPUT_ARTIFACT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
@@ -3687,11 +3687,16 @@ jobs:
       issue_number: ${{ steps.create_issue.outputs.issue_number }}
       issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
           GITHUB_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
@@ -3722,9 +3727,17 @@ jobs:
             }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+              const fs = require("fs");
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              let outputContent;
+              try {
+                if (!fs.existsSync(agentOutputPath)) {
+                  core.info("No agent output artifact file found");
+                  return;
+                }
+                outputContent = fs.readFileSync(agentOutputPath, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {
@@ -3943,11 +3956,16 @@ jobs:
         run: |
           echo "Output: $AGENT_OUTPUT"
           echo "Output types: $AGENT_OUTPUT_TYPES"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_COMMENT_TARGET: "*"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -4003,9 +4021,17 @@ jobs:
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+              const fs = require("fs");
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              let outputContent;
+              try {
+                if (!fs.existsSync(agentOutputPath)) {
+                  core.info("No agent output artifact file found");
+                  return;
+                }
+                outputContent = fs.readFileSync(agentOutputPath, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {
@@ -4213,11 +4239,16 @@ jobs:
       review_comment_id: ${{ steps.create_pr_review_comment.outputs.review_comment_id }}
       review_comment_url: ${{ steps.create_pr_review_comment.outputs.review_comment_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Create PR Review Comment
         id: create_pr_review_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -4245,9 +4276,17 @@ jobs:
                   return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
                 }
               }
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+              const fs = require("fs");
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              let outputContent;
+              try {
+                if (!fs.existsSync(agentOutputPath)) {
+                  core.info("No agent output artifact file found");
+                  return;
+                }
+                outputContent = fs.readFileSync(agentOutputPath, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {
@@ -4491,11 +4530,16 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_ID: "agent"
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
@@ -4538,7 +4582,15 @@ jobs:
               if (!baseBranch) {
                 throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
               }
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              let outputContent = "";
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              try {
+                if (fs.existsSync(agentOutputPath)) {
+                  outputContent = fs.readFileSync(agentOutputPath, "utf8");
+                }
+              } catch (error) {
+                core.warning(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
               }
@@ -4915,11 +4967,16 @@ jobs:
     outputs:
       labels_added: ${{ steps.add_labels.outputs.labels_added }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Add Labels
         id: add_labels
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,epic,haiku,sonnet,limerick"
           GITHUB_AW_LABELS_MAX_COUNT: 5
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -4940,9 +4997,17 @@ jobs:
               return sanitized.trim();
             }
             async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+              const fs = require("fs");
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              let outputContent;
+              try {
+                if (!fs.existsSync(agentOutputPath)) {
+                  core.info("No agent output artifact file found");
+                  return;
+                }
+                outputContent = fs.readFileSync(agentOutputPath, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {
@@ -5137,11 +5202,16 @@ jobs:
       issue_number: ${{ steps.update_issue.outputs.issue_number }}
       issue_url: ${{ steps.update_issue.outputs.issue_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Update Issue
         id: update_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_UPDATE_STATUS: true
           GITHUB_AW_UPDATE_TITLE: true
           GITHUB_AW_UPDATE_BODY: true
@@ -5151,9 +5221,17 @@ jobs:
           script: |
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+              const fs = require("fs");
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              let outputContent;
+              try {
+                if (!fs.existsSync(agentOutputPath)) {
+                  core.info("No agent output artifact file found");
+                  return;
+                }
+                outputContent = fs.readFileSync(agentOutputPath, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {
@@ -5365,7 +5443,15 @@ jobs:
             const fs = require("fs");
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              let outputContent = "";
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              try {
+                if (fs.existsSync(agentOutputPath)) {
+                  outputContent = fs.readFileSync(agentOutputPath, "utf8");
+                }
+              } catch (error) {
+                core.warning(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+              }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
                 return;
@@ -5626,16 +5712,28 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
         with:
           script: |
             async function main() {
               const fs = require("fs");
-              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              let agentOutput = "";
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              try {
+                if (fs.existsSync(agentOutputPath)) {
+                  agentOutput = fs.readFileSync(agentOutputPath, "utf8");
+                }
+              } catch (error) {
+                core.warning(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+              }
               const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
               core.info("Processing missing-tool reports...");
               core.info(`Agent output length: ${agentOutput.length}`);
@@ -5775,11 +5873,18 @@ jobs:
                 return;
               }
               core.info(`Using assets branch: ${branchName}`);
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+              let outputContent;
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              try {
+                if (!fs.existsSync(agentOutputPath)) {
+                  core.info("No agent output artifact file found");
+                  core.setOutput("upload_count", "0");
+                  core.setOutput("branch_name", branchName);
+                  return;
+                }
+                outputContent = fs.readFileSync(agentOutputPath, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {

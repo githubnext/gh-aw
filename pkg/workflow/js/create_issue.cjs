@@ -34,11 +34,23 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL)
 
 async function main() {
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputContent) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+  
+  // Read the validated output content from the downloaded artifact file
+  const fs = require("fs");
+  const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+  
+  let outputContent;
+  try {
+    if (!fs.existsSync(agentOutputPath)) {
+      core.info("No agent output artifact file found");
+      return;
+    }
+    outputContent = fs.readFileSync(agentOutputPath, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
+  
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     return;

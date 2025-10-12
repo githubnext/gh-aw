@@ -5,8 +5,17 @@ async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
-  // Environment validation - fail early if required variables are missing
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  // Read the validated output content from the downloaded artifact file
+  let outputContent = "";
+  const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+  try {
+    if (fs.existsSync(agentOutputPath)) {
+      outputContent = fs.readFileSync(agentOutputPath, "utf8");
+    }
+  } catch (error) {
+    core.warning(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     return;

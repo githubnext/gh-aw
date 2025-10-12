@@ -729,7 +729,8 @@ async function main() {
     const errorMsg = error instanceof Error ? error.message : String(error);
     core.error(`Failed to write agent output file: ${errorMsg}`);
   }
-  core.setOutput("output", JSON.stringify(validatedOutput));
+  // Set output-artifact to reference the artifact name instead of large output content
+  core.setOutput("output-artifact", "agent_output.json");
   core.setOutput("raw_output", outputContent);
   const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
   core.info(`output_types: ${outputTypes.join(", ")}`);

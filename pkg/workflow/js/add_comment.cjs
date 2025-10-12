@@ -79,10 +79,19 @@ async function main() {
   // Check if we're targeting discussions
   const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
 
-  // Read the validated output content from environment variable
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputContent) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+  // Read the validated output content from the downloaded artifact file
+  const fs = require("fs");
+  const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+  
+  let outputContent;
+  try {
+    if (!fs.existsSync(agentOutputPath)) {
+      core.info("No agent output artifact file found");
+      return;
+    }
+    outputContent = fs.readFileSync(agentOutputPath, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 

@@ -252,13 +252,13 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		// Build job steps
 		var steps []string
 
-		// Add step to download agent output artifact
+		// Add step to download agent output artifact using the output-artifact reference
 		steps = append(steps, "      - name: Download agent output artifact\n")
 		steps = append(steps, "        continue-on-error: true\n")
 		steps = append(steps, "        uses: actions/download-artifact@v5\n")
 		steps = append(steps, "        with:\n")
-		steps = append(steps, fmt.Sprintf("          name: %s\n", constants.AgentOutputArtifactName))
-		steps = append(steps, "          path: /tmp/gh-aw/sh-aw/safe-jobs/\n")
+		steps = append(steps, fmt.Sprintf("          name: ${{ needs.%s.outputs.output-artifact }}\n", constants.AgentJobName))
+		steps = append(steps, "          path: /tmp/gh-aw/safe-jobs/\n")
 
 		// Add environment variables step
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")

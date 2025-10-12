@@ -1898,7 +1898,7 @@ jobs:
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 core.error(`Failed to write agent output file: ${errorMsg}`);
               }
-              core.setOutput("output", JSON.stringify(validatedOutput));
+              core.setOutput("output-artifact", "agent_output.json");
               core.setOutput("raw_output", outputContent);
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
@@ -2912,7 +2912,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
-          name: agent_output.json
+          name: ${{ needs.agent.outputs.output-artifact }}
           path: /tmp/gh-aw/threat-detection/
       - name: Download patch artifact
         continue-on-error: true
@@ -2922,10 +2922,10 @@ jobs:
           path: /tmp/gh-aw/threat-detection/
       - name: Echo agent outputs
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_OUTPUT_ARTIFACT: ${{ needs.agent.outputs.output-artifact }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
+          echo "Agent output artifact: $AGENT_OUTPUT_ARTIFACT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
@@ -3091,19 +3091,32 @@ jobs:
       discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Create Output Discussion
         id: create_discussion
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Daily News"
           GITHUB_AW_DISCUSSION_CATEGORY: "daily-news"
         with:
           script: |
             async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+              const fs = require("fs");
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              let outputContent;
+              try {
+                if (!fs.existsSync(agentOutputPath)) {
+                  core.info("No agent output artifact file found");
+                  return;
+                }
+                outputContent = fs.readFileSync(agentOutputPath, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {
@@ -3317,16 +3330,28 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-outputs/
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
         with:
           script: |
             async function main() {
               const fs = require("fs");
-              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              let agentOutput = "";
+              const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+              try {
+                if (fs.existsSync(agentOutputPath)) {
+                  agentOutput = fs.readFileSync(agentOutputPath, "utf8");
+                }
+              } catch (error) {
+                core.warning(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+              }
               const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
               core.info("Processing missing-tool reports...");
               core.info(`Agent output length: ${agentOutput.length}`);

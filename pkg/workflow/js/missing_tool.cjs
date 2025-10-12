@@ -1,8 +1,17 @@
 async function main() {
   const fs = require("fs");
 
-  // Get environment variables
-  const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  // Read the validated output content from the downloaded artifact file
+  let agentOutput = "";
+  const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+  try {
+    if (fs.existsSync(agentOutputPath)) {
+      agentOutput = fs.readFileSync(agentOutputPath, "utf8");
+    }
+  } catch (error) {
+    core.warning(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  
   const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
 
   core.info("Processing missing-tool reports...");

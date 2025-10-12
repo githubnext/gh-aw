@@ -14,14 +14,22 @@ async function main() {
   }
   core.info(`Using assets branch: ${branchName}`);
 
-  // Read the validated output content from environment variable
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputContent) {
-    core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-    core.setOutput("upload_count", "0");
-    core.setOutput("branch_name", branchName);
+  // Read the validated output content from the downloaded artifact file
+  let outputContent;
+  const agentOutputPath = "/tmp/gh-aw/safe-outputs/agent_output.json";
+  try {
+    if (!fs.existsSync(agentOutputPath)) {
+      core.info("No agent output artifact file found");
+      core.setOutput("upload_count", "0");
+      core.setOutput("branch_name", branchName);
+      return;
+    }
+    outputContent = fs.readFileSync(agentOutputPath, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
+  
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     core.setOutput("upload_count", "0");

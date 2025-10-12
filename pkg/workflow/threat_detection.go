@@ -135,7 +135,7 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 		"        continue-on-error: true\n",
 		"        uses: actions/download-artifact@v5\n",
 		"        with:\n",
-		"          name: agent_output.json\n",
+		fmt.Sprintf("          name: ${{ needs.%s.outputs.output-artifact }}\n", constants.AgentJobName),
 		"          path: /tmp/gh-aw/threat-detection/\n",
 		"      - name: Download patch artifact\n",
 		"        continue-on-error: true\n",
@@ -151,10 +151,10 @@ func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 	return []string{
 		"      - name: Echo agent outputs\n",
 		"        env:\n",
-		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
 		fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName),
+		fmt.Sprintf("          AGENT_OUTPUT_ARTIFACT: ${{ needs.%s.outputs.output-artifact }}\n", mainJobName),
 		"        run: |\n",
-		"          echo \"Agent output: $AGENT_OUTPUT\"\n",
+		"          echo \"Agent output artifact: $AGENT_OUTPUT_ARTIFACT\"\n",
 		"          echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"\n",
 	}
 }

@@ -624,10 +624,10 @@ func TestEchoAgentOutputsStep(t *testing.T) {
 	expectedComponents := []string{
 		"name: Echo agent outputs",
 		"env:",
-		"AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
+		"AGENT_OUTPUT_ARTIFACT: ${{ needs.agent.outputs.output-artifact }}",
 		"AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}",
 		"run: |",
-		"echo \"Agent output: $AGENT_OUTPUT\"",
+		"echo \"Agent output artifact: $AGENT_OUTPUT_ARTIFACT\"",
 		"echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"",
 	}
 
@@ -663,9 +663,9 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 		t.Error("Expected threat detection steps to include echo agent outputs step")
 	}
 
-	// Verify it echoes both outputs
-	if !strings.Contains(stepsString, "needs.agent.outputs.output") {
-		t.Error("Expected echo step to reference needs.agent.outputs.output")
+	// Verify it echoes output-artifact
+	if !strings.Contains(stepsString, "needs.agent.outputs.output-artifact") {
+		t.Error("Expected echo step to reference needs.agent.outputs.output-artifact")
 	}
 
 	if !strings.Contains(stepsString, "needs.agent.outputs.output_types") {

@@ -2180,7 +2180,7 @@ jobs:
                 const errorMsg = error instanceof Error ? error.message : String(error);
                 core.error(`Failed to write agent output file: ${errorMsg}`);
               }
-              core.setOutput("output", JSON.stringify(validatedOutput));
+              core.setOutput("output-artifact", "agent_output.json");
               core.setOutput("raw_output", outputContent);
               const outputTypes = Array.from(new Set(parsedItems.map(item => item.type)));
               core.info(`output_types: ${outputTypes.join(", ")}`);
@@ -2817,8 +2817,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
-          name: agent_output.json
-          path: /tmp/gh-aw/sh-aw/safe-jobs/
+          name: ${{ needs.agent.outputs.output-artifact }}
+          path: /tmp/gh-aw/safe-jobs/
       - name: Setup Safe Job Environment Variables
         run: |
           echo "Setting up environment for safe job"

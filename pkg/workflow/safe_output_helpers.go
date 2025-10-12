@@ -29,22 +29,29 @@ type GitHubScriptStepConfig struct {
 func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
 	var steps []string
 
+	// Add step to download agent output artifact
+	steps = append(steps, "      - name: Download agent output artifact\n")
+	steps = append(steps, "        continue-on-error: true\n")
+	steps = append(steps, "        uses: actions/download-artifact@v5\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          name: ${{ needs.%s.outputs.output-artifact }}\n", config.MainJobName))
+	steps = append(steps, "          path: /tmp/gh-aw/safe-outputs/\n")
+
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
-	// Environment variables section
-	steps = append(steps, "        env:\n")
+	// Environment variables section - only add if there are custom env vars
+	if len(config.CustomEnvVars) > 0 || (data.SafeOutputs != nil && len(data.SafeOutputs.Env) > 0) {
+		steps = append(steps, "        env:\n")
 
-	// Always add the agent output from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", config.MainJobName))
+		// Add custom environment variables specific to this safe output type
+		steps = append(steps, config.CustomEnvVars...)
 
-	// Add custom environment variables specific to this safe output type
-	steps = append(steps, config.CustomEnvVars...)
-
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
+		// Add custom environment variables from safe-outputs.env
+		c.addCustomSafeOutputEnvVars(&steps, data)
+	}
 
 	// With section for github-token
 	steps = append(steps, "        with:\n")
