@@ -785,18 +785,3 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRef string, verb
 
 	return mergedStr, hasConflicts, nil
 }
-
-// updateSourceFieldInContent updates the source field in workflow content
-func updateSourceFieldInContent(content, oldSourceSpec, newRef string) (string, error) {
-	// Parse the old source spec to construct the new one
-	sourceSpec, err := parseSourceSpec(oldSourceSpec)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse source spec: %w", err)
-	}
-
-	// Update with new ref
-	newSourceSpec := fmt.Sprintf("%s/%s@%s", sourceSpec.Repo, sourceSpec.Path, newRef)
-
-	// Use shared frontmatter updating logic that preserves formatting
-	return UpdateFieldInFrontmatter(content, "source", newSourceSpec)
-}
