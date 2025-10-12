@@ -37,12 +37,14 @@ When invoked with the `/q` command in an issue or pull request comment, analyze 
 4. **Extracting common patterns** and generating reusable workflow steps
 5. **Creating a pull request** with optimized workflow configurations
 
+<current_context>
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Triggering Content**: "${{ needs.activation.outputs.text }}"
 - **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}
 - **Triggered by**: @${{ github.actor }}
+</current_context>
 
 ## Investigation Protocol
 
@@ -186,19 +188,24 @@ General optimizations:
 
 ### Phase 6: Create Pull Request
 
-Create a pull request with your improvements:
+Create a pull request with your improvements using the safe-outputs MCP server:
 
-1. **Ignore Lock Files**: DO NOT include .lock.yml files in your changes
+1. **Use Safe-Outputs for PR Creation**:
+   - Use the `create-pull-request` tool from the safe-outputs MCP server
+   - This is automatically configured in the workflow frontmatter
+   - The PR will be created with the prefix "[q]" and labeled with "automation, workflow-optimization"
+
+2. **Ignore Lock Files**: DO NOT include .lock.yml files in your changes
    - Let the copilot agent compile them later
    - Only modify .md workflow files
    - The compilation will happen automatically after PR merge
 
-2. **Create Focused Changes**: Make minimal, surgical modifications
+3. **Create Focused Changes**: Make minimal, surgical modifications
    - Only change what's necessary to fix identified issues
    - Preserve existing working configurations
    - Keep changes well-documented
 
-3. **PR Structure**: Include in your pull request:
+4. **PR Structure**: Include in your pull request:
    - **Title**: Clear description of improvements (will be prefixed with "[q]")
    - **Description**: 
      - Summary of issues found from live data
