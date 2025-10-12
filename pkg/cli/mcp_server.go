@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -288,18 +289,55 @@ func createMCPServer(cmdPath string) *mcp.Server {
 	return server
 }
 
+// responseWriter wraps http.ResponseWriter to capture the status code.
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func loggingHandler(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		// Create a response writer wrapper to capture status code.
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		// Log request details.
+		log.Printf("[REQUEST] %s | %s | %s %s",
+			start.Format(time.RFC3339),
+			r.RemoteAddr,
+			r.Method,
+			r.URL.Path)
+
+		// Call the actual handler.
+		handler.ServeHTTP(wrapped, r)
+
+		// Log response details.
+		duration := time.Since(start)
+		log.Printf("[RESPONSE] %s | %s | %s %s | Status: %d | Duration: %v",
+			time.Now().Format(time.RFC3339),
+			r.RemoteAddr,
+			r.Method,
+			r.URL.Path,
+			wrapped.statusCode,
+			duration)
+	})
+}
+
 // runHTTPServer runs the MCP server with HTTP/SSE transport
 func runHTTPServer(server *mcp.Server, port int) error {
-	// Create SSE handler
-	handler := mcp.NewSSEHandler(func(*http.Request) *mcp.Server {
+	// Create the streamable HTTP handler.
+	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return server
-	})
+	}, nil)
+
+	handlerWithLogging := loggingHandler(handler)
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", port)
 	httpServer := &http.Server{
 		Addr:    addr,
-		Handler: handler,
+		Handler: handlerWithLogging,
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Starting MCP server on http://localhost%s", addr)))
