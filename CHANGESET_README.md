@@ -12,7 +12,7 @@ make changeset-version
 
 # Create release and update CHANGELOG
 node scripts/changeset.js release
-# Or use make target
+# Or use make target (recommended - runs tests first)
 make changeset-release
 
 # Create specific release type
@@ -20,6 +20,8 @@ node scripts/changeset.js release patch
 node scripts/changeset.js release minor
 node scripts/changeset.js release major
 ```
+
+**Note:** Using `make changeset-release` is recommended as it automatically runs tests before creating the release, ensuring code quality.
 
 ## Commands
 

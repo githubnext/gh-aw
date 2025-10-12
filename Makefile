@@ -188,7 +188,7 @@ changeset-version:
 	@node scripts/changeset.js version
 
 .PHONY: changeset-release
-changeset-release:
+changeset-release: test
 	@node scripts/changeset.js release
 
 # Agent should run this task before finishing its turns
@@ -223,5 +223,5 @@ help:
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  changeset-version   - Preview next version from changesets"
-	@echo "  changeset-release   - Create release using changesets"
+	@echo "  changeset-release   - Create release using changesets (depends on test)"
 	@echo "  help             - Show this help message"
