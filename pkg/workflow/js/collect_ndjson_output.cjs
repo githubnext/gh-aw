@@ -1,6 +1,7 @@
 async function main() {
   const fs = require("fs");
-  function sanitizeContent(content) {
+  const maxBodyLength = 16384;
+  function sanitizeContent(content, maxLength) {
     if (!content || typeof content !== "string") {
       return "";
     }
@@ -19,7 +20,7 @@ async function main() {
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
     sanitized = sanitizeUrlProtocols(sanitized);
     sanitized = sanitizeUrlDomains(sanitized);
-    const maxLength = 524288;
+    maxLength = maxLength || 524288;
     if (sanitized.length > maxLength) {
       sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
     }
@@ -418,10 +419,10 @@ async function main() {
             errors.push(`Line ${i + 1}: create_issue requires a 'body' string field`);
             continue;
           }
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
+          item.title = sanitizeContent(item.title, 128);
+          item.body = sanitizeContent(item.body, maxBodyLength);
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
+            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128) : label));
           }
           // Validate parent field if provided
           if (item.parent !== undefined) {
@@ -445,7 +446,7 @@ async function main() {
               continue;
             }
           }
-          item.body = sanitizeContent(item.body);
+          item.body = sanitizeContent(item.body, maxBodyLength);
           break;
         case "create-pull-request":
           if (!item.title || typeof item.title !== "string") {
@@ -460,11 +461,11 @@ async function main() {
             errors.push(`Line ${i + 1}: create_pull_request requires a 'branch' string field`);
             continue;
           }
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
-          item.branch = sanitizeContent(item.branch);
+          item.title = sanitizeContent(item.title, 128);
+          item.body = sanitizeContent(item.body, maxBodyLength);
+          item.branch = sanitizeContent(item.branch, 256);
           if (item.labels && Array.isArray(item.labels)) {
-            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label) : label));
+            item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128) : label));
           }
           break;
         case "add-labels":
@@ -481,7 +482,7 @@ async function main() {
             if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
             continue;
           }
-          item.labels = item.labels.map(label => sanitizeContent(label));
+          item.labels = item.labels.map(label => sanitizeContent(label, 128));
           break;
         case "update-issue":
           const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
@@ -500,14 +501,14 @@ async function main() {
               errors.push(`Line ${i + 1}: update-issue 'title' must be a string`);
               continue;
             }
-            item.title = sanitizeContent(item.title);
+            item.title = sanitizeContent(item.title, 128);
           }
           if (item.body !== undefined) {
             if (typeof item.body !== "string") {
               errors.push(`Line ${i + 1}: update-issue 'body' must be a string`);
               continue;
             }
-            item.body = sanitizeContent(item.body);
+            item.body = sanitizeContent(item.body, maxBodyLength);
           }
           const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update-issue 'issue_number'", i + 1);
           if (!updateIssueNumValidation.isValid) {
@@ -524,8 +525,8 @@ async function main() {
             errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'message' string field`);
             continue;
           }
-          item.branch = sanitizeContent(item.branch);
-          item.message = sanitizeContent(item.message);
+          item.branch = sanitizeContent(item.branch, 256);
+          item.message = sanitizeContent(item.message, maxBodyLength);
           const pushPRNumValidation = validateIssueOrPRNumber(
             item.pull_request_number,
             "push-to-pull-request-branch 'pull_request_number'",
@@ -551,7 +552,7 @@ async function main() {
             errors.push(`Line ${i + 1}: create-pull-request-review-comment requires a 'body' string field`);
             continue;
           }
-          item.body = sanitizeContent(item.body);
+          item.body = sanitizeContent(item.body, maxBodyLength);
           const startLineValidation = validateOptionalPositiveInteger(
             item.start_line,
             "create-pull-request-review-comment 'start_line'",
@@ -590,10 +591,10 @@ async function main() {
               errors.push(`Line ${i + 1}: create_discussion 'category' must be a string`);
               continue;
             }
-            item.category = sanitizeContent(item.category);
+            item.category = sanitizeContent(item.category, 128);
           }
-          item.title = sanitizeContent(item.title);
-          item.body = sanitizeContent(item.body);
+          item.title = sanitizeContent(item.title, 128);
+          item.body = sanitizeContent(item.body, maxBodyLength);
           break;
         case "missing-tool":
           if (!item.tool || typeof item.tool !== "string") {
@@ -604,14 +605,14 @@ async function main() {
             errors.push(`Line ${i + 1}: missing_tool requires a 'reason' string field`);
             continue;
           }
-          item.tool = sanitizeContent(item.tool);
-          item.reason = sanitizeContent(item.reason);
+          item.tool = sanitizeContent(item.tool, 128);
+          item.reason = sanitizeContent(item.reason, 256);
           if (item.alternatives !== undefined) {
             if (typeof item.alternatives !== "string") {
               errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
               continue;
             }
-            item.alternatives = sanitizeContent(item.alternatives);
+            item.alternatives = sanitizeContent(item.alternatives, 512);
           }
           break;
         case "upload-asset":
@@ -665,11 +666,11 @@ async function main() {
             }
           }
           item.severity = item.severity.toLowerCase();
-          item.file = sanitizeContent(item.file);
-          item.severity = sanitizeContent(item.severity);
-          item.message = sanitizeContent(item.message);
+          item.file = sanitizeContent(item.file, 512);
+          item.severity = sanitizeContent(item.severity, 64);
+          item.message = sanitizeContent(item.message, 2048);
           if (item.ruleIdSuffix) {
-            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix);
+            item.ruleIdSuffix = sanitizeContent(item.ruleIdSuffix, 128);
           }
           break;
         default:

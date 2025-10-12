@@ -559,11 +559,11 @@ const ALL_TOOLS = [
       type: "object",
       required: ["tool", "reason"],
       properties: {
-        tool: { type: "string", description: "Name of the missing tool" },
-        reason: { type: "string", description: "Why this tool is needed" },
+        tool: { type: "string", description: "Name of the missing tool (max 128 characters)" },
+        reason: { type: "string", description: "Why this tool is needed (max 256 characters)" },
         alternatives: {
           type: "string",
-          description: "Possible alternatives or workarounds",
+          description: "Possible alternatives or workarounds (max 256 characters)",
         },
       },
       additionalProperties: false,
