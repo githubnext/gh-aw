@@ -301,7 +301,8 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 		{
 			name: "add-comment",
 			args: map[string]any{
-				"body": "This is a comment",
+				"body":        "This is a comment",
+				"item_number": 1,
 			},
 			expectedType: "add-comment",
 		},

@@ -975,13 +975,13 @@ describe("add_labels.cjs", () => {
       });
     });
 
-    it("should use issue_number from labels item when target is '*'", async () => {
+    it("should use item_number from labels item when target is '*'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
             type: "add-labels",
             labels: ["documentation"],
-            issue_number: 555,
+            item_number: 555,
           },
         ],
       });
@@ -1005,7 +1005,7 @@ describe("add_labels.cjs", () => {
       });
     });
 
-    it("should fail when target is '*' but no issue_number in labels item", async () => {
+    it("should fail when target is '*' but no item_number in labels item", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
@@ -1019,7 +1019,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Target is "*" but no issue_number specified in labels item');
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Target is "*" but no item_number specified in labels item');
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
 
@@ -1047,7 +1047,7 @@ describe("add_labels.cjs", () => {
           {
             type: "add-labels",
             labels: ["bug"],
-            issue_number: -5,
+            item_number: -5,
           },
         ],
       });
@@ -1056,7 +1056,7 @@ describe("add_labels.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${addLabelsScript} })()`);
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid issue number specified: -5");
+      expect(mockCore.setFailed).toHaveBeenCalledWith("Invalid item_number specified: -5");
       expect(mockGithub.rest.issues.addLabels).not.toHaveBeenCalled();
     });
   });

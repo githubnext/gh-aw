@@ -604,20 +604,12 @@ jobs:
                 description: "Add a comment to a GitHub issue, pull request, or discussion",
                 inputSchema: {
                   type: "object",
-                  required: ["body"],
+                  required: ["body", "item_number"],
                   properties: {
                     body: { type: "string", description: "Comment body/content" },
-                    issue_number: {
+                    item_number: {
                       type: "number",
-                      description: "Issue number (optional for current context)",
-                    },
-                    pull_number: {
-                      type: "number",
-                      description: "Pull request number (optional, alternative to issue_number)",
-                    },
-                    discussion_number: {
-                      type: "number",
-                      description: "Discussion number for discussion comments (optional, alternative to issue_number)",
+                      description: "Issue, pull request or discussion number",
                     },
                   },
                   additionalProperties: false,
@@ -727,7 +719,7 @@ jobs:
                       items: { type: "string" },
                       description: "Labels to add",
                     },
-                    issue_number: {
+                    item_number: {
                       type: "number",
                       description: "Issue or PR number (optional for current context)",
                     },
@@ -1819,24 +1811,10 @@ jobs:
                         errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
                         continue;
                       }
-                      if (item.issue_number !== undefined) {
-                        const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-                        if (!issueNumValidation.isValid) {
-                          if (issueNumValidation.error) errors.push(issueNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.discussion_number !== undefined) {
-                        const discussionNumValidation = validateIssueOrPRNumber(item.discussion_number, "add_comment 'discussion_number'", i + 1);
-                        if (!discussionNumValidation.isValid) {
-                          if (discussionNumValidation.error) errors.push(discussionNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.pull_number !== undefined) {
-                        const pullNumValidation = validateIssueOrPRNumber(item.pull_number, "add_comment 'pull_number'", i + 1);
-                        if (!pullNumValidation.isValid) {
-                          if (pullNumValidation.error) errors.push(pullNumValidation.error);
+                      if (item.item_number !== undefined) {
+                        const itemNumberValidation = validateIssueOrPRNumber(item.item_number, "add_comment 'item_number'", i + 1);
+                        if (!itemNumberValidation.isValid) {
+                          if (itemNumberValidation.error) errors.push(itemNumberValidation.error);
                           continue;
                         }
                       }
@@ -1871,9 +1849,9 @@ jobs:
                         errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                       }
-                      const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
-                      if (!labelsIssueNumValidation.isValid) {
-                        if (labelsIssueNumValidation.error) errors.push(labelsIssueNumValidation.error);
+                      const labelsItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add-labels 'item_number'", i + 1);
+                      if (!labelsItemNumberValidation.isValid) {
+                        if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
                         continue;
                       }
                       item.labels = item.labels.map(label => sanitizeContent(label));
@@ -2639,6 +2617,19 @@ jobs:
                 throw new Error(`Failed to parse GITHUB_AW_ERROR_PATTERNS as JSON: ${e instanceof Error ? e.message : String(e)}`);
               }
             }
+            function shouldSkipLine(line) {
+              const GITHUB_ACTIONS_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/;
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "GITHUB_AW_ERROR_PATTERNS:").test(line)) {
+                return true;
+              }
+              if (/^\s+GITHUB_AW_ERROR_PATTERNS:\s*\[/.test(line)) {
+                return true;
+              }
+              if (new RegExp(GITHUB_ACTIONS_TIMESTAMP.source + "env:").test(line)) {
+                return true;
+              }
+              return false;
+            }
             function validateErrors(logContent, patterns) {
               const lines = logContent.split("\n");
               let hasErrors = false;
@@ -2657,6 +2648,9 @@ jobs:
                 }
                 for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
                   const line = lines[lineIndex];
+                  if (shouldSkipLine(line)) {
+                    continue;
+                  }
                   let match;
                   let iterationCount = 0;
                   let lastIndex = -1;
@@ -2728,6 +2722,7 @@ jobs:
                 extractMessage,
                 getErrorPatternsFromEnv,
                 truncateString,
+                shouldSkipLine,
               };
             }
             if (typeof module === "undefined" || require.main === module) {

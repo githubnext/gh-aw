@@ -468,20 +468,12 @@ jobs:
                 description: "Add a comment to a GitHub issue, pull request, or discussion",
                 inputSchema: {
                   type: "object",
-                  required: ["body"],
+                  required: ["body", "item_number"],
                   properties: {
                     body: { type: "string", description: "Comment body/content" },
-                    issue_number: {
+                    item_number: {
                       type: "number",
-                      description: "Issue number (optional for current context)",
-                    },
-                    pull_number: {
-                      type: "number",
-                      description: "Pull request number (optional, alternative to issue_number)",
-                    },
-                    discussion_number: {
-                      type: "number",
-                      description: "Discussion number for discussion comments (optional, alternative to issue_number)",
+                      description: "Issue, pull request or discussion number",
                     },
                   },
                   additionalProperties: false,
@@ -591,7 +583,7 @@ jobs:
                       items: { type: "string" },
                       description: "Labels to add",
                     },
-                    issue_number: {
+                    item_number: {
                       type: "number",
                       description: "Issue or PR number (optional for current context)",
                     },
@@ -1721,24 +1713,10 @@ jobs:
                         errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
                         continue;
                       }
-                      if (item.issue_number !== undefined) {
-                        const issueNumValidation = validateIssueOrPRNumber(item.issue_number, "add_comment 'issue_number'", i + 1);
-                        if (!issueNumValidation.isValid) {
-                          if (issueNumValidation.error) errors.push(issueNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.discussion_number !== undefined) {
-                        const discussionNumValidation = validateIssueOrPRNumber(item.discussion_number, "add_comment 'discussion_number'", i + 1);
-                        if (!discussionNumValidation.isValid) {
-                          if (discussionNumValidation.error) errors.push(discussionNumValidation.error);
-                          continue;
-                        }
-                      }
-                      if (item.pull_number !== undefined) {
-                        const pullNumValidation = validateIssueOrPRNumber(item.pull_number, "add_comment 'pull_number'", i + 1);
-                        if (!pullNumValidation.isValid) {
-                          if (pullNumValidation.error) errors.push(pullNumValidation.error);
+                      if (item.item_number !== undefined) {
+                        const itemNumberValidation = validateIssueOrPRNumber(item.item_number, "add_comment 'item_number'", i + 1);
+                        if (!itemNumberValidation.isValid) {
+                          if (itemNumberValidation.error) errors.push(itemNumberValidation.error);
                           continue;
                         }
                       }
@@ -1773,9 +1751,9 @@ jobs:
                         errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                       }
-                      const labelsIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "add-labels 'issue_number'", i + 1);
-                      if (!labelsIssueNumValidation.isValid) {
-                        if (labelsIssueNumValidation.error) errors.push(labelsIssueNumValidation.error);
+                      const labelsItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add-labels 'item_number'", i + 1);
+                      if (!labelsItemNumberValidation.isValid) {
+                        if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
                         continue;
                       }
                       item.labels = item.labels.map(label => sanitizeContent(label));
@@ -3576,16 +3554,7 @@ jobs:
                 }
               }
               function getTargetNumber(item) {
-                if (item.issue_number !== undefined) {
-                  return item.issue_number;
-                }
-                if (item.pull_number !== undefined) {
-                  return item.pull_number;
-                }
-                if (item.discussion_number !== undefined) {
-                  return item.discussion_number;
-                }
-                return undefined;
+                return item.number;
               }
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
@@ -3634,32 +3603,31 @@ jobs:
               for (let i = 0; i < commentItems.length; i++) {
                 const commentItem = commentItems[i];
                 core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let issueNumber;
+                let itemNumber;
                 let commentEndpoint;
                 if (commentTarget === "*") {
                   const targetNumber = getTargetNumber(commentItem);
                   if (targetNumber) {
-                    issueNumber = parseInt(targetNumber, 10);
-                    if (isNaN(issueNumber) || issueNumber <= 0) {
+                    itemNumber = parseInt(targetNumber, 10);
+                    if (isNaN(itemNumber) || itemNumber <= 0) {
                       core.info(`Invalid target number specified: ${targetNumber}`);
                       continue;
                     }
                     commentEndpoint = isDiscussion ? "discussions" : "issues";
                   } else {
-                    const expectedFields = isDiscussion ? "discussion_number" : "issue_number or pull_number";
-                    core.info(`Target is "*" but no ${expectedFields} specified in comment item`);
+                    core.info(`Target is "*" but no number specified in comment item`);
                     continue;
                   }
                 } else if (commentTarget && commentTarget !== "triggering") {
-                  issueNumber = parseInt(commentTarget, 10);
-                  if (isNaN(issueNumber) || issueNumber <= 0) {
+                  itemNumber = parseInt(commentTarget, 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
                     core.info(`Invalid target number in target configuration: ${commentTarget}`);
                     continue;
                   }
                   commentEndpoint = isDiscussion ? "discussions" : "issues";
                 } else {
                   if (isIssueContext) {
-                    issueNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
+                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
                     if (context.payload.issue) {
                       commentEndpoint = "issues";
                     } else {
@@ -3667,7 +3635,7 @@ jobs:
                       continue;
                     }
                   } else if (isPRContext) {
-                    issueNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
+                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
                     if (context.payload.pull_request) {
                       commentEndpoint = "issues"; 
                     } else {
@@ -3675,7 +3643,7 @@ jobs:
                       continue;
                     }
                   } else if (isDiscussionContext) {
-                    issueNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
                     if (context.payload.discussion) {
                       commentEndpoint = "discussions"; 
                     } else {
@@ -3684,7 +3652,7 @@ jobs:
                     }
                   }
                 }
-                if (!issueNumber) {
+                if (!itemNumber) {
                   core.info("Could not determine issue, pull request, or discussion number");
                   continue;
                 }
@@ -3701,18 +3669,18 @@ jobs:
                 try {
                   let comment;
                   if (isDiscussion) {
-                    core.info(`Creating comment on discussion #${issueNumber}`);
+                    core.info(`Creating comment on discussion #${itemNumber}`);
                     core.info(`Comment content length: ${body.length}`);
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, issueNumber, body);
+                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
                     core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
                     comment.discussion_url = comment.discussion_url;
                   } else {
-                    core.info(`Creating comment on ${commentEndpoint} #${issueNumber}`);
+                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
                     core.info(`Comment content length: ${body.length}`);
                     const { data: restComment } = await github.rest.issues.createComment({
                       owner: context.repo.owner,
                       repo: context.repo.repo,
-                      issue_number: issueNumber,
+                      issue_number: itemNumber,
                       body: body,
                     });
                     comment = restComment;
