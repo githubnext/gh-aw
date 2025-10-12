@@ -325,6 +325,7 @@ Examples:
 			toolGraph, _ := cmd.Flags().GetBool("tool-graph")
 			noStaged, _ := cmd.Flags().GetBool("no-staged")
 			parse, _ := cmd.Flags().GetBool("parse")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
 
 			// Resolve relative dates to absolute dates for GitHub CLI
 			now := time.Now()
@@ -364,7 +365,7 @@ Examples:
 				}
 			}
 
-			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse); err != nil {
+			if err := DownloadWorkflowLogs(workflowName, count, startDate, endDate, outputDir, engine, branch, beforeRunID, afterRunID, verbose, toolGraph, noStaged, parse, jsonOutput); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 					Type:    "error",
 					Message: err.Error(),
@@ -386,12 +387,13 @@ Examples:
 	logsCmd.Flags().Bool("tool-graph", false, "Generate Mermaid tool sequence graph from agent logs")
 	logsCmd.Flags().Bool("no-staged", false, "Filter out staged workflow runs (exclude runs with staged: true in aw_info.json)")
 	logsCmd.Flags().Bool("parse", false, "Run JavaScript parser on agent logs and write markdown to log.md")
+	logsCmd.Flags().Bool("json", false, "Output logs data as JSON instead of formatted console tables")
 
 	return logsCmd
 }
 
 // DownloadWorkflowLogs downloads and analyzes workflow logs with metrics
-func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool) error {
+func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, outputDir, engine, branch string, beforeRunID, afterRunID int64, verbose bool, toolGraph bool, noStaged bool, parse bool, jsonOutput bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Fetching workflow runs from GitHub Actions..."))
 	}
@@ -605,34 +607,28 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 		return nil
 	}
 
-	// Display overview table
-	workflowRuns := make([]WorkflowRun, len(processedRuns))
-	for i, pr := range processedRuns {
-		run := pr.Run
-		run.MissingToolCount = len(pr.MissingTools)
-		workflowRuns[i] = run
-	}
-	displayLogsOverview(processedRuns, verbose)
-
-	// Display MCP failures analysis
-	displayMCPFailuresAnalysis(processedRuns, verbose)
-
-	// Display tool call report
-	displayToolCallReport(processedRuns, verbose)
-	// Display missing tools analysis
-	displayMissingToolsAnalysis(processedRuns, verbose)
-
-	// Display access log analysis
-	displayAccessLogAnalysis(processedRuns, verbose)
-
-	// Generate tool sequence graph if requested
-	if toolGraph {
-		generateToolGraph(processedRuns, verbose)
+	// Update MissingToolCount in runs
+	for i := range processedRuns {
+		processedRuns[i].Run.MissingToolCount = len(processedRuns[i].MissingTools)
 	}
 
-	// Display logs location prominently
-	absOutputDir, _ := filepath.Abs(outputDir)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded %d logs to %s", len(processedRuns), absOutputDir)))
+	// Build structured logs data
+	logsData := buildLogsData(processedRuns, outputDir, verbose)
+
+	// Render output based on format preference
+	if jsonOutput {
+		if err := renderLogsJSON(logsData); err != nil {
+			return fmt.Errorf("failed to render JSON output: %w", err)
+		}
+	} else {
+		renderLogsConsole(logsData, verbose)
+
+		// Generate tool sequence graph if requested (console output only)
+		if toolGraph {
+			generateToolGraph(processedRuns, verbose)
+		}
+	}
+
 	return nil
 }
 
@@ -1361,122 +1357,6 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 }
 
 // displayToolCallReport displays a table of tool usage statistics across all runs
-func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
-	if len(processedRuns) == 0 {
-		return
-	}
-
-	// Aggregate tool call statistics across all runs
-	// In verbose mode: show individual tools, in non-verbose mode: group by MCP server
-	toolStats := make(map[string]*workflow.ToolCallInfo)
-
-	for _, processedRun := range processedRuns {
-		// Extract tool calls from the run's metrics - we need to get the LogMetrics
-		// This requires getting the metrics from the processed run
-
-		// For now, let's extract metrics from the run if available
-		// We'll process log files to get tool call information
-		logMetrics := ExtractLogMetricsFromRun(processedRun)
-
-		for _, toolCall := range logMetrics.ToolCalls {
-			var displayKey string
-
-			if verbose {
-				// Verbose mode: show individual prettified tool names
-				displayKey = workflow.PrettifyToolName(toolCall.Name)
-			} else {
-				// Non-verbose mode: group by MCP server for MCP tools, keep individual entries for others
-				if strings.HasPrefix(toolCall.Name, "mcp__") {
-					// Extract server name for MCP tools
-					displayKey = workflow.ExtractMCPServer(toolCall.Name)
-				} else if strings.HasPrefix(toolCall.Name, "bash_") {
-					// Keep bash commands as individual entries since they include command details
-					displayKey = toolCall.Name
-				} else {
-					// For other tools, check if they follow the new server_method pattern
-					// This handles tools that have been prettified to server_method format
-					parts := strings.SplitN(toolCall.Name, "_", 2)
-					if len(parts) == 2 && !strings.HasPrefix(toolCall.Name, "bash_") {
-						// This looks like it could be a server_method format, group by server
-						displayKey = parts[0]
-					} else {
-						// Keep as individual entry
-						displayKey = toolCall.Name
-					}
-				}
-			}
-
-			if existing, exists := toolStats[displayKey]; exists {
-				existing.CallCount += toolCall.CallCount
-				if toolCall.MaxOutputSize > existing.MaxOutputSize {
-					existing.MaxOutputSize = toolCall.MaxOutputSize
-				}
-				if toolCall.MaxDuration > existing.MaxDuration {
-					existing.MaxDuration = toolCall.MaxDuration
-				}
-			} else {
-				toolStats[displayKey] = &workflow.ToolCallInfo{
-					Name:          displayKey,
-					CallCount:     toolCall.CallCount,
-					MaxOutputSize: toolCall.MaxOutputSize,
-					MaxDuration:   toolCall.MaxDuration,
-				}
-			}
-		}
-	}
-
-	// Convert to slice and sort by call count (descending), then by name
-	var toolCalls []workflow.ToolCallInfo
-	for _, toolInfo := range toolStats {
-		toolCalls = append(toolCalls, *toolInfo)
-	}
-
-	if len(toolCalls) == 0 {
-		return // No tool calls found
-	}
-
-	sort.Slice(toolCalls, func(i, j int) bool {
-		if toolCalls[i].CallCount != toolCalls[j].CallCount {
-			return toolCalls[i].CallCount > toolCalls[j].CallCount // Descending by call count
-		}
-		return toolCalls[i].Name < toolCalls[j].Name // Ascending by name
-	})
-
-	// Prepare table data
-	headers := []string{"Tool", "Calls", "Max Output (tokens)", "Max Duration"}
-	var rows [][]string
-
-	for _, toolCall := range toolCalls {
-		outputStr := "N/A"
-		if toolCall.MaxOutputSize > 0 {
-			outputStr = formatNumber(toolCall.MaxOutputSize)
-		}
-
-		durationStr := "N/A"
-		if toolCall.MaxDuration > 0 {
-			durationStr = formatDuration(toolCall.MaxDuration)
-		}
-
-		row := []string{
-			toolCall.Name,
-			fmt.Sprintf("%d", toolCall.CallCount),
-			outputStr,
-			durationStr,
-		}
-		rows = append(rows, row)
-	}
-
-	// Render compact table without title as requested
-	tableConfig := console.TableConfig{
-		Title:     "MCP Tool Calls",
-		Headers:   headers,
-		Rows:      rows,
-		ShowTotal: false, // Keep it simple and compact
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-}
-
 // ExtractLogMetricsFromRun extracts log metrics from a processed run's log directory
 func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	// Use the LogsPath from the WorkflowRun to get metrics
@@ -2139,124 +2019,6 @@ type MCPFailureSummary struct {
 }
 
 // displayMCPFailuresAnalysis displays a summary of MCP server failures across all runs
-func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
-	// Aggregate MCP failures across all runs
-	failureSummary := make(map[string]*MCPFailureSummary)
-	var totalFailures int
-
-	for _, pr := range processedRuns {
-		for _, failure := range pr.MCPFailures {
-			totalFailures++
-			if summary, exists := failureSummary[failure.ServerName]; exists {
-				summary.Count++
-				// Add workflow if not already in the list
-				found := false
-				for _, wf := range summary.Workflows {
-					if wf == failure.WorkflowName {
-						found = true
-						break
-					}
-				}
-				if !found {
-					summary.Workflows = append(summary.Workflows, failure.WorkflowName)
-				}
-				summary.RunIDs = append(summary.RunIDs, failure.RunID)
-			} else {
-				failureSummary[failure.ServerName] = &MCPFailureSummary{
-					ServerName: failure.ServerName,
-					Count:      1,
-					Workflows:  []string{failure.WorkflowName},
-					RunIDs:     []int64{failure.RunID},
-				}
-			}
-		}
-	}
-
-	if totalFailures == 0 {
-		return // No MCP failures to display
-	}
-
-	// Convert map to slice for sorting
-	var summaries []*MCPFailureSummary
-	for _, summary := range failureSummary {
-		summaries = append(summaries, summary)
-	}
-
-	// Sort by count (descending)
-	sort.Slice(summaries, func(i, j int) bool {
-		return summaries[i].Count > summaries[j].Count
-	})
-
-	// Display summary table
-	headers := []string{"MCP Server", "Failures", "Workflows", "Run IDs"}
-	var rows [][]string
-
-	for _, summary := range summaries {
-		workflowList := strings.Join(summary.Workflows, ", ")
-		if len(workflowList) > 30 {
-			workflowList = workflowList[:27] + "..."
-		}
-
-		runIDStrs := make([]string, len(summary.RunIDs))
-		for i, runID := range summary.RunIDs {
-			runIDStrs[i] = fmt.Sprintf("%d", runID)
-		}
-		runIDList := strings.Join(runIDStrs, ", ")
-		if len(runIDList) > 40 {
-			runIDList = runIDList[:37] + "..."
-		}
-
-		rows = append(rows, []string{
-			summary.ServerName,
-			fmt.Sprintf("%d", summary.Count),
-			workflowList,
-			runIDList,
-		})
-	}
-
-	tableConfig := console.TableConfig{
-		Title:   "MCP Server Failures",
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
-
-	// Verbose mode: Show detailed breakdown by workflow
-	if verbose && totalFailures > 0 {
-		displayDetailedMCPFailuresBreakdown(processedRuns)
-	}
-}
-
-// displayDetailedMCPFailuresBreakdown shows MCP failures organized by workflow (verbose mode)
-func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
-	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed MCP Failures Breakdown"))
-
-	for _, pr := range processedRuns {
-		if len(pr.MCPFailures) == 0 {
-			continue
-		}
-
-		fmt.Printf("\n%s (Run %d) - %d failed MCP servers:\n",
-			console.FormatInfoMessage(pr.Run.WorkflowName),
-			pr.Run.DatabaseID,
-			len(pr.MCPFailures))
-
-		for i, failure := range pr.MCPFailures {
-			fmt.Printf("  %d. %s %s\n",
-				i+1,
-				console.FormatListItem(failure.ServerName),
-				console.FormatErrorMessage(fmt.Sprintf("- Status: %s", failure.Status)))
-
-			if failure.Timestamp != "" {
-				fmt.Printf("     %s %s\n",
-					console.FormatVerboseMessage("Failed at:"),
-					failure.Timestamp)
-			}
-		}
-	}
-}
-
 // parseAgentLog runs the JavaScript log parser on agent logs and writes markdown to log.md
 func parseAgentLog(runDir string, engine workflow.CodingAgentEngine, verbose bool) error {
 	// Determine which parser script to use based on the engine

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/workflow"
 )
 
 // AccessLogEntry represents a parsed squid access log entry
@@ -243,96 +242,3 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 }
 
 // formatDomainWithEcosystem formats a domain with its ecosystem identifier if found
-func formatDomainWithEcosystem(domain string) string {
-	ecosystem := workflow.GetDomainEcosystem(domain)
-	if ecosystem != "" {
-		return fmt.Sprintf("%s (%s)", domain, ecosystem)
-	}
-	return domain
-}
-
-// displayAccessLogAnalysis displays analysis of access logs from all runs with improved formatting
-func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
-	if len(processedRuns) == 0 {
-		return
-	}
-
-	// Collect all access analyses
-	var analyses []*DomainAnalysis
-	runsWithAccess := 0
-	for _, pr := range processedRuns {
-		if pr.AccessAnalysis != nil {
-			analyses = append(analyses, pr.AccessAnalysis)
-			runsWithAccess++
-		}
-	}
-
-	if len(analyses) == 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No access logs found"))
-		return
-	}
-
-	// Aggregate statistics
-	totalRequests := 0
-	totalAllowed := 0
-	totalDenied := 0
-	allAllowedDomains := make(map[string]bool)
-	allDeniedDomains := make(map[string]bool)
-
-	for _, analysis := range analyses {
-		totalRequests += analysis.TotalRequests
-		totalAllowed += analysis.AllowedCount
-		totalDenied += analysis.DeniedCount
-
-		for _, domain := range analysis.AllowedDomains {
-			allAllowedDomains[domain] = true
-		}
-		for _, domain := range analysis.DeniedDomains {
-			allDeniedDomains[domain] = true
-		}
-	}
-
-	fmt.Fprintln(os.Stderr, "")
-
-	// Display allowed domains with better formatting
-	if len(allAllowedDomains) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✅ Allowed Domains (%d):", len(allAllowedDomains))))
-		allowedList := make([]string, 0, len(allAllowedDomains))
-		for domain := range allAllowedDomains {
-			allowedList = append(allowedList, domain)
-		}
-		sort.Strings(allowedList)
-		for _, domain := range allowedList {
-			fmt.Fprintln(os.Stderr, console.FormatListItem(formatDomainWithEcosystem(domain)))
-		}
-		fmt.Fprintln(os.Stderr, "")
-	}
-
-	// Display denied domains with better formatting
-	if len(allDeniedDomains) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("❌ Denied Domains (%d):", len(allDeniedDomains))))
-		deniedList := make([]string, 0, len(allDeniedDomains))
-		for domain := range allDeniedDomains {
-			deniedList = append(deniedList, domain)
-		}
-		sort.Strings(deniedList)
-		for _, domain := range deniedList {
-			fmt.Fprintln(os.Stderr, console.FormatListItem(formatDomainWithEcosystem(domain)))
-		}
-		fmt.Fprintln(os.Stderr, "")
-	}
-
-	if verbose && len(analyses) > 1 {
-		// Show per-run breakdown with improved formatting
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("📋 Per-run breakdown:"))
-		for _, pr := range processedRuns {
-			if pr.AccessAnalysis != nil {
-				analysis := pr.AccessAnalysis
-				fmt.Fprintf(os.Stderr, "   %s Run %d: %d requests (%d allowed, %d denied)\n",
-					console.FormatListItem(""),
-					pr.Run.DatabaseID, analysis.TotalRequests, analysis.AllowedCount, analysis.DeniedCount)
-			}
-		}
-		fmt.Fprintln(os.Stderr, "")
-	}
-}
