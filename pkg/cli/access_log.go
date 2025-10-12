@@ -243,6 +243,10 @@ func analyzeMultipleAccessLogs(accessLogsDir string, verbose bool) (*DomainAnaly
 }
 
 // formatDomainWithEcosystem formats a domain with its ecosystem identifier if found
+// formatDomainWithEcosystem formats a domain with its ecosystem information
+// Deprecated: This function is kept for backward compatibility but is no longer used.
+//
+//nolint:unused // Kept for potential future use or backward compatibility
 func formatDomainWithEcosystem(domain string) string {
 	ecosystem := workflow.GetDomainEcosystem(domain)
 	if ecosystem != "" {
@@ -252,6 +256,11 @@ func formatDomainWithEcosystem(domain string) string {
 }
 
 // displayAccessLogAnalysis displays analysis of access logs from all runs with improved formatting
+// displayAccessLogAnalysis displays access log analysis across all runs
+// Deprecated: This function is kept for backward compatibility but is no longer used.
+// Use buildAccessLogSummary and displayAccessLogFromData instead.
+//
+//nolint:unused // Kept for potential future use or backward compatibility
 func displayAccessLogAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	if len(processedRuns) == 0 {
 		return

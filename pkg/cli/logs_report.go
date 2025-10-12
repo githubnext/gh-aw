@@ -16,13 +16,13 @@ import (
 
 // LogsData represents the complete structured data for logs output
 type LogsData struct {
-	Summary      LogsSummary           `json:"summary"`
-	Runs         []RunData             `json:"runs"`
-	ToolUsage    []ToolUsageSummary    `json:"tool_usage,omitempty"`
-	MissingTools []MissingToolSummary  `json:"missing_tools,omitempty"`
-	MCPFailures  []MCPFailureSummary   `json:"mcp_failures,omitempty"`
-	AccessLog    *AccessLogSummary     `json:"access_log,omitempty"`
-	LogsLocation string                `json:"logs_location"`
+	Summary      LogsSummary          `json:"summary"`
+	Runs         []RunData            `json:"runs"`
+	ToolUsage    []ToolUsageSummary   `json:"tool_usage,omitempty"`
+	MissingTools []MissingToolSummary `json:"missing_tools,omitempty"`
+	MCPFailures  []MCPFailureSummary  `json:"mcp_failures,omitempty"`
+	AccessLog    *AccessLogSummary    `json:"access_log,omitempty"`
+	LogsLocation string               `json:"logs_location"`
 }
 
 // LogsSummary contains aggregate metrics across all runs
@@ -69,12 +69,12 @@ type ToolUsageSummary struct {
 
 // AccessLogSummary contains aggregated access log analysis
 type AccessLogSummary struct {
-	TotalRequests   int                        `json:"total_requests"`
-	AllowedCount    int                        `json:"allowed_count"`
-	DeniedCount     int                        `json:"denied_count"`
-	AllowedDomains  []string                   `json:"allowed_domains"`
-	DeniedDomains   []string                   `json:"denied_domains"`
-	ByWorkflow      map[string]*DomainAnalysis `json:"by_workflow,omitempty"`
+	TotalRequests  int                        `json:"total_requests"`
+	AllowedCount   int                        `json:"allowed_count"`
+	DeniedCount    int                        `json:"denied_count"`
+	AllowedDomains []string                   `json:"allowed_domains"`
+	DeniedDomains  []string                   `json:"denied_domains"`
+	ByWorkflow     map[string]*DomainAnalysis `json:"by_workflow,omitempty"`
 }
 
 // buildLogsData creates structured logs data from processed runs
@@ -92,7 +92,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, verbose bool)
 	var runs []RunData
 	for _, pr := range processedRuns {
 		run := pr.Run
-		
+
 		if run.Duration > 0 {
 			totalDuration += run.Duration
 		}
@@ -170,14 +170,14 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 	for _, pr := range processedRuns {
 		// Extract metrics from run's logs
 		metrics := ExtractLogMetricsFromRun(pr)
-		
+
 		// Track which runs use each tool
 		toolRunTracker := make(map[string]bool)
-		
+
 		for _, toolCall := range metrics.ToolCalls {
 			displayKey := workflow.PrettifyToolName(toolCall.Name)
 			toolRunTracker[displayKey] = true
-			
+
 			if existing, exists := toolStats[displayKey]; exists {
 				existing.TotalCalls += toolCall.CallCount
 				if toolCall.MaxOutputSize > existing.MaxOutputSize {
@@ -202,7 +202,7 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 				toolStats[displayKey] = info
 			}
 		}
-		
+
 		// Increment run count for tools used in this run
 		for toolName := range toolRunTracker {
 			if stat, exists := toolStats[toolName]; exists {
@@ -328,7 +328,7 @@ func buildAccessLogSummary(processedRuns []ProcessedRun) *AccessLogSummary {
 			allowedCount += pr.AccessAnalysis.AllowedCount
 			deniedCount += pr.AccessAnalysis.DeniedCount
 			byWorkflow[pr.Run.WorkflowName] = pr.AccessAnalysis
-			
+
 			for _, domain := range pr.AccessAnalysis.AllowedDomains {
 				allAllowedDomains[domain] = true
 			}
@@ -594,8 +594,8 @@ func displayMissingToolsFromData(missingTools []MissingToolSummary, verbose bool
 // displayAccessLogFromData displays access log analysis
 func displayAccessLogFromData(accessLog *AccessLogSummary, verbose bool) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🌐 Network Access Analysis"))
-	
-	fmt.Printf("\nTotal Requests: %d (%d allowed, %d denied)\n", 
+
+	fmt.Printf("\nTotal Requests: %d (%d allowed, %d denied)\n",
 		accessLog.TotalRequests, accessLog.AllowedCount, accessLog.DeniedCount)
 
 	// Display allowed domains

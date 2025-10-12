@@ -1357,6 +1357,11 @@ func displayLogsOverview(processedRuns []ProcessedRun, verbose bool) {
 }
 
 // displayToolCallReport displays a table of tool usage statistics across all runs
+// displayToolCallReport displays a table of tool usage statistics across all runs
+// Deprecated: This function is kept for backward compatibility but is no longer used.
+// Use buildToolUsageSummary and displayToolUsageFromData instead.
+//
+//nolint:unused // Kept for potential future use or backward compatibility
 func displayToolCallReport(processedRuns []ProcessedRun, verbose bool) {
 	if len(processedRuns) == 0 {
 		return
@@ -2135,6 +2140,11 @@ type MCPFailureSummary struct {
 }
 
 // displayMCPFailuresAnalysis displays a summary of MCP server failures across all runs
+// displayMCPFailuresAnalysis displays a summary of MCP server failures across all runs
+// Deprecated: This function is kept for backward compatibility but is no longer used.
+// Use buildMCPFailuresSummary and displayMCPFailuresFromData instead.
+//
+//nolint:unused // Kept for potential future use or backward compatibility
 func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
 	// Aggregate MCP failures across all runs
 	failureSummary := make(map[string]*MCPFailureSummary)
@@ -2225,6 +2235,10 @@ func displayMCPFailuresAnalysis(processedRuns []ProcessedRun, verbose bool) {
 }
 
 // displayDetailedMCPFailuresBreakdown shows MCP failures organized by workflow (verbose mode)
+// displayDetailedMCPFailuresBreakdown shows detailed MCP failures breakdown (verbose mode)
+// Deprecated: This function is kept for backward compatibility but is no longer used.
+//
+//nolint:unused // Kept for potential future use or backward compatibility
 func displayDetailedMCPFailuresBreakdown(processedRuns []ProcessedRun) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🔍 Detailed MCP Failures Breakdown"))
 
