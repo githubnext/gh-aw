@@ -13,6 +13,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
+	"github.com/githubnext/gh-aw/pkg/workflow/logging"
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 	"github.com/goccy/go-yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -50,6 +51,7 @@ type Compiler struct {
 	jobManager           *JobManager     // Manages jobs and dependencies
 	engineRegistry       *EngineRegistry // Registry of available agentic engines
 	fileTracker          FileTracker     // Optional file tracker for tracking created files
+	logger               *logging.Logger // Logger for compiler operations
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -61,6 +63,7 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
 		engineRegistry: GetGlobalEngineRegistry(),
+		logger:         logging.NewLogger(verbose),
 	}
 
 	return c
@@ -96,6 +99,16 @@ func (c *Compiler) SetStrictMode(strict bool) {
 	c.strictMode = strict
 }
 
+// SetLogger sets a custom logger for the compiler
+func (c *Compiler) SetLogger(logger *logging.Logger) {
+	c.logger = logger
+}
+
+// GetLogger returns the compiler's logger
+func (c *Compiler) GetLogger() *logging.Logger {
+	return c.logger
+}
+
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
 func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutput string, version string) *Compiler {
 	c := &Compiler{
@@ -106,6 +119,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 		skipValidation: true, // Skip validation by default for now since existing workflows don't fully comply
 		jobManager:     NewJobManager(),
 		engineRegistry: GetGlobalEngineRegistry(),
+		logger:         logging.NewLogger(verbose),
 	}
 
 	return c
