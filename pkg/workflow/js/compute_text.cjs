@@ -233,6 +233,22 @@ async function main() {
       }
       break;
 
+    case "discussion":
+      // For discussions: title + body
+      if (context.payload.discussion) {
+        const title = context.payload.discussion.title || "";
+        const body = context.payload.discussion.body || "";
+        text = `${title}\n\n${body}`;
+      }
+      break;
+
+    case "discussion_comment":
+      // For discussion comments: comment body
+      if (context.payload.comment) {
+        text = context.payload.comment.body || "";
+      }
+      break;
+
     default:
       // Default: empty text
       text = "";
