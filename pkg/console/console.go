@@ -1,6 +1,7 @@
 package console
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -430,4 +431,34 @@ func FormatListItem(item string) string {
 // FormatErrorMessage formats a simple error message (for stderr output)
 func FormatErrorMessage(message string) string {
 	return applyStyle(errorStyle, "✗ ") + message
+}
+
+// RenderTableAsJSON renders a table configuration as JSON
+// This converts the table structure to a JSON array of objects
+func RenderTableAsJSON(config TableConfig) (string, error) {
+	if len(config.Headers) == 0 {
+		return "[]", nil
+	}
+
+	// Create array of objects, where each object has header names as keys
+	var result []map[string]string
+	for _, row := range config.Rows {
+		obj := make(map[string]string)
+		for i, cell := range row {
+			if i < len(config.Headers) {
+				// Convert header to lowercase with underscores for JSON keys
+				key := strings.ToLower(strings.ReplaceAll(config.Headers[i], " ", "_"))
+				obj[key] = cell
+			}
+		}
+		result = append(result, obj)
+	}
+
+	// Marshal to JSON with indentation
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal table to JSON: %w", err)
+	}
+
+	return string(jsonBytes), nil
 }

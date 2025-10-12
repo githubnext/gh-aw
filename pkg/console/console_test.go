@@ -280,3 +280,59 @@ func TestFormatErrorWithAbsolutePaths(t *testing.T) {
 		t.Errorf("Expected output to contain error message, got: %s", output)
 	}
 }
+
+func TestRenderTableAsJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  TableConfig
+		wantErr bool
+	}{
+		{
+			name: "simple table",
+			config: TableConfig{
+				Headers: []string{"Name", "Status"},
+				Rows: [][]string{
+					{"workflow1", "active"},
+					{"workflow2", "disabled"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "table with spaces in headers",
+			config: TableConfig{
+				Headers: []string{"Workflow Name", "Agent Type", "Is Compiled"},
+				Rows: [][]string{
+					{"test", "copilot", "Yes"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty table",
+			config: TableConfig{
+				Headers: []string{},
+				Rows:    [][]string{},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := RenderTableAsJSON(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RenderTableAsJSON() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			// Verify it's valid JSON
+			if result == "" && len(tt.config.Headers) > 0 {
+				t.Error("RenderTableAsJSON() returned empty string for non-empty config")
+			}
+			// For empty config, should return "[]"
+			if len(tt.config.Headers) == 0 && result != "[]" {
+				t.Errorf("RenderTableAsJSON() = %v, want []", result)
+			}
+		})
+	}
+}

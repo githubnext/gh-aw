@@ -132,14 +132,15 @@ func createMCPServer(cmdPath string) *mcp.Server {
 
 	// Add status tool
 	type statusArgs struct {
-		Pattern string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
+		Pattern  string `json:"pattern,omitempty" jsonschema:"Optional pattern to filter workflows by name"`
+		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "status",
 		Description: "Show status of agentic workflow files and workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
-		// Build command arguments
-		cmdArgs := []string{"status"}
+		// Build command arguments - always use JSON for MCP
+		cmdArgs := []string{"status", "--json"}
 		if args.Pattern != "" {
 			cmdArgs = append(cmdArgs, args.Pattern)
 		}
@@ -156,9 +157,23 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			}, nil, nil
 		}
 
+		// Apply jq filter if provided
+		outputStr := string(output)
+		if args.JqFilter != "" {
+			filteredOutput, err := ApplyJqFilter(outputStr, args.JqFilter)
+			if err != nil {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{
+						&mcp.TextContent{Text: fmt.Sprintf("Error applying jq filter: %v", err)},
+					},
+				}, nil, nil
+			}
+			outputStr = filteredOutput
+		}
+
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: string(output)},
+				&mcp.TextContent{Text: outputStr},
 			},
 		}, nil, nil
 	})
