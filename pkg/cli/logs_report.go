@@ -11,7 +11,6 @@ import (
 
 	"github.com/githubnext/gh-aw/pkg/console"
 	"github.com/githubnext/gh-aw/pkg/workflow"
-	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
 
 // LogsData represents the complete structured data for logs output
@@ -60,12 +59,11 @@ type RunData struct {
 
 // ToolUsageSummary contains aggregated tool usage statistics
 type ToolUsageSummary struct {
-	Name             string `json:"name" console:"header:Tool"`
-	TotalCalls       int    `json:"total_calls" console:"header:Total Calls,format:number"`
-	Runs             int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
-	MaxOutputSize    int    `json:"max_output_size,omitempty" console:"-"`
-	MaxOutputDisplay string `json:"-" console:"header:Max Output,omitempty"` // Formatted display of MaxOutputSize
-	MaxDuration      string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+	Name          string `json:"name" console:"header:Tool"`
+	TotalCalls    int    `json:"total_calls" console:"header:Total Calls,format:number"`
+	Runs          int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
+	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:filesize,default:N/A,omitempty"`
+	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,default:N/A,omitempty"`
 }
 
 // AccessLogSummary contains aggregated access log analysis
@@ -214,12 +212,6 @@ func buildToolUsageSummary(processedRuns []ProcessedRun) []ToolUsageSummary {
 
 	var result []ToolUsageSummary
 	for _, info := range toolStats {
-		// Populate display field for MaxOutputSize
-		if info.MaxOutputSize > 0 {
-			info.MaxOutputDisplay = pretty.FormatFileSize(int64(info.MaxOutputSize))
-		} else {
-			info.MaxOutputDisplay = "N/A"
-		}
 		result = append(result, *info)
 	}
 
@@ -265,19 +257,9 @@ func buildMissingToolsSummary(processedRuns []ProcessedRun) []MissingToolSummary
 
 	var result []MissingToolSummary
 	for _, summary := range toolSummary {
-		// Populate display fields
-		workflowList := strings.Join(summary.Workflows, ", ")
-		if len(workflowList) > 40 {
-			summary.WorkflowsDisplay = workflowList[:37] + "..."
-		} else {
-			summary.WorkflowsDisplay = workflowList
-		}
-
-		if len(summary.FirstReason) > 50 {
-			summary.FirstReasonDisplay = summary.FirstReason[:47] + "..."
-		} else {
-			summary.FirstReasonDisplay = summary.FirstReason
-		}
+		// Populate display fields (truncation handled by console rendering with maxlen tag)
+		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
+		summary.FirstReasonDisplay = summary.FirstReason
 
 		result = append(result, *summary)
 	}
@@ -324,12 +306,8 @@ func buildMCPFailuresSummary(processedRuns []ProcessedRun) []MCPFailureSummary {
 	var result []MCPFailureSummary
 	for _, summary := range failureSummary {
 		// Populate display field for workflows
-		workflowList := strings.Join(summary.Workflows, ", ")
-		if len(workflowList) > 60 {
-			summary.WorkflowsDisplay = workflowList[:57] + "..."
-		} else {
-			summary.WorkflowsDisplay = workflowList
-		}
+		// Populate display field (truncation handled by console rendering with maxlen tag)
+		summary.WorkflowsDisplay = strings.Join(summary.Workflows, ", ")
 
 		result = append(result, *summary)
 	}
