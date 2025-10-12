@@ -2722,9 +2722,52 @@ jobs:
               const lines = logContent.split("\n");
               let model = "unknown";
               let sessionId = null;
+              let modelInfo = null;
               const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
               if (modelMatch) {
                 sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+              }
+              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
+              if (gotModelInfoIndex !== -1) {
+                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
+                if (jsonStart !== -1) {
+                  let braceCount = 0;
+                  let inString = false;
+                  let escapeNext = false;
+                  let jsonEnd = -1;
+                  for (let i = jsonStart; i < logContent.length; i++) {
+                    const char = logContent[i];
+                    if (escapeNext) {
+                      escapeNext = false;
+                      continue;
+                    }
+                    if (char === "\\") {
+                      escapeNext = true;
+                      continue;
+                    }
+                    if (char === '"' && !escapeNext) {
+                      inString = !inString;
+                      continue;
+                    }
+                    if (inString) continue;
+                    if (char === "{") {
+                      braceCount++;
+                    } else if (char === "}") {
+                      braceCount--;
+                      if (braceCount === 0) {
+                        jsonEnd = i + 1;
+                        break;
+                      }
+                    }
+                  }
+                  if (jsonEnd !== -1) {
+                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
+                    try {
+                      modelInfo = JSON.parse(modelInfoJson);
+                    } catch (e) {
+                    }
+                  }
+                }
               }
               let inDataBlock = false;
               let currentJsonLines = [];
@@ -2910,6 +2953,9 @@ jobs:
                   model: model,
                   tools: [], 
                 };
+                if (modelInfo) {
+                  initEntry.model_info = modelInfo;
+                }
                 entries.unshift(initEntry);
                 if (entries._lastResult) {
                   entries.push(entries._lastResult);
@@ -2922,6 +2968,32 @@ jobs:
               let markdown = "";
               if (initEntry.model) {
                 markdown += `**Model:** ${initEntry.model}\n\n`;
+              }
+              if (initEntry.model_info) {
+                const modelInfo = initEntry.model_info;
+                if (modelInfo.name) {
+                  markdown += `**Model Name:** ${modelInfo.name}`;
+                  if (modelInfo.vendor) {
+                    markdown += ` (${modelInfo.vendor})`;
+                  }
+                  markdown += "\n\n";
+                }
+                if (modelInfo.billing) {
+                  const billing = modelInfo.billing;
+                  if (billing.is_premium === true) {
+                    markdown += `**Premium Model:** Yes`;
+                    if (billing.multiplier && billing.multiplier !== 1) {
+                      markdown += ` (${billing.multiplier}x cost multiplier)`;
+                    }
+                    markdown += "\n";
+                    if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+                      markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+                    }
+                    markdown += "\n";
+                  } else if (billing.is_premium === false) {
+                    markdown += `**Premium Model:** No\n\n`;
+                  }
+                }
               }
               if (initEntry.session_id) {
                 markdown += `**Session ID:** ${initEntry.session_id}\n\n`;

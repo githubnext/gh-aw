@@ -468,6 +468,124 @@ describe("parse_copilot_log.cjs", () => {
       expect(commandsSection).toContain("✅ `echo 'Hello World'`");
       expect(commandsSection).toContain("✅ `github::search_issues(...)`");
     });
+
+    it("should extract and display premium model information from debug logs", () => {
+      // Simulating the actual debug log format from Copilot CLI with model info
+      const debugLogWithModelInfo = `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-sonnet-4
+2025-09-26T11:13:11.944Z [DEBUG] Got model info: {
+  "billing": {
+    "is_premium": true,
+    "multiplier": 1,
+    "restricted_to": [
+      "pro",
+      "pro_plus",
+      "max",
+      "business",
+      "enterprise"
+    ]
+  },
+  "capabilities": {
+    "family": "claude-sonnet-4",
+    "limits": {
+      "max_context_window_tokens": 200000,
+      "max_output_tokens": 16000
+    }
+  },
+  "id": "claude-sonnet-4",
+  "name": "Claude Sonnet 4",
+  "vendor": "Anthropic",
+  "version": "claude-sonnet-4"
+}
+2025-09-26T11:13:12.575Z [START-GROUP] Sending request to the AI model
+2025-09-26T11:13:17.989Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:17.989Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "object": "chat.completion",
+  "model": "claude-sonnet-4",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I'll help you with this task."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+  }
+}
+2025-09-26T11:13:18.000Z [END-GROUP]`;
+
+      const result = parseCopilotLog(debugLogWithModelInfo);
+
+      // Should successfully parse and display premium model information
+      expect(result).toContain("🚀 Initialization");
+      expect(result).toContain("**Model Name:** Claude Sonnet 4 (Anthropic)");
+      expect(result).toContain("**Premium Model:** Yes");
+      expect(result).toContain("**Required Plans:** pro, pro_plus, max, business, enterprise");
+    });
+
+    it("should handle non-premium models in debug logs", () => {
+      // Simulating debug log with non-premium model
+      const debugLogNonPremium = `2025-09-26T11:13:11.798Z [DEBUG] Using model: gpt-4o
+2025-09-26T11:13:11.944Z [DEBUG] Got model info: {
+  "billing": {
+    "is_premium": false,
+    "multiplier": 1
+  },
+  "id": "gpt-4o",
+  "name": "GPT-4o",
+  "vendor": "OpenAI"
+}
+2025-09-26T11:13:12.575Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:12.575Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "model": "gpt-4o",
+  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello"}, "finish_reason": "stop"}],
+  "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+}`;
+
+      const result = parseCopilotLog(debugLogNonPremium);
+
+      // Should display non-premium model information
+      expect(result).toContain("**Model Name:** GPT-4o (OpenAI)");
+      expect(result).toContain("**Premium Model:** No");
+    });
+
+    it("should handle model info with cost multiplier", () => {
+      // Simulating debug log with cost multiplier
+      const debugLogWithMultiplier = `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-opus
+2025-09-26T11:13:11.944Z [DEBUG] Got model info: {
+  "billing": {
+    "is_premium": true,
+    "multiplier": 2.5,
+    "restricted_to": ["enterprise"]
+  },
+  "id": "claude-opus",
+  "name": "Claude Opus",
+  "vendor": "Anthropic"
+}
+2025-09-26T11:13:12.575Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:12.575Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "model": "claude-opus",
+  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello"}, "finish_reason": "stop"}],
+  "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+}`;
+
+      const result = parseCopilotLog(debugLogWithMultiplier);
+
+      // Should display cost multiplier
+      expect(result).toContain("**Premium Model:** Yes (2.5x cost multiplier)");
+      expect(result).toContain("**Required Plans:** enterprise");
+    });
   });
 
   describe("main function integration", () => {
