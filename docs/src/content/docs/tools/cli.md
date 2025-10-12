@@ -476,6 +476,63 @@ When `--parse` is used:
 - The parser extracts tool calls, reasoning, and other structured information from raw logs
 - Uses a minimal Node.js environment that mocks the `@actions/core` API for parser execution
 
+**JSON Output:**
+
+The `--json` flag outputs structured data as JSON instead of formatted console tables, making it ideal for programmatic analysis and integration with other tools:
+
+```bash
+# Output logs data as JSON
+gh aw logs --json
+
+# Filter and output as JSON
+gh aw logs ci-doctor -c 5 --json
+
+# Combine with other filters
+gh aw logs --engine claude --start-date -1w --json
+```
+
+The JSON output includes:
+- `summary`: Aggregate metrics across all runs (total tokens, cost, duration, errors, etc.)
+- `runs`: Array of individual workflow runs with complete metadata
+- `tool_usage`: Aggregated tool usage statistics with call counts and performance metrics
+- `missing_tools`: Summary of tools requested but not available
+- `mcp_failures`: MCP server failures across workflows
+- `access_log`: Network access analysis (allowed/denied domains)
+- `logs_location`: Absolute path to downloaded logs directory
+
+Example JSON structure:
+```json
+{
+  "summary": {
+    "total_runs": 5,
+    "total_tokens": 15000,
+    "total_cost": 0.75,
+    "total_turns": 15,
+    "total_errors": 2,
+    "total_warnings": 3
+  },
+  "runs": [
+    {
+      "database_id": 12345,
+      "workflow_name": "CI Doctor",
+      "status": "completed",
+      "conclusion": "success",
+      "duration": "5.2m",
+      "token_usage": 3000,
+      "estimated_cost": 0.15
+    }
+  ],
+  "tool_usage": [
+    {
+      "name": "github_search",
+      "total_calls": 25,
+      "runs": 3,
+      "max_output_size": 4096
+    }
+  ]
+}
+```
+
 **Output Format:**
 
 The generated `log.md` file contains:
