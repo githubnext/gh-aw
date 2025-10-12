@@ -20,14 +20,23 @@ async function main() {
     sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
     sanitized = sanitizeUrlProtocols(sanitized);
     sanitized = sanitizeUrlDomains(sanitized);
-    maxLength = maxLength || 524288;
-    if (sanitized.length > maxLength) {
-      sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-    }
+    // Check line count before length to provide more specific truncation message
     const lines = sanitized.split("\n");
     const maxLines = 65000;
+    maxLength = maxLength || 524288;
+    // If content has too many lines, truncate by lines (primary limit)
+    // Then apply length limit while preserving the line count message
     if (lines.length > maxLines) {
-      sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
+      const truncationMsg = "\n[Content truncated due to line count]";
+      const truncatedLines = lines.slice(0, maxLines).join("\n") + truncationMsg;
+      // If still too long after line truncation, shorten but keep the line count message
+      if (truncatedLines.length > maxLength) {
+        sanitized = truncatedLines.substring(0, maxLength - truncationMsg.length) + truncationMsg;
+      } else {
+        sanitized = truncatedLines;
+      }
+    } else if (sanitized.length > maxLength) {
+      sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
     }
     sanitized = neutralizeBotTriggers(sanitized);
     return sanitized.trim();
