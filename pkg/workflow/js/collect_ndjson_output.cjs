@@ -82,9 +82,9 @@ async function main() {
       case "create-discussion":
         return 1;
       case "missing-tool":
-        return 1000;
+        return 20;
       case "create-code-scanning-alert":
-        return 1000;
+        return 40;
       case "upload-asset":
         return 10;
       default:
