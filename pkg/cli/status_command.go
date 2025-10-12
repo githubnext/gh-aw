@@ -16,11 +16,13 @@ import (
 
 // WorkflowStatus represents the status of a single workflow for JSON output
 type WorkflowStatus struct {
-	Workflow      string `json:"workflow" console:"header:Workflow"`
-	Agent         string `json:"agent" console:"header:Agent"`
-	Compiled      string `json:"compiled" console:"header:Compiled"`
-	Status        string `json:"status" console:"header:Status"`
-	TimeRemaining string `json:"time_remaining" console:"header:Time Remaining"`
+	Workflow      string         `json:"workflow" console:"header:Workflow"`
+	Agent         string         `json:"agent" console:"header:Agent"`
+	Compiled      string         `json:"compiled" console:"header:Compiled"`
+	Status        string         `json:"status" console:"header:Status"`
+	TimeRemaining string         `json:"time_remaining" console:"header:Time Remaining"`
+	Frontmatter   map[string]any `json:"frontmatter,omitempty" console:"-"`
+	Prompt        string         `json:"prompt,omitempty" console:"-"`
 }
 
 func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
@@ -115,6 +117,16 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 				}
 			}
 
+			// Extract frontmatter and prompt for JSON output
+			var frontmatter map[string]any
+			var prompt string
+			if content, err := os.ReadFile(file); err == nil {
+				if result, err := parser.ExtractFrontmatterFromContent(string(content)); err == nil {
+					frontmatter = result.Frontmatter
+					prompt = result.Markdown
+				}
+			}
+
 			// Build status object
 			statuses = append(statuses, WorkflowStatus{
 				Workflow:      name,
@@ -122,6 +134,8 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 				Compiled:      compiled,
 				Status:        status,
 				TimeRemaining: timeRemaining,
+				Frontmatter:   frontmatter,
+				Prompt:        prompt,
 			})
 		}
 
