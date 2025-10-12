@@ -485,8 +485,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Create gh-aw temp directory
         run: |
-          mkdir -p /tmp/gh-aw
-          echo "Created /tmp/gh-aw directory for agentic workflow temporary files"
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -1493,22 +1493,7 @@ jobs:
           
           ## Temporary Files
           
-          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/` directory** that has been pre-created for you.
-          
-          **DO NOT** use the root `/tmp/` directory directly. Always organize your temporary files within `/tmp/gh-aw/` subdirectories.
-          
-          **Example:**
-          ```bash
-          # CORRECT - Use /tmp/gh-aw/ for temporary files
-          mkdir -p /tmp/gh-aw/my-temp-work
-          echo "data" > /tmp/gh-aw/my-temp-work/temp-file.txt
-          
-          # INCORRECT - Do not use root /tmp/
-          # mkdir -p /tmp/my-temp-work
-          # echo "data" > /tmp/temp-file.txt
-          ```
-          
-          This ensures proper organization and cleanup of temporary files in the agentic workflow environment.
+          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
           EOF
       - name: Append safe outputs instructions to prompt

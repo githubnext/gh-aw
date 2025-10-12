@@ -51,19 +51,14 @@ This is a test workflow to verify temp folder instructions are included.
 		t.Error("Expected 'Append temporary folder instructions to prompt' step in generated workflow")
 	}
 
-	// Test 2: Verify the instruction text is present
-	if !strings.Contains(lockStr, "always use the `/tmp/gh-aw/` directory") {
-		t.Error("Expected temp folder instruction text in generated workflow")
+	// Test 2: Verify the instruction text is present with /tmp/gh-aw/agent/
+	if !strings.Contains(lockStr, "always use the `/tmp/gh-aw/agent/` directory") {
+		t.Error("Expected temp folder instruction text with /tmp/gh-aw/agent/ in generated workflow")
 	}
 
 	// Test 3: Verify the DO NOT message is present
-	if !strings.Contains(lockStr, "DO NOT") && !strings.Contains(lockStr, "use the root `/tmp/` directory") {
+	if !strings.Contains(lockStr, "Do NOT use the root `/tmp/` directory") {
 		t.Error("Expected warning about not using root /tmp/ directory in generated workflow")
-	}
-
-	// Test 4: Verify example usage is present
-	if !strings.Contains(lockStr, "mkdir -p /tmp/gh-aw/my-temp-work") {
-		t.Error("Expected example usage in generated workflow")
 	}
 
 	t.Logf("Successfully verified temporary folder instructions are included in generated workflow")
