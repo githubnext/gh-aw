@@ -2,14 +2,10 @@
 safe-outputs:
   jobs:
     post-to-slack-channel:
-      description: "Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, >quote, and links <url|text>."
+      description: "Post a message to a Slack channel. Message must be 200 characters or less. Supports basic Slack markdown: *bold*, _italic_, ~strike~, `code`, ```code block```, >quote, and links <url|text>. Requires GH_AW_SLACK_CHANNEL_ID environment variable to be set."
       runs-on: ubuntu-latest
       output: "Message posted to Slack successfully!"
       inputs:
-        channel_id:
-          description: "The Slack channel ID (e.g., C1234567890)"
-          required: true
-          type: string
         message:
           description: "The message to post (max 200 characters, supports Slack markdown)"
           required: true
@@ -21,7 +17,7 @@ safe-outputs:
           uses: actions/github-script@v8
           env:
             SLACK_BOT_TOKEN: "${{ secrets.SLACK_BOT_TOKEN }}"
-            SLACK_CHANNEL_ID: "${{ inputs.channel_id }}"
+            SLACK_CHANNEL_ID: "${{ env.GH_AW_SLACK_CHANNEL_ID }}"
             SLACK_MESSAGE: "${{ inputs.message }}"
           with:
             script: |
@@ -36,7 +32,7 @@ safe-outputs:
               }
               
               if (!slackChannelId) {
-                core.setFailed('SLACK_CHANNEL_ID is required');
+                core.setFailed('GH_AW_SLACK_CHANNEL_ID environment variable is required');
                 return;
               }
               
@@ -80,7 +76,7 @@ safe-outputs:
                   if (data.error === 'invalid_auth') {
                     core.error('Authentication failed. Please verify your SLACK_BOT_TOKEN is correct.');
                   } else if (data.error === 'channel_not_found') {
-                    core.error('Channel not found. Please verify the SLACK_CHANNEL_ID is correct and the bot has access to it.');
+                    core.error('Channel not found. Please verify the GH_AW_SLACK_CHANNEL_ID environment variable is correct and the bot has access to it.');
                   }
                   return;
                 }
@@ -112,8 +108,10 @@ This shared configuration provides a custom safe-job for posting messages to Sla
 
 The `post-to-slack-channel` safe-job allows agentic workflows to post messages to Slack channels through the Slack API.
 
+**Required Environment Variable:**
+- `GH_AW_SLACK_CHANNEL_ID`: The Slack channel ID (e.g., C1234567890) where messages will be posted
+
 **Required Inputs:**
-- `channel_id`: The Slack channel ID (e.g., C1234567890) to post the message to
 - `message`: The message text to post (maximum 200 characters)
 
 **Message Length Limit:**
@@ -132,9 +130,11 @@ The message supports basic Slack markdown syntax:
 **Example Usage in Workflow:**
 
 ```
-Please post a summary to our Slack channel C1234567890 using the post-to-slack-channel safe-job.
+Please post a summary using the post-to-slack-channel safe-job.
 Keep the message under 200 characters.
 ```
+
+Note: The `GH_AW_SLACK_CHANNEL_ID` environment variable must be set in your workflow configuration or repository environment variables.
 
 **Audit Mode Support:**
 
@@ -155,9 +155,9 @@ This safe-job fully supports audit/staged mode. When `staged: true` is set in th
    - Type `/invite @YourBotName` to add the bot
    - Get the channel ID from the channel details
 
-3. **Configure GitHub Secrets**:
+3. **Configure GitHub Secrets and Environment Variables**:
    - Add `SLACK_BOT_TOKEN` secret to your repository with the Bot User OAuth Token
-   - The channel ID can be passed as input to the safe-job
+   - Add `GH_AW_SLACK_CHANNEL_ID` as an environment variable or repository variable with the Slack channel ID
 
 4. **Include this configuration in your workflow**:
    ```yaml
