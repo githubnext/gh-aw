@@ -45,7 +45,9 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 		t.Logf("Logs schema JSON length: %d bytes (ready for future use)", len(schemaJSON))
 	})
 
-	t.Run("audit tool has output schema", func(t *testing.T) {
+	t.Run("audit schema can be generated (for future use)", func(t *testing.T) {
+		// The audit tool currently doesn't use output schemas (output can be filtered with jq),
+		// but we verify the helper can generate them for when they're needed in the future
 		schema, err := GenerateOutputSchema[AuditData]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema for AuditData: %v", err)
@@ -78,7 +80,7 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 			t.Error("Expected non-empty JSON schema")
 		}
 
-		t.Logf("Audit schema JSON length: %d bytes", len(schemaJSON))
+		t.Logf("Audit schema JSON length: %d bytes (ready for future use)", len(schemaJSON))
 	})
 
 	t.Run("status tool array schema can be generated", func(t *testing.T) {

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -302,19 +301,23 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 
-	// Generate output schema for audit tool
-	auditOutputSchema, schemaErr := GenerateOutputSchema[AuditData]()
-	if schemaErr != nil {
-		// Log error but don't fail server startup
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate output schema for audit tool: %v", schemaErr)))
-		auditOutputSchema = nil
-	}
-
 	mcp.AddTool(server, &mcp.Tool{
-		Name:         "audit",
-		Description:  "Investigate a workflow run and generate a concise report",
-		OutputSchema: auditOutputSchema,
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, *AuditData, error) {
+		Name: "audit",
+		Description: `Investigate a workflow run and generate a concise report.
+
+Returns JSON with the following structure:
+- overview: Basic run information (run_id, workflow_name, status, conclusion, created_at, started_at, updated_at, duration, event, branch, url)
+- metrics: Execution metrics (token_usage, estimated_cost, turns, error_count, warning_count)
+- jobs: List of job details (name, status, conclusion, duration)
+- downloaded_files: List of artifact files (path, size, size_formatted, description, is_directory)
+- missing_tools: Tools that were requested but not available (tool, reason, alternatives, timestamp, workflow_name, run_id)
+- mcp_failures: MCP server failures (server_name, status, timestamp, workflow_name, run_id)
+- errors: Error details (file, line, type, message)
+- warnings: Warning details (file, line, type, message)
+- tool_usage: Tool usage statistics (name, call_count, max_output_size, max_duration)
+
+Note: Output can be filtered using the jq parameter.`,
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args auditArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
 		// Force output directory to /tmp/gh-aw/aw-mcp/logs for MCP server (same as logs)
 		// Use --json flag to output structured JSON for MCP consumption
@@ -346,23 +349,11 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			outputStr = filteredOutput
 		}
 
-		// Parse the JSON output into structured data
-		var auditData AuditData
-		if parseErr := json.Unmarshal([]byte(outputStr), &auditData); parseErr != nil {
-			// If parsing fails, return text content only (graceful degradation)
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					&mcp.TextContent{Text: outputStr},
-				},
-			}, nil, nil
-		}
-
-		// Return both text and structured content
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
 			},
-		}, &auditData, nil
+		}, nil, nil
 	})
 
 	return server
