@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -912,6 +913,119 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 	return nil
 }
 
+// downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
+func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error {
+	// Create a temporary file for the zip download
+	tmpZip := filepath.Join(os.TempDir(), fmt.Sprintf("workflow-logs-%d.zip", runID))
+	defer os.RemoveAll(tmpZip)
+
+	if verbose {
+		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Downloading workflow run logs for run %d...", runID)))
+	}
+
+	// Use gh api to download the logs zip file
+	// The endpoint returns a 302 redirect to the actual zip file
+	args := []string{"api", "repos/{owner}/{repo}/actions/runs/" + strconv.FormatInt(runID, 10) + "/logs"}
+
+	cmd := exec.Command("gh", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		// Check for authentication errors
+		if strings.Contains(err.Error(), "exit status 4") {
+			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
+		}
+		// If logs are not found or run has no logs, this is not a critical error
+		if strings.Contains(string(output), "not found") || strings.Contains(err.Error(), "410") {
+			if verbose {
+				fmt.Println(console.FormatWarningMessage(fmt.Sprintf("No logs found for run %d (may be expired or unavailable)", runID)))
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to download workflow run logs for run %d: %w", runID, err)
+	}
+
+	// Write the downloaded zip content to temporary file
+	if err := os.WriteFile(tmpZip, output, 0644); err != nil {
+		return fmt.Errorf("failed to write logs zip file: %w", err)
+	}
+
+	// Unzip the logs into the output directory
+	if err := unzipFile(tmpZip, outputDir, verbose); err != nil {
+		return fmt.Errorf("failed to unzip workflow logs: %w", err)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", outputDir)))
+	}
+
+	return nil
+}
+
+// unzipFile extracts a zip file to a destination directory
+func unzipFile(zipPath, destDir string, verbose bool) error {
+	// Open the zip file
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("failed to open zip file: %w", err)
+	}
+	defer r.Close()
+
+	// Extract each file in the zip
+	for _, f := range r.File {
+		if err := extractZipFile(f, destDir, verbose); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// extractZipFile extracts a single file from a zip archive
+func extractZipFile(f *zip.File, destDir string, verbose bool) error {
+	// Construct the full path for the file
+	filePath := filepath.Join(destDir, f.Name)
+
+	// Prevent zip slip vulnerability
+	if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+		return fmt.Errorf("invalid file path in zip: %s", f.Name)
+	}
+
+	if verbose {
+		fmt.Println(console.FormatVerboseMessage(fmt.Sprintf("Extracting: %s", f.Name)))
+	}
+
+	// Create directory if it's a directory entry
+	if f.FileInfo().IsDir() {
+		return os.MkdirAll(filePath, os.ModePerm)
+	}
+
+	// Create parent directory if needed
+	if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Open the file in the zip
+	srcFile, err := f.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open file in zip: %w", err)
+	}
+	defer srcFile.Close()
+
+	// Create the destination file
+	destFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer destFile.Close()
+
+	// Copy the content
+	if _, err := io.Copy(destFile, srcFile); err != nil {
+		return fmt.Errorf("failed to extract file: %w", err)
+	}
+
+	return nil
+}
+
 // downloadRunArtifacts downloads artifacts for a specific workflow run
 func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	// Check if artifacts already exist on disk (since they're immutable)
@@ -972,6 +1086,15 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	// Flatten single-file artifacts
 	if err := flattenSingleFileArtifacts(outputDir, verbose); err != nil {
 		return fmt.Errorf("failed to flatten artifacts: %w", err)
+	}
+
+	// Download and unzip workflow run logs
+	if err := downloadWorkflowRunLogs(runID, outputDir, verbose); err != nil {
+		// Log the error but don't fail the entire download process
+		// Logs may not be available for all runs (e.g., expired or deleted)
+		if verbose {
+			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Failed to download workflow run logs: %v", err)))
+		}
 	}
 
 	if verbose {

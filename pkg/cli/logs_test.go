@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"archive/zip"
 	"errors"
 	"os"
 	"path/filepath"
@@ -1342,4 +1343,136 @@ func TestFindAgentLogFile(t *testing.T) {
 			t.Errorf("Expected to find agent-stdio.log, got: %s", found)
 		}
 	})
+}
+
+func TestUnzipFile(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test zip file
+	zipPath := filepath.Join(tmpDir, "test.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("Failed to create test zip file: %v", err)
+	}
+
+	zipWriter := zip.NewWriter(zipFile)
+
+	// Add a test file to the zip
+	testContent := "This is test content for workflow logs"
+	writer, err := zipWriter.Create("test-log.txt")
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to create file in zip: %v", err)
+	}
+	_, err = writer.Write([]byte(testContent))
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to write content to zip: %v", err)
+	}
+
+	// Add a subdirectory with a file
+	writer, err = zipWriter.Create("logs/job-1.txt")
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to create subdirectory file in zip: %v", err)
+	}
+	_, err = writer.Write([]byte("Job 1 logs"))
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to write subdirectory content to zip: %v", err)
+	}
+
+	// Close the zip writer
+	err = zipWriter.Close()
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to close zip writer: %v", err)
+	}
+	zipFile.Close()
+
+	// Create a destination directory
+	destDir := filepath.Join(tmpDir, "extracted")
+	err = os.MkdirAll(destDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create destination directory: %v", err)
+	}
+
+	// Test the unzipFile function
+	err = unzipFile(zipPath, destDir, false)
+	if err != nil {
+		t.Fatalf("unzipFile failed: %v", err)
+	}
+
+	// Verify the extracted files
+	extractedFile := filepath.Join(destDir, "test-log.txt")
+	content, err := os.ReadFile(extractedFile)
+	if err != nil {
+		t.Fatalf("Failed to read extracted file: %v", err)
+	}
+
+	if string(content) != testContent {
+		t.Errorf("Extracted content mismatch: got %q, want %q", string(content), testContent)
+	}
+
+	// Verify subdirectory file
+	subdirFile := filepath.Join(destDir, "logs", "job-1.txt")
+	content, err = os.ReadFile(subdirFile)
+	if err != nil {
+		t.Fatalf("Failed to read extracted subdirectory file: %v", err)
+	}
+
+	if string(content) != "Job 1 logs" {
+		t.Errorf("Extracted subdirectory content mismatch: got %q, want %q", string(content), "Job 1 logs")
+	}
+}
+
+func TestUnzipFileZipSlipPrevention(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test zip file with a malicious path
+	zipPath := filepath.Join(tmpDir, "malicious.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("Failed to create test zip file: %v", err)
+	}
+
+	zipWriter := zip.NewWriter(zipFile)
+
+	// Try to create a file that escapes the destination directory
+	writer, err := zipWriter.Create("../../../etc/passwd")
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to create malicious file in zip: %v", err)
+	}
+	_, err = writer.Write([]byte("malicious content"))
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to write malicious content to zip: %v", err)
+	}
+
+	err = zipWriter.Close()
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to close zip writer: %v", err)
+	}
+	zipFile.Close()
+
+	// Create a destination directory
+	destDir := filepath.Join(tmpDir, "safe-extraction")
+	err = os.MkdirAll(destDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create destination directory: %v", err)
+	}
+
+	// Test that unzipFile rejects the malicious path
+	err = unzipFile(zipPath, destDir, false)
+	if err == nil {
+		t.Error("Expected unzipFile to reject malicious path, but it succeeded")
+	}
+
+	if !strings.Contains(err.Error(), "invalid file path") {
+		t.Errorf("Expected error about invalid file path, got: %v", err)
+	}
 }
