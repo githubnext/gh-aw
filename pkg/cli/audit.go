@@ -57,8 +57,9 @@ Examples:
 
 			outputDir, _ := cmd.Flags().GetString("output")
 			verbose, _ := cmd.Flags().GetBool("verbose")
+			jsonOutput, _ := cmd.Flags().GetBool("json")
 
-			if err := AuditWorkflowRun(runID, outputDir, verbose); err != nil {
+			if err := AuditWorkflowRun(runID, outputDir, verbose, jsonOutput); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -67,6 +68,7 @@ Examples:
 
 	// Add flags to audit command
 	auditCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
+	auditCmd.Flags().Bool("json", false, "Output audit report as JSON instead of formatted console tables")
 
 	return auditCmd
 }
@@ -111,7 +113,7 @@ func isPermissionError(err error) bool {
 }
 
 // AuditWorkflowRun audits a single workflow run and generates a report
-func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
+func AuditWorkflowRun(runID int64, outputDir string, verbose bool, jsonOutput bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auditing workflow run %d...", runID)))
 	}
@@ -219,6 +221,12 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 		}
 	}
 
+	// Fetch detailed job information including durations
+	jobDetails, err := fetchJobDetails(run.DatabaseID, verbose)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
+	}
+
 	// Extract missing tools
 	missingTools, err := extractMissingToolsFromRun(runOutputDir, run, verbose)
 	if err != nil && verbose {
@@ -236,11 +244,20 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 		Run:          run,
 		MissingTools: missingTools,
 		MCPFailures:  mcpFailures,
+		JobDetails:   jobDetails,
 	}
 
-	// Generate and display report
-	report := generateAuditReport(processedRun, metrics)
-	fmt.Println(report)
+	// Build structured audit data
+	auditData := buildAuditData(processedRun, metrics)
+
+	// Render output based on format preference
+	if jsonOutput {
+		if err := renderJSON(auditData); err != nil {
+			return fmt.Errorf("failed to render JSON output: %w", err)
+		}
+	} else {
+		renderConsole(auditData, runOutputDir)
+	}
 
 	// Always attempt to render agentic log (similar to `logs --parse`) if engine & logs are available
 	// This creates a log.md file in the run directory for a rich, human-readable agent session summary.
@@ -258,9 +275,11 @@ func AuditWorkflowRun(runID int64, outputDir string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No engine detected (aw_info.json missing or invalid); skipping agent log rendering"))
 	}
 
-	// Display logs location
-	absOutputDir, _ := filepath.Abs(runOutputDir)
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Audit complete. Logs saved to %s", absOutputDir)))
+	// Display logs location (only for console output)
+	if !jsonOutput {
+		absOutputDir, _ := filepath.Abs(runOutputDir)
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Audit complete. Logs saved to %s", absOutputDir)))
+	}
 
 	return nil
 }

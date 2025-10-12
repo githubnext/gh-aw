@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -449,5 +451,269 @@ func TestGenerateAuditReportArtifacts(t *testing.T) {
 		if !strings.Contains(report, artifact) {
 			t.Errorf("Report should list artifact: %s", artifact)
 		}
+	}
+}
+
+func TestBuildAuditData(t *testing.T) {
+	// Create test data
+	run := WorkflowRun{
+		DatabaseID:    123456,
+		WorkflowName:  "Test Workflow",
+		Status:        "completed",
+		Conclusion:    "success",
+		CreatedAt:     time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC),
+		StartedAt:     time.Date(2024, 1, 1, 10, 0, 30, 0, time.UTC),
+		UpdatedAt:     time.Date(2024, 1, 1, 10, 5, 0, 0, time.UTC),
+		Duration:      4*time.Minute + 30*time.Second,
+		Event:         "push",
+		HeadBranch:    "main",
+		URL:           "https://github.com/org/repo/actions/runs/123456",
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+		ErrorCount:    2,
+		WarningCount:  1,
+		LogsPath:      t.TempDir(),
+	}
+
+	metrics := LogMetrics{
+		TokenUsage:    1500,
+		EstimatedCost: 0.025,
+		Turns:         5,
+		Errors: []workflow.LogError{
+			{
+				File:    "/tmp/gh-aw/logs/agent.log",
+				Line:    42,
+				Type:    "warning",
+				Message: "Example warning message",
+			},
+			{
+				File:    "/tmp/gh-aw/logs/agent.log",
+				Line:    50,
+				Type:    "error",
+				Message: "Example error message",
+			},
+			{
+				File:    "/tmp/gh-aw/logs/agent.log",
+				Line:    60,
+				Type:    "error",
+				Message: "Another error message",
+			},
+		},
+		ToolCalls: []workflow.ToolCallInfo{
+			{
+				Name:          "github_get_issue",
+				CallCount:     3,
+				MaxOutputSize: 1024,
+				MaxDuration:   2 * time.Second,
+			},
+		},
+	}
+
+	missingTools := []MissingToolReport{
+		{
+			Tool:         "missing_tool",
+			Reason:       "Tool not available",
+			Alternatives: "use alternative_tool instead",
+			Timestamp:    "2024-01-01T10:00:00Z",
+		},
+	}
+
+	mcpFailures := []MCPFailureReport{
+		{
+			ServerName: "test-server",
+			Status:     "failed",
+		},
+	}
+
+	processedRun := ProcessedRun{
+		Run:          run,
+		MissingTools: missingTools,
+		MCPFailures:  mcpFailures,
+	}
+
+	// Build audit data
+	auditData := buildAuditData(processedRun, metrics)
+
+	// Verify overview
+	if auditData.Overview.RunID != 123456 {
+		t.Errorf("Expected run ID 123456, got %d", auditData.Overview.RunID)
+	}
+	if auditData.Overview.WorkflowName != "Test Workflow" {
+		t.Errorf("Expected workflow name 'Test Workflow', got %s", auditData.Overview.WorkflowName)
+	}
+	if auditData.Overview.Status != "completed" {
+		t.Errorf("Expected status 'completed', got %s", auditData.Overview.Status)
+	}
+
+	// Verify metrics
+	if auditData.Metrics.TokenUsage != 1500 {
+		t.Errorf("Expected token usage 1500, got %d", auditData.Metrics.TokenUsage)
+	}
+	if auditData.Metrics.EstimatedCost != 0.025 {
+		t.Errorf("Expected estimated cost 0.025, got %f", auditData.Metrics.EstimatedCost)
+	}
+	if auditData.Metrics.ErrorCount != 2 {
+		t.Errorf("Expected error count 2, got %d", auditData.Metrics.ErrorCount)
+	}
+	if auditData.Metrics.WarningCount != 1 {
+		t.Errorf("Expected warning count 1, got %d", auditData.Metrics.WarningCount)
+	}
+
+	// Verify errors and warnings are properly split
+	if len(auditData.Errors) != 2 {
+		t.Errorf("Expected 2 errors, got %d", len(auditData.Errors))
+	}
+	if len(auditData.Warnings) != 1 {
+		t.Errorf("Expected 1 warning, got %d", len(auditData.Warnings))
+	}
+
+	// Verify tool usage
+	if len(auditData.ToolUsage) != 1 {
+		t.Errorf("Expected 1 tool usage entry, got %d", len(auditData.ToolUsage))
+	}
+
+	// Verify missing tools
+	if len(auditData.MissingTools) != 1 {
+		t.Errorf("Expected 1 missing tool, got %d", len(auditData.MissingTools))
+	}
+
+	// Verify MCP failures
+	if len(auditData.MCPFailures) != 1 {
+		t.Errorf("Expected 1 MCP failure, got %d", len(auditData.MCPFailures))
+	}
+}
+
+func TestDescribeFile(t *testing.T) {
+	tests := []struct {
+		filename    string
+		description string
+	}{
+		{"aw_info.json", "Engine configuration and workflow metadata"},
+		{"safe_output.jsonl", "Safe outputs from workflow execution"},
+		{"agent_output.json", "Validated safe outputs"},
+		{"aw.patch", "Git patch of changes made during execution"},
+		{"agent-stdio.log", "Agent standard output/error logs"},
+		{"log.md", "Human-readable agent session summary"},
+		{"random.log", "Log file"},
+		{"unknown.txt", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.filename, func(t *testing.T) {
+			result := describeFile(tt.filename)
+			if result != tt.description {
+				t.Errorf("Expected description '%s', got '%s'", tt.description, result)
+			}
+		})
+	}
+}
+
+func TestRenderJSON(t *testing.T) {
+	// Create test audit data
+	auditData := AuditData{
+		Overview: OverviewData{
+			RunID:        123456,
+			WorkflowName: "Test Workflow",
+			Status:       "completed",
+			Conclusion:   "success",
+			Event:        "push",
+			Branch:       "main",
+			URL:          "https://github.com/org/repo/actions/runs/123456",
+		},
+		Metrics: MetricsData{
+			TokenUsage:    1500,
+			EstimatedCost: 0.025,
+			Turns:         5,
+			ErrorCount:    1,
+			WarningCount:  1,
+		},
+		Jobs: []JobData{
+			{
+				Name:       "test-job",
+				Status:     "completed",
+				Conclusion: "success",
+				Duration:   "2m30s",
+			},
+		},
+		DownloadedFiles: []FileInfo{
+			{
+				Path:          "aw_info.json",
+				Size:          1024,
+				SizeFormatted: "1.0 KB",
+				Description:   "Engine configuration and workflow metadata",
+				IsDirectory:   false,
+			},
+		},
+		MissingTools: []MissingToolReport{
+			{
+				Tool:   "missing_tool",
+				Reason: "Tool not available",
+			},
+		},
+		Errors: []ErrorInfo{
+			{
+				File:    "agent.log",
+				Line:    42,
+				Type:    "error",
+				Message: "Test error",
+			},
+		},
+		Warnings: []ErrorInfo{
+			{
+				File:    "agent.log",
+				Line:    50,
+				Type:    "warning",
+				Message: "Test warning",
+			},
+		},
+	}
+
+	// Render to JSON
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := renderJSON(auditData)
+	w.Close()
+
+	// Read the output
+	var buf strings.Builder
+	io.Copy(&buf, r)
+	os.Stdout = oldStdout
+
+	if err != nil {
+		t.Fatalf("renderJSON failed: %v", err)
+	}
+
+	jsonOutput := buf.String()
+
+	// Verify it's valid JSON
+	var parsed AuditData
+	if err := json.Unmarshal([]byte(jsonOutput), &parsed); err != nil {
+		t.Fatalf("Failed to parse JSON output: %v", err)
+	}
+
+	// Verify key fields
+	if parsed.Overview.RunID != 123456 {
+		t.Errorf("Expected run ID 123456, got %d", parsed.Overview.RunID)
+	}
+	if parsed.Metrics.TokenUsage != 1500 {
+		t.Errorf("Expected token usage 1500, got %d", parsed.Metrics.TokenUsage)
+	}
+	if len(parsed.Jobs) != 1 {
+		t.Errorf("Expected 1 job, got %d", len(parsed.Jobs))
+	}
+	if len(parsed.DownloadedFiles) != 1 {
+		t.Errorf("Expected 1 downloaded file, got %d", len(parsed.DownloadedFiles))
+	}
+	if len(parsed.MissingTools) != 1 {
+		t.Errorf("Expected 1 missing tool, got %d", len(parsed.MissingTools))
+	}
+	if len(parsed.Errors) != 1 {
+		t.Errorf("Expected 1 error, got %d", len(parsed.Errors))
+	}
+	if len(parsed.Warnings) != 1 {
+		t.Errorf("Expected 1 warning, got %d", len(parsed.Warnings))
 	}
 }
