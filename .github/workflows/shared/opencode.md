@@ -35,6 +35,20 @@ imports:
 ---
 ```
 
+**Customizing Configuration:**
+You can override the default environment variables by setting them in your workflow:
+
+```yaml
+---
+imports:
+  - shared/opencode.md
+engine:
+  env:
+    GITHUB_AW_AGENT_VERSION: "0.2.0"  # Use a different OpenCode version
+    GITHUB_AW_AGENT_MODEL: "openai/gpt-4"  # Use a different AI model
+---
+```
+
 **Requirements:**
 - The workflow will install opencode-ai npm package using version from `GITHUB_AW_AGENT_VERSION` env var
 - The prompt file is read directly in the Run OpenCode step using command substitution
