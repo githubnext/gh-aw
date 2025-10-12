@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.20.0 - 2025-10-12
+
+### Features
+
+#### Add --json flag to status command and jq filtering to MCP server
+
+Adds new command-line flags to the status command:
+- `--json` flag renders the entire output as JSON
+- Optional `jq` parameter allows filtering JSON output through jq tool
+
+The jq filtering functionality has been refactored into dedicated files (jq.go) with comprehensive test coverage.
+
+
+### Bug Fixes
+
+#### Fix content truncation message priority in sanitizeContent function
+
+Fixed a bug where the `sanitizeContent` function was applying truncation checks in the wrong order. When content exceeded both line count and byte length limits, the function would incorrectly report "Content truncated due to length" instead of the more specific "Content truncated due to line count" message. The truncation logic now prioritizes line count truncation, ensuring users get the most accurate truncation message based on which limit was hit first.
+
+#### Fix HTTP transport usage of go-sdk
+
+Fixed the MCP server HTTP transport implementation to use the correct `NewStreamableHTTPHandler` API from go-sdk instead of the deprecated SSE handler. Also added request/response logging middleware and changed configuration validation errors to warnings to allow server startup in test environments.
+
+#### Fix single-file artifact directory nesting in logs command
+
+When downloading artifacts with a single file, the file is now moved to the parent directory and the unnecessary nested folder is removed. This implements the "artifact unfold rule" which simplifies artifact access by removing unnecessary nesting for single-file artifacts while preserving multi-file artifact directories.
+
+#### Update MCP server workflow for toolset comparison with cache-memory
+
+Enhanced the github-mcp-tools-report workflow to track and compare changes to the GitHub MCP toolset over time. Added cache-memory configuration to enable persistent storage across workflow runs, allowing the workflow to detect new and removed tools since the last report. The workflow now loads previous tools data, compares it with the current toolset, and includes a changes section in the generated report.
+
+
 ## v0.19.0 - 2025-10-12
 
 ### Features
