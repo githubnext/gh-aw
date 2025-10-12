@@ -279,17 +279,6 @@ func detectFromEngineSteps(steps []map[string]any, requirements map[string]*Runt
 	}
 }
 
-// hasExistingSetupActionByRepo checks if custom steps already contain setup actions using action repo detection
-func hasExistingSetupActionByRepo(customSteps string) bool {
-	for _, runtime := range knownRuntimes {
-		// Check if the action repo is referenced in the custom steps
-		if strings.Contains(customSteps, runtime.ActionRepo) {
-			return true
-		}
-	}
-	return false
-}
-
 // filterExistingSetupActions removes runtimes from requirements if they already have setup actions in the custom steps
 func filterExistingSetupActions(customSteps string, requirements map[string]*RuntimeRequirement) {
 	for _, runtime := range knownRuntimes {
