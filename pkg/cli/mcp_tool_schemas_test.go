@@ -7,7 +7,9 @@ import (
 
 // TestMCPToolOutputSchemas verifies that output schemas are correctly generated for MCP tools
 func TestMCPToolOutputSchemas(t *testing.T) {
-	t.Run("logs tool has output schema", func(t *testing.T) {
+	t.Run("logs schema can be generated (for future use)", func(t *testing.T) {
+		// The logs tool currently doesn't use output schemas, but we verify
+		// the helper can generate them for when they're needed in the future
 		schema, err := GenerateOutputSchema[LogsData]()
 		if err != nil {
 			t.Fatalf("Failed to generate schema for LogsData: %v", err)
@@ -40,7 +42,7 @@ func TestMCPToolOutputSchemas(t *testing.T) {
 			t.Error("Expected non-empty JSON schema")
 		}
 
-		t.Logf("Logs schema JSON length: %d bytes", len(schemaJSON))
+		t.Logf("Logs schema JSON length: %d bytes (ready for future use)", len(schemaJSON))
 	})
 
 	t.Run("audit tool has output schema", func(t *testing.T) {
