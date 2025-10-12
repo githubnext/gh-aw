@@ -136,12 +136,18 @@ func createMCPServer(cmdPath string) *mcp.Server {
 		JqFilter string `json:"jq,omitempty" jsonschema:"Optional jq filter to apply to JSON output"`
 	}
 
-	// Note: Output schema not set for status tool because it returns an array directly,
-	// but MCP requires output schemas to be objects. The helper GenerateOutputSchema
-	// is available for future use if the status command is modified to return an object.
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "status",
-		Description: "Show status of agentic workflow files and workflows",
+		Name: "status",
+		Description: `Show status of agentic workflow files and workflows.
+
+Returns a JSON array where each element has the following structure:
+- workflow: Name of the workflow file
+- agent: AI engine used (e.g., "copilot", "claude", "codex")
+- compiled: Whether the workflow is compiled ("Yes", "No", or "N/A")
+- status: GitHub workflow status ("active", "disabled", "Unknown")
+- time_remaining: Time remaining until workflow deadline (if applicable)
+
+Note: Output can be filtered using the jq parameter.`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments - always use JSON for MCP
 		cmdArgs := []string{"status", "--json"}
@@ -175,7 +181,6 @@ func createMCPServer(cmdPath string) *mcp.Server {
 			outputStr = filteredOutput
 		}
 
-		// Return text content (output schema not supported for array return types)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
