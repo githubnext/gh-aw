@@ -355,11 +355,11 @@ jobs:
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
-      - name: Add eyes reaction to the triggering item
+      - name: Add rocket reaction to the triggering item
         id: react
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_REACTION: eyes
+          GITHUB_AW_REACTION: rocket
           GITHUB_AW_COMMAND: q
           GITHUB_AW_WORKFLOW_NAME: "Q"
         with:
