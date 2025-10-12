@@ -54,7 +54,7 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			// Preserve existing stop time during recompilation
 			workflowData.StopTime = existingStopTime
 			if c.verbose {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Preserving existing stop time from lock file: %s", existingStopTime)))
 			}
 		} else {
 			// First compilation or no existing stop time, generate new one
@@ -66,9 +66,9 @@ func (c *Compiler) processStopAfterConfiguration(frontmatter map[string]any, wor
 			workflowData.StopTime = resolvedStopTime
 
 			if c.verbose && isRelativeStopTime(originalStopTime) {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Resolved relative stop-after to: %s", resolvedStopTime)))
 			} else if c.verbose && originalStopTime != resolvedStopTime {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Parsed absolute stop-after from '%s' to: %s", originalStopTime, resolvedStopTime)))
 			}
 		}
 	}

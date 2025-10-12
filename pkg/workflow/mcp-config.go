@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -121,7 +122,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 	case "http":
 		if renderer.Format == "toml" {
 			// TOML format doesn't support HTTP type in some engines
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has type '%s', but %s only supports 'stdio'. Ignoring this server.", toolName, mcpType, renderer.Format)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has type '%s', but %s only supports 'stdio'. Ignoring this server.", toolName, mcpType, renderer.Format)))
 			return nil
 		} else {
 			// JSON format - include copilot fields if required
@@ -133,9 +134,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		}
 	default:
 		if renderer.Format == "toml" {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio", toolName, mcpType)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio", toolName, mcpType)))
 		} else {
-			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpType)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpType)))
 		}
 		return nil
 	}
