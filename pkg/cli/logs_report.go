@@ -39,32 +39,41 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
-	DatabaseID       int64     `json:"database_id"`
-	Number           int       `json:"number"`
-	WorkflowName     string    `json:"workflow_name"`
-	Status           string    `json:"status"`
-	Conclusion       string    `json:"conclusion,omitempty"`
-	Duration         string    `json:"duration,omitempty"`
-	TokenUsage       int       `json:"token_usage,omitempty"`
-	EstimatedCost    float64   `json:"estimated_cost,omitempty"`
-	Turns            int       `json:"turns,omitempty"`
-	ErrorCount       int       `json:"error_count"`
-	WarningCount     int       `json:"warning_count"`
-	MissingToolCount int       `json:"missing_tool_count"`
-	CreatedAt        time.Time `json:"created_at"`
-	URL              string    `json:"url"`
-	LogsPath         string    `json:"logs_path"`
-	Event            string    `json:"event"`
-	Branch           string    `json:"branch"`
+	DatabaseID       int64     `json:"database_id" console:"header:Run ID"`
+	Number           int       `json:"number" console:"-"`
+	WorkflowName     string    `json:"workflow_name" console:"header:Workflow"`
+	Status           string    `json:"status" console:"header:Status"`
+	Conclusion       string    `json:"conclusion,omitempty" console:"-"`
+	Duration         string    `json:"duration,omitempty" console:"header:Duration,omitempty"`
+	TokenUsage       int       `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
+	EstimatedCost    float64   `json:"estimated_cost,omitempty" console:"header:Cost ($),format:cost,omitempty"`
+	Turns            int       `json:"turns,omitempty" console:"header:Turns,omitempty"`
+	ErrorCount       int       `json:"error_count" console:"header:Errors"`
+	WarningCount     int       `json:"warning_count" console:"header:Warnings"`
+	MissingToolCount int       `json:"missing_tool_count" console:"header:Missing"`
+	CreatedAt        time.Time `json:"created_at" console:"header:Created"`
+	URL              string    `json:"url" console:"-"`
+	LogsPath         string    `json:"logs_path" console:"header:Logs Path"`
+	Event            string    `json:"event" console:"-"`
+	Branch           string    `json:"branch" console:"-"`
 }
 
 // ToolUsageSummary contains aggregated tool usage statistics
 type ToolUsageSummary struct {
-	Name          string `json:"name"`
-	TotalCalls    int    `json:"total_calls"`
-	MaxOutputSize int    `json:"max_output_size,omitempty"`
-	MaxDuration   string `json:"max_duration,omitempty"`
-	Runs          int    `json:"runs"` // Number of runs that used this tool
+	Name          string `json:"name" console:"header:Tool"`
+	TotalCalls    int    `json:"total_calls" console:"header:Total Calls,format:number"`
+	Runs          int    `json:"runs" console:"header:Runs"` // Number of runs that used this tool
+	MaxOutputSize int    `json:"max_output_size,omitempty" console:"-"`
+	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+}
+
+// ToolUsageDisplay is a display-optimized version of ToolUsageSummary for console rendering
+type ToolUsageDisplay struct {
+	Name        string `console:"header:Tool"`
+	TotalCalls  string `console:"header:Total Calls"`
+	Runs        int    `console:"header:Runs"`
+	MaxOutput   string `console:"header:Max Output"`
+	MaxDuration string `console:"header:Max Duration,omitempty"`
 }
 
 // AccessLogSummary contains aggregated access log analysis
@@ -489,71 +498,58 @@ func displayLogsOverviewFromData(data LogsData, verbose bool) {
 func displayToolUsageFromData(toolUsage []ToolUsageSummary, verbose bool) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Tool Usage Summary"))
 
-	headers := []string{"Tool", "Total Calls", "Runs", "Max Output", "Max Duration"}
-	var rows [][]string
-
+	// Convert to display-optimized struct
+	displayData := make([]ToolUsageDisplay, 0, len(toolUsage))
 	for _, tool := range toolUsage {
 		outputStr := "N/A"
 		if tool.MaxOutputSize > 0 {
 			outputStr = pretty.FormatFileSize(int64(tool.MaxOutputSize))
 		}
-		durationStr := "N/A"
-		if tool.MaxDuration != "" {
-			durationStr = tool.MaxDuration
+		durationStr := tool.MaxDuration
+		if durationStr == "" {
+			durationStr = "N/A"
 		}
 
-		rows = append(rows, []string{
-			tool.Name,
-			formatNumber(tool.TotalCalls),
-			fmt.Sprintf("%d", tool.Runs),
-			outputStr,
-			durationStr,
+		displayData = append(displayData, ToolUsageDisplay{
+			Name:        tool.Name,
+			TotalCalls:  formatNumber(tool.TotalCalls),
+			Runs:        tool.Runs,
+			MaxOutput:   outputStr,
+			MaxDuration: durationStr,
 		})
 	}
 
-	tableConfig := console.TableConfig{
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
+	fmt.Print(console.RenderStruct(displayData))
 }
 
 // displayMCPFailuresFromData displays MCP failures
 func displayMCPFailuresFromData(mcpFailures []MCPFailureSummary, verbose bool) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("⚠️  MCP Server Failures"))
 
-	headers := []string{"Server", "Failures", "Workflows"}
-	var rows [][]string
-
+	// Convert to display-optimized struct
+	displayData := make([]MCPFailureDisplay, 0, len(mcpFailures))
 	for _, failure := range mcpFailures {
 		workflowList := strings.Join(failure.Workflows, ", ")
 		if len(workflowList) > 60 {
 			workflowList = workflowList[:57] + "..."
 		}
 
-		rows = append(rows, []string{
-			failure.ServerName,
-			fmt.Sprintf("%d", failure.Count),
-			workflowList,
+		displayData = append(displayData, MCPFailureDisplay{
+			ServerName: failure.ServerName,
+			Count:      failure.Count,
+			Workflows:  workflowList,
 		})
 	}
 
-	tableConfig := console.TableConfig{
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
+	fmt.Print(console.RenderStruct(displayData))
 }
 
 // displayMissingToolsFromData displays missing tools
 func displayMissingToolsFromData(missingTools []MissingToolSummary, verbose bool) {
 	fmt.Printf("\n%s\n", console.FormatListHeader("🛠️  Missing Tools Summary"))
 
-	headers := []string{"Tool", "Occurrences", "Workflows", "First Reason"}
-	var rows [][]string
-
+	// Convert to display-optimized struct
+	displayData := make([]MissingToolDisplay, 0, len(missingTools))
 	for _, summary := range missingTools {
 		workflowList := strings.Join(summary.Workflows, ", ")
 		if len(workflowList) > 40 {
@@ -565,20 +561,15 @@ func displayMissingToolsFromData(missingTools []MissingToolSummary, verbose bool
 			reason = reason[:47] + "..."
 		}
 
-		rows = append(rows, []string{
-			summary.Tool,
-			fmt.Sprintf("%d", summary.Count),
-			workflowList,
-			reason,
+		displayData = append(displayData, MissingToolDisplay{
+			Tool:        summary.Tool,
+			Count:       summary.Count,
+			Workflows:   workflowList,
+			FirstReason: reason,
 		})
 	}
 
-	tableConfig := console.TableConfig{
-		Headers: headers,
-		Rows:    rows,
-	}
-
-	fmt.Print(console.RenderTable(tableConfig))
+	fmt.Print(console.RenderStruct(displayData))
 
 	// Display total summary
 	totalReports := 0

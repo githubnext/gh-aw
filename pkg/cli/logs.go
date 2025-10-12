@@ -85,11 +85,19 @@ type MCPFailureReport struct {
 
 // MissingToolSummary aggregates missing tool reports across runs
 type MissingToolSummary struct {
-	Tool        string
-	Count       int
-	Workflows   []string // List of workflow names that reported this tool
-	FirstReason string   // Reason from the first occurrence
-	RunIDs      []int64  // List of run IDs where this tool was reported
+	Tool        string   `console:"header:Tool"`
+	Count       int      `console:"header:Occurrences"`
+	Workflows   []string `console:"-"` // List of workflow names that reported this tool
+	FirstReason string   `console:"-"` // Reason from the first occurrence
+	RunIDs      []int64  `console:"-"` // List of run IDs where this tool was reported
+}
+
+// MissingToolDisplay is a display-optimized version of MissingToolSummary for console rendering
+type MissingToolDisplay struct {
+	Tool        string `console:"header:Tool"`
+	Count       int    `console:"header:Occurrences"`
+	Workflows   string `console:"header:Workflows"`
+	FirstReason string `console:"header:First Reason"`
 }
 
 // ErrNoArtifacts indicates that a workflow run has no artifacts
@@ -2012,10 +2020,17 @@ func extractMCPFailuresFromLogFile(logPath string, run WorkflowRun, verbose bool
 
 // MCPFailureSummary aggregates MCP server failures across runs
 type MCPFailureSummary struct {
-	ServerName string
-	Count      int
-	Workflows  []string // List of workflow names that had this server fail
-	RunIDs     []int64  // List of run IDs where this server failed
+	ServerName string   `console:"header:Server"`
+	Count      int      `console:"header:Failures"`
+	Workflows  []string `console:"-"` // List of workflow names that had this server fail
+	RunIDs     []int64  `console:"-"` // List of run IDs where this server failed
+}
+
+// MCPFailureDisplay is a display-optimized version of MCPFailureSummary for console rendering
+type MCPFailureDisplay struct {
+	ServerName string `console:"header:Server"`
+	Count      int    `console:"header:Failures"`
+	Workflows  string `console:"header:Workflows"`
 }
 
 // displayMCPFailuresAnalysis displays a summary of MCP server failures across all runs
