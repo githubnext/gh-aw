@@ -794,6 +794,69 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	return agenticRuns, nil
 }
 
+// flattenSingleFileArtifacts applies the artifact unfold rule to downloaded artifacts
+// Unfold rule: If an artifact download folder contains a single file, move the file to root and delete the folder
+// This simplifies artifact access by removing unnecessary nesting for single-file artifacts
+func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return fmt.Errorf("failed to read output directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		artifactDir := filepath.Join(outputDir, entry.Name())
+
+		// Read contents of artifact directory
+		artifactEntries, err := os.ReadDir(artifactDir)
+		if err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read artifact directory %s: %v", artifactDir, err)))
+			}
+			continue
+		}
+
+		// Apply unfold rule: Check if directory contains exactly one entry and it's a file
+		if len(artifactEntries) != 1 {
+			continue
+		}
+
+		singleEntry := artifactEntries[0]
+		if singleEntry.IsDir() {
+			continue
+		}
+
+		// Unfold: Move the single file to parent directory and remove the artifact folder
+		sourcePath := filepath.Join(artifactDir, singleEntry.Name())
+		destPath := filepath.Join(outputDir, singleEntry.Name())
+
+		// Move the file to root (parent directory)
+		if err := os.Rename(sourcePath, destPath); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to move file %s to %s: %v", sourcePath, destPath, err)))
+			}
+			continue
+		}
+
+		// Delete the now-empty artifact folder
+		if err := os.Remove(artifactDir); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove empty directory %s: %v", artifactDir, err)))
+			}
+			continue
+		}
+
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Unfolded single-file artifact: %s → %s", filepath.Join(entry.Name(), singleEntry.Name()), singleEntry.Name())))
+		}
+	}
+
+	return nil
+}
+
 // downloadRunArtifacts downloads artifacts for a specific workflow run
 func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 	// Check if artifacts already exist on disk (since they're immutable)
@@ -849,6 +912,11 @@ func downloadRunArtifacts(runID int64, outputDir string, verbose bool) error {
 			return fmt.Errorf("GitHub CLI authentication required. Run 'gh auth login' first")
 		}
 		return fmt.Errorf("failed to download artifacts for run %d: %w (output: %s)", runID, err, string(output))
+	}
+
+	// Flatten single-file artifacts
+	if err := flattenSingleFileArtifacts(outputDir, verbose); err != nil {
+		return fmt.Errorf("failed to flatten artifacts: %w", err)
 	}
 
 	if verbose {
