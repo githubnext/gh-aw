@@ -8,6 +8,9 @@ import (
 	"testing"
 )
 
+// Tests for artifact unfold rule implementation
+// Unfold rule: If an artifact download folder contains a single file, move the file to root and delete the folder
+
 func TestFlattenSingleFileArtifacts(t *testing.T) {
 	tests := []struct {
 		name            string

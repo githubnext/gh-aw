@@ -794,8 +794,9 @@ func listWorkflowRunsWithPagination(workflowName string, count int, startDate, e
 	return agenticRuns, nil
 }
 
-// flattenSingleFileArtifacts moves files from single-file artifact directories to the parent directory
-// When an artifact contains only a single file, move it up one level and remove the artifact directory
+// flattenSingleFileArtifacts applies the artifact unfold rule to downloaded artifacts
+// Unfold rule: If an artifact download folder contains a single file, move the file to root and delete the folder
+// This simplifies artifact access by removing unnecessary nesting for single-file artifacts
 func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 	entries, err := os.ReadDir(outputDir)
 	if err != nil {
@@ -818,7 +819,7 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 			continue
 		}
 
-		// Check if directory contains exactly one entry and it's a file
+		// Apply unfold rule: Check if directory contains exactly one entry and it's a file
 		if len(artifactEntries) != 1 {
 			continue
 		}
@@ -828,11 +829,11 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 			continue
 		}
 
-		// At this point, we have exactly one file in the artifact directory
+		// Unfold: Move the single file to parent directory and remove the artifact folder
 		sourcePath := filepath.Join(artifactDir, singleEntry.Name())
 		destPath := filepath.Join(outputDir, singleEntry.Name())
 
-		// Move the file to parent directory
+		// Move the file to root (parent directory)
 		if err := os.Rename(sourcePath, destPath); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to move file %s to %s: %v", sourcePath, destPath, err)))
@@ -840,7 +841,7 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 			continue
 		}
 
-		// Remove the now-empty artifact directory
+		// Delete the now-empty artifact folder
 		if err := os.Remove(artifactDir); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove empty directory %s: %v", artifactDir, err)))
@@ -849,7 +850,7 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 		}
 
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Flattened single-file artifact: %s → %s", filepath.Join(entry.Name(), singleEntry.Name()), singleEntry.Name())))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Unfolded single-file artifact: %s → %s", filepath.Join(entry.Name(), singleEntry.Name()), singleEntry.Name())))
 		}
 	}
 
