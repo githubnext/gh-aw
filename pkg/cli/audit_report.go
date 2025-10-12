@@ -43,8 +43,8 @@ type OverviewData struct {
 
 // MetricsData contains execution metrics
 type MetricsData struct {
-	TokenUsage    int     `json:"token_usage,omitempty" console:"header:Token Usage,omitempty"`
-	EstimatedCost float64 `json:"estimated_cost,omitempty" console:"header:Estimated Cost,omitempty"`
+	TokenUsage    int     `json:"token_usage,omitempty" console:"header:Token Usage,format:number,omitempty"`
+	EstimatedCost float64 `json:"estimated_cost,omitempty" console:"header:Estimated Cost,format:cost,omitempty"`
 	Turns         int     `json:"turns,omitempty" console:"header:Turns,omitempty"`
 	ErrorCount    int     `json:"error_count" console:"header:Errors"`
 	WarningCount  int     `json:"warning_count" console:"header:Warnings"`
@@ -79,8 +79,19 @@ type ErrorInfo struct {
 type ToolUsageInfo struct {
 	Name          string `json:"name" console:"header:Tool"`
 	CallCount     int    `json:"call_count" console:"header:Calls"`
-	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,omitempty"`
+	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:number,omitempty"`
 	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
+}
+
+// OverviewDisplay is a display-optimized version of OverviewData for console rendering
+type OverviewDisplay struct {
+	RunID    int64  `console:"header:Run ID"`
+	Workflow string `console:"header:Workflow"`
+	Status   string `console:"header:Status"`
+	Duration string `console:"header:Duration,omitempty"`
+	Event    string `console:"header:Event"`
+	Branch   string `console:"header:Branch"`
+	URL      string `console:"header:URL"`
 }
 
 // buildAuditData creates structured audit data from workflow run information
@@ -403,17 +414,6 @@ func renderConsole(data AuditData, logsPath string) {
 
 // renderOverview renders the overview section using the new rendering system
 func renderOverview(overview OverviewData) {
-	// Special handling for Status with Conclusion
-	type OverviewDisplay struct {
-		RunID    int64  `console:"header:Run ID"`
-		Workflow string `console:"header:Workflow"`
-		Status   string `console:"header:Status"`
-		Duration string `console:"header:Duration,omitempty"`
-		Event    string `console:"header:Event"`
-		Branch   string `console:"header:Branch"`
-		URL      string `console:"header:URL"`
-	}
-
 	// Format Status with optional Conclusion
 	statusLine := overview.Status
 	if overview.Conclusion != "" && overview.Status == "completed" {
@@ -435,36 +435,7 @@ func renderOverview(overview OverviewData) {
 
 // renderMetrics renders the metrics section using the new rendering system
 func renderMetrics(metrics MetricsData) {
-	// Create a display struct with custom formatting
-	type MetricsDisplay struct {
-		TokenUsage    string `console:"header:Token Usage,omitempty"`
-		EstimatedCost string `console:"header:Estimated Cost,omitempty"`
-		Turns         string `console:"header:Turns,omitempty"`
-		Errors        int    `console:"header:Errors"`
-		Warnings      int    `console:"header:Warnings"`
-	}
-
-	display := MetricsDisplay{
-		Errors:   metrics.ErrorCount,
-		Warnings: metrics.WarningCount,
-	}
-
-	// Format token usage
-	if metrics.TokenUsage > 0 {
-		display.TokenUsage = formatNumber(metrics.TokenUsage)
-	}
-
-	// Format cost
-	if metrics.EstimatedCost > 0 {
-		display.EstimatedCost = fmt.Sprintf("$%.3f", metrics.EstimatedCost)
-	}
-
-	// Format turns
-	if metrics.Turns > 0 {
-		display.Turns = fmt.Sprintf("%d", metrics.Turns)
-	}
-
-	fmt.Print(console.RenderStruct(display))
+	fmt.Print(console.RenderStruct(metrics))
 }
 
 // renderJobsTable renders the jobs as a table using console.RenderTable

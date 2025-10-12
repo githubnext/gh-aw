@@ -8,6 +8,9 @@ Use the `console` struct tag to control rendering behavior:
 
 - **`header:"Name"`** - Sets the display name for fields (used in both structs and tables)
 - **`title:"Section Title"`** - Sets the title for nested structs, slices, or maps
+- **`format:"type"`** - Sets the formatting type for the field value
+  - `format:number` - Formats integers as human-readable numbers (e.g., "1k", "1.2M")
+  - `format:cost` - Formats floats as currency with $ prefix (e.g., "$1.234")
 - **`omitempty`** - Skips the field if it has a zero value
 - **`"-"`** - Always skips the field
 
@@ -36,6 +39,41 @@ fmt.Print(console.RenderStruct(data))
 //   Workflow: test-workflow
 //   Status  : completed
 //   Duration: 5m30s
+```
+
+## Format Tag Examples
+
+### Number Formatting
+
+```go
+type Metrics struct {
+    TokenUsage int `console:"header:Token Usage,format:number"`
+    Errors     int `console:"header:Errors"`
+}
+
+data := Metrics{
+    TokenUsage: 250000,
+    Errors:     5,
+}
+
+// Renders as:
+//   Token Usage: 250k
+//   Errors     : 5
+```
+
+### Cost Formatting
+
+```go
+type Billing struct {
+    Cost float64 `console:"header:Estimated Cost,format:cost"`
+}
+
+data := Billing{
+    Cost: 1.234,
+}
+
+// Renders as:
+//   Estimated Cost: $1.234
 ```
 
 ## Rendering Behavior

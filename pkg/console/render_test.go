@@ -324,3 +324,69 @@ func TestBuildTableConfig(t *testing.T) {
 		t.Errorf("Expected first row name to be 'job-1', got %s", config.Rows[0][0])
 	}
 }
+
+func TestFormatTag_Number(t *testing.T) {
+	type TestMetrics struct {
+		TokenUsage int `console:"header:Token Usage,format:number"`
+		Errors     int `console:"header:Errors"`
+	}
+
+	data := TestMetrics{
+		TokenUsage: 250000,
+		Errors:     5,
+	}
+
+	output := RenderStruct(data)
+
+	// Should format token usage as "250k"
+	if !strings.Contains(output, "250k") {
+		t.Errorf("Output should contain formatted number '250k', got:\n%s", output)
+	}
+
+	// Errors should not be formatted
+	if !strings.Contains(output, "5") {
+		t.Errorf("Output should contain unformatted number '5', got:\n%s", output)
+	}
+}
+
+func TestFormatTag_Cost(t *testing.T) {
+	type TestBilling struct {
+		Cost float64 `console:"header:Estimated Cost,format:cost"`
+	}
+
+	data := TestBilling{
+		Cost: 1.234,
+	}
+
+	output := RenderStruct(data)
+
+	// Should format cost with $ prefix
+	if !strings.Contains(output, "$1.234") {
+		t.Errorf("Output should contain formatted cost '$1.234', got:\n%s", output)
+	}
+}
+
+func TestFormatTag_InTable(t *testing.T) {
+	type TestTool struct {
+		Name       string `console:"header:Tool"`
+		CallCount  int    `console:"header:Calls"`
+		OutputSize int    `console:"header:Output,format:number"`
+	}
+
+	tools := []TestTool{
+		{Name: "tool-1", CallCount: 10, OutputSize: 5000000},
+		{Name: "tool-2", CallCount: 5, OutputSize: 1500},
+	}
+
+	output := RenderStruct(tools)
+
+	// Should format large output size
+	if !strings.Contains(output, "5.00M") {
+		t.Errorf("Output should contain formatted number '5.00M', got:\n%s", output)
+	}
+
+	// Should format small output size
+	if !strings.Contains(output, "1.5k") {
+		t.Errorf("Output should contain formatted number '1.5k', got:\n%s", output)
+	}
+}

@@ -126,7 +126,7 @@ func renderStruct(val reflect.Value, title string, output *strings.Builder, dept
 		} else {
 			// Simple field - render as key-value pair with proper alignment
 			paddedName := fmt.Sprintf("%-*s", maxFieldLen, fieldName)
-			output.WriteString(fmt.Sprintf("  %s: %v\n", paddedName, formatFieldValue(field)))
+			output.WriteString(fmt.Sprintf("  %s: %v\n", paddedName, formatFieldValueWithTag(field, tag)))
 		}
 	}
 
@@ -212,6 +212,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 	// Build headers from struct fields
 	var headers []string
 	var fieldIndices []int
+	var fieldTags []consoleTag
 
 	for i := 0; i < elemType.NumField(); i++ {
 		field := elemType.Field(i)
@@ -230,6 +231,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 
 		headers = append(headers, headerName)
 		fieldIndices = append(fieldIndices, i)
+		fieldTags = append(fieldTags, tag)
 	}
 
 	config.Headers = headers
@@ -250,9 +252,9 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 		}
 
 		var row []string
-		for _, fieldIdx := range fieldIndices {
+		for j, fieldIdx := range fieldIndices {
 			field := elem.Field(fieldIdx)
-			row = append(row, formatFieldValue(field))
+			row = append(row, formatFieldValueWithTag(field, fieldTags[j]))
 		}
 		config.Rows = append(config.Rows, row)
 	}
@@ -264,6 +266,7 @@ func buildTableConfig(val reflect.Value, title string) TableConfig {
 type consoleTag struct {
 	title     string
 	header    string
+	format    string
 	omitempty bool
 	skip      bool
 }
@@ -286,6 +289,8 @@ func parseConsoleTag(tag string) consoleTag {
 			result.title = strings.TrimPrefix(part, "title:")
 		} else if strings.HasPrefix(part, "header:") {
 			result.header = strings.TrimPrefix(part, "header:")
+		} else if strings.HasPrefix(part, "format:") {
+			result.format = strings.TrimPrefix(part, "format:")
 		}
 	}
 
@@ -405,4 +410,89 @@ func formatFieldValue(val reflect.Value) string {
 	}
 
 	return fmt.Sprintf("%v", val.Interface())
+}
+
+// formatFieldValueWithTag formats a reflect.Value as a string for display with format tag support
+func formatFieldValueWithTag(val reflect.Value, tag consoleTag) string {
+	// Get the base formatted value
+	baseValue := formatFieldValue(val)
+
+	// If no format specified or value is "-", return as is
+	if tag.format == "" || baseValue == "-" {
+		return baseValue
+	}
+
+	// Apply format based on tag
+	switch tag.format {
+	case "number":
+		// Format as human-readable number (e.g., "1k", "1.2M")
+		if val.CanInterface() {
+			switch v := val.Interface().(type) {
+			case int:
+				return formatNumberForDisplay(v)
+			case int64:
+				return formatNumberForDisplay(int(v))
+			case int32:
+				return formatNumberForDisplay(int(v))
+			case uint:
+				return formatNumberForDisplay(int(v))
+			case uint64:
+				return formatNumberForDisplay(int(v))
+			case uint32:
+				return formatNumberForDisplay(int(v))
+			}
+		}
+		// Fallback: try to parse from baseValue if it's an integer
+		if val.Kind() >= reflect.Int && val.Kind() <= reflect.Uint64 {
+			return formatNumberForDisplay(int(val.Int()))
+		}
+	case "cost":
+		// Format as currency with $ prefix
+		if val.CanInterface() {
+			switch v := val.Interface().(type) {
+			case float64:
+				if v > 0 {
+					return fmt.Sprintf("$%.3f", v)
+				}
+			case float32:
+				if v > 0 {
+					return fmt.Sprintf("$%.3f", v)
+				}
+			}
+		}
+		if val.Kind() == reflect.Float64 || val.Kind() == reflect.Float32 {
+			if val.Float() > 0 {
+				return fmt.Sprintf("$%.3f", val.Float())
+			}
+		}
+	}
+
+	return baseValue
+}
+
+// formatNumberForDisplay formats large numbers in a human-readable way (e.g., "1k", "1.2M")
+func formatNumberForDisplay(n int) string {
+	if n == 0 {
+		return "0"
+	}
+
+	f := float64(n)
+
+	if f < 1000 {
+		return fmt.Sprintf("%d", n)
+	} else if f < 1000000 {
+		// Format as thousands (k)
+		if f < 10000 {
+			return fmt.Sprintf("%.1fk", f/1000)
+		}
+		return fmt.Sprintf("%.0fk", f/1000)
+	} else if f < 1000000000 {
+		// Format as millions (M)
+		if f < 10000000 {
+			return fmt.Sprintf("%.2fM", f/1000000)
+		}
+		return fmt.Sprintf("%.1fM", f/1000000)
+	}
+	// Format as billions (B)
+	return fmt.Sprintf("%.2fB", f/1000000000)
 }
