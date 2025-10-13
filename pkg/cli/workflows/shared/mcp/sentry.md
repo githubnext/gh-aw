@@ -1,11 +1,11 @@
 ---
 # Sentry MCP Server
-# Stdio MCP server for application monitoring and debugging
+# Stdio MCP server for application monitoring and debugging (read-only)
 #
-# Provides tools for managing issues, projects, and traces in Sentry
+# Provides read-only tools for querying issues, projects, and traces in Sentry
 # Documentation: https://mcp.sentry.dev
 #
-# Available tools:
+# Available tools (read-only):
 #   - whoami: Get current user information
 #   - find_organizations: List Sentry organizations
 #   - find_teams: Find teams in an organization
@@ -14,20 +14,15 @@
 #   - get_issue_details: Get detailed information about a specific issue
 #   - get_trace_details: Get distributed trace details
 #   - get_event_attachment: Retrieve event attachments
-#   - update_issue: Update issue status, assignee, or other details
 #   - search_events: AI-powered search for events (requires OpenAI API key)
 #   - search_issues: AI-powered search for issues (requires OpenAI API key)
-#   - create_team: Create a new team
-#   - create_project: Create a new project
-#   - update_project: Update project settings
-#   - create_dsn: Create a Data Source Name (DSN)
 #   - find_dsns: Find DSNs for a project
 #   - analyze_issue_with_seer: AI-powered issue analysis
 #   - search_docs: Search Sentry documentation
 #   - get_doc: Get specific Sentry documentation
 #
 # Authentication:
-#   Requires SENTRY_ACCESS_TOKEN secret with appropriate scopes
+#   Requires SENTRY_ACCESS_TOKEN secret with read-only scopes
 #
 # Note: AI-powered search tools (search_events, search_issues) require
 #       an OpenAI API key to be configured in your Sentry account
@@ -49,13 +44,8 @@ mcp-servers:
       - get_issue_details
       - get_trace_details
       - get_event_attachment
-      - update_issue
       - search_events
       - search_issues
-      - create_team
-      - create_project
-      - update_project
-      - create_dsn
       - find_dsns
       - analyze_issue_with_seer
       - search_docs
@@ -79,24 +69,17 @@ This shared configuration provides Sentry MCP server integration for application
 **Release Management:**
 - `find_releases`: Search for releases across projects
 
-**Issue & Event Management:**
+**Issue & Event Analysis:**
 - `get_issue_details`: Get detailed information about a specific issue including stack traces, breadcrumbs, and context
 - `get_trace_details`: Get distributed trace details for performance monitoring
 - `get_event_attachment`: Retrieve attachments associated with events
-- `update_issue`: Update issue properties (status, assignee, tags, etc.)
 
 **AI-Powered Search:**
 - `search_events`: Natural language search for events (requires OpenAI API key in Sentry)
 - `search_issues`: Natural language search for issues (requires OpenAI API key in Sentry)
 - `analyze_issue_with_seer`: AI-powered root cause analysis of issues
 
-**Project Management:**
-- `create_team`: Create a new team in an organization
-- `create_project`: Create a new project
-- `update_project`: Update project settings and configuration
-
 **DSN Management:**
-- `create_dsn`: Create a Data Source Name for a project
 - `find_dsns`: List all DSNs for a project
 
 **Documentation:**
@@ -112,14 +95,13 @@ The Sentry MCP server uses stdio transport with access token authentication:
 3. The token is automatically passed to the MCP server
 
 Required scopes:
-- Minimum (read-only): org:read, project:read, team:read, event:read
-- Write operations: org:write, project:write, team:write, event:write
+- Read-only: org:read, project:read, team:read, event:read
 
 ### Setup
 
 1. **Create Sentry Access Token:**
    - Go to Sentry Settings → API → Auth Tokens
-   - Create a new token with appropriate scopes
+   - Create a new token with read-only scopes: org:read, project:read, team:read, event:read
    - Copy the token value
 
 2. **Add Repository Secret:**
