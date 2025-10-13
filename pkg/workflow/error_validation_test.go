@@ -383,7 +383,21 @@ func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 	}
 
 	// Verify the patterns specifically match 401 unauthorized content
-	errorPattern := patterns[0] // ERROR pattern (first pattern in new format)
+	// Find the Codex ERROR pattern by description
+	var errorPattern ErrorPattern
+	found := false
+	for _, pattern := range patterns {
+		if pattern.Description == "Codex ERROR messages with timestamp" {
+			errorPattern = pattern
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Fatal("Could not find 'Codex ERROR messages with timestamp' pattern")
+	}
+
 	regex, _ := regexp.Compile(errorPattern.Pattern)
 	match := regex.FindStringSubmatch("2025-09-10T17:55:15.123Z ERROR exceeded retry limit, last status: 401 Unauthorized")
 
