@@ -1685,10 +1685,10 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if needsPermissionCheck {
 		checkMembershipJob, err := c.buildCheckMembershipJob(data)
 		if err != nil {
-			return fmt.Errorf("failed to build check_membership job: %w", err)
+			return fmt.Errorf("failed to build %s job: %w", constants.CheckMembershipJobName, err)
 		}
 		if err := c.jobManager.AddJob(checkMembershipJob); err != nil {
-			return fmt.Errorf("failed to add check_membership job: %w", err)
+			return fmt.Errorf("failed to add %s job: %w", constants.CheckMembershipJobName, err)
 		}
 	}
 
@@ -1952,10 +1952,10 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 // buildCheckMembershipJob creates the check_membership job that validates team membership levels
 func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{
-		"is_team_member":  "${{ steps.check_membership.outputs.is_team_member }}",
-		"result":          "${{ steps.check_membership.outputs.result }}",
-		"user_permission": "${{ steps.check_membership.outputs.user_permission }}",
-		"error_message":   "${{ steps.check_membership.outputs.error_message }}",
+		"is_team_member":  fmt.Sprintf("${{ steps.%s.outputs.is_team_member }}", constants.CheckMembershipJobName),
+		"result":          fmt.Sprintf("${{ steps.%s.outputs.result }}", constants.CheckMembershipJobName),
+		"user_permission": fmt.Sprintf("${{ steps.%s.outputs.user_permission }}", constants.CheckMembershipJobName),
+		"error_message":   fmt.Sprintf("${{ steps.%s.outputs.error_message }}", constants.CheckMembershipJobName),
 	}
 	var steps []string
 

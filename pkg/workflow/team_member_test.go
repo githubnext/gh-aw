@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
 // TestTeamMemberCheckForCommandWorkflows tests that team member checks are only added to command workflows
@@ -135,7 +137,7 @@ Test workflow content.`,
 
 			// Check for team member check (now in check_membership job)
 			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for command workflow") ||
-				strings.Contains(lockContentStr, "check_membership:")
+				strings.Contains(lockContentStr, constants.CheckMembershipJobName+":")
 
 			if tt.expectTeamMemberCheck {
 				if !hasTeamMemberCheck {
@@ -155,7 +157,7 @@ Test workflow content.`,
 				teamMemberCheckStart := strings.Index(lockContentStr, "Check team membership for command workflow")
 				if teamMemberCheckStart == -1 {
 					// Look for the new check_membership job structure
-					teamMemberCheckStart = strings.Index(lockContentStr, "check_membership:")
+					teamMemberCheckStart = strings.Index(lockContentStr, constants.CheckMembershipJobName+":")
 				}
 				teamMemberCheckEnd := strings.Index(lockContentStr[teamMemberCheckStart:], "task:")
 				if teamMemberCheckStart != -1 && teamMemberCheckEnd != -1 {
