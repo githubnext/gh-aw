@@ -92,3 +92,34 @@ This configuration requires network access to Datadog API endpoints. The network
 - Your Datadog account has access to the requested data
 
 **Reference**: [Datadog MCP Server Documentation](https://github.com/GeLi2001/datadog-mcp-server)
+
+<!--
+
+# Datadog MCP Server
+# Observability and monitoring platform integration
+#
+# Provides comprehensive access to Datadog monitoring, logs, metrics, and incidents
+# Documentation: https://github.com/GeLi2001/datadog-mcp-server
+#
+# Available tools:
+#   - get-monitors: Fetch monitors with optional filtering
+#   - get-monitor: Get details of a specific monitor by ID
+#   - get-dashboards: List all dashboards
+#   - get-dashboard: Get a specific dashboard by ID
+#   - get-metrics: List available metrics
+#   - get-metric-metadata: Get metadata for a specific metric
+#   - get-events: Fetch events within a time range
+#   - get-incidents: List incidents with optional filtering
+#   - search-logs: Search logs with advanced query filtering
+#   - aggregate-logs: Perform analytics and aggregations on log data
+#
+# Required Secrets:
+#   - DD_API_KEY: Datadog API key
+#   - DD_APP_KEY: Datadog Application key
+#   - DD_SITE: Datadog site domain (optional, defaults to datadoghq.com)
+#
+# Usage:
+#   imports:
+#     - shared/mcp/datadog.md
+
+-->
