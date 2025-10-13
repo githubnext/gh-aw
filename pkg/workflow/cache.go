@@ -11,6 +11,7 @@ import (
 type CacheMemoryConfig struct {
 	Enabled       bool               `yaml:"enabled,omitempty"`        // whether cache-memory is enabled (for single cache config)
 	Key           string             `yaml:"key,omitempty"`            // custom cache key (for single cache config)
+	Description   string             `yaml:"description,omitempty"`    // optional description for the cache (for single cache config)
 	RetentionDays *int               `yaml:"retention-days,omitempty"` // retention days for upload-artifact action (for single cache config)
 	Caches        []CacheMemoryEntry `yaml:"caches,omitempty"`         // multiple cache configurations
 }
@@ -19,6 +20,7 @@ type CacheMemoryConfig struct {
 type CacheMemoryEntry struct {
 	ID            string `yaml:"id"`                       // cache identifier (required for array notation)
 	Key           string `yaml:"key,omitempty"`            // custom cache key
+	Description   string `yaml:"description,omitempty"`    // optional description for this cache
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
 
@@ -83,6 +85,13 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 					entry.Key = fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", entry.ID)
 				}
 
+				// Parse description
+				if description, exists := cacheMap["description"]; exists {
+					if descStr, ok := description.(string); ok {
+						entry.Description = descStr
+					}
+				}
+
 				// Parse retention days
 				if retentionDays, exists := cacheMap["retention-days"]; exists {
 					if retentionDaysInt, ok := retentionDays.(int); ok {
@@ -118,6 +127,13 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 				if !strings.HasSuffix(config.Key, runIdSuffix) {
 					config.Key = config.Key + runIdSuffix
 				}
+			}
+		}
+
+		// Parse description
+		if description, exists := configMap["description"]; exists {
+			if descStr, ok := description.(string); ok {
+				config.Description = descStr
 			}
 		}
 
@@ -373,7 +389,11 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 		yaml.WriteString("          \n")
 		for _, cache := range config.Caches {
 			cacheDir := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s/", cache.ID)
-			yaml.WriteString(fmt.Sprintf("          - **%s**: `%s`\n", cache.ID, cacheDir))
+			if cache.Description != "" {
+				yaml.WriteString(fmt.Sprintf("          - **%s**: `%s` - %s\n", cache.ID, cacheDir, cache.Description))
+			} else {
+				yaml.WriteString(fmt.Sprintf("          - **%s**: `%s`\n", cache.ID, cacheDir))
+			}
 		}
 		yaml.WriteString("          \n")
 		yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in these folders\n")
@@ -403,7 +423,11 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 	yaml.WriteString("          \n")
 	yaml.WriteString("          ## Cache Folder Available\n")
 	yaml.WriteString("          \n")
-	yaml.WriteString("          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.\n")
+	if config.Description != "" {
+		yaml.WriteString(fmt.Sprintf("          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information. %s\n", config.Description))
+	} else {
+		yaml.WriteString("          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.\n")
+	}
 	yaml.WriteString("          \n")
 	yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
 	yaml.WriteString("          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache\n")
