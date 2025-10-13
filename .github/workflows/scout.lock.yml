@@ -53,7 +53,7 @@ concurrency:
 run-name: "Scout"
 
 jobs:
-  check-membership:
+  check_membership:
     if: >
       ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
       github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
@@ -71,13 +71,13 @@ jobs:
       github.event_name == 'discussion_comment'))
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check-membership.outputs.error_message }}
-      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
-      result: ${{ steps.check-membership.outputs.result }}
-      user_permission: ${{ steps.check-membership.outputs.user_permission }}
+      error_message: ${{ steps.check_membership.outputs.error_message }}
+      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
+      result: ${{ steps.check_membership.outputs.result }}
+      user_permission: ${{ steps.check_membership.outputs.user_permission }}
     steps:
       - name: Check team membership for command workflow
-        id: check-membership
+        id: check_membership
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer,write
@@ -158,9 +158,9 @@ jobs:
             await main();
 
   activation:
-    needs: check-membership
+    needs: check_membership
     if: >
-      (needs.check-membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      (needs.check_membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
       github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
       github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/scout')) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/scout')) && (github.event.issue.pull_request == null)) ||

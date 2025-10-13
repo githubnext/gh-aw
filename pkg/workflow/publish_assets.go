@@ -78,7 +78,7 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, 
 
 	var steps []string
 
-	// Permission checks are now handled by the separate check-membership job
+	// Permission checks are now handled by the separate check_membership job
 	// which is always created when needed (when activation job is created)
 
 	// Step 2: Checkout repository
