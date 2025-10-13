@@ -7,10 +7,10 @@ import (
 
 func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 	tests := []struct {
-		name            string
-		githubTool      any
-		isLast          bool
-		expectedContent []string
+		name              string
+		githubTool        any
+		isLast            bool
+		expectedContent   []string
 		unexpectedContent []string
 	}{
 		{
@@ -32,9 +32,9 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 			},
 		},
 		{
-			name: "GitHub with no allowed tools (defaults to all)",
+			name:       "GitHub with no allowed tools (defaults to all)",
 			githubTool: map[string]any{},
-			isLast: true,
+			isLast:     true,
 			expectedContent: []string{
 				`"github": {`,
 				`"type": "local"`,
@@ -58,7 +58,7 @@ func TestRenderGitHubCopilotMCPConfig_AllowedTools(t *testing.T) {
 		{
 			name: "GitHub remote mode with specific allowed tools",
 			githubTool: map[string]any{
-				"mode": "remote",
+				"mode":    "remote",
 				"allowed": []string{"get_repository", "list_commits"},
 			},
 			isLast: true,

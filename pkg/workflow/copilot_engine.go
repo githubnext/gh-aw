@@ -274,9 +274,9 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		}
 
 		yaml.WriteString("                },\n")
-		
+
 		// Populate tools field with allowed tools or "*" if none specified
-		if allowedTools != nil && len(allowedTools) > 0 {
+		if len(allowedTools) > 0 {
 			yaml.WriteString("                \"tools\": [\n")
 			for i, tool := range allowedTools {
 				comma := ","
@@ -332,9 +332,9 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 
 		yaml.WriteString("\n")
 		yaml.WriteString("                ],\n")
-		
+
 		// Populate tools field with allowed tools or "*" if none specified
-		if allowedTools != nil && len(allowedTools) > 0 {
+		if len(allowedTools) > 0 {
 			yaml.WriteString("                \"tools\": [\n")
 			for i, tool := range allowedTools {
 				comma := ","
@@ -711,7 +711,7 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 // GetErrorPatterns returns regex patterns for extracting error messages from Copilot CLI logs
 func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
-	
+
 	// Add Copilot-specific error patterns
 	patterns = append(patterns, []ErrorPattern{
 		{
@@ -961,7 +961,7 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Memory or resource exhaustion error",
 		},
 	}...)
-	
+
 	return patterns
 }
 

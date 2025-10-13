@@ -632,7 +632,7 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 // GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
-	
+
 	// Add Codex-specific error patterns
 	patterns = append(patterns, []ErrorPattern{
 		// Rust format patterns (without brackets, with milliseconds and Z timezone)
@@ -727,7 +727,7 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Codex tool error due to permission issue",
 		},
 	}...)
-	
+
 	return patterns
 }
 
