@@ -468,6 +468,227 @@ describe("parse_copilot_log.cjs", () => {
       expect(commandsSection).toContain("✅ `echo 'Hello World'`");
       expect(commandsSection).toContain("✅ `github::search_issues(...)`");
     });
+
+    it("should extract and display premium model information from debug logs", () => {
+      // Simulating the actual debug log format from Copilot CLI with model info
+      const debugLogWithModelInfo = `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-sonnet-4
+2025-09-26T11:13:11.944Z [DEBUG] Got model info: {
+  "billing": {
+    "is_premium": true,
+    "multiplier": 1,
+    "restricted_to": [
+      "pro",
+      "pro_plus",
+      "max",
+      "business",
+      "enterprise"
+    ]
+  },
+  "capabilities": {
+    "family": "claude-sonnet-4",
+    "limits": {
+      "max_context_window_tokens": 200000,
+      "max_output_tokens": 16000
+    }
+  },
+  "id": "claude-sonnet-4",
+  "name": "Claude Sonnet 4",
+  "vendor": "Anthropic",
+  "version": "claude-sonnet-4"
+}
+2025-09-26T11:13:12.575Z [START-GROUP] Sending request to the AI model
+2025-09-26T11:13:17.989Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:17.989Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "object": "chat.completion",
+  "model": "claude-sonnet-4",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I'll help you with this task."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 50,
+    "total_tokens": 150
+  }
+}
+2025-09-26T11:13:18.000Z [END-GROUP]`;
+
+      const result = parseCopilotLog(debugLogWithModelInfo);
+
+      // Should successfully parse and display premium model information
+      expect(result).toContain("🚀 Initialization");
+      expect(result).toContain("**Model Name:** Claude Sonnet 4 (Anthropic)");
+      expect(result).toContain("**Premium Model:** Yes");
+      expect(result).toContain("**Required Plans:** pro, pro_plus, max, business, enterprise");
+    });
+
+    it("should handle non-premium models in debug logs", () => {
+      // Simulating debug log with non-premium model
+      const debugLogNonPremium = `2025-09-26T11:13:11.798Z [DEBUG] Using model: gpt-4o
+2025-09-26T11:13:11.944Z [DEBUG] Got model info: {
+  "billing": {
+    "is_premium": false,
+    "multiplier": 1
+  },
+  "id": "gpt-4o",
+  "name": "GPT-4o",
+  "vendor": "OpenAI"
+}
+2025-09-26T11:13:12.575Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:12.575Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "model": "gpt-4o",
+  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello"}, "finish_reason": "stop"}],
+  "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+}`;
+
+      const result = parseCopilotLog(debugLogNonPremium);
+
+      // Should display non-premium model information
+      expect(result).toContain("**Model Name:** GPT-4o (OpenAI)");
+      expect(result).toContain("**Premium Model:** No");
+    });
+
+    it("should handle model info with cost multiplier", () => {
+      // Simulating debug log with cost multiplier
+      const debugLogWithMultiplier = `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-opus
+2025-09-26T11:13:11.944Z [DEBUG] Got model info: {
+  "billing": {
+    "is_premium": true,
+    "multiplier": 2.5,
+    "restricted_to": ["enterprise"]
+  },
+  "id": "claude-opus",
+  "name": "Claude Opus",
+  "vendor": "Anthropic"
+}
+2025-09-26T11:13:12.575Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:12.575Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "model": "claude-opus",
+  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello"}, "finish_reason": "stop"}],
+  "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+}`;
+
+      const result = parseCopilotLog(debugLogWithMultiplier);
+
+      // Should display cost multiplier
+      expect(result).toContain("**Premium Model:** Yes (2.5x cost multiplier)");
+      expect(result).toContain("**Required Plans:** enterprise");
+    });
+
+    it("should display premium requests consumed for premium models", () => {
+      // Simulating log with premium model and multiple turns
+      const debugLogWithPremiumRequests = `2025-09-26T11:13:11.798Z [DEBUG] Using model: claude-sonnet-4
+2025-09-26T11:13:11.944Z [DEBUG] Got model info: {
+  "billing": {
+    "is_premium": true,
+    "multiplier": 1,
+    "restricted_to": ["pro", "pro_plus", "max"]
+  },
+  "id": "claude-sonnet-4",
+  "name": "Claude Sonnet 4",
+  "vendor": "Anthropic"
+}
+2025-09-26T11:13:12.575Z [DEBUG] response (Request-ID test-123):
+2025-09-26T11:13:12.575Z [DEBUG] data:
+{
+  "id": "chatcmpl-test",
+  "model": "claude-sonnet-4",
+  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello"}, "finish_reason": "stop"}],
+  "usage": {"prompt_tokens": 1000, "completion_tokens": 250, "total_tokens": 1250}
+}`;
+
+      // Parse as structured format to get proper result entry
+      const structuredLog = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-premium",
+          model: "claude-sonnet-4",
+          tools: [],
+          model_info: {
+            billing: {
+              is_premium: true,
+              multiplier: 1,
+              restricted_to: ["pro", "pro_plus", "max"],
+            },
+            id: "claude-sonnet-4",
+            name: "Claude Sonnet 4",
+            vendor: "Anthropic",
+          },
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Hello" }],
+          },
+        },
+        {
+          type: "result",
+          num_turns: 5,
+          usage: {
+            input_tokens: 1000,
+            output_tokens: 250,
+          },
+        },
+      ]);
+
+      const result = parseCopilotLog(structuredLog);
+
+      // Should display premium requests consumed
+      expect(result).toContain("**Premium Requests Consumed:** 5");
+      expect(result).toContain("**Token Usage:**");
+      expect(result).toContain("- Input: 1,000");
+      expect(result).toContain("- Output: 250");
+    });
+
+    it("should not display premium requests for non-premium models", () => {
+      // Simulating log with non-premium model
+      const structuredLog = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-non-premium",
+          model: "gpt-4o",
+          tools: [],
+          model_info: {
+            billing: {
+              is_premium: false,
+              multiplier: 1,
+            },
+            id: "gpt-4o",
+            name: "GPT-4o",
+            vendor: "OpenAI",
+          },
+        },
+        {
+          type: "result",
+          num_turns: 3,
+          usage: {
+            input_tokens: 500,
+            output_tokens: 100,
+          },
+        },
+      ]);
+
+      const result = parseCopilotLog(structuredLog);
+
+      // Should NOT display premium requests consumed
+      expect(result).not.toContain("Premium Requests Consumed");
+      expect(result).toContain("**Turns:** 3");
+      expect(result).toContain("**Token Usage:**");
+    });
   });
 
   describe("main function integration", () => {

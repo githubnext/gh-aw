@@ -242,6 +242,13 @@ function parseCopilotLog(logContent) {
         markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
       }
 
+      // Display premium request consumption if using a premium model
+      const isPremiumModel =
+        initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
+      if (isPremiumModel && lastEntry.num_turns) {
+        markdown += `**Premium Requests Consumed:** ${lastEntry.num_turns}\n\n`;
+      }
+
       if (lastEntry.usage) {
         const usage = lastEntry.usage;
         if (usage.input_tokens || usage.output_tokens) {
@@ -274,9 +281,65 @@ function parseDebugLogFormat(logContent) {
   // Extract model information from the start
   let model = "unknown";
   let sessionId = null;
+  let modelInfo = null;
   const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
   if (modelMatch) {
     sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
+  }
+
+  // Extract premium model info from "Got model info:" JSON block
+  // Look for a multi-line JSON block that starts with "Got model info: {" and ends with "}"
+  const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
+  if (gotModelInfoIndex !== -1) {
+    // Find the start of the JSON (the opening brace)
+    const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
+    if (jsonStart !== -1) {
+      // Track braces to find the end of the JSON
+      let braceCount = 0;
+      let inString = false;
+      let escapeNext = false;
+      let jsonEnd = -1;
+
+      for (let i = jsonStart; i < logContent.length; i++) {
+        const char = logContent[i];
+
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+
+        if (char === "\\") {
+          escapeNext = true;
+          continue;
+        }
+
+        if (char === '"' && !escapeNext) {
+          inString = !inString;
+          continue;
+        }
+
+        if (inString) continue;
+
+        if (char === "{") {
+          braceCount++;
+        } else if (char === "}") {
+          braceCount--;
+          if (braceCount === 0) {
+            jsonEnd = i + 1;
+            break;
+          }
+        }
+      }
+
+      if (jsonEnd !== -1) {
+        const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
+        try {
+          modelInfo = JSON.parse(modelInfoJson);
+        } catch (e) {
+          // Failed to parse model info, continue without it
+        }
+      }
+    }
   }
 
   // Find all JSON response blocks in the debug logs
@@ -515,6 +578,12 @@ function parseDebugLogFormat(logContent) {
       model: model,
       tools: [], // We don't have tool info from debug logs
     };
+
+    // Add model info if available
+    if (modelInfo) {
+      initEntry.model_info = modelInfo;
+    }
+
     entries.unshift(initEntry);
 
     // Add the final result entry if we have it
@@ -538,6 +607,39 @@ function formatInitializationSummary(initEntry) {
   // Display model and session info
   if (initEntry.model) {
     markdown += `**Model:** ${initEntry.model}\n\n`;
+  }
+
+  // Display premium model information if available
+  if (initEntry.model_info) {
+    const modelInfo = initEntry.model_info;
+
+    // Display model name and vendor
+    if (modelInfo.name) {
+      markdown += `**Model Name:** ${modelInfo.name}`;
+      if (modelInfo.vendor) {
+        markdown += ` (${modelInfo.vendor})`;
+      }
+      markdown += "\n\n";
+    }
+
+    // Display billing/premium information
+    if (modelInfo.billing) {
+      const billing = modelInfo.billing;
+      if (billing.is_premium === true) {
+        markdown += `**Premium Model:** Yes`;
+        if (billing.multiplier && billing.multiplier !== 1) {
+          markdown += ` (${billing.multiplier}x cost multiplier)`;
+        }
+        markdown += "\n";
+
+        if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
+          markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
+        }
+        markdown += "\n";
+      } else if (billing.is_premium === false) {
+        markdown += `**Premium Model:** No\n\n`;
+      }
+    }
   }
 
   if (initEntry.session_id) {
