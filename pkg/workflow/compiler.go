@@ -2620,12 +2620,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 // generateCacheMemoryPromptStep generates a separate step for cache memory prompt section
 func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *CacheMemoryConfig) {
-	if config == nil {
-		return
-	}
-
-	// Check if cache-memory is configured (either single cache or array)
-	if !config.Enabled && len(config.Caches) == 0 {
+	if config == nil || len(config.Caches) == 0 {
 		return
 	}
 

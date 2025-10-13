@@ -91,23 +91,29 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 			config := compiler.extractCacheMemoryConfig(tools)
 
 			if tt.cacheValue == nil || tt.cacheValue == true {
+				// Should create a single default cache
 				if config == nil {
 					t.Errorf("Expected non-nil config for %s", tt.description)
 					return
 				}
-				if !config.Enabled {
-					t.Errorf("Expected Enabled=true for %s", tt.description)
+				if len(config.Caches) != 1 {
+					t.Errorf("Expected 1 cache, got %d for %s", len(config.Caches), tt.description)
+					return
 				}
-				if config.Key == "" {
+				if config.Caches[0].ID != "default" {
+					t.Errorf("Expected cache ID 'default', got '%s' for %s", config.Caches[0].ID, tt.description)
+				}
+				if config.Caches[0].Key == "" {
 					t.Errorf("Expected default Key to be set for %s", tt.description)
 				}
 			} else if tt.cacheValue == false {
+				// Should create empty config (disabled)
 				if config == nil {
 					t.Errorf("Expected non-nil config for %s", tt.description)
 					return
 				}
-				if config.Enabled {
-					t.Errorf("Expected Enabled=false for %s", tt.description)
+				if len(config.Caches) != 0 {
+					t.Errorf("Expected 0 caches (disabled), got %d for %s", len(config.Caches), tt.description)
 				}
 			} else if cacheArray, ok := tt.cacheValue.([]any); ok {
 				if config == nil {
@@ -126,17 +132,22 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 					}
 				}
 			} else if configMap, ok := tt.cacheValue.(map[string]any); ok {
+				// Object config should create a single default cache
 				if config == nil {
 					t.Errorf("Expected non-nil config for %s", tt.description)
 					return
 				}
-				if !config.Enabled {
-					t.Errorf("Expected Enabled=true for object config: %s", tt.description)
+				if len(config.Caches) != 1 {
+					t.Errorf("Expected 1 cache, got %d for object config: %s", len(config.Caches), tt.description)
+					return
+				}
+				if config.Caches[0].ID != "default" {
+					t.Errorf("Expected cache ID 'default', got '%s' for %s", config.Caches[0].ID, tt.description)
 				}
 				if customKey, hasKey := configMap["key"]; hasKey {
 					expectedKey := customKey.(string) + "-${{ github.run_id }}"
-					if config.Key != expectedKey {
-						t.Errorf("Expected Key=%s, got %s", expectedKey, config.Key)
+					if config.Caches[0].Key != expectedKey {
+						t.Errorf("Expected Key=%s, got %s", expectedKey, config.Caches[0].Key)
 					}
 				}
 			}
