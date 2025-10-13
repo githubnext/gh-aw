@@ -802,7 +802,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
 	workflowData.Services = c.extractTopLevelYAMLSection(result.Frontmatter, "services")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
-	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
+	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(tools) // Use merged tools to support imports
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
