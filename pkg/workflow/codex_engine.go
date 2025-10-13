@@ -631,26 +631,10 @@ func (e *CodexEngine) GetLogParserScriptId() string {
 
 // GetErrorPatterns returns regex patterns for extracting error messages from Codex logs
 func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
-	return []ErrorPattern{
-		// GitHub Actions workflow commands - standard error/warning/notice syntax
-		{
-			Pattern:      `::(error)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "error" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - error",
-		},
-		{
-			Pattern:      `::(warning)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "warning" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - warning",
-		},
-		{
-			Pattern:      `::(notice)(?:\s+[^:]*)?::(.+)`,
-			LevelGroup:   1, // "notice" is in the first capture group
-			MessageGroup: 2, // message is in the second capture group
-			Description:  "GitHub Actions workflow command - notice",
-		},
+	patterns := GetCommonErrorPatterns()
+	
+	// Add Codex-specific error patterns
+	patterns = append(patterns, []ErrorPattern{
 		// Rust format patterns (without brackets, with milliseconds and Z timezone)
 		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\s+(ERROR)\s+(.+)`,
@@ -742,7 +726,9 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 			Severity:     "warning",
 			Description:  "Codex tool error due to permission issue",
 		},
-	}
+	}...)
+	
+	return patterns
 }
 
 // detectPermissionErrorsAndCreateMissingTools scans Codex log content for permission errors

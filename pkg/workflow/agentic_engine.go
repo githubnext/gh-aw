@@ -325,3 +325,29 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 
 	return result.String(), nil
 }
+
+// GetCommonErrorPatterns returns error patterns that are common across all engines.
+// These patterns detect standard GitHub Actions workflow commands and other universal error formats.
+func GetCommonErrorPatterns() []ErrorPattern {
+	return []ErrorPattern{
+		// GitHub Actions workflow commands - standard error/warning/notice syntax
+		{
+			Pattern:      `::(error)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "error" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - error",
+		},
+		{
+			Pattern:      `::(warning)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "warning" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - warning",
+		},
+		{
+			Pattern:      `::(notice)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "notice" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - notice",
+		},
+	}
+}
