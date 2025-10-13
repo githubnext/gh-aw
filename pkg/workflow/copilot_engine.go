@@ -682,6 +682,25 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 // GetErrorPatterns returns regex patterns for extracting error messages from Copilot CLI logs
 func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{
+		// GitHub Actions workflow commands - standard error/warning/notice syntax
+		{
+			Pattern:      `::(error)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "error" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - error",
+		},
+		{
+			Pattern:      `::(warning)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "warning" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - warning",
+		},
+		{
+			Pattern:      `::(notice)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "notice" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - notice",
+		},
 		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(ERROR)\]\s+(.+)`,
 			LevelGroup:   2, // "ERROR" is in the second capture group

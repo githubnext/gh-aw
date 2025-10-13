@@ -1275,6 +1275,25 @@ func (e *ClaudeEngine) GetLogParserScriptId() string {
 // including permission-related errors that should be captured as missing tools
 func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 	return []ErrorPattern{
+		// GitHub Actions workflow commands - standard error/warning/notice syntax
+		{
+			Pattern:      `::(error)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "error" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - error",
+		},
+		{
+			Pattern:      `::(warning)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "warning" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - warning",
+		},
+		{
+			Pattern:      `::(notice)(?:\s+[^:]*)?::(.+)`,
+			LevelGroup:   1, // "notice" is in the first capture group
+			MessageGroup: 2, // message is in the second capture group
+			Description:  "GitHub Actions workflow command - notice",
+		},
 		// Specific, contextual error patterns - these are precise and unlikely to match informational text
 		{
 			Pattern:      `(?i)access denied.*only authorized.*can trigger.*workflow`,

@@ -249,3 +249,157 @@ func TestErrorPatternGroupExtraction(t *testing.T) {
 		})
 	}
 }
+
+// TestGitHubActionsWorkflowCommandPatterns tests that all engines can detect GitHub Actions workflow commands
+func TestGitHubActionsWorkflowCommandPatterns(t *testing.T) {
+	engines := []CodingAgentEngine{
+		NewClaudeEngine(),
+		NewCodexEngine(),
+		NewCopilotEngine(),
+	}
+
+	testCases := []struct {
+		name            string
+		logLine         string
+		expectedLevel   string
+		expectedMessage string
+		shouldMatch     bool
+	}{
+		{
+			name:            "error_command_simple",
+			logLine:         "::error::Something went wrong",
+			expectedLevel:   "error",
+			expectedMessage: "Something went wrong",
+			shouldMatch:     true,
+		},
+		{
+			name:            "error_command_with_file",
+			logLine:         "::error file=app.js,line=1::Missing semicolon",
+			expectedLevel:   "error",
+			expectedMessage: "Missing semicolon",
+			shouldMatch:     true,
+		},
+		{
+			name:            "warning_command_simple",
+			logLine:         "::warning::Code formatting issues detected",
+			expectedLevel:   "warning",
+			expectedMessage: "Code formatting issues detected",
+			shouldMatch:     true,
+		},
+		{
+			name:            "warning_command_with_file_and_line",
+			logLine:         "::warning file=app.py,line=10::Code formatting issues detected",
+			expectedLevel:   "warning",
+			expectedMessage: "Code formatting issues detected",
+			shouldMatch:     true,
+		},
+		{
+			name:            "notice_command_simple",
+			logLine:         "::notice::Deployment successful",
+			expectedLevel:   "notice",
+			expectedMessage: "Deployment successful",
+			shouldMatch:     true,
+		},
+		{
+			name:            "notice_command_with_file",
+			logLine:         "::notice file=README.md,line=2::Typo found",
+			expectedLevel:   "notice",
+			expectedMessage: "Typo found",
+			shouldMatch:     true,
+		},
+		{
+			name:            "error_command_with_all_params",
+			logLine:         "::error file=app.js,line=10,col=5,endColumn=15,endLine=10,title=Syntax Error::Unexpected token",
+			expectedLevel:   "error",
+			expectedMessage: "Unexpected token",
+			shouldMatch:     true,
+		},
+		{
+			name:            "error_command_with_spaces_after_colons",
+			logLine:         "::error ::Missing dependency",
+			expectedLevel:   "error",
+			expectedMessage: "Missing dependency",
+			shouldMatch:     true,
+		},
+		{
+			name:            "warning_command_with_title",
+			logLine:         "::warning file=test.go,title=Lint Warning::Line too long",
+			expectedLevel:   "warning",
+			expectedMessage: "Line too long",
+			shouldMatch:     true,
+		},
+		{
+			name:        "not_a_workflow_command",
+			logLine:     "This is a regular log line",
+			shouldMatch: false,
+		},
+	}
+
+	for _, engine := range engines {
+		t.Run(engine.GetID(), func(t *testing.T) {
+			patterns := engine.GetErrorPatterns()
+
+			// Find GitHub Actions workflow command patterns
+			var workflowCommandPatterns []ErrorPattern
+			for _, p := range patterns {
+				if strings.Contains(p.Description, "GitHub Actions workflow command") {
+					workflowCommandPatterns = append(workflowCommandPatterns, p)
+				}
+			}
+
+			if len(workflowCommandPatterns) == 0 {
+				t.Fatalf("Engine %s has no GitHub Actions workflow command patterns", engine.GetID())
+			}
+
+			// Test each case
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					matched := false
+					var actualLevel, actualMessage string
+
+					// Try to match with any of the workflow command patterns
+					for _, pattern := range workflowCommandPatterns {
+						regex, err := regexp.Compile(pattern.Pattern)
+						if err != nil {
+							t.Fatalf("Pattern failed to compile: %v", err)
+						}
+
+						matches := regex.FindStringSubmatch(tc.logLine)
+						if matches != nil {
+							matched = true
+
+							// Extract level if specified
+							if pattern.LevelGroup > 0 && pattern.LevelGroup < len(matches) {
+								actualLevel = matches[pattern.LevelGroup]
+							}
+
+							// Extract message if specified
+							if pattern.MessageGroup > 0 && pattern.MessageGroup < len(matches) {
+								actualMessage = matches[pattern.MessageGroup]
+							}
+							break
+						}
+					}
+
+					if tc.shouldMatch {
+						if !matched {
+							t.Errorf("Expected to match log line but didn't: %s", tc.logLine)
+						} else {
+							if tc.expectedLevel != "" && actualLevel != tc.expectedLevel {
+								t.Errorf("Level mismatch: got %s, want %s", actualLevel, tc.expectedLevel)
+							}
+							if tc.expectedMessage != "" && actualMessage != tc.expectedMessage {
+								t.Errorf("Message mismatch: got %s, want %s", actualMessage, tc.expectedMessage)
+							}
+						}
+					} else {
+						if matched {
+							t.Errorf("Expected not to match log line but did: %s", tc.logLine)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
