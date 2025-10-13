@@ -2266,10 +2266,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// parse agent logs for GITHUB_STEP_SUMMARY
 	c.generateLogParsing(yaml, engine)
 
-	// Add step to print prompt to GitHub step summary for debugging. Putting this after
-	// the main summary.
-	c.generatePrintPromptToSummary(yaml)
-
 	// upload agent logs
 	var _ string = logFile
 	c.generateUploadAgentLogs(yaml, logFileFull)
@@ -2613,9 +2609,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add template rendering step if conditional patterns are detected
 	c.generateTemplateRenderingStep(yaml, data)
-}
 
-func (*Compiler) generatePrintPromptToSummary(yaml *strings.Builder) {
+	// Print prompt to step summary (merged into prompt generation)
 	yaml.WriteString("      - name: Print prompt to step summary\n")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
