@@ -247,6 +247,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
+	allowedTools := getGitHubAllowedTools(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
 
@@ -273,7 +274,21 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		}
 
 		yaml.WriteString("                },\n")
-		yaml.WriteString("                \"tools\": [\"*\"]\n")
+		
+		// Populate tools field with allowed tools or "*" if none specified
+		if allowedTools != nil && len(allowedTools) > 0 {
+			yaml.WriteString("                \"tools\": [\n")
+			for i, tool := range allowedTools {
+				comma := ","
+				if i == len(allowedTools)-1 {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
+			}
+			yaml.WriteString("                ]\n")
+		} else {
+			yaml.WriteString("                \"tools\": [\"*\"]\n")
+		}
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
@@ -317,7 +332,21 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 
 		yaml.WriteString("\n")
 		yaml.WriteString("                ],\n")
-		yaml.WriteString("                \"tools\": [\"*\"]\n")
+		
+		// Populate tools field with allowed tools or "*" if none specified
+		if allowedTools != nil && len(allowedTools) > 0 {
+			yaml.WriteString("                \"tools\": [\n")
+			for i, tool := range allowedTools {
+				comma := ","
+				if i == len(allowedTools)-1 {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
+			}
+			yaml.WriteString("                ]\n")
+		} else {
+			yaml.WriteString("                \"tools\": [\"*\"]\n")
+		}
 		// copilot does not support env
 	}
 
