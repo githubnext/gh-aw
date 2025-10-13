@@ -42,17 +42,8 @@ func (c *Compiler) buildAddReactionJob(data *WorkflowData, activationJobCreated 
 		depends = []string{constants.ActivationJobName} // Depend on the activation job only if it exists
 	}
 
-	// Set base permissions
+	// Set permissions
 	permissions := "permissions:\n      discussions: write\n      issues: write\n      pull-requests: write"
-
-	// Add actions: write permission if team member checks are present for command workflows
-	_, hasExplicitRoles := frontmatter["roles"]
-	requiresWorkflowCancellation := data.Command != "" ||
-		(!activationJobCreated && c.needsRoleCheck(data, frontmatter) && hasExplicitRoles)
-
-	if requiresWorkflowCancellation {
-		permissions = "permissions:\n      actions: write  # Required for github.rest.actions.cancelWorkflowRun()\n      contents: read\n      discussions: write\n      issues: write\n      pull-requests: write"
-	}
 
 	job := &Job{
 		Name:        "add_reaction",
