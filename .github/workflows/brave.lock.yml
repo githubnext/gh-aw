@@ -460,12 +460,12 @@ jobs:
               const reactionMap = {
                 "+1": "THUMBS_UP",
                 "-1": "THUMBS_DOWN",
-                "laugh": "LAUGH",
-                "confused": "CONFUSED",
-                "heart": "HEART",
-                "hooray": "HOORAY",
-                "rocket": "ROCKET",
-                "eyes": "EYES",
+                laugh: "LAUGH",
+                confused: "CONFUSED",
+                heart: "HEART",
+                hooray: "HOORAY",
+                rocket: "ROCKET",
+                eyes: "EYES",
               };
               const reactionContent = reactionMap[reaction];
               if (!reactionContent) {

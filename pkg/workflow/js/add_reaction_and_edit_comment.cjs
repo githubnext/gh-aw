@@ -179,12 +179,12 @@ async function addDiscussionReaction(subjectId, reaction) {
   const reactionMap = {
     "+1": "THUMBS_UP",
     "-1": "THUMBS_DOWN",
-    "laugh": "LAUGH",
-    "confused": "CONFUSED",
-    "heart": "HEART",
-    "hooray": "HOORAY",
-    "rocket": "ROCKET",
-    "eyes": "EYES",
+    laugh: "LAUGH",
+    confused: "CONFUSED",
+    heart: "HEART",
+    hooray: "HOORAY",
+    rocket: "ROCKET",
+    eyes: "EYES",
   };
 
   const reactionContent = reactionMap[reaction];
@@ -252,12 +252,12 @@ async function getDiscussionId(owner, repo, discussionNumber) {
 async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
   // First, get the discussion ID
   const discussion = await getDiscussionId(owner, repo, discussionNumber);
-  
+
   // Then fetch the comment by traversing discussion comments
   // Note: GitHub's GraphQL API doesn't provide a direct way to query comment by database ID
   // We need to use the comment's node ID from the event payload if available
   // For now, we'll use a simplified approach - the commentId from context.payload.comment.node_id
-  
+
   // If the event payload provides node_id, we can use it directly
   // Otherwise, this would need to fetch all comments and find the matching one
   const nodeId = context.payload?.comment?.node_id;
@@ -267,7 +267,7 @@ async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) 
       url: context.payload.comment.html_url || discussion.url,
     };
   }
-  
+
   throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
 }
 
