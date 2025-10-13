@@ -116,12 +116,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			propertyOrder = []string{"command", "args", "env", "proxy-args", "registry"}
 		} else {
 			// JSON format - include copilot fields if required
-			if renderer.RequiresCopilotFields {
-				// For Copilot, use envFile instead of env when env vars exist
-				propertyOrder = []string{"type", "command", "tools", "args", "envFile", "proxy-args", "registry"}
-			} else {
-				propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
-			}
+			propertyOrder = []string{"type", "command", "tools", "args", "env", "proxy-args", "registry"}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -167,14 +162,6 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 		case "env":
 			if len(mcpConfig.Env) > 0 {
-				// Only add env if not using Copilot fields (Copilot uses envFile)
-				if !renderer.RequiresCopilotFields {
-					existingProperties = append(existingProperties, prop)
-				}
-			}
-		case "envFile":
-			// envFile is only for Copilot and only when env vars exist
-			if renderer.RequiresCopilotFields && len(mcpConfig.Env) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "url":
@@ -272,15 +259,6 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
 			}
-		case "envFile":
-			// envFile is used by Copilot instead of inline env
-			comma := ","
-			if isLast {
-				comma = ""
-			}
-			// Generate envFile path based on tool name (sanitized)
-			envFileName := strings.ReplaceAll(toolName, "-", "_")
-			fmt.Fprintf(yaml, "%s\"envFile\": \"/home/runner/.copilot/%s.env\"%s\n", renderer.IndentLevel, envFileName, comma)
 		case "env":
 			if renderer.Format == "toml" {
 				fmt.Fprintf(yaml, "%senv = { ", renderer.IndentLevel)

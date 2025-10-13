@@ -189,6 +189,9 @@ func (e *CopilotEngine) convertStepToYAML(stepMap map[string]any) (string, error
 
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) {
 	yaml.WriteString("          mkdir -p /home/runner/.copilot\n")
+	yaml.WriteString("          cat > /home/runner/.copilot/mcp-config.json << EOF\n")
+	yaml.WriteString("          {\n")
+	yaml.WriteString("            \"mcpServers\": {\n")
 
 	// Filter out tools that don't need MCP configuration
 	var actualMCPTools []string
@@ -203,26 +206,6 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 			actualMCPTools = append(actualMCPTools, toolName)
 		}
 	}
-
-	// Generate .env files for MCP servers that need environment variables
-	// This must be done before generating mcp-config.json
-	for _, toolName := range actualMCPTools {
-		switch toolName {
-		case "safe-outputs":
-			e.renderSafeOutputsEnvFile(yaml)
-		default:
-			// Handle custom MCP tools that have env variables
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					e.renderCustomMCPEnvFile(yaml, toolName, toolConfig)
-				}
-			}
-		}
-	}
-
-	yaml.WriteString("          cat > /home/runner/.copilot/mcp-config.json << EOF\n")
-	yaml.WriteString("          {\n")
-	yaml.WriteString("            \"mcpServers\": {\n")
 
 	// Generate configuration for each MCP tool
 	totalServers := len(actualMCPTools)
@@ -389,55 +372,22 @@ func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, 
 }
 
 // renderSafeOutputsCopilotMCPConfig generates the Safe Outputs MCP server configuration for Copilot CLI
-// Uses envFile instead of inline env to follow Copilot CLI best practices
 func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
 	yaml.WriteString("              \"safe_outputs\": {\n")
 	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"node\",\n")
 	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
 	yaml.WriteString("                \"tools\": [\"*\"],\n")
-	yaml.WriteString("                \"envFile\": \"/home/runner/.copilot/safe_outputs.env\"\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\n")
+	yaml.WriteString("                }\n")
 
 	if isLast {
 		yaml.WriteString("              }\n")
 	} else {
 		yaml.WriteString("              },\n")
 	}
-}
-
-// renderSafeOutputsEnvFile generates the .env file for the Safe Outputs MCP server
-func (e *CopilotEngine) renderSafeOutputsEnvFile(yaml *strings.Builder) {
-	yaml.WriteString("          cat > /home/runner/.copilot/safe_outputs.env << 'EOF'\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS=${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-	// For GITHUB_AW_SAFE_OUTPUTS_CONFIG, we need to expand the JSON in the env file
-	// Using a separate command to avoid issues with HERE-doc expansion
-	yaml.WriteString("          EOF\n")
-	yaml.WriteString("          # Append GITHUB_AW_SAFE_OUTPUTS_CONFIG as a JSON string\n")
-	yaml.WriteString("          echo \"GITHUB_AW_SAFE_OUTPUTS_CONFIG=${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\" >> /home/runner/.copilot/safe_outputs.env\n")
-}
-
-// renderCustomMCPEnvFile generates the .env file for custom MCP servers with environment variables
-func (e *CopilotEngine) renderCustomMCPEnvFile(yaml *strings.Builder, toolName string, toolConfig map[string]any) {
-	mcpConfig, err := getMCPConfig(toolConfig, toolName)
-	if err != nil || len(mcpConfig.Env) == 0 {
-		return // No env vars to write
-	}
-
-	envFileName := strings.ReplaceAll(toolName, "-", "_")
-	yaml.WriteString(fmt.Sprintf("          cat > /home/runner/.copilot/%s.env << 'EOF'\n", envFileName))
-
-	// Sort env keys for deterministic output
-	envKeys := make([]string, 0, len(mcpConfig.Env))
-	for key := range mcpConfig.Env {
-		envKeys = append(envKeys, key)
-	}
-	sort.Strings(envKeys)
-
-	for _, key := range envKeys {
-		yaml.WriteString(fmt.Sprintf("          %s=%s\n", key, mcpConfig.Env[key]))
-	}
-
-	yaml.WriteString("          EOF\n")
 }
 
 // renderCopilotMCPConfig generates custom MCP server configuration for Copilot CLI

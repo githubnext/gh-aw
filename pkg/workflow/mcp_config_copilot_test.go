@@ -33,11 +33,9 @@ func TestRenderSharedMCPConfig_CopilotFields(t *testing.T) {
 				`"get_current_time"`,
 				`"command": "docker"`,
 				`"args": [`,
-				`"envFile":`, // Copilot uses envFile instead of inline env
+				`"env": {`,
 			},
-			unexpectedContent: []string{
-				`"env": {`, // Should NOT have inline env for Copilot
-			},
+			unexpectedContent: []string{},
 		},
 		{
 			name: "Copilot engine with HTTP MCP server",

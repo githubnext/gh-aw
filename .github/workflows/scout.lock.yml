@@ -1683,14 +1683,6 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/context7.env << 'EOF'
-          CONTEXT7_API_KEY=${{ secrets.CONTEXT7_API_KEY }}
-          EOF
-          cat > /home/runner/.copilot/safe_outputs.env << 'EOF'
-          GITHUB_AW_SAFE_OUTPUTS=${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          EOF
-          # Append GITHUB_AW_SAFE_OUTPUTS_CONFIG as a JSON string
-          echo "GITHUB_AW_SAFE_OUTPUTS_CONFIG=${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}" >> /home/runner/.copilot/safe_outputs.env
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
@@ -1724,7 +1716,9 @@ jobs:
                   "CONTEXT7_API_KEY",
                   "mcp/context7"
                 ],
-                "envFile": "/home/runner/.copilot/context7.env"
+                "env": {
+                  "CONTEXT7_API_KEY": "${{ secrets.CONTEXT7_API_KEY }}"
+                }
               },
               "deepwiki": {
                 "type": "http",
@@ -1762,7 +1756,10 @@ jobs:
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "tools": ["*"],
-                "envFile": "/home/runner/.copilot/safe_outputs.env"
+                "env": {
+                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
+                }
               },
               "tavily": {
                 "type": "http",

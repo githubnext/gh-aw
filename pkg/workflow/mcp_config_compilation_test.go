@@ -167,26 +167,19 @@ This workflow tests that MCP server env vars are sorted alphabetically.
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	// For Copilot engine, env vars are now in a .env file, not inline
-	// Find the .env file section in the generated YAML
-	envFileIndex := strings.Index(yamlContent, `test_server.env`)
-	if envFileIndex == -1 {
-		t.Fatalf("Could not find test_server.env file reference in generated YAML")
+	// Find the env section in the generated YAML
+	envIndex := strings.Index(yamlContent, `"env": {`)
+	if envIndex == -1 {
+		t.Fatalf("Could not find env section in generated YAML")
 	}
 
-	// Find the actual env file content section (should be before mcp-config.json)
-	envContentIndex := strings.Index(yamlContent, `cat > /home/runner/.copilot/test_server.env`)
-	if envContentIndex == -1 {
-		t.Fatalf("Could not find env file content section in generated YAML")
-	}
-
-	// Extract a portion of YAML starting from env file content (next 300 chars should be enough)
-	envSection := yamlContent[envContentIndex : envContentIndex+300]
+	// Extract a portion of YAML starting from env section (next 300 chars should be enough)
+	envSection := yamlContent[envIndex : envIndex+300]
 
 	// Verify that ALPHA_VAR appears before BETA_VAR and ZEBRA_VAR
-	alphaIndex := strings.Index(envSection, `ALPHA_VAR`)
-	betaIndex := strings.Index(envSection, `BETA_VAR`)
-	zebraIndex := strings.Index(envSection, `ZEBRA_VAR`)
+	alphaIndex := strings.Index(envSection, `"ALPHA_VAR"`)
+	betaIndex := strings.Index(envSection, `"BETA_VAR"`)
+	zebraIndex := strings.Index(envSection, `"ZEBRA_VAR"`)
 
 	if alphaIndex == -1 || betaIndex == -1 || zebraIndex == -1 {
 		t.Fatalf("Could not find all env vars in generated YAML. Section: %s", envSection)
