@@ -425,18 +425,18 @@ func (e *CopilotEngine) renderCustomMCPEnvFile(yaml *strings.Builder, toolName s
 
 	envFileName := strings.ReplaceAll(toolName, "-", "_")
 	yaml.WriteString(fmt.Sprintf("          cat > /home/runner/.copilot/%s.env << 'EOF'\n", envFileName))
-	
+
 	// Sort env keys for deterministic output
 	envKeys := make([]string, 0, len(mcpConfig.Env))
 	for key := range mcpConfig.Env {
 		envKeys = append(envKeys, key)
 	}
 	sort.Strings(envKeys)
-	
+
 	for _, key := range envKeys {
 		yaml.WriteString(fmt.Sprintf("          %s=%s\n", key, mcpConfig.Env[key]))
 	}
-	
+
 	yaml.WriteString("          EOF\n")
 }
 
