@@ -312,9 +312,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write  # Required for github.rest.actions.cancelWorkflowRun()
+      contents: read
+      discussions: write
       issues: write
       pull-requests: write
-      contents: read
     outputs:
       comment_id: ${{ steps.react.outputs.comment-id }}
       comment_url: ${{ steps.react.outputs.comment-url }}
