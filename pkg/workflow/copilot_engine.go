@@ -682,7 +682,7 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 // GetErrorPatterns returns regex patterns for extracting error messages from Copilot CLI logs
 func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
-
+	
 	// Add Copilot-specific error patterns
 	patterns = append(patterns, []ErrorPattern{
 		{
@@ -932,7 +932,7 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Memory or resource exhaustion error",
 		},
 	}...)
-
+	
 	return patterns
 }
 
