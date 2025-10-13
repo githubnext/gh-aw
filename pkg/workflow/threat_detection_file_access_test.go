@@ -78,6 +78,7 @@ func TestThreatDetectionHasBashReadTools(t *testing.T) {
 		"Bash(wc)",
 		"Bash(grep)",
 		"Bash(ls)",
+		"Bash(jq)",
 	}
 
 	for _, tool := range expectedBashTools {

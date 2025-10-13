@@ -304,7 +304,7 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	// Configure bash read tools for accessing the agent output file
 	threatDetectionData := &WorkflowData{
 		Tools: map[string]any{
-			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls"},
+			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
 		},
 		SafeOutputs:  nil,
 		Network:      "",
