@@ -20,8 +20,8 @@ mcp-servers:
       - get_doc
     env:
       SENTRY_ACCESS_TOKEN: ${{ secrets.SENTRY_ACCESS_TOKEN }}
-      SENTRY_HOST: ${{ secrets.SENTRY_HOST }} # Optional
-      SENTRY_OPENAI_API_KEY: ${{ secrets.SENTRY_OPENAI_API_KEY }} # Optional
+      SENTRY_HOST: ${{ env.SENTRY_HOST }} # Optional
+      OPENAI_API_KEY: ${{ secrets.SENTRY_OPENAI_API_KEY }} # Optional
 ---
 
 <!-- 
