@@ -45,9 +45,6 @@ var uploadAssetsScript string
 //go:embed js/add_reaction_and_edit_comment.cjs
 var addReactionAndEditCommentScript string
 
-//go:embed js/check_permissions.cjs
-var checkPermissionsScript string
-
 //go:embed js/check_membership.cjs
 var checkMembershipScript string
 

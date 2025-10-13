@@ -1,18 +1,3 @@
-async function setCancelled(message) {
-  try {
-    await github.rest.actions.cancelWorkflowRun({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      run_id: context.runId,
-    });
-    core.info(`Cancellation requested for this workflow run: ${message}`);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    core.warning(`Failed to cancel workflow run: ${errorMessage}`);
-    core.setFailed(message); // Fallback if API call fails
-  }
-}
-
 async function main() {
   const actor = context.actor;
   const { owner, repo } = context.repo;
@@ -40,9 +25,9 @@ async function main() {
     core.warning(`Repository permission check failed: ${errorMessage}`);
   }
 
-  // Cancel the workflow when team membership check fails
+  // Fail the workflow when team membership check fails (cancellation handled by activation job's if condition)
   core.warning(`Access denied: Only authorized team members can trigger this workflow. User '${actor}' is not authorized.`);
-  await setCancelled(`Access denied: User '${actor}' is not authorized for this workflow`);
+  core.setFailed(`Access denied: User '${actor}' is not authorized for this workflow`);
   core.setOutput("is_team_member", "false");
 }
 await main();
