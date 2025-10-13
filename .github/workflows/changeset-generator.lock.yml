@@ -301,6 +301,7 @@ jobs:
       (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
+      discussions: write
       issues: write
       pull-requests: write
     outputs:
@@ -381,12 +382,44 @@ jobs:
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
                     shouldEditComment = command ? true : false;
                     break;
+                  case "discussion":
+                    const discussionNumber = context.payload?.discussion?.number;
+                    if (!discussionNumber) {
+                      core.setFailed("Discussion number not found in event payload");
+                      return;
+                    }
+                    const discussion = await getDiscussionId(owner, repo, discussionNumber);
+                    reactionEndpoint = discussion.id; 
+                    commentUpdateEndpoint = `discussion:${discussionNumber}`; 
+                    shouldEditComment = true;
+                    break;
+                  case "discussion_comment":
+                    const discussionCommentNumber = context.payload?.discussion?.number;
+                    const discussionCommentId = context.payload?.comment?.id;
+                    if (!discussionCommentNumber || !discussionCommentId) {
+                      core.setFailed("Discussion or comment information not found in event payload");
+                      return;
+                    }
+                    const commentNodeId = context.payload?.comment?.node_id;
+                    if (!commentNodeId) {
+                      core.setFailed("Discussion comment node ID not found in event payload");
+                      return;
+                    }
+                    reactionEndpoint = commentNodeId; 
+                    commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
+                    shouldEditComment = command ? true : false;
+                    break;
                   default:
                     core.setFailed(`Unsupported event type: ${eventName}`);
                     return;
                 }
                 core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                await addReaction(reactionEndpoint, reaction);
+                const isDiscussionEvent = eventName === "discussion" || eventName === "discussion_comment";
+                if (isDiscussionEvent) {
+                  await addDiscussionReaction(reactionEndpoint, reaction);
+                } else {
+                  await addReaction(reactionEndpoint, reaction);
+                }
                 if (shouldEditComment && commentUpdateEndpoint) {
                   core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
                   await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
@@ -419,9 +452,110 @@ jobs:
                 core.setOutput("reaction-id", "");
               }
             }
+            async function addDiscussionReaction(subjectId, reaction) {
+              const reactionMap = {
+                "+1": "THUMBS_UP",
+                "-1": "THUMBS_DOWN",
+                laugh: "LAUGH",
+                confused: "CONFUSED",
+                heart: "HEART",
+                hooray: "HOORAY",
+                rocket: "ROCKET",
+                eyes: "EYES",
+              };
+              const reactionContent = reactionMap[reaction];
+              if (!reactionContent) {
+                throw new Error(`Invalid reaction type for GraphQL: ${reaction}`);
+              }
+              const result = await github.graphql(
+                `
+                mutation($subjectId: ID!, $content: ReactionContent!) {
+                  addReaction(input: { subjectId: $subjectId, content: $content }) {
+                    reaction {
+                      id
+                      content
+                    }
+                  }
+                }`,
+                { subjectId, content: reactionContent }
+              );
+              const reactionId = result.addReaction.reaction.id;
+              core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
+              core.setOutput("reaction-id", reactionId);
+            }
+            async function getDiscussionId(owner, repo, discussionNumber) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              return {
+                id: repository.discussion.id,
+                url: repository.discussion.url,
+              };
+            }
+            async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
+              const discussion = await getDiscussionId(owner, repo, discussionNumber);
+              const nodeId = context.payload?.comment?.node_id;
+              if (nodeId) {
+                return {
+                  id: nodeId,
+                  url: context.payload.comment.html_url || discussion.url,
+                };
+              }
+              throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
+            }
             async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+                if (eventName === "discussion") {
+                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) { 
+                          id 
+                        }
+                      }
+                    }`,
+                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+                  );
+                  const discussionId = repository.discussion.id;
+                  const result = await github.graphql(
+                    `
+                    mutation($dId: ID!, $body: String!) {
+                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                        comment { 
+                          id 
+                          url
+                        }
+                      }
+                    }`,
+                    { dId: discussionId, body: workflowLinkText }
+                  );
+                  const comment = result.addDiscussionComment.comment;
+                  core.info(`Successfully created discussion comment with workflow link`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                  core.setOutput("comment-id", comment.id);
+                  core.setOutput("comment-url", comment.url);
+                  return;
+                } else if (eventName === "discussion_comment") {
+                  core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
+                  return;
+                }
                 const isCreateComment = eventName === "issues" || eventName === "pull_request";
                 if (isCreateComment) {
                   const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;

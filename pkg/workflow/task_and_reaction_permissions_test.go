@@ -93,6 +93,9 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 	}
 
 	// Test 7: Verify add_reaction job still has required permissions
+	if !strings.Contains(addReactionJobSection, "discussions: write") {
+		t.Error("Add_reaction job should have discussions: write permission")
+	}
 	if !strings.Contains(addReactionJobSection, "issues: write") {
 		t.Error("Add_reaction job should still have issues: write permission")
 	}
