@@ -681,7 +681,10 @@ func (e *CopilotEngine) generateCopilotToolArgumentsComment(tools map[string]any
 
 // GetErrorPatterns returns regex patterns for extracting error messages from Copilot CLI logs
 func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
-	return []ErrorPattern{
+	patterns := GetCommonErrorPatterns()
+	
+	// Add Copilot-specific error patterns
+	patterns = append(patterns, []ErrorPattern{
 		{
 			Pattern:      `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[(ERROR)\]\s+(.+)`,
 			LevelGroup:   2, // "ERROR" is in the second capture group
@@ -928,7 +931,9 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 			MessageGroup: 0,
 			Description:  "Memory or resource exhaustion error",
 		},
-	}
+	}...)
+	
+	return patterns
 }
 
 // detectPermissionErrorsAndCreateMissingTools scans Copilot CLI log content for permission errors
