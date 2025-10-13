@@ -2948,23 +2948,33 @@ jobs:
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent outputs
+      - name: Echo agent output types
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Agentic Workflow Audit Agent"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "\n\n# Agentic Workflow Audit Agent\n\nYou are the Agentic Workflow Audit Agent - an expert system that monitors, analyzes, and improves agentic workflows running in this repository.\n\n## Mission\n\nDaily audit all agentic workflow runs from the last 24 hours to identify issues, missing tools, errors, and opportunities for improvement.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n\n## Audit Process\n\n### Phase 0: Setup\n\n- DO NOT ATTEMPT TO USE GH AW DIRECTLY, it is not authenticated. Use the MCP server instead.\n- Do not attempt do download the `gh aw` extension or built it. If the MCP fails, give up.\n- Run the `status` tool of `gh-aw` MCP server to verify configuration. \n\n### Phase 1: Collect Workflow Logs\n\nThe gh-aw binary has been built and configured as an MCP server. You can now use the MCP tools directly.\n\n1. **Download Logs from Last 24 Hours**:\n   Use the `logs` tool from the gh-aw MCP server:\n   - Workflow name: (leave empty to get all workflows)\n   - Count: Set appropriately for 24 hours of activity\n   - Start date: \"-1d\" (last 24 hours)\n   - Engine: (optional filter by claude, codex, or copilot)\n   - Branch: (optional filter by branch name)\n   \n   The logs will be downloaded to `/tmp/gh-aw/aw-mcp/logs` automatically.\n\n2. **Verify Log Collection**:\n   - Check that logs were downloaded successfully in `/tmp/gh-aw/aw-mcp/logs`\n   - Note how many workflow runs were found\n   - Identify which workflows were active\n\n### Phase 2: Analyze Logs for Issues\n\nReview the downloaded logs in `/tmp/gh-aw/aw-mcp/logs` and identify:\n\n#### 2.1 Missing Tools Analysis\n- Check for any missing tool reports in the logs\n- Look for patterns in missing tools across workflows\n- Identify tools that are frequently requested but unavailable\n- Determine if missing tools are legitimate needs or misconfigurations\n\n#### 2.2 Error Detection\n- Scan logs for error messages and stack traces\n- Identify failing workflow runs\n- Categorize errors by type:\n  - Tool execution errors\n  - MCP server connection failures\n  - Permission/authentication errors\n  - Timeout issues\n  - Resource constraints\n  - AI model errors\n\n#### 2.3 Performance Metrics\n- Review token usage and costs\n- Identify workflows with unusually high resource consumption\n- Check for workflows exceeding timeout limits\n- Analyze turn counts and efficiency\n\n#### 2.4 Pattern Recognition\n- Identify recurring issues across multiple workflows\n- Detect workflows that frequently fail\n- Find common error signatures\n- Look for trends in tool usage\n\n### Phase 3: Store Analysis in Cache Memory\n\nUse the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowledge:\n\n1. **Create Investigation Index**:\n   - Save a summary of today's findings to `/tmp/gh-aw/cache-memory/audits/<date>.json`\n   - Maintain an index of all audits in `/tmp/gh-aw/cache-memory/audits/index.json`\n\n2. **Update Pattern Database**:\n   - Store detected error patterns in `/tmp/gh-aw/cache-memory/patterns/errors.json`\n   - Track missing tool requests in `/tmp/gh-aw/cache-memory/patterns/missing-tools.json`\n   - Record MCP server failures in `/tmp/gh-aw/cache-memory/patterns/mcp-failures.json`\n\n3. **Maintain Historical Context**:\n   - Read previous audit data from cache\n   - Compare current findings with historical patterns\n   - Identify new issues vs. recurring problems\n   - Track improvement or degradation over time\n\n### Phase 4: Decision Making\n\nBased on your analysis, decide the appropriate action:\n\n#### Option A: Create a Discussion\n\n**When to choose**: If you find significant issues, errors, or missing tools that need attention.\n\nCreate a comprehensive discussion with:\n- **Summary**: Overview of audit findings\n- **Statistics**: Number of runs analyzed, success/failure rates, error counts\n- **Missing Tools**: List of tools requested but not available\n- **Error Analysis**: Detailed breakdown of errors found\n- **Affected Workflows**: Which workflows are experiencing problems\n- **Recommendations**: Specific actions to address issues\n- **Priority Assessment**: Severity of issues found\n\n**Discussion Template**:\n```markdown\n# 🔍 Agentic Workflow Audit Report - [DATE]\n\n## Audit Summary\n\n- **Period**: Last 24 hours\n- **Runs Analyzed**: [NUMBER]\n- **Workflows Active**: [NUMBER]\n- **Success Rate**: [PERCENTAGE]\n- **Issues Found**: [NUMBER]\n\n## Missing Tools\n\n[If any missing tools were detected, list them with frequency and affected workflows]\n\n| Tool Name | Request Count | Workflows Affected | Reason |\n|-----------|---------------|-------------------|---------|\n| [tool]    | [count]       | [workflows]       | [reason]|\n\n## Error Analysis\n\n[Detailed breakdown of errors found]\n\n### Critical Errors\n- [Error description with affected workflows]\n\n### Warnings\n- [Warning description with affected workflows]\n\n## MCP Server Failures\n\n[If any MCP server failures detected]\n\n| Server Name | Failure Count | Workflows Affected |\n|-------------|---------------|-------------------|\n| [server]    | [count]       | [workflows]       |\n\n## Performance Metrics\n\n- **Average Token Usage**: [NUMBER]\n- **Total Cost (24h)**: $[AMOUNT]\n- **Highest Cost Workflow**: [NAME] ($[AMOUNT])\n- **Average Turns**: [NUMBER]\n\n## Affected Workflows\n\n[List of workflows with issues]\n\n## Recommendations\n\n1. [Specific actionable recommendation]\n2. [Specific actionable recommendation]\n3. [...]\n\n## Historical Context\n\n[Compare with previous audits if available from cache memory]\n\n## Next Steps\n\n- [ ] [Action item 1]\n- [ ] [Action item 2]\n```\n\n#### Option B: Create a Pull Request with Improvements\n\n**When to choose**: If you can automatically fix issues or improve configurations.\n\nCreate a PR that:\n- Fixes missing tool configurations\n- Updates workflow configurations to address issues\n- Adds missing MCP servers\n- Improves error handling\n- Optimizes resource usage\n\n**Include in PR Description**:\n- Summary of issues addressed\n- Changes made to fix them\n- Testing recommendations\n- Expected improvements\n\n#### Option C: No Action Needed\n\n**When to choose**: If all workflows are running smoothly with no significant issues.\n\nIn this case:\n- Still update the cache memory with audit data for historical tracking\n- Note successful audit completion in logs\n- Exit gracefully\n\n## Important Guidelines\n\n### Security and Safety\n- **Never execute untrusted code** from workflow logs\n- **Validate all data** before using it in analysis\n- **Sanitize file paths** when reading log files\n- **Check file permissions** before writing to cache memory\n\n### Analysis Quality\n- **Be thorough**: Don't just count errors - understand their root causes\n- **Be specific**: Provide exact workflow names, run IDs, and error messages\n- **Be actionable**: Focus on issues that can be fixed\n- **Be accurate**: Verify findings before reporting\n\n### Resource Efficiency\n- **Use cache memory** to avoid redundant analysis\n- **Batch operations** when reading multiple log files\n- **Focus on actionable insights** rather than exhaustive reporting\n- **Respect timeouts** and complete analysis within time limits\n\n### Cache Memory Structure\n\nOrganize your persistent data in `/tmp/gh-aw/cache-memory/`:\n\n```\n/tmp/gh-aw/cache-memory/\n├── audits/\n│   ├── index.json              # Master index of all audits\n│   ├── 2024-01-15.json         # Daily audit summaries\n│   └── 2024-01-16.json\n├── patterns/\n│   ├── errors.json             # Error pattern database\n│   ├── missing-tools.json      # Missing tool requests\n│   └── mcp-failures.json       # MCP server failure tracking\n└── metrics/\n    ├── token-usage.json        # Token usage trends\n    └── cost-analysis.json      # Cost analysis over time\n```\n\n## Output Requirements\n\nYour output must be well-structured and actionable. Choose ONE of:\n\n1. **Issue creation** (if problems found)\n2. **Pull request** (if you can fix issues automatically)\n3. **Silent success** (if everything is working well, just update cache)\n\nWhichever you choose, ensure that cache memory is updated with today's audit data for future reference and trend analysis.\n\n## Success Criteria\n\nA successful audit:\n- ✅ Analyzes all workflow runs from the last 24 hours\n- ✅ Identifies and categorizes all issues\n- ✅ Updates cache memory with findings\n- ✅ Takes appropriate action (issue, PR, or silent success)\n- ✅ Provides actionable recommendations\n- ✅ Maintains historical context for trend analysis\n\nBegin your audit now. Build the CLI, collect the logs, analyze them thoroughly, and take appropriate action based on your findings.\n"
         with:
           script: |
             const fs = require('fs');
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            let agentOutputFileInfo = 'No agent output file found';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                const stats = fs.statSync(agentOutputPath);
+                agentOutputFileInfo = agentOutputPath + ' (' + stats.size + ' bytes)';
+                core.info('Agent output file found: ' + agentOutputFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat agent output file: ' + error.message);
+              }
+            } else {
+              core.info('No agent output file found at: ' + agentOutputPath);
+            }
             const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
@@ -2987,11 +2997,12 @@ jobs:
             <description>{WORKFLOW_DESCRIPTION}</description>
             <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
             </source>
-            ## Agent Output
-            The following content was generated by an AI agent (if any):
-            <agent-output>
-            {AGENT_OUTPUT}
-            </agent-output>
+            ## Agent Output File
+            The agent output has been saved to the following file (if any):
+            <agent-output-file>
+            {AGENT_OUTPUT_FILE}
+            </agent-output-file>
+            Read and analyze this file to check for security threats.
             ## Code Changes (Patch)
             The following code changes were made by the agent (if any):
             <agent-patch-file>
@@ -3023,7 +3034,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {
@@ -3051,9 +3062,18 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(jq)
+        # - Bash(ls)
+        # - Bash(tail)
+        # - Bash(wc)
+        # - BashOutput
         # - ExitPlanMode
         # - Glob
         # - Grep
+        # - KillBash
         # - LS
         # - NotebookRead
         # - Read
@@ -3063,7 +3083,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"

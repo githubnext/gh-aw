@@ -620,20 +620,30 @@ func TestEchoAgentOutputsStep(t *testing.T) {
 	// Join all steps into a single string for easier verification
 	stepsString := strings.Join(steps, "")
 
-	// Verify key components of the echo step
+	// Verify key components of the echo step - now only echoing output types to avoid CLI overflow
 	expectedComponents := []string{
-		"name: Echo agent outputs",
+		"name: Echo agent output types",
 		"env:",
-		"AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
 		"AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}",
 		"run: |",
-		"echo \"Agent output: $AGENT_OUTPUT\"",
 		"echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"",
 	}
 
 	for _, expected := range expectedComponents {
 		if !strings.Contains(stepsString, expected) {
-			t.Errorf("Expected echo agent outputs step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
+			t.Errorf("Expected echo agent output types step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsString)
+		}
+	}
+
+	// Verify that we don't echo the full agent output (to avoid CLI overflow)
+	notExpectedComponents := []string{
+		"AGENT_OUTPUT: ${{ needs.agent.outputs.output }}",
+		"echo \"Agent output: $AGENT_OUTPUT\"",
+	}
+
+	for _, notExpected := range notExpectedComponents {
+		if strings.Contains(stepsString, notExpected) {
+			t.Errorf("Echo step should not contain %q to avoid CLI overflow.\nGenerated steps:\n%s", notExpected, stepsString)
 		}
 	}
 }
@@ -659,13 +669,15 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 	stepsString := strings.Join(steps, "")
 
 	// Verify that the echo step is included
-	if !strings.Contains(stepsString, "Echo agent outputs") {
-		t.Error("Expected threat detection steps to include echo agent outputs step")
+	if !strings.Contains(stepsString, "Echo agent output types") {
+		t.Error("Expected threat detection steps to include echo agent output types step")
 	}
 
-	// Verify it echoes both outputs
-	if !strings.Contains(stepsString, "needs.agent.outputs.output") {
-		t.Error("Expected echo step to reference needs.agent.outputs.output")
+	// Verify it doesn't echo the full output to avoid CLI overflow
+	// Use word boundary to avoid matching "output_types"
+	if strings.Contains(stepsString, "needs.agent.outputs.output }") ||
+		strings.Contains(stepsString, "needs.agent.outputs.output\n") {
+		t.Error("Echo step should not reference needs.agent.outputs.output to avoid CLI overflow")
 	}
 
 	if !strings.Contains(stepsString, "needs.agent.outputs.output_types") {

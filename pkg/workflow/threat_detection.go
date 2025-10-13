@@ -149,12 +149,10 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 // buildEchoAgentOutputsStep creates a step that echoes the agent outputs
 func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 	return []string{
-		"      - name: Echo agent outputs\n",
+		"      - name: Echo agent output types\n",
 		"        env:\n",
-		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
 		fmt.Sprintf("          AGENT_OUTPUT_TYPES: ${{ needs.%s.outputs.output_types }}\n", mainJobName),
 		"        run: |\n",
-		"          echo \"Agent output: $AGENT_OUTPUT\"\n",
 		"          echo \"Agent output-types: $AGENT_OUTPUT_TYPES\"\n",
 	}
 }
@@ -168,7 +166,6 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 		"      - name: Setup threat detection\n",
 		"        uses: actions/github-script@v8\n",
 		"        env:\n",
-		fmt.Sprintf("          AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName),
 	}...)
 	steps = append(steps, c.buildWorkflowContextEnvVars(data)...)
 
@@ -212,6 +209,21 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobN
 func (c *Compiler) buildSetupScript() string {
 	return fmt.Sprintf(`const fs = require('fs');
 
+// Check if agent output file exists
+const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+let agentOutputFileInfo = 'No agent output file found';
+if (fs.existsSync(agentOutputPath)) {
+  try {
+    const stats = fs.statSync(agentOutputPath);
+    agentOutputFileInfo = agentOutputPath + ' (' + stats.size + ' bytes)';
+    core.info('Agent output file found: ' + agentOutputFileInfo);
+  } catch (error) {
+    core.warning('Failed to stat agent output file: ' + error.message);
+  }
+} else {
+  core.info('No agent output file found at: ' + agentOutputPath);
+}
+
 // Check if patch file exists
 const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
 let patchFileInfo = 'No patch file found';
@@ -233,7 +245,7 @@ let promptContent = templateContent
   .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
   .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
   .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-  .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+  .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
   .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
 
 // Append custom prompt instructions if provided
@@ -289,11 +301,11 @@ func (c *Compiler) buildEngineSteps(data *WorkflowData) []string {
 	}
 
 	// Create minimal WorkflowData for threat detection
-	// Empty tools map and nil SafeOutputs ensures:
-	// 1. No MCP servers are configured
-	// 2. No --allow-tool arguments are generated (all tools denied)
+	// Configure bash read tools for accessing the agent output file
 	threatDetectionData := &WorkflowData{
-		Tools:        map[string]any{},
+		Tools: map[string]any{
+			"bash": []any{"cat", "head", "tail", "wc", "grep", "ls", "jq"},
+		},
 		SafeOutputs:  nil,
 		Network:      "",
 		EngineConfig: engineConfig,

@@ -2890,23 +2890,33 @@ jobs:
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent outputs
+      - name: Echo agent output types
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "# GitHub MCP Remote Server Tools Report Generator\n\nYou are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.\n\n## Mission\n\nGenerate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Report Date**: Today's date\n- **MCP Server**: GitHub MCP Remote (mode: remote, toolset: all)\n\n## Report Generation Process\n\n### Phase 1: Tool Discovery and Comparison\n\n1. **Load Previous Tools List** (if available):\n   - Check if `/tmp/gh-aw/cache-memory/github-mcp-tools.json` exists from the previous run\n   - If it exists, read and parse the previous tools list\n   - This will be used for comparison to detect changes\n\n2. **List All Available Tools**:\n   - You have access to the GitHub MCP server in remote mode with all toolsets enabled\n   - Systematically identify all available tools/functions\n   - Note: The tools available to you ARE the tools from the GitHub MCP remote server\n   - Enumerate each tool by attempting to understand what tools you have access to\n\n3. **Categorize Tools by Functionality**:\n   - Group tools by their primary purpose (e.g., repos, issues, pull requests, actions, etc.)\n   - Identify which toolset each tool belongs to based on its function\n\n4. **Compare with Previous Tools** (if previous data exists):\n   - Identify **new tools** that were added since the last run\n   - Identify **removed tools** that existed before but are now missing\n   - Identify tools that remain **unchanged**\n   - Calculate statistics on the changes\n\n### Phase 2: Tool Documentation\n\nFor each discovered tool, document:\n\n1. **Tool Name**: The exact function name\n2. **Toolset**: Which toolset category it belongs to (context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users)\n3. **Purpose**: What the tool does (1-2 sentence description)\n4. **Parameters**: Key parameters it accepts (if you can determine them)\n5. **Example Use Case**: A brief example of when you would use this tool\n\n### Phase 3: Generate Comprehensive Report\n\nCreate a detailed markdown report with the following structure:\n\n```markdown\n# GitHub MCP Remote Server Tools Report\n\n**Generated**: [DATE]\n**MCP Mode**: Remote\n**Toolsets**: All\n**Previous Report**: [DATE or \"None\" if first run]\n\n## Executive Summary\n\n- **Total Tools Discovered**: [NUMBER]\n- **Toolset Categories**: [NUMBER]\n- **Report Date**: [DATE]\n- **Changes Since Last Report**: [If previous data exists, show changes summary]\n  - **New Tools**: [NUMBER]\n  - **Removed Tools**: [NUMBER]\n  - **Unchanged Tools**: [NUMBER]\n\n## Changes Since Last Report\n\n[Only include this section if previous data exists]\n\n### New Tools Added ✨\n\nList any tools that were added since the last report, organized by toolset:\n\n| Toolset | Tool Name | Purpose |\n|---------|-----------|---------|\n| [toolset] | [tool] | [description] |\n\n### Removed Tools 🗑️\n\nList any tools that were removed since the last report:\n\n| Toolset | Tool Name | Purpose (from previous report) |\n|---------|-----------|--------------------------------|\n| [toolset] | [tool] | [description] |\n\n[If no changes: \"No tools were added or removed since the last report.\"]\n\n## Tools by Toolset\n\nOrganize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.\n\n**Example format for each toolset:**\n\n### [Toolset Name] Toolset\nBrief description of the toolset.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n**All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users\n\n## Usage Examples\n\nProvide 1-2 brief examples showing how to use common tools.\n\n## Toolset Configuration Reference\n\nWhen configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:\n\n```yaml\ntools:\n  github:\n    mode: \"remote\"  # or \"local\"\n    toolset: [all]  # or specific toolsets like [repos, issues, pull_requests]\n```\n\n**Available toolset options**:\n- `context` - GitHub Actions context and environment\n- `repos` - Repository operations\n- `issues` - Issue management\n- `pull_requests` - Pull request operations\n- `actions` - GitHub Actions workflows\n- `code_security` - Code scanning alerts\n- `dependabot` - Dependabot alerts\n- `discussions` - GitHub Discussions\n- `experiments` - Experimental features\n- `gists` - Gist operations\n- `labels` - Label management\n- `notifications` - Notification management\n- `orgs` - Organization operations\n- `projects` - GitHub Projects\n- `secret_protection` - Secret scanning\n- `security_advisories` - Security advisories\n- `stargazers` - Repository stars\n- `users` - User information\n- `all` - Enable all toolsets\n\n## Notes and Observations\n\n[Include any interesting findings, patterns, or recommendations discovered during the tool enumeration]\n\n## Methodology\n\n- **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server\n- **MCP Configuration**: Remote mode with all toolsets enabled\n- **Categorization**: Based on GitHub API domains and functionality\n- **Documentation**: Derived from tool names, descriptions, and usage patterns\n```\n\n## Important Guidelines\n\n### Accuracy\n- **Be Thorough**: Discover and document ALL available tools\n- **Be Precise**: Use exact tool names and accurate descriptions\n- **Be Organized**: Group tools logically by toolset\n- **Be Helpful**: Provide clear, actionable documentation\n\n### Report Quality\n- **Clear Structure**: Use tables and sections for readability\n- **Practical Examples**: Include real-world usage examples\n- **Complete Coverage**: Don't miss any tools or toolsets\n- **Useful Reference**: Make the report helpful for developers\n\n### Tool Discovery\n- **Systematic Approach**: Methodically enumerate all tools\n- **Categorization**: Accurately assign tools to toolsets\n- **Description**: Provide clear, concise purpose statements\n- **Parameters**: Document key parameters when identifiable\n\n## Success Criteria\n\nA successful report:\n- ✅ Loads previous tools list from cache if available\n- ✅ Documents all tools available in the GitHub MCP remote server\n- ✅ Compares with previous run and identifies changes (new/removed tools)\n- ✅ Saves current tools list to cache for next run\n- ✅ Organizes tools by their appropriate toolset categories\n- ✅ Provides clear descriptions and usage information\n- ✅ Includes practical examples\n- ✅ Is formatted as a well-structured markdown document\n- ✅ Is published as a GitHub discussion in the \"audits\" category for easy access and reference\n- ✅ Includes change tracking and diff information when previous data exists\n\n## Output Requirements\n\nYour output MUST:\n1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists\n2. Discover all current tools from the GitHub MCP remote server\n3. Compare current tools with previous tools (if available) and identify changes\n4. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run\n   - Use a structured JSON format with tool names, toolsets, and descriptions\n   - Include timestamp and metadata\n5. Create a GitHub discussion with the complete tools report\n6. Use the report template structure provided above\n7. Include the changes summary section if previous data exists\n8. Include ALL discovered tools organized by toolset\n9. Provide accurate tool names, descriptions, and parameters\n10. Include practical usage examples\n11. Be formatted for readability with proper markdown tables\n\n**Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):\n```json\n{\n  \"timestamp\": \"2024-01-15T06:00:00Z\",\n  \"total_tools\": 42,\n  \"toolsets\": {\n    \"repos\": [\n      {\"name\": \"get_repository\", \"purpose\": \"Get repository details\"},\n      {\"name\": \"list_commits\", \"purpose\": \"List repository commits\"}\n    ],\n    \"issues\": [\n      {\"name\": \"get_issue\", \"purpose\": \"Get issue details\"},\n      {\"name\": \"list_issues\", \"purpose\": \"List repository issues\"}\n    ]\n  }\n}\n```\n\nBegin your tool discovery now. Follow these steps:\n\n1. **Load previous data**: Check for `/tmp/gh-aw/cache-memory/github-mcp-tools.json` and load it if it exists\n2. **Discover current tools**: Systematically identify all available tools from the GitHub MCP remote server\n3. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes\n4. **Document**: Categorize tools appropriately and create comprehensive documentation\n5. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`\n6. **Generate report**: Create the final markdown report including change tracking (if applicable)\n7. **Publish**: Create a GitHub discussion with the complete tools report\n"
         with:
           script: |
             const fs = require('fs');
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            let agentOutputFileInfo = 'No agent output file found';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                const stats = fs.statSync(agentOutputPath);
+                agentOutputFileInfo = agentOutputPath + ' (' + stats.size + ' bytes)';
+                core.info('Agent output file found: ' + agentOutputFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat agent output file: ' + error.message);
+              }
+            } else {
+              core.info('No agent output file found at: ' + agentOutputPath);
+            }
             const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
@@ -2929,11 +2939,12 @@ jobs:
             <description>{WORKFLOW_DESCRIPTION}</description>
             <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
             </source>
-            ## Agent Output
-            The following content was generated by an AI agent (if any):
-            <agent-output>
-            {AGENT_OUTPUT}
-            </agent-output>
+            ## Agent Output File
+            The agent output has been saved to the following file (if any):
+            <agent-output-file>
+            {AGENT_OUTPUT_FILE}
+            </agent-output-file>
+            Read and analyze this file to check for security threats.
             ## Code Changes (Patch)
             The following code changes were made by the agent (if any):
             <agent-patch-file>
@@ -2965,7 +2976,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {
@@ -2993,9 +3004,18 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(jq)
+        # - Bash(ls)
+        # - Bash(tail)
+        # - Bash(wc)
+        # - BashOutput
         # - ExitPlanMode
         # - Glob
         # - Grep
+        # - KillBash
         # - LS
         # - NotebookRead
         # - Read
@@ -3005,7 +3025,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
