@@ -43,6 +43,42 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 			shouldWork:  true,
 			description: "Should enable cache-memory with empty object using defaults",
 		},
+		{
+			name: "cache-memory with array - single cache",
+			cacheValue: []any{
+				map[string]any{
+					"id":  "default",
+					"key": "custom-key",
+				},
+			},
+			shouldWork:  true,
+			description: "Should enable cache-memory with array notation (single cache)",
+		},
+		{
+			name: "cache-memory with array - multiple caches",
+			cacheValue: []any{
+				map[string]any{
+					"id":  "default",
+					"key": "memory-default",
+				},
+				map[string]any{
+					"id":  "session",
+					"key": "memory-session",
+				},
+			},
+			shouldWork:  true,
+			description: "Should enable cache-memory with array notation (multiple caches)",
+		},
+		{
+			name: "cache-memory with array - no explicit ID",
+			cacheValue: []any{
+				map[string]any{
+					"key": "custom-key",
+				},
+			},
+			shouldWork:  true,
+			description: "Should use 'default' as ID when not specified in array",
+		},
 	}
 
 	for _, tt := range tests {
@@ -72,6 +108,22 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 				}
 				if config.Enabled {
 					t.Errorf("Expected Enabled=false for %s", tt.description)
+				}
+			} else if cacheArray, ok := tt.cacheValue.([]any); ok {
+				if config == nil {
+					t.Errorf("Expected non-nil config for %s", tt.description)
+					return
+				}
+				if len(config.Caches) != len(cacheArray) {
+					t.Errorf("Expected %d caches, got %d for %s", len(cacheArray), len(config.Caches), tt.description)
+				}
+				for i, cache := range config.Caches {
+					if cache.ID == "" {
+						t.Errorf("Expected cache ID to be set for cache %d in %s", i, tt.description)
+					}
+					if cache.Key == "" {
+						t.Errorf("Expected cache Key to be set for cache %d in %s", i, tt.description)
+					}
 				}
 			} else if configMap, ok := tt.cacheValue.(map[string]any); ok {
 				if config == nil {

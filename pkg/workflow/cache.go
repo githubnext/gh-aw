@@ -9,7 +9,15 @@ import (
 
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
-	Enabled       bool   `yaml:"enabled,omitempty"`        // whether cache-memory is enabled
+	Enabled       bool                 `yaml:"enabled,omitempty"`        // whether cache-memory is enabled (for single cache config)
+	Key           string               `yaml:"key,omitempty"`            // custom cache key (for single cache config)
+	RetentionDays *int                 `yaml:"retention-days,omitempty"` // retention days for upload-artifact action (for single cache config)
+	Caches        []CacheMemoryEntry   `yaml:"caches,omitempty"`         // multiple cache configurations
+}
+
+// CacheMemoryEntry represents a single cache-memory configuration
+type CacheMemoryEntry struct {
+	ID            string `yaml:"id"`                       // cache identifier (required for array notation)
 	Key           string `yaml:"key,omitempty"`            // custom cache key
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
@@ -41,7 +49,60 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 		return config
 	}
 
-	// Handle object configuration
+	// Handle array of cache configurations
+	if cacheArray, ok := cacheMemoryValue.([]any); ok {
+		config.Caches = make([]CacheMemoryEntry, 0, len(cacheArray))
+		for _, item := range cacheArray {
+			if cacheMap, ok := item.(map[string]any); ok {
+				entry := CacheMemoryEntry{}
+				
+				// ID is required for array notation
+				if id, exists := cacheMap["id"]; exists {
+					if idStr, ok := id.(string); ok {
+						entry.ID = idStr
+					}
+				}
+				// Use "default" if no ID specified
+				if entry.ID == "" {
+					entry.ID = "default"
+				}
+
+				// Parse custom key
+				if key, exists := cacheMap["key"]; exists {
+					if keyStr, ok := key.(string); ok {
+						entry.Key = keyStr
+						// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+						runIdSuffix := "-${{ github.run_id }}"
+						if !strings.HasSuffix(entry.Key, runIdSuffix) {
+							entry.Key = entry.Key + runIdSuffix
+						}
+					}
+				}
+				// Set default key if not specified
+				if entry.Key == "" {
+					entry.Key = fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", entry.ID)
+				}
+
+				// Parse retention days
+				if retentionDays, exists := cacheMap["retention-days"]; exists {
+					if retentionDaysInt, ok := retentionDays.(int); ok {
+						entry.RetentionDays = &retentionDaysInt
+					} else if retentionDaysFloat, ok := retentionDays.(float64); ok {
+						retentionDaysIntValue := int(retentionDaysFloat)
+						entry.RetentionDays = &retentionDaysIntValue
+					} else if retentionDaysUint64, ok := retentionDays.(uint64); ok {
+						retentionDaysIntValue := int(retentionDaysUint64)
+						entry.RetentionDays = &retentionDaysIntValue
+					}
+				}
+
+				config.Caches = append(config.Caches, entry)
+			}
+		}
+		return config
+	}
+
+	// Handle object configuration (single cache, backward compatible)
 	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
 		config.Enabled = true
 
@@ -179,7 +240,67 @@ func generateCacheSteps(builder *strings.Builder, data *WorkflowData, verbose bo
 // generateCacheMemorySteps generates cache steps for the cache-memory configuration
 // Cache-memory provides a simple file share that LLMs can read/write freely
 func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
-	if data.CacheMemoryConfig == nil || !data.CacheMemoryConfig.Enabled {
+	if data.CacheMemoryConfig == nil {
+		return
+	}
+
+	// Handle multiple caches (array notation)
+	if len(data.CacheMemoryConfig.Caches) > 0 {
+		builder.WriteString("      # Cache memory file share configuration from frontmatter processed below\n")
+		
+		for _, cache := range data.CacheMemoryConfig.Caches {
+			cacheDir := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s", cache.ID)
+			
+			// Add step to create cache-memory directory for this cache
+			builder.WriteString(fmt.Sprintf("      - name: Create cache-memory directory (%s)\n", cache.ID))
+			builder.WriteString("        run: |\n")
+			builder.WriteString(fmt.Sprintf("          mkdir -p %s\n", cacheDir))
+
+			cacheKey := cache.Key
+			if cacheKey == "" {
+				cacheKey = fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cache.ID)
+			}
+
+			// Automatically append -${{ github.run_id }} if the key doesn't already end with it
+			runIdSuffix := "-${{ github.run_id }}"
+			if !strings.HasSuffix(cacheKey, runIdSuffix) {
+				cacheKey = cacheKey + runIdSuffix
+			}
+
+			// Generate restore keys automatically by splitting the cache key on '-'
+			var restoreKeys []string
+			keyParts := strings.Split(cacheKey, "-")
+			for i := len(keyParts) - 1; i > 0; i-- {
+				restoreKey := strings.Join(keyParts[:i], "-") + "-"
+				restoreKeys = append(restoreKeys, restoreKey)
+			}
+
+			builder.WriteString(fmt.Sprintf("      - name: Cache memory file share data (%s)\n", cache.ID))
+			builder.WriteString("        uses: actions/cache@v4\n")
+			builder.WriteString("        with:\n")
+			fmt.Fprintf(builder, "          key: %s\n", cacheKey)
+			fmt.Fprintf(builder, "          path: %s\n", cacheDir)
+			builder.WriteString("          restore-keys: |\n")
+			for _, key := range restoreKeys {
+				fmt.Fprintf(builder, "            %s\n", key)
+			}
+
+			// Add upload-artifact step for each cache (runs always)
+			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
+			builder.WriteString("        uses: actions/upload-artifact@v4\n")
+			builder.WriteString("        with:\n")
+			fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
+			fmt.Fprintf(builder, "          path: %s\n", cacheDir)
+			// Add retention-days if configured
+			if cache.RetentionDays != nil {
+				fmt.Fprintf(builder, "          retention-days: %d\n", *cache.RetentionDays)
+			}
+		}
+		return
+	}
+
+	// Handle single cache (backward compatible with enabled field)
+	if !data.CacheMemoryConfig.Enabled {
 		return
 	}
 
@@ -237,7 +358,43 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 // generateCacheMemoryPromptSection generates the cache folder notification section for prompts
 // when cache-memory is enabled, informing the agent about persistent storage capabilities
 func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemoryConfig) {
-	if config == nil || !config.Enabled {
+	if config == nil {
+		return
+	}
+
+	// Handle multiple caches (array notation)
+	if len(config.Caches) > 0 {
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ---\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          ## Cache Folders Available\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          You have access to persistent cache folders where you can read and write files to create memories and store information:\n")
+		yaml.WriteString("          \n")
+		for _, cache := range config.Caches {
+			cacheDir := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s/", cache.ID)
+			yaml.WriteString(fmt.Sprintf("          - **%s**: `%s`\n", cache.ID, cacheDir))
+		}
+		yaml.WriteString("          \n")
+		yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in these folders\n")
+		yaml.WriteString("          - **Persistence**: Files in these folders persist across workflow runs via GitHub Actions cache\n")
+		yaml.WriteString("          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved\n")
+		yaml.WriteString("          - **File Share**: Use these as simple file shares - organize files as you see fit\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          Examples of what you can store:\n")
+		for _, cache := range config.Caches {
+			cacheDir := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s", cache.ID)
+			yaml.WriteString(fmt.Sprintf("          - `%s/notes.txt` - general notes and observations\n", cacheDir))
+			yaml.WriteString(fmt.Sprintf("          - `%s/preferences.json` - user preferences and settings\n", cacheDir))
+			yaml.WriteString(fmt.Sprintf("          - `%s/state/` - organized state files in subdirectories\n", cacheDir))
+		}
+		yaml.WriteString("          \n")
+		yaml.WriteString("          Feel free to create, read, update, and organize files in these folders as needed for your tasks.\n")
+		return
+	}
+
+	// Handle single cache (backward compatible)
+	if !config.Enabled {
 		return
 	}
 
