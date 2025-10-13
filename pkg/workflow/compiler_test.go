@@ -2608,10 +2608,10 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify four jobs are created (check-membership, activation, add_reaction, main) - check-membership and activation jobs are now created for permission checks
+	// Verify four jobs are created (check_membership, activation, add_reaction, main) - check_membership and activation jobs are now created for permission checks
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 4 {
-		t.Errorf("Expected 4 jobs (check-membership, activation, add_reaction, main), found %d", jobCount)
+		t.Errorf("Expected 4 jobs (check_membership, activation, add_reaction, main), found %d", jobCount)
 	}
 }
 
@@ -2680,10 +2680,10 @@ Test workflow without explicit reaction (should not create reaction action).
 		}
 	}
 
-	// Verify three jobs are created (check-membership, activation, main) - check-membership and activation jobs are now created for permission checks
+	// Verify three jobs are created (check_membership, activation, main) - check_membership and activation jobs are now created for permission checks
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (check-membership, activation, main), found %d", jobCount)
+		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
 	}
 }
 
