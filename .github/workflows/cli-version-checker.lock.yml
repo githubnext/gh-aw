@@ -1585,6 +1585,12 @@ jobs:
           DISABLE_BUG_COMMAND: "1"
           MCP_TIMEOUT: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Clean up network proxy hook files
+        if: always()
+        run: |
+          rm -rf .claude/hooks/network_permissions.py || true
+          rm -rf .claude/hooks || true
+          rm -rf .claude || true
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -3193,37 +3199,14 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          set -e
-          # Execute containerized Claude Code with proxy
-          
-          # Create necessary directories
-          mkdir -p mcp-config prompts logs safe-outputs .claude
-          
-          # Copy files to directories that will be mounted
-          cp -r /tmp/gh-aw/mcp-config/* mcp-config/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/aw-prompts/* prompts/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/.claude/* .claude/ 2>/dev/null || true
-          
-          # Start Docker Compose services
-          docker compose -f docker-compose-engine.yml up --abort-on-container-exit agent
-          
-          # Get exit code from agent container
-          AGENT_EXIT_CODE=$(docker compose -f docker-compose-engine.yml ps -q agent | xargs docker inspect -f '{{.State.ExitCode}}')
-          
-          # Copy logs back from container
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/logs/agent-execution.log logs/ || true
-          cp logs/agent-execution.log /tmp/gh-aw/threat-detection/detection.log 2>/dev/null || true
-          
-          # Cleanup
-          docker compose -f docker-compose-engine.yml down
-          
-          # Exit with agent's exit code
-          exit $AGENT_EXIT_CODE
+          # Execute Claude Code CLI with prompt from file
+          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           MCP_TIMEOUT: "60000"
       - name: Parse threat detection results
         uses: actions/github-script@v8

@@ -341,237 +341,6 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
-      - name: Generate Engine Proxy Configuration
-        run: |
-          # Generate Squid TPROXY configuration for transparent proxy
-          cat > squid-tproxy.conf << 'EOF'
-          # Squid configuration for TPROXY-based transparent proxy
-          # This configuration enables both HTTP (port 3128) and HTTPS (port 3129) proxying
-          # with TPROXY support for preserving original destination information
-          
-          # Port configuration
-          # Standard HTTP proxy port (for REDIRECT traffic from iptables)
-          http_port 3128
-          
-          # TPROXY port for HTTPS traffic (preserves original destination)
-          # This allows Squid to see the original destination IP and make correct upstream connections
-          http_port 3129 tproxy
-          
-          # ACL definitions for allowed domains
-          # Domain allowlist loaded from external file
-          acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
-          
-          # Local network ranges that should be allowed
-          acl localnet src 127.0.0.1/8        # Localhost
-          acl localnet src 10.0.0.0/8         # Private network (Class A)
-          acl localnet src 172.16.0.0/12      # Private network (Class B)
-          acl localnet src 192.168.0.0/16     # Private network (Class C)
-          
-          # Safe ports for HTTP traffic
-          acl SSL_ports port 443
-          acl Safe_ports port 80
-          acl Safe_ports port 443
-          
-          # HTTP methods
-          acl CONNECT method CONNECT
-          
-          # Access rules (evaluated in order)
-          # Deny requests to domains not in the allowlist
-          http_access deny !allowed_domains
-          
-          # Deny non-safe ports (only 80 and 443 allowed)
-          http_access deny !Safe_ports
-          
-          # Deny CONNECT to non-SSL ports
-          http_access deny CONNECT !SSL_ports
-          
-          # Allow local network access
-          http_access allow localnet
-          
-          # Allow localhost access
-          http_access allow localhost
-          
-          # Default deny all other access
-          http_access deny all
-          
-          # Logging configuration
-          access_log /var/log/squid/access.log squid
-          cache_log /var/log/squid/cache.log
-          
-          # Disable caching (we want all requests to go through in real-time)
-          cache deny all
-          
-          # DNS configuration
-          # Use Google DNS for reliability
-          dns_nameservers 8.8.8.8 8.8.4.4
-          
-          # Privacy settings
-          # Don't forward client information
-          forwarded_for delete
-          via off
-          
-          # Error page configuration
-          error_directory /usr/share/squid/errors/en
-          
-          # Log format (detailed for debugging)
-          logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
-          access_log /var/log/squid/access.log combined
-          
-          # Memory and resource limits
-          cache_mem 64 MB
-          maximum_object_size 0 KB
-          
-          # Connection timeout settings
-          connect_timeout 30 seconds
-          read_timeout 60 seconds
-          request_timeout 30 seconds
-          
-          # Keep-alive settings
-          client_persistent_connections on
-          server_persistent_connections on
-          
-          EOF
-          
-          # Generate allowed domains file for proxy ACL
-          cat > allowed_domains.txt << 'EOF'
-          # Allowed domains for egress traffic
-          # Add one domain per line
-          crl3.digicert.com
-          crl4.digicert.com
-          ocsp.digicert.com
-          ts-crl.ws.symantec.com
-          ts-ocsp.ws.symantec.com
-          crl.geotrust.com
-          ocsp.geotrust.com
-          crl.thawte.com
-          ocsp.thawte.com
-          crl.verisign.com
-          ocsp.verisign.com
-          crl.globalsign.com
-          ocsp.globalsign.com
-          crls.ssl.com
-          ocsp.ssl.com
-          crl.identrust.com
-          ocsp.identrust.com
-          crl.sectigo.com
-          ocsp.sectigo.com
-          crl.usertrust.com
-          ocsp.usertrust.com
-          s.symcb.com
-          s.symcd.com
-          json-schema.org
-          json.schemastore.org
-          archive.ubuntu.com
-          security.ubuntu.com
-          ppa.launchpad.net
-          keyserver.ubuntu.com
-          azure.archive.ubuntu.com
-          api.snapcraft.io
-          packagecloud.io
-          packages.cloud.google.com
-          packages.microsoft.com
-          
-          EOF
-          
-          # Generate Docker Compose configuration for containerized engine
-          cat > docker-compose-engine.yml << 'EOF'
-          version: '3.8'
-          
-          services:
-            # Agent container - runs the AI CLI (Claude Code, Codex, etc.)
-            agent:
-              image: ghcr.io/githubnext/gh-aw-agent-base:latest
-              container_name: gh-aw-agent
-              stdin_open: true
-              tty: true
-              working_dir: /github/workspace
-              volumes:
-                # Mount GitHub Actions workspace
-                - $PWD:/github/workspace:rw
-                # Mount MCP configuration (read-only)
-                - ./mcp-config:/tmp/gh-aw/mcp-config:ro
-                # Mount prompt files (read-only)
-                - ./prompts:/tmp/gh-aw/aw-prompts:ro
-                # Mount log directory (write access)
-                - ./logs:/tmp/gh-aw/logs:rw
-                # Mount safe outputs directory (read-write)
-                - ./safe-outputs:/tmp/gh-aw/safe-outputs:rw
-                # Mount Claude settings if present
-                - ./.claude:/tmp/gh-aw/.claude:ro
-              environment:
-                # Proxy configuration - all traffic goes through localhost:3128
-                - HTTP_PROXY=http://localhost:3128
-                - HTTPS_PROXY=http://localhost:3128
-                - http_proxy=http://localhost:3128
-                - https_proxy=http://localhost:3128
-                - NO_PROXY=localhost,127.0.0.1
-                - no_proxy=localhost,127.0.0.1
-              command: ["sh", "-c", "npm install -g @anthropic-ai/claude-code@ && claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --debug --verbose --permission-mode bypassPermissions --output-format stream-json \"$(cat /tmp/gh-aw/aw-prompts/prompt.txt)\" 2>&1 | tee /tmp/gh-aw/logs/agent-execution.log"]
-              networks:
-                - gh-aw-engine-net
-              depends_on:
-                # Wait for proxy-init to complete setup
-                proxy-init:
-                  condition: service_completed_successfully
-                # Wait for Squid to be healthy
-                squid-proxy:
-                  condition: service_healthy
-          
-            # Squid proxy container - provides HTTP/HTTPS proxy with domain filtering
-            squid-proxy:
-              image: ubuntu/squid:latest
-              container_name: gh-aw-squid-proxy
-              # Share network namespace with agent container
-              # This allows Squid to intercept agent's traffic via iptables rules
-              network_mode: "service:agent"
-              volumes:
-                # Mount Squid TPROXY configuration (read-only)
-                - ./squid-tproxy.conf:/etc/squid/squid.conf:ro
-                # Mount allowed domains file (read-only)
-                - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
-                # Persistent volume for Squid logs
-                - squid-logs:/var/log/squid
-              healthcheck:
-                # Check if Squid is running and responding
-                test: ["CMD", "squid", "-k", "check"]
-                interval: 10s
-                timeout: 5s
-                retries: 5
-                start_period: 10s
-              cap_add:
-                # Required to bind to ports 3128 and 3129
-                - NET_BIND_SERVICE
-              depends_on:
-                # Squid needs the agent container to create the network namespace first
-                - agent
-          
-            # Proxy-init container - sets up iptables rules for transparent proxy
-            proxy-init:
-              image: ghcr.io/githubnext/gh-aw-proxy-init:latest
-              container_name: gh-aw-proxy-init
-              # Share network namespace with agent container
-              # This allows proxy-init to configure iptables that affect agent's traffic
-              network_mode: "service:agent"
-              cap_add:
-                # Required for iptables and ip route commands
-                - NET_ADMIN
-              depends_on:
-                # proxy-init needs agent and squid to be started first
-                - agent
-                - squid-proxy
-          
-          # Volumes for persistent data
-          volumes:
-            squid-logs:
-              driver: local
-          
-          # Network configuration
-          networks:
-            gh-aw-engine-net:
-              driver: bridge
-          
-          EOF
-          
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -1776,39 +1545,23 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          set -e
-          # Execute containerized Claude Code with proxy
-          
-          # Create necessary directories
-          mkdir -p mcp-config prompts logs safe-outputs .claude
-          
-          # Copy files to directories that will be mounted
-          cp -r /tmp/gh-aw/mcp-config/* mcp-config/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/aw-prompts/* prompts/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/.claude/* .claude/ 2>/dev/null || true
-          
-          # Start Docker Compose services
-          docker compose -f docker-compose-engine.yml up --abort-on-container-exit agent
-          
-          # Get exit code from agent container
-          AGENT_EXIT_CODE=$(docker compose -f docker-compose-engine.yml ps -q agent | xargs docker inspect -f '{{.State.ExitCode}}')
-          
-          # Copy logs back from container
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/logs/agent-execution.log logs/ || true
-          cp logs/agent-execution.log /tmp/gh-aw/agent-stdio.log 2>/dev/null || true
-          
-          # Cleanup
-          docker compose -f docker-compose-engine.yml down
-          
-          # Exit with agent's exit code
-          exit $AGENT_EXIT_CODE
+          # Execute Claude Code CLI with prompt from file
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+      - name: Clean up network proxy hook files
+        if: always()
+        run: |
+          rm -rf .claude/hooks/network_permissions.py || true
+          rm -rf .claude/hooks || true
+          rm -rf .claude || true
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -3329,37 +3082,14 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          set -e
-          # Execute containerized Claude Code with proxy
-          
-          # Create necessary directories
-          mkdir -p mcp-config prompts logs safe-outputs .claude
-          
-          # Copy files to directories that will be mounted
-          cp -r /tmp/gh-aw/mcp-config/* mcp-config/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/aw-prompts/* prompts/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/.claude/* .claude/ 2>/dev/null || true
-          
-          # Start Docker Compose services
-          docker compose -f docker-compose-engine.yml up --abort-on-container-exit agent
-          
-          # Get exit code from agent container
-          AGENT_EXIT_CODE=$(docker compose -f docker-compose-engine.yml ps -q agent | xargs docker inspect -f '{{.State.ExitCode}}')
-          
-          # Copy logs back from container
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/logs/agent-execution.log logs/ || true
-          cp logs/agent-execution.log /tmp/gh-aw/threat-detection/detection.log 2>/dev/null || true
-          
-          # Cleanup
-          docker compose -f docker-compose-engine.yml down
-          
-          # Exit with agent's exit code
-          exit $AGENT_EXIT_CODE
+          # Execute Claude Code CLI with prompt from file
+          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           MCP_TIMEOUT: "60000"
       - name: Parse threat detection results
         uses: actions/github-script@v8

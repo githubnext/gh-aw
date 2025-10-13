@@ -198,237 +198,6 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.339
-      - name: Generate Engine Proxy Configuration
-        run: |
-          # Generate Squid TPROXY configuration for transparent proxy
-          cat > squid-tproxy.conf << 'EOF'
-          # Squid configuration for TPROXY-based transparent proxy
-          # This configuration enables both HTTP (port 3128) and HTTPS (port 3129) proxying
-          # with TPROXY support for preserving original destination information
-          
-          # Port configuration
-          # Standard HTTP proxy port (for REDIRECT traffic from iptables)
-          http_port 3128
-          
-          # TPROXY port for HTTPS traffic (preserves original destination)
-          # This allows Squid to see the original destination IP and make correct upstream connections
-          http_port 3129 tproxy
-          
-          # ACL definitions for allowed domains
-          # Domain allowlist loaded from external file
-          acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
-          
-          # Local network ranges that should be allowed
-          acl localnet src 127.0.0.1/8        # Localhost
-          acl localnet src 10.0.0.0/8         # Private network (Class A)
-          acl localnet src 172.16.0.0/12      # Private network (Class B)
-          acl localnet src 192.168.0.0/16     # Private network (Class C)
-          
-          # Safe ports for HTTP traffic
-          acl SSL_ports port 443
-          acl Safe_ports port 80
-          acl Safe_ports port 443
-          
-          # HTTP methods
-          acl CONNECT method CONNECT
-          
-          # Access rules (evaluated in order)
-          # Deny requests to domains not in the allowlist
-          http_access deny !allowed_domains
-          
-          # Deny non-safe ports (only 80 and 443 allowed)
-          http_access deny !Safe_ports
-          
-          # Deny CONNECT to non-SSL ports
-          http_access deny CONNECT !SSL_ports
-          
-          # Allow local network access
-          http_access allow localnet
-          
-          # Allow localhost access
-          http_access allow localhost
-          
-          # Default deny all other access
-          http_access deny all
-          
-          # Logging configuration
-          access_log /var/log/squid/access.log squid
-          cache_log /var/log/squid/cache.log
-          
-          # Disable caching (we want all requests to go through in real-time)
-          cache deny all
-          
-          # DNS configuration
-          # Use Google DNS for reliability
-          dns_nameservers 8.8.8.8 8.8.4.4
-          
-          # Privacy settings
-          # Don't forward client information
-          forwarded_for delete
-          via off
-          
-          # Error page configuration
-          error_directory /usr/share/squid/errors/en
-          
-          # Log format (detailed for debugging)
-          logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
-          access_log /var/log/squid/access.log combined
-          
-          # Memory and resource limits
-          cache_mem 64 MB
-          maximum_object_size 0 KB
-          
-          # Connection timeout settings
-          connect_timeout 30 seconds
-          read_timeout 60 seconds
-          request_timeout 30 seconds
-          
-          # Keep-alive settings
-          client_persistent_connections on
-          server_persistent_connections on
-          
-          EOF
-          
-          # Generate allowed domains file for proxy ACL
-          cat > allowed_domains.txt << 'EOF'
-          # Allowed domains for egress traffic
-          # Add one domain per line
-          crl3.digicert.com
-          crl4.digicert.com
-          ocsp.digicert.com
-          ts-crl.ws.symantec.com
-          ts-ocsp.ws.symantec.com
-          crl.geotrust.com
-          ocsp.geotrust.com
-          crl.thawte.com
-          ocsp.thawte.com
-          crl.verisign.com
-          ocsp.verisign.com
-          crl.globalsign.com
-          ocsp.globalsign.com
-          crls.ssl.com
-          ocsp.ssl.com
-          crl.identrust.com
-          ocsp.identrust.com
-          crl.sectigo.com
-          ocsp.sectigo.com
-          crl.usertrust.com
-          ocsp.usertrust.com
-          s.symcb.com
-          s.symcd.com
-          json-schema.org
-          json.schemastore.org
-          archive.ubuntu.com
-          security.ubuntu.com
-          ppa.launchpad.net
-          keyserver.ubuntu.com
-          azure.archive.ubuntu.com
-          api.snapcraft.io
-          packagecloud.io
-          packages.cloud.google.com
-          packages.microsoft.com
-          
-          EOF
-          
-          # Generate Docker Compose configuration for containerized engine
-          cat > docker-compose-engine.yml << 'EOF'
-          version: '3.8'
-          
-          services:
-            # Agent container - runs the AI CLI (Claude Code, Codex, etc.)
-            agent:
-              image: ghcr.io/githubnext/gh-aw-agent-base:latest
-              container_name: gh-aw-agent
-              stdin_open: true
-              tty: true
-              working_dir: /github/workspace
-              volumes:
-                # Mount GitHub Actions workspace
-                - $PWD:/github/workspace:rw
-                # Mount MCP configuration (read-only)
-                - ./mcp-config:/tmp/gh-aw/mcp-config:ro
-                # Mount prompt files (read-only)
-                - ./prompts:/tmp/gh-aw/aw-prompts:ro
-                # Mount log directory (write access)
-                - ./logs:/tmp/gh-aw/logs:rw
-                # Mount safe outputs directory (read-write)
-                - ./safe-outputs:/tmp/gh-aw/safe-outputs:rw
-                # Mount Claude settings if present
-                - ./.claude:/tmp/gh-aw/.claude:ro
-              environment:
-                # Proxy configuration - all traffic goes through localhost:3128
-                - HTTP_PROXY=http://localhost:3128
-                - HTTPS_PROXY=http://localhost:3128
-                - http_proxy=http://localhost:3128
-                - https_proxy=http://localhost:3128
-                - NO_PROXY=localhost,127.0.0.1
-                - no_proxy=localhost,127.0.0.1
-              command: ["sh", "-c", "npm install -g @github/copilot@ && COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt) && copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool shell --prompt \"$COPILOT_CLI_INSTRUCTION\" 2>&1 | tee /tmp/gh-aw/logs/agent-execution.log"]
-              networks:
-                - gh-aw-engine-net
-              depends_on:
-                # Wait for proxy-init to complete setup
-                proxy-init:
-                  condition: service_completed_successfully
-                # Wait for Squid to be healthy
-                squid-proxy:
-                  condition: service_healthy
-          
-            # Squid proxy container - provides HTTP/HTTPS proxy with domain filtering
-            squid-proxy:
-              image: ubuntu/squid:latest
-              container_name: gh-aw-squid-proxy
-              # Share network namespace with agent container
-              # This allows Squid to intercept agent's traffic via iptables rules
-              network_mode: "service:agent"
-              volumes:
-                # Mount Squid TPROXY configuration (read-only)
-                - ./squid-tproxy.conf:/etc/squid/squid.conf:ro
-                # Mount allowed domains file (read-only)
-                - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
-                # Persistent volume for Squid logs
-                - squid-logs:/var/log/squid
-              healthcheck:
-                # Check if Squid is running and responding
-                test: ["CMD", "squid", "-k", "check"]
-                interval: 10s
-                timeout: 5s
-                retries: 5
-                start_period: 10s
-              cap_add:
-                # Required to bind to ports 3128 and 3129
-                - NET_BIND_SERVICE
-              depends_on:
-                # Squid needs the agent container to create the network namespace first
-                - agent
-          
-            # Proxy-init container - sets up iptables rules for transparent proxy
-            proxy-init:
-              image: ghcr.io/githubnext/gh-aw-proxy-init:latest
-              container_name: gh-aw-proxy-init
-              # Share network namespace with agent container
-              # This allows proxy-init to configure iptables that affect agent's traffic
-              network_mode: "service:agent"
-              cap_add:
-                # Required for iptables and ip route commands
-                - NET_ADMIN
-              depends_on:
-                # proxy-init needs agent and squid to be started first
-                - agent
-                - squid-proxy
-          
-          # Volumes for persistent data
-          volumes:
-            squid-logs:
-              driver: local
-          
-          # Network configuration
-          networks:
-            gh-aw-engine-net:
-              driver: bridge
-          
-          EOF
-          
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -1452,42 +1221,16 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          set -e
-          # Execute containerized GitHub Copilot CLI with proxy
-          
-          # Create necessary directories
-          mkdir -p mcp-config prompts logs safe-outputs .copilot
-          
-          # Copy files to directories that will be mounted
-          cp -r /tmp/gh-aw/mcp-config/* mcp-config/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/aw-prompts/* prompts/ 2>/dev/null || true
-          
-          # Start Docker Compose services
-          docker compose -f docker-compose-engine.yml up --abort-on-container-exit agent
-          
-          # Get exit code from agent container
-          AGENT_EXIT_CODE=$(docker compose -f docker-compose-engine.yml ps -q agent | xargs docker inspect -f '{{.State.ExitCode}}')
-          
-          # Copy logs back from container
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/logs/agent-execution.log logs/ || true
-          cp logs/agent-execution.log /tmp/gh-aw/agent-stdio.log 2>/dev/null || true
-          
-          # Copy Copilot logs from container if they exist
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/.copilot/logs/ logs/ || true
-          
-          # Cleanup
-          docker compose -f docker-compose-engine.yml down
-          
-          # Exit with agent's exit code
-          exit $AGENT_EXIT_CODE
+          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool tavily --allow-tool 'tavily(*)' --allow-tool web-fetch --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -3452,40 +3195,14 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          set -e
-          # Execute containerized GitHub Copilot CLI with proxy
-          
-          # Create necessary directories
-          mkdir -p mcp-config prompts logs safe-outputs .copilot
-          
-          # Copy files to directories that will be mounted
-          cp -r /tmp/gh-aw/mcp-config/* mcp-config/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/aw-prompts/* prompts/ 2>/dev/null || true
-          
-          # Start Docker Compose services
-          docker compose -f docker-compose-engine.yml up --abort-on-container-exit agent
-          
-          # Get exit code from agent container
-          AGENT_EXIT_CODE=$(docker compose -f docker-compose-engine.yml ps -q agent | xargs docker inspect -f '{{.State.ExitCode}}')
-          
-          # Copy logs back from container
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/logs/agent-execution.log logs/ || true
-          cp logs/agent-execution.log /tmp/gh-aw/threat-detection/detection.log 2>/dev/null || true
-          
-          # Copy Copilot logs from container if they exist
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/.copilot/logs/ logs/ || true
-          
-          # Cleanup
-          docker compose -f docker-compose-engine.yml down
-          
-          # Exit with agent's exit code
-          exit $AGENT_EXIT_CODE
+          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:

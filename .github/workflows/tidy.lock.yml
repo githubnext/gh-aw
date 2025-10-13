@@ -3910,40 +3910,14 @@ jobs:
         timeout-minutes: 20
         run: |
           set -o pipefail
-          set -e
-          # Execute containerized GitHub Copilot CLI with proxy
-          
-          # Create necessary directories
-          mkdir -p mcp-config prompts logs safe-outputs .copilot
-          
-          # Copy files to directories that will be mounted
-          cp -r /tmp/gh-aw/mcp-config/* mcp-config/ 2>/dev/null || true
-          cp -r /tmp/gh-aw/aw-prompts/* prompts/ 2>/dev/null || true
-          
-          # Start Docker Compose services
-          docker compose -f docker-compose-engine.yml up --abort-on-container-exit agent
-          
-          # Get exit code from agent container
-          AGENT_EXIT_CODE=$(docker compose -f docker-compose-engine.yml ps -q agent | xargs docker inspect -f '{{.State.ExitCode}}')
-          
-          # Copy logs back from container
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/logs/agent-execution.log logs/ || true
-          cp logs/agent-execution.log /tmp/gh-aw/threat-detection/detection.log 2>/dev/null || true
-          
-          # Copy Copilot logs from container if they exist
-          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/.copilot/logs/ logs/ || true
-          
-          # Cleanup
-          docker compose -f docker-compose-engine.yml down
-          
-          # Exit with agent's exit code
-          exit $AGENT_EXIT_CODE
+          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
+          XDG_CONFIG_HOME: /home/runner
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:

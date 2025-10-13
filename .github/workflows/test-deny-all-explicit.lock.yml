@@ -30,16 +30,16 @@ concurrency:
 run-name: "Test Explicit Deny-All Firewall"
 
 jobs:
-  check-membership:
+  check_membership:
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check-membership.outputs.error_message }}
-      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
-      result: ${{ steps.check-membership.outputs.result }}
-      user_permission: ${{ steps.check-membership.outputs.user_permission }}
+      error_message: ${{ steps.check_membership.outputs.error_message }}
+      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
+      result: ${{ steps.check_membership.outputs.result }}
+      user_permission: ${{ steps.check_membership.outputs.user_permission }}
     steps:
       - name: Check team membership for workflow
-        id: check-membership
+        id: check_membership
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
@@ -120,8 +120,8 @@ jobs:
             await main();
 
   activation:
-    needs: check-membership
-    if: needs.check-membership.outputs.is_team_member == 'true'
+    needs: check_membership
+    if: needs.check_membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
@@ -772,6 +772,12 @@ jobs:
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
           MCP_TIMEOUT: "60000"
+      - name: Clean up network proxy hook files
+        if: always()
+        run: |
+          rm -rf .claude/hooks/network_permissions.py || true
+          rm -rf .claude/hooks || true
+          rm -rf .claude || true
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -1188,7 +1194,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
         with:
           script: |
             function main() {
