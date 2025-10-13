@@ -9,10 +9,10 @@ import (
 
 // CacheMemoryConfig holds configuration for cache-memory functionality
 type CacheMemoryConfig struct {
-	Enabled       bool                 `yaml:"enabled,omitempty"`        // whether cache-memory is enabled (for single cache config)
-	Key           string               `yaml:"key,omitempty"`            // custom cache key (for single cache config)
-	RetentionDays *int                 `yaml:"retention-days,omitempty"` // retention days for upload-artifact action (for single cache config)
-	Caches        []CacheMemoryEntry   `yaml:"caches,omitempty"`         // multiple cache configurations
+	Enabled       bool               `yaml:"enabled,omitempty"`        // whether cache-memory is enabled (for single cache config)
+	Key           string             `yaml:"key,omitempty"`            // custom cache key (for single cache config)
+	RetentionDays *int               `yaml:"retention-days,omitempty"` // retention days for upload-artifact action (for single cache config)
+	Caches        []CacheMemoryEntry `yaml:"caches,omitempty"`         // multiple cache configurations
 }
 
 // CacheMemoryEntry represents a single cache-memory configuration
@@ -55,7 +55,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 		for _, item := range cacheArray {
 			if cacheMap, ok := item.(map[string]any); ok {
 				entry := CacheMemoryEntry{}
-				
+
 				// ID is required for array notation
 				if id, exists := cacheMap["id"]; exists {
 					if idStr, ok := id.(string); ok {
@@ -247,10 +247,10 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 	// Handle multiple caches (array notation)
 	if len(data.CacheMemoryConfig.Caches) > 0 {
 		builder.WriteString("      # Cache memory file share configuration from frontmatter processed below\n")
-		
+
 		for _, cache := range data.CacheMemoryConfig.Caches {
 			cacheDir := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s", cache.ID)
-			
+
 			// Add step to create cache-memory directory for this cache
 			builder.WriteString(fmt.Sprintf("      - name: Create cache-memory directory (%s)\n", cache.ID))
 			builder.WriteString("        run: |\n")

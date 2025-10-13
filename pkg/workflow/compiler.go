@@ -2623,7 +2623,7 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 	if config == nil {
 		return
 	}
-	
+
 	// Check if cache-memory is configured (either single cache or array)
 	if !config.Enabled && len(config.Caches) == 0 {
 		return
