@@ -252,7 +252,9 @@ func ScanLogForPermissionErrors(
 				}
 
 				// Create missing-tool entry
-				CreateMissingToolEntry(toolName, line, verbose)
+				if err := CreateMissingToolEntry(toolName, line, verbose); err != nil && verbose {
+					fmt.Printf("Warning: failed to create missing-tool entry: %v\n", err)
+				}
 			}
 		}
 	}

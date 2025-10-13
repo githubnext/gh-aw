@@ -733,12 +733,6 @@ func (e *CodexEngine) detectPermissionErrorsAndCreateMissingTools(logContent str
 	ScanLogForPermissionErrors(logContent, patterns, e.extractCodexToolNameFromContext, "codex-agent", verbose)
 }
 
-// getPermissionErrorPatterns returns only the permission-related error patterns
-// Deprecated: Use FilterPermissionErrorPatterns instead
-func (e *CodexEngine) getPermissionErrorPatterns() []ErrorPattern {
-	return FilterPermissionErrorPatterns(e.GetErrorPatterns())
-}
-
 // extractCodexToolNameFromContext attempts to extract the tool name that failed due to permissions
 func (e *CodexEngine) extractCodexToolNameFromContext(lines []string, errorLineIndex int, defaultTool string) string {
 	// Look for tool usage in previous lines (Codex logs typically show tool calls before errors)
@@ -754,10 +748,4 @@ func (e *CodexEngine) extractCodexToolNameFromContext(lines []string, errorLineI
 	}
 
 	return defaultTool
-}
-
-// createCodexMissingToolEntry creates a missing-tool entry in the safe outputs file
-// Deprecated: Use CreateMissingToolEntry instead
-func (e *CodexEngine) createCodexMissingToolEntry(toolName, reason string, verbose bool) {
-	CreateMissingToolEntry(toolName, reason, verbose)
 }
