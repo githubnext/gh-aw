@@ -310,6 +310,11 @@ func (e *ClaudeEngine) getDockerComposeExecutionSteps(workflowData *WorkflowData
 	// Add MCP timeout
 	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
 
+	// Add model if specified
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
+		stepLines = append(stepLines, fmt.Sprintf("          CLAUDE_MODEL: %s", workflowData.EngineConfig.Model))
+	}
+
 	// Add safe outputs env vars
 	applySafeOutputEnvToSlice(&stepLines, workflowData)
 
@@ -325,7 +330,22 @@ func (e *ClaudeEngine) getDockerComposeExecutionSteps(workflowData *WorkflowData
 		}
 	}
 
-	return []GitHubActionStep{GitHubActionStep(stepLines)}
+	steps := []GitHubActionStep{GitHubActionStep(stepLines)}
+
+	// Add cleanup step for network proxy hook files (if proxy was enabled)
+	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
+		cleanupStep := GitHubActionStep{
+			"      - name: Clean up network proxy hook files",
+			"        if: always()",
+			"        run: |",
+			"          rm -rf .claude/hooks/network_permissions.py || true",
+			"          rm -rf .claude/hooks || true",
+			"          rm -rf .claude || true",
+		}
+		steps = append(steps, cleanupStep)
+	}
+
+	return steps
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization

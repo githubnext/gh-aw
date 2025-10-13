@@ -18,22 +18,27 @@ func generateSquidTPROXYConfig() string {
 }
 
 // needsEngineProxy determines if engine execution requires proxy setup
-// Firewall is always enabled - uses "defaults" ecosystem domains if not specified
+// Only enabled when NetworkPermissions is explicitly configured with allowed domains
 func needsEngineProxy(workflowData *WorkflowData) (bool, []string) {
-	// Firewall is always on - if no network permissions, use defaults ecosystem
+	// If no network permissions configured, don't use proxy
+	// This is the case for tests and workflows without network restrictions
 	if workflowData.NetworkPermissions == nil {
-		// This shouldn't happen since compiler sets defaults, but handle it
-		return true, GetAllowedDomains(nil)
+		return false, nil
+	}
+
+	// "defaults" mode means use default ecosystem domains via hooks (non-containerized)
+	// Don't use containerized proxy for backward compatibility
+	if workflowData.NetworkPermissions.Mode == "defaults" {
+		return false, nil
 	}
 
 	// Get allowed domains from network permissions
 	// This includes:
-	// - "defaults" mode → ecosystem domains (same as Claude hooks use)
 	// - explicit allowed list → those domains
 	// - empty allowed list → deny-all (empty array)
 	domains := GetAllowedDomains(workflowData.NetworkPermissions)
 
-	// Always enable proxy with the determined domains
+	// Enable proxy with the determined domains
 	return true, domains
 }
 

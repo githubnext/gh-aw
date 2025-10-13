@@ -64,9 +64,10 @@ This workflow tests that .claude/settings.json is generated in /tmp directory.
 		t.Error("Expected settings file creation 'cat > /tmp/gh-aw/.claude/settings.json' in generated workflow")
 	}
 
-	// Test 3: Verify settings parameter points to /tmp/gh-aw/.claude/settings.json
-	if !strings.Contains(lockStr, "--settings /tmp/gh-aw/.claude/settings.json") {
-		t.Error("Expected settings parameter to be '/tmp/gh-aw/.claude/settings.json' in generated workflow")
+	// Test 3: With network permissions, Docker Compose mode is used
+	// Settings are copied to container instead of passed as --settings flag
+	if !strings.Contains(lockStr, "docker compose") {
+		t.Error("Expected Docker Compose execution when network permissions are configured")
 	}
 
 	// Test 4: Verify the old paths are not present
