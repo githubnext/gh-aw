@@ -223,7 +223,7 @@ Note: Output can be filtered using the jq parameter.`,
 	// Add logs tool
 	type logsArgs struct {
 		WorkflowName string `json:"workflow_name,omitempty" jsonschema:"Name of the workflow to download logs for (empty for all)"`
-		Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download"`
+		Count        int    `json:"count,omitempty" jsonschema:"Number of workflow runs to download (default: 100)"`
 		StartDate    string `json:"start_date,omitempty" jsonschema:"Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
 		EndDate      string `json:"end_date,omitempty" jsonschema:"Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)"`
 		Engine       string `json:"engine,omitempty" jsonschema:"Filter logs by agentic engine type (claude, codex, copilot)"`

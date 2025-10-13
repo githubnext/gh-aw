@@ -379,7 +379,7 @@ Examples:
 	}
 
 	// Add flags to logs command
-	logsCmd.Flags().IntP("count", "c", 20, "Maximum number of matching workflow runs to return (after applying filters)")
+	logsCmd.Flags().IntP("count", "c", 100, "Maximum number of matching workflow runs to return (after applying filters)")
 	logsCmd.Flags().String("start-date", "", "Filter runs created after this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().String("end-date", "", "Filter runs created before this date (YYYY-MM-DD or delta like -1d, -1w, -1mo)")
 	logsCmd.Flags().StringP("output", "o", "./logs", "Output directory for downloaded logs and artifacts")
