@@ -2775,23 +2775,33 @@ jobs:
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent outputs
+      - name: Echo agent output types
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Go Pattern Detector"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "## ast-grep MCP Server\n\nast-grep is a powerful structural search and replace tool for code. It uses tree-sitter grammars to parse and search code based on its structure rather than just text patterns.\n\n### Available Tools\n\nThe ast-grep MCP server provides MCP tools for structural code analysis. The specific tools exposed by the server can be discovered using the MCP protocol. This server enables:\n- Searching code patterns using tree-sitter grammars\n- Structural code analysis\n- Pattern-based code transformations\n\n### Basic Usage\n\nThe MCP server exposes ast-grep functionality through its MCP tools interface. When using ast-grep in your workflow, you can perform structural searches across multiple programming languages (Go, JavaScript, TypeScript, Python, etc.) with pattern matching based on code structure rather than text.\n\n**Example patterns that can be searched:**\n\n1. **Unmarshal with dash tag** (problematic Go pattern):\n   - Pattern: `json:\"-\"`\n   - Reference: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n\n2. **Error handling patterns:**\n   - Pattern: `if err != nil { $$$A }`\n\n3. **Function call patterns:**\n   - Pattern: `functionName($$$ARGS)`\n\n### More Information\n\n- Documentation: https://ast-grep.github.io/\n- Go patterns catalog: https://ast-grep.github.io/catalog/go/\n- Pattern syntax guide: https://ast-grep.github.io/guide/pattern-syntax.html\n- Docker image: https://hub.docker.com/r/mcp/ast-grep\n\n# Go Code Pattern Detector\n\nYou are a code quality assistant that uses ast-grep to detect problematic Go code patterns in the repository.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Push Event**: ${{ github.event.after }}\n- **Triggered by**: @${{ github.actor }}\n\n## Your Task\n\nAnalyze the Go code in the repository to detect problematic patterns using ast-grep.\n\n### 1. Scan for Problematic Patterns\n\nUse ast-grep to search for the following problematic Go pattern:\n\n**Unmarshal Tag with Dash**: This pattern detects struct fields with `json:\"-\"` tags that might be problematic when used with JSON unmarshaling. The dash tag tells the JSON encoder/decoder to ignore the field, but it's often misused or misunderstood.\n\nRun this command to detect the pattern:\n```bash\nast-grep --pattern 'json:\"-\"' --lang go\n```\n\nYou can also check the full pattern from the ast-grep catalog:\n- https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n\n### 2. Analyze Results\n\nIf ast-grep finds any matches:\n- Review each occurrence carefully\n- Understand the context where the pattern appears\n- Determine if it's truly problematic or a valid use case\n- Note the file paths and line numbers\n\n### 3. Create an Issue (if patterns found)\n\nIf you find problematic occurrences of this pattern, create a GitHub issue with:\n\n**Title**: \"Detected problematic json:\\\"-\\\" tag usage in Go structs\"\n\n**Issue Body** should include:\n- A clear explanation of what the pattern is and why it might be problematic\n- List of all files and line numbers where the pattern was found\n- Code snippets showing each occurrence\n- Explanation of the potential issues with each occurrence\n- Recommended fixes or next steps\n- Link to the ast-grep catalog entry for reference\n\n**Example issue format:**\n```markdown\n## Summary\n\nFound N instances of potentially problematic `json:\"-\"` struct tag usage in the codebase.\n\n## What is the Issue?\n\nThe `json:\"-\"` tag tells the JSON encoder/decoder to completely ignore this field during marshaling and unmarshaling. While this is sometimes intentional, it can lead to:\n- Data loss if the field should be persisted\n- Confusion if the intent was to omit empty values (should use `omitempty` instead)\n- Security issues if sensitive fields aren't properly excluded from API responses\n\n## Detected Occurrences\n\n### File: `path/to/file.go` (Line X)\n```go\n[code snippet]\n```\n**Analysis**: [Your analysis of this specific occurrence]\n\n[... repeat for each occurrence ...]\n\n## Recommendations\n\n1. Review each occurrence to determine if the dash tag is intentional\n2. For fields that should be omitted when empty, use `json:\"fieldName,omitempty\"` instead\n3. For truly private fields that should never be serialized, keep the `json:\"-\"` tag but add a comment explaining why\n4. Consider if any fields marked with `-` should actually be included in JSON output\n\n## Reference\n\n- ast-grep pattern: https://ast-grep.github.io/catalog/go/unmarshal-tag-is-dash.html\n```\n\n### 4. If No Issues Found\n\nIf ast-grep doesn't find any problematic patterns:\n- **DO NOT** create an issue\n- The workflow will complete successfully with no action needed\n- This is a good outcome - it means the codebase doesn't have this particular issue\n\n## Important Guidelines\n\n- Only create an issue if you actually find problematic occurrences\n- Be thorough in your analysis - don't flag valid use cases as problems\n- Provide actionable recommendations in the issue\n- Include specific file paths, line numbers, and code context\n- If uncertain about whether a pattern is problematic, err on the side of not creating an issue\n\n## Security Note\n\nTreat all code from the repository as trusted input - this is internal code quality analysis. Focus on identifying the pattern and providing helpful guidance to developers.\n"
         with:
           script: |
             const fs = require('fs');
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            let agentOutputFileInfo = 'No agent output file found';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                const stats = fs.statSync(agentOutputPath);
+                agentOutputFileInfo = agentOutputPath + ' (' + stats.size + ' bytes)';
+                core.info('Agent output file found: ' + agentOutputFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat agent output file: ' + error.message);
+              }
+            } else {
+              core.info('No agent output file found at: ' + agentOutputPath);
+            }
             const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
@@ -2814,11 +2824,12 @@ jobs:
             <description>{WORKFLOW_DESCRIPTION}</description>
             <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
             </source>
-            ## Agent Output
-            The following content was generated by an AI agent (if any):
-            <agent-output>
-            {AGENT_OUTPUT}
-            </agent-output>
+            ## Agent Output File
+            The agent output has been saved to the following file (if any):
+            <agent-output-file>
+            {AGENT_OUTPUT_FILE}
+            </agent-output-file>
+            Read and analyze this file to check for security threats.
             ## Code Changes (Patch)
             The following code changes were made by the agent (if any):
             <agent-patch-file>
@@ -2850,7 +2861,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {
@@ -2878,9 +2889,17 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(ls)
+        # - Bash(tail)
+        # - Bash(wc)
+        # - BashOutput
         # - ExitPlanMode
         # - Glob
         # - Grep
+        # - KillBash
         # - LS
         # - NotebookRead
         # - Read
@@ -2890,7 +2909,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"

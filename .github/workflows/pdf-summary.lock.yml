@@ -3686,23 +3686,33 @@ jobs:
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent outputs
+      - name: Echo agent output types
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Resource Summarizer Agent"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "\n\n# Resource Summarizer Agent\n\nYou are a resource analysis and summarization agent powered by the markitdown MCP server.\n\n## Mission\n\nWhen invoked with the `/summarize` command or triggered via workflow_dispatch, you must:\n\n1. **Identify Resources**: Extract URLs from the command or use the provided URL input\n2. **Convert to Markdown**: Use the markitdown MCP server to convert each resource to markdown\n3. **Analyze Content**: Analyze the converted markdown content\n4. **Answer Query**: Respond to the query or provide a summary\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Triggered by**: @${{ github.actor }}\n- **Triggering Content**: \"${{ needs.activation.outputs.text }}\"\n- **Issue/PR Number**: ${{ github.event.issue.number || github.event.pull_request.number }}\n- **Workflow Dispatch URL**: ${{ github.event.inputs.url }}\n- **Workflow Dispatch Query**: ${{ github.event.inputs.query }}\n- **Persistent Storage**: `/tmp/gh-aw/cache-memory/` (use this to store analysis results for future reference)\n\n## Processing Steps\n\n### 1. Identify Resources and Query\n\n**For Command Trigger (`/summarize`):**\n- Parse the triggering comment/issue to extract URL(s) to resources\n- Look for URLs in the comment text (e.g., `/summarize https://example.com/document.pdf`)\n- Extract any query or question after the URL(s)\n- If no query is provided, use: \"summarize in the context of this repository\"\n\n**For Workflow Dispatch:**\n- Use the provided `url` input (may contain comma-separated URLs)\n- Use the provided `query` input (defaults to \"summarize in the context of this repository\")\n\n### 2. Fetch and Convert Resources\n\nFor each identified URL:\n- Use the markitdown MCP server to convert the resource to markdown\n- Supported formats include: PDF, HTML, Word documents, PowerPoint, images, and more\n- Handle conversion errors gracefully and note any issues\n\n### 3. Analyze Content\n\n- Review the converted markdown content from all resources\n- Consider the repository context when analyzing\n- Identify key information relevant to the query\n\n### 4. Generate Response\n\n- Answer the query based on the analyzed content\n- Provide a well-structured response that includes:\n  - Summary of findings\n  - Key points from the resources\n  - Relevant insights in the context of this repository\n  - Any conversion issues or limitations encountered\n\n### 5. Store Results in Cache Memory\n\n- Store the analysis results in the cache-memory folder (`/tmp/gh-aw/cache-memory/`)\n- Create a structured file with the resource URL, query, and analysis results\n- Use a naming convention like: `analysis-{timestamp}.json` or organize by resource domain\n- This allows future runs to reference previous analyses and build on prior knowledge\n- Store both the converted markdown and your analysis for future reference\n\n### 6. Post Response\n\n- Post your analysis as a comment on the triggering issue/PR\n- Format the response clearly with headers and bullet points\n- Include references to the analyzed URLs\n\n## Response Format\n\nYour response should be formatted as:\n\n```markdown\n# 📊 Resource Analysis\n\n**Query**: [The query or question being answered]\n\n**Resources Analyzed**:\n- [URL 1] - [Brief description]\n- [URL 2] - [Brief description]\n- ...\n\n## Summary\n\n[Comprehensive summary addressing the query]\n\n## Key Findings\n\n- **Finding 1**: [Detail]\n- **Finding 2**: [Detail]\n- ...\n\n## Context for This Repository\n\n[How these findings relate to ${{ github.repository }}]\n\n## Additional Notes\n\n[Any conversion issues, limitations, or additional observations]\n```\n\n## Important Notes\n\n- **URL Extraction**: Be flexible in parsing URLs from comments - they may appear anywhere in the text\n- **Multiple Resources**: Handle multiple URLs when provided (comma-separated or space-separated)\n- **Error Handling**: If a resource cannot be converted, note this in your response and continue with other resources\n- **Query Flexibility**: Adapt your analysis to the specific query provided\n- **Repository Context**: Always consider how the analyzed content relates to the current repository\n- **Default Query**: When no specific query is provided, use \"summarize in the context of this repository\"\n- **Cache Memory Storage**: Store all analysis results in `/tmp/gh-aw/cache-memory/` for future reference. This allows you to:\n  - Build knowledge over time about analyzed resources\n  - Reference previous analyses when new queries come in\n  - Track patterns and recurring themes across multiple resource analyses\n  - Create a searchable database of analyzed resources for this repository\n\n## Cache Memory Usage\n\nYou have access to persistent storage in `/tmp/gh-aw/cache-memory/` across workflow runs. Use this to:\n\n1. **Store Analysis Results**: Save each resource analysis as a structured JSON file\n2. **Track History**: Maintain a log of all analyzed resources and their summaries\n3. **Build Knowledge**: Reference previous analyses to provide more contextual insights\n4. **Avoid Redundancy**: Check if a resource has been analyzed before and reference prior findings\n\nExample structure for stored analysis:\n```json\n{\n  \"timestamp\": \"2024-01-15T10:30:00Z\",\n  \"url\": \"https://example.com/document.pdf\",\n  \"query\": \"summarize in the context of this repository\",\n  \"analysis\": \"...\",\n  \"key_findings\": [\"finding1\", \"finding2\"],\n  \"repository_context\": \"...\"\n}\n```\n\nRemember: Your goal is to help users understand external resources in the context of their repository by converting them to markdown, providing insightful analysis, and building persistent knowledge over time.\n"
         with:
           script: |
             const fs = require('fs');
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            let agentOutputFileInfo = 'No agent output file found';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                const stats = fs.statSync(agentOutputPath);
+                agentOutputFileInfo = agentOutputPath + ' (' + stats.size + ' bytes)';
+                core.info('Agent output file found: ' + agentOutputFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat agent output file: ' + error.message);
+              }
+            } else {
+              core.info('No agent output file found at: ' + agentOutputPath);
+            }
             const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
@@ -3725,11 +3735,12 @@ jobs:
             <description>{WORKFLOW_DESCRIPTION}</description>
             <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
             </source>
-            ## Agent Output
-            The following content was generated by an AI agent (if any):
-            <agent-output>
-            {AGENT_OUTPUT}
-            </agent-output>
+            ## Agent Output File
+            The agent output has been saved to the following file (if any):
+            <agent-output-file>
+            {AGENT_OUTPUT_FILE}
+            </agent-output-file>
+            Read and analyze this file to check for security threats.
             ## Code Changes (Patch)
             The following code changes were made by the agent (if any):
             <agent-patch-file>
@@ -3761,7 +3772,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {
@@ -3788,11 +3799,18 @@ jobs:
         run: npm install -g @github/copilot@0.0.339
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
+        # Copilot CLI tool arguments (sorted):
+        # --allow-tool shell(cat)
+        # --allow-tool shell(grep)
+        # --allow-tool shell(head)
+        # --allow-tool shell(ls)
+        # --allow-tool shell(tail)
+        # --allow-tool shell(wc)
         timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt

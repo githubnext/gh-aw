@@ -2689,23 +2689,33 @@ jobs:
         with:
           name: aw.patch
           path: /tmp/gh-aw/threat-detection/
-      - name: Echo agent outputs
+      - name: Echo agent output types
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
         run: |
-          echo "Agent output: $AGENT_OUTPUT"
           echo "Agent output-types: $AGENT_OUTPUT_TYPES"
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           WORKFLOW_NAME: "Duplicate Code Detector"
           WORKFLOW_DESCRIPTION: "No description provided"
           WORKFLOW_MARKDOWN: "## Serena configuration\n\nThe active workspaces is ${{ github.workspace }}. You should configure the Serena memory at the cache-memory folder (/tmp/gh-aw/cache-memory/serena).\n\n<!--\n\n  # https://github.com/mcp/oraios/serena#using-docker-experimental\n\n-->\n\n# Duplicate Code Detection\n\nAnalyze code to identify duplicated patterns using Serena's semantic code analysis capabilities. Report significant findings that require refactoring.\n\n## Task\n\nDetect and report code duplication by:\n\n1. **Analyzing Recent Commits**: Review changes in the latest commits\n2. **Detecting Duplicated Code**: Identify similar or duplicated code patterns using semantic analysis\n3. **Reporting Findings**: Create a detailed issue if significant duplication is detected (threshold: >10 lines or 3+ similar patterns)\n\n## Context\n\n- **Repository**: ${{ github.repository }}\n- **Commit ID**: ${{ github.event.head_commit.id }}\n- **Triggered by**: @${{ github.actor }}\n\n## Analysis Workflow\n\n### 1. Project Activation\n\nActivate the project in Serena:\n- Use `activate_project` tool with workspace path `/workspace` (mounted repository directory)\n- This sets up the semantic code analysis environment\n\n### 2. Changed Files Analysis\n\nIdentify and analyze modified files:\n- Determine files changed in the recent commits\n- **Exclude test files** from analysis (files matching patterns: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or located in directories named `test`, `tests`, `__tests__`, or `spec`)\n- Use `get_symbols_overview` to understand file structure\n- Use `read_file` to examine modified file contents\n\n### 3. Duplicate Detection\n\nApply semantic code analysis to find duplicates:\n\n**Symbol-Level Analysis**:\n- For significant functions/methods in changed files, use `find_symbol` to search for similarly named symbols\n- Use `find_referencing_symbols` to understand usage patterns\n- Identify functions with similar names in different files (e.g., `processData` across modules)\n\n**Pattern Search**:\n- Use `search_for_pattern` to find similar code patterns\n- Search for duplication indicators:\n  - Similar function signatures\n  - Repeated logic blocks\n  - Similar variable naming patterns\n  - Near-identical code blocks\n\n**Structural Analysis**:\n- Use `list_dir` and `find_file` to identify files with similar names or purposes\n- Compare symbol overviews across files for structural similarities\n\n### 4. Duplication Evaluation\n\nAssess findings to identify true code duplication:\n\n**Duplication Types**:\n- **Exact Duplication**: Identical code blocks in multiple locations\n- **Structural Duplication**: Same logic with minor variations (different variable names, etc.)\n- **Functional Duplication**: Different implementations of the same functionality\n- **Copy-Paste Programming**: Similar code blocks that could be extracted into shared utilities\n\n**Assessment Criteria**:\n- **Severity**: Amount of duplicated code (lines of code, number of occurrences)\n- **Impact**: Where duplication occurs (critical paths, frequently called code)\n- **Maintainability**: How duplication affects code maintainability\n- **Refactoring Opportunity**: Whether duplication can be easily refactored\n\n### 5. Issue Reporting\n\nCreate an issue if significant duplication is found (threshold: >10 lines of duplicated code OR 3+ instances of similar patterns):\n\n**Issue Contents**:\n- **Executive Summary**: Brief description of duplication found\n- **Duplication Details**: Specific locations and code blocks\n- **Severity Assessment**: Impact and maintainability concerns\n- **Refactoring Recommendations**: Suggested approaches to eliminate duplication\n- **Code Examples**: Concrete examples with file paths and line numbers\n\n## Detection Scope\n\n### Report These Issues\n\n- Identical or nearly identical functions in different files\n- Repeated code blocks that could be extracted to utilities\n- Similar classes or modules with overlapping functionality\n- Copy-pasted code with minor modifications\n- Duplicated business logic across components\n\n### Skip These Patterns\n\n- Standard boilerplate code (imports, exports, etc.)\n- Test setup/teardown code (acceptable duplication in tests)\n- **All test files** (files matching: `*_test.go`, `*.test.js`, `*.spec.js`, `*.test.ts`, `*.spec.ts`, `*_test.py`, `test_*.py`, or in `test/`, `tests/`, `__tests__/`, `spec/` directories)\n- Configuration files with similar structure\n- Language-specific patterns (constructors, getters/setters)\n- Small code snippets (<5 lines) unless highly repetitive\n\n### Analysis Depth\n\n- **Primary Focus**: All files changed in the current push (excluding test files)\n- **Secondary Analysis**: Check for duplication with existing codebase (excluding test files)\n- **Cross-Reference**: Look for patterns across the repository\n- **Historical Context**: Consider if duplication is new or existing\n\n## Issue Template\n\nIf duplication is found, create an issue using this structure:\n\n```markdown\n# 🔍 Duplicate Code Detected\n\n*Analysis of commit ${{ github.event.head_commit.id }}*\n\n**Assignee**: @copilot\n\n## Summary\n\n[Brief overview of duplication findings]\n\n## Duplication Details\n\n### Pattern 1: [Description]\n- **Severity**: High/Medium/Low\n- **Occurrences**: [Number of instances]\n- **Locations**:\n  - `path/to/file1.ext` (lines X-Y)\n  - `path/to/file2.ext` (lines A-B)\n- **Code Sample**:\n  ```[language]\n  [Example of duplicated code]\n  ```\n\n### Pattern 2: [Description]\n[... additional patterns ...]\n\n## Impact Analysis\n\n- **Maintainability**: [How this affects code maintenance]\n- **Bug Risk**: [Potential for inconsistent fixes]\n- **Code Bloat**: [Impact on codebase size]\n\n## Refactoring Recommendations\n\n1. **[Recommendation 1]**\n   - Extract common functionality to: `suggested/path/utility.ext`\n   - Estimated effort: [hours/complexity]\n   - Benefits: [specific improvements]\n\n2. **[Recommendation 2]**\n   [... additional recommendations ...]\n\n## Implementation Checklist\n\n- [ ] Review duplication findings\n- [ ] Prioritize refactoring tasks\n- [ ] Create refactoring plan\n- [ ] Implement changes\n- [ ] Update tests\n- [ ] Verify no functionality broken\n\n## Analysis Metadata\n\n- **Analyzed Files**: [count]\n- **Detection Method**: Serena semantic code analysis\n- **Commit**: ${{ github.event.head_commit.id }}\n- **Analysis Date**: [timestamp]\n```\n\n## Operational Guidelines\n\n### Security\n- Never execute untrusted code or commands\n- Only use Serena's read-only analysis tools\n- Do not modify files during analysis\n\n### Efficiency\n- Focus on recently changed files first\n- Use semantic analysis for meaningful duplication, not superficial matches\n- Stay within timeout limits (balance thoroughness with execution time)\n\n### Accuracy\n- Verify findings before reporting\n- Distinguish between acceptable patterns and true duplication\n- Consider language-specific idioms and best practices\n- Provide specific, actionable recommendations\n\n### Issue Creation\n- Only create an issue if significant duplication is found\n- Include sufficient detail for SWE agents to understand and act on findings\n- Provide concrete examples with file paths and line numbers\n- Suggest practical refactoring approaches\n- Assign issue to @copilot for automated remediation\n\n## Tool Usage Sequence\n\n1. **Project Setup**: `activate_project` with repository path\n2. **File Discovery**: `list_dir`, `find_file` for changed files\n3. **Symbol Analysis**: `get_symbols_overview` for structure understanding\n4. **Content Review**: `read_file` for detailed code examination\n5. **Pattern Matching**: `search_for_pattern` for similar code\n6. **Symbol Search**: `find_symbol` for duplicate function names\n7. **Reference Analysis**: `find_referencing_symbols` for usage patterns\n\n**Objective**: Improve code quality by identifying and reporting meaningful code duplication that impacts maintainability. Focus on actionable findings that enable automated or manual refactoring.\n"
         with:
           script: |
             const fs = require('fs');
+            const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
+            let agentOutputFileInfo = 'No agent output file found';
+            if (fs.existsSync(agentOutputPath)) {
+              try {
+                const stats = fs.statSync(agentOutputPath);
+                agentOutputFileInfo = agentOutputPath + ' (' + stats.size + ' bytes)';
+                core.info('Agent output file found: ' + agentOutputFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat agent output file: ' + error.message);
+              }
+            } else {
+              core.info('No agent output file found at: ' + agentOutputPath);
+            }
             const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
             let patchFileInfo = 'No patch file found';
             if (fs.existsSync(patchPath)) {
@@ -2728,11 +2738,12 @@ jobs:
             <description>{WORKFLOW_DESCRIPTION}</description>
             <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
             </source>
-            ## Agent Output
-            The following content was generated by an AI agent (if any):
-            <agent-output>
-            {AGENT_OUTPUT}
-            </agent-output>
+            ## Agent Output File
+            The agent output has been saved to the following file (if any):
+            <agent-output-file>
+            {AGENT_OUTPUT_FILE}
+            </agent-output-file>
+            Read and analyze this file to check for security threats.
             ## Code Changes (Patch)
             The following code changes were made by the agent (if any):
             <agent-patch-file>
@@ -2764,7 +2775,7 @@ jobs:
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
               .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
-              .replace(/{AGENT_OUTPUT}/g, process.env.AGENT_OUTPUT || '')
+              .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
             if (customPrompt) {
