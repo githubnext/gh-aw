@@ -412,8 +412,8 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 	// Iterative algorithm: keep fetching runs until we have enough or exhaust available runs
 	for iteration < MaxIterations {
-		// Stop if we've collected enough processed runs AND we're not fetching all in range
-		if !fetchAllInRange && len(processedRuns) >= count {
+		// Stop if we've collected enough processed runs
+		if len(processedRuns) >= count {
 			break
 		}
 
@@ -468,19 +468,15 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 
 		// Process each run in this batch
 		batchProcessed := 0
-		// When fetching all in range, don't limit downloads; otherwise limit to remaining count
-		maxDownloads := 0 // 0 means no limit
-		if !fetchAllInRange {
-			maxDownloads = count - len(processedRuns)
+		// Always limit downloads to remaining count needed to avoid downloading extras
+		maxDownloads := count - len(processedRuns)
+		if maxDownloads <= 0 {
+			// Already have enough processed runs, stop downloading
+			break
 		}
 		downloadResults := downloadRunArtifactsConcurrent(runs, outputDir, verbose, maxDownloads)
 
 		for _, result := range downloadResults {
-			// When not fetching all in range, stop if we've reached our target count
-			if !fetchAllInRange && len(processedRuns) >= count {
-				break
-			}
-
 			if result.Skipped {
 				if verbose {
 					if result.Error != nil {
