@@ -157,7 +157,7 @@ func TestGenerateOutputSchema(t *testing.T) {
 		}
 
 		// Check that all expected properties exist
-		expectedProps := []string{"workflow", "agent", "compiled", "status", "time_remaining"}
+		expectedProps := []string{"workflow", "engine_id", "compiled", "status", "time_remaining"}
 		for _, prop := range expectedProps {
 			if _, ok := schema.Properties[prop]; !ok {
 				t.Errorf("Expected '%s' property to be defined", prop)
