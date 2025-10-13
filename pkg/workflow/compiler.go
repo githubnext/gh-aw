@@ -802,7 +802,13 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	workflowData.Container = c.extractTopLevelYAMLSection(result.Frontmatter, "container")
 	workflowData.Services = c.extractTopLevelYAMLSection(result.Frontmatter, "services")
 	workflowData.Cache = c.extractTopLevelYAMLSection(result.Frontmatter, "cache")
-	workflowData.CacheMemoryConfig = c.extractCacheMemoryConfig(topTools)
+
+	// Extract cache-memory config and check for errors
+	cacheMemoryConfig, err := c.extractCacheMemoryConfig(tools) // Use merged tools to support imports
+	if err != nil {
+		return nil, err
+	}
+	workflowData.CacheMemoryConfig = cacheMemoryConfig
 
 	// Process stop-after configuration from the on: section
 	err = c.processStopAfterConfiguration(result.Frontmatter, workflowData, markdownPath)
@@ -2620,7 +2626,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 // generateCacheMemoryPromptStep generates a separate step for cache memory prompt section
 func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *CacheMemoryConfig) {
-	if config == nil || !config.Enabled {
+	if config == nil || len(config.Caches) == 0 {
 		return
 	}
 

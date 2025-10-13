@@ -557,6 +557,22 @@ func TestCopilotEngineRenderGitHubMCPConfig(t *testing.T) {
 				`}`,
 			},
 		},
+		{
+			name: "GitHub MCP with allowed tools",
+			githubTool: map[string]any{
+				"allowed": []string{"list_workflows", "get_repository"},
+			},
+			isLast: true,
+			expectedStrs: []string{
+				`"github": {`,
+				`"type": "local",`,
+				`"tools": [`,
+				`"list_workflows"`,
+				`"get_repository"`,
+				`]`,
+				`}`,
+			},
+		},
 	}
 
 	for _, tt := range tests {
