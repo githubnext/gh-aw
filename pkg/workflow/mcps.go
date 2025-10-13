@@ -251,6 +251,30 @@ func getGitHubToolsets(githubTool any) string {
 	return ""
 }
 
+// getGitHubAllowedTools extracts the allowed tools list from GitHub tool configuration
+// Returns the list of allowed tools, or nil if no allowed list is specified (which means all tools are allowed)
+func getGitHubAllowedTools(githubTool any) []string {
+	if toolConfig, ok := githubTool.(map[string]any); ok {
+		if allowedSetting, exists := toolConfig["allowed"]; exists {
+			// Handle array format
+			switch v := allowedSetting.(type) {
+			case []any:
+				// Convert array to string slice
+				tools := make([]string, 0, len(v))
+				for _, item := range v {
+					if str, ok := item.(string); ok {
+						tools = append(tools, str)
+					}
+				}
+				return tools
+			case []string:
+				return v
+			}
+		}
+	}
+	return nil
+}
+
 func getPlaywrightDockerImageVersion(playwrightTool any) string {
 	playwrightDockerImageVersion := "latest" // Default Playwright Docker image version
 	// Extract version setting from tool properties
