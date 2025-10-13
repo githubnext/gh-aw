@@ -938,15 +938,3 @@ func (e *CopilotEngine) detectPermissionErrorsAndCreateMissingTools(logContent s
 	// For Copilot CLI, the tool is generally the CLI itself (no context extraction needed)
 	ScanLogForPermissionErrors(logContent, patterns, nil, "github-copilot-cli", verbose)
 }
-
-// getPermissionErrorPatterns returns only the permission-related error patterns
-// Deprecated: Use FilterPermissionErrorPatterns instead
-func (e *CopilotEngine) getPermissionErrorPatterns() []ErrorPattern {
-	return FilterPermissionErrorPatterns(e.GetErrorPatterns())
-}
-
-// createCopilotMissingToolEntry creates a missing-tool entry in the safe outputs file
-// Deprecated: Use CreateMissingToolEntry instead
-func (e *CopilotEngine) createCopilotMissingToolEntry(toolName, reason string, verbose bool) {
-	CreateMissingToolEntry(toolName, reason, verbose)
-}
