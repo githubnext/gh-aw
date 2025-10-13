@@ -244,7 +244,6 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 // Supports both local (Docker) and remote (hosted) modes
 func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
 	githubType := getGitHubType(githubTool)
-	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 	toolsets := getGitHubToolsets(githubTool)
 	allowedTools := getGitHubAllowedTools(githubTool)
@@ -257,20 +256,12 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		yaml.WriteString("                \"type\": \"http\",\n")
 		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 		yaml.WriteString("                \"headers\": {\n")
-
-		// Add custom github-token if specified, otherwise use GH_AW_GITHUB_TOKEN
-		if customGitHubToken != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"", customGitHubToken))
-		} else {
-			yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GH_AW_GITHUB_TOKEN }}\"")
-		}
+		yaml.WriteString("                  \"Authorization\": \"Bearer \\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
 			yaml.WriteString(",\n")
 			yaml.WriteString("                  \"X-MCP-Readonly\": \"true\"\n")
-		} else {
-			yaml.WriteString("\n")
 		}
 
 		yaml.WriteString("                },\n")
@@ -285,10 +276,15 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 				}
 				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
 			}
-			yaml.WriteString("                ]\n")
+			yaml.WriteString("                ],\n")
 		} else {
-			yaml.WriteString("                \"tools\": [\"*\"]\n")
+			yaml.WriteString("                \"tools\": [\"*\"],\n")
 		}
+
+		// Add env section for passthrough
+		yaml.WriteString("                \"env\": {\n")
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
+		yaml.WriteString("                }\n")
 	} else {
 		// Local mode - use Docker-based GitHub MCP server (default)
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
@@ -303,13 +299,7 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 		yaml.WriteString("                  \"-i\",\n")
 		yaml.WriteString("                  \"--rm\",\n")
 		yaml.WriteString("                  \"-e\",\n")
-
-		// Use custom token if specified, otherwise use default
-		if customGitHubToken != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN=%s\",\n", customGitHubToken))
-		} else {
-			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\",\n")
-		}
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\",\n")
 
 		if readOnly {
 			yaml.WriteString("                  \"-e\",\n")
@@ -343,11 +333,15 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 				}
 				fmt.Fprintf(yaml, "                  \"%s\"%s\n", tool, comma)
 			}
-			yaml.WriteString("                ]\n")
+			yaml.WriteString("                ],\n")
 		} else {
-			yaml.WriteString("                \"tools\": [\"*\"]\n")
+			yaml.WriteString("                \"tools\": [\"*\"],\n")
 		}
-		// copilot does not support env
+
+		// Add env section for passthrough
+		yaml.WriteString("                \"env\": {\n")
+		yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"\\${GITHUB_PERSONAL_ACCESS_TOKEN}\"\n")
+		yaml.WriteString("                }\n")
 	}
 
 	if isLast {
