@@ -104,7 +104,7 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 			}
 
 			config, err := compiler.extractCacheMemoryConfig(tools)
-			
+
 			// Check if error matches expectation
 			if !tt.shouldWork {
 				if err == nil {
@@ -112,7 +112,7 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("Unexpected error for %s: %v", tt.description, err)
 			}

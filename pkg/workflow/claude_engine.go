@@ -1275,7 +1275,7 @@ func (e *ClaudeEngine) GetLogParserScriptId() string {
 // including permission-related errors that should be captured as missing tools
 func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 	patterns := GetCommonErrorPatterns()
-	
+
 	// Add Claude-specific error patterns
 	patterns = append(patterns, []ErrorPattern{
 		// Specific, contextual error patterns - these are precise and unlikely to match informational text
@@ -1334,7 +1334,7 @@ func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 			Description:  "Insufficient permissions error (requires error context)",
 		},
 	}...)
-	
+
 	return patterns
 }
 

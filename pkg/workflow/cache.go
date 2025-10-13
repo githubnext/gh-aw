@@ -133,12 +133,12 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryC
 				config.Caches = append(config.Caches, entry)
 			}
 		}
-		
+
 		// Check for duplicate cache IDs
 		if err := validateNoDuplicateCacheIDs(config.Caches); err != nil {
 			return nil, err
 		}
-		
+
 		return config, nil
 	}
 
@@ -346,14 +346,14 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		builder.WriteString("        uses: actions/cache@v4\n")
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
-		
+
 		// Path - use original path for single default cache for backward compatibility
 		if useBackwardCompatiblePaths {
 			builder.WriteString("          path: /tmp/gh-aw/cache-memory\n")
 		} else {
 			fmt.Fprintf(builder, "          path: %s\n", cacheDir)
 		}
-		
+
 		builder.WriteString("          restore-keys: |\n")
 		for _, key := range restoreKeys {
 			fmt.Fprintf(builder, "            %s\n", key)
@@ -391,7 +391,7 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 	yaml.WriteString("          \n")
 	yaml.WriteString("          ---\n")
 	yaml.WriteString("          \n")
-	
+
 	// Check if there's only one cache with ID "default" to use singular form
 	if len(config.Caches) == 1 && config.Caches[0].ID == "default" {
 		yaml.WriteString("          ## Cache Folder Available\n")
