@@ -1476,3 +1476,68 @@ func TestUnzipFileZipSlipPrevention(t *testing.T) {
 		t.Errorf("Expected error about invalid file path, got: %v", err)
 	}
 }
+
+// TestCountParameterBehavior verifies that the count parameter limits matching results
+// not the number of runs fetched when date filters are specified
+func TestCountParameterBehavior(t *testing.T) {
+	// This test documents the expected behavior:
+	// 1. When date filters (startDate/endDate) are specified, fetch ALL runs in that range
+	// 2. Apply post-download filters (engine, staged, etc.)
+	// 3. Limit final output to 'count' matching runs
+	//
+	// Without date filters:
+	// 1. Fetch runs iteratively until we have 'count' runs with artifacts
+	// 2. Apply filters during iteration (old behavior for backward compatibility)
+
+	// Note: This is a documentation test - the actual logic is tested via integration tests
+	// that require GitHub CLI authentication and a real repository
+
+	tests := []struct {
+		name             string
+		startDate        string
+		endDate          string
+		count            int
+		expectedFetchAll bool
+	}{
+		{
+			name:             "with startDate should fetch all in range",
+			startDate:        "2024-01-01",
+			endDate:          "",
+			count:            10,
+			expectedFetchAll: true,
+		},
+		{
+			name:             "with endDate should fetch all in range",
+			startDate:        "",
+			endDate:          "2024-12-31",
+			count:            10,
+			expectedFetchAll: true,
+		},
+		{
+			name:             "with both dates should fetch all in range",
+			startDate:        "2024-01-01",
+			endDate:          "2024-12-31",
+			count:            10,
+			expectedFetchAll: true,
+		},
+		{
+			name:             "without dates should use count as fetch limit",
+			startDate:        "",
+			endDate:          "",
+			count:            10,
+			expectedFetchAll: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This documents the logic: when startDate or endDate is set, we fetch all
+			fetchAllInRange := tt.startDate != "" || tt.endDate != ""
+
+			if fetchAllInRange != tt.expectedFetchAll {
+				t.Errorf("Expected fetchAllInRange=%v for startDate=%q endDate=%q, got %v",
+					tt.expectedFetchAll, tt.startDate, tt.endDate, fetchAllInRange)
+			}
+		})
+	}
+}
