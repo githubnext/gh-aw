@@ -476,7 +476,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	// Extract network permissions from frontmatter
 	networkPermissions := c.extractNetworkPermissions(result.Frontmatter)
 
-	// Default to 'defaults' network access if no network permissions specified
+	// Default to 'defaults' mode if not specified (required for strict mode compatibility)
+	// Note: 'defaults' mode does NOT trigger containerized firewall (backward compatibility)
 	if networkPermissions == nil {
 		networkPermissions = &NetworkPermissions{
 			Mode: "defaults",
@@ -2225,6 +2226,10 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 			yaml.WriteString(line + "\n")
 		}
 	}
+
+	// Add engine proxy configuration if network permissions are configured
+	// This must come after installation steps but before MCP setup
+	c.generateInlineEngineProxyConfig(yaml, data)
 
 	// GITHUB_AW_SAFE_OUTPUTS is now set at job level, no setup step needed
 

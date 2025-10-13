@@ -665,6 +665,237 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Generate Engine Proxy Configuration
+        run: |
+          # Generate Squid TPROXY configuration for transparent proxy
+          cat > squid-tproxy.conf << 'EOF'
+          # Squid configuration for TPROXY-based transparent proxy
+          # This configuration enables both HTTP (port 3128) and HTTPS (port 3129) proxying
+          # with TPROXY support for preserving original destination information
+          
+          # Port configuration
+          # Standard HTTP proxy port (for REDIRECT traffic from iptables)
+          http_port 3128
+          
+          # TPROXY port for HTTPS traffic (preserves original destination)
+          # This allows Squid to see the original destination IP and make correct upstream connections
+          http_port 3129 tproxy
+          
+          # ACL definitions for allowed domains
+          # Domain allowlist loaded from external file
+          acl allowed_domains dstdomain "/etc/squid/allowed_domains.txt"
+          
+          # Local network ranges that should be allowed
+          acl localnet src 127.0.0.1/8        # Localhost
+          acl localnet src 10.0.0.0/8         # Private network (Class A)
+          acl localnet src 172.16.0.0/12      # Private network (Class B)
+          acl localnet src 192.168.0.0/16     # Private network (Class C)
+          
+          # Safe ports for HTTP traffic
+          acl SSL_ports port 443
+          acl Safe_ports port 80
+          acl Safe_ports port 443
+          
+          # HTTP methods
+          acl CONNECT method CONNECT
+          
+          # Access rules (evaluated in order)
+          # Deny requests to domains not in the allowlist
+          http_access deny !allowed_domains
+          
+          # Deny non-safe ports (only 80 and 443 allowed)
+          http_access deny !Safe_ports
+          
+          # Deny CONNECT to non-SSL ports
+          http_access deny CONNECT !SSL_ports
+          
+          # Allow local network access
+          http_access allow localnet
+          
+          # Allow localhost access
+          http_access allow localhost
+          
+          # Default deny all other access
+          http_access deny all
+          
+          # Logging configuration
+          access_log /var/log/squid/access.log squid
+          cache_log /var/log/squid/cache.log
+          
+          # Disable caching (we want all requests to go through in real-time)
+          cache deny all
+          
+          # DNS configuration
+          # Use Google DNS for reliability
+          dns_nameservers 8.8.8.8 8.8.4.4
+          
+          # Privacy settings
+          # Don't forward client information
+          forwarded_for delete
+          via off
+          
+          # Error page configuration
+          error_directory /usr/share/squid/errors/en
+          
+          # Log format (detailed for debugging)
+          logformat combined %>a %[ui %[un [%tl] "%rm %ru HTTP/%rv" %>Hs %<st "%{Referer}>h" "%{User-Agent}>h" %Ss:%Sh
+          access_log /var/log/squid/access.log combined
+          
+          # Memory and resource limits
+          cache_mem 64 MB
+          maximum_object_size 0 KB
+          
+          # Connection timeout settings
+          connect_timeout 30 seconds
+          read_timeout 60 seconds
+          request_timeout 30 seconds
+          
+          # Keep-alive settings
+          client_persistent_connections on
+          server_persistent_connections on
+          
+          EOF
+          
+          # Generate allowed domains file for proxy ACL
+          cat > allowed_domains.txt << 'EOF'
+          # Allowed domains for egress traffic
+          # Add one domain per line
+          crl3.digicert.com
+          crl4.digicert.com
+          ocsp.digicert.com
+          ts-crl.ws.symantec.com
+          ts-ocsp.ws.symantec.com
+          crl.geotrust.com
+          ocsp.geotrust.com
+          crl.thawte.com
+          ocsp.thawte.com
+          crl.verisign.com
+          ocsp.verisign.com
+          crl.globalsign.com
+          ocsp.globalsign.com
+          crls.ssl.com
+          ocsp.ssl.com
+          crl.identrust.com
+          ocsp.identrust.com
+          crl.sectigo.com
+          ocsp.sectigo.com
+          crl.usertrust.com
+          ocsp.usertrust.com
+          s.symcb.com
+          s.symcd.com
+          json-schema.org
+          json.schemastore.org
+          archive.ubuntu.com
+          security.ubuntu.com
+          ppa.launchpad.net
+          keyserver.ubuntu.com
+          azure.archive.ubuntu.com
+          api.snapcraft.io
+          packagecloud.io
+          packages.cloud.google.com
+          packages.microsoft.com
+          
+          EOF
+          
+          # Generate Docker Compose configuration for containerized engine
+          cat > docker-compose-engine.yml << 'EOF'
+          version: '3.8'
+          
+          services:
+            # Agent container - runs the AI CLI (Claude Code, Codex, etc.)
+            agent:
+              image: ghcr.io/githubnext/gh-aw-agent-base:latest
+              container_name: gh-aw-agent
+              stdin_open: true
+              tty: true
+              working_dir: /github/workspace
+              volumes:
+                # Mount GitHub Actions workspace
+                - $PWD:/github/workspace:rw
+                # Mount MCP configuration (read-only)
+                - ./mcp-config:/tmp/gh-aw/mcp-config:ro
+                # Mount prompt files (read-only)
+                - ./prompts:/tmp/gh-aw/aw-prompts:ro
+                # Mount log directory (write access)
+                - ./logs:/tmp/gh-aw/logs:rw
+                # Mount safe outputs directory (read-write)
+                - ./safe-outputs:/tmp/gh-aw/safe-outputs:rw
+                # Mount Claude settings if present
+                - ./.claude:/tmp/gh-aw/.claude:ro
+              environment:
+                # Proxy configuration - all traffic goes through localhost:3128
+                - HTTP_PROXY=http://localhost:3128
+                - HTTPS_PROXY=http://localhost:3128
+                - http_proxy=http://localhost:3128
+                - https_proxy=http://localhost:3128
+                - NO_PROXY=localhost,127.0.0.1
+                - no_proxy=localhost,127.0.0.1
+              command: ["sh", "-c", "echo 'Unknown engine' && exit 1"]
+              networks:
+                - gh-aw-engine-net
+              depends_on:
+                # Wait for proxy-init to complete setup
+                proxy-init:
+                  condition: service_completed_successfully
+                # Wait for Squid to be healthy
+                squid-proxy:
+                  condition: service_healthy
+          
+            # Squid proxy container - provides HTTP/HTTPS proxy with domain filtering
+            squid-proxy:
+              image: ubuntu/squid:latest
+              container_name: gh-aw-squid-proxy
+              # Share network namespace with agent container
+              # This allows Squid to intercept agent's traffic via iptables rules
+              network_mode: "service:agent"
+              volumes:
+                # Mount Squid TPROXY configuration (read-only)
+                - ./squid-tproxy.conf:/etc/squid/squid.conf:ro
+                # Mount allowed domains file (read-only)
+                - ./allowed_domains.txt:/etc/squid/allowed_domains.txt:ro
+                # Persistent volume for Squid logs
+                - squid-logs:/var/log/squid
+              healthcheck:
+                # Check if Squid is running and responding
+                test: ["CMD", "squid", "-k", "check"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+                start_period: 10s
+              cap_add:
+                # Required to bind to ports 3128 and 3129
+                - NET_BIND_SERVICE
+              depends_on:
+                # Squid needs the agent container to create the network namespace first
+                - agent
+          
+            # Proxy-init container - sets up iptables rules for transparent proxy
+            proxy-init:
+              image: ghcr.io/githubnext/gh-aw-proxy-init:latest
+              container_name: gh-aw-proxy-init
+              # Share network namespace with agent container
+              # This allows proxy-init to configure iptables that affect agent's traffic
+              network_mode: "service:agent"
+              cap_add:
+                # Required for iptables and ip route commands
+                - NET_ADMIN
+              depends_on:
+                # proxy-init needs agent and squid to be started first
+                - agent
+                - squid-proxy
+          
+          # Volumes for persistent data
+          volumes:
+            squid-logs:
+              driver: local
+          
+          # Network configuration
+          networks:
+            gh-aw-engine-net:
+              driver: bridge
+          
+          EOF
+          
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
