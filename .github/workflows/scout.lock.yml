@@ -751,7 +751,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.339
+        run: npm install -g @github/copilot@0.0.340
       - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
           echo "Generating proxy configuration files for MCP tools with network restrictions..."
@@ -1812,8 +1812,8 @@ jobs:
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
+                  "GITHUB_AW_SAFE_OUTPUTS": "\${GITHUB_AW_SAFE_OUTPUTS}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
                 }
               },
               "tavily": {
@@ -4201,7 +4201,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.339
+        run: npm install -g @github/copilot@0.0.340
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
