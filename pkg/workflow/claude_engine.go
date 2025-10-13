@@ -38,19 +38,13 @@ func NewClaudeEngine() *ClaudeEngine {
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
-	// Use version from engine config if provided, otherwise default to pinned version
-	version := constants.DefaultClaudeCodeVersion
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		version = workflowData.EngineConfig.Version
-	}
-
-	// Add npm package installation steps (includes Node.js setup)
-	npmSteps := GenerateNpmInstallSteps(
+	// Use shared helper for standard npm installation
+	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@anthropic-ai/claude-code",
-		version,
+		constants.DefaultClaudeCodeVersion,
 		"Install Claude Code CLI",
 		"claude",
-		true, // Include Node.js setup
+		workflowData,
 	)
 	steps = append(steps, npmSteps...)
 

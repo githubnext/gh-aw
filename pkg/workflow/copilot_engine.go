@@ -1,13 +1,9 @@
 package workflow
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"regexp"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
@@ -37,22 +33,13 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	// Use version from engine config if provided, otherwise default to pinned version
-	version := constants.DefaultCopilotVersion
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version != "" {
-		version = workflowData.EngineConfig.Version
-	}
-
-	// Add npm package installation steps (includes Node.js setup)
-	steps := GenerateNpmInstallSteps(
+	return BuildStandardNpmEngineInstallSteps(
 		"@github/copilot",
-		version,
+		constants.DefaultCopilotVersion,
 		"Install GitHub Copilot CLI",
 		"copilot",
-		true, // Include Node.js setup
+		workflowData,
 	)
-
-	return steps
 }
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
@@ -947,91 +934,19 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 // detectPermissionErrorsAndCreateMissingTools scans Copilot CLI log content for permission errors
 // and creates missing-tool entries in the safe outputs file
 func (e *CopilotEngine) detectPermissionErrorsAndCreateMissingTools(logContent string, verbose bool) {
-	patterns := e.getPermissionErrorPatterns()
-	lines := strings.Split(logContent, "\n")
-
-	for _, pattern := range patterns {
-		regex, err := regexp.Compile(pattern.Pattern)
-		if err != nil {
-			continue // Skip invalid patterns
-		}
-
-		for _, line := range lines {
-			if regex.MatchString(line) {
-				// Found a permission error - for Copilot CLI, the tool is generally the CLI itself
-				toolName := "github-copilot-cli"
-				e.createCopilotMissingToolEntry(toolName, line, verbose)
-			}
-		}
-	}
+	patterns := FilterPermissionErrorPatterns(e.GetErrorPatterns())
+	// For Copilot CLI, the tool is generally the CLI itself (no context extraction needed)
+	ScanLogForPermissionErrors(logContent, patterns, nil, "github-copilot-cli", verbose)
 }
 
 // getPermissionErrorPatterns returns only the permission-related error patterns
+// Deprecated: Use FilterPermissionErrorPatterns instead
 func (e *CopilotEngine) getPermissionErrorPatterns() []ErrorPattern {
-	allPatterns := e.GetErrorPatterns()
-	var permissionPatterns []ErrorPattern
-
-	for _, pattern := range allPatterns {
-		if strings.Contains(strings.ToLower(pattern.Description), "permission") ||
-			strings.Contains(strings.ToLower(pattern.Description), "unauthorized") ||
-			strings.Contains(strings.ToLower(pattern.Description), "forbidden") ||
-			strings.Contains(strings.ToLower(pattern.Description), "access") ||
-			strings.Contains(strings.ToLower(pattern.Description), "authentication") ||
-			strings.Contains(strings.ToLower(pattern.Description), "token") {
-			permissionPatterns = append(permissionPatterns, pattern)
-		}
-	}
-
-	return permissionPatterns
+	return FilterPermissionErrorPatterns(e.GetErrorPatterns())
 }
 
 // createCopilotMissingToolEntry creates a missing-tool entry in the safe outputs file
+// Deprecated: Use CreateMissingToolEntry instead
 func (e *CopilotEngine) createCopilotMissingToolEntry(toolName, reason string, verbose bool) {
-	// Get the safe outputs file path from environment
-	safeOutputsFile := os.Getenv("GITHUB_AW_SAFE_OUTPUTS")
-	if safeOutputsFile == "" {
-		if verbose {
-			fmt.Printf("GITHUB_AW_SAFE_OUTPUTS not set, cannot write permission error missing-tool entry\n")
-		}
-		return
-	}
-
-	// Create missing-tool entry
-	missingToolEntry := map[string]any{
-		"type":         "missing-tool",
-		"tool":         toolName,
-		"reason":       fmt.Sprintf("Permission denied: %s", reason),
-		"alternatives": "Check repository permissions and access controls",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-	}
-
-	// Convert to JSON and append to safe outputs file
-	entryJSON, err := json.Marshal(missingToolEntry)
-	if err != nil {
-		if verbose {
-			fmt.Printf("Failed to marshal missing-tool entry: %v\n", err)
-		}
-		return
-	}
-
-	// Append to the safe outputs file
-	file, err := os.OpenFile(safeOutputsFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		if verbose {
-			fmt.Printf("Failed to open safe outputs file: %v\n", err)
-		}
-		return
-	}
-	defer file.Close()
-
-	if _, err := file.WriteString(string(entryJSON) + "\n"); err != nil {
-		if verbose {
-			fmt.Printf("Failed to write missing-tool entry: %v\n", err)
-		}
-		return
-	}
-
-	if verbose {
-		fmt.Printf("Recorded permission error as missing tool: %s\n", toolName)
-	}
+	CreateMissingToolEntry(toolName, reason, verbose)
 }
