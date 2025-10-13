@@ -849,6 +849,11 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
+          cat > /home/runner/.copilot/safe_outputs.env << 'EOF'
+          GITHUB_AW_SAFE_OUTPUTS=${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          EOF
+          # Append GITHUB_AW_SAFE_OUTPUTS_CONFIG as a JSON string
+          echo "GITHUB_AW_SAFE_OUTPUTS_CONFIG=${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}" >> /home/runner/.copilot/safe_outputs.env
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
@@ -872,10 +877,7 @@ jobs:
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "tools": ["*"],
-                "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
-                }
+                "envFile": "/home/runner/.copilot/safe_outputs.env"
               },
               "web-fetch": {
                 "command": "docker",
