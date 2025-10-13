@@ -393,11 +393,11 @@ func TestCodexEngine401UnauthorizedDetection(t *testing.T) {
 			break
 		}
 	}
-	
+
 	if !found {
 		t.Fatal("Could not find 'Codex ERROR messages with timestamp' pattern")
 	}
-	
+
 	regex, _ := regexp.Compile(errorPattern.Pattern)
 	match := regex.FindStringSubmatch("2025-09-10T17:55:15.123Z ERROR exceeded retry limit, last status: 401 Unauthorized")
 

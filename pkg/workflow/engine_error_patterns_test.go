@@ -402,4 +402,3 @@ func TestGitHubActionsWorkflowCommandPatterns(t *testing.T) {
 		})
 	}
 }
-
