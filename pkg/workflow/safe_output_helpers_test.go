@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -515,5 +517,230 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 		if !strings.Contains(sliceContent, key) {
 			t.Errorf("stepLines missing expected key: %s", key)
 		}
+	}
+}
+
+// TestFilterPermissionErrorPatterns verifies permission-related error pattern filtering
+func TestFilterPermissionErrorPatterns(t *testing.T) {
+	allPatterns := []ErrorPattern{
+		{
+			Pattern:     `(?i)permission denied`,
+			Description: "Permission denied error",
+		},
+		{
+			Pattern:     `(?i)unauthorized access`,
+			Description: "Unauthorized access attempt",
+		},
+		{
+			Pattern:     `(?i)access forbidden`,
+			Description: "Forbidden resource access",
+		},
+		{
+			Pattern:     `(?i)authentication failed`,
+			Description: "Authentication failure",
+		},
+		{
+			Pattern:     `(?i)invalid token`,
+			Description: "Invalid authentication token",
+		},
+		{
+			Pattern:     `(?i)syntax error`,
+			Description: "Code syntax error",
+		},
+		{
+			Pattern:     `(?i)runtime error`,
+			Description: "Runtime exception",
+		},
+	}
+
+	permissionPatterns := FilterPermissionErrorPatterns(allPatterns)
+
+	// Should filter to only permission-related patterns (5 out of 7)
+	expectedCount := 5
+	if len(permissionPatterns) != expectedCount {
+		t.Errorf("Expected %d permission patterns, got %d", expectedCount, len(permissionPatterns))
+	}
+
+	// Verify all returned patterns are permission-related
+	for _, pattern := range permissionPatterns {
+		desc := strings.ToLower(pattern.Description)
+		isPermissionRelated := strings.Contains(desc, "permission") ||
+			strings.Contains(desc, "unauthorized") ||
+			strings.Contains(desc, "forbidden") ||
+			strings.Contains(desc, "access") ||
+			strings.Contains(desc, "authentication") ||
+			strings.Contains(desc, "token")
+
+		if !isPermissionRelated {
+			t.Errorf("Non-permission pattern returned: %s", pattern.Description)
+		}
+	}
+}
+
+// TestCreateMissingToolEntry verifies missing-tool entry creation
+func TestCreateMissingToolEntry(t *testing.T) {
+	// Create a temporary directory for test
+	tempDir := t.TempDir()
+	safeOutputsFile := filepath.Join(tempDir, "safe-outputs.ndjson")
+
+	// Set environment variable
+	os.Setenv("GITHUB_AW_SAFE_OUTPUTS", safeOutputsFile)
+	defer os.Unsetenv("GITHUB_AW_SAFE_OUTPUTS")
+
+	// Create a missing-tool entry
+	err := CreateMissingToolEntry("test-tool", "access denied", true)
+	if err != nil {
+		t.Errorf("CreateMissingToolEntry failed: %v", err)
+	}
+
+	// Verify file was created
+	if _, err := os.Stat(safeOutputsFile); os.IsNotExist(err) {
+		t.Error("Safe outputs file was not created")
+		return
+	}
+
+	// Read and verify content
+	content, err := os.ReadFile(safeOutputsFile)
+	if err != nil {
+		t.Errorf("Failed to read safe outputs file: %v", err)
+		return
+	}
+
+	contentStr := string(content)
+
+	// Verify expected fields are present
+	expectedStrings := []string{
+		`"type":"missing-tool"`,
+		`"tool":"test-tool"`,
+		`"reason":"Permission denied: access denied"`,
+		`"alternatives":"Check repository permissions and access controls"`,
+		`"timestamp":`,
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(contentStr, expected) {
+			t.Errorf("Expected content to contain %s, got: %s", expected, contentStr)
+		}
+	}
+}
+
+// TestCreateMissingToolEntry_NoEnvVar verifies graceful handling when env var is not set
+func TestCreateMissingToolEntry_NoEnvVar(t *testing.T) {
+	// Ensure env var is not set
+	os.Unsetenv("GITHUB_AW_SAFE_OUTPUTS")
+
+	// Should not error when env var is not set
+	err := CreateMissingToolEntry("test-tool", "access denied", false)
+	if err != nil {
+		t.Errorf("CreateMissingToolEntry should not error when env var not set, got: %v", err)
+	}
+}
+
+// TestScanLogForPermissionErrors verifies log scanning for permission errors
+func TestScanLogForPermissionErrors(t *testing.T) {
+	// Create a temporary directory for test
+	tempDir := t.TempDir()
+	safeOutputsFile := filepath.Join(tempDir, "safe-outputs.ndjson")
+
+	// Set environment variable
+	os.Setenv("GITHUB_AW_SAFE_OUTPUTS", safeOutputsFile)
+	defer os.Unsetenv("GITHUB_AW_SAFE_OUTPUTS")
+
+	logContent := `
+[INFO] Starting operation
+[ERROR] permission denied for resource
+[INFO] Continuing...
+[ERROR] unauthorized access attempt
+[INFO] Complete
+`
+
+	patterns := []ErrorPattern{
+		{
+			Pattern:     `(?i)permission denied`,
+			Description: "Permission denied error",
+		},
+		{
+			Pattern:     `(?i)unauthorized`,
+			Description: "Unauthorized access",
+		},
+	}
+
+	// Scan with no custom extractor (use default tool name)
+	ScanLogForPermissionErrors(logContent, patterns, nil, "default-tool", false)
+
+	// Read and verify entries were created
+	content, err := os.ReadFile(safeOutputsFile)
+	if err != nil {
+		t.Errorf("Failed to read safe outputs file: %v", err)
+		return
+	}
+
+	contentStr := string(content)
+
+	// Should have 2 entries (one for each error pattern match)
+	lines := strings.Split(strings.TrimSpace(contentStr), "\n")
+	if len(lines) != 2 {
+		t.Errorf("Expected 2 entries, got %d", len(lines))
+	}
+
+	// Both should use the default tool name
+	if !strings.Contains(contentStr, `"tool":"default-tool"`) {
+		t.Error("Expected default tool name in entries")
+	}
+}
+
+// TestScanLogForPermissionErrors_WithExtractor verifies custom tool name extraction
+func TestScanLogForPermissionErrors_WithExtractor(t *testing.T) {
+	// Create a temporary directory for test
+	tempDir := t.TempDir()
+	safeOutputsFile := filepath.Join(tempDir, "safe-outputs.ndjson")
+
+	// Set environment variable
+	os.Setenv("GITHUB_AW_SAFE_OUTPUTS", safeOutputsFile)
+	defer os.Unsetenv("GITHUB_AW_SAFE_OUTPUTS")
+
+	logContent := `
+[INFO] tool github-api(list_issues)
+[ERROR] permission denied
+`
+
+	patterns := []ErrorPattern{
+		{
+			Pattern:     `(?i)permission denied`,
+			Description: "Permission denied error",
+		},
+	}
+
+	// Custom extractor that looks for "tool X(" pattern
+	extractor := func(lines []string, errorLineIndex int, defaultTool string) string {
+		for i := errorLineIndex - 1; i >= 0 && i >= errorLineIndex-5; i-- {
+			if strings.Contains(lines[i], "tool ") {
+				// Extract tool name from "tool toolname("
+				parts := strings.Split(lines[i], "tool ")
+				if len(parts) > 1 {
+					toolPart := strings.Split(parts[1], "(")
+					if len(toolPart) > 0 {
+						return strings.TrimSpace(toolPart[0])
+					}
+				}
+			}
+		}
+		return defaultTool
+	}
+
+	ScanLogForPermissionErrors(logContent, patterns, extractor, "default-tool", false)
+
+	// Read and verify custom tool name was extracted
+	content, err := os.ReadFile(safeOutputsFile)
+	if err != nil {
+		t.Errorf("Failed to read safe outputs file: %v", err)
+		return
+	}
+
+	contentStr := string(content)
+
+	// Should have extracted "github-api" as the tool name
+	if !strings.Contains(contentStr, `"tool":"github-api"`) {
+		t.Errorf("Expected custom tool name 'github-api' in entry, got: %s", contentStr)
 	}
 }
