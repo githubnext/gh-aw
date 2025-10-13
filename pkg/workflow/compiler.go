@@ -1677,7 +1677,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Main job ID is always constants.AgentJobName
 
-	// Build check-membership job if needed (validates team membership levels)
+	// Build check_membership job if needed (validates team membership levels)
 	// Team membership checks are specifically for command workflows
 	// Non-command workflows use general role checks instead
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
@@ -1685,15 +1685,15 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	if needsPermissionCheck {
 		checkMembershipJob, err := c.buildCheckMembershipJob(data)
 		if err != nil {
-			return fmt.Errorf("failed to build check-membership job: %w", err)
+			return fmt.Errorf("failed to build check_membership job: %w", err)
 		}
 		if err := c.jobManager.AddJob(checkMembershipJob); err != nil {
-			return fmt.Errorf("failed to add check-membership job: %w", err)
+			return fmt.Errorf("failed to add check_membership job: %w", err)
 		}
 	}
 
 	// Build activation job if needed (preamble job that handles runtime conditions)
-	// If check-membership job exists, activation job is ALWAYS created and depends on it
+	// If check_membership job exists, activation job is ALWAYS created and depends on it
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
@@ -1949,13 +1949,13 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 	return nil
 }
 
-// buildCheckMembershipJob creates the check-membership job that validates team membership levels
+// buildCheckMembershipJob creates the check_membership job that validates team membership levels
 func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{
-		"is_team_member":  "${{ steps.check-membership.outputs.is_team_member }}",
-		"result":          "${{ steps.check-membership.outputs.result }}",
-		"user_permission": "${{ steps.check-membership.outputs.user_permission }}",
-		"error_message":   "${{ steps.check-membership.outputs.error_message }}",
+		"is_team_member":  "${{ steps.check_membership.outputs.is_team_member }}",
+		"result":          "${{ steps.check_membership.outputs.result }}",
+		"user_permission": "${{ steps.check_membership.outputs.user_permission }}",
+		"error_message":   "${{ steps.check_membership.outputs.error_message }}",
 	}
 	var steps []string
 
@@ -1963,7 +1963,7 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 	steps = c.generateMembershipCheck(data, steps)
 
 	job := &Job{
-		Name:        "check-membership",
+		Name:        constants.CheckMembershipJobName,
 		If:          data.If, // Use the existing condition (which may include alias checks)
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: "", // No special permissions needed - just reading repo permissions
@@ -1979,7 +1979,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	outputs := map[string]string{}
 	var steps []string
 
-	// Team member check is now handled by the separate check-membership job
+	// Team member check is now handled by the separate check_membership job
 	// No inline role checks needed in the task job anymore
 
 	// Add timestamp check for lock file vs source file
@@ -2025,10 +2025,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	var activationCondition string
 
 	if checkMembershipJobCreated {
-		// Activation job is the only job that can rely on check-membership
-		activationNeeds = []string{"check-membership"}
+		// Activation job is the only job that can rely on check_membership
+		activationNeeds = []string{constants.CheckMembershipJobName}
 		membershipExpr := BuildEquals(
-			BuildPropertyAccess("needs.check-membership.outputs.is_team_member"),
+			BuildPropertyAccess("needs."+constants.CheckMembershipJobName+".outputs.is_team_member"),
 			BuildStringLiteral("true"),
 		)
 		if data.If != "" {
@@ -2053,7 +2053,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
-		Needs:       activationNeeds, // Depend on check-membership job if it exists
+		Needs:       activationNeeds, // Depend on check_membership job if it exists
 	}
 
 	return job, nil
@@ -2067,7 +2067,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if activationJobCreated {
 		jobCondition = "" // Main job depends on activation job, so no need for inline condition
 	}
-	// Permission checks are now handled by the separate check-membership job
+	// Permission checks are now handled by the separate check_membership job
 	// No role checks needed in the main job
 
 	// Build step content using the generateMainJobSteps helper method

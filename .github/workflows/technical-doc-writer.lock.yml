@@ -20,16 +20,16 @@ concurrency:
 run-name: "Technical Documentation Writer for GitHub Actions"
 
 jobs:
-  check-membership:
+  check_membership:
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check-membership.outputs.error_message }}
-      is_team_member: ${{ steps.check-membership.outputs.is_team_member }}
-      result: ${{ steps.check-membership.outputs.result }}
-      user_permission: ${{ steps.check-membership.outputs.user_permission }}
+      error_message: ${{ steps.check_membership.outputs.error_message }}
+      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
+      result: ${{ steps.check_membership.outputs.result }}
+      user_permission: ${{ steps.check_membership.outputs.user_permission }}
     steps:
       - name: Check team membership for workflow
-        id: check-membership
+        id: check_membership
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
@@ -110,8 +110,8 @@ jobs:
             await main();
 
   activation:
-    needs: check-membership
-    if: needs.check-membership.outputs.is_team_member == 'true'
+    needs: check_membership
+    if: needs.check_membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps

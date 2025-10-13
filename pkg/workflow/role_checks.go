@@ -7,14 +7,14 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-// generateMembershipCheck generates steps for the check-membership job that only sets outputs
+// generateMembershipCheck generates steps for the check_membership job that only sets outputs
 func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) []string {
 	if data.Command != "" {
 		steps = append(steps, "      - name: Check team membership for command workflow\n")
 	} else {
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 	}
-	steps = append(steps, "        id: check-membership\n")
+	steps = append(steps, "        id: check_membership\n")
 	steps = append(steps, "        uses: actions/github-script@v8\n")
 
 	// Add environment variables for permission check

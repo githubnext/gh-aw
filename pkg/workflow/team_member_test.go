@@ -133,9 +133,9 @@ Test workflow content.`,
 			}
 			lockContentStr := string(lockContent)
 
-			// Check for team member check (now in check-membership job)
+			// Check for team member check (now in check_membership job)
 			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for command workflow") ||
-				strings.Contains(lockContentStr, "check-membership:")
+				strings.Contains(lockContentStr, "check_membership:")
 
 			if tt.expectTeamMemberCheck {
 				if !hasTeamMemberCheck {
@@ -154,8 +154,8 @@ Test workflow content.`,
 				// Find the team member check section and ensure it doesn't have github.event_name logic
 				teamMemberCheckStart := strings.Index(lockContentStr, "Check team membership for command workflow")
 				if teamMemberCheckStart == -1 {
-					// Look for the new check-membership job structure
-					teamMemberCheckStart = strings.Index(lockContentStr, "check-membership:")
+					// Look for the new check_membership job structure
+					teamMemberCheckStart = strings.Index(lockContentStr, "check_membership:")
 				}
 				teamMemberCheckEnd := strings.Index(lockContentStr[teamMemberCheckStart:], "task:")
 				if teamMemberCheckStart != -1 && teamMemberCheckEnd != -1 {
