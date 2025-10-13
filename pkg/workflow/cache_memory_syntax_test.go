@@ -79,6 +79,21 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 			shouldWork:  true,
 			description: "Should use 'default' as ID when not specified in array",
 		},
+		{
+			name: "cache-memory with array - duplicate IDs",
+			cacheValue: []any{
+				map[string]any{
+					"id":  "session",
+					"key": "key1",
+				},
+				map[string]any{
+					"id":  "session",
+					"key": "key2",
+				},
+			},
+			shouldWork:  false,
+			description: "Should fail with duplicate cache IDs",
+		},
 	}
 
 	for _, tt := range tests {
@@ -88,7 +103,19 @@ func TestCacheMemorySyntaxVariations(t *testing.T) {
 				"cache-memory": tt.cacheValue,
 			}
 
-			config := compiler.extractCacheMemoryConfig(tools)
+			config, err := compiler.extractCacheMemoryConfig(tools)
+			
+			// Check if error matches expectation
+			if !tt.shouldWork {
+				if err == nil {
+					t.Errorf("Expected error for %s but got none", tt.description)
+				}
+				return
+			}
+			
+			if err != nil {
+				t.Fatalf("Unexpected error for %s: %v", tt.description, err)
+			}
 
 			if tt.cacheValue == nil || tt.cacheValue == true {
 				// Should create a single default cache

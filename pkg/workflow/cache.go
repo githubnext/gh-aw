@@ -20,11 +20,31 @@ type CacheMemoryEntry struct {
 	RetentionDays *int   `yaml:"retention-days,omitempty"` // retention days for upload-artifact action
 }
 
+// generateDefaultCacheKey generates a default cache key for a given cache ID
+func generateDefaultCacheKey(cacheID string) string {
+	if cacheID == "default" {
+		return "memory-${{ github.workflow }}-${{ github.run_id }}"
+	}
+	return fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cacheID)
+}
+
+// validateNoDuplicateCacheIDs checks for duplicate cache IDs and returns an error if found
+func validateNoDuplicateCacheIDs(caches []CacheMemoryEntry) error {
+	seen := make(map[string]bool)
+	for _, cache := range caches {
+		if seen[cache.ID] {
+			return fmt.Errorf("duplicate cache-memory ID '%s' found. Each cache must have a unique ID", cache.ID)
+		}
+		seen[cache.ID] = true
+	}
+	return nil
+}
+
 // extractCacheMemoryConfig extracts cache-memory configuration from tools section
-func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryConfig {
+func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) (*CacheMemoryConfig, error) {
 	cacheMemoryValue, exists := tools["cache-memory"]
 	if !exists {
-		return nil
+		return nil, nil
 	}
 
 	config := &CacheMemoryConfig{}
@@ -35,10 +55,10 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 		config.Caches = []CacheMemoryEntry{
 			{
 				ID:  "default",
-				Key: "memory-${{ github.workflow }}-${{ github.run_id }}",
+				Key: generateDefaultCacheKey("default"),
 			},
 		}
-		return config
+		return config, nil
 	}
 
 	// Handle boolean value (simple enable/disable)
@@ -48,12 +68,12 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 			config.Caches = []CacheMemoryEntry{
 				{
 					ID:  "default",
-					Key: "memory-${{ github.workflow }}-${{ github.run_id }}",
+					Key: generateDefaultCacheKey("default"),
 				},
 			}
 		}
 		// If false, return empty config (empty array means disabled)
-		return config
+		return config, nil
 	}
 
 	// Handle array of cache configurations
@@ -87,7 +107,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 				}
 				// Set default key if not specified
 				if entry.Key == "" {
-					entry.Key = fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", entry.ID)
+					entry.Key = generateDefaultCacheKey(entry.ID)
 				}
 
 				// Parse description
@@ -113,7 +133,13 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 				config.Caches = append(config.Caches, entry)
 			}
 		}
-		return config
+		
+		// Check for duplicate cache IDs
+		if err := validateNoDuplicateCacheIDs(config.Caches); err != nil {
+			return nil, err
+		}
+		
+		return config, nil
 	}
 
 	// Handle object configuration (single cache, backward compatible)
@@ -121,7 +147,7 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 	if configMap, ok := cacheMemoryValue.(map[string]any); ok {
 		entry := CacheMemoryEntry{
 			ID:  "default",
-			Key: "memory-${{ github.workflow }}-${{ github.run_id }}",
+			Key: generateDefaultCacheKey("default"),
 		}
 
 		// Parse custom key
@@ -157,10 +183,10 @@ func (c *Compiler) extractCacheMemoryConfig(tools map[string]any) *CacheMemoryCo
 		}
 
 		config.Caches = []CacheMemoryEntry{entry}
-		return config
+		return config, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 // generateCacheSteps generates cache steps for the workflow based on cache configuration
