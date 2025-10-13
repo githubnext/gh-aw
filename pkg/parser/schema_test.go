@@ -954,6 +954,24 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid frontmatter with HTTP MCP tool with underscored headers",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"datadog": map[string]any{
+						"type": "http",
+						"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+						"headers": map[string]any{
+							"DD_API_KEY": "test-key",
+							"DD_APP_KEY": "test-app",
+							"DD_SITE":    "datadoghq.com",
+						},
+						"allowed": []string{"get-monitors", "get-monitor"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid frontmatter with cache-memory as boolean true",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
