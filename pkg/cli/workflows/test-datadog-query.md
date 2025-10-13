@@ -11,7 +11,7 @@ permissions:
 engine: claude
 timeout_minutes: 5
 imports:
-  - shared/mcp/datadog.md
+  - ../../../.github/workflows/shared/mcp/datadog.md
 ---
 
 # Datadog Query Agent

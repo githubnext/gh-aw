@@ -5,7 +5,7 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/datadog.md
+#     - ../../../.github/workflows/shared/mcp/datadog.md
 
 name: "Datadog Query Agent"
 "on":
