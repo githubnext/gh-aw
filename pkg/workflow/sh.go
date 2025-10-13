@@ -36,6 +36,9 @@ var createGhAwTmpDirScript string
 //go:embed sh/xpia_prompt.md
 var xpiaPromptText string
 
+//go:embed sh/temp_folder_prompt.md
+var tempFolderPromptText string
+
 // WriteShellScriptToYAML writes a shell script with proper indentation to a strings.Builder
 func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string) {
 	scriptLines := strings.Split(script, "\n")

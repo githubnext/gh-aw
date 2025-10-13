@@ -148,8 +148,8 @@ jobs:
           node-version: '24'
       - name: Create gh-aw temp directory
         run: |
-          mkdir -p /tmp/gh-aw
-          echo "Created /tmp/gh-aw directory for agentic workflow temporary files"
+          mkdir -p /tmp/gh-aw/agent
+          echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -914,6 +914,19 @@ jobs:
           
           
           Review the last 5 merged pull requests in this repository and post summary in an issue.
+          
+          EOF
+      - name: Append temporary folder instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          ---
+          
+          ## Temporary Files
+          
+          **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
           EOF
       - name: Append safe outputs instructions to prompt
