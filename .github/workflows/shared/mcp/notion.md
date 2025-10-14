@@ -3,7 +3,7 @@ mcp-servers:
   notion:
     container: "mcp/notion"
     env:
-      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
+      NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
     allowed:
       - "search_pages"
       - "get_page"
@@ -30,17 +30,17 @@ safe-outputs:
         - name: Add comment to Notion page
           uses: actions/github-script@v8
           env:
-            NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
+            NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
             PAGE_ID: "${{ inputs.page_id }}"
             COMMENT: "${{ inputs.comment }}"
           with:
             script: |
-              const notionToken = process.env.NOTION_TOKEN;
+              const notionToken = process.env.NOTION_API_TOKEN;
               const pageId = process.env.PAGE_ID;
               const comment = process.env.COMMENT;
               
               if (!notionToken) {
-                core.setFailed('NOTION_TOKEN secret is not configured');
+                core.setFailed('NOTION_API_TOKEN secret is not configured');
                 return;
               }
               
@@ -80,7 +80,6 @@ safe-outputs:
                 core.setFailed(`Failed to add comment: ${error.message}`);
               }
 ---
-
 ## Notion Integration
 
 This shared configuration provides Notion MCP server integration with read-only tools and a custom safe-job for adding comments to Notion pages.
@@ -99,15 +98,3 @@ The `notion-add-comment` safe-job allows the agentic workflow to add comments to
 **Required Inputs:**
 - `page_id`: The Notion page ID to add a comment to
 - `comment`: The comment text to add
-
-**Example Usage in Workflow:**
-
-```
-Please add a summary comment to the Notion page with ID "abc123" using the notion-add-comment safe-job.
-```
-
-### Setup
-
-1. Add `NOTION_TOKEN` secret to your repository with a Notion integration token
-2. Grant the integration access to the pages/databases you want to interact with
-3. Include this configuration in your workflow: `@include shared/mcp/notion.md`

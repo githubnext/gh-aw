@@ -1,6 +1,9 @@
 ---
+steps:
+  - name: Install Markitdown MCP
+    run: pip install markitdown-mcp
 mcp-servers:
   markitdown:
-    container: "ghcr.io/microsoft/markitdown"
+    command: "markitdown-mcp"
     allowed: ["*"]
 ---

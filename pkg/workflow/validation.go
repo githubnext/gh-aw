@@ -173,7 +173,8 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 		// Try pip3 as fallback
 		_, err3 := exec.LookPath("pip3")
 		if err3 != nil {
-			return fmt.Errorf("pip command not found - cannot validate pip packages. Install Python/pip or disable validation")
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("pip command not found - skipping pip package validation. Install Python/pip for full validation"))
+			return nil
 		}
 	}
 

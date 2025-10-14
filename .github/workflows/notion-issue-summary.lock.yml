@@ -1194,11 +1194,11 @@ jobs:
                   "--rm",
                   "-i",
                   "-e",
-                  "NOTION_TOKEN",
+                  "NOTION_API_TOKEN",
                   "mcp/notion"
                 ],
                 "env": {
-                  "NOTION_TOKEN": "${{ secrets.NOTION_TOKEN }}"
+                  "NOTION_API_TOKEN": "${{ secrets.NOTION_API_TOKEN }}"
                 }
               },
               "safe_outputs": {
@@ -1241,27 +1241,13 @@ jobs:
           - `page_id`: The Notion page ID to add a comment to
           - `comment`: The comment text to add
           
-          **Example Usage in Workflow:**
-          
-          ```
-          Please add a summary comment to the Notion page with ID "abc123" using the notion-add-comment safe-job.
-          ```
-          
-          ### Setup
-          
-          1. Add `NOTION_TOKEN` secret to your repository with a Notion integration token
-          2. Grant the integration access to the pages/databases you want to interact with
-          3. Include this configuration in your workflow: `@include shared/mcp/notion.md`
-          
           # Issue Summary to Notion
           
           Analyze the issue and create a brief summary, then add it as a comment to the Notion page.
           
-          ## Task Details
-          
-          **Issue Information:**
-          - Issue Number: ${{ github.event.issue.number }}
-          - Issue Content: "${{ needs.activation.outputs.text }}"
+          <issue_content>
+          ${{ needs.activation.outputs.text }}
+          </issue_content>
           
           ## Instructions
           
@@ -2966,16 +2952,16 @@ jobs:
         uses: actions/github-script@v8
         env:
           COMMENT: ${{ inputs.comment }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           PAGE_ID: ${{ inputs.page_id }}
         with:
           script: |-
-            const notionToken = process.env.NOTION_TOKEN;
+            const notionToken = process.env.NOTION_API_TOKEN;
             const pageId = process.env.PAGE_ID;
             const comment = process.env.COMMENT;
 
             if (!notionToken) {
-              core.setFailed('NOTION_TOKEN secret is not configured');
+              core.setFailed('NOTION_API_TOKEN secret is not configured');
               return;
             }
 

@@ -22,11 +22,9 @@ strict: true
 
 Analyze the issue and create a brief summary, then add it as a comment to the Notion page.
 
-## Task Details
-
-**Issue Information:**
-- Issue Number: ${{ github.event.issue.number }}
-- Issue Content: "${{ needs.activation.outputs.text }}"
+<issue_content>
+${{ needs.activation.outputs.text }}
+</issue_content>
 
 ## Instructions
 
