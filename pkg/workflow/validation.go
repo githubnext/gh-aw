@@ -11,6 +11,25 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
 
+// isTimeoutError checks if the error output indicates a timeout
+func isTimeoutError(output string) bool {
+	timeoutIndicators := []string{
+		"TimeoutError",
+		"Read timed out",
+		"ReadTimeoutError",
+		"timed out",
+		"timeout",
+	}
+
+	outputLower := strings.ToLower(output)
+	for _, indicator := range timeoutIndicators {
+		if strings.Contains(outputLower, strings.ToLower(indicator)) {
+			return true
+		}
+	}
+	return false
+}
+
 // validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 	lines := strings.Split(yamlContent, "\n")
@@ -190,7 +209,13 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("pip package '%s' not found on PyPI: %s", pkg, strings.TrimSpace(string(output))))
+			outputStr := strings.TrimSpace(string(output))
+			// Check if error is due to timeout
+			if isTimeoutError(outputStr) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("pip package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
+			} else {
+				errors = append(errors, fmt.Sprintf("pip package '%s' not found on PyPI: %s", pkg, outputStr))
+			}
 		} else if c.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ pip package validated: %s", pkg)))
 		}
@@ -265,7 +290,13 @@ func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("uv package '%s' not found on PyPI: %s", pkg, strings.TrimSpace(string(output))))
+			outputStr := strings.TrimSpace(string(output))
+			// Check if error is due to timeout
+			if isTimeoutError(outputStr) {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("uv package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
+			} else {
+				errors = append(errors, fmt.Sprintf("uv package '%s' not found on PyPI: %s", pkg, outputStr))
+			}
 		} else if c.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ uv package validated: %s", pkg)))
 		}
