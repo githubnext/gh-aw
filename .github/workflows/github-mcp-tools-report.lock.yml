@@ -6,7 +6,7 @@
 name: "GitHub MCP Remote Server Tools Report Generator"
 "on":
   schedule:
-  - cron: 0 6 * * *
+  - cron: 0 9 * * 0
   workflow_dispatch: null
 
 permissions: {}
