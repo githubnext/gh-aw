@@ -2590,11 +2590,11 @@
         },
         "jobs": {
           "type": "object",
-          "description": "Custom safe-output jobs that can be executed based on agentic workflow output",
+          "description": "Custom safe-output jobs that can be executed based on agentic workflow output. Job names containing dashes will be automatically normalized to underscores (e.g., 'send-notification' becomes 'send_notification').",
           "patternProperties": {
             "^[a-zA-Z_][a-zA-Z0-9_-]*$": {
               "type": "object",
-              "description": "Custom safe-output job configuration",
+              "description": "Custom safe-output job configuration. The job name will be normalized to use underscores instead of dashes.",
               "properties": {
                 "runs-on": {
                   "description": "Runner specification for this job",

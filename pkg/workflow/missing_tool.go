@@ -44,7 +44,7 @@ func (c *Compiler) buildCreateOutputMissingToolJob(data *WorkflowData, mainJobNa
 	}
 
 	// Build the job condition using BuildSafeOutputType
-	jobCondition := BuildSafeOutputType("missing-tool", data.SafeOutputs.MissingTool.Min).Render()
+	jobCondition := BuildSafeOutputType("missing_tool", data.SafeOutputs.MissingTool.Min).Render()
 
 	// Create the job
 	job := &Job{

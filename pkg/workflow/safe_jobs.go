@@ -206,8 +206,11 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	}
 
 	for jobName, jobConfig := range data.SafeOutputs.Jobs {
+		// Normalize job name to use underscores for consistency
+		normalizedJobName := normalizeSafeOutputIdentifier(jobName)
+		
 		job := &Job{
-			Name: jobName,
+			Name: normalizedJobName,
 		}
 
 		// Set custom job name if specified
@@ -246,7 +249,8 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 
 		// Set if condition - combine safe output type check with user-provided condition
 		// Custom safe jobs should only run if the agent output contains the job name (tool call)
-		safeOutputCondition := BuildSafeOutputType(jobName, 0) // min=0 means check for the tool in output_types
+		// Use normalized job name to match the underscore format in output_types
+		safeOutputCondition := BuildSafeOutputType(normalizedJobName, 0) // min=0 means check for the tool in output_types
 
 		if jobConfig.If != "" {
 			// If user provided a custom condition, combine it with the safe output type check

@@ -336,6 +336,54 @@ func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
 	}
 }
 
+func TestBuildSafeJobsWithDashesInName(t *testing.T) {
+	c := NewCompiler(false, "", "test")
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"send-notification": {
+					RunsOn: "ubuntu-latest",
+					Steps: []any{
+						map[string]any{
+							"name": "Send notification",
+							"run":  "echo 'Sending notification'",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := c.buildSafeJobs(workflowData, false)
+	if err != nil {
+		t.Fatalf("Unexpected error building safe jobs: %v", err)
+	}
+
+	jobs := c.jobManager.GetAllJobs()
+	if len(jobs) != 1 {
+		t.Fatalf("Expected 1 job to be created, got %d", len(jobs))
+	}
+
+	var job *Job
+	for _, j := range jobs {
+		job = j
+		break
+	}
+
+	// Job name should be normalized to underscores
+	if job.Name != "send_notification" {
+		t.Errorf("Expected job name to be 'send_notification', got '%s'", job.Name)
+	}
+
+	// Check if condition - should check for underscore version in output_types
+	expectedIf := "(always()) && (contains(needs.agent.outputs.output_types, 'send_notification'))"
+	if job.If != expectedIf {
+		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
+	}
+}
+
 func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
