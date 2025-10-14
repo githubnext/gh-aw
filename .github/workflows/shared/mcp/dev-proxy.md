@@ -6,8 +6,10 @@ mcp-servers:
       - "@devproxy/mcp"
     allowed: ["*"]
 steps:
-  - name: Setup Dev Proxy
+  - name: Install Dev Proxy
     uses: dev-proxy-tools/actions/setup@v1
+    with:
+      auto-start: false
 ---
 
 ## Dev Proxy MCP Server
