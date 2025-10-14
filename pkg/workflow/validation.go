@@ -212,7 +212,7 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 			outputStr := strings.TrimSpace(string(output))
 			// Check if error is due to timeout
 			if isTimeoutError(outputStr) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ pip package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("pip package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
 			} else {
 				errors = append(errors, fmt.Sprintf("pip package '%s' not found on PyPI: %s", pkg, outputStr))
 			}
@@ -293,7 +293,7 @@ func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
 			outputStr := strings.TrimSpace(string(output))
 			// Check if error is due to timeout
 			if isTimeoutError(outputStr) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠ uv package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("uv package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
 			} else {
 				errors = append(errors, fmt.Sprintf("uv package '%s' not found on PyPI: %s", pkg, outputStr))
 			}
