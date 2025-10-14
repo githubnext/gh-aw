@@ -130,12 +130,12 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should validate and parse valid JSONL content", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
-{"type": "add-comment", "body": "Test comment"}`;
+    const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
+{"type": ("add_comment"|"add_comment"), "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -145,19 +145,19 @@ describe("collect_ndjson_output.cjs", () => {
 
     const parsedOutput = JSON.parse(outputCall[1]);
     expect(parsedOutput.items).toHaveLength(2);
-    expect(parsedOutput.items[0].type).toBe("create-issue");
-    expect(parsedOutput.items[1].type).toBe("add-comment");
+    expect(parsedOutput.items[0].type).toBe("create_issue");
+    expect(parsedOutput.items[1].type).toBe(("add_comment"|"add_comment"));
     expect(parsedOutput.errors).toHaveLength(0);
   });
 
   it("should reject items with unexpected output types", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
+    const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
 {"type": "unexpected-type", "data": "some data"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -167,19 +167,19 @@ describe("collect_ndjson_output.cjs", () => {
 
     const parsedOutput = JSON.parse(outputCall[1]);
     expect(parsedOutput.items).toHaveLength(1);
-    expect(parsedOutput.items[0].type).toBe("create-issue");
+    expect(parsedOutput.items[0].type).toBe("create_issue");
     expect(parsedOutput.errors).toHaveLength(1);
     expect(parsedOutput.errors[0]).toContain("Unexpected output type");
   });
 
-  it("should validate required fields for create-issue type", async () => {
+  it("should validate required fields for create_issue type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "Test Issue"}
-{"type": "create-issue", "body": "Test body"}`;
+    const ndjsonContent = `{"type": "create_issue", "title": "Test Issue"}
+{"type": "create_issue", "body": "Test body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -247,13 +247,13 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should handle invalid JSON lines", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
+    const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
 {invalid json}
-{"type": "add-comment", "body": "Test comment"}`;
+{"type": ("add_comment"|"add_comment"), "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -269,11 +269,11 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should allow multiple items of supported types up to limits", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}`;
+    const ndjsonContent = `{"type": "create_issue", "title": "First Issue", "body": "First body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -289,14 +289,14 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should respect max limits from config", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
-{"type": "create-issue", "title": "Second Issue", "body": "Second body"}
-{"type": "create-issue", "title": "Third Issue", "body": "Third body"}`;
+    const ndjsonContent = `{"type": "create_issue", "title": "First Issue", "body": "First body"}
+{"type": "create_issue", "title": "Second Issue", "body": "Second body"}
+{"type": "create_issue", "title": "Third Issue", "body": "Third body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    // Set max to 2 for create-issue
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"max": 2}}';
+    // Set max to 2 for create_issue
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"max": 2}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -309,7 +309,7 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items[0].title).toBe("First Issue");
     expect(parsedOutput.items[1].title).toBe("Second Issue");
     expect(parsedOutput.errors).toHaveLength(1); // Error for the third item exceeding max
-    expect(parsedOutput.errors[0]).toContain("Too many items of type 'create-issue'. Maximum allowed: 2");
+    expect(parsedOutput.errors[0]).toContain("Too many items of type 'create_issue'. Maximum allowed: 2");
   });
 
   it("should validate required fields for create-discussion type", async () => {
@@ -339,14 +339,14 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should skip empty lines", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
+    const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
 
-{"type": "add-comment", "body": "Test comment"}
+{"type": ("add_comment"|"add_comment"), "body": "Test comment"}
 `;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -442,11 +442,11 @@ describe("collect_ndjson_output.cjs", () => {
   describe("JSON repair functionality", () => {
     it("should repair JSON with unescaped quotes in string values", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Issue with "quotes" inside", "body": "Test body"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Issue with "quotes" inside", "body": "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -462,11 +462,11 @@ describe("collect_ndjson_output.cjs", () => {
 
     it("should repair JSON with missing quotes around object keys", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: "create-issue", title: "Test Issue", body: "Test body"}`;
+      const ndjsonContent = `{type: "create_issue", title: "Test Issue", body: "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -476,17 +476,17 @@ describe("collect_ndjson_output.cjs", () => {
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair JSON with trailing commas", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body",}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -496,17 +496,17 @@ describe("collect_ndjson_output.cjs", () => {
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair JSON with single quotes", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{'type': 'create-issue', 'title': 'Test Issue', 'body': 'Test body'}`;
+      const ndjsonContent = `{'type': 'create_issue', 'title': 'Test Issue', 'body': 'Test body'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -516,17 +516,17 @@ describe("collect_ndjson_output.cjs", () => {
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair JSON with missing closing braces", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -536,17 +536,17 @@ describe("collect_ndjson_output.cjs", () => {
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair JSON with missing opening braces", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `"type": "create-issue", "title": "Test Issue", "body": "Test body"}`;
+      const ndjsonContent = `"type": "create_issue", "title": "Test Issue", "body": "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -556,18 +556,18 @@ describe("collect_ndjson_output.cjs", () => {
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair JSON with newlines in string values", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Real JSONL would have actual \n in the string, not real newlines
-      const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Line 1\\nLine 2\\nLine 3"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Line 1\\nLine 2\\nLine 3"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -583,11 +583,11 @@ describe("collect_ndjson_output.cjs", () => {
 
     it("should repair JSON with tabs and special characters", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Test	Issue", "body": "Test\tbody"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test	Issue", "body": "Test\tbody"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -597,7 +597,7 @@ describe("collect_ndjson_output.cjs", () => {
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -624,11 +624,11 @@ describe("collect_ndjson_output.cjs", () => {
     it("should handle complex repair scenarios with multiple issues", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Make this a more realistic test case for JSON repair without real newlines breaking JSONL
-      const ndjsonContent = `{type: 'create-issue', title: 'Issue with "quotes" and trailing,', body: 'Multi\\nline\\ntext',`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Issue with "quotes" and trailing,', body: 'Multi\\nline\\ntext',`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -638,7 +638,7 @@ describe("collect_ndjson_output.cjs", () => {
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -647,14 +647,14 @@ describe("collect_ndjson_output.cjs", () => {
       // This simulates what happens when LLMs output JSON with actual newlines
       // The parser should treat this as one broken JSON item, not multiple lines
       // For now, we'll test that it fails gracefully and reports an error
-      const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Line 1
+      const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Line 1
 Line 2
 Line 3"}
-{"type": "add-comment", "body": "This is a valid line"}`;
+{"type": ("add_comment"|"add_comment"), "body": "This is a valid line"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -665,7 +665,7 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       // The first broken JSON should produce errors, but the last valid line should work
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-comment");
+      expect(parsedOutput.items[0].type).toBe(("add_comment"|"add_comment"));
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
       expect(parsedOutput.errors.some(error => error.includes("JSON parsing failed"))).toBe(true);
     });
@@ -676,7 +676,7 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -693,11 +693,11 @@ Line 3"}
 
     it("should preserve valid JSON without modification", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Perfect JSON", "body": "This should not be modified"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Perfect JSON", "body": "This should not be modified"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -714,11 +714,11 @@ Line 3"}
 
     it("should repair mixed quote types in same object", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": 'create-issue', "title": 'Mixed quotes', 'body': "Test body"}`;
+      const ndjsonContent = `{"type": 'create_issue', "title": 'Mixed quotes', 'body': "Test body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -728,7 +728,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.items[0].title).toBe("Mixed quotes");
       expect(parsedOutput.errors).toHaveLength(0);
     });
@@ -770,7 +770,7 @@ Line 3"}
       if (outputCall) {
         // Repair succeeded
         const parsedOutput = JSON.parse(outputCall[1]);
-        expect(parsedOutput.items[0].type).toBe("add-labels");
+        expect(parsedOutput.items[0].type).toBe("add_labels");
         expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
@@ -783,11 +783,11 @@ Line 3"}
 
     it("should repair nested objects with multiple issues", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'create-issue', title: 'Nested test', body: 'Body text', labels: ['bug', 'priority',}`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Nested test', body: 'Body text', labels: ['bug', 'priority',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -797,18 +797,18 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.items[0].labels).toEqual(["bug", "priority"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair JSON with Unicode characters and escape sequences", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'create-issue', title: 'Unicode test \u00e9\u00f1', body: 'Body with \\u0040 symbols',`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Unicode test \u00e9\u00f1', body: 'Body with \\u0040 symbols',`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -818,7 +818,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.items[0].title).toContain("é");
       expect(parsedOutput.errors).toHaveLength(0);
     });
@@ -826,11 +826,11 @@ Line 3"}
     it("should repair JSON with control characters (null, backspace, form feed)", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test with actual control characters: null (\x00), backspace (\x08), form feed (\x0C)
-      const ndjsonContent = `{"type": "create-issue", "title": "Test\x00Issue", "body": "Body\x08with\x0Ccontrol\x07chars"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test\x00Issue", "body": "Body\x08with\x0Ccontrol\x07chars"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -840,7 +840,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       // Control characters should be removed by sanitizeContent after repair
       expect(parsedOutput.items[0].title).toBe("TestIssue");
       expect(parsedOutput.items[0].body).toBe("Bodywithcontrolchars");
@@ -850,11 +850,11 @@ Line 3"}
     it("should repair JSON with device control characters", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test with device control characters: DC1 (\x11), DC4 (\x14), NAK (\x15)
-      const ndjsonContent = `{"type": "create-issue", "title": "Device\x11Control\x14Test", "body": "Text\x15here"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Device\x11Control\x14Test", "body": "Text\x15here"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -864,7 +864,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       // Control characters should be removed by sanitizeContent after repair
       expect(parsedOutput.items[0].title).toBe("DeviceControlTest");
       expect(parsedOutput.items[0].body).toBe("Texthere");
@@ -875,11 +875,11 @@ Line 3"}
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test that valid control characters (tab, newline, carriage return) are properly handled
       // Note: These should be properly escaped in the JSON to avoid breaking the JSONL format
-      const ndjsonContent = `{"type": "create-issue", "title": "Valid\\tTab", "body": "Line1\\nLine2\\rCarriage"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Valid\\tTab", "body": "Line1\\nLine2\\rCarriage"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -889,7 +889,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       // Escaped sequences in JSON should become actual characters, then get sanitized appropriately
       expect(parsedOutput.items[0].title).toBe("Valid\tTab"); // Tab preserved by sanitizeContent
       expect(parsedOutput.items[0].body).toBe("Line1\nLine2\rCarriage"); // Newlines/returns preserved
@@ -899,11 +899,11 @@ Line 3"}
     it("should repair JSON with mixed control characters and regular escape sequences", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test mixing regular escapes with control characters - simplified to avoid quote issues
-      const ndjsonContent = `{"type": "create-issue", "title": "Mixed\x00test\\nwith text", "body": "Body\x02with\\ttab\x03end"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Mixed\x00test\\nwith text", "body": "Body\x02with\\ttab\x03end"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -913,7 +913,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       // Control chars removed (\x00, \x02, \x03), escaped sequences processed (\n, \t preserved)
       expect(parsedOutput.items[0].title).toMatch(/Mixedtest\nwith text/);
       expect(parsedOutput.items[0].body).toMatch(/Bodywith\ttabend/);
@@ -923,11 +923,11 @@ Line 3"}
     it("should repair JSON with DEL character (0x7F) and other high control chars", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // DEL (0x7F) should be handled by sanitizeContent, other control chars by repairJson
-      const ndjsonContent = `{"type": "create-issue", "title": "Test\x7FDel", "body": "Body\x1Fwith\x01control"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test\x7FDel", "body": "Body\x1Fwith\x01control"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -937,7 +937,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       // All control characters should be removed by sanitizeContent
       expect(parsedOutput.items[0].title).toBe("TestDel");
       expect(parsedOutput.items[0].body).toBe("Bodywithcontrol");
@@ -947,11 +947,11 @@ Line 3"}
     it("should repair JSON with all ASCII control characters in sequence", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test simpler case to verify control character handling works
-      const ndjsonContent = `{"type": "create-issue", "title": "Control test\x00\x01\x02\\t\\n", "body": "End of test"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Control test\x00\x01\x02\\t\\n", "body": "End of test"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -961,7 +961,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
 
       // Control chars (0x00, 0x01, 0x02) removed, tab and newline preserved
       const title = parsedOutput.items[0].title;
@@ -974,11 +974,11 @@ Line 3"}
     it("should test control character repair in isolation using the repair function", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test malformed JSON that needs both control char repair and other repairs
-      const ndjsonContent = `{type: "create-issue", title: 'Test\x00with\x08control\x0Cchars', body: 'Body\x01text',}`;
+      const ndjsonContent = `{type: "create_issue", title: 'Test\x00with\x08control\x0Cchars', body: 'Body\x01text',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -988,7 +988,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       // This tests that the repair function successfully handles both JSON syntax errors
       // (single quotes, missing quotes around keys, trailing comma) AND control characters
       expect(parsedOutput.items[0].title).toBe("Testwithcontrolchars");
@@ -999,11 +999,11 @@ Line 3"}
     it("should test repair function behavior with specific control character scenarios", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       // Test case where control characters would break JSON but repair fixes them
-      const ndjsonContent = `{"type": "create-issue", "title": "Control\x00\x07\x1A", "body": "Test\x08\x1Fend"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Control\x00\x07\x1A", "body": "Test\x08\x1Fend"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1013,7 +1013,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       // Control characters should be removed by sanitizeContent after repair escapes them
       expect(parsedOutput.items[0].title).toBe("Control");
       expect(parsedOutput.items[0].body).toBe("Testend");
@@ -1022,11 +1022,11 @@ Line 3"}
 
     it("should repair JSON with numbers, booleans, and null values", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'create-issue', title: 'Complex types test', body: 'Body text', priority: 5, urgent: true, assignee: null,}`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Complex types test', body: 'Body text', priority: 5, urgent: true, assignee: null,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1036,7 +1036,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.items[0].priority).toBe(5);
       expect(parsedOutput.items[0].urgent).toBe(true);
       expect(parsedOutput.items[0].assignee).toBe(null);
@@ -1045,11 +1045,11 @@ Line 3"}
 
     it("should attempt repair but fail gracefully with excessive malformed JSON", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{,type: 'create-issue',, title: 'Extra commas', body: 'Test',, labels: ['bug',,],}`;
+      const ndjsonContent = `{,type: 'create_issue',, title: 'Extra commas', body: 'Test',, labels: ['bug',,],}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1068,11 +1068,11 @@ Line 3"}
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const longBody =
         'This is a very long body text that contains "quotes" and other\\nspecial characters including tabs\\t and newlines\\r\\n and more text that goes on and on.';
-      const ndjsonContent = `{type: 'create-issue', title: 'Long string test', body: '${longBody}',}`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Long string test', body: '${longBody}',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1082,18 +1082,18 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.items[0].body).toContain("very long body");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair deeply nested structures", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'create-issue', title: 'Nested test', body: 'Body', metadata: {project: 'test', tags: ['important', 'urgent',}, version: 1.0,}`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Nested test', body: 'Body', metadata: {project: 'test', tags: ['important', 'urgent',}, version: 1.0,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1103,7 +1103,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.items[0].metadata).toBeDefined();
       expect(parsedOutput.items[0].metadata.project).toBe("test");
       expect(parsedOutput.items[0].metadata.tags).toEqual(["important", "urgent"]);
@@ -1112,11 +1112,11 @@ Line 3"}
 
     it("should handle complex backslash scenarios with graceful failure", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'create-issue', title: 'Escape test with "quotes" and \\\\backslashes', body: 'Test body',}`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Escape test with "quotes" and \\\\backslashes', body: 'Test body',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1128,7 +1128,7 @@ Line 3"}
       // This complex escape case might fail due to the embedded quotes and backslashes
       // The repair function may not handle this level of complexity
       if (parsedOutput.items.length === 1) {
-        expect(parsedOutput.items[0].type).toBe("create-issue");
+        expect(parsedOutput.items[0].type).toBe("create_issue");
         expect(parsedOutput.items[0].title).toContain("quotes");
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
@@ -1141,11 +1141,11 @@ Line 3"}
 
     it("should repair JSON with carriage returns and form feeds", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: 'create-issue', title: 'Special chars', body: 'Text with\\rcarriage\\fform feed',}`;
+      const ndjsonContent = `{type: 'create_issue', title: 'Special chars', body: 'Text with\\rcarriage\\fform feed',}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1155,7 +1155,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
@@ -1165,7 +1165,7 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1182,11 +1182,11 @@ Line 3"}
 
     it("should handle repair of JSON with missing property separators", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type 'create-issue', title 'Missing colons', body 'Test body'}`;
+      const ndjsonContent = `{type 'create_issue', title 'Missing colons', body 'Test body'}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1217,18 +1217,18 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-labels");
+      expect(parsedOutput.items[0].type).toBe("add_labels");
       expect(parsedOutput.items[0].labels).toEqual(["priority", "bug", "urgent"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should gracefully handle cases with multiple trailing commas", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Test", "body": "Test body",,,}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test", "body": "Test body",,,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1239,7 +1239,7 @@ Line 3"}
       if (outputCall) {
         // Repair succeeded
         const parsedOutput = JSON.parse(outputCall[1]);
-        expect(parsedOutput.items[0].type).toBe("create-issue");
+        expect(parsedOutput.items[0].type).toBe("create_issue");
         expect(parsedOutput.items[0].title).toBe("Test");
         expect(parsedOutput.errors).toHaveLength(0);
       } else {
@@ -1266,18 +1266,18 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("add-labels");
+      expect(parsedOutput.items[0].type).toBe("add_labels");
       expect(parsedOutput.items[0].labels).toEqual(["bug", "feature"]);
       expect(parsedOutput.errors).toHaveLength(0);
     });
 
     it("should repair combination of unquoted keys and trailing commas", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{type: "create-issue", title: "Combined issues", body: "Test body", priority: 1,}`;
+      const ndjsonContent = `{type: "create_issue", title: "Combined issues", body: "Test body", priority: 1,}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1287,7 +1287,7 @@ Line 3"}
 
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe("create-issue");
+      expect(parsedOutput.items[0].type).toBe("create_issue");
       expect(parsedOutput.items[0].title).toBe("Combined issues");
       expect(parsedOutput.items[0].priority).toBe(1);
       expect(parsedOutput.errors).toHaveLength(0);
@@ -1296,12 +1296,12 @@ Line 3"}
 
   it("should store validated output in agent_output.json file and set GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}
-{"type": "add-comment", "body": "Test comment"}`;
+    const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
+{"type": ("add_comment"|"add_comment"), "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true, "add-comment": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -1313,8 +1313,8 @@ Line 3"}
     const agentOutputJson = JSON.parse(agentOutputContent);
 
     expect(agentOutputJson.items).toHaveLength(2);
-    expect(agentOutputJson.items[0].type).toBe("create-issue");
-    expect(agentOutputJson.items[1].type).toBe("add-comment");
+    expect(agentOutputJson.items[0].type).toBe("create_issue");
+    expect(agentOutputJson.items[1].type).toBe("add_comment");
     expect(agentOutputJson.errors).toHaveLength(0);
 
     // Verify GITHUB_AW_AGENT_OUTPUT environment variable was set
@@ -1332,11 +1332,11 @@ Line 3"}
 
   it("should handle errors when writing agent_output.json file gracefully", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-issue", "title": "Test Issue", "body": "Test body"}`;
+    const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
     // Mock fs.writeFileSync to throw an error for the agent_output.json file
     const originalWriteFileSync = fs.writeFileSync;
@@ -1368,16 +1368,16 @@ Line 3"}
     expect(mockCore.exportVariable).not.toHaveBeenCalled();
   });
 
-  describe("create-code-scanning-alert validation", () => {
+  describe("create_code_scanning_alert validation", () => {
     it("should validate valid code scanning alert entries", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/auth.js", "line": 42, "severity": "error", "message": "SQL injection vulnerability"}
-{"type": "create-code-scanning-alert", "file": "src/utils.js", "line": 25, "severity": "warning", "message": "XSS vulnerability", "column": 10, "ruleIdSuffix": "xss-check"}
-{"type": "create-code-scanning-alert", "file": "src/complete.js", "line": "30", "severity": "NOTE", "message": "Complete example", "column": "5", "ruleIdSuffix": "complete-rule"}`;
+      const ndjsonContent = `{"type": "create_code_scanning_alert", "file": "src/auth.js", "line": 42, "severity": "error", "message": "SQL injection vulnerability"}
+{"type": "create_code_scanning_alert", "file": "src/utils.js", "line": 25, "severity": "warning", "message": "XSS vulnerability", "column": 10, "ruleIdSuffix": "xss-check"}
+{"type": "create_code_scanning_alert", "file": "src/complete.js", "line": "30", "severity": "NOTE", "message": "Complete example", "column": "5", "ruleIdSuffix": "complete-rule"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1391,7 +1391,7 @@ Line 3"}
 
       // Verify first entry
       expect(parsedOutput.items[0]).toEqual({
-        type: "create-code-scanning-alert",
+        type: "create_code_scanning_alert",
         file: "src/auth.js",
         line: 42,
         severity: "error",
@@ -1400,7 +1400,7 @@ Line 3"}
 
       // Verify second entry with optional fields
       expect(parsedOutput.items[1]).toEqual({
-        type: "create-code-scanning-alert",
+        type: "create_code_scanning_alert",
         file: "src/utils.js",
         line: 25,
         severity: "warning",
@@ -1411,7 +1411,7 @@ Line 3"}
 
       // Verify third entry with normalized severity
       expect(parsedOutput.items[2]).toEqual({
-        type: "create-code-scanning-alert",
+        type: "create_code_scanning_alert",
         file: "src/complete.js",
         line: "30",
         severity: "note", // Should be normalized to lowercase
@@ -1423,24 +1423,24 @@ Line 3"}
 
     it("should reject code scanning alert entries with missing required fields", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-code-scanning-alert", "severity": "error", "message": "Missing file field"}
-{"type": "create-code-scanning-alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
-{"type": "create-code-scanning-alert", "file": "src/missing2.js", "line": 10, "message": "Missing severity field"}
-{"type": "create-code-scanning-alert", "file": "src/missing3.js", "line": 10, "severity": "error"}`;
+      const ndjsonContent = `{"type": "create_code_scanning_alert", "severity": "error", "message": "Missing file field"}
+{"type": "create_code_scanning_alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
+{"type": "create_code_scanning_alert", "file": "src/missing2.js", "line": 10, "message": "Missing severity field"}
+{"type": "create_code_scanning_alert", "file": "src/missing3.js", "line": 10, "severity": "error"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'line' field (number or string)");
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'severity' field (string)");
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'message' field (string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1450,24 +1450,24 @@ Line 3"}
 
     it("should reject code scanning alert entries with invalid field types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": 123, "line": 10, "severity": "error", "message": "File should be string"}
-{"type": "create-code-scanning-alert", "file": "src/test.js", "line": null, "severity": "error", "message": "Line should be number or string"}
-{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": 123, "message": "Severity should be string"}
-{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "error", "message": 123}`;
+      const ndjsonContent = `{"type": "create_code_scanning_alert", "file": 123, "line": 10, "severity": "error", "message": "File should be string"}
+{"type": "create_code_scanning_alert", "file": "src/test.js", "line": null, "severity": "error", "message": "Line should be number or string"}
+{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": 123, "message": "Severity should be string"}
+{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": "error", "message": 123}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'file' field (string)");
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'line' field (number or string)");
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'severity' field (string)");
-      expect(failedMessage).toContain("create-code-scanning-alert requires a 'message' field (string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'file' field (string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'line' field (number or string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'severity' field (string)");
+      expect(failedMessage).toContain("create_code_scanning_alert requires a 'message' field (string)");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1477,19 +1477,19 @@ Line 3"}
 
     it("should reject code scanning alert entries with invalid severity levels", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "invalid-level", "message": "Invalid severity"}
-{"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 15, "severity": "critical", "message": "Unsupported severity"}`;
+      const ndjsonContent = `{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": "invalid-level", "message": "Invalid severity"}
+{"type": "create_code_scanning_alert", "file": "src/test2.js", "line": 15, "severity": "critical", "message": "Unsupported severity"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create-code-scanning-alert 'severity' must be one of: error, warning, info, note");
+      expect(failedMessage).toContain("create_code_scanning_alert 'severity' must be one of: error, warning, info, note");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1499,23 +1499,23 @@ Line 3"}
 
     it("should reject code scanning alert entries with invalid optional fields", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": 10, "severity": "error", "message": "Test", "column": "invalid"}
-{"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 15, "severity": "error", "message": "Test", "ruleIdSuffix": 123}
-{"type": "create-code-scanning-alert", "file": "src/test3.js", "line": 20, "severity": "error", "message": "Test", "ruleIdSuffix": "bad rule!@#"}`;
+      const ndjsonContent = `{"type": "create_code_scanning_alert", "file": "src/test.js", "line": 10, "severity": "error", "message": "Test", "column": "invalid"}
+{"type": "create_code_scanning_alert", "file": "src/test2.js", "line": 15, "severity": "error", "message": "Test", "ruleIdSuffix": 123}
+{"type": "create_code_scanning_alert", "file": "src/test3.js", "line": 20, "severity": "error", "message": "Test", "ruleIdSuffix": "bad rule!@#"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: invalid)");
-      expect(failedMessage).toContain("create-code-scanning-alert 'ruleIdSuffix' must be a string");
+      expect(failedMessage).toContain("create_code_scanning_alert 'column' must be a valid positive integer (got: invalid)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'ruleIdSuffix' must be a string");
       expect(failedMessage).toContain(
-        "create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
+        "create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores"
       );
 
       // setOutput should not be called because of early return
@@ -1526,12 +1526,13 @@ Line 3"}
 
     it("should handle mixed valid and invalid code scanning alert entries", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/valid.js", "line": 10, "severity": "error", "message": "Valid entry"}
-{"type": "create-code-scanning-alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
-{"type": "create-code-scanning-alert", "file": "src/valid2.js", "line": 20, "severity": "warning", "message": "Another valid entry", "column": 5}`;
+      const ndjsonContent = `{"type": "create_code_scanning_alert", "file": "src/valid.js", "line": 10, "severity": "error", "message": "Valid entry"}
+{"type": "create_code_scanning_alert", "file": "src/missing.js", "severity": "error", "message": "Missing line field"}
+{"type": "create_code_scanning_alert", "file": "src/valid2.js", "line": 20, "severity": "warning", "message": "Another valid entry", "column": 5}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1545,31 +1546,31 @@ Line 3"}
 
       expect(parsedOutput.items[0].file).toBe("src/valid.js");
       expect(parsedOutput.items[1].file).toBe("src/valid2.js");
-      expect(parsedOutput.errors).toContain("Line 2: create-code-scanning-alert requires a 'line' field (number or string)");
+      expect(parsedOutput.errors).toContain("Line 2: create_code_scanning_alert requires a 'line' field (number or string)");
     });
 
     it("should reject code scanning alert entries with invalid line and column values", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-code-scanning-alert", "file": "src/test.js", "line": "invalid", "severity": "error", "message": "Invalid line string"}
-{"type": "create-code-scanning-alert", "file": "src/test2.js", "line": 0, "severity": "error", "message": "Zero line number"}
-{"type": "create-code-scanning-alert", "file": "src/test3.js", "line": -5, "severity": "error", "message": "Negative line number"}
-{"type": "create-code-scanning-alert", "file": "src/test4.js", "line": 10, "column": "abc", "severity": "error", "message": "Invalid column string"}
-{"type": "create-code-scanning-alert", "file": "src/test5.js", "line": 10, "column": 0, "severity": "error", "message": "Zero column number"}`;
+      const ndjsonContent = `{"type": "create_code_scanning_alert", "file": "src/test.js", "line": "invalid", "severity": "error", "message": "Invalid line string"}
+{"type": "create_code_scanning_alert", "file": "src/test2.js", "line": 0, "severity": "error", "message": "Zero line number"}
+{"type": "create_code_scanning_alert", "file": "src/test3.js", "line": -5, "severity": "error", "message": "Negative line number"}
+{"type": "create_code_scanning_alert", "file": "src/test4.js", "line": 10, "column": "abc", "severity": "error", "message": "Invalid column string"}
+{"type": "create_code_scanning_alert", "file": "src/test5.js", "line": 10, "column": 0, "severity": "error", "message": "Zero column number"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-code-scanning-alert": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_code_scanning_alert": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
       // Since there are errors and no valid items, setFailed should be called
       expect(mockCore.setFailed).toHaveBeenCalledTimes(1);
       const failedMessage = mockCore.setFailed.mock.calls[0][0];
-      expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: invalid)");
-      expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: 0)");
-      expect(failedMessage).toContain("create-code-scanning-alert 'line' must be a valid positive integer (got: -5)");
-      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: abc)");
-      expect(failedMessage).toContain("create-code-scanning-alert 'column' must be a valid positive integer (got: 0)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'line' must be a valid positive integer (got: invalid)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'line' must be a valid positive integer (got: 0)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'line' must be a valid positive integer (got: -5)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'column' must be a valid positive integer (got: abc)");
+      expect(failedMessage).toContain("create_code_scanning_alert 'column' must be a valid positive integer (got: 0)");
 
       // setOutput should not be called because of early return
       const setOutputCalls = mockCore.setOutput.mock.calls;
@@ -1581,11 +1582,11 @@ Line 3"}
   describe("Content sanitization functionality", () => {
     it("should preserve command-line flags with colons", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Test issue", "body": "Use z3 -v:10 and z3 -memory:high for performance monitoring"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Test issue", "body": "Use z3 -v:10 and z3 -memory:high for performance monitoring"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1600,11 +1601,11 @@ Line 3"}
 
     it("should preserve various command-line flag patterns", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "CLI Flags Test", "body": "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "CLI Flags Test", "body": "Various flags: gcc -std:c++20, clang -target:x86_64, rustc -C:opt-level=3, javac -cp:lib/*, python -W:ignore, node --max-old-space-size:8192"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1618,11 +1619,11 @@ Line 3"}
 
     it("should redact non-https protocols while preserving command flags", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Protocol Test", "body": "Use https://github.com/repo for code, avoid ftp://example.com/file and git://example.com/repo, but z3 -v:10 should work"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Protocol Test", "body": "Use https://github.com/repo for code, avoid ftp://example.com/file and git://example.com/repo, but z3 -v:10 should work"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1636,11 +1637,11 @@ Line 3"}
 
     it("should handle mixed protocols and command flags in complex text", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Complex Test", "body": "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid ssh://git.example.com/repo.git or file://localhost/path"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Complex Test", "body": "Install from https://github.com/z3prover/z3, then run: z3 -v:10 -memory:high -timeout:30000. Avoid ssh://git.example.com/repo.git or file://localhost/path"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1654,11 +1655,11 @@ Line 3"}
 
     it("should preserve allowed domains while redacting unknown ones", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Domain Test", "body": "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: https://example.com/page"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Domain Test", "body": "GitHub URLs: https://github.com/repo, https://api.github.com/users, https://githubusercontent.com/file. External: https://example.com/page"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1672,11 +1673,11 @@ Line 3"}
 
     it("should handle @mentions neutralization", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "@mention Test", "body": "Hey @username and @org/team, check this out! But preserve email@domain.com"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "@mention Test", "body": "Hey @username and @org/team, check this out! But preserve email@domain.com"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1688,11 +1689,11 @@ Line 3"}
 
     it("should neutralize bot trigger phrases", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Bot Trigger Test", "body": "This fixes #123 and closes #456, also resolves #789"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Bot Trigger Test", "body": "This fixes #123 and closes #456, also resolves #789"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1707,14 +1708,14 @@ Line 3"}
       // Use actual ANSI escape sequences
       const bodyWithAnsi = "\u001b[31mRed text\u001b[0m and \u001b[1mBold text\u001b[m";
       const ndjsonContent = JSON.stringify({
-        type: "create-issue",
+        type: "create_issue",
         title: "ANSI Test",
         body: bodyWithAnsi,
       });
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1729,11 +1730,11 @@ Line 3"}
       process.env.GITHUB_AW_ALLOWED_DOMAINS = "example.com,test.org";
 
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Custom Domains", "body": "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: https://github.com/repo, https://blocked.com/page"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Custom Domains", "body": "Allowed: https://example.com/page, https://sub.example.com/file, https://test.org/doc. Blocked: https://github.com/repo, https://blocked.com/page"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1750,11 +1751,11 @@ Line 3"}
 
     it("should handle edge cases with colons in different contexts", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Colon Edge Cases", "body": "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Colon Edge Cases", "body": "Time 12:30 PM, ratio 3:1, IPv6 ::1, URL path/file:with:colons, command -flag:value, namespace::function"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1770,11 +1771,11 @@ Line 3"}
     it("should truncate excessively long content", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const longBody = "x".repeat(600000); // 600KB, exceeds 512KB limit
-      const ndjsonContent = `{"type": "create-issue", "title": "Long Content Test", "body": "${longBody}"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Long Content Test", "body": "${longBody}"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1789,14 +1790,14 @@ Line 3"}
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const manyLines = Array(66000).fill("line").join("\n"); // Exceeds 65K line limit
       const ndjsonContent = JSON.stringify({
-        type: "create-issue",
+        type: "create_issue",
         title: "Many Lines Test",
         body: manyLines,
       });
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1811,11 +1812,11 @@ Line 3"}
 
     it("should preserve backticks and code blocks", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Code Test", "body": "Use \`z3 -v:10\` in terminal. Code block:\\n\`\`\`\\nz3 -memory:high input.smt2\\nftp://should-not-be-redacted-in-code\\n\`\`\`"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Code Test", "body": "Use \`z3 -v:10\` in terminal. Code block:\\n\`\`\`\\nz3 -memory:high input.smt2\\nftp://should-not-be-redacted-in-code\\n\`\`\`"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1848,11 +1849,11 @@ Line 3"}
 
     it("should remove XML comments to prevent content hiding", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "XML Comment Test", "body": "This is visible <!-- This is hidden content --> more visible text <!--- This is also hidden ---> and more text <!--- malformed comment --!> final text"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "XML Comment Test", "body": "This is visible <!-- This is hidden content --> more visible text <!--- This is also hidden ---> and more text <!--- malformed comment --!> final text"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1866,14 +1867,14 @@ Line 3"}
   describe("Min validation tests", () => {
     it("should pass when min requirement is met", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "First Issue", "body": "First body"}
-{"type": "create-issue", "title": "Second Issue", "body": "Second body"}
-{"type": "create-issue", "title": "Third Issue", "body": "Third body"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "First Issue", "body": "First body"}
+{"type": "create_issue", "title": "Second Issue", "body": "Second body"}
+{"type": "create_issue", "title": "Third Issue", "body": "Third body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      // Set min to 2 for create-issue
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 2, "max": 5}}';
+      // Set min to 2 for create_issue
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 2, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1888,12 +1889,12 @@ Line 3"}
 
     it("should fail when min requirement is not met", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Only Issue", "body": "Only body"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Only Issue", "body": "Only body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      // Set min to 3 for create-issue, but we only have 1 item
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 3, "max": 5}}';
+      // Set min to 3 for create_issue, but we only have 1 item
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 3, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1904,19 +1905,19 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(1); // The 1 valid item is still processed
       expect(parsedOutput.errors).toHaveLength(1); // Error for not meeting min requirement
-      expect(parsedOutput.errors[0]).toContain("Too few items of type 'create-issue'. Minimum required: 3, found: 1.");
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'create_issue'. Minimum required: 3, found: 1.");
     });
 
     it("should handle multiple types with different min requirements", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Issue 1", "body": "Body 1"}
-{"type": "create-issue", "title": "Issue 2", "body": "Body 2"}
-{"type": "add-comment", "body": "Comment 1"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Issue 1", "body": "Body 1"}
+{"type": "create_issue", "title": "Issue 2", "body": "Body 2"}
+{"type": ("add_comment"|"add_comment"), "body": "Comment 1"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      // Set min to 1 for create-issue (satisfied) and min to 2 for add-comment (not satisfied)
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 1, "max": 5}, "add-comment": {"min": 2, "max": 5}}';
+      // Set min to 1 for create_issue (satisfied) and min to 2 for add-comment (not satisfied)
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}, ("add_comment"|"add_comment"): {"min": 2, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1927,17 +1928,17 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(3); // All items are processed
       expect(parsedOutput.errors).toHaveLength(1); // Only error for add-comment min requirement
-      expect(parsedOutput.errors[0]).toContain("Too few items of type 'add-comment'. Minimum required: 2, found: 1.");
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'add_comment'. Minimum required: 2, found: 1.");
     });
 
     it("should ignore min when set to 0", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Issue", "body": "Body"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Issue", "body": "Body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      // Set min to 0 for create-issue (should be ignored)
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 0, "max": 5}}';
+      // Set min to 0 for create_issue (should be ignored)
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 0, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1952,12 +1953,12 @@ Line 3"}
 
     it("should work when no min is specified (defaults to 0)", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-issue", "title": "Issue", "body": "Body"}`;
+      const ndjsonContent = `{"type": "create_issue", "title": "Issue", "body": "Body"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       // No min specified, should default to 0
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"max": 5}}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1976,8 +1977,8 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      // Set min to 1 for create-issue, but no items present
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-issue": {"min": 1, "max": 5}}';
+      // Set min to 1 for create_issue, but no items present
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1988,19 +1989,19 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(0); // No items
       expect(parsedOutput.errors).toHaveLength(1); // Error for not meeting min requirement
-      expect(parsedOutput.errors[0]).toContain("Too few items of type 'create-issue'. Minimum required: 1, found: 0.");
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'create_issue'. Minimum required: 1, found: 0.");
     });
 
     it("should work with different safe output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-comment", "body": "Comment"}
+      const ndjsonContent = `{"type": ("add_comment"|"add_comment"), "body": "Comment"}
 {"type": "create-discussion", "title": "Discussion", "body": "Discussion body"}
 {"type": "create-discussion", "title": "Discussion 2", "body": "Discussion body 2"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       // Set min requirements for different types
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-comment": {"min": 2, "max": 5}, "create-discussion": {"min": 1, "max": 5}}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_comment": {"min": 2, "max": 5}, "create_discussion": {"min": 1, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -2011,7 +2012,7 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       expect(parsedOutput.items).toHaveLength(3); // All items processed
       expect(parsedOutput.errors).toHaveLength(1); // Error only for add-comment min requirement
-      expect(parsedOutput.errors[0]).toContain("Too few items of type 'add-comment'. Minimum required: 2, found: 1.");
+      expect(parsedOutput.errors[0]).toContain("Too few items of type 'add_comment'. Minimum required: 2, found: 1.");
     });
   });
 });
