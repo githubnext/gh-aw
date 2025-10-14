@@ -3329,7 +3329,7 @@ jobs:
         env:
           COMMENT: ${{ inputs.comment }}
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
-          NOTION_PAGE_ID: ${{ env.NOTION_PAGE_ID }}
+          NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
         with:
           script: |-
             const notionToken = process.env.NOTION_API_TOKEN;

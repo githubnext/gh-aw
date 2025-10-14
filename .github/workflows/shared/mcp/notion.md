@@ -26,8 +26,8 @@ safe-outputs:
         - name: Add comment to Notion page
           uses: actions/github-script@v8
           env:
-            NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
-            NOTION_PAGE_ID: "${{ env.NOTION_PAGE_ID }}"
+            NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
+            NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
             COMMENT: "${{ inputs.comment }}"
           with:
             script: |
