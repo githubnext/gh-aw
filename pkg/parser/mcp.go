@@ -61,18 +61,19 @@ func EnsureLocalhostDomains(domains []string) []string {
 
 // MCPServerConfig represents a parsed MCP server configuration
 type MCPServerConfig struct {
-	Name      string            `json:"name"`
-	Type      string            `json:"type"`       // stdio, http, docker
-	Registry  string            `json:"registry"`   // URI to installation location from registry
-	Command   string            `json:"command"`    // for stdio
-	Args      []string          `json:"args"`       // for stdio
-	Container string            `json:"container"`  // for docker
-	Version   string            `json:"version"`    // optional version/tag for container
-	URL       string            `json:"url"`        // for http
-	Headers   map[string]string `json:"headers"`    // for http
-	Env       map[string]string `json:"env"`        // environment variables
-	ProxyArgs []string          `json:"proxy-args"` // custom proxy arguments for container-based tools
-	Allowed   []string          `json:"allowed"`    // allowed tools
+	Name           string            `json:"name"`
+	Type           string            `json:"type"`           // stdio, http, docker
+	Registry       string            `json:"registry"`       // URI to installation location from registry
+	Command        string            `json:"command"`        // for stdio
+	Args           []string          `json:"args"`           // for stdio
+	Container      string            `json:"container"`      // for docker
+	Version        string            `json:"version"`        // optional version/tag for container
+	EntrypointArgs []string          `json:"entrypointArgs"` // arguments to add after container image
+	URL            string            `json:"url"`            // for http
+	Headers        map[string]string `json:"headers"`        // for http
+	Env            map[string]string `json:"env"`            // environment variables
+	ProxyArgs      []string          `json:"proxy-args"`     // custom proxy arguments for container-based tools
+	Allowed        []string          `json:"allowed"`        // allowed tools
 }
 
 // MCPServerInfo contains the inspection results for an MCP server
@@ -554,6 +555,17 @@ func ParseMCPConfig(toolName string, mcpSection any, toolConfig map[string]any) 
 				}
 
 				config.Args = append(config.Args, containerStr)
+
+				// Add entrypoint args after the container image
+				if entrypointArgs, hasEntrypointArgs := mcpConfig["entrypointArgs"]; hasEntrypointArgs {
+					if entrypointArgsSlice, ok := entrypointArgs.([]any); ok {
+						for _, arg := range entrypointArgsSlice {
+							if argStr, ok := arg.(string); ok {
+								config.Args = append(config.Args, argStr)
+							}
+						}
+					}
+				}
 			}
 		} else {
 			// Handle command and args

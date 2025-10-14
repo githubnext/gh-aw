@@ -31,6 +31,13 @@
       },
       "description": "Arguments for command or container execution"
     },
+    "entrypointArgs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Arguments to add after the container image (container entrypoint arguments)"
+    },
     "env": {
       "type": "object",
       "patternProperties": {
