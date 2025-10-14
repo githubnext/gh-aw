@@ -208,7 +208,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	for jobName, jobConfig := range data.SafeOutputs.Jobs {
 		// Normalize job name to use underscores for consistency
 		normalizedJobName := normalizeSafeOutputIdentifier(jobName)
-		
+
 		job := &Job{
 			Name: normalizedJobName,
 		}
