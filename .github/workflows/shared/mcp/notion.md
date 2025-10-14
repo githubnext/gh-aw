@@ -103,7 +103,7 @@ This shared configuration provides Notion MCP server integration with read-only 
 
 ### Safe Job: notion-add-comment
 
-The `notion-add-comment` safe-job allows the agentic workflow to add comments to Notion pages through the Notion API.
+The `notion_add_comment` safe-job allows the agentic workflow to add comments to Notion pages through the Notion API.
 Requires the **insert comment** access on the token.
 
 **Required Inputs:**
