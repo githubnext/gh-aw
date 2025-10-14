@@ -33,13 +33,25 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	return BuildStandardNpmEngineInstallSteps(
+	var steps []GitHubActionStep
+
+	// Add secret validation step
+	secretValidation := GenerateSecretValidationStep(
+		"COPILOT_CLI_TOKEN",
+		"GitHub Copilot CLI",
+		"https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
+	)
+	steps = append(steps, secretValidation)
+
+	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@github/copilot",
 		constants.DefaultCopilotVersion,
 		"Install GitHub Copilot CLI",
 		"copilot",
 		workflowData,
 	)
+	steps = append(steps, npmSteps...)
+	return steps
 }
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {

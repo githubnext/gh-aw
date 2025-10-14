@@ -188,6 +188,18 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Validate COPILOT_CLI_TOKEN secret
+        run: |
+          if [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: COPILOT_CLI_TOKEN secret is not set"
+            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            exit 1
+          fi
+          echo "COPILOT_CLI_TOKEN secret is configured"
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -3257,6 +3269,18 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
+      - name: Validate COPILOT_CLI_TOKEN secret
+        run: |
+          if [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: COPILOT_CLI_TOKEN secret is not set"
+            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            exit 1
+          fi
+          echo "COPILOT_CLI_TOKEN secret is configured"
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
