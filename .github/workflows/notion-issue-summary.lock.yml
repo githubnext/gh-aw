@@ -3158,7 +3158,7 @@ jobs:
       - name: Setup Safe Job Environment Variables
         run: |
           find /tmp/gh-aw/safe-jobs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json/agent_output.json" >> $GITHUB_ENV
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> $GITHUB_ENV
       - name: Add comment to Notion page
         uses: actions/github-script@v8
         env:

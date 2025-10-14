@@ -274,7 +274,7 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, "          path: /tmp/gh-aw/safe-jobs/\n")
 
 		// the download artifacts always creates a folder, then unpacks in that folder
-		agentOutputArtifactFilename := fmt.Sprintf("/tmp/gh-aw/safe-jobs/%s/%s", constants.AgentOutputArtifactName, constants.AgentOutputArtifactName)
+		agentOutputArtifactFilename := fmt.Sprintf("/tmp/gh-aw/safe-jobs/%s", constants.AgentOutputArtifactName)
 
 		// Add environment variables step
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
