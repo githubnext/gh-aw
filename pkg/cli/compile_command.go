@@ -610,8 +610,6 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 	stats := &CompilationStats{}
 
 	for _, file := range files {
-		stats.Total++
-
 		// Check if file still exists (might have been deleted between detection and compilation)
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			if verbose {
@@ -619,6 +617,8 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			}
 			continue
 		}
+
+		stats.Total++
 
 		if verbose {
 			fmt.Fprintf(os.Stderr, "🔨 Compiling: %s\n", file)
