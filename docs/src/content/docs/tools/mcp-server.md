@@ -92,7 +92,7 @@ The MCP server is available as a builtin tool called `agentic-workflows` in agen
 tools:
   agentic-workflows:  # Enables status, compile, logs, and audit tools
 ---
-```
 
-See [`.github/workflows/example-workflow-analyzer.md`](https://github.com/githubnext/gh-aw/blob/main/.github/workflows/example-workflow-analyzer.md) for a complete example.
+Check workflow status, download recent logs, and audit any failures.
+```
 
