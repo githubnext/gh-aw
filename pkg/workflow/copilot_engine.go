@@ -104,6 +104,16 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		env["GITHUB_AW_MCP_CONFIG"] = "/home/runner/.copilot/mcp-config.json"
 	}
 
+	if hasGitHubTool(workflowData.Tools) {
+		githubTool := workflowData.Tools["github"]
+		customGitHubToken := getGitHubToken(githubTool)
+		if customGitHubToken != "" {
+			env["GITHUB_PERSONAL_ACCESS_TOKEN"] = customGitHubToken
+		} else {
+			env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+		}
+	}
+
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
@@ -236,8 +246,6 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 	//GITHUB_COPILOT_CLI_MODE
 	yaml.WriteString("          echo \"HOME: $HOME\"\n")
 	yaml.WriteString("          echo \"GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE\"\n")
-	//yaml.WriteString("          echo \"GITHUB_AW_SAFE_OUTPUTS_CONFIG: ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}\"")
-
 }
 
 // renderGitHubCopilotMCPConfig generates the GitHub MCP server configuration for Copilot CLI

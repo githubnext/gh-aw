@@ -1014,13 +1014,6 @@ jobs:
           chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
-        env:
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"create-pull-request\":{},\"missing-tool\":{},\"upload-asset\":{}}"
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
-          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
-          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
