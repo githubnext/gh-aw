@@ -119,7 +119,7 @@ describe("create_discussion.cjs", () => {
 
   it("should handle missing create-discussion items", async () => {
     const validOutput = {
-      items: [{ type: "create-issue", title: "Test Issue", body: "Test body" }],
+      items: [{ type: "create_issue", title: "Test Issue", body: "Test body" }],
     };
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
     // Execute the script
@@ -155,7 +155,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [
         {
-          type: "create-discussion",
+          type: "create_discussion",
           title: "Test Discussion",
           body: "Test discussion body",
         },
@@ -220,7 +220,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [
         {
-          type: "create-discussion",
+          type: "create_discussion",
           title: "Test Discussion",
           body: "Test discussion body",
         },
@@ -269,7 +269,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [
         {
-          type: "create-discussion",
+          type: "create_discussion",
           title: "Test Discussion",
           body: "Test discussion body",
         },
@@ -298,7 +298,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [
         {
-          type: "create-discussion",
+          type: "create_discussion",
           title: "Test Discussion",
           body: "Test discussion body",
         },
@@ -347,7 +347,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [
         {
-          type: "create-discussion",
+          type: "create_discussion",
           title: "Test Discussion",
           body: "Test discussion body",
         },
@@ -397,7 +397,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [
         {
-          type: "create-discussion",
+          type: "create_discussion",
           title: "Test Discussion",
           body: "Test discussion body",
         },
@@ -444,7 +444,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [
         {
-          type: "create-discussion",
+          type: "create_discussion",
           title: "Test Discussion",
           body: "Test discussion body",
         },

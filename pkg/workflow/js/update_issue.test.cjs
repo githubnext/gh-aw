@@ -117,7 +117,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "update-issue",
+          type: "update_issue",
           title: "Updated title",
         },
       ],
@@ -136,7 +136,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "update-issue",
+          type: "update_issue",
           title: "Updated issue title",
         },
       ],
@@ -172,7 +172,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "update-issue",
+          type: "update_issue",
           status: "closed",
         },
       ],
@@ -202,7 +202,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "update-issue",
+          type: "update_issue",
           title: "New title",
           body: "New body content",
           status: "open",
@@ -238,7 +238,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "update-issue",
+          type: "update_issue",
           issue_number: 456,
           title: "Updated title",
         },
@@ -270,7 +270,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "update-issue",
+          type: "update_issue",
           title: "New title",
         },
       ],
@@ -292,7 +292,7 @@ describe("update_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "update-issue",
+          type: "update_issue",
           status: "invalid",
         },
       ],

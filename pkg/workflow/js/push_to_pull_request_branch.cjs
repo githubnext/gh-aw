@@ -109,7 +109,7 @@ async function main() {
   }
 
   // Find the push-to-pull-request-branch item
-  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push-to-pull-request-branch");
+  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push_to_pull_request_branch");
   if (!pushItem) {
     core.info("No push-to-pull-request-branch item found in agent output");
     return;

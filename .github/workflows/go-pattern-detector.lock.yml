@@ -3153,7 +3153,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
+              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
               if (createIssueItems.length === 0) {
                 core.info("No create-issue items found in agent output");
                 return;
@@ -3381,7 +3381,7 @@ jobs:
               }
               core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
               for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
+                if (entry.type === "missing_tool") {
                   if (!entry.tool) {
                     core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
                     continue;

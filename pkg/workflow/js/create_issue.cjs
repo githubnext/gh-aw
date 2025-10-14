@@ -55,7 +55,7 @@ async function main() {
     core.info("No valid items found in agent output");
     return;
   }
-  const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
+  const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
   if (createIssueItems.length === 0) {
     core.info("No create-issue items found in agent output");
     return;

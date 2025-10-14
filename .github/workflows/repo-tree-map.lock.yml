@@ -3469,7 +3469,7 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create-discussion");
+              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
               if (createDiscussionItems.length === 0) {
                 core.warning("No create-discussion items found in agent output");
                 return;
@@ -3702,7 +3702,7 @@ jobs:
               }
               core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
               for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
+                if (entry.type === "missing_tool") {
                   if (!entry.tool) {
                     core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
                     continue;
