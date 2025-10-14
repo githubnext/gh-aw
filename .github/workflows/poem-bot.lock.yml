@@ -4139,7 +4139,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
+              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
               if (createIssueItems.length === 0) {
                 core.info("No create-issue items found in agent output");
                 return;
@@ -4420,7 +4420,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add-comment");
+              const commentItems = validatedOutput.items.filter( item => item.type === "add_comment");
               if (commentItems.length === 0) {
                 core.info("No add-comment items found in agent output");
                 return;
@@ -4663,7 +4663,7 @@ jobs:
                 return;
               }
               const reviewCommentItems = validatedOutput.items.filter(
-                 item => item.type === "create-pull-request-review-comment"
+                 item => item.type === "create_pull_request_review_comment"
               );
               if (reviewCommentItems.length === 0) {
                 core.info("No create-pull-request-review-comment items found in agent output");
@@ -5035,7 +5035,7 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create-pull-request");
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
               if (!pullRequestItem) {
                 core.warning("No create-pull-request item found in agent output");
                 return;
@@ -5357,7 +5357,7 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
+              const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
               if (!labelsItem) {
                 core.warning("No add-labels item found in agent output");
                 return;
@@ -5568,7 +5568,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const updateItems = validatedOutput.items.filter( item => item.type === "update-issue");
+              const updateItems = validatedOutput.items.filter( item => item.type === "update_issue");
               if (updateItems.length === 0) {
                 core.info("No update-issue items found in agent output");
                 return;
@@ -5840,7 +5840,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
+              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
               if (!pushItem) {
                 core.info("No push-to-pull-request-branch item found in agent output");
                 return;
@@ -6060,7 +6060,7 @@ jobs:
               }
               core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
               for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
+                if (entry.type === "missing_tool") {
                   if (!entry.tool) {
                     core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
                     continue;
@@ -6198,7 +6198,7 @@ jobs:
                 core.setOutput("branch_name", branchName);
                 return;
               }
-              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload-asset");
+              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
               if (uploadAssetItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");

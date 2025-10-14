@@ -4056,7 +4056,7 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create-pull-request");
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
               if (!pullRequestItem) {
                 core.warning("No create-pull-request item found in agent output");
                 return;
@@ -4442,7 +4442,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
+              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
               if (!pushItem) {
                 core.info("No push-to-pull-request-branch item found in agent output");
                 return;
@@ -4662,7 +4662,7 @@ jobs:
               }
               core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
               for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
+                if (entry.type === "missing_tool") {
                   if (!entry.tool) {
                     core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
                     continue;

@@ -119,7 +119,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test comment content",
         },
       ],
@@ -139,7 +139,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test comment content",
         },
       ],
@@ -175,7 +175,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test PR comment content",
         },
       ],
@@ -208,7 +208,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test content",
         },
       ],
@@ -241,7 +241,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test content with source",
         },
       ],
@@ -279,7 +279,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test content without source",
         },
       ],
@@ -315,7 +315,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test content with custom server",
         },
       ],
@@ -354,7 +354,7 @@ describe("add_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "add-comment",
+          type: "add_comment",
           body: "Test content with fallback",
         },
       ],

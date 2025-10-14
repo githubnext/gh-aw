@@ -23,11 +23,11 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
       ...originalEnv,
       GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
-        "create-issue": { enabled: true, max: 5 },
-        "create-discussion": { enabled: true },
-        "add-comment": { enabled: true, max: 3 },
-        "missing-tool": { enabled: true },
-        "push-to-pull-request-branch": { enabled: true }, // Enable for SDK testing
+        "create_issue": { enabled: true, max: 5 },
+        "create_discussion": { enabled: true },
+        "add_comment": { enabled: true, max: 3 },
+        "missing_tool": { enabled: true },
+        "push_to_pull_request_branch": { enabled: true }, // Enable for SDK testing
       }),
     };
   });
@@ -81,8 +81,8 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         env: {
           GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
-            "create-issue": { enabled: true },
-            "missing-tool": { enabled: true },
+            "create_issue": { enabled: true },
+            "missing_tool": { enabled: true },
           }),
         },
       };
@@ -147,7 +147,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
           ...process.env,
           GITHUB_AW_SAFE_OUTPUTS: tempOutputFile,
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify({
-            "create-issue": { enabled: true },
+            "create_issue": { enabled: true },
           }),
         },
       });

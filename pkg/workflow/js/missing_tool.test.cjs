@@ -100,13 +100,13 @@ describe("missing_tool.cjs", () => {
       const testData = {
         items: [
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "docker",
             reason: "Need containerization support",
             alternatives: "Use VM or manual setup",
           },
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "kubectl",
             reason: "Kubernetes cluster management required",
           },
@@ -136,7 +136,7 @@ describe("missing_tool.cjs", () => {
       const testData = {
         items: [
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "docker",
             reason: "Need containerization",
           },
@@ -145,7 +145,7 @@ describe("missing_tool.cjs", () => {
             data: "should be ignored",
           },
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "kubectl",
             reason: "Need k8s support",
           },
@@ -171,11 +171,11 @@ describe("missing_tool.cjs", () => {
       const testData = {
         items: [
           {
-            type: "missing-tool",
+            type: "missing_tool",
             reason: "No tool specified",
           },
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "valid-tool",
             reason: "This should work",
           },
@@ -195,11 +195,11 @@ describe("missing_tool.cjs", () => {
       const testData = {
         items: [
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "some-tool",
           },
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "valid-tool",
             reason: "This should work",
           },
@@ -220,10 +220,10 @@ describe("missing_tool.cjs", () => {
     it("should respect max reports limit", async () => {
       const testData = {
         items: [
-          { type: "missing-tool", tool: "tool1", reason: "reason1" },
-          { type: "missing-tool", tool: "tool2", reason: "reason2" },
-          { type: "missing-tool", tool: "tool3", reason: "reason3" },
-          { type: "missing-tool", tool: "tool4", reason: "reason4" },
+          { type: "missing_tool", tool: "tool1", reason: "reason1" },
+          { type: "missing_tool", tool: "tool2", reason: "reason2" },
+          { type: "missing_tool", tool: "tool3", reason: "reason3" },
+          { type: "missing_tool", tool: "tool4", reason: "reason4" },
         ],
         errors: [],
       };
@@ -246,9 +246,9 @@ describe("missing_tool.cjs", () => {
     it("should work without max limit", async () => {
       const testData = {
         items: [
-          { type: "missing-tool", tool: "tool1", reason: "reason1" },
-          { type: "missing-tool", tool: "tool2", reason: "reason2" },
-          { type: "missing-tool", tool: "tool3", reason: "reason3" },
+          { type: "missing_tool", tool: "tool1", reason: "reason1" },
+          { type: "missing_tool", tool: "tool2", reason: "reason2" },
+          { type: "missing_tool", tool: "tool3", reason: "reason3" },
         ],
         errors: [],
       };
@@ -298,7 +298,7 @@ describe("missing_tool.cjs", () => {
       const testData = {
         items: [
           {
-            type: "missing-tool",
+            type: "missing_tool",
             tool: "test-tool",
             reason: "testing timestamp",
           },

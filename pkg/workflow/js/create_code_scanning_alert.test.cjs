@@ -124,7 +124,7 @@ describe("create_code_scanning_alert.cjs", () => {
 
     it("should handle no code scanning alert items", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "create-issue", title: "Test Issue" }],
+        items: [{ type: "create_issue", title: "Test Issue" }],
       });
       await eval(`(async () => { ${securityReportScript} })()`);
 
@@ -135,14 +135,14 @@ describe("create_code_scanning_alert.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
             message: "SQL injection vulnerability detected",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/utils.js",
             line: 15,
             severity: "warning",
@@ -193,14 +193,14 @@ describe("create_code_scanning_alert.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
             message: "First finding",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/utils.js",
             line: 15,
             severity: "warning",
@@ -228,35 +228,35 @@ describe("create_code_scanning_alert.cjs", () => {
       const mixedFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/valid.js",
             line: 10,
             severity: "error",
             message: "Valid finding",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             // Missing file
             line: 20,
             severity: "error",
             message: "Invalid - no file",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid.js",
             // Missing line
             severity: "error",
             message: "Invalid - no line",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid2.js",
             line: "not-a-number",
             severity: "error",
             message: "Invalid - bad line",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid3.js",
             line: 30,
             severity: "invalid-severity",
@@ -287,7 +287,7 @@ describe("create_code_scanning_alert.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
@@ -313,7 +313,7 @@ describe("create_code_scanning_alert.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
@@ -339,7 +339,7 @@ describe("create_code_scanning_alert.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/app.js",
             line: 42,
             column: 15,
@@ -347,7 +347,7 @@ describe("create_code_scanning_alert.cjs", () => {
             message: "Security issue with column info",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/utils.js",
             line: 25,
             // No column specified - should default to 1
@@ -374,7 +374,7 @@ describe("create_code_scanning_alert.cjs", () => {
       const invalidFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/valid.js",
             line: 10,
             column: 5,
@@ -382,7 +382,7 @@ describe("create_code_scanning_alert.cjs", () => {
             message: "Valid with column",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid1.js",
             line: 20,
             column: "not-a-number",
@@ -390,7 +390,7 @@ describe("create_code_scanning_alert.cjs", () => {
             message: "Invalid column - not a number",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid2.js",
             line: 30,
             column: 0,
@@ -398,7 +398,7 @@ describe("create_code_scanning_alert.cjs", () => {
             message: "Invalid column - zero",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid3.js",
             line: 40,
             column: -1,
@@ -425,7 +425,7 @@ describe("create_code_scanning_alert.cjs", () => {
       const securityFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/app.js",
             line: 42,
             severity: "error",
@@ -433,7 +433,7 @@ describe("create_code_scanning_alert.cjs", () => {
             ruleIdSuffix: "sql-injection",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/utils.js",
             line: 25,
             severity: "warning",
@@ -441,7 +441,7 @@ describe("create_code_scanning_alert.cjs", () => {
             ruleIdSuffix: "xss-vulnerability",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/config.js",
             line: 10,
             severity: "info",
@@ -471,7 +471,7 @@ describe("create_code_scanning_alert.cjs", () => {
       const invalidFindings = {
         items: [
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/valid.js",
             line: 10,
             severity: "error",
@@ -479,7 +479,7 @@ describe("create_code_scanning_alert.cjs", () => {
             ruleIdSuffix: "valid-rule-id_123",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid1.js",
             line: 20,
             severity: "error",
@@ -487,7 +487,7 @@ describe("create_code_scanning_alert.cjs", () => {
             ruleIdSuffix: "",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid2.js",
             line: 30,
             severity: "error",
@@ -495,7 +495,7 @@ describe("create_code_scanning_alert.cjs", () => {
             ruleIdSuffix: "   ",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid3.js",
             line: 40,
             severity: "error",
@@ -503,7 +503,7 @@ describe("create_code_scanning_alert.cjs", () => {
             ruleIdSuffix: "rule@id!",
           },
           {
-            type: "create-code-scanning-alert",
+            type: "create_code_scanning_alert",
             file: "src/invalid4.js",
             line: 50,
             severity: "error",

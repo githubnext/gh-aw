@@ -108,7 +108,7 @@ async function main() {
   }
 
   // Find all add-comment items
-  const commentItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "add-comment");
+  const commentItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "add_comment");
   if (commentItems.length === 0) {
     core.info("No add-comment items found in agent output");
     return;
