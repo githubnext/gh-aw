@@ -86,9 +86,9 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			t.Error("Settings parameter should not be present without network permissions")
 		}
 
-		// Verify model parameter is present in claude_args
-		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
-			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
+		// Verify model parameter is present (either as command-line arg or env var for Docker Compose)
+		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") && !strings.Contains(stepYAML, "CLAUDE_MODEL: claude-3-5-sonnet-20241022") {
+			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML (either as --model arg or CLAUDE_MODEL env var)")
 		}
 	})
 
@@ -112,14 +112,15 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is present
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
+		// With network permissions, Docker Compose execution is used, so we look for different indicators
+		// Settings are copied to the container, not passed as --settings argument
+		if !strings.Contains(stepYAML, "docker compose") {
 			t.Error("Settings parameter should be present with network permissions")
 		}
 
-		// Verify model parameter is present in claude_args
-		if !strings.Contains(stepYAML, "--model claude-3-5-sonnet-20241022") {
-			t.Error("Expected model 'claude-3-5-sonnet-20241022' in step YAML")
+		// Verify model parameter is present (as env var in Docker Compose mode)
+		if !strings.Contains(stepYAML, "CLAUDE_MODEL: claude-3-5-sonnet-20241022") {
+			t.Error("Expected model 'claude-3-5-sonnet-20241022' as CLAUDE_MODEL env var in step YAML")
 		}
 	})
 
@@ -141,8 +142,8 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(steps[0], "\n")
 
-		// Verify settings parameter is present even with deny-all policy
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
+		// Verify Docker Compose is used even with deny-all policy (network permissions trigger Docker Compose mode)
+		if !strings.Contains(stepYAML, "docker compose") {
 			t.Error("Settings parameter should be present with deny-all network permissions")
 		}
 	})
@@ -208,8 +209,8 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		// Convert steps to string for analysis
 		stepYAML := strings.Join(execSteps[0], "\n")
 
-		// Verify settings is configured
-		if !strings.Contains(stepYAML, "--settings /tmp/gh-aw/.claude/settings.json") {
+		// Verify Docker Compose is used (network permissions trigger Docker Compose mode)
+		if !strings.Contains(stepYAML, "docker compose") {
 			t.Error("Settings parameter should be present")
 		}
 

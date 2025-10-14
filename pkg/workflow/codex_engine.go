@@ -85,6 +85,11 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
 	var steps []GitHubActionStep
 
+	// Check if engine proxy is enabled - if so, use containerized execution
+	if needsProxy, _ := needsEngineProxy(workflowData); needsProxy {
+		return e.getDockerComposeExecutionSteps(workflowData, logFile)
+	}
+
 	// Handle custom steps if they exist in engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
 		for _, step := range workflowData.EngineConfig.Steps {
@@ -169,6 +174,78 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 	steps = append(steps, GitHubActionStep(stepLines))
 
 	return steps
+}
+
+// getDockerComposeExecutionSteps returns execution steps using Docker Compose for containerized agent
+func (e *CodexEngine) getDockerComposeExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
+	var stepLines []string
+
+	stepName := "Run Codex"
+
+	stepLines = append(stepLines, fmt.Sprintf("      - name: %s", stepName))
+	stepLines = append(stepLines, "        id: agentic_execution")
+
+	// Add timeout at step level
+	if workflowData.TimeoutMinutes != "" {
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %s",
+			strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout_minutes: ")))
+	} else {
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", constants.DefaultAgenticWorkflowTimeoutMinutes))
+	}
+
+	// Build the run command
+	stepLines = append(stepLines, "        run: |")
+	stepLines = append(stepLines, "          set -o pipefail")
+	stepLines = append(stepLines, "          set -e")
+	stepLines = append(stepLines, "          # Execute containerized Codex with proxy")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Create necessary directories")
+	stepLines = append(stepLines, "          mkdir -p mcp-config prompts logs safe-outputs")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Copy files to directories that will be mounted")
+	stepLines = append(stepLines, "          cp -r /tmp/gh-aw/mcp-config/* mcp-config/ 2>/dev/null || true")
+	stepLines = append(stepLines, "          cp -r /tmp/gh-aw/aw-prompts/* prompts/ 2>/dev/null || true")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Start Docker Compose services")
+	stepLines = append(stepLines, "          docker compose -f docker-compose-engine.yml up --abort-on-container-exit agent")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Get exit code from agent container")
+	stepLines = append(stepLines, "          AGENT_EXIT_CODE=$(docker compose -f docker-compose-engine.yml ps -q agent | xargs docker inspect -f '{{.State.ExitCode}}')")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Copy logs back from container")
+	stepLines = append(stepLines, "          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/logs/agent-execution.log logs/ || true")
+	stepLines = append(stepLines, "          cp logs/agent-execution.log "+logFile+" 2>/dev/null || true")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Copy Codex logs from container if they exist")
+	stepLines = append(stepLines, "          docker compose -f docker-compose-engine.yml cp agent:/tmp/gh-aw/mcp-config/logs/ logs/ || true")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Cleanup")
+	stepLines = append(stepLines, "          docker compose -f docker-compose-engine.yml down")
+	stepLines = append(stepLines, "          ")
+	stepLines = append(stepLines, "          # Exit with agent's exit code")
+	stepLines = append(stepLines, "          exit $AGENT_EXIT_CODE")
+
+	// Add environment variables
+	stepLines = append(stepLines, "        env:")
+	stepLines = append(stepLines, "          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}")
+	stepLines = append(stepLines, "          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}")
+	stepLines = append(stepLines, "          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt")
+	stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml")
+	stepLines = append(stepLines, "          CODEX_HOME: /tmp/gh-aw/mcp-config")
+	stepLines = append(stepLines, "          RUST_LOG: trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug")
+	stepLines = append(stepLines, "          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}")
+
+	// Add safe outputs env vars
+	applySafeOutputEnvToSlice(&stepLines, workflowData)
+
+	// Add engine-specific environment variables
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
+		for key, value := range workflowData.EngineConfig.Env {
+			stepLines = append(stepLines, fmt.Sprintf("          %s: %s", key, value))
+		}
+	}
+
+	return []GitHubActionStep{GitHubActionStep(stepLines)}
 }
 
 // convertStepToYAML converts a step map to YAML string - uses proper YAML serialization

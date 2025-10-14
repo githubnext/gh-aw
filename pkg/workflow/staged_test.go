@@ -138,6 +138,7 @@ func TestCodexEngineWithStagedFlag(t *testing.T) {
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
 	// Check that GITHUB_AW_SAFE_OUTPUTS_STAGED is included in the env section
+	// Note: Codex engine uses unquoted values for boolean env vars
 	if !strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS_STAGED: true") {
 		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS_STAGED environment variable to be set to true in Codex engine")
 	}
