@@ -144,6 +144,62 @@ The `version` field is optional and allows you to specify the container tag sepa
 
 **Use cases**: Third-party MCP servers, complex dependencies, security isolation
 
+#### Container Arguments and Entrypoint Arguments
+
+For advanced Docker container configurations, you can specify arguments that go before or after the container image:
+
+- **`args`**: Arguments placed **before** the container image (e.g., volume mounts, network settings, resource limits)
+- **`entrypointArgs`**: Arguments placed **after** the container image (e.g., application-specific command-line flags)
+
+This follows the standard Docker CLI pattern: `docker run [args] image:tag [entrypointArgs]`
+
+**Example with volume mounts and application arguments**:
+
+```yaml
+mcp-servers:
+  custom-tool:
+    container: "mcp/custom-tool"
+    version: "v1.0"
+    args:
+      - "-v"
+      - "/host/data:/app/data"
+    entrypointArgs:
+      - "serve"
+      - "--port"
+      - "8080"
+      - "--verbose"
+    allowed: ["*"]
+```
+
+This generates:
+```
+docker run --rm -i -v /host/data:/app/data mcp/custom-tool:v1.0 serve --port 8080 --verbose
+```
+
+**Example with read-only mode** (like the Azure MCP Server):
+
+```yaml
+mcp-servers:
+  azure:
+    container: "mcr.microsoft.com/azure-sdk/azure-mcp"
+    version: "latest"
+    entrypointArgs:
+      - "server"
+      - "start"
+      - "--read-only"
+    env:
+      AZURE_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+      AZURE_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
+      AZURE_CLIENT_SECRET: "${{ secrets.AZURE_CLIENT_SECRET }}"
+    allowed: ["*"]
+```
+
+This generates:
+```
+docker run --rm -i -e AZURE_TENANT_ID -e AZURE_CLIENT_ID -e AZURE_CLIENT_SECRET \
+  mcr.microsoft.com/azure-sdk/azure-mcp:latest server start --read-only
+```
+
 #### Custom Docker Configuration
 
 For advanced use cases, you can configure Docker containers with environment variables and network restrictions:
@@ -169,10 +225,12 @@ This generates a Docker container with environment variables and network egress 
 
 The custom configuration allows you to:
 - Set environment variables with `env:` for authentication and configuration (translates to Docker `-e` flags)
+- Add Docker run arguments with `args:` for volume mounts, network settings, etc.
+- Pass application arguments with `entrypointArgs:` for container-specific command-line flags (see [Container Arguments and Entrypoint Arguments](#container-arguments-and-entrypoint-arguments))
 - Configure network egress controls with `network.allowed:` for security
 - Control which tools are accessible with `allowed:` list
 
-For more advanced Docker customization (volume mounts, working directory, etc.), see the [Network Egress Permissions](#network-egress-permissions) section below.
+For more advanced Docker customization, see the [Container Arguments and Entrypoint Arguments](#container-arguments-and-entrypoint-arguments) and [Network Egress Permissions](#network-egress-permissions) sections.
 
 ### 3. HTTP MCP Servers
 
