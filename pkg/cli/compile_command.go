@@ -569,6 +569,9 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		return
 	}
 
+	// Clear screen before emitting new output in watch mode
+	console.ClearScreen()
+
 	fmt.Fprintln(os.Stderr, "Watching for file changes")
 	if verbose {
 		fmt.Fprintf(os.Stderr, "🔨 Compiling %d modified file(s)...\n", len(files))
