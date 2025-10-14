@@ -126,15 +126,13 @@ The YAML frontmatter supports these fields:
       - Default toolsets (if not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
       - Use `[all]` to enable all available toolsets
       - Example: `toolset: [repos, issues, pull_requests]` or `toolset: [all]`
-  - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection and analysis
-    - Enables AI agents to analyze workflow execution history and improve workflows based on GitHub Actions traces
+  - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
     - Provides tools for:
-      - `status` - Show compilation status and GitHub Actions state of all workflows
-      - `compile` - Compile markdown workflows to YAML programmatically
-      - `logs` - Download and analyze workflow run logs with filtering by date, engine, branch, etc.
-      - `audit` - Investigate specific workflow run failures with detailed diagnostic reports
-    - **Installation**: When enabled, automatically adds a step to install the gh-aw extension: `gh extension install githubnext/gh-aw`
-    - **Use case**: Enable AI agents to monitor workflow health, identify failure patterns, and suggest improvements
+      - `status` - Show status of workflow files in the repository
+      - `compile` - Compile markdown workflows to YAML
+      - `logs` - Download and analyze workflow run logs
+      - `audit` - Investigate workflow run failures and generate reports
+    - **Use case**: Enable AI agents to analyze GitHub Actions traces and improve workflows based on execution history
     - **Example**: Configure with `agentic-workflows: true` or `agentic-workflows:` (no additional configuration needed)
   - `edit:` - File editing tools
   - `web-fetch:` - Web content fetching tools
@@ -836,6 +834,45 @@ safe-outputs:
 
 Respond to /helper-bot mentions with helpful information realted to ${{ github.repository }}. THe request is "${{ needs.activation.outputs.text }}".
 ```
+
+### Workflow Improvement Bot
+```markdown
+---
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Monday 9AM
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+tools:
+  agentic-workflows:
+  github:
+    allowed: [get_workflow_run, list_workflow_runs]
+safe-outputs:
+  create-issue:
+    title-prefix: "[workflow-analysis] "
+    labels: [automation, ci-improvement]
+timeout_minutes: 10
+---
+
+# Workflow Improvement Analyzer
+
+Analyze GitHub Actions workflow runs from the past week and identify improvement opportunities.
+
+Use the agentic-workflows tool to:
+1. Download logs from recent workflow runs using the `logs` command
+2. Audit failed runs using the `audit` command to understand failure patterns
+3. Review workflow status using the `status` command
+
+Create an issue with your findings, including:
+- Common failure patterns across workflows
+- Performance bottlenecks and slow steps
+- Suggestions for optimizing workflow execution time
+- Recommendations for improving reliability
+```
+
+This example demonstrates using the agentic-workflows tool to analyze workflow execution history and provide actionable improvement recommendations.
 
 ## Workflow Monitoring and Analysis
 
