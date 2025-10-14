@@ -83,3 +83,16 @@ Check all workflows in this repository:
 
 ```
 
+## Using as Agentic Workflows Tool
+
+The MCP server is available as a builtin tool called `agentic-workflows` in agentic workflows:
+
+```yaml
+---
+tools:
+  agentic-workflows:  # Enables status, compile, logs, and audit tools
+---
+
+Check workflow status, download recent logs, and audit any failures.
+```
+

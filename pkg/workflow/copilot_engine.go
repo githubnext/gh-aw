@@ -219,6 +219,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast)
+		case "agentic-workflows":
+			e.renderAgenticWorkflowsCopilotMCPConfig(yaml, isLast)
 		case "safe-outputs":
 			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
 		case "web-fetch":
@@ -399,6 +401,24 @@ func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder,
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"\\${GITHUB_AW_SAFE_OUTPUTS}\",\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\"\n")
+	yaml.WriteString("                }\n")
+
+	if isLast {
+		yaml.WriteString("              }\n")
+	} else {
+		yaml.WriteString("              },\n")
+	}
+}
+
+// renderAgenticWorkflowsCopilotMCPConfig generates the Agentic Workflows MCP server configuration for Copilot CLI
+func (e *CopilotEngine) renderAgenticWorkflowsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
+	yaml.WriteString("              \"agentic_workflows\": {\n")
+	yaml.WriteString("                \"type\": \"local\",\n")
+	yaml.WriteString("                \"command\": \"gh\",\n")
+	yaml.WriteString("                \"args\": [\"aw\", \"mcp-server\"],\n")
+	yaml.WriteString("                \"tools\": [\"*\"],\n")
+	yaml.WriteString("                \"env\": {\n")
+	yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_TOKEN}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

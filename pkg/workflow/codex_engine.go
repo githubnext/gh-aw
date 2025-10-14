@@ -226,6 +226,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "playwright":
 			playwrightTool := expandedTools["playwright"]
 			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
+		case "agentic-workflows":
+			e.renderAgenticWorkflowsCodexMCPConfig(yaml)
 		case "safe-outputs":
 			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
 		case "web-fetch":
@@ -622,6 +624,18 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 		yaml.WriteString("          ]\n")
 		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, \"GITHUB_AW_ASSETS_BRANCH\" = \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\", \"GITHUB_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\", \"GITHUB_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
 	}
+}
+
+// renderAgenticWorkflowsCodexMCPConfig generates the Agentic Workflows MCP server configuration for codex config.toml
+func (e *CodexEngine) renderAgenticWorkflowsCodexMCPConfig(yaml *strings.Builder) {
+	yaml.WriteString("          \n")
+	yaml.WriteString("          [mcp_servers.agentic_workflows]\n")
+	yaml.WriteString("          command = \"gh\"\n")
+	yaml.WriteString("          args = [\n")
+	yaml.WriteString("            \"aw\",\n")
+	yaml.WriteString("            \"mcp-server\",\n")
+	yaml.WriteString("          ]\n")
+	yaml.WriteString("          env = { \"GITHUB_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs

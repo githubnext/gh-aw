@@ -17,7 +17,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 
 	// Check for standard MCP tools
 	for toolName, toolValue := range workflowData.Tools {
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			return true
 		}
 		// Check for custom MCP tools
@@ -51,7 +51,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	for toolName, toolValue := range workflowTools {
 		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format
@@ -134,6 +134,23 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// If no MCP tools, no configuration needed
 	if len(mcpTools) == 0 {
 		return
+	}
+
+	// Install gh-aw extension if agentic-workflows tool is enabled
+	hasAgenticWorkflows := false
+	for _, toolName := range mcpTools {
+		if toolName == "agentic-workflows" {
+			hasAgenticWorkflows = true
+			break
+		}
+	}
+
+	if hasAgenticWorkflows {
+		yaml.WriteString("      - name: Install gh-aw extension\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          echo \"Installing gh-aw extension...\"\n")
+		yaml.WriteString("          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw\n")
+		yaml.WriteString("          gh aw --version\n")
 	}
 
 	// Write safe-outputs MCP server if enabled
