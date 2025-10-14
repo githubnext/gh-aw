@@ -2,6 +2,166 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.21.0 - 2025-10-14
+
+### Features
+
+#### Add support for discussion and discussion_comment events in command trigger
+
+The command trigger now recognizes GitHub Discussions events, allowing agentic workflows to respond to `/mention` commands in discussions just like they do for issues and pull requests. This includes support for both `discussion` (when a discussion is created or edited) and `discussion_comment` (when a comment on a discussion is created or edited) events.
+
+#### Add discussion support to add_reaction_and_edit_comment.cjs
+
+The workflow script now supports GitHub Discussions events (`discussion` and `discussion_comment`), enabling agentic workflows to add reactions and comments to discussions. This extends the existing functionality that previously only supported issues and pull requests. The implementation uses GraphQL API for all discussion operations and includes comprehensive test coverage.
+
+#### Add entrypointArgs field to container-type MCP configuration
+
+This adds a new `entrypointArgs` field that allows specifying arguments to be added after the container image in Docker run commands. This provides greater flexibility when configuring containerized MCP servers, following the standard Docker CLI pattern where arguments can be placed before the image (via `args`) or after the image (via `entrypointArgs`).
+
+#### Extract and display premium model information and request consumption from Copilot CLI logs
+
+Enhanced the Copilot log parser to extract and display premium request information from agent stdio logs. Users can now see which AI model was used, whether it requires a premium subscription, any cost multipliers that apply, and how many premium requests were consumed. This information is now surfaced directly in the GitHub Actions step summary, making it easily accessible without needing to download and manually parse log files.
+
+#### Add --json flag to logs command for structured JSON output
+
+Reorganized the logs command to support both JSON and console output formats using the same structured data collection approach. The implementation follows the architecture pattern established by the audit command, with structured data types (LogsData, LogsSummary, RunData) and separate rendering functions for JSON and console output. The MCP server logs tool now also supports the --json flag with jq filtering capabilities.
+
+#### Add support for multiple cache-memory configurations with array notation and optional descriptions
+
+Implemented support for multiple cache-memory configurations with a simplified, unified array-based structure. This feature allows workflows to define multiple caches using array notation, each with a unique ID and optional description. The implementation maintains full backward compatibility with existing single-cache configurations (boolean, nil, or object notation).
+
+Key features:
+- Unified array structure for all cache configurations
+- Support for multiple caches with explicit IDs
+- Optional description field for each cache
+- Backward compatibility with existing workflows
+- Smart path handling for single cache with ID "default"
+- Duplicate ID validation at compile time
+- Import support for shared workflows
+
+#### Reorganize audit command with structured output and JSON support
+
+Added `--json` flag to the audit command for machine-readable output. Enhanced audit reports with comprehensive information including per-job durations, file sizes with descriptions, and improved error/warning categorization. Updated MCP server integration to use JSON output for programmatic access.
+
+Key improvements:
+- New `--json` flag for structured JSON output
+- Per-job duration tracking from GitHub API
+- Enhanced file information with sizes and intelligent descriptions
+- Better error and warning categorization
+- Dual rendering: human-readable console tables or machine-readable JSON
+- MCP server now returns structured JSON instead of console-formatted text
+
+#### Update status command JSON output structure
+
+The status command with --json flag now:
+- Replaces `agent` field with `engine_id` for clarity
+- Removes `frontmatter` and `prompt` fields
+- Adds `on` field from workflow frontmatter to show trigger configuration
+
+#### Add workflow run logs download and extraction to audit/logs commands
+
+The `gh aw logs` and `gh aw audit` commands now automatically download and extract GitHub Actions workflow run logs in addition to artifacts, providing complete audit trail information by including the actual console output from workflow executions. The implementation includes security protection against zip slip vulnerability and graceful error handling for missing or expired logs.
+
+
+### Bug Fixes
+
+#### Add Datadog MCP shared workflow configuration
+
+Adds a new shared Datadog MCP server configuration at `.github/workflows/shared/mcp/datadog.md` that enables agentic workflows to interact with Datadog's observability and monitoring platform. The configuration provides 10 tools for comprehensive Datadog access including monitors, dashboards, metrics, logs, events, and incidents with container-based deployment and multi-region support.
+
+#### Add JSON schema helper for MCP tool outputs
+
+Implements a reusable `GenerateOutputSchema[T]()` helper function that generates JSON schemas from Go structs using `github.com/google/jsonschema-go`. Enhanced MCP tool documentation by inlining schema information in tool descriptions for better LLM discoverability. Added comprehensive unit and integration tests for schema generation.
+
+#### Add Sentry MCP Integration for Agentic Workflows (Read-Only)
+
+Adds comprehensive Sentry MCP integration to enable agentic workflows to interact with Sentry for application monitoring and debugging. The integration provides 14 read-only Sentry tools including organization/project management, release management, issue/event analysis, AI-powered search, and documentation access. Configuration is available as a shared MCP setup at `.github/workflows/shared/mcp/sentry.md` that can be imported into any workflow for safe, non-destructive monitoring operations.
+
+#### Add SST OpenCode shared agentic workflow and smoke test
+
+Added support for SST OpenCode as a custom agentic engine with:
+- Shared workflow configuration at `.github/workflows/shared/opencode.md`
+- Smoke test workflow for validation
+- Test workflow example
+- Documentation for customizing environment variables (agent version and AI model)
+- Simplified 2-step workflow (Install and Run) with direct prompt reading
+
+#### Apply struct-based rendering to status command
+
+Refactored the `status` command to use the struct tag-based console rendering system, following the guidelines in `.github/instructions/console-rendering.instructions.md`. The change reduces code duplication by eliminating manual table construction and improves maintainability by defining column headers once in struct tags. JSON output continues to work exactly as before.
+
+#### Remove bloat from coding-development.md documentation
+
+Cleaned up the coding and development workflows documentation by eliminating repetitive bullet structures and converting 12 bullet points to concise prose descriptions. This change preserves all essential information while reducing the file size by 35% and improving readability.
+
+#### Extract shared engine installation and permission error helpers
+
+Refactors engine-specific implementations to eliminate ~165 lines of duplicated code by extracting shared installation scaffolding and permission error handling into reusable helper functions. Creates `BuildStandardNpmEngineInstallSteps()` and permission error detection helpers, maintaining backward compatibility with no breaking changes.
+
+#### Fix logs command to fetch all runs when date filters are specified
+
+The `logs` command's `--count` parameter was limiting the number of logs downloaded, not the number of matching logs returned after filtering. This caused incomplete results when using date filters like `--start-date -24h`.
+
+Modified the algorithm to always limit downloads inline based on remaining count needed, ensuring the count parameter correctly limits the final output after applying all filters. Also increased the default count from 20 to 100 for better coverage and updated documentation to clarify the behavior.
+
+#### Fix threat detection CLI overflow by using file access instead of inlining agent output
+
+The threat detection job was passing the entire agent output to the detection agent via environment variables, which could cause CLI argument overflow errors when the agent output was large. Modified the threat detection system to use a file-based approach where the agent reads the output file directly using bash tools (cat, head, tail, wc, grep, ls, jq) instead of inlining the full content into the prompt.
+
+#### Fix: Add setup-python dependency for uv tool in workflow compilation
+
+The workflow compiler now correctly adds the required `setup-python` step when the `uv` tool is detected via MCP server configurations. Previously, the runtime detection system would skip all runtime setup when ANY setup action existed in custom steps, causing workflows using `uv` or `uvx` commands to fail.
+
+The fix refactors runtime detection to:
+- Always run runtime detection and process all sources
+- Automatically inject Python as a dependency when uv is detected
+- Selectively filter out only runtimes that already have setup actions, rather than skipping all detection
+
+#### Add GitHub Actions workflow commands error pattern detector
+
+Adds support for detecting common GitHub Actions workflow command error syntax (::error, ::warning, ::notice) across all agentic engines. This improves error detection for GitHub Actions workflows by recognizing standard workflow command formats.
+
+#### Merge "Create prompt" and "Print prompt to step summary" workflow steps
+
+Consolidates the prompt generation workflow by moving the "Print prompt to step summary" step to appear immediately after prompt creation, making the workflow more logical and easier to understand. The functionality remains identical - this is purely a reorganization for better code structure.
+
+#### Fix Copilot MCP configuration tools field population
+
+Updates the `renderGitHubCopilotMCPConfig` function to correctly populate the "tools" field in MCP configuration based on allowed tools from the configuration. Adds helper function `getGitHubAllowedTools` to extract allowed tools and defaults to `["*"]` when no allowed list is specified.
+
+#### Refactor: Extract duplicate safe-output environment setup logic into helper functions
+
+Extracted duplicated safe-output environment setup code from multiple workflow engines and job builders into reusable helper functions in `pkg/workflow/safe_output_helpers.go`. This eliminates ~123 lines of duplicated code across 4 engine implementations and 5 safe-output job builders, improving maintainability and consistency while maintaining 100% backward compatibility.
+
+#### Remove workflow cancellation API calls from compiler
+
+The compiler no longer uses the GitHub Actions cancellation API. Workflow cancellation is now handled through job dependencies and `if` conditions, resulting in a cleaner architecture. This removes the need for `actions: write` permission in the `add_reaction` job and eliminates 125 lines of legacy code.
+
+#### Rename check-membership job to check_membership with constant
+
+Refactored the check-membership job name to use underscores (check_membership) for consistency with Go naming conventions. Introduced CheckMembershipJobName constant in constants.go to centralize the job name and eliminate hardcoded strings throughout the codebase. Updated all references including step IDs, job dependencies, step outputs, tests, and recompiled all workflow files.
+
+#### Add rocket reaction to Q workflow
+
+Changed the Q agentic workflow optimizer to use a rocket emoji (🚀) reaction instead of the default "eyes" (👀) reaction when triggered via `/q` comments. The rocket emoji better represents Q's mission as a workflow optimizer and performance enhancer.
+
+#### Replace channel_id input with GH_AW_SLACK_CHANNEL_ID environment variable in Slack shared workflow
+
+Updates the Slack shared workflow to use a required environment variable `GH_AW_SLACK_CHANNEL_ID` instead of accepting the channel ID as a `channel_id` input parameter. This simplifies the interface and aligns with best practices for configuration management. Workflows using the Slack shared workflow will need to set `GH_AW_SLACK_CHANNEL_ID` as an environment variable or repository variable instead of passing `channel_id` as an input.
+
+#### Refactor logs command to use struct-based console rendering system
+
+Updated the logs command to use the same struct-based rendering approach as the audit command, improving code maintainability and consistency. All data structures now use unified types for both console and JSON output with proper struct tags.
+
+#### Add temporary folder usage instructions to agentic workflow prompts
+
+Agentic workflows now include explicit instructions for AI agents to use `/tmp/gh-aw/agent/` for temporary files instead of the root `/tmp/` directory. This improves file organization and prevents conflicts between workflow runs.
+
+#### Update GitHub Copilot CLI to version 0.0.340 and implement ${} syntax for MCP environment variables
+
+This update upgrades the GitHub Copilot CLI from version 0.0.339 to 0.0.340 and implements the breaking change for MCP server environment variable configuration. The safe-outputs MCP server now uses the new `${VAR}` syntax for environment variable references instead of direct variable names.
+
+
 ## v0.20.0 - 2025-10-12
 
 ### Features
