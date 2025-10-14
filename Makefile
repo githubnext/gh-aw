@@ -174,6 +174,7 @@ install: build
 # Recompile all workflow files
 .PHONY: recompile
 recompile: build 
+	./$(BINARY_NAME) init
 	./$(BINARY_NAME) compile --validate --verbose --purge
 	./$(BINARY_NAME) compile --workflows-dir pkg/cli/workflows --validate --verbose --purge;
 
@@ -223,7 +224,7 @@ help:
 	@echo "  validate-workflows - Validate compiled workflow lock files"
 	@echo "  validate         - Run all validations (fmt-check, lint, validate-workflows)"
 	@echo "  install          - Install binary locally"
-	@echo "  recompile        - Recompile all workflow files (depends on build)"
+	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
 	@echo "  changeset-version   - Preview next version from changesets"
