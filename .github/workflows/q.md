@@ -175,7 +175,7 @@ General optimizations:
 
 ### Phase 5: Validate Changes
 
-**CRITICAL**: Use the gh-aw compiler to validate all changes:
+**CRITICAL**: Use the gh-aw MCP server to validate all changes:
 
 1. **Compile Modified Workflows**:
    ```
@@ -239,7 +239,7 @@ Create a pull request with your improvements using the safe-outputs MCP server:
 
 ### Compilation Rules
 - **Ignore .lock.yml files**: Do NOT modify or track lock files
-- **Validate all changes**: Use gh-aw compile tool before PR
+- **Validate all changes**: Use the `compile` tool from gh-aw MCP server before PR
 - **Let automation handle compilation**: Lock files will be generated post-merge
 - **Focus on source**: Only modify .md workflow files
 
@@ -308,7 +308,7 @@ Your pull request description should include:
 
 ## Validation
 
-All modified workflows compiled successfully with `gh aw compile`:
+All modified workflows compiled successfully using the `compile` tool from gh-aw MCP server:
 - ✅ [workflow-1]
 - ✅ [workflow-2]
 - ✅ [workflow-N]
@@ -328,7 +328,7 @@ A successful Q mission:
 - ✅ Uses live data from gh-aw logs and audits (no fabricated data)
 - ✅ Identifies specific issues with evidence from logs
 - ✅ Makes minimal, targeted improvements to workflows
-- ✅ Validates all changes with gh-aw compiler
+- ✅ Validates all changes using the `compile` tool from gh-aw MCP server
 - ✅ Creates PR with only .md files (no .lock.yml files)
 - ✅ Provides clear documentation of changes and rationale
 - ✅ Follows security best practices
