@@ -225,9 +225,10 @@ func TestBuildSafeJobs(t *testing.T) {
 		t.Errorf("Expected needs %v, got %v", expectedNeeds, job.Needs)
 	}
 
-	// Check if condition
-	if job.If != "github.event.issue.number" {
-		t.Errorf("Expected if condition to be 'github.event.issue.number', got %s", job.If)
+	// Check if condition - should now combine safe output type check with user condition
+	expectedIf := "((always()) && (contains(needs.agent.outputs.output_types, 'deploy'))) && (github.event.issue.number)"
+	if job.If != expectedIf {
+		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
 
 	// Check runs-on
@@ -281,6 +282,57 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 	jobs := c.jobManager.GetAllJobs()
 	if len(jobs) != 0 {
 		t.Errorf("Expected no jobs to be created, got %d", len(jobs))
+	}
+}
+
+func TestBuildSafeJobsWithoutCustomIfCondition(t *testing.T) {
+	c := NewCompiler(false, "", "test")
+
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			Jobs: map[string]*SafeJobConfig{
+				"notify": {
+					RunsOn: "ubuntu-latest",
+					// No custom 'if' condition
+					Inputs: map[string]*SafeJobInput{
+						"message": {
+							Description: "Message to send",
+							Required:    true,
+							Type:        "string",
+						},
+					},
+					Steps: []any{
+						map[string]any{
+							"name": "Send notification",
+							"run":  "echo 'Sending notification'",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	err := c.buildSafeJobs(workflowData, false)
+	if err != nil {
+		t.Fatalf("Unexpected error building safe jobs: %v", err)
+	}
+
+	jobs := c.jobManager.GetAllJobs()
+	if len(jobs) != 1 {
+		t.Fatalf("Expected 1 job to be created, got %d", len(jobs))
+	}
+
+	var job *Job
+	for _, j := range jobs {
+		job = j
+		break
+	}
+
+	// Check if condition - should only have safe output type check (no custom condition)
+	expectedIf := "(always()) && (contains(needs.agent.outputs.output_types, 'notify'))"
+	if job.If != expectedIf {
+		t.Errorf("Expected if condition to be '%s', got '%s'", expectedIf, job.If)
 	}
 }
 

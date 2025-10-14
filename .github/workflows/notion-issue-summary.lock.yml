@@ -2934,6 +2934,7 @@ jobs:
 
   notion-add-comment:
     needs: agent
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'notion-add-comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
