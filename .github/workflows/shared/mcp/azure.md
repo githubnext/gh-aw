@@ -1,18 +1,9 @@
 ---
 mcp-servers:
   azure:
-    command: "docker"
-    args:
-      - "run"
-      - "--rm"
-      - "-i"
-      - "-e"
-      - "AZURE_TENANT_ID"
-      - "-e"
-      - "AZURE_CLIENT_ID"
-      - "-e"
-      - "AZURE_CLIENT_SECRET"
-      - "mcr.microsoft.com/azure-sdk/azure-mcp:latest"
+    container: "mcr.microsoft.com/azure-sdk/azure-mcp"
+    version: "latest"
+    entrypointArgs:
       - "server"
       - "start"
       - "--read-only"
