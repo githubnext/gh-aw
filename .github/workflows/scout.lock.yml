@@ -1678,6 +1678,7 @@ jobs:
           
       - name: Setup MCPs
         env:
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":1},\"missing-tool\":{}}"
         run: |
@@ -1737,7 +1738,7 @@ jobs:
                   "-i",
                   "--rm",
                   "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "-e",
                   "GITHUB_TOOLSETS=all",
                   "ghcr.io/github/github-mcp-server:v0.18.0"
@@ -1797,7 +1798,10 @@ jobs:
                   "list_releases",
                   "list_starred_repositories",
                   "list_sub_issues"
-                ]
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+                }
               },
               "microsoftdocs": {
                 "type": "http",

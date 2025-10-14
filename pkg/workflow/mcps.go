@@ -161,16 +161,34 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
-	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		if safeOutputConfig != "" {
-			// Add environment variables for JSONL validation
-			yaml.WriteString("        env:\n")
-			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-			if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
-				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
-				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
+
+	// Check if we need to add environment variables
+	needsEnv := HasSafeOutputsEnabled(workflowData.SafeOutputs) || hasGitHubTool(tools)
+
+	if needsEnv {
+		yaml.WriteString("        env:\n")
+
+		// Add GITHUB_PERSONAL_ACCESS_TOKEN for GitHub MCP server
+		if hasGitHubTool(tools) {
+			githubTool := tools["github"]
+			customGitHubToken := getGitHubToken(githubTool)
+			if customGitHubToken != "" {
+				fmt.Fprintf(yaml, "          GITHUB_PERSONAL_ACCESS_TOKEN: %s\n", customGitHubToken)
+			} else {
+				yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+			}
+		}
+
+		// Add safe outputs environment variables
+		if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
+			if safeOutputConfig != "" {
+				fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
+				fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
+				if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
+					fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
+					fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
+					fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
+				}
 			}
 		}
 	}
@@ -190,6 +208,12 @@ func getGitHubDockerImageVersion(githubTool any) string {
 		}
 	}
 	return githubDockerImageVersion
+}
+
+// hasGitHubTool checks if the tools map contains a GitHub tool
+func hasGitHubTool(tools map[string]any) bool {
+	_, exists := tools["github"]
+	return exists
 }
 
 // getGitHubType extracts the mode from GitHub tool configuration (local or remote)

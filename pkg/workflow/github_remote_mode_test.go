@@ -216,9 +216,20 @@ This is a test workflow for GitHub remote mode configuration.
 					if tt.expectedURL != "" && !strings.Contains(lockContent, tt.expectedURL) {
 						t.Errorf("Expected URL %s but didn't find it in:\n%s", tt.expectedURL, lockContent)
 					}
-					if tt.expectedToken != "" {
-						if !strings.Contains(lockContent, `"Authorization": "Bearer `+tt.expectedToken) {
-							t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
+					// For Copilot engine, check for new ${} syntax
+					if tt.engineType == "copilot" {
+						if !strings.Contains(lockContent, `"Authorization": "Bearer \${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
+							t.Errorf("Expected Authorization header with ${GITHUB_PERSONAL_ACCESS_TOKEN} syntax but didn't find it in:\n%s", lockContent)
+						}
+						if !strings.Contains(lockContent, `"GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"`) {
+							t.Errorf("Expected env section with GITHUB_PERSONAL_ACCESS_TOKEN passthrough but didn't find it in:\n%s", lockContent)
+						}
+					} else {
+						// For other engines, check for old GitHub Actions expression syntax
+						if tt.expectedToken != "" {
+							if !strings.Contains(lockContent, `"Authorization": "Bearer `+tt.expectedToken) {
+								t.Errorf("Expected Authorization header with token %s but didn't find it in:\n%s", tt.expectedToken, lockContent)
+							}
 						}
 					}
 					// Check for X-MCP-Readonly header if this is a read-only test
