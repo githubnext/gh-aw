@@ -126,6 +126,16 @@ The YAML frontmatter supports these fields:
       - Default toolsets (if not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
       - Use `[all]` to enable all available toolsets
       - Example: `toolset: [repos, issues, pull_requests]` or `toolset: [all]`
+  - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection and analysis
+    - Enables AI agents to analyze workflow execution history and improve workflows based on GitHub Actions traces
+    - Provides tools for:
+      - `status` - Show compilation status and GitHub Actions state of all workflows
+      - `compile` - Compile markdown workflows to YAML programmatically
+      - `logs` - Download and analyze workflow run logs with filtering by date, engine, branch, etc.
+      - `audit` - Investigate specific workflow run failures with detailed diagnostic reports
+    - **Installation**: When enabled, automatically adds a step to install the gh-aw extension: `gh extension install githubnext/gh-aw`
+    - **Use case**: Enable AI agents to monitor workflow health, identify failure patterns, and suggest improvements
+    - **Example**: Configure with `agentic-workflows: true` or `agentic-workflows:` (no additional configuration needed)
   - `edit:` - File editing tools
   - `web-fetch:` - Web content fetching tools
   - `web-search:` - Web search tools

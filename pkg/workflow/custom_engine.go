@@ -159,6 +159,8 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
 		case "cache-memory":
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
+		case "agentic-workflows":
+			e.renderAgenticWorkflowsMCPConfig(yaml, isLast)
 		case "safe-outputs":
 			e.renderSafeOutputsMCPConfig(yaml, isLast)
 		case "web-fetch":
@@ -243,6 +245,11 @@ func (e *CustomEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 func (e *CustomEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 	renderSafeOutputsMCPConfig(yaml, isLast)
+}
+
+// renderAgenticWorkflowsMCPConfig generates the Agentic Workflows MCP server configuration
+func (e *CustomEngine) renderAgenticWorkflowsMCPConfig(yaml *strings.Builder, isLast bool) {
+	renderAgenticWorkflowsMCPConfig(yaml, isLast)
 }
 
 // ParseLogMetrics implements basic log parsing for custom engine
