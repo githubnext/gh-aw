@@ -37,6 +37,18 @@ You are a conversational chat agent that interacts with the user to design secur
 - Common safe outputs: `create-issue`, `add-comment`, `create-pull-request`, `update-issue`
 - Let consuming workflows decide which safe outputs to enable
 
+**Process Agent Output in Safe Jobs**
+- Define `inputs:` to specify the MCP tool signature (schema for each item)
+- Safe jobs read the list of safe output entries from `GITHUB_AW_AGENT_OUTPUT` environment variable
+- Agent output is a JSON file with an `items` array containing typed entries
+- Each entry in the items array has fields matching the defined inputs
+- The `type` field must match the job name with dashes converted to underscores (e.g., job `notion-add-comment` → type `notion_add_comment`)
+- Filter items by `type` field to find relevant entries (e.g., `item.type === 'notion_add_comment'`)
+- Support staged mode by checking `GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true'`
+- In staged mode, preview the action in step summary instead of executing it
+- Process all matching items in a loop, not just the first one
+- Validate required fields on each item before processing
+
 **Documentation**
 - Place documentation as a XML comment in the markdown body
 - Avoid adding comments to the front matter itself
@@ -116,6 +128,132 @@ mcp-servers:
       # - "update_document"
       # - "delete_document"
 ```
+
+### Safe Job with Agent Output Processing
+
+Safe jobs should process structured output from the agent instead of using direct inputs. This pattern:
+- Allows the agent to generate multiple actions in a single run
+- Provides type safety through the `type` field
+- Supports staged/preview mode for testing
+- Enables flexible output schemas per action type
+
+**Important**: The `inputs:` section defines the MCP tool signature (what fields each item must have), but the job reads multiple items from `GITHUB_AW_AGENT_OUTPUT` and processes them in a loop.
+
+**Example: Processing Agent Output for External API**
+```yaml
+safe-outputs:
+  jobs:
+    custom-action:
+      description: "Process custom action from agent output"
+      runs-on: ubuntu-latest
+      output: "Action processed successfully!"
+      inputs:
+        field1:
+          description: "First required field"
+          required: true
+          type: string
+        field2:
+          description: "Optional second field"
+          required: false
+          type: string
+      permissions:
+        contents: read
+      steps:
+        - name: Process agent output
+          uses: actions/github-script@v8
+          env:
+            API_TOKEN: "${{ secrets.API_TOKEN }}"
+          with:
+            script: |
+              const fs = require('fs');
+              const apiToken = process.env.API_TOKEN;
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              
+              // Validate required environment variables
+              if (!apiToken) {
+                core.setFailed('API_TOKEN secret is not configured');
+                return;
+              }
+              
+              // Read and parse agent output
+              if (!outputContent) {
+                core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+                return;
+              }
+              
+              let agentOutputData;
+              try {
+                const fileContent = fs.readFileSync(outputContent, 'utf8');
+                agentOutputData = JSON.parse(fileContent);
+              } catch (error) {
+                core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              
+              if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
+                core.info('No valid items found in agent output');
+                return;
+              }
+              
+              // Filter for specific action type
+              const actionItems = agentOutputData.items.filter(item => item.type === 'custom_action');
+              
+              if (actionItems.length === 0) {
+                core.info('No custom_action items found in agent output');
+                return;
+              }
+              
+              core.info(`Found ${actionItems.length} custom_action item(s)`);
+              
+              // Process each action item
+              for (let i = 0; i < actionItems.length; i++) {
+                const item = actionItems[i];
+                const { field1, field2 } = item;
+                
+                // Validate required fields
+                if (!field1) {
+                  core.warning(`Item ${i + 1}: Missing field1, skipping`);
+                  continue;
+                }
+                
+                // Handle staged mode
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Action Preview\n\n";
+                  summaryContent += "The following action would be executed if staged mode was disabled:\n\n";
+                  summaryContent += `**Field1:** ${field1}\n\n`;
+                  summaryContent += `**Field2:** ${field2 || 'N/A'}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Action preview written to step summary");
+                  continue;
+                }
+                
+                // Execute the actual action
+                core.info(`Processing action ${i + 1}/${actionItems.length}`);
+                try {
+                  // Your API call or action here
+                  core.info(`✅ Action ${i + 1} processed successfully`);
+                } catch (error) {
+                  core.setFailed(`Failed to process action ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+```
+
+**Key Pattern Elements:**
+1. **Read agent output**: `fs.readFileSync(process.env.GITHUB_AW_AGENT_OUTPUT, 'utf8')`
+2. **Parse JSON**: `JSON.parse(fileContent)` with error handling
+3. **Validate structure**: Check for `items` array
+4. **Filter by type**: `items.filter(item => item.type === 'your_action_type')` where `your_action_type` is the job name with dashes converted to underscores
+5. **Loop through items**: Process all matching items, not just the first
+6. **Validate fields**: Check required fields on each item
+7. **Support staged mode**: Preview instead of execute when `GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true'`
+8. **Error handling**: Use `core.setFailed()` for fatal errors, `core.warning()` for skippable issues
+
+**Important**: The `type` field in agent output must match the job name with dashes converted to underscores. For example:
+- Job name: `notion-add-comment` → Type: `notion_add_comment`
+- Job name: `post-to-slack-channel` → Type: `post_to_slack_channel`
+- Job name: `custom-action` → Type: `custom_action`
 
 ## Creating Shared Components
 
