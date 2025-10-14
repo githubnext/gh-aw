@@ -552,13 +552,13 @@ This is a test workflow for backward compatibility.
 
 func TestCompilationSummary(t *testing.T) {
 	tests := []struct {
-		name            string
-		setupWorkflows  func(string) error
-		workflowIDs     []string
-		expectError     bool
-		expectedTotal   int
-		expectedErrors  int
-		hasWarnings     bool
+		name           string
+		setupWorkflows func(string) error
+		workflowIDs    []string
+		expectError    bool
+		expectedTotal  int
+		expectedErrors int
+		hasWarnings    bool
 	}{
 		{
 			name: "summary with successful compilation",
