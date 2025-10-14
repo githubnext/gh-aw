@@ -219,8 +219,8 @@ func TestBuildSafeJobs(t *testing.T) {
 		t.Errorf("Expected job name to be 'deploy', got %s", job.Name)
 	}
 
-	// Check dependencies - should include main job and any additional needs
-	expectedNeeds := []string{"main_job"}
+	// Check dependencies - should include agent job and any additional needs
+	expectedNeeds := []string{"agent"}
 	if len(job.Needs) != len(expectedNeeds) {
 		t.Errorf("Expected needs %v, got %v", expectedNeeds, job.Needs)
 	}
