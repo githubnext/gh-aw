@@ -2666,6 +2666,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add safe outputs prompt as separate step if enabled
 	c.generateSafeOutputsPromptStep(yaml, data.SafeOutputs)
 
+	// Add GitHub context prompt as separate step if GitHub tool is enabled
+	c.generateGitHubContextPromptStep(yaml, data)
+
 	// Add PR context prompt as separate step if enabled
 	c.generatePRContextPromptStep(yaml, data)
 

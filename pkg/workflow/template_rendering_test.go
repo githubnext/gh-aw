@@ -107,6 +107,11 @@ Normal content here.
 }
 
 func TestTemplateRenderingStepSkipped(t *testing.T) {
+	// NOTE: This test is now less relevant because GitHub tools are added by default,
+	// which means GitHub context (with template conditionals) is always added.
+	// However, we keep this test to verify that template rendering behaves correctly
+	// even when the user's markdown doesn't have conditionals.
+
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "template-rendering-skip-test")
 	if err != nil {
@@ -114,14 +119,15 @@ func TestTemplateRenderingStepSkipped(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Test case WITHOUT conditional blocks
+	// Test case WITHOUT conditional blocks in user's markdown
+	// Note: GitHub tools are added by default, so GitHub context will still be added
 	testContent := `---
 on: issues
 permissions:
   contents: read
 tools:
-  github:
-    allowed: [list_issues]
+  edit:
+  web-fetch:
 engine: claude
 ---
 
@@ -152,8 +158,70 @@ Normal content without conditionals.
 
 	compiledStr := string(compiledYAML)
 
-	// Verify the template rendering step is NOT present
-	if strings.Contains(compiledStr, "- name: Render template conditionals") {
-		t.Error("Compiled workflow should NOT contain template rendering step when no conditionals present")
+	// Verify the template rendering step IS present (because GitHub tool is added by default)
+	if !strings.Contains(compiledStr, "- name: Render template conditionals") {
+		t.Error("Compiled workflow should contain template rendering step because GitHub tool is added by default")
+	}
+
+	// Verify the GitHub context was added
+	if !strings.Contains(compiledStr, "- name: Append GitHub context to prompt") {
+		t.Error("Compiled workflow should contain GitHub context step because GitHub tool is added by default")
+	}
+}
+
+func TestTemplateRenderingStepWithGitHubTool(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "template-rendering-github-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case WITHOUT conditional blocks in markdown but WITH GitHub tool
+	testContent := `---
+on: issues
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [list_issues]
+engine: claude
+---
+
+# Test With GitHub Tool
+
+Normal content without conditionals in markdown.
+`
+
+	testFile := filepath.Join(tmpDir, "test-github-tool.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the compiled workflow
+	lockFile := strings.TrimSuffix(testFile, ".md") + ".lock.yml"
+	compiledYAML, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+
+	compiledStr := string(compiledYAML)
+
+	// Verify the template rendering step IS present (because GitHub tool adds conditionals)
+	if !strings.Contains(compiledStr, "- name: Render template conditionals") {
+		t.Error("Compiled workflow should contain template rendering step when GitHub tool is enabled")
+	}
+
+	// Verify the GitHub context was added
+	if !strings.Contains(compiledStr, "- name: Append GitHub context to prompt") {
+		t.Error("Compiled workflow should contain GitHub context step when GitHub tool is enabled")
 	}
 }
