@@ -506,8 +506,7 @@ jobs:
             }
             async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
               const discussion = await getDiscussionId(owner, repo, discussionNumber);
-              if (!discussion)
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              if (!discussion) throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
               const nodeId = context.payload?.comment?.node_id;
               if (nodeId) {
                 return {
