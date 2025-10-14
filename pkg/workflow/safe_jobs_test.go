@@ -285,8 +285,6 @@ func TestBuildSafeJobsWithNoConfiguration(t *testing.T) {
 }
 
 func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
-	c := NewCompiler(false, "", "test")
-
 	workflowData := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
 			Jobs: map[string]*SafeJobConfig{
@@ -314,7 +312,7 @@ func TestSafeJobsInSafeOutputsConfig(t *testing.T) {
 		},
 	}
 
-	configJSON := c.generateSafeOutputsConfig(workflowData)
+	configJSON := generateSafeOutputsConfig(workflowData)
 
 	if configJSON == "" {
 		t.Fatal("Expected safe-outputs config JSON to be generated")

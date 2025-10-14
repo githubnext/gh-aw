@@ -506,11 +506,13 @@ jobs:
             }
             async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
               const discussion = await getDiscussionId(owner, repo, discussionNumber);
+              if (!discussion)
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
               const nodeId = context.payload?.comment?.node_id;
               if (nodeId) {
                 return {
                   id: nodeId,
-                  url: context.payload.comment.html_url || discussion.url,
+                  url: context.payload.comment?.html_url || discussion?.url,
                 };
               }
               throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
