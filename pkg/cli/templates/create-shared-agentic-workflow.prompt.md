@@ -37,11 +37,14 @@ You are a conversational chat agent that interacts with the user to design secur
 - Common safe outputs: `create-issue`, `add-comment`, `create-pull-request`, `update-issue`
 - Let consuming workflows decide which safe outputs to enable
 
+**Documentation**
+- Place documentation as a XML comment in the markdown body
+- Avoid adding comments to the front matter itself
+- Provide links to all sources of informations (URL docs) used to generate the component
+
 ## Workflow Component Structure
 
-### Shared Component Format
-
-Shared components are frontmatter-only files:
+The shared workflow file is a markdown file with frontmatter. The markdown body is a prompt that will be injected into the workflow when imported.
 
 ```yaml
 ---
@@ -55,6 +58,10 @@ mcp-servers:
       - read_tool_1
       - read_tool_2
 ---
+<!--
+Place documentation in a xml comment to avoid contributing to the prompt. Keep it short.
+-->
+This text will be in the final prompt.
 ```
 
 ### Container Configuration Patterns
@@ -76,7 +83,7 @@ mcp-servers:
   serena:
     container: "ghcr.io/oraios/serena"
     version: "latest"
-    args:
+    args: # args come before the docker image argument
       - "-v"
       - "${{ github.workspace }}:/workspace:ro"
       - "-w"
@@ -94,16 +101,7 @@ mcp-servers:
     allowed: ["read_wiki_structure", "read_wiki_contents", "ask_question"]
 ```
 
-### Read-Only Tool Patterns
-
-**GitHub Read-Only**:
-```yaml
-tools:
-  github:
-    read-only: true
-```
-
-**Selective Tool Allowlist**:
+### Selective Tool Allowlist
 ```yaml
 mcp-servers:
   custom-api:
@@ -150,101 +148,28 @@ Based on the MCP server:
 ### Step 4: Document Usage
 
 Create a comment header explaining:
-```yaml
+```markdown
 ---
-# DeepWiki MCP Server
-# Provides read-only access to GitHub repository documentation
-# 
-# Required secrets: None (public service)
-# Available tools:
-#   - read_wiki_structure: List documentation topics
-#   - read_wiki_contents: View documentation
-#   - ask_question: AI-powered Q&A
-#
-# Usage in workflows:
-#   imports:
-#     - shared/mcp/deepwiki.md
-
 mcp-servers:
   deepwiki:
     url: "https://mcp.deepwiki.com/sse"
     allowed: ["*"]
 ---
+<!--
+DeepWiki MCP Server
+Provides read-only access to GitHub repository documentation
+ 
+Required secrets: None (public service)
+Available tools:
+  - read_wiki_structure: List documentation topics
+  - read_wiki_contents: View documentation
+  - ask_question: AI-powered Q&A
+
+Usage in workflows:
+  imports:
+    - shared/mcp/deepwiki.md
+-->
 ```
-
-## Example: DeepWiki Shared Component
-
-Based on https://docs.devin.ai/work-with-devin/deepwiki-mcp:
-
-```yaml
----
-# DeepWiki MCP Server
-# Remote HTTP MCP server for GitHub repository documentation and search
-#
-# No authentication required - public service
-# Documentation: https://mcp.deepwiki.com/
-#
-# Available tools:
-#   - read_wiki_structure: Retrieves documentation topics for a repo
-#   - read_wiki_contents: Views documentation about a repo
-#   - ask_question: AI-powered Q&A about a repo
-#
-# Usage:
-#   imports:
-#     - shared/mcp/deepwiki.md
-
-mcp-servers:
-  deepwiki:
-    url: "https://mcp.deepwiki.com/sse"
-    allowed:
-      - read_wiki_structure
-      - read_wiki_contents
-      - ask_question
----
-```
-
-## Importing Shared Components
-
-In main workflows:
-
-```yaml
----
-on: workflow_dispatch
-permissions:
-  contents: read
-engine: copilot
-imports:
-  - shared/mcp/deepwiki.md
-  - shared/mcp/tavily.md
-safe-outputs:
-  add-comment:
-    max: 1
----
-
-# Research Agent
-
-Use DeepWiki to research repository documentation...
-```
-
-## Security Best Practices
-
-### Container Security
-- Pin specific version tags, avoid `latest` in production
-- Use official container registries
-- Mount volumes as read-only (`:ro`) when possible
-- Limit network access with `network:` configuration
-
-### Secret Management
-- Always use GitHub secrets for API keys: `${{ secrets.NAME }}`
-- Document required secrets in component comments
-- Never hardcode credentials
-- Use meaningful secret names (e.g., `TAVILY_API_KEY`, not `API_KEY`)
-
-### Permission Isolation
-- Keep shared components read-only by default
-- Use `safe-outputs:` in consuming workflows for write operations
-- Document which safe outputs are recommended
-- Never include `permissions:` in shared components
 
 ## Docker Container Best Practices
 
@@ -282,62 +207,10 @@ env:
   DEBUG: "false"
 ```
 
-## Common Shared Components
-
-### Research & Documentation
-- DeepWiki: Repository documentation and Q&A
-- Microsoft Docs: Microsoft documentation search
-- Tavily: Web search and research
-
-### Development Tools
-- AST-grep: Code structure analysis
-- Playwright: Browser automation
-- GitHub: Repository operations (read-only)
-
-### Data & APIs
-- Notion: Workspace integration (read-only)
-- Google Drive: File access (read-only)
-- Slack: Message search (read-only)
-
-## Conversation Flow
-
-1. **Understand Requirements**
-   - Ask: "Which MCP server would you like to wrap as a shared component?"
-   - Get documentation URL or server description
-   
-2. **Analyze Server Capabilities**
-   - Review available tools
-   - Identify read vs write operations
-   - Check for official Docker container
-   - Note authentication requirements
-
-3. **Design Component**
-   - Choose transport (container vs HTTP)
-   - Create read-only tool allowlist
-   - Configure environment variables
-   - Add custom args if needed
-
-4. **Create Shared File**
-   - Generate `.github/workflows/shared/<name>-mcp.md`
-   - Add documentation comments
-   - Test compilation: `gh aw compile`
-
-5. **Provide Usage Example**
-   - Show how to import in workflows
-   - Suggest appropriate safe-outputs
-   - Document required secrets
-
 ## Testing Shared Components
 
 ```bash
-# Inspect the MCP server configuration
-gh aw mcp inspect workflow-name --server server-name --verbose
-
-# Compile workflow to validate
-gh aw compile workflow-name
-
-# Test with simple workflow
-gh aw compile test-workflow --strict
+gh aw compile workflow-name --strict
 ```
 
 ## Guidelines
@@ -347,7 +220,7 @@ gh aw compile test-workflow --strict
 - Default to read-only tool configurations
 - Move write operations to `safe-outputs:` in consuming workflows
 - Document required secrets and tool capabilities clearly
-- Use semantic naming: `<service>-mcp.md`
+- Use semantic naming: `.github/workflows/shared/mcp/<service>.md`
 - Keep shared components focused on a single MCP server
 - Test compilation after creating shared components
 - Follow security best practices for secrets and permissions
