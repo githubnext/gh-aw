@@ -94,54 +94,7 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 	return nil
 }
 
-// validateDockerImage checks if a Docker image exists and is accessible
-func validateDockerImage(image string) error {
-	// Check if docker is available
-	_, err := exec.LookPath("docker")
-	if err != nil {
-		return fmt.Errorf("docker command not found - cannot validate container image '%s'. Install docker or disable validation", image)
-	}
-
-	// Try to inspect the image (will succeed if image exists locally)
-	cmd := exec.Command("docker", "image", "inspect", image)
-	output, err := cmd.CombinedOutput()
-
-	if err == nil {
-		// Image exists locally
-		_ = output // Suppress unused variable warning
-		return nil
-	}
-
-	// Image doesn't exist locally, try to pull it
-	pullCmd := exec.Command("docker", "pull", image)
-	pullOutput, pullErr := pullCmd.CombinedOutput()
-
-	if pullErr != nil {
-		outputStr := strings.TrimSpace(string(pullOutput))
-
-		// Check if the error is due to authentication issues for existing private repositories
-		// We need to distinguish between:
-		// 1. "repository does not exist" - should fail validation
-		// 2. "authentication required" for existing repos - should pass (private repo)
-		if (strings.Contains(outputStr, "denied") ||
-			strings.Contains(outputStr, "unauthorized") ||
-			strings.Contains(outputStr, "authentication required")) &&
-			!strings.Contains(outputStr, "does not exist") &&
-			!strings.Contains(outputStr, "not found") {
-			// This is likely a private image that requires authentication
-			// Don't fail validation for private/authenticated images
-			return nil
-		}
-
-		// Other errors indicate the image truly doesn't exist or has issues
-		return fmt.Errorf("container image '%s' not found and could not be pulled: %s", image, outputStr)
-	}
-
-	// Successfully pulled
-	return nil
-}
-
-// validateRuntimePackages validates that packages required by npx and uv are available
+// validateRuntimePackages validates that packages required by npx, pip, and uv are available
 func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 	// Detect runtime requirements
 	requirements := DetectRuntimeRequirements(workflowData)
@@ -152,6 +105,11 @@ func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 		case "node":
 			// Validate npx packages used in the workflow
 			if err := c.validateNpxPackages(workflowData); err != nil {
+				errors = append(errors, err.Error())
+			}
+		case "python":
+			// Validate pip packages used in the workflow
+			if err := c.validatePipPackages(workflowData); err != nil {
 				errors = append(errors, err.Error())
 			}
 		case "uv":
@@ -197,6 +155,48 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 
 	if len(errors) > 0 {
 		return fmt.Errorf("npx package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
+	}
+
+	return nil
+}
+
+// validatePipPackages validates that pip packages are available on PyPI
+func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
+	packages := extractPipPackages(workflowData)
+	if len(packages) == 0 {
+		return nil
+	}
+
+	// Check if pip is available
+	_, err := exec.LookPath("pip")
+	if err != nil {
+		// Try pip3 as fallback
+		_, err3 := exec.LookPath("pip3")
+		if err3 != nil {
+			return fmt.Errorf("pip command not found - cannot validate pip packages. Install Python/pip or disable validation")
+		}
+	}
+
+	pipCmd := "pip"
+	if _, err := exec.LookPath("pip"); err != nil {
+		pipCmd = "pip3"
+	}
+
+	var errors []string
+	for _, pkg := range packages {
+		// Use pip index to check if package exists on PyPI
+		cmd := exec.Command(pipCmd, "index", "versions", pkg)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("pip package '%s' not found on PyPI: %s", pkg, strings.TrimSpace(string(output))))
+		} else if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ pip package validated: %s", pkg)))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("pip package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 	}
 
 	return nil
@@ -348,6 +348,75 @@ func extractNpxFromCommands(commands string) []string {
 				// Remove any shell operators
 				pkg = strings.TrimRight(pkg, "&|;")
 				packages = append(packages, pkg)
+			}
+		}
+	}
+
+	return packages
+}
+
+// extractPipPackages extracts pip package names from workflow data
+func extractPipPackages(workflowData *WorkflowData) []string {
+	var packages []string
+	seen := make(map[string]bool)
+
+	// Extract from custom steps
+	if workflowData.CustomSteps != "" {
+		pkgs := extractPipFromCommands(workflowData.CustomSteps)
+		for _, pkg := range pkgs {
+			if !seen[pkg] {
+				packages = append(packages, pkg)
+				seen[pkg] = true
+			}
+		}
+	}
+
+	// Extract from engine steps
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
+		for _, step := range workflowData.EngineConfig.Steps {
+			if run, hasRun := step["run"]; hasRun {
+				if runStr, ok := run.(string); ok {
+					pkgs := extractPipFromCommands(runStr)
+					for _, pkg := range pkgs {
+						if !seen[pkg] {
+							packages = append(packages, pkg)
+							seen[pkg] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return packages
+}
+
+// extractPipFromCommands extracts pip package names from command strings
+func extractPipFromCommands(commands string) []string {
+	var packages []string
+	lines := strings.Split(commands, "\n")
+
+	for _, line := range lines {
+		// Look for "pip install <package>" or "pip3 install <package>" patterns
+		words := strings.Fields(line)
+		for i, word := range words {
+			if (word == "pip" || word == "pip3") && i+1 < len(words) {
+				// Look for install command
+				for j := i + 1; j < len(words); j++ {
+					if words[j] == "install" {
+						// Skip flags and find the first package name
+						for k := j + 1; k < len(words); k++ {
+							pkg := words[k]
+							pkg = strings.TrimRight(pkg, "&|;")
+							// Skip flags (start with - or --)
+							if !strings.HasPrefix(pkg, "-") {
+								packages = append(packages, pkg)
+								break
+							}
+						}
+						break
+					}
+				}
 			}
 		}
 	}

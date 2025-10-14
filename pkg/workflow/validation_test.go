@@ -189,6 +189,124 @@ func TestExtractNpxPackages(t *testing.T) {
 	}
 }
 
+func TestExtractPipPackages(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		expected     []string
+	}{
+		{
+			name: "no pip packages",
+			workflowData: &WorkflowData{
+				CustomSteps: "echo hello",
+			},
+			expected: []string{},
+		},
+		{
+			name: "pip install command",
+			workflowData: &WorkflowData{
+				CustomSteps: "pip install pytest",
+			},
+			expected: []string{"pytest"},
+		},
+		{
+			name: "pip3 install command",
+			workflowData: &WorkflowData{
+				CustomSteps: "pip3 install requests",
+			},
+			expected: []string{"requests"},
+		},
+		{
+			name: "pip install with flags",
+			workflowData: &WorkflowData{
+				CustomSteps: "pip install --upgrade setuptools",
+			},
+			expected: []string{"setuptools"},
+		},
+		{
+			name: "multiple pip packages",
+			workflowData: &WorkflowData{
+				CustomSteps: "pip install pytest && pip3 install requests",
+			},
+			expected: []string{"pytest", "requests"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			packages := extractPipPackages(tt.workflowData)
+
+			if len(packages) != len(tt.expected) {
+				t.Errorf("expected %d packages, got %d: %v", len(tt.expected), len(packages), packages)
+				return
+			}
+
+			// Check that all expected packages are present (order doesn't matter)
+			expectedMap := make(map[string]bool)
+			for _, pkg := range tt.expected {
+				expectedMap[pkg] = true
+			}
+
+			for _, pkg := range packages {
+				if !expectedMap[pkg] {
+					t.Errorf("unexpected package: %s", pkg)
+				}
+			}
+		})
+	}
+}
+
+func TestExtractPipFromCommands(t *testing.T) {
+	tests := []struct {
+		name     string
+		commands string
+		expected []string
+	}{
+		{
+			name:     "no pip",
+			commands: "echo hello",
+			expected: []string{},
+		},
+		{
+			name:     "single pip install",
+			commands: "pip install package-name",
+			expected: []string{"package-name"},
+		},
+		{
+			name:     "pip3 install",
+			commands: "pip3 install package-name",
+			expected: []string{"package-name"},
+		},
+		{
+			name:     "pip install with flags",
+			commands: "pip install --upgrade package-name",
+			expected: []string{"package-name"},
+		},
+		{
+			name:     "multiple pip commands",
+			commands: "pip install pkg1 && pip3 install pkg2",
+			expected: []string{"pkg1", "pkg2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			packages := extractPipFromCommands(tt.commands)
+
+			if len(packages) != len(tt.expected) {
+				t.Errorf("expected %d packages, got %d: %v", len(tt.expected), len(packages), packages)
+				return
+			}
+
+			for i, pkg := range packages {
+				if pkg != tt.expected[i] {
+					t.Errorf("expected package[%d] = %s, got %s", i, tt.expected[i], pkg)
+				}
+			}
+		})
+	}
+}
+
 func TestExtractUvPackages(t *testing.T) {
 	tests := []struct {
 		name         string
