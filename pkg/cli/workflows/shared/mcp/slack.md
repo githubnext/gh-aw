@@ -54,15 +54,15 @@ safe-outputs:
                 return;
               }
               
-              // Filter for slack_message items
-              const slackMessageItems = agentOutputData.items.filter(item => item.type === 'slack_message');
+              // Filter for post_to_slack_channel items
+              const slackMessageItems = agentOutputData.items.filter(item => item.type === 'post_to_slack_channel');
               
               if (slackMessageItems.length === 0) {
-                core.info('No slack_message items found in agent output');
+                core.info('No post_to_slack_channel items found in agent output');
                 return;
               }
               
-              core.info(`Found ${slackMessageItems.length} slack_message item(s)`);
+              core.info(`Found ${slackMessageItems.length} post_to_slack_channel item(s)`);
               
               // Process each message item
               for (let i = 0; i < slackMessageItems.length; i++) {
@@ -145,13 +145,13 @@ The `post-to-slack-channel` safe-job allows agentic workflows to post messages t
 
 **Agent Output Format:**
 
-The agent should output JSON with items of type `slack_message`:
+The agent should output JSON with items of type `post_to_slack_channel`:
 
 ```json
 {
   "items": [
     {
-      "type": "slack_message",
+      "type": "post_to_slack_channel",
       "message": "Your message here (max 200 characters)"
     }
   ]
@@ -180,7 +180,7 @@ The message supports basic Slack markdown syntax:
 **Example Usage in Workflow:**
 
 ```
-Please post a summary using the slack_message output type.
+Please post a summary using the post_to_slack_channel output type.
 Keep the message under 200 characters.
 ```
 
