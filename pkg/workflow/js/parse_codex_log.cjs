@@ -278,12 +278,12 @@ function estimateTokens(text) {
  */
 function formatDuration(ms) {
   if (!ms || ms <= 0) return "";
-  
+
   const seconds = Math.round(ms / 1000);
   if (seconds < 60) {
     return `${seconds}s`;
   }
-  
+
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   if (remainingSeconds === 0) {
@@ -304,13 +304,13 @@ function formatDuration(ms) {
 function formatCodexToolCall(server, toolName, params, response, statusIcon) {
   // Calculate token estimate from params + response
   const totalTokens = estimateTokens(params) + estimateTokens(response);
-  
+
   // Format metadata
   let metadata = "";
   if (totalTokens > 0) {
     metadata = ` \`~${totalTokens}t\``;
   }
-  
+
   const summary = `${statusIcon} <code>${server}::${toolName}</code>${metadata}`;
 
   // If no response, just show the summary
@@ -351,13 +351,13 @@ function formatCodexToolCall(server, toolName, params, response, statusIcon) {
 function formatCodexBashCall(command, response, statusIcon) {
   // Calculate token estimate from command + response
   const totalTokens = estimateTokens(command) + estimateTokens(response);
-  
+
   // Format metadata
   let metadata = "";
   if (totalTokens > 0) {
     metadata = ` \`~${totalTokens}t\``;
   }
-  
+
   const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>${metadata}`;
 
   // If no response, just show the summary
@@ -400,10 +400,10 @@ function truncateString(str, maxLength) {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { 
-    parseCodexLog, 
-    formatCodexToolCall, 
-    formatCodexBashCall, 
+  module.exports = {
+    parseCodexLog,
+    formatCodexToolCall,
+    formatCodexBashCall,
     truncateString,
     estimateTokens,
     formatDuration,

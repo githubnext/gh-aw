@@ -2424,8 +2424,30 @@ jobs:
                 return "## 🤖 Commands and Tools\n\nError parsing log content.\n\n## 🤖 Reasoning\n\nUnable to parse reasoning from log.\n\n";
               }
             }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function formatDuration(ms) {
+              if (!ms || ms <= 0) return "";
+              const seconds = Math.round(ms / 1000);
+              if (seconds < 60) {
+                return `${seconds}s`;
+              }
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              if (remainingSeconds === 0) {
+                return `${minutes}m`;
+              }
+              return `${minutes}m ${remainingSeconds}s`;
+            }
             function formatCodexToolCall(server, toolName, params, response, statusIcon) {
-              const summary = `${statusIcon} <code>${server}::${toolName}</code>`;
+              const totalTokens = estimateTokens(params) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = ` \`~${totalTokens}t\``;
+              }
+              const summary = `${statusIcon} <code>${server}::${toolName}</code>${metadata}`;
               if (!response || response.trim() === "") {
                 return `${summary}\n\n`;
               }
@@ -2445,7 +2467,12 @@ jobs:
               return `<details>\n<summary>${summary}</summary>\n\n${details}\n</details>\n\n`;
             }
             function formatCodexBashCall(command, response, statusIcon) {
-              const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>`;
+              const totalTokens = estimateTokens(command) + estimateTokens(response);
+              let metadata = "";
+              if (totalTokens > 0) {
+                metadata = ` \`~${totalTokens}t\``;
+              }
+              const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>${metadata}`;
               if (!response || response.trim() === "") {
                 return `${summary}\n\n`;
               }
@@ -2468,7 +2495,14 @@ jobs:
               return str.substring(0, maxLength) + "...";
             }
             if (typeof module !== "undefined" && module.exports) {
-              module.exports = { parseCodexLog, formatCodexToolCall, formatCodexBashCall, truncateString };
+              module.exports = {
+                parseCodexLog,
+                formatCodexToolCall,
+                formatCodexBashCall,
+                truncateString,
+                estimateTokens,
+                formatDuration,
+              };
             }
             main();
       - name: Upload Agent Stdio

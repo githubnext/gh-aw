@@ -501,7 +501,7 @@ npm warn exec The following package was not found
 
       // Summary should contain the tool description and command
       expect(result.markdown).toContain("List files: <code>ls -la</code>");
-      
+
       // Should contain token estimate
       expect(result.markdown).toMatch(/~\d+t/);
 
@@ -547,7 +547,7 @@ npm warn exec The following package was not found
 
       // Should contain token estimate with ~Xt format
       expect(result.markdown).toMatch(/~\d+t/);
-      
+
       // Should contain the MCP tool name
       expect(result.markdown).toContain("github::create_issue");
     });
@@ -589,7 +589,7 @@ npm warn exec The following package was not found
 
       // Should contain duration in seconds (2500ms rounds to 3s)
       expect(result.markdown).toMatch(/`\d+s`/);
-      
+
       // Should also contain token estimate
       expect(result.markdown).toMatch(/~\d+t/);
     });

@@ -726,12 +726,12 @@ function estimateTokens(text) {
  */
 function formatDuration(ms) {
   if (!ms || ms <= 0) return "";
-  
+
   const seconds = Math.round(ms / 1000);
   if (seconds < 60) {
     return `${seconds}s`;
   }
-  
+
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   if (remainingSeconds === 0) {
@@ -775,12 +775,12 @@ function formatToolUseWithDetails(toolUse, toolResult) {
       details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
     }
   }
-  
+
   // Calculate token estimate from input + output
   const inputText = JSON.stringify(input);
   const outputText = details;
   const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
-  
+
   // Format metadata (duration and tokens)
   let metadata = "";
   if (toolResult && toolResult.duration_ms) {
