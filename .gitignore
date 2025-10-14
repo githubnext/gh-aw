@@ -54,6 +54,11 @@ logs/
 node_modules/
 gh-aw-test/
 
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
 pkg/cli/workflows/*.yml
 .github/workflows/test-update.md
 .github/workflows/test-update.lock.yml
