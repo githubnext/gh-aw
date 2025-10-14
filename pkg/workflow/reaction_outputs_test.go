@@ -70,7 +70,7 @@ This workflow should generate add_reaction job with comment outputs.
 		}
 	}
 
-	// Verify the outputs reference the react step
+	// Verify the outputs reference the react step - now in activation job
 	if !strings.Contains(yamlContent, "steps.react.outputs.reaction-id") {
 		t.Error("Generated YAML should contain reaction-id output reference")
 	}
@@ -79,6 +79,11 @@ This workflow should generate add_reaction job with comment outputs.
 	}
 	if !strings.Contains(yamlContent, "steps.react.outputs.comment-url") {
 		t.Error("Generated YAML should contain comment-url output reference")
+	}
+	
+	// Verify reaction step is in activation job, not a separate add_reaction job
+	if strings.Contains(yamlContent, "add_reaction:") {
+		t.Error("Generated YAML should not contain separate add_reaction job")
 	}
 }
 
@@ -128,9 +133,9 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	// Check that GITHUB_AW_WORKFLOW_NAME is set in the add_reaction job
+	// Check that GITHUB_AW_WORKFLOW_NAME is set
 	if !strings.Contains(yamlContent, "GITHUB_AW_WORKFLOW_NAME:") {
-		t.Error("Generated YAML should contain GITHUB_AW_WORKFLOW_NAME environment variable in add_reaction job")
+		t.Error("Generated YAML should contain GITHUB_AW_WORKFLOW_NAME environment variable")
 	}
 
 	// Verify the workflow name is correctly set
@@ -138,27 +143,32 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 		t.Error("Generated YAML should contain the correct workflow name value")
 	}
 
-	// Ensure it's in the add_reaction job section
-	// Find the add_reaction job section
-	reactionJobStart := strings.Index(yamlContent, "add_reaction:")
-	if reactionJobStart == -1 {
-		t.Fatal("Could not find add_reaction job in generated YAML")
+	// Ensure it's in the activation job section (not a separate add_reaction job)
+	// Find the activation job section
+	activationJobStart := strings.Index(yamlContent, "activation:")
+	if activationJobStart == -1 {
+		t.Fatal("Could not find activation job in generated YAML")
 	}
 
 	// Find the next job or end of file
 	nextJobStart := len(yamlContent)
-	lines := strings.Split(yamlContent[reactionJobStart:], "\n")
+	lines := strings.Split(yamlContent[activationJobStart:], "\n")
 	for i, line := range lines[1:] {
 		if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
-			nextJobStart = reactionJobStart + strings.Index(yamlContent[reactionJobStart:], lines[i+1])
+			nextJobStart = activationJobStart + strings.Index(yamlContent[activationJobStart:], lines[i+1])
 			break
 		}
 	}
 
-	reactionJobSection := yamlContent[reactionJobStart:nextJobStart]
+	activationJobSection := yamlContent[activationJobStart:nextJobStart]
 
-	// Verify GITHUB_AW_WORKFLOW_NAME is in the add_reaction job section
-	if !strings.Contains(reactionJobSection, "GITHUB_AW_WORKFLOW_NAME:") {
-		t.Errorf("GITHUB_AW_WORKFLOW_NAME should be in the add_reaction job section\n%s", reactionJobSection)
+	// Verify GITHUB_AW_WORKFLOW_NAME is in the activation job section
+	if !strings.Contains(activationJobSection, "GITHUB_AW_WORKFLOW_NAME:") {
+		t.Errorf("GITHUB_AW_WORKFLOW_NAME should be in the activation job section\n%s", activationJobSection)
+	}
+	
+	// Verify no separate add_reaction job exists
+	if strings.Contains(yamlContent, "add_reaction:") {
+		t.Error("Generated YAML should not contain separate add_reaction job")
 	}
 }

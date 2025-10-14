@@ -2597,7 +2597,6 @@ Test workflow with reaction.
 
 	// Check for reaction-specific content in generated YAML
 	expectedStrings := []string{
-		"add_reaction:",
 		"GITHUB_AW_REACTION: eyes",
 		"uses: actions/github-script@v8",
 	}
@@ -2608,10 +2607,21 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify four jobs are created (check_membership, activation, add_reaction, main) - check_membership and activation jobs are now created for permission checks
+	// Verify three jobs are created (check_membership, activation, main) - reaction step is now in activation job
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
-	if jobCount != 4 {
-		t.Errorf("Expected 4 jobs (check_membership, activation, add_reaction, main), found %d", jobCount)
+	if jobCount != 3 {
+		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
+	}
+	
+	// Verify reaction step is in activation job, not a separate job
+	if strings.Contains(yamlContent, "add_reaction:") {
+		t.Error("Generated YAML should not contain separate add_reaction job")
+	}
+	
+	// Verify reaction step is in activation job
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if !strings.Contains(activationJobSection, "Add eyes reaction to the triggering item") {
+		t.Error("Activation job should contain the reaction step")
 	}
 }
 
@@ -2669,7 +2679,6 @@ Test workflow without explicit reaction (should not create reaction action).
 
 	// Check that reaction-specific content is NOT in generated YAML
 	unexpectedStrings := []string{
-		"add_reaction:",
 		"GITHUB_AW_REACTION:",
 		"Add eyes reaction to the triggering item",
 	}
@@ -2680,7 +2689,7 @@ Test workflow without explicit reaction (should not create reaction action).
 		}
 	}
 
-	// Verify three jobs are created (check_membership, activation, main) - check_membership and activation jobs are now created for permission checks
+	// Verify three jobs are created (check_membership, activation, main) - no separate add_reaction job
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 3 {
 		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
@@ -2742,7 +2751,6 @@ Test workflow with reaction and comment editing.
 
 	// Check for enhanced reaction functionality in generated YAML
 	expectedStrings := []string{
-		"add_reaction:",
 		"GITHUB_AW_REACTION: eyes",
 		"uses: actions/github-script@v8",
 		"addOrEditCommentWithWorkflowLink", // This should be in the new script
@@ -2764,6 +2772,17 @@ Test workflow with reaction and comment editing.
 	// Verify the script handles different event types appropriately
 	if !strings.Contains(yamlContent, "issue_comment") {
 		t.Error("Generated YAML should reference issue_comment event handling")
+	}
+	
+	// Verify reaction step is in activation job, not a separate job
+	if strings.Contains(yamlContent, "add_reaction:") {
+		t.Error("Generated YAML should not contain separate add_reaction job")
+	}
+	
+	// Verify reaction step is in activation job
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if !strings.Contains(activationJobSection, "Add eyes reaction to the triggering item") {
+		t.Error("Activation job should contain the reaction step")
 	}
 }
 
@@ -2908,9 +2927,15 @@ Test command workflow that should automatically get "eyes" reaction.
 		t.Error("Generated YAML should contain command environment variable")
 	}
 
-	// Verify reaction job is created
-	if !strings.Contains(yamlContent, "add_reaction:") {
-		t.Error("Generated YAML should contain add_reaction job")
+	// Verify reaction step is in activation job, not a separate job
+	if strings.Contains(yamlContent, "add_reaction:") {
+		t.Error("Generated YAML should not contain separate add_reaction job")
+	}
+	
+	// Verify reaction step is in activation job
+	activationJobSection := extractJobSection(yamlContent, "activation")
+	if !strings.Contains(activationJobSection, "Add eyes reaction to the triggering item") {
+		t.Error("Activation job should contain the reaction step")
 	}
 }
 
@@ -5713,4 +5738,34 @@ tools:
 			}
 		})
 	}
+}
+
+// extractJobSection extracts a specific job section from the YAML content
+func extractJobSection(yamlContent, jobName string) string {
+	lines := strings.Split(yamlContent, "\n")
+	var jobLines []string
+	inJob := false
+	jobPrefix := "  " + jobName + ":"
+
+	for i, line := range lines {
+		if strings.HasPrefix(line, jobPrefix) {
+			inJob = true
+			jobLines = append(jobLines, line)
+			continue
+		}
+
+		if inJob {
+			// If we hit another job at the same level (starts with "  " and ends with ":"), stop
+			if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
+				break
+			}
+			// If we hit the end of jobs section, stop
+			if strings.HasPrefix(line, "jobs:") && i > 0 {
+				break
+			}
+			jobLines = append(jobLines, line)
+		}
+	}
+
+	return strings.Join(jobLines, "\n")
 }

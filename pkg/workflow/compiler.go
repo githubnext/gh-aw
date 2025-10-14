@@ -1747,17 +1747,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 		activationJobCreated = true
 	}
 
-	// Build add_reaction job only if ai-reaction is configured
-	if data.AIReaction != "" {
-		addReactionJob, err := c.buildAddReactionJob(data, activationJobCreated, frontmatter)
-		if err != nil {
-			return fmt.Errorf("failed to build add_reaction job: %w", err)
-		}
-		if err := c.jobManager.AddJob(addReactionJob); err != nil {
-			return fmt.Errorf("failed to add add_reaction job: %w", err)
-		}
-	}
-
 	// Build stop-time check job if stop-time is configured
 	if data.StopTime != "" {
 		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
@@ -2054,6 +2043,36 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		outputs["text"] = "${{ steps.compute-text.outputs.text }}"
 	}
 
+	// Add reaction step if ai-reaction is configured
+	if data.AIReaction != "" {
+		reactionCondition := buildReactionCondition()
+		
+		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
+		steps = append(steps, "        id: react\n")
+		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
+		steps = append(steps, "        uses: actions/github-script@v8\n")
+
+		// Add environment variables
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_REACTION: %s\n", data.AIReaction))
+		if data.Command != "" {
+			steps = append(steps, fmt.Sprintf("          GITHUB_AW_COMMAND: %s\n", data.Command))
+		}
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
+
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add each line of the script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(addReactionAndEditCommentScript)
+		steps = append(steps, formattedScript...)
+
+		// Add reaction outputs
+		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
+		outputs["comment_id"] = "${{ steps.react.outputs.comment-id }}"
+		outputs["comment_url"] = "${{ steps.react.outputs.comment-url }}"
+	}
+
 	// If no steps have been added, add a dummy step to make the job valid
 	// This can happen when the activation job is created only for an if condition
 	if len(steps) == 0 {
@@ -2083,8 +2102,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		activationCondition = data.If
 	}
 
-	// No special permissions needed since role checks are handled by separate job
+	// Set permissions - add reaction permissions if reaction is configured
 	var permissions string
+	if data.AIReaction != "" {
+		permissions = "permissions:\n      discussions: write\n      issues: write\n      pull-requests: write"
+	}
 
 	job := &Job{
 		Name:        constants.ActivationJobName,
