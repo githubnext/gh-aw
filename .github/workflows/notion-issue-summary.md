@@ -17,10 +17,6 @@ strict: true
 
 Analyze the issue and create a brief summary, then add it as a comment to the Notion page.
 
-<issue_content>
-${{ needs.activation.outputs.text }}
-</issue_content>
-
 ## Instructions
 
 1. Read and analyze the issue content
