@@ -10,14 +10,14 @@ import (
 )
 
 func TestActivationAndAddReactionJobsPermissions(t *testing.T) {
-	// Test that activation and add_reaction jobs do not have contents permissions and checkout steps
+	// Test that activation job has correct permissions when reaction is configured
 	tmpDir, err := os.MkdirTemp("", "permissions-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create a test workflow with both activation job and add_reaction job
+	// Create a test workflow with reaction configured (reaction step is now in activation job)
 	testContent := `---
 on:
   issues:
@@ -31,7 +31,7 @@ engine: claude
 
 # Test Workflow for Task and Add Reaction
 
-This workflow should generate both activation and add_reaction jobs without contents permissions.
+This workflow should generate activation job with reaction permissions.
 
 The activation job references text output: "${{ needs.activation.outputs.text }}"
 `
@@ -60,7 +60,7 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 
 	lockContentStr := string(lockContent)
 
-	// Test 1: Verify activation job exists and has no contents permission
+	// Test 1: Verify activation job exists and has reaction permissions
 	if !strings.Contains(lockContentStr, constants.ActivationJobName+":") {
 		t.Error("Expected activation job to be present in generated workflow")
 	}
@@ -76,60 +76,24 @@ The activation job references text output: "${{ needs.activation.outputs.text }}
 		t.Error("Activation job should not have contents permission")
 	}
 
-	// Test 4: Verify add_reaction job exists and has no contents permission
-	if !strings.Contains(lockContentStr, "add_reaction:") {
-		t.Error("Expected add_reaction job to be present in generated workflow")
+	// Test 4: Verify no separate add_reaction job exists
+	if strings.Contains(lockContentStr, "add_reaction:") {
+		t.Error("Expected no separate add_reaction job - reaction should be in activation job")
 	}
 
-	// Test 5: Verify add_reaction job has no checkout step
-	addReactionJobSection := extractJobSection(lockContentStr, "add_reaction")
-	if strings.Contains(addReactionJobSection, "actions/checkout") {
-		t.Error("Add_reaction job should not contain actions/checkout step")
+	// Test 5: Verify activation job has required permissions for reactions
+	if !strings.Contains(activationJobSection, "discussions: write") {
+		t.Error("Activation job should have discussions: write permission")
+	}
+	if !strings.Contains(activationJobSection, "issues: write") {
+		t.Error("Activation job should have issues: write permission")
+	}
+	if !strings.Contains(activationJobSection, "pull-requests: write") {
+		t.Error("Activation job should have pull-requests: write permission")
 	}
 
-	// Test 6: Verify add_reaction job has no contents permission
-	if strings.Contains(addReactionJobSection, "contents:") {
-		t.Error("Add_reaction job should not have contents permission")
+	// Test 6: Verify reaction step is in activation job
+	if !strings.Contains(activationJobSection, "Add eyes reaction to the triggering item") {
+		t.Error("Activation job should contain the reaction step")
 	}
-
-	// Test 7: Verify add_reaction job still has required permissions
-	if !strings.Contains(addReactionJobSection, "discussions: write") {
-		t.Error("Add_reaction job should have discussions: write permission")
-	}
-	if !strings.Contains(addReactionJobSection, "issues: write") {
-		t.Error("Add_reaction job should still have issues: write permission")
-	}
-	if !strings.Contains(addReactionJobSection, "pull-requests: write") {
-		t.Error("Add_reaction job should still have pull-requests: write permission")
-	}
-}
-
-// extractJobSection extracts a specific job section from the YAML content
-func extractJobSection(yamlContent, jobName string) string {
-	lines := strings.Split(yamlContent, "\n")
-	var jobLines []string
-	inJob := false
-	jobPrefix := "  " + jobName + ":"
-
-	for i, line := range lines {
-		if strings.HasPrefix(line, jobPrefix) {
-			inJob = true
-			jobLines = append(jobLines, line)
-			continue
-		}
-
-		if inJob {
-			// If we hit another job at the same level (starts with "  " and ends with ":"), stop
-			if strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") && !strings.HasPrefix(line, "    ") {
-				break
-			}
-			// If we hit the end of jobs section, stop
-			if strings.HasPrefix(line, "jobs:") && i > 0 {
-				break
-			}
-			jobLines = append(jobLines, line)
-		}
-	}
-
-	return strings.Join(jobLines, "\n")
 }
