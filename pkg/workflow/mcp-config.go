@@ -429,18 +429,19 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 
 	// Validate known properties - fail if unknown properties are found
 	knownProperties := map[string]bool{
-		"type":       true,
-		"command":    true,
-		"container":  true,
-		"version":    true,
-		"args":       true,
-		"env":        true,
-		"proxy-args": true,
-		"url":        true,
-		"headers":    true,
-		"registry":   true,
-		"allowed":    true,
-		"network":    true,
+		"type":           true,
+		"command":        true,
+		"container":      true,
+		"version":        true,
+		"args":           true,
+		"entrypointArgs": true,
+		"env":            true,
+		"proxy-args":     true,
+		"url":            true,
+		"headers":        true,
+		"registry":       true,
+		"allowed":        true,
+		"network":        true,
 	}
 
 	for key := range toolConfig {
@@ -490,6 +491,9 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 		if args, hasArgs := config.GetStringArray("args"); hasArgs {
 			result.Args = args
 		}
+		if entrypointArgs, hasEntrypointArgs := config.GetStringArray("entrypointArgs"); hasEntrypointArgs {
+			result.EntrypointArgs = entrypointArgs
+		}
 		if env, hasEnv := config.GetStringMap("env"); hasEnv {
 			result.Env = env
 		}
@@ -518,6 +522,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 	if result.Type == "stdio" && result.Container != "" {
 		// Save user-provided args before transforming
 		userProvidedArgs := result.Args
+		entrypointArgs := result.EntrypointArgs
 
 		// Transform container field to docker command and args
 		result.Command = "docker"
@@ -544,12 +549,18 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.MCPServer
 			containerImage = containerImage + ":" + result.Version
 		}
 
-		// Add the container image as the last argument
+		// Add the container image
 		result.Args = append(result.Args, containerImage)
 
-		// Clear the container and version fields since they're now part of the command
+		// Add entrypoint args after the container image
+		if len(entrypointArgs) > 0 {
+			result.Args = append(result.Args, entrypointArgs...)
+		}
+
+		// Clear the container, version, and entrypointArgs fields since they're now part of the command
 		result.Container = ""
 		result.Version = ""
+		result.EntrypointArgs = nil
 	}
 
 	return result, nil
