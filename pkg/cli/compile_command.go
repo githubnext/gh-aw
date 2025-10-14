@@ -288,7 +288,8 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 		workflowDataList = append(workflowDataList, workflowData)
 
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
-			// Error already printed by CompileWorkflowWithValidation
+			// Print the error to stderr (errors from CompileWorkflow are already formatted)
+			fmt.Fprintln(os.Stderr, err.Error())
 			errorCount++
 			stats.Errors++
 			continue
