@@ -133,7 +133,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 					},
 				},
 			},
-			expectedInConfig: []string{"create-discussion"},
+			expectedInConfig: []string{"create_discussion"},
 		},
 		{
 			name: "create-pull-request-review-comment config",
@@ -144,7 +144,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 					},
 				},
 			},
-			expectedInConfig: []string{"create-pull-request-review-comment"},
+			expectedInConfig: []string{"create_pull_request_review_comment"},
 		},
 		{
 			name: "create-code-scanning-alert config",
@@ -153,7 +153,7 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 					"create-code-scanning-alert": map[string]any{},
 				},
 			},
-			expectedInConfig: []string{"create-code-scanning-alert"},
+			expectedInConfig: []string{"create_code_scanning_alert"},
 		},
 		{
 			name: "multiple safe outputs including previously missing ones",
@@ -167,11 +167,11 @@ func TestSafeOutputsConfigGeneration(t *testing.T) {
 				},
 			},
 			expectedInConfig: []string{
-				"create-issue",
-				"create-discussion",
-				"create-pull-request-review-comment",
-				"create-code-scanning-alert",
-				"add-comment",
+				"create_issue",
+				"create_discussion",
+				"create_pull_request_review_comment",
+				"create_code_scanning_alert",
+				"add_comment",
 			},
 		},
 		{

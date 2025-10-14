@@ -84,7 +84,7 @@ func (c *Compiler) buildCreateOutputAddCommentJob(data *WorkflowData, mainJobNam
 		"comment_url": "${{ steps.add_comment.outputs.comment_url }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("add-comment", data.SafeOutputs.AddComments.Min)
+	var jobCondition = BuildSafeOutputType("add_comment", data.SafeOutputs.AddComments.Min)
 	if data.SafeOutputs.AddComments != nil && data.SafeOutputs.AddComments.Target == "" {
 		eventCondition := buildOr(
 			buildOr(

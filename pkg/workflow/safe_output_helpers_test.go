@@ -262,7 +262,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"upload-asset\\\":{}}\"",
+				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"upload_asset\\\":{}}\"",
 				"GITHUB_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
 				"GITHUB_AW_ASSETS_MAX_SIZE_KB":  "10240",
 				"GITHUB_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",

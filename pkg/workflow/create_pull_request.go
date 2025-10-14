@@ -102,7 +102,7 @@ func (c *Compiler) buildCreateOutputPullRequestJob(data *WorkflowData, mainJobNa
 		"fallback_used":       "${{ steps.create_pull_request.outputs.fallback_used }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create-pull-request", data.SafeOutputs.CreatePullRequests.Min)
+	jobCondition := BuildSafeOutputType("create_pull_request", data.SafeOutputs.CreatePullRequests.Min)
 
 	job := &Job{
 		Name:           "create_pull_request",

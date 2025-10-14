@@ -122,7 +122,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		"issue_url":    "${{ steps.create_issue.outputs.issue_url }}",
 	}
 
-	jobCondition := BuildSafeOutputType("create-issue", data.SafeOutputs.CreateIssues.Min)
+	jobCondition := BuildSafeOutputType("create_issue", data.SafeOutputs.CreateIssues.Min)
 
 	// Set base permissions
 	permissions := "permissions:\n      contents: read\n      issues: write"
