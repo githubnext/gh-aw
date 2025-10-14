@@ -248,6 +248,28 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 	return nil, fmt.Errorf("no engine found matching prefix: %s", prefix)
 }
 
+// GenerateSecretValidationStep creates a GitHub Actions step that validates required secrets are available
+// secretName: the name of the secret to validate (e.g., "ANTHROPIC_API_KEY")
+// engineName: the display name of the engine (e.g., "Claude Code")
+// docsURL: URL to the documentation page for setting up the secret
+func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHubActionStep {
+	stepLines := []string{
+		fmt.Sprintf("      - name: Validate %s secret", secretName),
+		"        run: |",
+		fmt.Sprintf("          if [ -z \"$%s\" ]; then", secretName),
+		fmt.Sprintf("            echo \"Error: %s secret is not set\"", secretName),
+		fmt.Sprintf("            echo \"The %s engine requires the %s secret to be configured.\"", engineName, secretName),
+		"            echo \"Please configure this secret in your repository settings.\"",
+		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
+		"            exit 1",
+		"          fi",
+		fmt.Sprintf("          echo \"%s secret is configured\"", secretName),
+		"        env:",
+		fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName),
+	}
+	return GitHubActionStep(stepLines)
+}
+
 // GetAllEngines returns all registered engines
 func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
 	var engines []CodingAgentEngine

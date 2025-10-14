@@ -38,6 +38,14 @@ func NewClaudeEngine() *ClaudeEngine {
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
 
+	// Add secret validation step
+	secretValidation := GenerateSecretValidationStep(
+		"ANTHROPIC_API_KEY",
+		"Claude Code",
+		"https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
+	)
+	steps = append(steps, secretValidation)
+
 	// Use shared helper for standard npm installation
 	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@anthropic-ai/claude-code",

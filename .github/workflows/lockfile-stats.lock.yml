@@ -208,6 +208,18 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Validate ANTHROPIC_API_KEY secret
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: ANTHROPIC_API_KEY secret is not set"
+            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            exit 1
+          fi
+          echo "ANTHROPIC_API_KEY secret is configured"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -3141,6 +3153,18 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
+      - name: Validate ANTHROPIC_API_KEY secret
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: ANTHROPIC_API_KEY secret is not set"
+            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
+            exit 1
+          fi
+          echo "ANTHROPIC_API_KEY secret is configured"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

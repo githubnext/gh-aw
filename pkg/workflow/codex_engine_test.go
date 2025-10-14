@@ -31,22 +31,29 @@ func TestCodexEngine(t *testing.T) {
 
 	// Test installation steps
 	steps := engine.GetInstallationSteps(&WorkflowData{})
-	expectedStepCount := 2 // Node.js setup + Install Codex
+	expectedStepCount := 3 // Secret validation + Node.js setup + Install Codex
 	if len(steps) != expectedStepCount {
 		t.Errorf("Expected %d installation steps, got %d", expectedStepCount, len(steps))
 	}
 
-	// Verify first step is Node.js setup
+	// Verify first step is secret validation
 	if len(steps) > 0 && len(steps[0]) > 0 {
-		if !strings.Contains(steps[0][0], "Setup Node.js") {
-			t.Errorf("Expected first step to contain 'Setup Node.js', got '%s'", steps[0][0])
+		if !strings.Contains(steps[0][0], "Validate CODEX_API_KEY or OPENAI_API_KEY secret") {
+			t.Errorf("Expected first step to contain 'Validate CODEX_API_KEY or OPENAI_API_KEY secret', got '%s'", steps[0][0])
 		}
 	}
 
-	// Verify second step is Install Codex
+	// Verify second step is Node.js setup
 	if len(steps) > 1 && len(steps[1]) > 0 {
-		if !strings.Contains(steps[1][0], "Install Codex") {
-			t.Errorf("Expected second step to contain 'Install Codex', got '%s'", steps[1][0])
+		if !strings.Contains(steps[1][0], "Setup Node.js") {
+			t.Errorf("Expected second step to contain 'Setup Node.js', got '%s'", steps[1][0])
+		}
+	}
+
+	// Verify third step is Install Codex
+	if len(steps) > 2 && len(steps[2]) > 0 {
+		if !strings.Contains(steps[2][0], "Install Codex") {
+			t.Errorf("Expected third step to contain 'Install Codex', got '%s'", steps[2][0])
 		}
 	}
 
