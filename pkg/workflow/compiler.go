@@ -311,6 +311,40 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			}
 			return errors.New(formattedErr)
 		}
+
+		// Validate container images used in MCP configurations
+		if c.verbose {
+			fmt.Println(console.FormatInfoMessage("Validating container images..."))
+		}
+		if err := c.validateContainerImages(workflowData); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("container image validation failed: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
+
+		// Validate runtime packages (npx, uv)
+		if c.verbose {
+			fmt.Println(console.FormatInfoMessage("Validating runtime packages..."))
+		}
+		if err := c.validateRuntimePackages(workflowData); err != nil {
+			formattedErr := console.FormatError(console.CompilerError{
+				Position: console.ErrorPosition{
+					File:   markdownPath,
+					Line:   1,
+					Column: 1,
+				},
+				Type:    "error",
+				Message: fmt.Sprintf("runtime package validation failed: %v", err),
+			})
+			return errors.New(formattedErr)
+		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 	}
