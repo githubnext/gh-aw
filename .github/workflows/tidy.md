@@ -26,6 +26,9 @@ timeout_minutes: 10
 
 network: {}
 
+imports:
+  - shared/mcp/astro-docs.md
+
 tools:
   github:
     allowed: [list_pull_requests, pull_request_read]
