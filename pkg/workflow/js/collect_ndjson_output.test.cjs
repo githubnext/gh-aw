@@ -131,11 +131,11 @@ describe("collect_ndjson_output.cjs", () => {
   it("should validate and parse valid JSONL content", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
-{"type": ("add_comment"|"add_comment"), "body": "Test comment"}`;
+{"type": "add_comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -146,7 +146,7 @@ describe("collect_ndjson_output.cjs", () => {
     const parsedOutput = JSON.parse(outputCall[1]);
     expect(parsedOutput.items).toHaveLength(2);
     expect(parsedOutput.items[0].type).toBe("create_issue");
-    expect(parsedOutput.items[1].type).toBe(("add_comment"|"add_comment"));
+    expect(parsedOutput.items[1].type).toBe("add_comment");
     expect(parsedOutput.errors).toHaveLength(0);
   });
 
@@ -249,11 +249,11 @@ describe("collect_ndjson_output.cjs", () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
 {invalid json}
-{"type": ("add_comment"|"add_comment"), "body": "Test comment"}`;
+{"type": "add_comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -341,12 +341,12 @@ describe("collect_ndjson_output.cjs", () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
 
-{"type": ("add_comment"|"add_comment"), "body": "Test comment"}
+{"type": "add_comment", "body": "Test comment"}
 `;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -361,15 +361,15 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should validate required fields for create-pull-request-review-comment type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": 10, "body": "Good code"}
-{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": "invalid", "body": "Comment"}
-{"type": "create-pull-request-review-comment", "path": "src/file.js", "body": "Missing line"}
-{"type": "create-pull-request-review-comment", "line": 15}
-{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": 20, "start_line": 25, "body": "Invalid range"}`;
+    const ndjsonContent = `{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 10, "body": "Good code"}
+{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": "invalid", "body": "Comment"}
+{"type": "create_pull_request_review_comment", "path": "src/file.js", "body": "Missing line"}
+{"type": "create_pull_request_review_comment", "line": 15}
+{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 20, "start_line": 25, "body": "Invalid range"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 10}}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -391,12 +391,12 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should validate optional fields for create-pull-request-review-comment type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": 20, "start_line": 15, "side": "LEFT", "body": "Multi-line comment"}
-{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": 25, "side": "INVALID", "body": "Invalid side"}`;
+    const ndjsonContent = `{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 20, "start_line": 15, "side": "LEFT", "body": "Multi-line comment"}
+{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": 25, "side": "INVALID", "body": "Invalid side"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 10}}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 10}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -416,14 +416,14 @@ describe("collect_ndjson_output.cjs", () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const items = [];
     for (let i = 1; i <= 12; i++) {
-      items.push(`{"type": "create-pull-request-review-comment", "path": "src/file.js", "line": ${i}, "body": "Comment ${i}"}`);
+      items.push(`{"type": "create_pull_request_review_comment", "path": "src/file.js", "line": ${i}, "body": "Comment ${i}"}`);
     }
     const ndjsonContent = items.join("\n");
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
     // Set max to 5 for create-pull-request-review-comment
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request-review-comment": {"max": 5}}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request_review_comment": {"max": 5}}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -650,11 +650,11 @@ describe("collect_ndjson_output.cjs", () => {
       const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Line 1
 Line 2
 Line 3"}
-{"type": ("add_comment"|"add_comment"), "body": "This is a valid line"}`;
+{"type": "add_comment", "body": "This is a valid line"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -665,7 +665,7 @@ Line 3"}
       const parsedOutput = JSON.parse(outputCall[1]);
       // The first broken JSON should produce errors, but the last valid line should work
       expect(parsedOutput.items).toHaveLength(1);
-      expect(parsedOutput.items[0].type).toBe(("add_comment"|"add_comment"));
+      expect(parsedOutput.items[0].type).toBe("add_comment");
       expect(parsedOutput.errors.length).toBeGreaterThan(0);
       expect(parsedOutput.errors.some(error => error.includes("JSON parsing failed"))).toBe(true);
     });
@@ -1297,11 +1297,11 @@ Line 3"}
   it("should store validated output in agent_output.json file and set GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
     const ndjsonContent = `{"type": "create_issue", "title": "Test Issue", "body": "Test body"}
-{"type": ("add_comment"|"add_comment"), "body": "Test comment"}`;
+{"type": "add_comment", "body": "Test comment"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, ("add_comment"|"add_comment"): true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": true, "add_comment": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -1912,12 +1912,12 @@ Line 3"}
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
       const ndjsonContent = `{"type": "create_issue", "title": "Issue 1", "body": "Body 1"}
 {"type": "create_issue", "title": "Issue 2", "body": "Body 2"}
-{"type": ("add_comment"|"add_comment"), "body": "Comment 1"}`;
+{"type": "add_comment", "body": "Comment 1"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
       // Set min to 1 for create_issue (satisfied) and min to 2 for add-comment (not satisfied)
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}, ("add_comment"|"add_comment"): {"min": 2, "max": 5}}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_issue": {"min": 1, "max": 5}, "add_comment": {"min": 2, "max": 5}}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1994,9 +1994,9 @@ Line 3"}
 
     it("should work with different safe output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": ("add_comment"|"add_comment"), "body": "Comment"}
-{"type": "create-discussion", "title": "Discussion", "body": "Discussion body"}
-{"type": "create-discussion", "title": "Discussion 2", "body": "Discussion body 2"}`;
+      const ndjsonContent = `{"type": "add_comment", "body": "Comment"}
+{"type": "create_discussion", "title": "Discussion", "body": "Discussion body"}
+{"type": "create_discussion", "title": "Discussion 2", "body": "Discussion body 2"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
