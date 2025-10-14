@@ -19,6 +19,7 @@ imports:
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
   - shared/mcp/context7.md
+  - shared/mcp/markitdown.md
 tools:
   cache-memory: true
 safe-outputs:
