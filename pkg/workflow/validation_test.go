@@ -7,9 +7,9 @@ import (
 
 func TestValidateContainerImages(t *testing.T) {
 	tests := []struct {
-		name        string
-		workflowData *WorkflowData
-		expectError bool
+		name           string
+		workflowData   *WorkflowData
+		expectError    bool
 		skipIfNoDocker bool
 	}{
 		{
@@ -41,7 +41,7 @@ func TestValidateContainerImages(t *testing.T) {
 					},
 				},
 			},
-			expectError: false,
+			expectError:    false,
 			skipIfNoDocker: true,
 		},
 		{
@@ -54,7 +54,7 @@ func TestValidateContainerImages(t *testing.T) {
 					},
 				},
 			},
-			expectError: true,
+			expectError:    true,
 			skipIfNoDocker: true,
 		},
 	}
@@ -348,10 +348,10 @@ func TestExtractUvFromCommands(t *testing.T) {
 
 func TestValidateRuntimePackages(t *testing.T) {
 	tests := []struct {
-		name        string
+		name         string
 		workflowData *WorkflowData
-		expectError bool
-		skipReason  string
+		expectError  bool
+		skipReason   string
 	}{
 		{
 			name: "no runtime packages",

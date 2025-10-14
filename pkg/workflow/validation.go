@@ -69,7 +69,7 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 				if !ok {
 					continue
 				}
-				
+
 				containerImage := containerStr
 				if version, hasVersion := config["version"]; hasVersion {
 					if versionStr, ok := version.(string); ok && versionStr != "" {
@@ -102,25 +102,42 @@ func validateDockerImage(image string) error {
 		return fmt.Errorf("docker command not found - cannot validate container image '%s'. Install docker or disable validation", image)
 	}
 
-	// Try to inspect the image (will pull if not present locally)
+	// Try to inspect the image (will succeed if image exists locally)
 	cmd := exec.Command("docker", "image", "inspect", image)
 	output, err := cmd.CombinedOutput()
-	
-	if err != nil {
-		// Image doesn't exist locally, try to pull it
-		pullCmd := exec.Command("docker", "pull", image)
-		pullOutput, pullErr := pullCmd.CombinedOutput()
-		
-		if pullErr != nil {
-			return fmt.Errorf("container image '%s' not found and could not be pulled: %s", image, strings.TrimSpace(string(pullOutput)))
-		}
-		
-		// Successfully pulled
+
+	if err == nil {
+		// Image exists locally
+		_ = output // Suppress unused variable warning
 		return nil
 	}
-	
-	// Image exists locally
-	_ = output // Suppress unused variable warning
+
+	// Image doesn't exist locally, try to pull it
+	pullCmd := exec.Command("docker", "pull", image)
+	pullOutput, pullErr := pullCmd.CombinedOutput()
+
+	if pullErr != nil {
+		outputStr := strings.TrimSpace(string(pullOutput))
+
+		// Check if the error is due to authentication issues for existing private repositories
+		// We need to distinguish between:
+		// 1. "repository does not exist" - should fail validation
+		// 2. "authentication required" for existing repos - should pass (private repo)
+		if (strings.Contains(outputStr, "denied") ||
+			strings.Contains(outputStr, "unauthorized") ||
+			strings.Contains(outputStr, "authentication required")) &&
+			!strings.Contains(outputStr, "does not exist") &&
+			!strings.Contains(outputStr, "not found") {
+			// This is likely a private image that requires authentication
+			// Don't fail validation for private/authenticated images
+			return nil
+		}
+
+		// Other errors indicate the image truly doesn't exist or has issues
+		return fmt.Errorf("container image '%s' not found and could not be pulled: %s", image, outputStr)
+	}
+
+	// Successfully pulled
 	return nil
 }
 
@@ -128,7 +145,7 @@ func validateDockerImage(image string) error {
 func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 	// Detect runtime requirements
 	requirements := DetectRuntimeRequirements(workflowData)
-	
+
 	var errors []string
 	for _, req := range requirements {
 		switch req.Runtime.ID {
@@ -144,11 +161,11 @@ func (c *Compiler) validateRuntimePackages(workflowData *WorkflowData) error {
 			}
 		}
 	}
-	
+
 	if len(errors) > 0 {
 		return fmt.Errorf("runtime package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 	}
-	
+
 	return nil
 }
 
@@ -170,7 +187,7 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 		// Use npm view to check if package exists
 		cmd := exec.Command("npm", "view", pkg, "name")
 		output, err := cmd.CombinedOutput()
-		
+
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("npx package '%s' not found on npm registry: %s", pkg, strings.TrimSpace(string(output))))
 		} else if c.verbose {
@@ -200,7 +217,7 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 		if pipErr != nil {
 			return fmt.Errorf("uv and pip commands not found - cannot validate uv packages. Install uv/pip or disable validation")
 		}
-		
+
 		return c.validateUvPackagesWithPip(packages)
 	}
 
@@ -212,11 +229,11 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 		if eqIndex := strings.Index(pkg, "=="); eqIndex > 0 {
 			pkgName = pkg[:eqIndex]
 		}
-		
+
 		// Use uv pip show to check if package exists on PyPI
 		cmd := exec.Command("uv", "pip", "show", pkgName, "--no-cache")
 		_, err := cmd.CombinedOutput()
-		
+
 		if err != nil {
 			// Package not installed, try to check if it's available
 			errors = append(errors, fmt.Sprintf("uv package '%s' validation requires network access or local cache", pkg))
@@ -241,11 +258,11 @@ func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
 		if eqIndex := strings.Index(pkg, "=="); eqIndex > 0 {
 			pkgName = pkg[:eqIndex]
 		}
-		
+
 		// Use pip index to check if package exists on PyPI
 		cmd := exec.Command("pip", "index", "versions", pkgName)
 		output, err := cmd.CombinedOutput()
-		
+
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("uv package '%s' not found on PyPI: %s", pkg, strings.TrimSpace(string(output))))
 		} else if c.verbose {
@@ -321,7 +338,7 @@ func extractNpxPackages(workflowData *WorkflowData) []string {
 func extractNpxFromCommands(commands string) []string {
 	var packages []string
 	lines := strings.Split(commands, "\n")
-	
+
 	for _, line := range lines {
 		// Look for "npx <package>" pattern
 		words := strings.Fields(line)
@@ -334,7 +351,7 @@ func extractNpxFromCommands(commands string) []string {
 			}
 		}
 	}
-	
+
 	return packages
 }
 
@@ -378,7 +395,7 @@ func extractUvPackages(workflowData *WorkflowData) []string {
 func extractUvFromCommands(commands string) []string {
 	var packages []string
 	lines := strings.Split(commands, "\n")
-	
+
 	for _, line := range lines {
 		// Look for "uv pip install <package>" or "uvx <package>" patterns
 		words := strings.Fields(line)
@@ -407,6 +424,6 @@ func extractUvFromCommands(commands string) []string {
 			}
 		}
 	}
-	
+
 	return packages
 }
