@@ -50,6 +50,7 @@ type Compiler struct {
 	jobManager           *JobManager     // Manages jobs and dependencies
 	engineRegistry       *EngineRegistry // Registry of available agentic engines
 	fileTracker          FileTracker     // Optional file tracker for tracking created files
+	warningCount         int             // Number of warnings encountered during compilation
 }
 
 // NewCompiler creates a new workflow compiler with optional configuration
@@ -94,6 +95,21 @@ func (c *Compiler) SetTrialLogicalRepoSlug(repo string) {
 // SetStrictMode configures whether to enable strict validation mode
 func (c *Compiler) SetStrictMode(strict bool) {
 	c.strictMode = strict
+}
+
+// IncrementWarningCount increments the warning counter
+func (c *Compiler) IncrementWarningCount() {
+	c.warningCount++
+}
+
+// GetWarningCount returns the current warning count
+func (c *Compiler) GetWarningCount() int {
+	return c.warningCount
+}
+
+// ResetWarningCount resets the warning counter to zero
+func (c *Compiler) ResetWarningCount() {
+	c.warningCount = 0
 }
 
 // NewCompilerWithCustomOutput creates a new workflow compiler with custom output path
@@ -329,6 +345,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 				Message: fmt.Sprintf("container image validation failed: %v", err),
 			})
 			fmt.Fprintln(os.Stderr, formattedWarning)
+			c.IncrementWarningCount()
 		}
 
 		// Validate runtime packages (npx, uv)
@@ -349,6 +366,7 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 		}
 	} else if c.verbose {
 		fmt.Println(console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
+		c.IncrementWarningCount()
 	}
 
 	// Write to lock file (unless noEmit is enabled)
@@ -557,6 +575,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		originalEngineSetting := engineSetting
 		if originalEngineSetting != "" && originalEngineSetting != c.engineOverride {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Command line --engine %s overrides markdown file engine: %s", c.engineOverride, originalEngineSetting)))
+			c.IncrementWarningCount()
 		}
 		engineSetting = c.engineOverride
 	}
@@ -624,6 +643,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("AI engine: %s (%s)", agenticEngine.GetDisplayName(), engineSetting)))
 		if agenticEngine.IsExperimental() {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental engine: %s", agenticEngine.GetDisplayName())))
+			c.IncrementWarningCount()
 		}
 		fmt.Println(console.FormatInfoMessage("Processing tools and includes..."))
 	}
@@ -700,8 +720,10 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 	if !agenticEngine.SupportsToolsAllowlist() {
 		// For engines that don't support tool allowlists (like codex), ignore tools section and provide warnings
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
+		c.IncrementWarningCount()
 		if _, hasTools := result.Frontmatter["tools"]; hasTools {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
+			c.IncrementWarningCount()
 		}
 		tools = map[string]any{}
 		// For now, we'll add a basic github tool (always uses docker MCP)
@@ -3030,6 +3052,7 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 	// web-search is specified, check if the engine supports it
 	if !engine.SupportsWebSearch() {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://githubnext.github.io/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
+		c.IncrementWarningCount()
 	}
 }
 

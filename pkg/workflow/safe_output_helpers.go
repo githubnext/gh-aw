@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+// normalizeSafeOutputIdentifier converts dashes to underscores for safe output identifiers
+// This ensures consistency across the system while remaining resilient to LLM-generated variations
+func normalizeSafeOutputIdentifier(identifier string) string {
+	return strings.ReplaceAll(identifier, "-", "_")
+}
+
 // GitHubScriptStepConfig holds configuration for building a GitHub Script step
 type GitHubScriptStepConfig struct {
 	// Step metadata
@@ -78,7 +84,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateIssues.Min > 0 {
 				issueConfig["min"] = data.SafeOutputs.CreateIssues.Min
 			}
-			safeOutputsConfig["create-issue"] = issueConfig
+			safeOutputsConfig["create_issue"] = issueConfig
 		}
 		if data.SafeOutputs.AddComments != nil {
 			commentConfig := map[string]any{}
@@ -91,7 +97,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.AddComments.Min > 0 {
 				commentConfig["min"] = data.SafeOutputs.AddComments.Min
 			}
-			safeOutputsConfig["add-comment"] = commentConfig
+			safeOutputsConfig["add_comment"] = commentConfig
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
 			discussionConfig := map[string]any{}
@@ -101,7 +107,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateDiscussions.Min > 0 {
 				discussionConfig["min"] = data.SafeOutputs.CreateDiscussions.Min
 			}
-			safeOutputsConfig["create-discussion"] = discussionConfig
+			safeOutputsConfig["create_discussion"] = discussionConfig
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
@@ -109,7 +115,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreatePullRequests.Min > 0 {
 				prConfig["min"] = data.SafeOutputs.CreatePullRequests.Min
 			}
-			safeOutputsConfig["create-pull-request"] = prConfig
+			safeOutputsConfig["create_pull_request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 			prReviewCommentConfig := map[string]any{}
@@ -119,7 +125,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreatePullRequestReviewComments.Min > 0 {
 				prReviewCommentConfig["min"] = data.SafeOutputs.CreatePullRequestReviewComments.Min
 			}
-			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
+			safeOutputsConfig["create_pull_request_review_comment"] = prReviewCommentConfig
 		}
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			// Security reports typically have unlimited max, but check if configured
@@ -130,7 +136,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateCodeScanningAlerts.Min > 0 {
 				securityReportConfig["min"] = data.SafeOutputs.CreateCodeScanningAlerts.Min
 			}
-			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
+			safeOutputsConfig["create_code_scanning_alert"] = securityReportConfig
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
@@ -143,7 +149,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
 				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
 			}
-			safeOutputsConfig["add-labels"] = labelConfig
+			safeOutputsConfig["add_labels"] = labelConfig
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
@@ -153,7 +159,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.UpdateIssues.Min > 0 {
 				updateConfig["min"] = data.SafeOutputs.UpdateIssues.Min
 			}
-			safeOutputsConfig["update-issue"] = updateConfig
+			safeOutputsConfig["update_issue"] = updateConfig
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]any{}
@@ -166,7 +172,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.PushToPullRequestBranch.Min > 0 {
 				pushToBranchConfig["min"] = data.SafeOutputs.PushToPullRequestBranch.Min
 			}
-			safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
+			safeOutputsConfig["push_to_pull_request_branch"] = pushToBranchConfig
 		}
 		if data.SafeOutputs.UploadAssets != nil {
 			uploadConfig := map[string]any{}
@@ -176,7 +182,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.UploadAssets.Min > 0 {
 				uploadConfig["min"] = data.SafeOutputs.UploadAssets.Min
 			}
-			safeOutputsConfig["upload-asset"] = uploadConfig
+			safeOutputsConfig["upload_asset"] = uploadConfig
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}
@@ -186,7 +192,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.MissingTool.Min > 0 {
 				missingToolConfig["min"] = data.SafeOutputs.MissingTool.Min
 			}
-			safeOutputsConfig["missing-tool"] = missingToolConfig
+			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}
 	}
 

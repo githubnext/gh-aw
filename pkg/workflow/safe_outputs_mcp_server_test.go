@@ -197,8 +197,8 @@ func TestSafeOutputsMCPServer_CreateIssue(t *testing.T) {
 		t.Errorf("Expected response to mention issue creation, got: %s", textContent.Text)
 	}
 
-	// Verify output file was written
-	if err := verifyOutputFile(t, tempFile, "create-issue", map[string]any{
+	// Verify output file was written (expect underscore format after normalization)
+	if err := verifyOutputFile(t, tempFile, "create_issue", map[string]any{
 		"title":  "Test Issue",
 		"body":   "This is a test issue created by MCP server",
 		"labels": []any{"bug", "test"},
@@ -233,8 +233,8 @@ func TestSafeOutputsMCPServer_MissingTool(t *testing.T) {
 		t.Fatalf("Failed to call missing-tool: %v", err)
 	}
 
-	// Verify output file was written
-	if err := verifyOutputFile(t, tempFile, "missing-tool", map[string]any{
+	// Verify output file was written (expect underscore format after normalization)
+	if err := verifyOutputFile(t, tempFile, "missing_tool", map[string]any{
 		"tool":         "advanced-analyzer",
 		"reason":       "Need to analyze complex data structures",
 		"alternatives": "Could use basic analysis tools with manual processing",
@@ -296,7 +296,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 				"title": "First Issue",
 				"body":  "First test issue",
 			},
-			expectedType: "create-issue",
+			expectedType: "create_issue",
 		},
 		{
 			name: "add-comment",
@@ -304,7 +304,7 @@ func TestSafeOutputsMCPServer_MultipleTools(t *testing.T) {
 				"body":        "This is a comment",
 				"item_number": 1,
 			},
-			expectedType: "add-comment",
+			expectedType: "add_comment",
 		},
 	}
 
@@ -457,9 +457,9 @@ func TestSafeOutputsMCPServer_PublishAsset(t *testing.T) {
 		t.Errorf("Expected response to contain URL with raw.githubusercontent.com, got: %s", textContent.Text)
 	}
 
-	// Verify the output file contains the expected entry
-	if err := verifyOutputFile(t, tempFile, "upload-asset", map[string]any{
-		"type": "upload-asset",
+	// Verify the output file contains the expected entry (expect underscore format after normalization)
+	if err := verifyOutputFile(t, tempFile, "upload_asset", map[string]any{
+		"type": "upload_asset",
 	}); err != nil {
 		t.Fatalf("Output file verification failed: %v", err)
 	}
