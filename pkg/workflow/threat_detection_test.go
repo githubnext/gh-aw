@@ -18,21 +18,21 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 		{
 			name:           "missing threat-detection should return default enabled",
 			outputMap:      map[string]any{},
-			expectedConfig: &ThreatDetectionConfig{Enabled: true},
+			expectedConfig: &ThreatDetectionConfig{},
 		},
 		{
 			name: "boolean true should enable with defaults",
 			outputMap: map[string]any{
 				"threat-detection": true,
 			},
-			expectedConfig: &ThreatDetectionConfig{Enabled: true},
+			expectedConfig: &ThreatDetectionConfig{},
 		},
 		{
-			name: "boolean false should disable",
+			name: "boolean false should return nil",
 			outputMap: map[string]any{
 				"threat-detection": false,
 			},
-			expectedConfig: &ThreatDetectionConfig{Enabled: false},
+			expectedConfig: nil,
 		},
 		{
 			name: "object with enabled true",
@@ -41,7 +41,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 					"enabled": true,
 				},
 			},
-			expectedConfig: &ThreatDetectionConfig{Enabled: true},
+			expectedConfig: &ThreatDetectionConfig{},
 		},
 		{
 			name: "object with enabled false",
@@ -50,7 +50,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 					"enabled": false,
 				},
 			},
-			expectedConfig: &ThreatDetectionConfig{Enabled: false},
+			expectedConfig: nil,
 		},
 
 		{
@@ -66,7 +66,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				Enabled: true,
 				Steps: []any{
 					map[string]any{
 						"name": "Custom validation",
@@ -83,8 +82,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				Enabled: true,
-				Prompt:  "Look for suspicious API calls to external services.",
+				Prompt: "Look for suspicious API calls to external services.",
 			},
 		},
 		{
@@ -102,8 +100,7 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				},
 			},
 			expectedConfig: &ThreatDetectionConfig{
-				Enabled: true,
-				Prompt:  "Check for backdoor installations.",
+				Prompt: "Check for backdoor installations.",
 				Steps: []any{
 					map[string]any{
 						"name": "Extra step",
@@ -128,10 +125,6 @@ func TestParseThreatDetectionConfig(t *testing.T) {
 				return
 			}
 
-			if result.Enabled != tt.expectedConfig.Enabled {
-				t.Errorf("Expected Enabled %v, got %v", tt.expectedConfig.Enabled, result.Enabled)
-			}
-
 			if result.Prompt != tt.expectedConfig.Prompt {
 				t.Errorf("Expected Prompt %q, got %q", tt.expectedConfig.Prompt, result.Prompt)
 			}
@@ -154,12 +147,10 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 		expectJob   bool
 	}{
 		{
-			name: "threat detection disabled should return error",
+			name: "threat detection disabled (nil) should return error",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
-					ThreatDetection: &ThreatDetectionConfig{
-						Enabled: false,
-					},
+					ThreatDetection: nil,
 				},
 			},
 			mainJobName: "agent",
@@ -170,9 +161,7 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 			name: "threat detection enabled should create job",
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
-					ThreatDetection: &ThreatDetectionConfig{
-						Enabled: true,
-					},
+					ThreatDetection: &ThreatDetectionConfig{},
 				},
 			},
 			mainJobName: "agent",
@@ -184,7 +173,6 @@ func TestBuildThreatDetectionJob(t *testing.T) {
 			data: &WorkflowData{
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
-						Enabled: true,
 						Steps: []any{
 							map[string]any{
 								"name": "Custom step",
@@ -267,10 +255,6 @@ func TestThreatDetectionDefaultBehavior(t *testing.T) {
 	if config.ThreatDetection == nil {
 		t.Fatal("Expected threat detection to be automatically enabled")
 	}
-
-	if !config.ThreatDetection.Enabled {
-		t.Error("Expected threat detection to be enabled by default")
-	}
 }
 
 func TestThreatDetectionExplicitDisable(t *testing.T) {
@@ -289,12 +273,8 @@ func TestThreatDetectionExplicitDisable(t *testing.T) {
 		t.Fatal("Expected safe outputs config to be created")
 	}
 
-	if config.ThreatDetection == nil {
-		t.Fatal("Expected threat detection config to exist")
-	}
-
-	if config.ThreatDetection.Enabled {
-		t.Error("Expected threat detection to be disabled when explicitly set to false")
+	if config.ThreatDetection != nil {
+		t.Error("Expected threat detection to be nil when explicitly set to false")
 	}
 }
 
@@ -304,10 +284,8 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: true,
-			},
-			CreateIssues: &CreateIssuesConfig{},
+			ThreatDetection: &ThreatDetectionConfig{},
+			CreateIssues:    &CreateIssuesConfig{},
 		},
 	}
 
@@ -359,8 +337,7 @@ func TestThreatDetectionCustomPrompt(t *testing.T) {
 		Description: "Test Description",
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: true,
-				Prompt:  customPrompt,
+				Prompt: customPrompt,
 			},
 		},
 	}
@@ -472,9 +449,7 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 			data: &WorkflowData{
 				AI: "claude",
 				SafeOutputs: &SafeOutputsConfig{
-					ThreatDetection: &ThreatDetectionConfig{
-						Enabled: true,
-					},
+					ThreatDetection: &ThreatDetectionConfig{},
 				},
 			},
 			expectContains: "claude", // Should use main engine
@@ -485,7 +460,6 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 				AI: "claude",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
-						Enabled: true,
 						EngineConfig: &EngineConfig{
 							ID: "codex",
 						},
@@ -503,7 +477,6 @@ func TestBuildEngineStepsWithThreatDetectionEngine(t *testing.T) {
 				},
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
-						Enabled: true,
 						EngineConfig: &EngineConfig{
 							ID:    "copilot",
 							Model: "gpt-4",
@@ -572,9 +545,7 @@ func TestThreatDetectionStepsIncludeUpload(t *testing.T) {
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: true,
-			},
+			ThreatDetection: &ThreatDetectionConfig{},
 		},
 	}
 
@@ -653,9 +624,7 @@ func TestThreatDetectionStepsIncludeEcho(t *testing.T) {
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: true,
-			},
+			ThreatDetection: &ThreatDetectionConfig{},
 		},
 	}
 

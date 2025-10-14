@@ -459,9 +459,15 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 	}
 
 	// Apply default threat detection if safe-outputs are configured but threat-detection is missing
+	// Don't apply default if threat-detection was explicitly configured (even if disabled)
 	if config != nil && HasSafeOutputsEnabled(config) && config.ThreatDetection == nil {
-		config.ThreatDetection = &ThreatDetectionConfig{
-			Enabled: true,
+		if output, exists := frontmatter["safe-outputs"]; exists {
+			if outputMap, ok := output.(map[string]any); ok {
+				if _, exists := outputMap["threat-detection"]; !exists {
+					// Only apply default if threat-detection key doesn't exist
+					config.ThreatDetection = &ThreatDetectionConfig{}
+				}
+			}
 		}
 	}
 
