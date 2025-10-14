@@ -984,7 +984,7 @@ jobs:
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
-              "agentic_workflow": {
+              "agentic_workflows": {
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
                 "env": {
@@ -1034,7 +1034,7 @@ jobs:
           
           ## Instructions
           
-          Use the agentic-workflow tool to:
+          Use the agentic-workflows tool to:
           
           1. **Check workflow status**: Use the `status` tool to see all workflows in the repository
           2. **Download logs**: Use the `logs` tool with parameters like:
@@ -2661,7 +2661,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Weekly Workflow Analysis"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Weekly Workflow Analysis\n\nAnalyze GitHub Actions workflow runs from the past week and identify improvement opportunities.\n\n## Instructions\n\nUse the agentic-workflow tool to:\n\n1. **Check workflow status**: Use the `status` tool to see all workflows in the repository\n2. **Download logs**: Use the `logs` tool with parameters like:\n   - `workflow_name`: Specific workflow to analyze\n   - `count`: Number of runs to analyze (e.g., 20)\n   - `start_date`: Filter runs from last week (e.g., \"-1w\")\n   - `engine`: Filter by AI engine if needed\n3. **Audit failures**: Use the `audit` tool with `run_id` to investigate specific failed runs\n\n## Analysis Tasks\n\nAnalyze the collected data and provide:\n\n- **Failure Patterns**: Common errors across workflows\n- **Performance Issues**: Slow steps or bottlenecks\n- **Resource Usage**: Token usage and costs for AI-powered workflows\n- **Reliability Metrics**: Success rates and error frequencies\n- **Optimization Opportunities**: Suggestions for improving workflow efficiency\n\nCreate an issue with your findings and actionable recommendations for improving CI/CD reliability and performance.\n"
+          WORKFLOW_MARKDOWN: "# Weekly Workflow Analysis\n\nAnalyze GitHub Actions workflow runs from the past week and identify improvement opportunities.\n\n## Instructions\n\nUse the agentic-workflows tool to:\n\n1. **Check workflow status**: Use the `status` tool to see all workflows in the repository\n2. **Download logs**: Use the `logs` tool with parameters like:\n   - `workflow_name`: Specific workflow to analyze\n   - `count`: Number of runs to analyze (e.g., 20)\n   - `start_date`: Filter runs from last week (e.g., \"-1w\")\n   - `engine`: Filter by AI engine if needed\n3. **Audit failures**: Use the `audit` tool with `run_id` to investigate specific failed runs\n\n## Analysis Tasks\n\nAnalyze the collected data and provide:\n\n- **Failure Patterns**: Common errors across workflows\n- **Performance Issues**: Slow steps or bottlenecks\n- **Resource Usage**: Token usage and costs for AI-powered workflows\n- **Reliability Metrics**: Success rates and error frequencies\n- **Optimization Opportunities**: Suggestions for improving workflow efficiency\n\nCreate an issue with your findings and actionable recommendations for improving CI/CD reliability and performance.\n"
         with:
           script: |
             const fs = require('fs');

@@ -226,8 +226,8 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "playwright":
 			playwrightTool := expandedTools["playwright"]
 			e.renderPlaywrightCodexMCPConfig(yaml, playwrightTool)
-		case "agentic-workflow":
-			e.renderAgenticWorkflowCodexMCPConfig(yaml)
+		case "agentic-workflows":
+			e.renderAgenticWorkflowsCodexMCPConfig(yaml)
 		case "safe-outputs":
 			e.renderSafeOutputsCodexMCPConfig(yaml, workflowData)
 		case "web-fetch":
@@ -626,10 +626,10 @@ func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, wor
 	}
 }
 
-// renderAgenticWorkflowCodexMCPConfig generates the Agentic Workflow MCP server configuration for codex config.toml
-func (e *CodexEngine) renderAgenticWorkflowCodexMCPConfig(yaml *strings.Builder) {
+// renderAgenticWorkflowsCodexMCPConfig generates the Agentic Workflows MCP server configuration for codex config.toml
+func (e *CodexEngine) renderAgenticWorkflowsCodexMCPConfig(yaml *strings.Builder) {
 	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers.agentic_workflow]\n")
+	yaml.WriteString("          [mcp_servers.agentic_workflows]\n")
 	yaml.WriteString("          command = \"gh\"\n")
 	yaml.WriteString("          args = [\n")
 	yaml.WriteString("            \"aw\",\n")

@@ -126,14 +126,14 @@ The YAML frontmatter supports these fields:
       - Default toolsets (if not specified): `context`, `repos`, `issues`, `pull_requests`, `users`
       - Use `[all]` to enable all available toolsets
       - Example: `toolset: [repos, issues, pull_requests]` or `toolset: [all]`
-  - `agentic-workflow:` - GitHub Agentic Workflows MCP server for workflow introspection
+  - `agentic-workflows:` - GitHub Agentic Workflows MCP server for workflow introspection
     - Provides tools for:
       - `status` - Show status of workflow files in the repository
       - `compile` - Compile markdown workflows to YAML
       - `logs` - Download and analyze workflow run logs
       - `audit` - Investigate workflow run failures and generate reports
     - **Use case**: Enable AI agents to analyze GitHub Actions traces and improve workflows based on execution history
-    - **Example**: Configure with `agentic-workflow: true` or `agentic-workflow:` (no additional configuration needed)
+    - **Example**: Configure with `agentic-workflows: true` or `agentic-workflows:` (no additional configuration needed)
   - `edit:` - File editing tools
   - `web-fetch:` - Web content fetching tools
   - `web-search:` - Web search tools
@@ -846,7 +846,7 @@ permissions:
   contents: read
   actions: read
 tools:
-  agentic-workflow:
+  agentic-workflows:
   github:
     allowed: [get_workflow_run, list_workflow_runs]
 safe-outputs:
@@ -860,7 +860,7 @@ timeout_minutes: 10
 
 Analyze GitHub Actions workflow runs from the past week and identify improvement opportunities.
 
-Use the agentic-workflow tool to:
+Use the agentic-workflows tool to:
 1. Download logs from recent workflow runs using the `logs` command
 2. Audit failed runs using the `audit` command to understand failure patterns
 3. Review workflow status using the `status` command
@@ -872,7 +872,7 @@ Create an issue with your findings, including:
 - Recommendations for improving reliability
 ```
 
-This example demonstrates using the agentic-workflow tool to analyze workflow execution history and provide actionable improvement recommendations.
+This example demonstrates using the agentic-workflows tool to analyze workflow execution history and provide actionable improvement recommendations.
 
 ## Workflow Monitoring and Analysis
 

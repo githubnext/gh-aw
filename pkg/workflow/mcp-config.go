@@ -62,10 +62,10 @@ func renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 	}
 }
 
-// renderAgenticWorkflowMCPConfig generates the Agentic Workflow MCP server configuration
+// renderAgenticWorkflowsMCPConfig generates the Agentic Workflows MCP server configuration
 // This is a shared function used by both Claude and Custom engines
-func renderAgenticWorkflowMCPConfig(yaml *strings.Builder, isLast bool) {
-	yaml.WriteString("              \"agentic_workflow\": {\n")
+func renderAgenticWorkflowsMCPConfig(yaml *strings.Builder, isLast bool) {
+	yaml.WriteString("              \"agentic_workflows\": {\n")
 	yaml.WriteString("                \"command\": \"gh\",\n")
 	yaml.WriteString("                \"args\": [\"aw\", \"mcp-server\"],\n")
 	yaml.WriteString("                \"env\": {\n")

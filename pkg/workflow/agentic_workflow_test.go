@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAgenticWorkflowSyntaxVariations(t *testing.T) {
+func TestAgenticWorkflowsSyntaxVariations(t *testing.T) {
 	tests := []struct {
 		name        string
 		toolValue   any
@@ -13,25 +13,25 @@ func TestAgenticWorkflowSyntaxVariations(t *testing.T) {
 		description string
 	}{
 		{
-			name:        "agentic-workflow with nil (no value)",
+			name:        "agentic-workflows with nil (no value)",
 			toolValue:   nil,
 			shouldWork:  true,
-			description: "Should enable agentic-workflow when field is present without value",
+			description: "Should enable agentic-workflows when field is present without value",
 		},
 		{
-			name:        "agentic-workflow with true",
+			name:        "agentic-workflows with true",
 			toolValue:   true,
 			shouldWork:  true,
-			description: "Should enable agentic-workflow with boolean true",
+			description: "Should enable agentic-workflows with boolean true",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a minimal workflow with the agentic-workflow tool
+			// Create a minimal workflow with the agentic-workflows tool
 			frontmatter := map[string]any{
 				"on":    "workflow_dispatch",
-				"tools": map[string]any{"agentic-workflow": tt.toolValue},
+				"tools": map[string]any{"agentic-workflows": tt.toolValue},
 			}
 
 			// Create compiler
@@ -55,15 +55,15 @@ func TestAgenticWorkflowSyntaxVariations(t *testing.T) {
 				return
 			}
 
-			// Verify the agentic-workflow tool is present
-			if _, exists := mergedTools["agentic-workflow"]; !exists {
-				t.Errorf("Expected agentic-workflow tool to be present in merged tools")
+			// Verify the agentic-workflows tool is present
+			if _, exists := mergedTools["agentic-workflows"]; !exists {
+				t.Errorf("Expected agentic-workflows tool to be present in merged tools")
 			}
 		})
 	}
 }
 
-func TestAgenticWorkflowMCPConfigGeneration(t *testing.T) {
+func TestAgenticWorkflowsMCPConfigGeneration(t *testing.T) {
 	engines := []struct {
 		name   string
 		engine CodingAgentEngine
@@ -76,23 +76,23 @@ func TestAgenticWorkflowMCPConfigGeneration(t *testing.T) {
 
 	for _, e := range engines {
 		t.Run(e.name, func(t *testing.T) {
-			// Create workflow data with agentic-workflow tool
+			// Create workflow data with agentic-workflows tool
 			workflowData := &WorkflowData{
 				Tools: map[string]any{
-					"agentic-workflow": nil,
+					"agentic-workflows": nil,
 				},
 			}
 
 			// Generate MCP config
 			var yaml strings.Builder
-			mcpTools := []string{"agentic-workflow"}
+			mcpTools := []string{"agentic-workflows"}
 
 			e.engine.RenderMCPConfig(&yaml, workflowData.Tools, mcpTools, workflowData)
 			result := yaml.String()
 
-			// Verify the MCP config contains agentic-workflow
-			if !strings.Contains(result, "agentic_workflow") {
-				t.Errorf("Expected MCP config to contain 'agentic_workflow', got: %s", result)
+			// Verify the MCP config contains agentic-workflows
+			if !strings.Contains(result, "agentic_workflows") {
+				t.Errorf("Expected MCP config to contain 'agentic_workflows', got: %s", result)
 			}
 
 			// Verify it has the correct command
@@ -108,14 +108,14 @@ func TestAgenticWorkflowMCPConfigGeneration(t *testing.T) {
 	}
 }
 
-func TestAgenticWorkflowHasMCPServers(t *testing.T) {
+func TestAgenticWorkflowsHasMCPServers(t *testing.T) {
 	workflowData := &WorkflowData{
 		Tools: map[string]any{
-			"agentic-workflow": nil,
+			"agentic-workflows": nil,
 		},
 	}
 
 	if !HasMCPServers(workflowData) {
-		t.Error("Expected HasMCPServers to return true for agentic-workflow tool")
+		t.Error("Expected HasMCPServers to return true for agentic-workflows tool")
 	}
 }

@@ -17,7 +17,7 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 
 	// Check for standard MCP tools
 	for toolName, toolValue := range workflowData.Tools {
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflow" {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			return true
 		}
 		// Check for custom MCP tools
@@ -51,7 +51,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	for toolName, toolValue := range workflowTools {
 		// Standard MCP tools
-		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflow" {
+		if toolName == "github" || toolName == "playwright" || toolName == "cache-memory" || toolName == "agentic-workflows" {
 			mcpTools = append(mcpTools, toolName)
 		} else if mcpConfig, ok := toolValue.(map[string]any); ok {
 			// Check if it's explicitly marked as MCP type in the new format

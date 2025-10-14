@@ -8,7 +8,7 @@ permissions:
   actions: read
 engine: claude
 tools:
-  agentic-workflow:
+  agentic-workflows:
   github:
     allowed: [get_workflow_run, list_workflow_runs]
 safe-outputs:
@@ -24,7 +24,7 @@ Analyze GitHub Actions workflow runs from the past week and identify improvement
 
 ## Instructions
 
-Use the agentic-workflow tool to:
+Use the agentic-workflows tool to:
 
 1. **Check workflow status**: Use the `status` tool to see all workflows in the repository
 2. **Download logs**: Use the `logs` tool with parameters like:

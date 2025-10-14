@@ -219,8 +219,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightCopilotMCPConfig(yaml, playwrightTool, isLast)
-		case "agentic-workflow":
-			e.renderAgenticWorkflowCopilotMCPConfig(yaml, isLast)
+		case "agentic-workflows":
+			e.renderAgenticWorkflowsCopilotMCPConfig(yaml, isLast)
 		case "safe-outputs":
 			e.renderSafeOutputsCopilotMCPConfig(yaml, isLast)
 		case "web-fetch":
@@ -410,9 +410,9 @@ func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder,
 	}
 }
 
-// renderAgenticWorkflowCopilotMCPConfig generates the Agentic Workflow MCP server configuration for Copilot CLI
-func (e *CopilotEngine) renderAgenticWorkflowCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	yaml.WriteString("              \"agentic_workflow\": {\n")
+// renderAgenticWorkflowsCopilotMCPConfig generates the Agentic Workflows MCP server configuration for Copilot CLI
+func (e *CopilotEngine) renderAgenticWorkflowsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
+	yaml.WriteString("              \"agentic_workflows\": {\n")
 	yaml.WriteString("                \"type\": \"local\",\n")
 	yaml.WriteString("                \"command\": \"gh\",\n")
 	yaml.WriteString("                \"args\": [\"aw\", \"mcp-server\"],\n")
