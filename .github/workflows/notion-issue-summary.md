@@ -2,8 +2,8 @@
 on:
   workflow_dispatch:
     inputs:
-      text:
-        description: "Issue text to analyze"
+      issue-number:
+        description: "Issue number to analyze"
         required: true
         type: string
 tools:
@@ -15,7 +15,7 @@ strict: true
 
 # Issue Summary to Notion
 
-Analyze the issue and create a brief summary, then add it as a comment to the Notion page.
+Analyze the issue #${{ github.event.inputs.issue-number }} and create a brief summary, then add it as a comment to the Notion page.
 
 ## Instructions
 
