@@ -5,8 +5,8 @@ on:
   schedule:
     - cron: "0 11 * * *"
   issues:
-    types: [closed]
-if: contains(github.event.issue.labels.*.name, 'duplicate code')
+    types: [labeled]
+if: github.event.label.name == 'duplicate code'
 permissions:
   contents: read
   actions: read

@@ -11,7 +11,7 @@ name: "Duplicate Code Detector"
 "on":
   issues:
     types:
-    - closed
+    - labeled
   schedule:
   - cron: 0 11 * * *
   workflow_dispatch: null
@@ -25,7 +25,7 @@ run-name: "Duplicate Code Detector"
 
 jobs:
   check_membership:
-    if: contains(github.event.issue.labels.*.name, 'duplicate code')
+    if: github.event.label.name == 'duplicate code'
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check_membership.outputs.error_message }}
@@ -116,8 +116,7 @@ jobs:
 
   activation:
     needs: check_membership
-    if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (contains(github.event.issue.labels.*.name, 'duplicate code'))
+    if: (needs.check_membership.outputs.is_team_member == 'true') && (github.event.label.name == 'duplicate code')
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
