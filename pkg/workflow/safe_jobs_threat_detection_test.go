@@ -37,11 +37,8 @@ func TestSafeOutputsJobsEnableThreatDetectionByDefault(t *testing.T) {
 	}
 
 	// Verify that threat detection is enabled by default
+	// A non-nil ThreatDetection means it's enabled; nil means disabled
 	if safeOutputsConfig.ThreatDetection == nil {
-		t.Fatal("Expected threat detection config to be created by default, got nil")
-	}
-
-	if !safeOutputsConfig.ThreatDetection.Enabled {
 		t.Error("Expected threat detection to be enabled by default when safe-outputs.jobs is configured")
 	}
 }
@@ -73,12 +70,9 @@ func TestSafeOutputsJobsRespectExplicitThreatDetectionFalse(t *testing.T) {
 	}
 
 	// Verify that threat detection respects explicit false
-	if safeOutputsConfig.ThreatDetection == nil {
-		t.Fatal("Expected threat detection config to be present, got nil")
-	}
-
-	if safeOutputsConfig.ThreatDetection.Enabled {
-		t.Error("Expected threat detection to be disabled when explicitly set to false")
+	// When explicitly disabled, ThreatDetection should be nil
+	if safeOutputsConfig.ThreatDetection != nil {
+		t.Error("Expected threat detection to be disabled (nil) when explicitly set to false")
 	}
 }
 
@@ -109,12 +103,9 @@ func TestSafeOutputsJobsRespectExplicitThreatDetectionTrue(t *testing.T) {
 	}
 
 	// Verify that threat detection respects explicit true
+	// When explicitly enabled, ThreatDetection should be non-nil
 	if safeOutputsConfig.ThreatDetection == nil {
-		t.Fatal("Expected threat detection config to be present, got nil")
-	}
-
-	if !safeOutputsConfig.ThreatDetection.Enabled {
-		t.Error("Expected threat detection to be enabled when explicitly set to true")
+		t.Error("Expected threat detection to be enabled (non-nil) when explicitly set to true")
 	}
 }
 
@@ -127,7 +118,7 @@ func TestSafeOutputsJobsDependOnDetectionJob(t *testing.T) {
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: true,
+				// Non-nil ThreatDetection means enabled
 			},
 			Jobs: map[string]*SafeJobConfig{
 				"my-custom-job": {
@@ -191,9 +182,7 @@ func TestSafeOutputsJobsDoNotDependOnDetectionWhenDisabled(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: false,
-			},
+			ThreatDetection: nil, // nil means disabled
 			Jobs: map[string]*SafeJobConfig{
 				"my-custom-job": {
 					Steps: []any{
@@ -300,12 +289,9 @@ func TestSafeJobsWithThreatDetectionConfigObject(t *testing.T) {
 	}
 
 	// Verify that threat detection is enabled
+	// Non-nil ThreatDetection means enabled
 	if safeOutputsConfig.ThreatDetection == nil {
-		t.Fatal("Expected threat detection config to be present, got nil")
-	}
-
-	if !safeOutputsConfig.ThreatDetection.Enabled {
-		t.Error("Expected threat detection to be enabled")
+		t.Error("Expected threat detection to be enabled (non-nil)")
 	}
 
 	// Verify custom prompt is preserved
