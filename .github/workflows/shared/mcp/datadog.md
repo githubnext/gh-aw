@@ -1,18 +1,11 @@
 ---
 mcp-servers:
   datadog:
-    container: "mcp/datadog"
-    env:
+    url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    headers:
       DD_API_KEY: "${{ secrets.DD_API_KEY }}"
       DD_APP_KEY: "${{ secrets.DD_APP_KEY }}"
       DD_SITE: "${{ secrets.DD_SITE || 'datadoghq.com' }}"
-    network:
-      allowed:
-        - datadoghq.com
-        - datadoghq.eu
-        - ddog-gov.com
-        - us5.datadoghq.com
-        - ap1.datadoghq.com
     allowed:
       - get-monitors
       - get-monitor
@@ -35,7 +28,7 @@ Provides comprehensive access to Datadog monitoring, logs, metrics, and incident
 Documentation: https://github.com/GeLi2001/datadog-mcp-server
 
 This shared configuration provides Datadog MCP server integration for monitoring, 
-observability, and log analysis.
+observability, and log analysis via HTTP API.
 
 Available tools:
   - get-monitors: Fetch monitors with optional filtering by group states and tags
@@ -76,9 +69,9 @@ Example Usage:
   Search for error logs in the web-app service from the last hour and 
   summarize the most common errors.
 #
-Permissions:
-  This configuration requires network access to Datadog API endpoints. 
-  The network allowlist includes all major Datadog regional domains.
+Connection Type:
+  This configuration uses HTTP MCP server type, connecting directly to the 
+  Datadog MCP API endpoint. Authentication is handled via HTTP headers.
 #
 Troubleshooting:
   403 Forbidden Errors - Verify that:

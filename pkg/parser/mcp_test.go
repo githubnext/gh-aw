@@ -206,6 +206,37 @@ func TestExtractMCPConfigurations(t *testing.T) {
 			},
 		},
 		{
+			name: "New format: HTTP server with underscored headers",
+			frontmatter: map[string]any{
+				"tools": map[string]any{
+					"datadog": map[string]any{
+						"type": "http",
+						"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+						"headers": map[string]any{
+							"DD_API_KEY": "test-api-key",
+							"DD_APP_KEY": "test-app-key",
+							"DD_SITE":    "datadoghq.com",
+						},
+						"allowed": []any{"get-monitors", "get-monitor"},
+					},
+				},
+			},
+			expected: []MCPServerConfig{
+				{
+					Name: "datadog",
+					Type: "http",
+					URL:  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+					Headers: map[string]string{
+						"DD_API_KEY": "test-api-key",
+						"DD_APP_KEY": "test-app-key",
+						"DD_SITE":    "datadoghq.com",
+					},
+					Env:     map[string]string{},
+					Allowed: []string{"get-monitors", "get-monitor"},
+				},
+			},
+		},
+		{
 			name: "New format: Container with direct fields",
 			frontmatter: map[string]any{
 				"tools": map[string]any{
@@ -712,6 +743,32 @@ func TestParseMCPConfig(t *testing.T) {
 				Headers: map[string]string{
 					"Authorization": "Bearer token123",
 					"User-Agent":    "gh-aw/1.0",
+				},
+				Env:     map[string]string{},
+				Allowed: []string{},
+			},
+		},
+		{
+			name:     "HTTP server with underscored headers",
+			toolName: "datadog-server",
+			mcpSection: map[string]any{
+				"type": "http",
+				"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+				"headers": map[string]any{
+					"DD_API_KEY": "test-api-key",
+					"DD_APP_KEY": "test-app-key",
+					"DD_SITE":    "datadoghq.com",
+				},
+			},
+			toolConfig: map[string]any{},
+			expected: MCPServerConfig{
+				Name: "datadog-server",
+				Type: "http",
+				URL:  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+				Headers: map[string]string{
+					"DD_API_KEY": "test-api-key",
+					"DD_APP_KEY": "test-app-key",
+					"DD_SITE":    "datadoghq.com",
 				},
 				Env:     map[string]string{},
 				Allowed: []string{},
