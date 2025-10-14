@@ -271,15 +271,17 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, "        uses: actions/download-artifact@v5\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          name: %s\n", constants.AgentOutputArtifactName))
-		steps = append(steps, "          path: /tmp/gh-aw/sh-aw/safe-jobs/\n")
+		steps = append(steps, "          path: /tmp/gh-aw/safe-jobs/\n")
+
+		// the download artifacts always creates a folder, then unpacks in that folder
+		agentOutputArtifactFilename := fmt.Sprintf("/tmp/gh-aw/safe-jobs/%s", constants.AgentOutputArtifactName)
 
 		// Add environment variables step
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
 		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
-
+		steps = append(steps, "          find /tmp/gh-aw/safe-jobs/ -type f -print\n")
 		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName))
+		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=%s\" >> $GITHUB_ENV\n", agentOutputArtifactFilename))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {

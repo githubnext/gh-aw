@@ -308,7 +308,7 @@ function formatCodexToolCall(server, toolName, params, response, statusIcon) {
   // Format metadata
   let metadata = "";
   if (totalTokens > 0) {
-    metadata = ` \`~${totalTokens}t\``;
+    metadata = ` <code>~${totalTokens}t</code>`;
   }
 
   const summary = `${statusIcon} <code>${server}::${toolName}</code>${metadata}`;
@@ -355,7 +355,7 @@ function formatCodexBashCall(command, response, statusIcon) {
   // Format metadata
   let metadata = "";
   if (totalTokens > 0) {
-    metadata = ` \`~${totalTokens}t\``;
+    metadata = ` <code>~${totalTokens}t</code>`;
   }
 
   const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>${metadata}`;
