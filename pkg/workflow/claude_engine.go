@@ -598,6 +598,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
 		case "cache-memory":
 			e.renderCacheMemoryMCPConfig(yaml, isLast, workflowData)
+		case "agentic-workflow":
+			e.renderAgenticWorkflowMCPConfig(yaml, isLast)
 		case "safe-outputs":
 			e.renderSafeOutputsMCPConfig(yaml, isLast)
 		case "web-fetch":
@@ -727,6 +729,11 @@ func (e *ClaudeEngine) renderCacheMemoryMCPConfig(yaml *strings.Builder, isLast 
 // renderSafeOutputsMCPConfig generates the Safe Outputs MCP server configuration
 func (e *ClaudeEngine) renderSafeOutputsMCPConfig(yaml *strings.Builder, isLast bool) {
 	renderSafeOutputsMCPConfig(yaml, isLast)
+}
+
+// renderAgenticWorkflowMCPConfig generates the Agentic Workflow MCP server configuration
+func (e *ClaudeEngine) renderAgenticWorkflowMCPConfig(yaml *strings.Builder, isLast bool) {
+	renderAgenticWorkflowMCPConfig(yaml, isLast)
 }
 
 // ParseLogMetrics implements engine-specific log parsing for Claude
