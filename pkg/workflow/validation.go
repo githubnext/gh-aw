@@ -32,7 +32,7 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 
 			var errorMsg string
 			if key != "" {
-				errorMsg = fmt.Sprintf("expression value for '%s' (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead.",
+				errorMsg = fmt.Sprintf("expression value for %q (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead.",
 					key, actualSize, maxSizeFormatted, lineNum+1)
 			} else {
 				errorMsg = fmt.Sprintf("line %d (%s) exceeds maximum allowed expression size (%s). GitHub Actions has a 21KB limit for expression values.",
