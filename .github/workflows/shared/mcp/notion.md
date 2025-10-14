@@ -16,10 +16,6 @@ safe-outputs:
       runs-on: ubuntu-latest
       output: "Comment added to Notion successfully!"
       inputs:
-        page_id:
-          description: "The Notion page ID to add a comment to"
-          required: true
-          type: string
         comment:
           description: "The comment text to add"
           required: true
@@ -31,19 +27,22 @@ safe-outputs:
           uses: actions/github-script@v8
           env:
             NOTION_API_TOKEN: "${{ secrets.NOTION_API_TOKEN }}"
-            PAGE_ID: "${{ inputs.page_id }}"
+            NOTION_PAGE_ID: "${{ env.NOTION_PAGE_ID }}"
             COMMENT: "${{ inputs.comment }}"
           with:
             script: |
               const notionToken = process.env.NOTION_API_TOKEN;
-              const pageId = process.env.PAGE_ID;
+              const pageId = process.env.NOTION_PAGE_ID;
               const comment = process.env.COMMENT;
               
               if (!notionToken) {
                 core.setFailed('NOTION_API_TOKEN secret is not configured');
                 return;
               }
-              
+              if (!pageId) {
+                core.setFailed('NOTION_PAGE_ID environment variable is not set');
+                return;
+              }
               core.info(`Adding comment to Notion page: ${pageId}`);
               
               try {
@@ -80,9 +79,15 @@ safe-outputs:
                 core.setFailed(`Failed to add comment: ${error.message}`);
               }
 ---
+<!--
 ## Notion Integration
 
 This shared configuration provides Notion MCP server integration with read-only tools and a custom safe-job for adding comments to Notion pages.
+
+### Configuration
+
+- `NOTION_API_TOKEN` secret must be set in the repository settings with a Notion integration token that has access to the relevant pages/databases.
+- `NOTION_PAGE_ID` environment variable must be set in the workflow or repository settings to specify the target Notion page for adding comments.
 
 ### Available Notion MCP Tools (Read-Only)
 
@@ -94,7 +99,8 @@ This shared configuration provides Notion MCP server integration with read-only 
 ### Safe Job: notion-add-comment
 
 The `notion-add-comment` safe-job allows the agentic workflow to add comments to Notion pages through the Notion API.
+Requires the **insert comment** access on the token.
 
 **Required Inputs:**
-- `page_id`: The Notion page ID to add a comment to
 - `comment`: The comment text to add
+-->
