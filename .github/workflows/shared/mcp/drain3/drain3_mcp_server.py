@@ -17,7 +17,7 @@ try:
     from mcp.server import Server
     from mcp.types import Tool, TextContent
 except ImportError:
-    print("Error: modelcontextprotocol package not found. Install with: pip install mcp", file=sys.stderr)
+    print("Error: modelcontextprotocol package not found. Install with: pip install modelcontextprotocol", file=sys.stderr)
     sys.exit(1)
 
 # Initialize Drain3 template miner with file persistence

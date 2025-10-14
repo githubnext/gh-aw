@@ -4,7 +4,11 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install dependencies
-RUN pip install --no-cache-dir drain3 mcp
+# Note: Using --trusted-host to handle SSL certificate issues in build environments
+RUN pip install --no-cache-dir \
+    --trusted-host pypi.org \
+    --trusted-host files.pythonhosted.org \
+    drain3 modelcontextprotocol
 
 # Copy the MCP server script
 COPY drain3_mcp_server.py /app/
