@@ -197,8 +197,8 @@ Note: Output can be filtered using the jq parameter.`,
 		Description: "Compile markdown workflow files to YAML workflows",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args compileArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
-		// Always validate (validation is enabled by default)
-		cmdArgs := []string{"compile"}
+		// Always validate workflows during compilation
+		cmdArgs := []string{"compile", "--validate"}
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
 		// Execute the CLI command
