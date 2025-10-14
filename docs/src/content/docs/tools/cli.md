@@ -44,17 +44,7 @@ gh aw audit 12345678                             # Audit a specific run
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
 
-**Initialize Repository:**
-
-```bash
-gh aw init         # Configure .gitattributes and create Copilot instructions
-gh aw init -v      # Verbose output
-```
-
-The `init` command prepares your repository for agentic workflows by:
-- Configuring `.gitattributes` to mark `.lock.yml` files as generated
-- Creating GitHub Copilot custom instructions at `.github/instructions/`
-- Creating the `/create-agentic-workflow` prompt at `.github/prompts/`
+The `init` command prepares your repository for agentic workflows by configuring `.gitattributes` and creating GitHub Copilot custom instructions.
 
 ```bash
 # Create new workflows
