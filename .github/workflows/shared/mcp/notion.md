@@ -40,10 +40,15 @@ safe-outputs:
                 return;
               }
               if (!pageId) {
-                core.setFailed('NOTION_PAGE_ID environment variable is not set');
+                core.setFailed('NOTION_PAGE_ID variable is not set');
+                return;
+              }
+              if (!comment) {
+                core.setFailed('comment is missing');
                 return;
               }
               core.info(`Adding comment to Notion page: ${pageId}`);
+              core.info(`Comment: ${comment}`);
               
               try {
                 const response = await fetch('https://api.notion.com/v1/comments', {
