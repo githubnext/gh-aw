@@ -32,7 +32,7 @@
 I'll help you try to call the `draw_pelican` tool. Let me first check if there's an existing execution plan, then attempt to call the tool.
 
 <details>
-<summary>✅ Read <code>/tmp/gh-aw/cache-memory/plan.md</code> <code>~274t</code></summary>
+<summary>✅ Read <code>/tmp/gh-aw/cache-memory/plan.md</code> `~274t`</summary>
 
 `````
      1→# Execution Plan: Draw Pelican Tool
@@ -57,7 +57,7 @@ I can see there's an existing execution plan indicating that the `draw_pelican` 
 Let me confirm the current status by attempting to call the tool to see what happens, and then report the missing functionality as indicated in the plan:
 
 <details>
-<summary>✅ safe_outputs::missing-tool(tool: draw_pelican, reason: Tool needed to draw/create pelican artwo..., alternatives: Could potentially use text-based art gen...) <code>~96t</code></summary>
+<summary>✅ safe_outputs::missing-tool(tool: draw_pelican, reason: Tool needed to draw/create pelican artwo..., alternatives: Could potentially use text-based art gen...) `~96t`</summary>
 
 `````
 success
@@ -67,7 +67,7 @@ success
 Now let me update the execution plan to reflect the current attempt:
 
 <details>
-<summary>✅ Write <code>/tmp/gh-aw/cache-memory/plan.md</code> <code>~651t</code></summary>
+<summary>✅ Write <code>/tmp/gh-aw/cache-memory/plan.md</code> `~651t`</summary>
 
 `````
 The file /tmp/gh-aw/cache-memory/plan.md has been updated. Here's the result of running `cat -n` on a snippet of the edited file:

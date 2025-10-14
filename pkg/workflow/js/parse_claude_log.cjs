@@ -409,10 +409,10 @@ function formatToolUse(toolUse, toolResult) {
   // Format metadata (duration and tokens)
   let metadata = "";
   if (toolResult && toolResult.duration_ms) {
-    metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
+    metadata += ` \`${formatDuration(toolResult.duration_ms)}\``;
   }
   if (totalTokens > 0) {
-    metadata += ` <code>~${totalTokens}t</code>`;
+    metadata += ` \`~${totalTokens}t\``;
   }
 
   switch (toolName) {
