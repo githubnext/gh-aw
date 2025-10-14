@@ -136,6 +136,23 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		return
 	}
 
+	// Install gh-aw extension if agentic-workflows tool is enabled
+	hasAgenticWorkflows := false
+	for _, toolName := range mcpTools {
+		if toolName == "agentic-workflows" {
+			hasAgenticWorkflows = true
+			break
+		}
+	}
+
+	if hasAgenticWorkflows {
+		yaml.WriteString("      - name: Install gh-aw extension\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          echo \"Installing gh-aw extension...\"\n")
+		yaml.WriteString("          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw\n")
+		yaml.WriteString("          gh aw --version\n")
+	}
+
 	// Write safe-outputs MCP server if enabled
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		yaml.WriteString("      - name: Setup Safe Outputs Collector MCP\n")

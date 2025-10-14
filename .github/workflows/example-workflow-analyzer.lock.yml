@@ -303,6 +303,11 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
+      - name: Install gh-aw extension
+        run: |
+          echo "Installing gh-aw extension..."
+          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw
+          gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
