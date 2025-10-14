@@ -8,6 +8,12 @@ import (
 	"testing"
 )
 
+const (
+	// Test container names for validation tests - these should not exist
+	testInvalidContainer1 = "nonexistent-invalid-image-for-testing-12345"
+	testInvalidContainer2 = "nonexistent-invalid-image-for-testing-67890"
+)
+
 // TestCompileWithInvalidContainerImage verifies that container image validation
 // failures produce warnings instead of errors when validation is enabled
 func TestCompileWithInvalidContainerImage(t *testing.T) {
@@ -30,7 +36,7 @@ engine: claude
 mcp-servers:
   test-tool:
     type: stdio
-    container: nonexistent-invalid-image-for-testing-12345
+    container: ` + testInvalidContainer1 + `
     allowed: ["test_function"]
 ---
 
@@ -85,7 +91,7 @@ engine: claude
 mcp-servers:
   test-tool:
     type: stdio
-    container: nonexistent-invalid-image-for-testing-67890
+    container: ` + testInvalidContainer2 + `
     allowed: ["test_function"]
 ---
 
