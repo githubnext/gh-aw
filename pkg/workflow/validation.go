@@ -78,7 +78,7 @@ func (c *Compiler) validateContainerImages(workflowData *WorkflowData) error {
 				}
 
 				// Validate the container image exists using docker
-				if err := validateDockerImage(containerImage); err != nil {
+				if err := validateDockerImage(containerImage, c.verbose); err != nil {
 					errors = append(errors, fmt.Sprintf("tool '%s': %v", toolName, err))
 				} else if c.verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ Container image validated: %s", containerImage)))

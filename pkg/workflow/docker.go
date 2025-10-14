@@ -2,16 +2,24 @@ package workflow
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/githubnext/gh-aw/pkg/console"
 )
 
 // validateDockerImage checks if a Docker image exists and is accessible
-func validateDockerImage(image string) error {
+// Returns nil if docker is not available (with a warning printed)
+func validateDockerImage(image string, verbose bool) error {
 	// Check if docker is available
 	_, err := exec.LookPath("docker")
 	if err != nil {
-		return fmt.Errorf("docker command not found - cannot validate container image '%s'. Install docker or disable validation", image)
+		// Docker not available - print warning and skip validation
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Docker not available - skipping validation for container image '%s'", image)))
+		}
+		return nil
 	}
 
 	// Try to inspect the image (will succeed if image exists locally)
