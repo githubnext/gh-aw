@@ -9,6 +9,9 @@
 
 name: "Duplicate Code Detector"
 "on":
+  issues:
+    types:
+    - closed
   schedule:
   - cron: 0 11 * * *
   workflow_dispatch: null
@@ -16,12 +19,13 @@ name: "Duplicate Code Detector"
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
 run-name: "Duplicate Code Detector"
 
 jobs:
   check_membership:
+    if: contains(github.event.issue.labels.*.name, 'duplicate code')
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check_membership.outputs.error_message }}
@@ -112,7 +116,8 @@ jobs:
 
   activation:
     needs: check_membership
-    if: needs.check_membership.outputs.is_team_member == 'true'
+    if: >
+      (needs.check_membership.outputs.is_team_member == 'true') && (contains(github.event.issue.labels.*.name, 'duplicate code'))
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
@@ -2879,7 +2884,7 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Duplicate Code Detector"
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[duplicate-code] "
-          GITHUB_AW_ISSUE_LABELS: "code-quality,automated-analysis"
+          GITHUB_AW_ISSUE_LABELS: "code-quality,automated-analysis,duplicate code"
         with:
           script: |
             function sanitizeLabelContent(content) {

@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 11 * * *"
+  issues:
+    types: [closed]
+if: contains(github.event.issue.labels.*.name, 'duplicate code')
 permissions:
   contents: read
   actions: read
@@ -13,7 +16,7 @@ imports:
 safe-outputs:
   create-issue:
     title-prefix: "[duplicate-code] "
-    labels: [code-quality, automated-analysis]
+    labels: [code-quality, automated-analysis, duplicate code]
 timeout_minutes: 15
 strict: true
 ---
