@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+// normalizeSafeOutputIdentifier converts dashes to underscores for safe output identifiers
+// This ensures consistency across the system while remaining resilient to LLM-generated variations
+func normalizeSafeOutputIdentifier(identifier string) string {
+	return strings.ReplaceAll(identifier, "-", "_")
+}
+
 // GitHubScriptStepConfig holds configuration for building a GitHub Script step
 type GitHubScriptStepConfig struct {
 	// Step metadata

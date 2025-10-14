@@ -1623,27 +1623,27 @@ jobs:
                   return itemConfig.max;
                 }
                 switch (itemType) {
-                  case "create-issue":
+                  case "create_issue":
                     return 1;
-                  case "add-comment":
+                  case "add_comment":
                     return 1;
-                  case "create-pull-request":
+                  case "create_pull_request":
                     return 1;
-                  case "create-pull-request-review-comment":
+                  case "create_pull_request_review_comment":
                     return 1;
-                  case "add-labels":
+                  case "add_labels":
                     return 5;
-                  case "update-issue":
+                  case "update_issue":
                     return 1;
-                  case "push-to-pull-request-branch":
+                  case "push_to_pull_request_branch":
                     return 1;
-                  case "create-discussion":
+                  case "create_discussion":
                     return 1;
-                  case "missing-tool":
+                  case "missing_tool":
                     return 20;
-                  case "create-code-scanning-alert":
+                  case "create_code_scanning_alert":
                     return 40;
-                  case "upload-asset":
+                  case "upload_asset":
                     return 10;
                   default:
                     return 1;
@@ -1693,16 +1693,16 @@ jobs:
               }
               function validatePositiveInteger(value, fieldName, lineNum) {
                 if (value === undefined || value === null) {
-                  if (fieldName.includes("create-code-scanning-alert 'line'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert requires a 'line' field (number or string)`,
+                      error: `Line ${lineNum}: create_code_scanning_alert requires a 'line' field (number or string)`,
                     };
                   }
-                  if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment requires a 'line' number`,
                     };
                   }
                   return {
@@ -1711,16 +1711,16 @@ jobs:
                   };
                 }
                 if (typeof value !== "number" && typeof value !== "string") {
-                  if (fieldName.includes("create-code-scanning-alert 'line'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert requires a 'line' field (number or string)`,
+                      error: `Line ${lineNum}: create_code_scanning_alert requires a 'line' field (number or string)`,
                     };
                   }
-                  if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number or string field`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment requires a 'line' number or string field`,
                     };
                   }
                   return {
@@ -1730,16 +1730,16 @@ jobs:
                 }
                 const parsed = typeof value === "string" ? parseInt(value, 10) : value;
                 if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-                  if (fieldName.includes("create-code-scanning-alert 'line'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${value})`,
+                      error: `Line ${lineNum}: create_code_scanning_alert 'line' must be a valid positive integer (got: ${value})`,
                     };
                   }
-                  if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment 'line' must be a positive integer`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment 'line' must be a positive integer`,
                     };
                   }
                   return {
@@ -1754,16 +1754,16 @@ jobs:
                   return { isValid: true };
                 }
                 if (typeof value !== "number" && typeof value !== "string") {
-                  if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'start_line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a number or string`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment 'start_line' must be a number or string`,
                     };
                   }
-                  if (fieldName.includes("create-code-scanning-alert 'column'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'column'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a number or string`,
+                      error: `Line ${lineNum}: create_code_scanning_alert 'column' must be a number or string`,
                     };
                   }
                   return {
@@ -1773,16 +1773,16 @@ jobs:
                 }
                 const parsed = typeof value === "string" ? parseInt(value, 10) : value;
                 if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-                  if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'start_line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a positive integer`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment 'start_line' must be a positive integer`,
                     };
                   }
-                  if (fieldName.includes("create-code-scanning-alert 'column'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'column'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${value})`,
+                      error: `Line ${lineNum}: create_code_scanning_alert 'column' must be a valid positive integer (got: ${value})`,
                     };
                   }
                   return {
@@ -2934,9 +2934,9 @@ jobs:
               main();
             }
 
-  notion-add-comment:
+  notion_add_comment:
     needs: agent
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'notion-add-comment'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'notion_add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
