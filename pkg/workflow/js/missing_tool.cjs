@@ -42,7 +42,7 @@ async function main() {
 
   // Process all parsed entries
   for (const entry of validatedOutput.items) {
-    if (entry.type === "missing-tool") {
+    if (entry.type === "missing_tool") {
       // Validate required fields
       if (!entry.tool) {
         core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);

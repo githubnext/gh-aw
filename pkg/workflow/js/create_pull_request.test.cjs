@@ -179,7 +179,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "New Feature",
           body: "This adds a new feature to the codebase.",
         },
@@ -243,7 +243,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "PR with labels",
           body: "PR with labels",
         },
@@ -291,7 +291,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "Non-draft PR",
           body: "Non-draft PR",
         },
@@ -333,7 +333,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "Test PR Title",
           body: "Test PR content with detailed body information.",
         },
@@ -377,7 +377,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "Simple PR title",
           body: "Simple PR body content",
         },
@@ -419,7 +419,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "[BOT] PR title already prefixed",
           body: "PR body content",
         },
@@ -461,7 +461,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "PR that will fail",
           body: "This PR creation will fail and fallback to an issue.",
         },
@@ -544,7 +544,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "PR with patch preview",
           body: "This PR will fail and create an issue with patch preview.",
         },
@@ -597,7 +597,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "PR with large patch",
           body: "This PR will fail and create an issue with char-limited patch.",
         },
@@ -653,7 +653,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "PR with small patch",
           body: "This PR will fail and create an issue with full patch.",
         },
@@ -698,7 +698,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "PR that will fail",
           body: "Both PR and issue creation will fail.",
         },
@@ -744,7 +744,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "Push will fail",
           body: "Git push will fail and fallback to an issue.",
         },
@@ -831,7 +831,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "Push will fail with patch",
           body: "Git push will fail and create issue with patch preview.",
         },
@@ -887,7 +887,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "Push and issue will fail",
           body: "Both git push and issue creation will fail.",
         },
@@ -945,7 +945,7 @@ describe("create_pull_request.cjs", () => {
     mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request",
+          type: "create_pull_request",
           title: "Test PR with branch collision",
           body: "This will handle remote branch collision.",
         },
@@ -1033,7 +1033,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "Test PR",
             body: "Test PR body",
           },
@@ -1143,7 +1143,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "Staged Mode Test PR",
             body: "This is a test PR for staged mode functionality.",
             branch: "feature-test",
@@ -1212,7 +1212,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "PR without branch",
             body: "Test PR body",
           },
@@ -1285,7 +1285,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "Test PR",
             body: "This is a test PR",
             branch: "test-branch",
@@ -1320,7 +1320,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "Test PR",
             body: "This is a test PR",
             branch: "test-branch",
@@ -1346,7 +1346,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "Test PR",
             body: "This is a test PR",
             branch: "test-branch",
@@ -1379,7 +1379,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "Test PR",
             body: "This is a test PR",
             branch: "test-branch",
@@ -1412,7 +1412,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "create-pull-request",
+            type: "create_pull_request",
             title: "Test PR",
             body: "This is a test PR",
             branch: "test-branch",

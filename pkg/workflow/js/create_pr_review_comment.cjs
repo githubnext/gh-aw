@@ -70,7 +70,7 @@ async function main() {
 
   // Find all create-pull-request-review-comment items
   const reviewCommentItems = validatedOutput.items.filter(
-    /** @param {any} item */ item => item.type === "create-pull-request-review-comment"
+    /** @param {any} item */ item => item.type === "create_pull_request_review_comment"
   );
   if (reviewCommentItems.length === 0) {
     core.info("No create-pull-request-review-comment items found in agent output");

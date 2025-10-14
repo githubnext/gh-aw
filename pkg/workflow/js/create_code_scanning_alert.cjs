@@ -28,7 +28,7 @@ async function main() {
   }
 
   // Find all create-code-scanning-alert items
-  const securityItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "create-code-scanning-alert");
+  const securityItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "create_code_scanning_alert");
   if (securityItems.length === 0) {
     core.info("No create-code-scanning-alert items found in agent output");
     return;

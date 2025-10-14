@@ -31,7 +31,7 @@ async function main() {
   }
 
   // Find all update-issue items
-  const updateItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "update-issue");
+  const updateItems = validatedOutput.items.filter(/** @param {any} item */ item => item.type === "update_issue");
   if (updateItems.length === 0) {
     core.info("No update-issue items found in agent output");
     return;

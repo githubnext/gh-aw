@@ -197,13 +197,13 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should validate required fields for add-labels type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "enhancement"]}
-{"type": "add-labels", "labels": "not-an-array"}
-{"type": "add-labels", "labels": [1, 2, 3]}`;
+    const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "enhancement"]}
+{"type": "add_labels", "labels": "not-an-array"}
+{"type": "add_labels", "labels": [1, 2, 3]}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -219,14 +219,14 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should validate required fields for create-pull-request type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-pull-request", "title": "Test PR"}
-{"type": "create-pull-request", "body": "Test body"}
-{"type": "create-pull-request", "branch": "test-branch"}
-{"type": "create-pull-request", "title": "Complete PR", "body": "Test body", "branch": "feature-branch"}`;
+    const ndjsonContent = `{"type": "create_pull_request", "title": "Test PR"}
+{"type": "create_pull_request", "body": "Test body"}
+{"type": "create_pull_request", "branch": "test-branch"}
+{"type": "create_pull_request", "title": "Complete PR", "body": "Test body", "branch": "feature-branch"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -314,13 +314,13 @@ describe("collect_ndjson_output.cjs", () => {
 
   it("should validate required fields for create-discussion type", async () => {
     const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-    const ndjsonContent = `{"type": "create-discussion", "title": "Test Discussion"}
-{"type": "create-discussion", "body": "Test body"}
-{"type": "create-discussion", "title": "Valid Discussion", "body": "Valid body"}`;
+    const ndjsonContent = `{"type": "create_discussion", "title": "Test Discussion"}
+{"type": "create_discussion", "body": "Test body"}
+{"type": "create_discussion", "title": "Valid Discussion", "body": "Valid body"}`;
 
     fs.writeFileSync(testFile, ndjsonContent);
     process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-discussion": true}';
+    process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_discussion": true}';
 
     await eval(`(async () => { ${collectScript} })()`);
 
@@ -435,7 +435,7 @@ describe("collect_ndjson_output.cjs", () => {
     expect(parsedOutput.items).toHaveLength(5); // Only first 5 items should be allowed
     expect(parsedOutput.errors).toHaveLength(7); // 7 items exceeding max
     expect(
-      parsedOutput.errors.every(e => e.includes("Too many items of type 'create-pull-request-review-comment'. Maximum allowed: 5"))
+      parsedOutput.errors.every(e => e.includes("Too many items of type 'create_pull_request_review_comment'. Maximum allowed: 5"))
     ).toBe(true);
   });
 
@@ -603,11 +603,11 @@ describe("collect_ndjson_output.cjs", () => {
 
     it("should repair JSON with array syntax issues", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "enhancement",}`;
+      const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "enhancement",}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -735,11 +735,11 @@ Line 3"}
 
     it("should repair arrays ending with wrong bracket type", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature", "enhancement"}`;
+      const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "feature", "enhancement"}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -755,11 +755,11 @@ Line 3"}
 
     it("should handle simple missing closing brackets with graceful repair", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature"`;
+      const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "feature"`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1207,7 +1207,7 @@ Line 3"}
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1252,11 +1252,11 @@ Line 3"}
 
     it("should repair JSON with simple missing closing brackets", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "add-labels", "labels": ["bug", "feature"]}`;
+      const ndjsonContent = `{"type": "add_labels", "labels": ["bug", "feature"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add-labels": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"add_labels": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 
@@ -1830,11 +1830,11 @@ Line 3"}
 
     it("should handle sanitization across multiple field types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
-      const ndjsonContent = `{"type": "create-pull-request", "title": "PR with z3 -v:10 flag", "body": "Testing https://github.com/repo and ftp://example.com", "branch": "feature/z3-timeout:5000", "labels": ["bug", "z3:solver"]}`;
+      const ndjsonContent = `{"type": "create_pull_request", "title": "PR with z3 -v:10 flag", "body": "Testing https://github.com/repo and ftp://example.com", "branch": "feature/z3-timeout:5000", "labels": ["bug", "z3:solver"]}`;
 
       fs.writeFileSync(testFile, ndjsonContent);
       process.env.GITHUB_AW_SAFE_OUTPUTS = testFile;
-      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create-pull-request": true}';
+      process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG = '{"create_pull_request": true}';
 
       await eval(`(async () => { ${collectScript} })()`);
 

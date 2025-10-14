@@ -2640,7 +2640,7 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
+              const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
               if (!labelsItem) {
                 core.warning("No add-labels item found in agent output");
                 return;
@@ -2853,7 +2853,7 @@ jobs:
               }
               core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
               for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
+                if (entry.type === "missing_tool") {
                   if (!entry.tool) {
                     core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
                     continue;
