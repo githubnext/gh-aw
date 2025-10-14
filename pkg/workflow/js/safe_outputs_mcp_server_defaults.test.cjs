@@ -116,8 +116,8 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
     }
 
     const testConfig = {
-      "create_issue": { enabled: true },
-      "add_comment": { enabled: true, max: 3 },
+      create_issue: { enabled: true },
+      add_comment: { enabled: true, max: 3 },
     };
 
     fs.writeFileSync(defaultConfigFile, JSON.stringify(testConfig));
@@ -252,7 +252,7 @@ describe("safe_outputs_mcp_server.cjs defaults handling", () => {
 describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
   it("should patch add_labels tool description with allowed labels from config", async () => {
     const config = {
-      "add_labels": {
+      add_labels: {
         allowed: ["bug", "enhancement", "documentation"],
         max: 3,
       },
@@ -358,7 +358,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
 
   it("should not patch add_labels tool description when no allowed labels configured", async () => {
     const config = {
-      "add_labels": {
+      add_labels: {
         max: 3,
       },
     };
@@ -464,7 +464,7 @@ describe("safe_outputs_mcp_server.cjs add_labels tool patching", () => {
 describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
   it("should patch update_issue tool description with allowed operations when some are restricted", async () => {
     const config = {
-      "update_issue": {
+      update_issue: {
         status: true,
         title: false,
         body: true,
@@ -566,7 +566,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
 
   it("should not patch update_issue tool description when all operations are allowed", async () => {
     const config = {
-      "update_issue": {
+      update_issue: {
         status: true,
         title: true,
         body: true,
@@ -666,7 +666,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
 
   it("should not patch update_issue tool description when config is not present", async () => {
     const config = {
-      "update_issue": {
+      update_issue: {
         // No status, title, body fields - defaults to allowing all
       },
     };
@@ -767,7 +767,7 @@ describe("safe_outputs_mcp_server.cjs update_issue tool patching", () => {
 describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
   it("should patch upload_asset tool description with max size and allowed extensions", async () => {
     const config = {
-      "upload_asset": {},
+      upload_asset: {},
     };
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -869,7 +869,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
 
   it("should patch upload_asset tool description with defaults when env vars not set", async () => {
     const config = {
-      "upload_asset": {},
+      upload_asset: {},
     };
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -977,7 +977,7 @@ describe("safe_outputs_mcp_server.cjs upload_asset tool patching", () => {
 describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
   it("should have optional branch parameter for create_pull_request", async () => {
     const config = {
-      "create_pull_request": {},
+      create_pull_request: {},
     };
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -1078,7 +1078,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
 
   it("should have optional branch parameter for push_to_pull_request_branch", async () => {
     const config = {
-      "push_to_pull_request_branch": {},
+      push_to_pull_request_branch: {},
     };
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
@@ -1182,7 +1182,7 @@ describe("safe_outputs_mcp_server.cjs branch parameter handling", () => {
 describe("safe_outputs_mcp_server.cjs tool call response format", () => {
   it("should include isError field in tool call responses", async () => {
     const config = {
-      "create_issue": {},
+      create_issue: {},
     };
 
     const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
