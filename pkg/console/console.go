@@ -462,3 +462,12 @@ func RenderTableAsJSON(config TableConfig) (string, error) {
 
 	return string(jsonBytes), nil
 }
+
+// ClearScreen clears the terminal screen if stdout is a TTY
+// Uses ANSI escape codes for cross-platform compatibility
+func ClearScreen() {
+	if isTTY() {
+		// ANSI escape code: Clear screen and move cursor to home position
+		fmt.Print("\033[2J\033[H")
+	}
+}

@@ -336,3 +336,17 @@ func TestRenderTableAsJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestClearScreen(t *testing.T) {
+	// ClearScreen should not panic when called
+	// It only clears if stdout is a TTY, so we can't easily test the output
+	// but we can verify it doesn't panic
+	t.Run("clear screen does not panic", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("ClearScreen() panicked: %v", r)
+			}
+		}()
+		ClearScreen()
+	})
+}
