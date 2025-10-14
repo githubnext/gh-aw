@@ -57,6 +57,21 @@ func TestDetectRuntimeFromCommand(t *testing.T) {
 			expected: []string{"dotnet"},
 		},
 		{
+			name:     "docker command",
+			command:  "docker build -t myimage .",
+			expected: []string{"docker"},
+		},
+		{
+			name:     "docker run command",
+			command:  "docker run -it ubuntu",
+			expected: []string{"docker"},
+		},
+		{
+			name:     "docker compose command",
+			command:  "docker compose up",
+			expected: []string{"docker"},
+		},
+		{
 			name:     "java command",
 			command:  "java -jar app.jar",
 			expected: []string{"java"},
@@ -158,6 +173,12 @@ func TestDetectFromCustomSteps(t *testing.T) {
 			expected: []string{"node", "python"},
 		},
 		{
+			name: "detects docker from docker build",
+			customSteps: `steps:
+  - run: docker build -t myimage .`,
+			expected: []string{"docker"},
+		},
+		{
 			name: "detects node even when setup-node exists (filtering happens later)",
 			customSteps: `steps:
   - uses: actions/setup-node@v4
@@ -221,10 +242,20 @@ func TestDetectFromMCPConfigs(t *testing.T) {
 			expected: []string{"node"},
 		},
 		{
-			name: "no detection for non-runtime commands",
+			name: "detects docker from MCP command",
 			tools: map[string]any{
 				"docker-tool": map[string]any{
 					"command": "docker",
+					"args":    []string{"run"},
+				},
+			},
+			expected: []string{"docker"},
+		},
+		{
+			name: "no detection for non-runtime commands",
+			tools: map[string]any{
+				"custom-tool": map[string]any{
+					"command": "custom-command",
 					"args":    []string{"run"},
 				},
 			},
@@ -302,6 +333,17 @@ func TestGenerateRuntimeSetupSteps(t *testing.T) {
 				"Setup .NET",
 				"actions/setup-dotnet@v4",
 				"dotnet-version: '8.0'",
+			},
+		},
+		{
+			name: "generates docker setup",
+			requirements: []RuntimeRequirement{
+				{Runtime: findRuntimeByID("docker"), Version: ""},
+			},
+			expectSteps: 1,
+			checkContent: []string{
+				"Setup Docker",
+				"docker/setup-buildx-action@v3",
 			},
 		},
 		{

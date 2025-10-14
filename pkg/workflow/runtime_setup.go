@@ -29,6 +29,15 @@ type RuntimeRequirement struct {
 // knownRuntimes is the list of all supported runtime configurations (alphabetically sorted by ID)
 var knownRuntimes = []*Runtime{
 	{
+		ID:             "docker",
+		Name:           "Docker",
+		ActionRepo:     "docker/setup-buildx-action",
+		ActionVersion:  "v3",
+		VersionField:   "",
+		DefaultVersion: "",
+		Commands:       []string{"docker"},
+	},
+	{
 		ID:             "dotnet",
 		Name:           ".NET",
 		ActionRepo:     "actions/setup-dotnet",
@@ -363,8 +372,8 @@ func generateSetupStep(runtime *Runtime, version string) GitHubActionStep {
 	if version != "" {
 		step = append(step, "        with:")
 		step = append(step, fmt.Sprintf("          %s: '%s'", runtime.VersionField, version))
-	} else if runtime.ID == "uv" {
-		// For uv without version, no with block needed
+	} else if runtime.ID == "uv" || runtime.ID == "docker" {
+		// For uv and docker without version, no with block needed
 		return step
 	}
 
