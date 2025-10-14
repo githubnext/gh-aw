@@ -59,8 +59,30 @@ func validateExpressionSafety(markdownContent string) error {
 
 	// If we found unauthorized expressions, return an error
 	if len(unauthorizedExpressions) > 0 {
-		return fmt.Errorf("unauthorized expressions: %v. allowed: %v",
-			unauthorizedExpressions, constants.AllowedExpressions)
+		// Format unauthorized expressions list
+		var unauthorizedList strings.Builder
+		unauthorizedList.WriteString("\n")
+		for _, expr := range unauthorizedExpressions {
+			unauthorizedList.WriteString("  - ")
+			unauthorizedList.WriteString(expr)
+			unauthorizedList.WriteString("\n")
+		}
+
+		// Format allowed expressions list
+		var allowedList strings.Builder
+		allowedList.WriteString("\n")
+		for _, expr := range constants.AllowedExpressions {
+			allowedList.WriteString("  - ")
+			allowedList.WriteString(expr)
+			allowedList.WriteString("\n")
+		}
+		allowedList.WriteString("  - needs.*\n")
+		allowedList.WriteString("  - steps.*\n")
+		allowedList.WriteString("  - github.event.inputs.*\n")
+		allowedList.WriteString("  - env.*\n")
+
+		return fmt.Errorf("unauthorized expressions:%s\nallowed:%s",
+			unauthorizedList.String(), allowedList.String())
 	}
 
 	return nil

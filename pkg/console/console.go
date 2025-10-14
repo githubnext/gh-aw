@@ -54,6 +54,9 @@ var (
 	highlightStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("#FF5555")).
 			Foreground(lipgloss.Color("#282A36"))
+
+	// ANSI escape sequences for terminal control
+	clearScreenSequence = "\033[2J\033[H" // Clear screen and move cursor to home position
 )
 
 // isTTY checks if stdout is a terminal
@@ -461,4 +464,12 @@ func RenderTableAsJSON(config TableConfig) (string, error) {
 	}
 
 	return string(jsonBytes), nil
+}
+
+// ClearScreen clears the terminal screen if stdout is a TTY
+// Uses ANSI escape codes for cross-platform compatibility
+func ClearScreen() {
+	if isTTY() {
+		fmt.Print(clearScreenSequence)
+	}
 }

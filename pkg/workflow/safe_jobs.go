@@ -244,9 +244,18 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			job.RunsOn = "runs-on: ubuntu-latest" // Default
 		}
 
-		// Set if condition
+		// Set if condition - combine safe output type check with user-provided condition
+		// Custom safe jobs should only run if the agent output contains the job name (tool call)
+		safeOutputCondition := BuildSafeOutputType(jobName, 0) // min=0 means check for the tool in output_types
+
 		if jobConfig.If != "" {
-			job.If = c.extractExpressionFromIfString(jobConfig.If)
+			// If user provided a custom condition, combine it with the safe output type check
+			userConditionStr := c.extractExpressionFromIfString(jobConfig.If)
+			userCondition := &ExpressionNode{Expression: userConditionStr}
+			job.If = buildAnd(safeOutputCondition, userCondition).Render()
+		} else {
+			// Otherwise, just use the safe output type check
+			job.If = safeOutputCondition.Render()
 		}
 
 		// Build job steps
