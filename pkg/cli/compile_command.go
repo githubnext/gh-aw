@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -63,6 +64,13 @@ type CompileConfig struct {
 	Strict               bool     // Enable strict mode validation
 }
 
+// CompilationStats tracks the results of workflow compilation
+type CompilationStats struct {
+	Total    int
+	Errors   int
+	Warnings int
+}
+
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	markdownFiles := config.MarkdownFiles
 	verbose := config.Verbose
@@ -75,6 +83,9 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	trialMode := config.TrialMode
 	trialLogicalRepoSlug := config.TrialLogicalRepoSlug
 	strict := config.Strict
+
+	// Track compilation statistics
+	stats := &CompilationStats{}
 	// Validate purge flag usage
 	if purge && len(markdownFiles) > 0 {
 		return nil, fmt.Errorf("--purge flag can only be used when compiling all markdown files (no specific files specified)")
@@ -135,17 +146,30 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	if len(markdownFiles) > 0 {
 		// Compile specific workflow files
 		var compiledCount int
+		var errorCount int
+		var errorMessages []string
 		for _, markdownFile := range markdownFiles {
+			stats.Total++
 			// Resolve workflow ID or file path to actual file path
 			resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
 			if err != nil {
-				return nil, fmt.Errorf("failed to resolve workflow '%s': %w", markdownFile, err)
+				errMsg := fmt.Sprintf("failed to resolve workflow '%s': %v", markdownFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				errorMessages = append(errorMessages, err.Error())
+				errorCount++
+				stats.Errors++
+				continue
 			}
 
 			// Parse workflow file to get data
 			workflowData, err := compiler.ParseWorkflowFile(resolvedFile)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse workflow file %s: %w", resolvedFile, err)
+				errMsg := fmt.Sprintf("failed to parse workflow file %s: %v", resolvedFile, err)
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(errMsg))
+				errorMessages = append(errorMessages, err.Error())
+				errorCount++
+				stats.Errors++
+				continue
 			}
 			workflowDataList = append(workflowDataList, workflowData)
 
@@ -155,10 +179,16 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			if err := CompileWorkflowWithValidation(compiler, resolvedFile, verbose); err != nil {
 				// Always put error on a new line and don't wrap with "failed to compile workflow"
 				fmt.Fprintln(os.Stderr, err.Error())
-				return nil, fmt.Errorf("compilation failed")
+				errorMessages = append(errorMessages, err.Error())
+				errorCount++
+				stats.Errors++
+				continue
 			}
 			compiledCount++
 		}
+
+		// Get warning count from compiler
+		stats.Warnings = compiler.GetWarningCount()
 
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d workflow file(s)", compiledCount)))
@@ -175,6 +205,18 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 		// Note: Instructions are only written by the init command
 		// The compile command should not write instruction files
+
+		// Print summary
+		printCompilationSummary(stats)
+
+		// Return error if any compilations failed
+		if errorCount > 0 {
+			// Return the first error message for backward compatibility with tests
+			if len(errorMessages) > 0 {
+				return workflowDataList, errors.New(errorMessages[0])
+			}
+			return workflowDataList, fmt.Errorf("compilation failed")
+		}
 
 		return workflowDataList, nil
 	}
@@ -231,21 +273,34 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	}
 
 	// Compile each file
+	var errorCount int
+	var successCount int
 	for _, file := range mdFiles {
+		stats.Total++
 		// Parse workflow file to get data
 		workflowData, err := compiler.ParseWorkflowFile(file)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse workflow file %s: %w", file, err)
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to parse workflow file %s: %v", file, err)))
+			errorCount++
+			stats.Errors++
+			continue
 		}
 		workflowDataList = append(workflowDataList, workflowData)
 
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
-			return nil, err
+			// Error already printed by CompileWorkflowWithValidation
+			errorCount++
+			stats.Errors++
+			continue
 		}
+		successCount++
 	}
 
+	// Get warning count from compiler
+	stats.Warnings = compiler.GetWarningCount()
+
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled all %d workflow files", len(mdFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
 	}
 
 	// Handle purge logic: delete orphaned .lock.yml files
@@ -291,6 +346,14 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 
 	// Note: Instructions are only written by the init command
 	// The compile command should not write instruction files
+
+	// Print summary
+	printCompilationSummary(stats)
+
+	// Return error if any compilations failed
+	if errorCount > 0 {
+		return workflowDataList, fmt.Errorf("compilation failed")
+	}
 
 	return workflowDataList, nil
 }
@@ -558,5 +621,24 @@ func handleFileDeleted(mdFile string, verbose bool) {
 				fmt.Printf("🗑️  Removed corresponding lock file: %s\n", lockFile)
 			}
 		}
+	}
+}
+
+// printCompilationSummary prints a summary of the compilation results
+func printCompilationSummary(stats *CompilationStats) {
+	if stats.Total == 0 {
+		return
+	}
+
+	summary := fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
+		stats.Total, stats.Errors, stats.Warnings)
+
+	// Use different formatting based on whether there were errors
+	if stats.Errors > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(summary))
+	} else if stats.Warnings > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(summary))
+	} else {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
 	}
 }
