@@ -2281,7 +2281,7 @@ jobs:
               const totalTokens = estimateTokens(params) + estimateTokens(response);
               let metadata = "";
               if (totalTokens > 0) {
-                metadata = ` \`~${totalTokens}t\``;
+                metadata = ` <code>~${totalTokens}t</code>`;
               }
               const summary = `${statusIcon} <code>${server}::${toolName}</code>${metadata}`;
               if (!response || response.trim() === "") {
@@ -2306,7 +2306,7 @@ jobs:
               const totalTokens = estimateTokens(command) + estimateTokens(response);
               let metadata = "";
               if (totalTokens > 0) {
-                metadata = ` \`~${totalTokens}t\``;
+                metadata = ` <code>~${totalTokens}t</code>`;
               }
               const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>${metadata}`;
               if (!response || response.trim() === "") {
