@@ -83,7 +83,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 	trialMode := config.TrialMode
 	trialLogicalRepoSlug := config.TrialLogicalRepoSlug
 	strict := config.Strict
-	
+
 	// Track compilation statistics
 	stats := &CompilationStats{}
 	// Validate purge flag usage
