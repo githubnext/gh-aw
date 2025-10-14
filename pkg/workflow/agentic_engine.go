@@ -270,6 +270,75 @@ func GenerateSecretValidationStep(secretName, engineName, docsURL string) GitHub
 	return GitHubActionStep(stepLines)
 }
 
+// GenerateMultiSecretValidationStep creates a GitHub Actions step that validates at least one of multiple secrets is available
+// secretNames: slice of secret names to validate (e.g., []string{"CODEX_API_KEY", "OPENAI_API_KEY"})
+// engineName: the display name of the engine (e.g., "Codex")
+// docsURL: URL to the documentation page for setting up the secret
+func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL string) GitHubActionStep {
+	if len(secretNames) == 0 {
+		panic("GenerateMultiSecretValidationStep requires at least one secret name")
+	}
+
+	// Build the step name
+	stepName := fmt.Sprintf("      - name: Validate %s secret", strings.Join(secretNames, " or "))
+
+	// Build the condition for checking if all secrets are empty
+	conditions := make([]string, len(secretNames))
+	for i, secretName := range secretNames {
+		conditions[i] = fmt.Sprintf("[ -z \"$%s\" ]", secretName)
+	}
+	allEmptyCondition := strings.Join(conditions, " && ")
+
+	// Build error message
+	var errorMsg string
+	if len(secretNames) == 2 {
+		errorMsg = fmt.Sprintf("Neither %s nor %s secret is set", secretNames[0], secretNames[1])
+	} else {
+		errorMsg = fmt.Sprintf("None of the following secrets are set: %s", strings.Join(secretNames, ", "))
+	}
+
+	requirementMsg := fmt.Sprintf("The %s engine requires either %s secret to be configured.", engineName, strings.Join(secretNames, " or "))
+
+	stepLines := []string{
+		stepName,
+		"        run: |",
+		fmt.Sprintf("          if %s; then", allEmptyCondition),
+		fmt.Sprintf("            echo \"Error: %s\"", errorMsg),
+		fmt.Sprintf("            echo \"%s\"", requirementMsg),
+		"            echo \"Please configure one of these secrets in your repository settings.\"",
+		fmt.Sprintf("            echo \"Documentation: %s\"", docsURL),
+		"            exit 1",
+		"          fi",
+	}
+
+	// Add conditional messages for each secret
+	for i, secretName := range secretNames {
+		if i == 0 {
+			stepLines = append(stepLines, fmt.Sprintf("          if [ -n \"$%s\" ]; then", secretName))
+			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+		} else if i == len(secretNames)-1 {
+			stepLines = append(stepLines, "          else")
+			if len(secretNames) == 2 {
+				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured (using as fallback for %s)\"", secretName, secretNames[0]))
+			} else {
+				stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+			}
+		} else {
+			stepLines = append(stepLines, fmt.Sprintf("          elif [ -n \"$%s\" ]; then", secretName))
+			stepLines = append(stepLines, fmt.Sprintf("            echo \"%s secret is configured\"", secretName))
+		}
+	}
+	stepLines = append(stepLines, "          fi")
+
+	// Add env section with all secrets
+	stepLines = append(stepLines, "        env:")
+	for _, secretName := range secretNames {
+		stepLines = append(stepLines, fmt.Sprintf("          %s: ${{ secrets.%s }}", secretName, secretName))
+	}
+
+	return GitHubActionStep(stepLines)
+}
+
 // GetAllEngines returns all registered engines
 func (r *EngineRegistry) GetAllEngines() []CodingAgentEngine {
 	var engines []CodingAgentEngine

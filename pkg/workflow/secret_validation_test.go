@@ -74,6 +74,62 @@ func TestGenerateSecretValidationStep(t *testing.T) {
 	}
 }
 
+func TestGenerateMultiSecretValidationStep(t *testing.T) {
+	tests := []struct {
+		name        string
+		secretNames []string
+		engineName  string
+		docsURL     string
+		wantStrings []string
+	}{
+		{
+			name:        "Codex dual secret validation",
+			secretNames: []string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+			engineName:  "Codex",
+			docsURL:     "https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
+			wantStrings: []string{
+				"Validate CODEX_API_KEY or OPENAI_API_KEY secret",
+				"Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set",
+				"The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured",
+				"Please configure one of these secrets in your repository settings",
+				"Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
+				"CODEX_API_KEY secret is configured",
+				"OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)",
+				"CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
+				"OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			step := GenerateMultiSecretValidationStep(tt.secretNames, tt.engineName, tt.docsURL)
+			stepContent := strings.Join(step, "\n")
+
+			for _, want := range tt.wantStrings {
+				if !strings.Contains(stepContent, want) {
+					t.Errorf("GenerateMultiSecretValidationStep() missing expected string:\nwant: %s\ngot: %s", want, stepContent)
+				}
+			}
+
+			// Verify it has a run block
+			if !strings.Contains(stepContent, "run: |") {
+				t.Error("Expected step to have 'run: |' block")
+			}
+
+			// Verify it has an env section
+			if !strings.Contains(stepContent, "env:") {
+				t.Error("Expected step to have 'env:' section")
+			}
+
+			// Verify it exits with code 1 on failure
+			if !strings.Contains(stepContent, "exit 1") {
+				t.Error("Expected step to exit with code 1 on validation failure")
+			}
+		})
+	}
+}
+
 func TestClaudeEngineHasSecretValidation(t *testing.T) {
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{}

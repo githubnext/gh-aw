@@ -60,26 +60,12 @@ func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubA
 	var steps []GitHubActionStep
 
 	// Add secret validation step - Codex supports both CODEX_API_KEY and OPENAI_API_KEY as fallback
-	stepLines := []string{
-		"      - name: Validate CODEX_API_KEY or OPENAI_API_KEY secret",
-		"        run: |",
-		"          if [ -z \"$CODEX_API_KEY\" ] && [ -z \"$OPENAI_API_KEY\" ]; then",
-		"            echo \"Error: Neither CODEX_API_KEY nor OPENAI_API_KEY secret is set\"",
-		"            echo \"The Codex engine requires either CODEX_API_KEY or OPENAI_API_KEY secret to be configured.\"",
-		"            echo \"Please configure one of these secrets in your repository settings.\"",
-		"            echo \"Documentation: https://githubnext.github.io/gh-aw/reference/engines/#openai-codex\"",
-		"            exit 1",
-		"          fi",
-		"          if [ -n \"$CODEX_API_KEY\" ]; then",
-		"            echo \"CODEX_API_KEY secret is configured\"",
-		"          else",
-		"            echo \"OPENAI_API_KEY secret is configured (using as fallback for CODEX_API_KEY)\"",
-		"          fi",
-		"        env:",
-		"          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}",
-		"          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}",
-	}
-	steps = append(steps, GitHubActionStep(stepLines))
+	secretValidation := GenerateMultiSecretValidationStep(
+		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		"Codex",
+		"https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
+	)
+	steps = append(steps, secretValidation)
 
 	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@openai/codex",
