@@ -5,7 +5,32 @@ package workflow
 import (
 	"strings"
 	"testing"
+
+	"github.com/githubnext/gh-aw/pkg/parser"
 )
+
+// parseWorkflowFromContent is a helper function to parse workflow content for testing
+func parseWorkflowFromContent(t *testing.T, content string, filename string) *WorkflowData {
+	t.Helper()
+
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		t.Fatalf("Failed to extract frontmatter: %v", err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+	safeOutputs := compiler.extractSafeOutputsConfig(result.Frontmatter)
+	topTools := extractToolsFromFrontmatter(result.Frontmatter)
+
+	workflowData := &WorkflowData{
+		Name:            filename,
+		FrontmatterName: extractStringValue(result.Frontmatter, "name"),
+		SafeOutputs:     safeOutputs,
+		Tools:           topTools,
+	}
+
+	return workflowData
+}
 
 func TestSafeOutputsEnvIntegration(t *testing.T) {
 	tests := []struct {
