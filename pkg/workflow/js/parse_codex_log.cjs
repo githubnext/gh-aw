@@ -262,6 +262,37 @@ function parseCodexLog(logContent) {
 }
 
 /**
+ * Calculates approximate token count from text using 4 chars per token estimate
+ * @param {string} text - The text to estimate tokens for
+ * @returns {number} Approximate token count
+ */
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Formats duration in seconds
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} Formatted duration string (e.g., "1s", "1m 30s")
+ */
+function formatDuration(ms) {
+  if (!ms || ms <= 0) return "";
+
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (remainingSeconds === 0) {
+    return `${minutes}m`;
+  }
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+/**
  * Format a Codex tool call with HTML details
  * @param {string} server - The server name (e.g., "github", "time")
  * @param {string} toolName - The tool name (e.g., "list_pull_requests")
@@ -271,7 +302,16 @@ function parseCodexLog(logContent) {
  * @returns {string} Formatted HTML details string
  */
 function formatCodexToolCall(server, toolName, params, response, statusIcon) {
-  const summary = `${statusIcon} <code>${server}::${toolName}</code>`;
+  // Calculate token estimate from params + response
+  const totalTokens = estimateTokens(params) + estimateTokens(response);
+
+  // Format metadata
+  let metadata = "";
+  if (totalTokens > 0) {
+    metadata = ` \`~${totalTokens}t\``;
+  }
+
+  const summary = `${statusIcon} <code>${server}::${toolName}</code>${metadata}`;
 
   // If no response, just show the summary
   if (!response || response.trim() === "") {
@@ -309,7 +349,16 @@ function formatCodexToolCall(server, toolName, params, response, statusIcon) {
  * @returns {string} Formatted HTML details string
  */
 function formatCodexBashCall(command, response, statusIcon) {
-  const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>`;
+  // Calculate token estimate from command + response
+  const totalTokens = estimateTokens(command) + estimateTokens(response);
+
+  // Format metadata
+  let metadata = "";
+  if (totalTokens > 0) {
+    metadata = ` \`~${totalTokens}t\``;
+  }
+
+  const summary = `${statusIcon} <code>bash: ${truncateString(command, 60)}</code>${metadata}`;
 
   // If no response, just show the summary
   if (!response || response.trim() === "") {
@@ -351,7 +400,14 @@ function truncateString(str, maxLength) {
 
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseCodexLog, formatCodexToolCall, formatCodexBashCall, truncateString };
+  module.exports = {
+    parseCodexLog,
+    formatCodexToolCall,
+    formatCodexBashCall,
+    truncateString,
+    estimateTokens,
+    formatDuration,
+  };
 }
 
 main();

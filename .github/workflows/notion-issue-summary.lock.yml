@@ -2498,6 +2498,23 @@ jobs:
               }
               return { markdown, mcpFailures };
             }
+            function estimateTokens(text) {
+              if (!text) return 0;
+              return Math.ceil(text.length / 4);
+            }
+            function formatDuration(ms) {
+              if (!ms || ms <= 0) return "";
+              const seconds = Math.round(ms / 1000);
+              if (seconds < 60) {
+                return `${seconds}s`;
+              }
+              const minutes = Math.floor(seconds / 60);
+              const remainingSeconds = seconds % 60;
+              if (remainingSeconds === 0) {
+                return `${minutes}m`;
+              }
+              return `${minutes}m ${remainingSeconds}s`;
+            }
             function formatToolUse(toolUse, toolResult) {
               const toolName = toolUse.name;
               const input = toolUse.input || {};
@@ -2520,56 +2537,66 @@ jobs:
                   details = toolResult.content.map(c => (typeof c === "string" ? c : c.text || "")).join("\n");
                 }
               }
+              const inputText = JSON.stringify(input);
+              const outputText = details;
+              const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
+              let metadata = "";
+              if (toolResult && toolResult.duration_ms) {
+                metadata += ` \`${formatDuration(toolResult.duration_ms)}\``;
+              }
+              if (totalTokens > 0) {
+                metadata += ` \`~${totalTokens}t\``;
+              }
               switch (toolName) {
                 case "Bash":
                   const command = input.command || "";
                   const description = input.description || "";
                   const formattedCommand = formatBashCommand(command);
                   if (description) {
-                    summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>`;
+                    summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
                   } else {
-                    summary = `${statusIcon} <code>${formattedCommand}</code>`;
+                    summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
                   }
                   break;
                 case "Read":
                   const filePath = input.file_path || input.path || "";
                   const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); 
-                  summary = `${statusIcon} Read <code>${relativePath}</code>`;
+                  summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
                   break;
                 case "Write":
                 case "Edit":
                 case "MultiEdit":
                   const writeFilePath = input.file_path || input.path || "";
                   const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} Write <code>${writeRelativePath}</code>`;
+                  summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
                   break;
                 case "Grep":
                 case "Glob":
                   const query = input.query || input.pattern || "";
-                  summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>`;
+                  summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
                   break;
                 case "LS":
                   const lsPath = input.path || "";
                   const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}`;
+                  summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
                   break;
                 default:
                   if (toolName.startsWith("mcp__")) {
                     const mcpName = formatMcpName(toolName);
                     const params = formatMcpParameters(input);
-                    summary = `${statusIcon} ${mcpName}(${params})`;
+                    summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
                   } else {
                     const keys = Object.keys(input);
                     if (keys.length > 0) {
                       const mainParam = keys.find(k => ["query", "command", "path", "file_path", "content"].includes(k)) || keys[0];
                       const value = String(input[mainParam] || "");
                       if (value) {
-                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}`;
+                        summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
                       } else {
-                        summary = `${statusIcon} ${toolName}`;
+                        summary = `${statusIcon} ${toolName}${metadata}`;
                       }
                     } else {
-                      summary = `${statusIcon} ${toolName}`;
+                      summary = `${statusIcon} ${toolName}${metadata}`;
                     }
                   }
               }
@@ -2632,6 +2659,8 @@ jobs:
                 formatInitializationSummary,
                 formatBashCommand,
                 truncateString,
+                estimateTokens,
+                formatDuration,
               };
             }
             main();

@@ -502,10 +502,96 @@ npm warn exec The following package was not found
       // Summary should contain the tool description and command
       expect(result.markdown).toContain("List files: <code>ls -la</code>");
 
+      // Should contain token estimate
+      expect(result.markdown).toMatch(/~\d+t/);
+
       // Details should contain the output in a code block
       expect(result.markdown).toContain("```");
       expect(result.markdown).toContain("total 48");
       expect(result.markdown).toContain("file1.txt");
+    });
+
+    it("should include token estimates in tool call rendering", () => {
+      const parseClaudeLog = extractParseFunction();
+
+      const logWithMcpTool = JSON.stringify([
+        {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                id: "tool_1",
+                name: "mcp__github__create_issue",
+                input: { title: "Test Issue", body: "Test description that is long enough to generate some tokens" },
+              },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "tool_1",
+                content: "Issue created successfully with number 123",
+                is_error: false,
+              },
+            ],
+          },
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithMcpTool);
+
+      // Should contain token estimate with ~Xt format
+      expect(result.markdown).toMatch(/~\d+t/);
+
+      // Should contain the MCP tool name
+      expect(result.markdown).toContain("github::create_issue");
+    });
+
+    it("should include duration when available in tool_result", () => {
+      const parseClaudeLog = extractParseFunction();
+
+      const logWithDuration = JSON.stringify([
+        {
+          type: "assistant",
+          message: {
+            content: [
+              {
+                type: "tool_use",
+                id: "tool_1",
+                name: "Bash",
+                input: { command: "sleep 2" },
+              },
+            ],
+          },
+        },
+        {
+          type: "user",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "tool_1",
+                content: "",
+                is_error: false,
+                duration_ms: 2500,
+              },
+            ],
+          },
+        },
+      ]);
+
+      const result = parseClaudeLog(logWithDuration);
+
+      // Should contain duration in seconds (2500ms rounds to 3s)
+      expect(result.markdown).toMatch(/`\d+s`/);
+
+      // Should also contain token estimate
+      expect(result.markdown).toMatch(/~\d+t/);
     });
 
     it("should truncate long tool outputs", () => {

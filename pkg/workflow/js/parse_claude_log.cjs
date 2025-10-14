@@ -335,6 +335,37 @@ function formatInitializationSummary(initEntry) {
 }
 
 /**
+ * Calculates approximate token count from text using 4 chars per token estimate
+ * @param {string} text - The text to estimate tokens for
+ * @returns {number} Approximate token count
+ */
+function estimateTokens(text) {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Formats duration in seconds
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} Formatted duration string (e.g., "1s", "1m 30s")
+ */
+function formatDuration(ms) {
+  if (!ms || ms <= 0) return "";
+
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (remainingSeconds === 0) {
+    return `${minutes}m`;
+  }
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+/**
  * Formats a tool use entry with its result into markdown
  * @param {any} toolUse - The tool use object containing name, input, etc.
  * @param {any} toolResult - The corresponding tool result object
@@ -370,6 +401,20 @@ function formatToolUse(toolUse, toolResult) {
     }
   }
 
+  // Calculate token estimate from input + output
+  const inputText = JSON.stringify(input);
+  const outputText = details;
+  const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
+
+  // Format metadata (duration and tokens)
+  let metadata = "";
+  if (toolResult && toolResult.duration_ms) {
+    metadata += ` \`${formatDuration(toolResult.duration_ms)}\``;
+  }
+  if (totalTokens > 0) {
+    metadata += ` \`~${totalTokens}t\``;
+  }
+
   switch (toolName) {
     case "Bash":
       const command = input.command || "";
@@ -379,16 +424,16 @@ function formatToolUse(toolUse, toolResult) {
       const formattedCommand = formatBashCommand(command);
 
       if (description) {
-        summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>`;
+        summary = `${statusIcon} ${description}: <code>${formattedCommand}</code>${metadata}`;
       } else {
-        summary = `${statusIcon} <code>${formattedCommand}</code>`;
+        summary = `${statusIcon} <code>${formattedCommand}</code>${metadata}`;
       }
       break;
 
     case "Read":
       const filePath = input.file_path || input.path || "";
       const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); // Remove /home/runner/work/repo/repo/ prefix
-      summary = `${statusIcon} Read <code>${relativePath}</code>`;
+      summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
       break;
 
     case "Write":
@@ -396,19 +441,19 @@ function formatToolUse(toolUse, toolResult) {
     case "MultiEdit":
       const writeFilePath = input.file_path || input.path || "";
       const writeRelativePath = writeFilePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} Write <code>${writeRelativePath}</code>`;
+      summary = `${statusIcon} Write <code>${writeRelativePath}</code>${metadata}`;
       break;
 
     case "Grep":
     case "Glob":
       const query = input.query || input.pattern || "";
-      summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>`;
+      summary = `${statusIcon} Search for <code>${truncateString(query, 80)}</code>${metadata}`;
       break;
 
     case "LS":
       const lsPath = input.path || "";
       const lsRelativePath = lsPath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
-      summary = `${statusIcon} LS: ${lsRelativePath || lsPath}`;
+      summary = `${statusIcon} LS: ${lsRelativePath || lsPath}${metadata}`;
       break;
 
     default:
@@ -416,7 +461,7 @@ function formatToolUse(toolUse, toolResult) {
       if (toolName.startsWith("mcp__")) {
         const mcpName = formatMcpName(toolName);
         const params = formatMcpParameters(input);
-        summary = `${statusIcon} ${mcpName}(${params})`;
+        summary = `${statusIcon} ${mcpName}(${params})${metadata}`;
       } else {
         // Generic tool formatting - show the tool name and main parameters
         const keys = Object.keys(input);
@@ -426,12 +471,12 @@ function formatToolUse(toolUse, toolResult) {
           const value = String(input[mainParam] || "");
 
           if (value) {
-            summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}`;
+            summary = `${statusIcon} ${toolName}: ${truncateString(value, 100)}${metadata}`;
           } else {
-            summary = `${statusIcon} ${toolName}`;
+            summary = `${statusIcon} ${toolName}${metadata}`;
           }
         } else {
-          summary = `${statusIcon} ${toolName}`;
+          summary = `${statusIcon} ${toolName}${metadata}`;
         }
       }
   }
@@ -538,6 +583,8 @@ if (typeof module !== "undefined" && module.exports) {
     formatInitializationSummary,
     formatBashCommand,
     truncateString,
+    estimateTokens,
+    formatDuration,
   };
 }
 
