@@ -252,6 +252,7 @@ async function getDiscussionId(owner, repo, discussionNumber) {
 async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
   // First, get the discussion ID
   const discussion = await getDiscussionId(owner, repo, discussionNumber);
+  if (!discussion) throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
 
   // Then fetch the comment by traversing discussion comments
   // Note: GitHub's GraphQL API doesn't provide a direct way to query comment by database ID
@@ -264,7 +265,7 @@ async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) 
   if (nodeId) {
     return {
       id: nodeId,
-      url: context.payload.comment.html_url || discussion.url,
+      url: context.payload.comment?.html_url || discussion?.url,
     };
   }
 

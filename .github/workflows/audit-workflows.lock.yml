@@ -1017,9 +1017,6 @@ jobs:
           chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-discussion\":{\"max\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF

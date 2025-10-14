@@ -506,11 +506,13 @@ jobs:
             }
             async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
               const discussion = await getDiscussionId(owner, repo, discussionNumber);
+              if (!discussion)
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
               const nodeId = context.payload?.comment?.node_id;
               if (nodeId) {
                 return {
                   id: nodeId,
-                  url: context.payload.comment.html_url || discussion.url,
+                  url: context.payload.comment?.html_url || discussion?.url,
                 };
               }
               throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
@@ -1454,9 +1456,6 @@ jobs:
           chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing-tool\":{},\"push-to-pull-request-branch\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF

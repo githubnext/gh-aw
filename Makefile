@@ -65,8 +65,12 @@ test-perf:
 
 # Test JavaScript files
 .PHONY: test-js
-test-js:
+test-js: build-js
 	cd pkg/workflow/js && npm run test:js
+
+.PHONY: build-js
+build-js:
+	cd pkg/workflow/js && npm run typecheck
 
 # Test all code (Go and JavaScript)
 .PHONY: test-all

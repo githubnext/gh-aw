@@ -195,7 +195,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.339
+        run: npm install -g @github/copilot@0.0.340
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -872,9 +872,6 @@ jobs:
           chmod +x /tmp/gh-aw/safe-outputs/mcp-server.cjs
           
       - name: Setup MCPs
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-discussion\":{\"max\":1},\"missing-tool\":{}}"
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
           mkdir -p /home/runner/.copilot
@@ -889,7 +886,7 @@ jobs:
                   "-i",
                   "--rm",
                   "-e",
-                  "GITHUB_PERSONAL_ACCESS_TOKEN=${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
                   "-e",
                   "GITHUB_TOOLSETS=all",
                   "ghcr.io/github/github-mcp-server:v0.18.0"
@@ -949,7 +946,10 @@ jobs:
                   "list_releases",
                   "list_starred_repositories",
                   "list_sub_issues"
-                ]
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+                }
               },
               "safe_outputs": {
                 "type": "local",
@@ -957,8 +957,8 @@ jobs:
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
                 "tools": ["*"],
                 "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}
+                  "GITHUB_AW_SAFE_OUTPUTS": "\${GITHUB_AW_SAFE_OUTPUTS}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
                 }
               }
             }
@@ -1222,6 +1222,8 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create-discussion\":{\"max\":1},\"missing-tool\":{}}"
+          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
           XDG_CONFIG_HOME: /home/runner
@@ -3174,7 +3176,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.339
+        run: npm install -g @github/copilot@0.0.340
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):

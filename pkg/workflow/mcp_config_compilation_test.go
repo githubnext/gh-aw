@@ -167,11 +167,21 @@ This workflow tests that MCP server env vars are sorted alphabetically.
 		t.Fatalf("Failed to generate YAML: %v", err)
 	}
 
-	// Find the env section in the generated YAML
-	envIndex := strings.Index(yamlContent, `"env": {`)
-	if envIndex == -1 {
-		t.Fatalf("Could not find env section in generated YAML")
+	// Find the test-server env section in the generated YAML
+	// Look for "test-server" first, then find the env section after it
+	testServerIndex := strings.Index(yamlContent, `"test-server"`)
+	if testServerIndex == -1 {
+		t.Fatalf("Could not find test-server section in generated YAML")
 	}
+
+	// Find env section after test-server
+	envIndex := strings.Index(yamlContent[testServerIndex:], `"env": {`)
+	if envIndex == -1 {
+		t.Fatalf("Could not find env section for test-server in generated YAML")
+	}
+
+	// Adjust envIndex to be relative to the full yamlContent
+	envIndex += testServerIndex
 
 	// Extract a portion of YAML starting from env section (next 300 chars should be enough)
 	envSection := yamlContent[envIndex : envIndex+300]

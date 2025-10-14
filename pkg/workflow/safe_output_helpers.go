@@ -63,6 +63,179 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	return steps
 }
 
+func generateSafeOutputsConfig(data *WorkflowData) string {
+	// Pass the safe-outputs configuration for validation
+	if data.SafeOutputs == nil {
+		return ""
+	}
+	// Create a simplified config object for validation
+	safeOutputsConfig := make(map[string]any)
+
+	// Handle safe-outputs configuration if present
+	if data.SafeOutputs != nil {
+		if data.SafeOutputs.CreateIssues != nil {
+			issueConfig := map[string]any{}
+			if data.SafeOutputs.CreateIssues.Max > 0 {
+				issueConfig["max"] = data.SafeOutputs.CreateIssues.Max
+			}
+			if data.SafeOutputs.CreateIssues.Min > 0 {
+				issueConfig["min"] = data.SafeOutputs.CreateIssues.Min
+			}
+			safeOutputsConfig["create-issue"] = issueConfig
+		}
+		if data.SafeOutputs.AddComments != nil {
+			commentConfig := map[string]any{}
+			if data.SafeOutputs.AddComments.Target != "" {
+				commentConfig["target"] = data.SafeOutputs.AddComments.Target
+			}
+			if data.SafeOutputs.AddComments.Max > 0 {
+				commentConfig["max"] = data.SafeOutputs.AddComments.Max
+			}
+			if data.SafeOutputs.AddComments.Min > 0 {
+				commentConfig["min"] = data.SafeOutputs.AddComments.Min
+			}
+			safeOutputsConfig["add-comment"] = commentConfig
+		}
+		if data.SafeOutputs.CreateDiscussions != nil {
+			discussionConfig := map[string]any{}
+			if data.SafeOutputs.CreateDiscussions.Max > 0 {
+				discussionConfig["max"] = data.SafeOutputs.CreateDiscussions.Max
+			}
+			if data.SafeOutputs.CreateDiscussions.Min > 0 {
+				discussionConfig["min"] = data.SafeOutputs.CreateDiscussions.Min
+			}
+			safeOutputsConfig["create-discussion"] = discussionConfig
+		}
+		if data.SafeOutputs.CreatePullRequests != nil {
+			prConfig := map[string]any{}
+			// Note: max is always 1 for pull requests, not configurable
+			if data.SafeOutputs.CreatePullRequests.Min > 0 {
+				prConfig["min"] = data.SafeOutputs.CreatePullRequests.Min
+			}
+			safeOutputsConfig["create-pull-request"] = prConfig
+		}
+		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
+			prReviewCommentConfig := map[string]any{}
+			if data.SafeOutputs.CreatePullRequestReviewComments.Max > 0 {
+				prReviewCommentConfig["max"] = data.SafeOutputs.CreatePullRequestReviewComments.Max
+			}
+			if data.SafeOutputs.CreatePullRequestReviewComments.Min > 0 {
+				prReviewCommentConfig["min"] = data.SafeOutputs.CreatePullRequestReviewComments.Min
+			}
+			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
+		}
+		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
+			// Security reports typically have unlimited max, but check if configured
+			securityReportConfig := map[string]any{}
+			if data.SafeOutputs.CreateCodeScanningAlerts.Max > 0 {
+				securityReportConfig["max"] = data.SafeOutputs.CreateCodeScanningAlerts.Max
+			}
+			if data.SafeOutputs.CreateCodeScanningAlerts.Min > 0 {
+				securityReportConfig["min"] = data.SafeOutputs.CreateCodeScanningAlerts.Min
+			}
+			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
+		}
+		if data.SafeOutputs.AddLabels != nil {
+			labelConfig := map[string]any{}
+			if data.SafeOutputs.AddLabels.Max > 0 {
+				labelConfig["max"] = data.SafeOutputs.AddLabels.Max
+			}
+			if data.SafeOutputs.AddLabels.Min > 0 {
+				labelConfig["min"] = data.SafeOutputs.AddLabels.Min
+			}
+			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
+				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
+			}
+			safeOutputsConfig["add-labels"] = labelConfig
+		}
+		if data.SafeOutputs.UpdateIssues != nil {
+			updateConfig := map[string]any{}
+			if data.SafeOutputs.UpdateIssues.Max > 0 {
+				updateConfig["max"] = data.SafeOutputs.UpdateIssues.Max
+			}
+			if data.SafeOutputs.UpdateIssues.Min > 0 {
+				updateConfig["min"] = data.SafeOutputs.UpdateIssues.Min
+			}
+			safeOutputsConfig["update-issue"] = updateConfig
+		}
+		if data.SafeOutputs.PushToPullRequestBranch != nil {
+			pushToBranchConfig := map[string]any{}
+			if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
+				pushToBranchConfig["target"] = data.SafeOutputs.PushToPullRequestBranch.Target
+			}
+			if data.SafeOutputs.PushToPullRequestBranch.Max > 0 {
+				pushToBranchConfig["max"] = data.SafeOutputs.PushToPullRequestBranch.Max
+			}
+			if data.SafeOutputs.PushToPullRequestBranch.Min > 0 {
+				pushToBranchConfig["min"] = data.SafeOutputs.PushToPullRequestBranch.Min
+			}
+			safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
+		}
+		if data.SafeOutputs.UploadAssets != nil {
+			uploadConfig := map[string]any{}
+			if data.SafeOutputs.UploadAssets.Max > 0 {
+				uploadConfig["max"] = data.SafeOutputs.UploadAssets.Max
+			}
+			if data.SafeOutputs.UploadAssets.Min > 0 {
+				uploadConfig["min"] = data.SafeOutputs.UploadAssets.Min
+			}
+			safeOutputsConfig["upload-asset"] = uploadConfig
+		}
+		if data.SafeOutputs.MissingTool != nil {
+			missingToolConfig := map[string]any{}
+			if data.SafeOutputs.MissingTool.Max > 0 {
+				missingToolConfig["max"] = data.SafeOutputs.MissingTool.Max
+			}
+			if data.SafeOutputs.MissingTool.Min > 0 {
+				missingToolConfig["min"] = data.SafeOutputs.MissingTool.Min
+			}
+			safeOutputsConfig["missing-tool"] = missingToolConfig
+		}
+	}
+
+	// Add safe-jobs configuration from SafeOutputs.Jobs
+	if len(data.SafeOutputs.Jobs) > 0 {
+		for jobName, jobConfig := range data.SafeOutputs.Jobs {
+			safeJobConfig := map[string]any{}
+
+			// Add description if present
+			if jobConfig.Description != "" {
+				safeJobConfig["description"] = jobConfig.Description
+			}
+
+			// Add output if present
+			if jobConfig.Output != "" {
+				safeJobConfig["output"] = jobConfig.Output
+			}
+
+			// Add inputs information
+			if len(jobConfig.Inputs) > 0 {
+				inputsConfig := make(map[string]any)
+				for inputName, inputDef := range jobConfig.Inputs {
+					inputConfig := map[string]any{
+						"type":        inputDef.Type,
+						"description": inputDef.Description,
+						"required":    inputDef.Required,
+					}
+					if inputDef.Default != "" {
+						inputConfig["default"] = inputDef.Default
+					}
+					if len(inputDef.Options) > 0 {
+						inputConfig["options"] = inputDef.Options
+					}
+					inputsConfig[inputName] = inputConfig
+				}
+				safeJobConfig["inputs"] = inputsConfig
+			}
+
+			safeOutputsConfig[jobName] = safeJobConfig
+		}
+	}
+
+	configJSON, _ := json.Marshal(safeOutputsConfig)
+	return string(configJSON)
+}
+
 // applySafeOutputEnvToMap adds safe-output related environment variables to an env map
 // This extracts the duplicated safe-output env setup logic across all engines (copilot, codex, claude, custom)
 func applySafeOutputEnvToMap(env map[string]string, workflowData *WorkflowData) {
@@ -71,6 +244,9 @@ func applySafeOutputEnvToMap(env map[string]string, workflowData *WorkflowData) 
 	}
 
 	env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
+
+	safeOutputConfig := generateSafeOutputsConfig(workflowData)
+	env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 
 	// Add staged flag if specified
 	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {

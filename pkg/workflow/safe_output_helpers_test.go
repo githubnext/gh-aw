@@ -220,7 +220,8 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				SafeOutputs: &SafeOutputsConfig{},
 			},
 			expected: map[string]string{
-				"GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
 			},
 		},
 		{
@@ -232,6 +233,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
 				"GITHUB_AW_SAFE_OUTPUTS_STAGED": "true",
 			},
 		},
@@ -244,6 +246,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{}\"",
 				"GITHUB_AW_SAFE_OUTPUTS_STAGED": "true",
 				"GITHUB_AW_TARGET_REPO_SLUG":    "owner/repo",
 			},
@@ -261,6 +264,7 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 			},
 			expected: map[string]string{
 				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+				"GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\"{\\\"upload-asset\\\":{}}\"",
 				"GITHUB_AW_ASSETS_BRANCH":       "\"gh-aw-assets\"",
 				"GITHUB_AW_ASSETS_MAX_SIZE_KB":  "10240",
 				"GITHUB_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",

@@ -74,7 +74,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	// Generate safe-outputs configuration once to avoid duplicate computation
 	var safeOutputConfig string
 	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		safeOutputConfig = c.generateSafeOutputsConfig(workflowData)
+		safeOutputConfig = generateSafeOutputsConfig(workflowData)
 	}
 
 	// Sort tools to ensure stable code generation
@@ -161,19 +161,6 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 
 	// Use the engine's RenderMCPConfig method
 	yaml.WriteString("      - name: Setup MCPs\n")
-	if HasSafeOutputsEnabled(workflowData.SafeOutputs) {
-		if safeOutputConfig != "" {
-			// Add environment variables for JSONL validation
-			yaml.WriteString("        env:\n")
-			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-			fmt.Fprintf(yaml, "          GITHUB_AW_SAFE_OUTPUTS_CONFIG: %q\n", safeOutputConfig)
-			if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.UploadAssets != nil {
-				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_BRANCH: %q\n", workflowData.SafeOutputs.UploadAssets.BranchName)
-				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-				fmt.Fprintf(yaml, "          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
-			}
-		}
-	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p /tmp/gh-aw/mcp-config\n")
 	engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
@@ -190,6 +177,12 @@ func getGitHubDockerImageVersion(githubTool any) string {
 		}
 	}
 	return githubDockerImageVersion
+}
+
+// hasGitHubTool checks if the tools map contains a GitHub tool
+func hasGitHubTool(tools map[string]any) bool {
+	_, exists := tools["github"]
+	return exists
 }
 
 // getGitHubType extracts the mode from GitHub tool configuration (local or remote)
