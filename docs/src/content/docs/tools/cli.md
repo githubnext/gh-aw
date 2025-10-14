@@ -21,6 +21,7 @@ gh aw version
 gh aw --help
 
 # Basic workflow lifecycle
+gh aw init                                       # Initialize repository (first-time setup)
 gh aw add githubnext/agentics/ci-doctor    # Add workflow and compile to GitHub Actions
 gh aw compile                                    # Recompile to GitHub Actions
 gh aw trial githubnext/agentics/ci-doctor  # Test workflow safely before adding
@@ -42,6 +43,8 @@ gh aw audit 12345678                             # Audit a specific run
 ## 📝 Workflow Creation and Management  
 
 The `add` and `new` commands help you create and manage agentic workflows, from templates and samples to completely custom workflows.
+
+The `init` command prepares your repository for agentic workflows by configuring `.gitattributes` and creating GitHub Copilot custom instructions.
 
 ```bash
 # Create new workflows
