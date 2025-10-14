@@ -317,16 +317,18 @@ func (c *Compiler) CompileWorkflow(markdownPath string) error {
 			fmt.Println(console.FormatInfoMessage("Validating container images..."))
 		}
 		if err := c.validateContainerImages(workflowData); err != nil {
-			formattedErr := console.FormatError(console.CompilerError{
+			// Treat container image validation failures as warnings, not errors
+			// This is because validation may fail due to auth issues locally (e.g., private registries)
+			formattedWarning := console.FormatError(console.CompilerError{
 				Position: console.ErrorPosition{
 					File:   markdownPath,
 					Line:   1,
 					Column: 1,
 				},
-				Type:    "error",
+				Type:    "warning",
 				Message: fmt.Sprintf("container image validation failed: %v", err),
 			})
-			return errors.New(formattedErr)
+			fmt.Fprintln(os.Stderr, formattedWarning)
 		}
 
 		// Validate runtime packages (npx, uv)
