@@ -440,12 +440,20 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if verbose {
 			fmt.Fprintln(os.Stderr, "🔨 Initial compilation of all workflow files...")
 		}
-		if err := compileAllWorkflowFiles(compiler, workflowsDir, verbose); err != nil {
+		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
+		if err != nil {
 			// Always show initial compilation errors, not just in verbose mode
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
-		fmt.Fprintln(os.Stderr, "Recompiled")
+		// Print summary instead of just "Recompiled"
+		printCompilationSummary(stats)
 	} else {
+		// Reset warning count before compilation
+		compiler.ResetWarningCount()
+
+		// Track compilation statistics for single file
+		stats := &CompilationStats{Total: 1}
+
 		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "🔨 Initial compilation of %s...\n", markdownFile)
@@ -453,8 +461,14 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 		if err := CompileWorkflowWithValidation(compiler, markdownFile, verbose); err != nil {
 			// Always show initial compilation errors on new line without wrapping
 			fmt.Fprintln(os.Stderr, err.Error())
+			stats.Errors++
 		}
-		fmt.Fprintln(os.Stderr, "Recompiled")
+
+		// Get warning count from compiler
+		stats.Warnings = compiler.GetWarningCount()
+
+		// Print summary instead of just "Recompiled"
+		printCompilationSummary(stats)
 	}
 
 	// Main watch loop
@@ -526,32 +540,44 @@ func watchAndCompileWorkflows(markdownFile string, compiler *workflow.Compiler, 
 }
 
 // compileAllWorkflowFiles compiles all markdown files in the workflows directory
-func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) error {
+func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, verbose bool) (*CompilationStats, error) {
+	// Reset warning count before compilation
+	compiler.ResetWarningCount()
+
+	// Track compilation statistics
+	stats := &CompilationStats{}
+
 	// Find all markdown files
 	mdFiles, err := filepath.Glob(filepath.Join(workflowsDir, "*.md"))
 	if err != nil {
-		return fmt.Errorf("failed to find markdown files: %w", err)
+		return stats, fmt.Errorf("failed to find markdown files: %w", err)
 	}
 
 	if len(mdFiles) == 0 {
 		if verbose {
 			fmt.Printf("No markdown files found in %s\n", workflowsDir)
 		}
-		return nil
+		return stats, nil
 	}
 
 	// Compile each file
 	for _, file := range mdFiles {
+		stats.Total++
+
 		if verbose {
 			fmt.Printf("🔨 Compiling: %s\n", file)
 		}
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
+			stats.Errors++
 		} else if verbose {
 			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
 		}
 	}
+
+	// Get warning count from compiler
+	stats.Warnings = compiler.GetWarningCount()
 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
@@ -560,7 +586,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 		}
 	}
 
-	return nil
+	return stats, nil
 }
 
 // compileModifiedFiles compiles a list of modified markdown files
@@ -577,7 +603,15 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		fmt.Fprintf(os.Stderr, "🔨 Compiling %d modified file(s)...\n", len(files))
 	}
 
+	// Reset warning count before compilation
+	compiler.ResetWarningCount()
+
+	// Track compilation statistics
+	stats := &CompilationStats{}
+
 	for _, file := range files {
+		stats.Total++
+
 		// Check if file still exists (might have been deleted between detection and compilation)
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			if verbose {
@@ -593,10 +627,14 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		if err := CompileWorkflowWithValidation(compiler, file, verbose); err != nil {
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
+			stats.Errors++
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
 		}
 	}
+
+	// Get warning count from compiler
+	stats.Warnings = compiler.GetWarningCount()
 
 	// Ensure .gitattributes marks .lock.yml files as generated
 	if err := ensureGitAttributes(); err != nil {
@@ -605,7 +643,8 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 		}
 	}
 
-	fmt.Println("Recompiled")
+	// Print summary instead of just "Recompiled"
+	printCompilationSummary(stats)
 }
 
 // handleFileDeleted handles the deletion of a markdown file by removing its corresponding lock file
