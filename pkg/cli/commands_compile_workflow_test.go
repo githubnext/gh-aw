@@ -549,3 +549,147 @@ This is a test workflow for backward compatibility.
 		})
 	}
 }
+
+func TestCompilationSummary(t *testing.T) {
+	tests := []struct {
+		name            string
+		setupWorkflows  func(string) error
+		workflowIDs     []string
+		expectError     bool
+		expectedTotal   int
+		expectedErrors  int
+		hasWarnings     bool
+	}{
+		{
+			name: "summary with successful compilation",
+			setupWorkflows: func(tmpDir string) error {
+				workflowContent := `---
+name: Test Workflow
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+				if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+					return err
+				}
+
+				workflowFile := filepath.Join(workflowsDir, "test.md")
+				return os.WriteFile(workflowFile, []byte(workflowContent), 0644)
+			},
+			workflowIDs:    []string{"test.md"},
+			expectError:    false,
+			expectedTotal:  1,
+			expectedErrors: 0,
+			hasWarnings:    false,
+		},
+		{
+			name: "summary with compilation errors",
+			setupWorkflows: func(tmpDir string) error {
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+				return os.MkdirAll(workflowsDir, 0755)
+			},
+			workflowIDs:    []string{"nonexistent.md"},
+			expectError:    true,
+			expectedTotal:  1,
+			expectedErrors: 1,
+			hasWarnings:    false,
+		},
+		{
+			name: "summary with multiple workflows",
+			setupWorkflows: func(tmpDir string) error {
+				workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+				if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+					return err
+				}
+
+				workflowContent := `---
+name: Test Workflow
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+				for i := 1; i <= 3; i++ {
+					workflowFile := filepath.Join(workflowsDir, "test"+string(rune('0'+i))+".md")
+					if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			workflowIDs:    []string{"test1.md", "test2.md", "test3.md"},
+			expectError:    false,
+			expectedTotal:  3,
+			expectedErrors: 0,
+			hasWarnings:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory
+			tmpDir, err := os.MkdirTemp("", "compile-summary-test-*")
+			if err != nil {
+				t.Fatalf("Failed to create temp directory: %v", err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			// Change to temp directory
+			origWd, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get working directory: %v", err)
+			}
+			defer os.Chdir(origWd)
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			// Setup workflows
+			if err := tt.setupWorkflows(tmpDir); err != nil {
+				t.Fatalf("Failed to setup workflows: %v", err)
+			}
+
+			// Compile workflows
+			config := CompileConfig{
+				MarkdownFiles:        tt.workflowIDs,
+				Verbose:              false,
+				EngineOverride:       "",
+				Validate:             false,
+				Watch:                false,
+				WorkflowDir:          "",
+				SkipInstructions:     false,
+				NoEmit:               false,
+				Purge:                false,
+				TrialMode:            false,
+				TrialLogicalRepoSlug: "",
+			}
+			_, err = CompileWorkflows(config)
+
+			// Verify error expectation
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+
+			// Note: We can't easily capture and verify the summary output in this test
+			// because it's printed to stderr. The integration tests would be better
+			// suited for verifying the actual output format.
+		})
+	}
+}
