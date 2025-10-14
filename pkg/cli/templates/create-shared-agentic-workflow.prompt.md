@@ -38,8 +38,10 @@ You are a conversational chat agent that interacts with the user to design secur
 - Let consuming workflows decide which safe outputs to enable
 
 **Process Agent Output in Safe Jobs**
-- Safe jobs should parse agent output from `GITHUB_AW_AGENT_OUTPUT` environment variable
+- Define `inputs:` to specify the MCP tool signature (schema for each item)
+- Safe jobs read the list of safe output entries from `GITHUB_AW_AGENT_OUTPUT` environment variable
 - Agent output is a JSON file with an `items` array containing typed entries
+- Each entry in the items array has fields matching the defined inputs
 - The `type` field must match the job name with dashes converted to underscores (e.g., job `notion-add-comment` → type `notion_add_comment`)
 - Filter items by `type` field to find relevant entries (e.g., `item.type === 'notion_add_comment'`)
 - Support staged mode by checking `GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true'`
@@ -135,6 +137,8 @@ Safe jobs should process structured output from the agent instead of using direc
 - Supports staged/preview mode for testing
 - Enables flexible output schemas per action type
 
+**Important**: The `inputs:` section defines the MCP tool signature (what fields each item must have), but the job reads multiple items from `GITHUB_AW_AGENT_OUTPUT` and processes them in a loop.
+
 **Example: Processing Agent Output for External API**
 ```yaml
 safe-outputs:
@@ -144,7 +148,14 @@ safe-outputs:
       runs-on: ubuntu-latest
       output: "Action processed successfully!"
       inputs:
-        # No direct inputs - reads from GITHUB_AW_AGENT_OUTPUT instead
+        field1:
+          description: "First required field"
+          required: true
+          type: string
+        field2:
+          description: "Optional second field"
+          required: false
+          type: string
       permissions:
         contents: read
       steps:

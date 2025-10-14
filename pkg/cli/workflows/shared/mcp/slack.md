@@ -6,7 +6,10 @@ safe-outputs:
       runs-on: ubuntu-latest
       output: "Message posted to Slack successfully!"
       inputs:
-        # No direct inputs - reads from GITHUB_AW_AGENT_OUTPUT instead
+        message:
+          description: "The message to post (max 200 characters, supports Slack markdown)"
+          required: true
+          type: string
       permissions:
         contents: read
       steps:
