@@ -1,7 +1,5 @@
 ---
 on:
-  issues:
-    types: [opened]
   workflow_dispatch:
     inputs:
       text:
