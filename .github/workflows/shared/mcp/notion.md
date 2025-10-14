@@ -34,6 +34,7 @@ safe-outputs:
               const notionToken = process.env.NOTION_API_TOKEN;
               const pageId = process.env.NOTION_PAGE_ID;
               const comment = process.env.COMMENT;
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
               
               if (!notionToken) {
                 core.setFailed('NOTION_API_TOKEN secret is not configured');
@@ -47,8 +48,18 @@ safe-outputs:
                 core.setFailed('comment is missing');
                 return;
               }
+              
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Notion Comment Preview\n\n";
+                summaryContent += "The following comment would be added to Notion if staged mode was disabled:\n\n";
+                summaryContent += `**Page ID:** ${pageId}\n\n`;
+                summaryContent += `**Comment:**\n${comment}\n\n`;
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Notion comment preview written to step summary");
+                return;
+              }
+              
               core.info(`Adding comment to Notion page: ${pageId}`);
-              core.info(`Comment: ${comment}`);
               
               try {
                 const response = await fetch('https://api.notion.com/v1/comments', {
@@ -78,7 +89,7 @@ safe-outputs:
                 }
                 
                 const data = await response.json();
-                core.info('Comment added successfully');
+                core.info('✅ Comment added successfully');
                 core.info(`Comment ID: ${data.id}`);
               } catch (error) {
                 core.setFailed(`Failed to add comment: ${error.message}`);
