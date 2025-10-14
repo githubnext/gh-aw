@@ -3154,10 +3154,10 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: agent_output.json
-          path: /tmp/gh-aw/sh-aw/safe-jobs/
+          path: /tmp/gh-aw/safe-jobs/
       - name: Setup Safe Job Environment Variables
         run: |
-          echo "Setting up environment for safe job"
+          find /tmp/gh-aw/safe-jobs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json/agent_output.json" >> $GITHUB_ENV
       - name: Add comment to Notion page
         uses: actions/github-script@v8
