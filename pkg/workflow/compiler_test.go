@@ -2612,12 +2612,12 @@ Test workflow with reaction.
 	if jobCount != 3 {
 		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
 	}
-	
+
 	// Verify reaction step is in activation job, not a separate job
 	if strings.Contains(yamlContent, "add_reaction:") {
 		t.Error("Generated YAML should not contain separate add_reaction job")
 	}
-	
+
 	// Verify reaction step is in activation job
 	activationJobSection := extractJobSection(yamlContent, "activation")
 	if !strings.Contains(activationJobSection, "Add eyes reaction to the triggering item") {
@@ -2773,12 +2773,12 @@ Test workflow with reaction and comment editing.
 	if !strings.Contains(yamlContent, "issue_comment") {
 		t.Error("Generated YAML should reference issue_comment event handling")
 	}
-	
+
 	// Verify reaction step is in activation job, not a separate job
 	if strings.Contains(yamlContent, "add_reaction:") {
 		t.Error("Generated YAML should not contain separate add_reaction job")
 	}
-	
+
 	// Verify reaction step is in activation job
 	activationJobSection := extractJobSection(yamlContent, "activation")
 	if !strings.Contains(activationJobSection, "Add eyes reaction to the triggering item") {
@@ -2931,7 +2931,7 @@ Test command workflow that should automatically get "eyes" reaction.
 	if strings.Contains(yamlContent, "add_reaction:") {
 		t.Error("Generated YAML should not contain separate add_reaction job")
 	}
-	
+
 	// Verify reaction step is in activation job
 	activationJobSection := extractJobSection(yamlContent, "activation")
 	if !strings.Contains(activationJobSection, "Add eyes reaction to the triggering item") {

@@ -80,7 +80,7 @@ This workflow should generate add_reaction job with comment outputs.
 	if !strings.Contains(yamlContent, "steps.react.outputs.comment-url") {
 		t.Error("Generated YAML should contain comment-url output reference")
 	}
-	
+
 	// Verify reaction step is in activation job, not a separate add_reaction job
 	if strings.Contains(yamlContent, "add_reaction:") {
 		t.Error("Generated YAML should not contain separate add_reaction job")
@@ -166,7 +166,7 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 	if !strings.Contains(activationJobSection, "GITHUB_AW_WORKFLOW_NAME:") {
 		t.Errorf("GITHUB_AW_WORKFLOW_NAME should be in the activation job section\n%s", activationJobSection)
 	}
-	
+
 	// Verify no separate add_reaction job exists
 	if strings.Contains(yamlContent, "add_reaction:") {
 		t.Error("Generated YAML should not contain separate add_reaction job")

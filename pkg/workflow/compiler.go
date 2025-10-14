@@ -2046,7 +2046,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	// Add reaction step if ai-reaction is configured
 	if data.AIReaction != "" {
 		reactionCondition := buildReactionCondition()
-		
+
 		steps = append(steps, fmt.Sprintf("      - name: Add %s reaction to the triggering item\n", data.AIReaction))
 		steps = append(steps, "        id: react\n")
 		steps = append(steps, fmt.Sprintf("        if: %s\n", reactionCondition.Render()))
