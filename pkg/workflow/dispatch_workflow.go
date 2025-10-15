@@ -57,7 +57,7 @@ func (c *Compiler) buildDispatchWorkflowJob(data *WorkflowData, mainJobName stri
 	// Build custom environment variables specific to dispatch-workflow
 	var customEnvVars []string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
-	
+
 	// Pass the allowed workflows as a comma-separated list
 	if len(data.SafeOutputs.DispatchWorkflow.AllowedWorkflows) > 0 {
 		workflowsStr := strings.Join(data.SafeOutputs.DispatchWorkflow.AllowedWorkflows, ",")

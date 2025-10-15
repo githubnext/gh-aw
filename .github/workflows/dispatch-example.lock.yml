@@ -3,16 +3,18 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 
-name: "Workflow Dispatcher"
+name: "Issue Workflow Dispatcher"
 "on":
-  workflow_dispatch: null
+  issues:
+    types:
+    - opened
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Workflow Dispatcher"
+run-name: "Issue Workflow Dispatcher"
 
 jobs:
   check_membership:
@@ -108,6 +110,8 @@ jobs:
     needs: check_membership
     if: needs.check_membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -124,6 +128,168 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
+      - name: Compute current body text
+        id: compute-text
+        uses: actions/github-script@v8
+        with:
+          script: |
+            function sanitizeContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
+              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
+              const allowedDomains = allowedDomainsEnv
+                ? allowedDomainsEnv
+                    .split(",")
+                    .map(d => d.trim())
+                    .filter(d => d)
+                : defaultAllowedDomains;
+              let sanitized = content;
+              sanitized = neutralizeMentions(sanitized);
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = convertXmlTagsToParentheses(sanitized);
+              sanitized = sanitizeUrlProtocols(sanitized);
+              sanitized = sanitizeUrlDomains(sanitized);
+              const maxLength = 524288;
+              if (sanitized.length > maxLength) {
+                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
+              }
+              const lines = sanitized.split("\n");
+              const maxLines = 65000;
+              if (lines.length > maxLines) {
+                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
+              }
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = neutralizeBotTriggers(sanitized);
+              return sanitized.trim();
+              function convertXmlTagsToParentheses(s) {
+                if (!s || typeof s !== "string") {
+                  return s;
+                }
+                return (
+                  s
+                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
+                      const innerContent = match.slice(1, -1);
+                      return `(${innerContent})`;
+                    })
+                    .replace(/<!--[\s\S]*?-->/g, match => {
+                      const innerContent = match.slice(4, -3); 
+                      return `(!--${innerContent}--)`;
+                    })
+                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
+                      const innerContent = match.slice(9, -3); 
+                      return `(![CDATA[${innerContent}]])`;
+                    })
+                    .replace(/<\?[\s\S]*?\?>/g, match => {
+                      const innerContent = match.slice(2, -2); 
+                      return `(?${innerContent}?)`;
+                    })
+                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
+                      const innerContent = match.slice(9, -1); 
+                      return `(!DOCTYPE${innerContent})`;
+                    })
+                );
+              }
+              function sanitizeUrlDomains(s) {
+                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
+                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
+                  const isAllowed = allowedDomains.some(allowedDomain => {
+                    const normalizedAllowed = allowedDomain.toLowerCase();
+                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
+                  });
+                  return isAllowed ? match : "(redacted)";
+                });
+                return s;
+              }
+              function sanitizeUrlProtocols(s) {
+                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
+                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
+                });
+              }
+              function neutralizeMentions(s) {
+                return s.replace(
+                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                  (_m, p1, p2) => `${p1}\`@${p2}\``
+                );
+              }
+              function neutralizeBotTriggers(s) {
+                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
+              }
+            }
+            async function main() {
+              let text = "";
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: owner,
+                repo: repo,
+                username: actor,
+              });
+              const permission = repoPermission.data.permission;
+              core.debug(`Repository permission level: ${permission}`);
+              if (permission !== "admin" && permission !== "maintain") {
+                core.setOutput("text", "");
+                return;
+              }
+              switch (context.eventName) {
+                case "issues":
+                  if (context.payload.issue) {
+                    const title = context.payload.issue.title || "";
+                    const body = context.payload.issue.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "pull_request":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "pull_request_target":
+                  if (context.payload.pull_request) {
+                    const title = context.payload.pull_request.title || "";
+                    const body = context.payload.pull_request.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "issue_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                case "pull_request_review_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                case "pull_request_review":
+                  if (context.payload.review) {
+                    text = context.payload.review.body || "";
+                  }
+                  break;
+                case "discussion":
+                  if (context.payload.discussion) {
+                    const title = context.payload.discussion.title || "";
+                    const body = context.payload.discussion.body || "";
+                    text = `${title}\n\n${body}`;
+                  }
+                  break;
+                case "discussion_comment":
+                  if (context.payload.comment) {
+                    text = context.payload.comment.body || "";
+                  }
+                  break;
+                default:
+                  text = "";
+                  break;
+              }
+              const sanitizedText = sanitizeContent(text);
+              core.debug(`text: ${sanitizedText}`);
+              core.setOutput("text", sanitizedText);
+            }
+            await main();
 
   agent:
     needs: activation
@@ -131,11 +297,12 @@ jobs:
     permissions:
       actions: read
       contents: read
+      issues: read
     concurrency:
       group: "gh-aw-copilot"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"dispatch_workflow\":{\"allowed_workflows\":[\"ci.yml\",\"deploy-staging.yml\",\"deploy-production.yml\"],\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -210,7 +377,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"missing_tool":{}}
+          {"dispatch_workflow":{"allowed_workflows":["ci.yml","deploy-staging.yml","deploy-production.yml"],"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1028,11 +1195,31 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Workflow Dispatcher
+          # Issue Workflow Dispatcher
           
-          This workflow can dispatch other workflows based on certain conditions.
+          This workflow analyzes newly opened issues and automatically dispatches the appropriate workflow based on the issue content.
           
-          Use the dispatch-workflow tool to trigger the CI or build workflows when needed.
+          ## Task
+          
+          1. Read the issue title and body from ${{ needs.activation.outputs.text }}
+          2. Analyze the content to determine which workflow should be triggered:
+             - If the issue mentions "bug" or "fix", dispatch **ci.yml**
+             - If the issue mentions "deploy" and "staging", dispatch **deploy-staging.yml**
+             - If the issue mentions "deploy" and "production", dispatch **deploy-production.yml**
+          3. Use the `dispatch-workflow` tool from safe-outputs MCP to trigger the appropriate workflow
+          
+          ## Available Workflows
+          
+          You can only dispatch workflows from this allowed list:
+          - ci.yml - Runs CI tests
+          - deploy-staging.yml - Deploys to staging environment
+          - deploy-production.yml - Deploys to production environment
+          
+          ## Notes
+          
+          - The dispatch-workflow tool validates that the workflow name is in the allowed list
+          - You can pass inputs to the workflow if needed
+          - The workflow must have `workflow_dispatch` trigger to be dispatchable
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1095,7 +1282,7 @@ jobs:
           **Dispatching Workflows**
           
           To dispatch a workflow, use the dispatch-workflow tool from the safe-outputs MCP.
-          You can only dispatch workflows from the allowed list: ci.yml, build.yml
+          You can only dispatch workflows from the allowed list: ci.yml, deploy-staging.yml, deploy-production.yml
           
           **Reporting Missing Tools or Functionality**
           
@@ -1200,7 +1387,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Workflow Dispatcher",
+              workflow_name: "Issue Workflow Dispatcher",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1296,7 +1483,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"dispatch_workflow\":{\"allowed_workflows\":[\"ci.yml\",\"deploy-staging.yml\",\"deploy-production.yml\"],\"max\":1},\"missing_tool\":{}}"
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
@@ -1313,7 +1500,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"dispatch_workflow\":{\"allowed_workflows\":[\"ci.yml\",\"deploy-staging.yml\",\"deploy-production.yml\"],\"max\":1},\"missing_tool\":{}}"
         with:
           script: |
             async function main() {
@@ -3179,9 +3366,9 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          WORKFLOW_NAME: "Workflow Dispatcher"
+          WORKFLOW_NAME: "Issue Workflow Dispatcher"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Workflow Dispatcher\n\nThis workflow can dispatch other workflows based on certain conditions.\n\nUse the dispatch-workflow tool to trigger the CI or build workflows when needed.\n"
+          WORKFLOW_MARKDOWN: "# Issue Workflow Dispatcher\n\nThis workflow analyzes newly opened issues and automatically dispatches the appropriate workflow based on the issue content.\n\n## Task\n\n1. Read the issue title and body from ${{ needs.activation.outputs.text }}\n2. Analyze the content to determine which workflow should be triggered:\n   - If the issue mentions \"bug\" or \"fix\", dispatch **ci.yml**\n   - If the issue mentions \"deploy\" and \"staging\", dispatch **deploy-staging.yml**\n   - If the issue mentions \"deploy\" and \"production\", dispatch **deploy-production.yml**\n3. Use the `dispatch-workflow` tool from safe-outputs MCP to trigger the appropriate workflow\n\n## Available Workflows\n\nYou can only dispatch workflows from this allowed list:\n- ci.yml - Runs CI tests\n- deploy-staging.yml - Deploys to staging environment\n- deploy-production.yml - Deploys to production environment\n\n## Notes\n\n- The dispatch-workflow tool validates that the workflow name is in the allowed list\n- You can pass inputs to the workflow if needed\n- The workflow must have `workflow_dispatch` trigger to be dispatchable\n"
         with:
           script: |
             const fs = require('fs');
@@ -3485,8 +3672,8 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Workflow Dispatcher"
-          GITHUB_AW_ALLOWED_WORKFLOWS: "ci.yml,build.yml"
+          GITHUB_AW_WORKFLOW_NAME: "Issue Workflow Dispatcher"
+          GITHUB_AW_ALLOWED_WORKFLOWS: "ci.yml,deploy-staging.yml,deploy-production.yml"
         with:
           script: |
             const fs = require('fs');
