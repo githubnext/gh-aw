@@ -39,7 +39,6 @@ tools:
       - get_pull_request
       - search_pull_requests
   edit:
-  playwright:
   bash:
     - "find docs -name '*.md'"
     - "wc -l *"
@@ -47,16 +46,6 @@ tools:
     - "cat *"
     - "head *"
     - "tail *"
-    - "cd *"
-    - "npm *"
-    - "node *"
-    - "curl *"
-    - "ps *"
-    - "kill *"
-    - "sleep *"
-    - "mkdir *"
-    - "cp *"
-    - "mv *"
 
 # Safe outputs configuration
 safe-outputs:
@@ -71,28 +60,6 @@ safe-outputs:
 # Timeout
 timeout_minutes: 15
 strict: true
-
-# Build steps for documentation
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v5
-
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: '24'
-      cache: 'npm'
-      cache-dependency-path: 'docs/package-lock.json'
-
-  - name: Install dependencies
-    working-directory: ./docs
-    run: npm ci
-
-  - name: Build documentation
-    working-directory: ./docs
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: npm run build
 ---
 
 # Documentation Unbloat Workflow
@@ -222,60 +189,17 @@ echo "$(date -u +%Y-%m-%d) - Cleaned: <filename>" >> /tmp/gh-aw/cache-memory/cle
 
 This helps future runs avoid re-cleaning the same files.
 
-### 9. Take Screenshots of Modified Documentation
-
-After making changes to a documentation file, take screenshots of the rendered page in the Astro Starlight website:
-
-#### Build and Start Documentation Server
-
-1. Go to the `docs` directory (this was already done in the build steps)
-2. Start the documentation development server using `npm run dev`
-3. Wait for the server to fully start (it should be accessible on `http://localhost:4321/gh-aw/`)
-4. Verify the server is running by making a curl request to test accessibility
-
-#### Take Screenshots with Playwright
-
-For the modified documentation file(s):
-
-1. Determine the URL path for the modified file (e.g., if you modified `docs/src/content/docs/guides/getting-started.md`, the URL would be `http://localhost:4321/gh-aw/guides/getting-started/`)
-2. Use Playwright to navigate to the documentation page URL
-3. Wait for the page to fully load (including all CSS, fonts, and images)
-4. Take a full-page screenshot of the documentation page
-5. Save the screenshot to `/tmp/gh-aw/screenshots/<filename>.png` (e.g., `/tmp/gh-aw/screenshots/getting-started.png`)
-
-#### Upload Screenshots
-
-1. Use the `upload asset` tool from safe-outputs to upload each screenshot file
-2. The tool will return a URL for each uploaded screenshot
-3. Keep track of these URLs to include in the PR description
-
-#### Report Blocked Domains
-
-While taking screenshots, monitor the browser console for any blocked network requests:
-- Look for CSS files that failed to load
-- Look for font files that failed to load
-- Look for any other resources that were blocked by network policies
-
-If you encounter any blocked domains:
-1. Note the domain names and resource types (CSS, fonts, images, etc.)
-2. Include this information in the PR description under a "Blocked Domains" section
-3. Example format: "Blocked: fonts.googleapis.com (fonts), cdn.example.com (CSS)"
-
-### 10. Create Pull Request
+### 9. Create Pull Request
 
 After improving ONE file:
 1. Verify your changes preserve all essential information
 2. Update cache memory with the cleaned file
-3. Take screenshots of the modified documentation page(s)
-4. Upload the screenshots and collect the URLs
-5. Create a pull request with your improvements
-6. Include in the PR description:
+3. Create a pull request with your improvements
+4. Include in the PR description:
    - Which file you improved
    - What types of bloat you removed
    - Estimated word count or line reduction
    - Summary of changes made
-   - **Screenshot URLs**: Links to the uploaded screenshots showing the modified documentation pages
-   - **Blocked Domains (if any)**: List any CSS/font/resource domains that were blocked during screenshot capture
 
 ## Example Improvements
 
@@ -317,7 +241,5 @@ A successful run:
 - ✅ Preserves all essential information
 - ✅ Creates a clear, reviewable pull request
 - ✅ Explains the improvements made
-- ✅ Includes screenshots of the modified documentation page(s) in the Astro Starlight website
-- ✅ Reports any blocked domains for CSS/fonts (if encountered)
 
 Begin by scanning the docs directory and selecting the best candidate for improvement!
