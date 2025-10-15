@@ -28,8 +28,8 @@ permissions:
 engine: claude
 
 mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+  microsoftdocs:
+    url: "https://learn.microsoft.com/api/mcp"
     allowed: ["*"]
   
   notion:
@@ -75,13 +75,11 @@ This automatically searches the registry (default: `https://api.mcp.github.com/v
 
 ### Engine Compatibility
 
-Different AI engines support different MCP features:
+All AI engines support the full range of MCP features:
 
 - **Copilot** (default): ✅ Full MCP support (stdio, Docker, HTTP)
 - **Claude**: ✅ Full MCP support (stdio, Docker, HTTP)
-- **Codex** (experimental): ✅ Limited MCP support (stdio only, no HTTP)
-
-**Note**: When using Codex engine, HTTP MCP servers will be ignored and only stdio-based servers will be configured.
+- **Codex** (experimental): ✅ Full MCP support (stdio, Docker, HTTP)
 
 ## MCP Server Types
 
@@ -197,12 +195,12 @@ Configure environment variables (`env:`), Docker arguments (`args:`), applicatio
 
 ### 3. HTTP MCP Servers
 
-Remote MCP servers accessible via HTTP (Claude engine only) for cloud services, remote APIs, and shared infrastructure:
+Remote MCP servers accessible via HTTP for cloud services, remote APIs, and shared infrastructure:
 
 ```yaml
 mcp-servers:
-  tavily:
-    url: "https://mcp.tavily.com/mcp/?tavilyApiKey=${{ secrets.TAVILY_API_KEY }}"
+  microsoftdocs:
+    url: "https://learn.microsoft.com/api/mcp"
     allowed: ["*"]
 
   deepwiki:
