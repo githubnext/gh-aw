@@ -3240,9 +3240,7 @@ jobs:
             fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
-              .addHeading('Threat Detection Prompt', 2)
-              .addRaw('\n')
-              .addCodeBlock(promptContent, 'text')
+              .addRaw('<details>\n<summary>Threat Detection Prompt</summary>\n\n' + '``````markdown\n' + promptContent + '\n' + '``````\n\n</details>\n')
               .write();
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log
