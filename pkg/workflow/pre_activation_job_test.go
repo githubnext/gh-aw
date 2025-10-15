@@ -175,7 +175,7 @@ This workflow has activation job and stop-after.
 				return
 			}
 		} else {
-			activationIdx += 1 // Skip the newline
+			activationIdx++ // Skip the newline
 		}
 
 		// Extract activation job section (find next job at same indent level)

@@ -1994,31 +1994,6 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 	return nil
 }
 
-// buildCheckMembershipJob creates the check_membership job that validates team membership levels
-func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
-	outputs := map[string]string{
-		"is_team_member":  fmt.Sprintf("${{ steps.%s.outputs.is_team_member }}", constants.CheckMembershipJobName),
-		"result":          fmt.Sprintf("${{ steps.%s.outputs.result }}", constants.CheckMembershipJobName),
-		"user_permission": fmt.Sprintf("${{ steps.%s.outputs.user_permission }}", constants.CheckMembershipJobName),
-		"error_message":   fmt.Sprintf("${{ steps.%s.outputs.error_message }}", constants.CheckMembershipJobName),
-	}
-	var steps []string
-
-	// Add team member check that only sets outputs
-	steps = c.generateMembershipCheck(data, steps)
-
-	job := &Job{
-		Name:        constants.CheckMembershipJobName,
-		If:          data.If, // Use the existing condition (which may include alias checks)
-		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: "", // No special permissions needed - just reading repo permissions
-		Steps:       steps,
-		Outputs:     outputs,
-	}
-
-	return job, nil
-}
-
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
 func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, needsPermissionCheck bool, hasStopTime bool) (*Job, error) {
 	outputs := map[string]string{}
@@ -2102,11 +2077,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 	if preActivationJobCreated {
 		// Activation job depends on pre_activation
 		activationNeeds = []string{constants.PreActivationJobName}
-		
+
 		// Build condition: is_team_member == 'true' AND stop_time_expired != 'true'
 		// Note: We don't include data.If here because pre_activation already has it
 		var conditions []ConditionNode
-		
+
 		// Add membership check condition if permission checks are needed
 		if needsPermissionCheck {
 			membershipExpr := BuildEquals(
@@ -2115,7 +2090,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			)
 			conditions = append(conditions, membershipExpr)
 		}
-		
+
 		// Add stop-time check condition if stop-time is configured
 		if hasStopTime {
 			stopTimeNotExpiredExpr := BuildNotEquals(
@@ -2124,10 +2099,10 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			)
 			conditions = append(conditions, stopTimeNotExpiredExpr)
 		}
-		
+
 		// Combine all conditions
 		if len(conditions) > 0 {
-			var combinedExpr ConditionNode = conditions[0]
+			combinedExpr := conditions[0]
 			for i := 1; i < len(conditions); i++ {
 				combinedExpr = &AndNode{Left: combinedExpr, Right: conditions[i]}
 			}

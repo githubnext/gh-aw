@@ -154,7 +154,7 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 			t.Fatal("Could not find activation job in generated YAML")
 		}
 	} else {
-		activationJobStart += 1 // Skip the newline
+		activationJobStart++ // Skip the newline
 	}
 
 	// Find the next job or end of file
