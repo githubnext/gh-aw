@@ -2,15 +2,10 @@ package workflow
 
 import "strings"
 
-// generateGitPatchStep generates a step that creates and uploads a git patch of changes
+// generateGitPatchStep uploads git patches created by the safe outputs MCP server
+// Note: Patch generation now happens in the MCP server when create-pull-request or
+// push-to-pull-request-branch tools are called, so this step only uploads the patches.
 func (c *Compiler) generateGitPatchStep(yaml *strings.Builder) {
-	yaml.WriteString("      - name: Generate git patch\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}\n")
-	yaml.WriteString("          GITHUB_SHA: ${{ github.sha }}\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, generateGitPatchScript, "          ")
 	yaml.WriteString("      - name: Upload git patches\n")
 	yaml.WriteString("        if: always()\n")
 	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
