@@ -583,7 +583,7 @@ const ALL_TOOLS = [
         },
         payload: {
           type: "string",
-          description: "Optional JSON payload for workflow inputs (e.g., '{\"environment\":\"production\"}')",
+          description: 'Optional JSON payload for workflow inputs (e.g., \'{"environment":"production"}\')',
         },
       },
       additionalProperties: false,
