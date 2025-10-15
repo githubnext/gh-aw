@@ -57,8 +57,8 @@ func TestExtractSecretName(t *testing.T) {
 
 func TestExtractSecretsFromConfig(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         parser.MCPServerConfig
+		name            string
+		config          parser.MCPServerConfig
 		expectedSecrets []string
 	}{
 		{
@@ -186,7 +186,7 @@ func TestCheckSecretsAvailability(t *testing.T) {
 			secrets: []SecretInfo{
 				{Name: "MISSING_SECRET", EnvKey: "MISSING_SECRET"},
 			},
-			envVars:  map[string]string{},
+			envVars:    map[string]string{},
 			useActions: false,
 			expectSource: map[string]string{
 				"MISSING_SECRET": "",

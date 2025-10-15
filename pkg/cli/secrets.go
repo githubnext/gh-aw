@@ -56,7 +56,8 @@ func checkSecretExists(secretName string) (bool, error) {
 
 // extractSecretName extracts the secret name from a GitHub Actions expression
 // Examples: "${{ secrets.DD_API_KEY }}" -> "DD_API_KEY"
-//           "${{ secrets.DD_SITE || 'datadoghq.com' }}" -> "DD_SITE"
+//
+//	"${{ secrets.DD_SITE || 'datadoghq.com' }}" -> "DD_SITE"
 func extractSecretName(value string) string {
 	// Match pattern: ${{ secrets.SECRET_NAME }} or ${{ secrets.SECRET_NAME || 'default' }}
 	secretPattern := regexp.MustCompile(`\$\{\{\s*secrets\.([A-Z_][A-Z0-9_]*)\s*(?:\|\|.*?)?\s*\}\}`)
