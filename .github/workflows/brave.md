@@ -8,16 +8,8 @@ permissions:
   actions: read
 engine: copilot
 strict: true
-mcp-servers:
-  brave-search:
-    container: "docker.io/mcp/brave-search"
-    env:
-      BRAVE_API_KEY: "${{ secrets.BRAVE_API_KEY }}"
-    network:
-      allowed:
-        - "search.brave.com"
-        - "api.search.brave.com"
-    allowed: ["*"]
+imports:
+  - shared/mcp/brave.md
 safe-outputs:
   add-comment:
     max: 1
