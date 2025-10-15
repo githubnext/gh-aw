@@ -112,7 +112,7 @@ These commands control the execution and state of your compiled agentic workflow
 ```bash
 gh aw run WorkflowName                      # Run single workflow
 gh aw run WorkflowName1 WorkflowName2       # Run multiple workflows
-gh aw run WorkflowName --repeat 180         # Repeat every 3 minutes
+gh aw run WorkflowName --repeat 3           # Run 3 times total
 gh aw run weekly-research --enable-if-needed --input priority=high
 ```
 

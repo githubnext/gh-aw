@@ -13,8 +13,8 @@ import (
 
 // RepeatOptions contains configuration for the repeat functionality
 type RepeatOptions struct {
-	// Seconds between repeated executions (0 = run once)
-	RepeatSeconds int
+	// Number of times to repeat execution (0 = run once)
+	RepeatCount int
 	// Message to display when starting repeat mode
 	StartMessage string
 	// Message to display on each repeat iteration (optional, uses default if empty)
@@ -27,7 +27,7 @@ type RepeatOptions struct {
 	UseStderr bool
 }
 
-// ExecuteWithRepeat runs a function once, and optionally repeats it at specified intervals
+// ExecuteWithRepeat runs a function once, and optionally repeats it the specified number of times
 // with graceful signal handling for shutdown.
 func ExecuteWithRepeat(options RepeatOptions) error {
 	// Run the function once
@@ -36,7 +36,7 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 	}
 
 	// If no repeat specified, we're done
-	if options.RepeatSeconds <= 0 {
+	if options.RepeatCount <= 0 {
 		return nil
 	}
 
@@ -49,36 +49,17 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 	// Use provided start message or default
 	startMsg := options.StartMessage
 	if startMsg == "" {
-		startMsg = fmt.Sprintf("Repeating every %d seconds. Press Ctrl+C to stop.", options.RepeatSeconds)
+		startMsg = fmt.Sprintf("Repeating %d more times. Press Ctrl+C to stop.", options.RepeatCount)
 	}
 	fmt.Fprintln(output, console.FormatInfoMessage(startMsg))
-
-	ticker := time.NewTicker(time.Duration(options.RepeatSeconds) * time.Second)
-	defer ticker.Stop()
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	for {
+	// Run the specified number of additional times
+	for i := 1; i <= options.RepeatCount; i++ {
 		select {
-		case <-ticker.C:
-			// Use provided repeat message or default (generate timestamp dynamically)
-			repeatMsg := options.RepeatMessage
-			if repeatMsg == "" {
-				repeatMsg = fmt.Sprintf("Repeating execution at %s", time.Now().Format("2006-01-02 15:04:05"))
-			} else {
-				// If message contains timestamp placeholder, replace it with current time
-				if strings.Contains(repeatMsg, "%s") {
-					repeatMsg = fmt.Sprintf(repeatMsg, time.Now().Format("2006-01-02 15:04:05"))
-				}
-			}
-			fmt.Fprintln(output, console.FormatInfoMessage(repeatMsg))
-
-			if err := options.ExecuteFunc(); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Error during repeat: %v", err)))
-				// Continue running on error during repeat
-			}
 		case <-sigChan:
 			fmt.Fprintln(output, console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
 
@@ -88,6 +69,25 @@ func ExecuteWithRepeat(options RepeatOptions) error {
 			}
 
 			return nil
+		default:
+			// Use provided repeat message or default
+			repeatMsg := options.RepeatMessage
+			if repeatMsg == "" {
+				repeatMsg = fmt.Sprintf("Running repetition %d/%d", i, options.RepeatCount)
+			} else {
+				// If message contains timestamp placeholder, replace it with current time
+				if strings.Contains(repeatMsg, "%s") {
+					repeatMsg = fmt.Sprintf(repeatMsg, time.Now().Format("2006-01-02 15:04:05"))
+				}
+			}
+			fmt.Fprintln(output, console.FormatInfoMessage(repeatMsg))
+
+			if err := options.ExecuteFunc(); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Error during repeat %d/%d: %v", i, options.RepeatCount, err)))
+				// Continue running on error during repeat
+			}
 		}
 	}
+
+	return nil
 }

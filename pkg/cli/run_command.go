@@ -148,8 +148,8 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 	return nil
 }
 
-// RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating at intervals
-func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, enable bool, verbose bool) error {
+// RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
+func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -201,8 +201,8 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, enable bool
 
 	// Execute workflows with optional repeat functionality
 	return ExecuteWithRepeat(RepeatOptions{
-		RepeatSeconds: repeatSeconds,
-		RepeatMessage: "Repeating workflow run at %s",
+		RepeatCount:   repeatCount,
+		RepeatMessage: "Repeating workflow run",
 		ExecuteFunc:   runAllWorkflows,
 		UseStderr:     false, // Use stdout for run command
 	})

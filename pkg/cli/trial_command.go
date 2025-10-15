@@ -76,7 +76,7 @@ Repository mode examples:
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --clone-repo myorg/myrepo   # Clone myorg/myrepo contents into host
 
 Repeat and cleanup examples:
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --repeat 300              # Repeat every 5 minutes
+  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 3 times total
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --delete-host-repo        # Delete repo after completion
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --quiet --host-repo my-trial # Custom host repo
 
@@ -85,7 +85,7 @@ Auto-merge examples:
 
 Advanced examples:
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --host-repo . # Use current repo as host
-  ` + constants.CLIExtensionPrefix + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 600
+  ` + constants.CLIExtensionPrefix + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 2
 
 Repository modes:
 - Default: Simulate execution against current repository (using --logical-repo semantics)
@@ -106,11 +106,11 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			yes, _ := cmd.Flags().GetBool("yes")
 			timeout, _ := cmd.Flags().GetInt("timeout")
 			triggerContext, _ := cmd.Flags().GetString("trigger-context")
-			repeatSeconds, _ := cmd.Flags().GetInt("repeat")
+			repeatCount, _ := cmd.Flags().GetInt("repeat")
 			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
-			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatSeconds, autoMergePRs, verbose); err != nil {
+			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -134,14 +134,14 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	cmd.Flags().Int("timeout", 30, "Timeout in minutes for workflow execution (default: 30)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
-	cmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
+	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the trial (requires --clone-repo)")
 
 	return cmd
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatSeconds int, autoMergePRs bool, verbose bool) error {
+func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, verbose bool) error {
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -404,8 +404,8 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 	// Execute trials with optional repeat functionality
 	return ExecuteWithRepeat(RepeatOptions{
-		RepeatSeconds: repeatSeconds,
-		RepeatMessage: "Repeating trial run at %s",
+		RepeatCount:   repeatCount,
+		RepeatMessage: "Repeating trial run",
 		ExecuteFunc:   runAllTrials,
 		CleanupFunc: func() {
 			if deleteHostRepo {
