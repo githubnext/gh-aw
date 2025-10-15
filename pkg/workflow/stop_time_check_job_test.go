@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-// TestStopTimeCheckJob tests that stop-time check job is created correctly
-func TestStopTimeCheckJob(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "stop-time-check-job-test")
+// TestPreActivationJob tests that pre-activation job is created correctly and combines membership and stop-time checks
+func TestPreActivationJob(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "pre-activation-job-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,7 +17,7 @@ func TestStopTimeCheckJob(t *testing.T) {
 
 	compiler := NewCompiler(false, "", "test")
 
-	t.Run("stop_time_check_job_created_with_stop_after", func(t *testing.T) {
+	t.Run("pre_activation_job_created_with_stop_after", func(t *testing.T) {
 		workflowContent := `---
 on:
   workflow_dispatch:
@@ -47,18 +47,18 @@ This workflow has a stop-after configuration.
 
 		lockContentStr := string(lockContent)
 
-		// Verify stop_time_check job exists
-		if !strings.Contains(lockContentStr, "stop_time_check:") {
-			t.Error("Expected stop_time_check job to be created")
+		// Verify pre_activation job exists
+		if !strings.Contains(lockContentStr, "pre_activation:") {
+			t.Error("Expected pre_activation job to be created")
 		}
 
-		// Verify stop_time_check job has actions: write permission
+		// Verify pre_activation job has actions: write permission for stop-time check
 		if !strings.Contains(lockContentStr, "actions: write  # Required for gh workflow disable") {
-			t.Error("Expected stop_time_check job to have actions: write permission")
+			t.Error("Expected pre_activation job to have actions: write permission")
 		}
 
-		// Verify safety checks are in stop_time_check job, not main job
-		stopTimeCheckStart := strings.Index(lockContentStr, "stop_time_check:")
+		// Verify safety checks are in pre_activation job, not main job
+		preActivationStart := strings.Index(lockContentStr, "pre_activation:")
 		agentStart := strings.Index(lockContentStr, "agent:")
 		safetyChecksPos := strings.Index(lockContentStr, "Performing safety checks before executing agentic tools")
 
@@ -66,27 +66,41 @@ This workflow has a stop-after configuration.
 			t.Error("Expected safety checks to be present")
 		}
 
-		// Safety checks should be in stop_time_check job (before agent job)
+		// Safety checks should be in pre_activation job (before agent job)
 		if safetyChecksPos > agentStart {
-			t.Error("Safety checks should be in stop_time_check job, not in agent job")
+			t.Error("Safety checks should be in pre_activation job, not in agent job")
 		}
 
-		// Safety checks should be after stop_time_check job start
-		if safetyChecksPos < stopTimeCheckStart {
-			t.Error("Safety checks should be in stop_time_check job")
+		// Safety checks should be after pre_activation job start
+		if safetyChecksPos < preActivationStart {
+			t.Error("Safety checks should be in pre_activation job")
+		}
+
+		// Verify pre_activation job outputs "activated"
+		if !strings.Contains(lockContentStr, "activated: ${{ steps.set_activated.outputs.activated }}") {
+			t.Error("Expected pre_activation job to have 'activated' output")
+		}
+
+		// Verify old jobs don't exist
+		if strings.Contains(lockContentStr, "check_membership:") {
+			t.Error("check_membership job should not exist with new architecture")
+		}
+		if strings.Contains(lockContentStr, "stop_time_check:") {
+			t.Error("stop_time_check job should not exist with new architecture")
 		}
 	})
 
-	t.Run("no_stop_time_check_job_without_stop_after", func(t *testing.T) {
+	t.Run("no_pre_activation_job_without_stop_after_or_roles", func(t *testing.T) {
 		workflowContent := `---
 on:
   workflow_dispatch:
 engine: claude
+roles: all
 ---
 
 # Normal Workflow
 
-This workflow has no stop-after configuration.
+This workflow has no stop-after configuration and roles: all.
 `
 		workflowFile := filepath.Join(tmpDir, "normal-workflow.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
@@ -106,26 +120,25 @@ This workflow has no stop-after configuration.
 
 		lockContentStr := string(lockContent)
 
-		// Verify stop_time_check job does not exist
-		if strings.Contains(lockContentStr, "stop_time_check:") {
-			t.Error("Expected NO stop_time_check job without stop-after")
+		// Verify pre_activation job does not exist
+		if strings.Contains(lockContentStr, "pre_activation:") {
+			t.Error("Expected NO pre_activation job without stop-after or permission checks")
 		}
 	})
 
-	t.Run("stop_time_check_job_depends_on_activation", func(t *testing.T) {
+	t.Run("pre_activation_job_with_membership_check", func(t *testing.T) {
 		workflowContent := `---
 on:
   issues:
     types: [opened]
-  stop-after: "+24h"
 engine: claude
 ---
 
-# Workflow with Activation
+# Workflow with Membership Check
 
-This workflow has activation job and stop-after.
+This workflow requires membership checks.
 `
-		workflowFile := filepath.Join(tmpDir, "activation-workflow.md")
+		workflowFile := filepath.Join(tmpDir, "membership-workflow.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -143,55 +156,109 @@ This workflow has activation job and stop-after.
 
 		lockContentStr := string(lockContent)
 
-		// Verify activation job exists
+		// Verify pre_activation job exists
+		if !strings.Contains(lockContentStr, "pre_activation:") {
+			t.Error("Expected pre_activation job for membership check")
+		}
+
+		// Verify membership check is in pre_activation job
+		if !strings.Contains(lockContentStr, "Check team membership") {
+			t.Error("Expected team membership check in pre_activation job")
+		}
+
+		// Verify activation job depends on pre_activation and checks activated output
 		if !strings.Contains(lockContentStr, "activation:") {
-			t.Error("Expected activation job for unsafe events")
+			t.Error("Expected activation job")
 		}
 
-		// Verify stop_time_check job exists
-		if !strings.Contains(lockContentStr, "stop_time_check:") {
-			t.Error("Expected stop_time_check job")
+		activationIdx := strings.Index(lockContentStr, "activation:")
+		agentIdx := strings.Index(lockContentStr, "agent:")
+
+		// Extract activation job section
+		activationSection := lockContentStr[activationIdx:agentIdx]
+
+		// Verify activation job depends on pre_activation
+		if !strings.Contains(activationSection, "needs: pre_activation") {
+			t.Error("Expected activation job to depend on pre_activation job")
 		}
 
-		// Verify the job dependency chain
-		// Extract the jobs section to analyze dependencies
-		jobsSection := lockContentStr[strings.Index(lockContentStr, "jobs:"):]
+		// Verify activation job checks activated output
+		if !strings.Contains(activationSection, "needs.pre_activation.outputs.activated == 'true'") {
+			t.Error("Expected activation job to check pre_activation.outputs.activated")
+		}
+	})
 
-		// Find stop_time_check job section
-		stopTimeCheckIdx := strings.Index(jobsSection, "stop_time_check:")
-		if stopTimeCheckIdx == -1 {
-			t.Error("Expected stop_time_check job")
+	t.Run("pre_activation_job_with_both_membership_and_stop_time", func(t *testing.T) {
+		workflowContent := `---
+on:
+  issues:
+    types: [opened]
+  stop-after: "+24h"
+engine: claude
+---
+
+# Workflow with Both Checks
+
+This workflow has both membership check and stop-after.
+`
+		workflowFile := filepath.Join(tmpDir, "both-checks-workflow.md")
+		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
+			t.Fatal(err)
 		}
 
-		// Find the needs line in stop_time_check job
-		stopTimeCheckSection := jobsSection[stopTimeCheckIdx:]
-		nextJobIdx := strings.Index(stopTimeCheckSection[20:], "\n  ")
-		if nextJobIdx != -1 {
-			stopTimeCheckSection = stopTimeCheckSection[:nextJobIdx+20]
+		err := compiler.CompileWorkflow(workflowFile)
+		if err != nil {
+			t.Fatalf("Compilation failed: %v", err)
 		}
 
-		if !strings.Contains(stopTimeCheckSection, "needs: activation") {
-			t.Error("Expected stop_time_check job to depend on activation job")
+		lockFile := strings.TrimSuffix(workflowFile, ".md") + ".lock.yml"
+		lockContent, err := os.ReadFile(lockFile)
+		if err != nil {
+			t.Fatalf("Failed to read lock file: %v", err)
 		}
 
-		// Verify agent job exists and depends on activation (not stop_time_check)
-		if !strings.Contains(lockContentStr, "agent:") {
-			t.Error("Expected agent job")
+		lockContentStr := string(lockContent)
+
+		// Verify pre_activation job exists
+		if !strings.Contains(lockContentStr, "pre_activation:") {
+			t.Error("Expected pre_activation job")
 		}
 
-		agentIdx := strings.Index(jobsSection, "agent:")
-		if agentIdx == -1 {
-			t.Error("Expected agent job")
+		// Verify both membership check and stop-time check are present in the file
+		if !strings.Contains(lockContentStr, "Check team membership") {
+			t.Error("Expected team membership check in pre_activation job")
 		}
 
-		agentSection := jobsSection[agentIdx:]
-		nextJobIdx = strings.Index(agentSection[20:], "\n  ")
-		if nextJobIdx != -1 {
-			agentSection = agentSection[:nextJobIdx+20]
+		if !strings.Contains(lockContentStr, "Safety checks") {
+			t.Error("Expected safety checks (stop-time) in pre_activation job")
 		}
 
-		if !strings.Contains(agentSection, "needs: activation") {
-			t.Error("Expected agent job to depend on activation job")
+		if !strings.Contains(lockContentStr, "actions: write") {
+			t.Error("Expected actions: write permission in pre_activation job")
+		}
+
+		// Verify the activated output is set based on membership check
+		if !strings.Contains(lockContentStr, "Set activation status") {
+			t.Error("Expected 'Set activation status' step in pre_activation job")
+		}
+
+		if !strings.Contains(lockContentStr, "activated=true") {
+			t.Error("Expected activated output to be set in pre_activation job")
+		}
+
+		// Verify the structure: membership check happens before safety check
+		membershipIdx := strings.Index(lockContentStr, "Check team membership")
+		safetyIdx := strings.Index(lockContentStr, "Safety checks")
+		
+		if membershipIdx == -1 {
+			t.Error("Could not find membership check")
+		}
+		if safetyIdx == -1 {
+			t.Error("Could not find safety checks")
+		}
+		
+		if membershipIdx > 0 && safetyIdx > 0 && membershipIdx > safetyIdx {
+			t.Error("Membership check should come before safety checks")
 		}
 	})
 }
