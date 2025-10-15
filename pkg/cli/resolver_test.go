@@ -27,16 +27,36 @@ func TestResolveWorkflowPath(t *testing.T) {
 		t.Fatalf("Failed to change to temp directory: %v", err)
 	}
 
-	// Create .github/workflows directory
+	// Create .github/workflows directory structure
 	workflowsDir := filepath.Join(constants.GetWorkflowDir())
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		t.Fatalf("Failed to create workflows directory: %v", err)
 	}
 
-	// Create test workflow files
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	if err := os.MkdirAll(sharedDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared directory: %v", err)
+	}
+
+	sharedMCPDir := filepath.Join(sharedDir, "mcp")
+	if err := os.MkdirAll(sharedMCPDir, 0755); err != nil {
+		t.Fatalf("Failed to create shared/mcp directory: %v", err)
+	}
+
+	// Create test workflow files in different locations
 	testWorkflow := filepath.Join(workflowsDir, "test-workflow.md")
 	if err := os.WriteFile(testWorkflow, []byte("# Test"), 0644); err != nil {
 		t.Fatalf("Failed to create test workflow: %v", err)
+	}
+
+	sharedWorkflow := filepath.Join(sharedDir, "shared-workflow.md")
+	if err := os.WriteFile(sharedWorkflow, []byte("# Shared"), 0644); err != nil {
+		t.Fatalf("Failed to create shared workflow: %v", err)
+	}
+
+	mcpWorkflow := filepath.Join(sharedMCPDir, "serena.md")
+	if err := os.WriteFile(mcpWorkflow, []byte("# MCP"), 0644); err != nil {
+		t.Fatalf("Failed to create MCP workflow: %v", err)
 	}
 
 	tests := []struct {
@@ -46,14 +66,34 @@ func TestResolveWorkflowPath(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:     "workflow name without extension",
+			name:     "workflow name without extension in workflows dir",
 			input:    "test-workflow",
 			expected: testWorkflow,
 		},
 		{
-			name:     "workflow name with extension",
+			name:     "workflow name with extension in workflows dir",
 			input:    "test-workflow.md",
 			expected: testWorkflow,
+		},
+		{
+			name:     "workflow name without extension in shared dir",
+			input:    "shared-workflow",
+			expected: sharedWorkflow,
+		},
+		{
+			name:     "workflow name with extension in shared dir",
+			input:    "shared-workflow.md",
+			expected: sharedWorkflow,
+		},
+		{
+			name:     "workflow name without extension in shared/mcp dir",
+			input:    "serena",
+			expected: mcpWorkflow,
+		},
+		{
+			name:     "workflow name with extension in shared/mcp dir",
+			input:    "serena.md",
+			expected: mcpWorkflow,
 		},
 		{
 			name:        "nonexistent workflow",
