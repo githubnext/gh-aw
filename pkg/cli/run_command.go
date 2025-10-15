@@ -551,7 +551,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	for _, workflow := range workflows {
 		if strings.HasSuffix(workflow.Path, lockFileName) {
 			if verbose {
-				fmt.Printf("Found workflow '%s' in repository (path: %s, state: %s)\n", 
+				fmt.Printf("Found workflow '%s' in repository (path: %s, state: %s)\n",
 					workflow.Name, workflow.Path, workflow.State)
 			}
 			return nil
