@@ -1,5 +1,13 @@
-# Source the helper function
-source /dev/stdin << 'HELPER_EOF'
+#!/bin/bash
+# Helper function to write content with HTML details/summary tags to step summary
+# This script defines a function that can be sourced and used by other scripts
+
+# Function: write_details_to_summary
+# Writes content wrapped in HTML details/summary tags to GITHUB_STEP_SUMMARY
+# Args:
+#   $1 - Summary title (the clickable summary text)
+#   $2 - Content file path (file to read content from)
+#   $3 - Language for code block (optional, defaults to 'text')
 write_details_to_summary() {
   local title="$1"
   local content_file="$2"
@@ -17,7 +25,4 @@ write_details_to_summary() {
   echo '```' >> "$GITHUB_STEP_SUMMARY"
   echo "</details>" >> "$GITHUB_STEP_SUMMARY"
 }
-HELPER_EOF
 
-# Use the helper function to write the prompt
-write_details_to_summary "Generated Prompt" "$GITHUB_AW_PROMPT" "markdown"

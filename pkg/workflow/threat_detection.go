@@ -190,6 +190,9 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 	formattedSetupScript := FormatJavaScriptForYAML(setupScript)
 	steps = append(steps, formattedSetupScript...)
 
+	// Add step to write prompt to step summary with HTML details
+	steps = append(steps, c.buildThreatDetectionPromptSummaryStep()...)
+
 	// Add a small shell step in YAML to ensure the output directory and log file exist
 	steps = append(steps, []string{
 		"      - name: Ensure threat-detection directory and log\n",
@@ -261,17 +264,39 @@ fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
 fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
 core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
 
-// Note: creation of /tmp/gh-aw/threat-detection and detection.log is handled by a separate shell step
-
-// Write rendered prompt to step summary
-await core.summary
-  .addHeading('Threat Detection Prompt', 2)
-  .addRaw('\n')
-  .addCodeBlock(promptContent, 'text')
-  .write();
-
 core.info('Threat detection setup completed');`,
 		c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
+}
+
+// buildThreatDetectionPromptSummaryStep creates a step to write the threat detection prompt to step summary with HTML details
+func (c *Compiler) buildThreatDetectionPromptSummaryStep() []string {
+	return []string{
+		"      - name: Write threat detection prompt to step summary\n",
+		"        env:\n",
+		"          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n",
+		"        run: |\n",
+		"          # Source the helper function\n",
+		"          write_details_to_summary() {\n",
+		"            local title=\"$1\"\n",
+		"            local content_file=\"$2\"\n",
+		"            local lang=\"${3:-text}\"\n",
+		"            \n",
+		"            echo \"<details>\" >> \"$GITHUB_STEP_SUMMARY\"\n",
+		"            echo \"<summary>$title</summary>\" >> \"$GITHUB_STEP_SUMMARY\"\n",
+		"            echo \"\" >> \"$GITHUB_STEP_SUMMARY\"\n",
+		"            echo '```'\"$lang\" >> \"$GITHUB_STEP_SUMMARY\"\n",
+		"            \n",
+		"            if [ -f \"$content_file\" ]; then\n",
+		"              cat \"$content_file\" >> \"$GITHUB_STEP_SUMMARY\"\n",
+		"            fi\n",
+		"            \n",
+		"            echo '```' >> \"$GITHUB_STEP_SUMMARY\"\n",
+		"            echo \"</details>\" >> \"$GITHUB_STEP_SUMMARY\"\n",
+		"          }\n",
+		"          \n",
+		"          # Use the helper function to write the prompt\n",
+		"          write_details_to_summary \"Threat Detection Prompt\" \"$GITHUB_AW_PROMPT\" \"markdown\"\n",
+	}
 }
 
 // buildEngineSteps creates the engine execution steps

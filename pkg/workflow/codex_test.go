@@ -153,8 +153,8 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
 					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
-					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "write_details_to_summary") {
+					t.Errorf("Expected lock file to contain write_details_to_summary helper function but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Ensure it does NOT contain Claude Code
 				if strings.Contains(lockContent, "Execute Claude Code Action") {
@@ -178,8 +178,8 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
 					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
-					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "write_details_to_summary") {
+					t.Errorf("Expected lock file to contain write_details_to_summary helper function but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that mcp-servers.json is generated (not config.toml)
 				if !strings.Contains(lockContent, "cat > /tmp/gh-aw/mcp-config/mcp-servers.json") {
@@ -212,8 +212,8 @@ This is a test workflow.
 				if !strings.Contains(lockContent, "Print prompt to step summary") {
 					t.Errorf("Expected lock file to contain 'Print prompt to step summary' step but it didn't.\nContent:\n%s", lockContent)
 				}
-				if !strings.Contains(lockContent, "cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY") {
-					t.Errorf("Expected lock file to contain prompt printing command but it didn't.\nContent:\n%s", lockContent)
+				if !strings.Contains(lockContent, "write_details_to_summary") {
+					t.Errorf("Expected lock file to contain write_details_to_summary helper function but it didn't.\nContent:\n%s", lockContent)
 				}
 				// Check that mcp-config.json is generated (Copilot format)
 				if !strings.Contains(lockContent, "cat > /home/runner/.copilot/mcp-config.json") {

@@ -1321,13 +1321,25 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```markdown' >> $GITHUB_STEP_SUMMARY
-          cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          # Source the helper function
+          source /dev/stdin << 'HELPER_EOF'
+          write_details_to_summary() {
+            local title="$1"
+            local content_file="$2"
+            local lang="${3:-text}"
+            echo "<details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "<summary>$title</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```'"$lang" >> "$GITHUB_STEP_SUMMARY"
+            if [ -f "$content_file" ]; then
+              cat "$content_file" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          }
+          HELPER_EOF
+          # Use the helper function to write the prompt
+          write_details_to_summary "Generated Prompt" "$GITHUB_AW_PROMPT" "markdown"
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
@@ -3433,12 +3445,32 @@ jobs:
             fs.mkdirSync('/tmp/gh-aw/aw-prompts', { recursive: true });
             fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
-            await core.summary
-              .addHeading('Threat Detection Prompt', 2)
-              .addRaw('\n')
-              .addCodeBlock(promptContent, 'text')
-              .write();
             core.info('Threat detection setup completed');
+      - name: Write threat detection prompt to step summary
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          # Source the helper function
+          write_details_to_summary() {
+            local title="$1"
+            local content_file="$2"
+            local lang="${3:-text}"
+            
+            echo "<details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "<summary>$title</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```'"$lang" >> "$GITHUB_STEP_SUMMARY"
+            
+            if [ -f "$content_file" ]; then
+              cat "$content_file" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          }
+          
+          # Use the helper function to write the prompt
+          write_details_to_summary "Threat Detection Prompt" "$GITHUB_AW_PROMPT" "markdown"
       - name: Ensure threat-detection directory and log
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
