@@ -506,53 +506,9 @@ tools:
   web-fetch:       # Web content fetching
   web-search:      # Web searching
   bash:           # Shell commands
-```
-
-### Bash Tool Configuration
-
-The bash tool provides shell command execution with different levels of control:
-
-```yaml
-tools:
-  # Specific commands only
-  bash: ["echo", "ls", "git status", "npm test"]
-  
-  # Command wildcards - allow all invocations of a command
-  bash: ["git:*", "npm:*"]  # All git and npm commands
-  
-  # All bash commands (unrestricted) - use with caution
-  bash: [":*"]  # or ["*"] - both syntaxes are equivalent
-```
-
-**Configuration Options:**
-
-- **`bash: null`** or **`bash:`** - No bash commands by default (may be auto-added for safe outputs)
-- **`bash: []`** - Empty array, no bash commands allowed
-- **`bash: ["cmd1", "cmd2"]`** - Only specified commands allowed
-- **`bash: ["command:*"]`** - All invocations of `command` with any arguments
-- **`bash: [":*"]`** or **`bash: ["*"]`** - All bash commands (unrestricted access)
-
-**Important Notes:**
-
-- **Copilot engine**: When using `bash: ["*"]` or `bash: [":*"]`, Copilot uses `--allow-all-tools` flag, granting access to ALL Copilot tools, not just bash
-- **Claude engine**: `bash: ["*"]` or `bash: [":*"]` allows all bash commands
-- **Codex engine**: Currently uses `--full-auto` mode and does not restrict bash commands
-- **Strict mode**: Wildcards `"*"` and `":*"` are refused - use specific commands or command wildcards like `"git:*"` instead
-
-**Examples:**
-
-```yaml
-# Safe default commands (auto-added when needed)
-tools:
-  bash:  # Adds: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date
-
-# Mix of specific commands and command wildcards
-tools:
-  bash: ["echo", "ls", "git:*", "npm:*", "make:*"]
-
-# Unrestricted bash access
-tools:
-  bash: [":*"]  # WARNING: Allows all bash commands
+  - "gh label list:*"
+  - "gh label view:*"
+  - "git status"
 ```
 
 ### Custom MCP Tools
