@@ -140,6 +140,15 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		}
 	}
 
+	// Add HTTP MCP header secrets to env for passthrough
+	headerSecrets := collectHTTPMCPHeaderSecrets(workflowData.Tools)
+	for varName, secretExpr := range headerSecrets {
+		// Only add if not already in env
+		if _, exists := env[varName]; !exists {
+			env[varName] = secretExpr
+		}
+	}
+
 	// Generate the step for Copilot CLI execution
 	stepName := "Execute GitHub Copilot CLI"
 	var stepLines []string
