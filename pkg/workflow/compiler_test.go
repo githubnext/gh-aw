@@ -1232,7 +1232,7 @@ Final content.
 	// This shows that MCP servers with the same name get their 'allowed' arrays merged
 	expectedAllTools := []string{
 		"notionApi(create_page)",    // from include1
-		"notionApi(search_pages)",   // from include1  
+		"notionApi(search_pages)",   // from include1
 		"notionApi(list_databases)", // from include3
 		"notionApi(query_database)", // from include3
 	}
