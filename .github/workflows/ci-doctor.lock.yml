@@ -5,7 +5,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md
 #
-# Effective stop-time: 2025-10-17 19:17:16
+# Effective stop-time: 2025-10-17 19:39:27
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -51,13 +51,13 @@ jobs:
     permissions:
       actions: write  # Required for gh workflow disable
     outputs:
-      activated: ${{ steps.safety_checks.outputs.stop_time_ok == 'true' }}
+      activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
     steps:
       - name: Check stop-time limit
-        id: safety_checks
+        id: check_stop_time
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_STOP_TIME: 2025-10-17 19:17:16
+          GITHUB_AW_STOP_TIME: 2025-10-17 19:39:27
           GITHUB_AW_WORKFLOW_NAME: "CI Failure Doctor"
         with:
           script: |

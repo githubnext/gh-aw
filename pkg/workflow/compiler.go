@@ -2023,7 +2023,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		workflowName := data.Name
 
 		steps = append(steps, "      - name: Check stop-time limit\n")
-		steps = append(steps, "        id: safety_checks\n")
+		steps = append(steps, "        id: check_stop_time\n")
 		// Only add the if condition if membership check exists
 		if needsPermissionCheck {
 			steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.is_team_member == 'true'\n", constants.CheckMembershipJobName))
@@ -2043,22 +2043,50 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		permissions = "permissions:\n      actions: write  # Required for gh workflow disable"
 	}
 
-	// Generate the activated output expression directly
-	var activatedExpression string
-	if needsPermissionCheck && data.StopTime != "" {
-		// Both permission check and stop-time check exist
-		// activated is true when membership check passes AND stop-time check passes
-		activatedExpression = fmt.Sprintf("${{ steps.%s.outputs.is_team_member == 'true' && steps.safety_checks.outputs.stop_time_ok == 'true' }}", constants.CheckMembershipJobName)
-	} else if needsPermissionCheck {
-		// When only permission check exists, activated is true when membership check passes
-		activatedExpression = fmt.Sprintf("${{ steps.%s.outputs.is_team_member == 'true' }}", constants.CheckMembershipJobName)
-	} else if data.StopTime != "" {
-		// When only stop-time check exists, activated is true when stop-time check passes
-		activatedExpression = "${{ steps.safety_checks.outputs.stop_time_ok == 'true' }}"
-	} else {
-		// No checks, always activated
-		activatedExpression = "'true'"
+	// Generate the activated output expression using expression builders
+	var activatedNode ConditionNode
+
+	// Build condition nodes for each check
+	var conditions []ConditionNode
+
+	if needsPermissionCheck {
+		// Add membership check condition
+		membershipCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.is_team_member", constants.CheckMembershipJobName)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, membershipCheck)
 	}
+
+	if data.StopTime != "" {
+		// Add stop-time check condition
+		stopTimeCheck := BuildComparison(
+			BuildPropertyAccess("steps.check_stop_time.outputs.stop_time_ok"),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, stopTimeCheck)
+	}
+
+	// Build the final expression
+	if len(conditions) == 0 {
+		// This should never happen - it means pre-activation job was created without any checks
+		// If we reach this point, it's a developer error in the compiler logic
+		return nil, fmt.Errorf("developer error: pre-activation job created without permission check or stop-time configuration")
+	} else if len(conditions) == 1 {
+		// Single condition
+		activatedNode = conditions[0]
+	} else {
+		// Multiple conditions - combine with AND
+		activatedNode = conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			activatedNode = buildAnd(activatedNode, conditions[i])
+		}
+	}
+
+	// Render the expression with ${{ }} wrapper
+	activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
 
 	outputs := map[string]string{
 		"activated": activatedExpression,
