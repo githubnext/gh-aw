@@ -13,15 +13,15 @@ import (
 func TestAuditReportIncludesInputSizes(t *testing.T) {
 	// Create test data with input and output sizes
 	run := WorkflowRun{
-		DatabaseID:    999888,
-		WorkflowName:  "MCP Tool Test",
-		Status:        "completed",
-		Conclusion:    "success",
-		CreatedAt:     time.Now(),
-		Event:         "push",
-		HeadBranch:    "main",
-		URL:           "https://github.com/test/repo/actions/runs/999888",
-		LogsPath:      "/tmp/test-logs",
+		DatabaseID:   999888,
+		WorkflowName: "MCP Tool Test",
+		Status:       "completed",
+		Conclusion:   "success",
+		CreatedAt:    time.Now(),
+		Event:        "push",
+		HeadBranch:   "main",
+		URL:          "https://github.com/test/repo/actions/runs/999888",
+		LogsPath:     "/tmp/test-logs",
 	}
 
 	metrics := LogMetrics{
