@@ -646,8 +646,9 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(structuredLog);
 
-      // Should display premium requests consumed
-      expect(result).toContain("**Premium Requests Consumed:** 5");
+      // Should display premium requests consumed (always 1 per workflow run, regardless of num_turns)
+      expect(result).toContain("**Premium Requests Consumed:** 1");
+      expect(result).toContain("**Turns:** 5");
       expect(result).toContain("**Token Usage:**");
       expect(result).toContain("- Input: 1,000");
       expect(result).toContain("- Output: 250");
@@ -687,6 +688,57 @@ describe("parse_copilot_log.cjs", () => {
       // Should NOT display premium requests consumed
       expect(result).not.toContain("Premium Requests Consumed");
       expect(result).toContain("**Turns:** 3");
+      expect(result).toContain("**Token Usage:**");
+    });
+
+    it("should display 1 premium request consumed regardless of number of turns", () => {
+      // Test the fix: with 17 turns, should show 1 premium request (not 17)
+      // This tests the bug fix for https://github.com/githubnext/gh-aw/issues/XXX
+      const structuredLog = JSON.stringify([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "test-multiple-turns",
+          model: "claude-sonnet-4",
+          tools: [],
+          model_info: {
+            billing: {
+              is_premium: true,
+              multiplier: 1,
+              restricted_to: ["pro", "pro_plus", "max"],
+            },
+            id: "claude-sonnet-4",
+            name: "Claude Sonnet 4",
+            vendor: "Anthropic",
+          },
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Response 1" }],
+          },
+        },
+        {
+          type: "assistant",
+          message: {
+            content: [{ type: "text", text: "Response 2" }],
+          },
+        },
+        {
+          type: "result",
+          num_turns: 17, // Many turns, but should still show only 1 premium request
+          usage: {
+            input_tokens: 5000,
+            output_tokens: 1000,
+          },
+        },
+      ]);
+
+      const result = parseCopilotLog(structuredLog);
+
+      // Should display 1 premium request consumed (not 17)
+      expect(result).toContain("**Premium Requests Consumed:** 1");
+      expect(result).toContain("**Turns:** 17");
       expect(result).toContain("**Token Usage:**");
     });
   });

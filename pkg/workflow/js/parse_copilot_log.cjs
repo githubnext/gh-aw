@@ -243,10 +243,12 @@ function parseCopilotLog(logContent) {
       }
 
       // Display premium request consumption if using a premium model
+      // Note: For agentic workflows, 1 premium request is consumed per workflow run,
+      // regardless of the number of conversation turns (num_turns).
       const isPremiumModel =
         initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-      if (isPremiumModel && lastEntry.num_turns) {
-        markdown += `**Premium Requests Consumed:** ${lastEntry.num_turns}\n\n`;
+      if (isPremiumModel) {
+        markdown += `**Premium Requests Consumed:** 1\n\n`;
       }
 
       if (lastEntry.usage) {
