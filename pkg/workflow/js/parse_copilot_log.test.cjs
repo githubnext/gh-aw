@@ -726,7 +726,7 @@ describe("parse_copilot_log.cjs", () => {
         },
         {
           type: "result",
-          num_turns: 17, // Many turns, but should still show only 1 premium request
+          num_turns: 17, // Many turns, but should still show only 1 premium request (unless specified in log)
           usage: {
             input_tokens: 5000,
             output_tokens: 1000,
@@ -736,10 +736,91 @@ describe("parse_copilot_log.cjs", () => {
 
       const result = parseCopilotLog(structuredLog);
 
-      // Should display 1 premium request consumed (not 17)
+      // Should display 1 premium request consumed (default when not specified in log)
       expect(result).toContain("**Premium Requests Consumed:** 1");
       expect(result).toContain("**Turns:** 17");
       expect(result).toContain("**Token Usage:**");
+    });
+
+    it("should extract premium request count from log content using regex", () => {
+      // Test that the regex extraction works
+      const logWithPremiumInfo =
+        `
+Some log output here
+[INFO] Premium requests consumed: 3
+More log content
+` +
+        JSON.stringify([
+          {
+            type: "system",
+            subtype: "init",
+            session_id: "test-regex",
+            model: "claude-sonnet-4",
+            tools: [],
+            model_info: {
+              billing: {
+                is_premium: true,
+              },
+              id: "claude-sonnet-4",
+              name: "Claude Sonnet 4",
+              vendor: "Anthropic",
+            },
+          },
+          {
+            type: "result",
+            num_turns: 10,
+            usage: {
+              input_tokens: 1000,
+              output_tokens: 200,
+            },
+          },
+        ]);
+
+      const result = parseCopilotLog(logWithPremiumInfo);
+
+      // Should extract 3 from the log content
+      expect(result).toContain("**Premium Requests Consumed:** 3");
+      expect(result).toContain("**Turns:** 10");
+    });
+  });
+
+  describe("extractPremiumRequestCount function", () => {
+    let extractPremiumRequestCount;
+
+    beforeEach(() => {
+      const parseCopilotLogScript = fs.readFileSync(path.join(__dirname, "parse_copilot_log.cjs"), "utf8");
+      const scriptWithExport = parseCopilotLogScript.replace(
+        "main();",
+        "global.testExtractPremiumRequestCount = extractPremiumRequestCount;"
+      );
+      const scriptFunction = new Function(scriptWithExport);
+      scriptFunction();
+      extractPremiumRequestCount = global.testExtractPremiumRequestCount;
+    });
+
+    it("should extract premium request count from various formats", () => {
+      // Test different patterns
+      expect(extractPremiumRequestCount("Premium requests consumed: 5")).toBe(5);
+      expect(extractPremiumRequestCount("3 premium requests consumed")).toBe(3);
+      expect(extractPremiumRequestCount("Consumed 7 premium requests")).toBe(7);
+      expect(extractPremiumRequestCount("[INFO] Premium request consumed: 1")).toBe(1);
+    });
+
+    it("should default to 1 if no match found", () => {
+      expect(extractPremiumRequestCount("No premium info here")).toBe(1);
+      expect(extractPremiumRequestCount("")).toBe(1);
+      expect(extractPremiumRequestCount("Some random log content")).toBe(1);
+    });
+
+    it("should handle case-insensitive matching", () => {
+      expect(extractPremiumRequestCount("PREMIUM REQUESTS CONSUMED: 4")).toBe(4);
+      expect(extractPremiumRequestCount("premium Request Consumed: 2")).toBe(2);
+    });
+
+    it("should ignore invalid numbers", () => {
+      expect(extractPremiumRequestCount("Premium requests consumed: 0")).toBe(1); // 0 is invalid
+      expect(extractPremiumRequestCount("Premium requests consumed: -5")).toBe(1); // negative is invalid
+      expect(extractPremiumRequestCount("Premium requests consumed: abc")).toBe(1); // non-number is invalid
     });
   });
 

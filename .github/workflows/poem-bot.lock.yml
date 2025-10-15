@@ -2908,6 +2908,23 @@ jobs:
                 core.setFailed(error instanceof Error ? error : String(error));
               }
             }
+            function extractPremiumRequestCount(logContent) {
+              const patterns = [
+                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
+                /(\d+)\s+premium\s+requests?\s+consumed/i,
+                /consumed\s+(\d+)\s+premium\s+requests?/i,
+              ];
+              for (const pattern of patterns) {
+                const match = logContent.match(pattern);
+                if (match && match[1]) {
+                  const count = parseInt(match[1], 10);
+                  if (!isNaN(count) && count > 0) {
+                    return count;
+                  }
+                }
+              }
+              return 1;
+            }
             function parseCopilotLog(logContent) {
               try {
                 let logEntries;
@@ -3044,7 +3061,8 @@ jobs:
                   const isPremiumModel =
                     initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
                   if (isPremiumModel) {
-                    markdown += `**Premium Requests Consumed:** 1\n\n`;
+                    const premiumRequestCount = extractPremiumRequestCount(logContent);
+                    markdown += `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
                   }
                   if (lastEntry.usage) {
                     const usage = lastEntry.usage;
@@ -3555,6 +3573,7 @@ jobs:
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
                 parseCopilotLog,
+                extractPremiumRequestCount,
                 formatInitializationSummary,
                 formatToolUseWithDetails,
                 formatBashCommand,
