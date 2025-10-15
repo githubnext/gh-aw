@@ -51,14 +51,18 @@ type GitHubWorkflow struct {
 }
 
 // fetchGitHubWorkflows fetches workflow information from GitHub
-func fetchGitHubWorkflows(verbose bool) (map[string]*GitHubWorkflow, error) {
+func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
 	// Start spinner for network operation (only if not in verbose mode)
 	spinner := console.NewSpinner("Fetching GitHub workflow status...")
 	if !verbose {
 		spinner.Start()
 	}
 
-	cmd := exec.Command("gh", "workflow", "list", "--all", "--json", "id,name,path,state")
+	args := []string{"workflow", "list", "--all", "--json", "id,name,path,state"}
+	if repoOverride != "" {
+		args = append(args, "--repo", repoOverride)
+	}
+	cmd := exec.Command("gh", args...)
 	output, err := cmd.Output()
 
 	// Stop spinner
@@ -102,12 +106,12 @@ func extractWorkflowNameFromPath(path string) string {
 }
 
 // getWorkflowStatus gets the status of a single workflow by name
-func getWorkflowStatus(workflowIdOrName string, verbose bool) (*GitHubWorkflow, error) {
+func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose bool) (*GitHubWorkflow, error) {
 	// Extract workflow name for lookup
 	filename := strings.TrimSuffix(filepath.Base(workflowIdOrName), ".md")
 
 	// Get all GitHub workflows
-	githubWorkflows, err := fetchGitHubWorkflows(verbose)
+	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch GitHub workflows: %w", err)
 	}
@@ -121,11 +125,16 @@ func getWorkflowStatus(workflowIdOrName string, verbose bool) (*GitHubWorkflow, 
 }
 
 // restoreWorkflowState restores a workflow to disabled state if it was previously disabled
-func restoreWorkflowState(workflowIdOrName string, workflowID int64, verbose bool) {
+func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverride string, verbose bool) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Restoring workflow '%s' to disabled state...", workflowIdOrName)))
 	}
-	cmd := exec.Command("gh", "workflow", "disable", strconv.FormatInt(workflowID, 10))
+
+	args := []string{"workflow", "disable", strconv.FormatInt(workflowID, 10)}
+	if repoOverride != "" {
+		args = append(args, "--repo", repoOverride)
+	}
+	cmd := exec.Command("gh", args...)
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to restore workflow '%s' to disabled state: %v", workflowIdOrName, err)))
 	} else {

@@ -1098,7 +1098,8 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 		if contentMap, ok := contentItem.(map[string]any); ok {
 			if contentType, exists := contentMap["type"]; exists {
 				if typeStr, ok := contentType.(string); ok {
-					if typeStr == "tool_use" {
+					switch typeStr {
+					case "tool_use":
 						// Extract tool name
 						if toolName, exists := contentMap["name"]; exists {
 							if nameStr, ok := toolName.(string); ok {
@@ -1154,7 +1155,7 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 								}
 							}
 						}
-					} else if typeStr == "tool_result" {
+					case "tool_result":
 						// Extract output size for tool results
 						if content, exists := contentMap["content"]; exists {
 							if contentStr, ok := content.(string); ok {
@@ -1190,7 +1191,8 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 		if contentMap, ok := contentItem.(map[string]any); ok {
 			if contentType, exists := contentMap["type"]; exists {
 				if typeStr, ok := contentType.(string); ok {
-					if typeStr == "tool_use" {
+					switch typeStr {
+					case "tool_use":
 						// Extract tool name
 						if toolName, exists := contentMap["name"]; exists {
 							if nameStr, ok := toolName.(string); ok {
@@ -1235,7 +1237,7 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 								}
 							}
 						}
-					} else if typeStr == "tool_result" {
+					case "tool_result":
 						// Extract output size for tool results
 						if content, exists := contentMap["content"]; exists {
 							if contentStr, ok := content.(string); ok {
