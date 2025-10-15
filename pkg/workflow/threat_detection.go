@@ -266,9 +266,7 @@ core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
 
 // Write rendered prompt to step summary using HTML details/summary
 await core.summary
-  .addHeading('Threat Detection Prompt', 2)
-  .addRaw('\n')
-  .addRaw('<details>\n<summary>Click to expand prompt</summary>\n\n' + '` + "`" + `` + "`" + `` + "`" + `text\n' + promptContent + '\n' + '` + "`" + `` + "`" + `` + "`" + `\n\n</details>\n')
+  .addRaw('<details>\n<summary>Threat Detection Prompt</summary>\n\n' + '` + "`" + `` + "`" + `` + "`" + `text\n' + promptContent + '\n' + '` + "`" + `` + "`" + `` + "`" + `\n\n</details>\n')
   .write();
 
 core.info('Threat detection setup completed');`
