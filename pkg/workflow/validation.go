@@ -202,7 +202,6 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 		pipCmd = "pip3"
 	}
 
-	var errors []string
 	for _, pkg := range packages {
 		// Use pip index to check if package exists on PyPI
 		cmd := exec.Command(pipCmd, "index", "versions", pkg)
@@ -210,19 +209,15 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 
 		if err != nil {
 			outputStr := strings.TrimSpace(string(output))
-			// Check if error is due to timeout
-			if isTimeoutError(outputStr) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("pip package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
-			} else {
-				errors = append(errors, fmt.Sprintf("pip package '%s' not found on PyPI: %s", pkg, outputStr))
+			// Treat all pip validation errors as warnings, not compilation failures
+			// The package may be experimental, not yet published, or will be installed at runtime
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("pip package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", pkg)))
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
 			}
 		} else if c.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ pip package validated: %s", pkg)))
 		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("pip package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 	}
 
 	return nil
@@ -277,7 +272,6 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 
 // validateUvPackagesWithPip validates uv packages using pip index
 func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
-	var errors []string
 	for _, pkg := range packages {
 		// Extract package name without version specifier
 		pkgName := pkg
@@ -291,19 +285,15 @@ func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
 
 		if err != nil {
 			outputStr := strings.TrimSpace(string(output))
-			// Check if error is due to timeout
-			if isTimeoutError(outputStr) {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("uv package '%s' validation timed out - skipping verification. Package may or may not exist on PyPI.", pkg)))
-			} else {
-				errors = append(errors, fmt.Sprintf("uv package '%s' not found on PyPI: %s", pkg, outputStr))
+			// Treat all uv/pip validation errors as warnings, not compilation failures
+			// The package may be experimental, not yet published, or will be installed at runtime
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("uv package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", pkg)))
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
 			}
 		} else if c.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ uv package validated: %s", pkg)))
 		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("uv package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 	}
 
 	return nil
