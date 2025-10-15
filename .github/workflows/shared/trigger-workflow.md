@@ -14,6 +14,11 @@ safe-outputs:
           description: "Optional JSON payload for workflow inputs (e.g., '{\"environment\":\"production\"}')"
           required: false
           type: string
+        dispatch-depth:
+          description: "Current dispatch depth (tracks chained workflow dispatches, max 5)"
+          required: false
+          type: string
+          default: "0"
       permissions:
         actions: write
         contents: read
@@ -56,6 +61,32 @@ safe-outputs:
               }
               
               core.info(`Allowed workflows: ${allowedWorkflows.join(', ')}`);
+              
+              // Check dispatch depth to prevent infinite recursion
+              const MAX_DISPATCH_DEPTH = 5;
+              const dispatchDepthInput = core.getInput('dispatch-depth') || '0';
+              let currentDepth = 0;
+              
+              try {
+                currentDepth = parseInt(dispatchDepthInput, 10);
+                if (isNaN(currentDepth) || currentDepth < 0) {
+                  core.setFailed(`Invalid dispatch-depth value: ${dispatchDepthInput}. Must be a non-negative number.`);
+                  return;
+                }
+              } catch (error) {
+                core.setFailed(`Failed to parse dispatch-depth: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              
+              core.info(`Current dispatch depth: ${currentDepth}`);
+              
+              if (currentDepth >= MAX_DISPATCH_DEPTH) {
+                core.setFailed(`Maximum dispatch depth of ${MAX_DISPATCH_DEPTH} reached. This prevents infinite recursive workflow dispatches. Current depth: ${currentDepth}`);
+                return;
+              }
+              
+              const nextDepth = currentDepth + 1;
+              core.info(`Next dispatch depth will be: ${nextDepth}`);
               
               // Read and parse agent output
               if (!outputContent) {
@@ -119,14 +150,18 @@ safe-outputs:
                   }
                 }
                 
+                // Add dispatch-depth to inputs to track recursion depth
+                inputs['dispatch-depth'] = nextDepth.toString();
+                
                 if (isStaged) {
                   let summaryContent = "## 🎭 Staged Mode: Workflow Trigger Preview\n\n";
                   summaryContent += "The following workflow dispatch would be triggered if staged mode was disabled:\n\n";
                   summaryContent += `**Workflow:** ${workflow}\n\n`;
+                  summaryContent += `**Dispatch Depth:** ${nextDepth}\n\n`;
                   if (payload) {
                     summaryContent += `**Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n\n`;
                   } else {
-                    summaryContent += `**Inputs:** None\n\n`;
+                    summaryContent += `**Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n\n`;
                   }
                   await core.summary.addRaw(summaryContent).write();
                   core.info("📝 Workflow trigger preview written to step summary");

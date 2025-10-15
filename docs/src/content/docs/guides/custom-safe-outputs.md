@@ -490,5 +490,17 @@ If the issue mentions "deploy", trigger the deploy.yml workflow.
 - **Permission separation**: Main job runs without `actions: write` permission
 - **Payload validation**: Ensures well-formed JSON objects
 - **Staged mode support**: Preview triggers without execution
+- **Recursion protection**: Tracks dispatch depth with a maximum of 5 chained dispatches to prevent infinite loops
+
+### Recursion Protection
+
+The trigger-workflow safe-job includes built-in protection against infinite recursive workflow dispatches:
+
+- **dispatch-depth tracking**: Each workflow dispatch increments a depth counter
+- **Maximum depth limit**: Workflow dispatch chain is limited to 5 levels
+- **Automatic validation**: Jobs fail gracefully when the limit is reached
+- **Input parameter**: The `dispatch-depth` input is automatically managed and passed between workflow dispatches
+
+This ensures that self-triggering workflows (like the security-fix-pr example) cannot run indefinitely, providing a safety guardrail against infinite loops.
 
 For the complete implementation, see `.github/workflows/shared/trigger-workflow.md` in the repository.

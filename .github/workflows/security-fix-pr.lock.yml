@@ -9,7 +9,13 @@
 
 name: "Security Fix PR"
 "on":
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      dispatch-depth:
+        default: "0"
+        description: Current dispatch depth (tracks chained workflow dispatches)
+        required: false
+        type: string
 
 permissions: {}
 
@@ -138,7 +144,7 @@ jobs:
       security-events: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"dispatch-depth\":{\"default\":\"0\",\"description\":\"Current dispatch depth (tracks chained workflow dispatches, max 5)\",\"required\":false,\"type\":\"string\"},\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -342,7 +348,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_pull_request":{},"missing_tool":{},"trigger-workflow":{"description":"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.","inputs":{"payload":{"description":"Optional JSON payload for workflow inputs (e.g., '{\"environment\":\"production\"}')","required":false,"type":"string"},"workflow":{"description":"The workflow filename to trigger (e.g., 'build.yml')","required":true,"type":"string"}},"output":"Workflow triggered successfully!"}}
+          {"create_pull_request":{},"missing_tool":{},"trigger-workflow":{"description":"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.","inputs":{"dispatch-depth":{"default":"0","description":"Current dispatch depth (tracks chained workflow dispatches, max 5)","required":false,"type":"string"},"payload":{"description":"Optional JSON payload for workflow inputs (e.g., '{\"environment\":\"production\"}')","required":false,"type":"string"},"workflow":{"description":"The workflow filename to trigger (e.g., 'build.yml')","required":true,"type":"string"}},"output":"Workflow triggered successfully!"}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1533,7 +1539,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{},\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"dispatch-depth\":{\"default\":\"0\",\"description\":\"Current dispatch depth (tracks chained workflow dispatches, max 5)\",\"required\":false,\"type\":\"string\"},\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"}}"
         with:
           script: |
             async function main() {
@@ -3836,6 +3842,32 @@ jobs:
 
             core.info(`Allowed workflows: ${allowedWorkflows.join(', ')}`);
 
+            // Check dispatch depth to prevent infinite recursion
+            const MAX_DISPATCH_DEPTH = 5;
+            const dispatchDepthInput = core.getInput('dispatch-depth') || '0';
+            let currentDepth = 0;
+
+            try {
+              currentDepth = parseInt(dispatchDepthInput, 10);
+              if (isNaN(currentDepth) || currentDepth < 0) {
+                core.setFailed(`Invalid dispatch-depth value: ${dispatchDepthInput}. Must be a non-negative number.`);
+                return;
+              }
+            } catch (error) {
+              core.setFailed(`Failed to parse dispatch-depth: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+
+            core.info(`Current dispatch depth: ${currentDepth}`);
+
+            if (currentDepth >= MAX_DISPATCH_DEPTH) {
+              core.setFailed(`Maximum dispatch depth of ${MAX_DISPATCH_DEPTH} reached. This prevents infinite recursive workflow dispatches. Current depth: ${currentDepth}`);
+              return;
+            }
+
+            const nextDepth = currentDepth + 1;
+            core.info(`Next dispatch depth will be: ${nextDepth}`);
+
             // Read and parse agent output
             if (!outputContent) {
               core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
@@ -3898,14 +3930,18 @@ jobs:
                 }
               }
 
+              // Add dispatch-depth to inputs to track recursion depth
+              inputs['dispatch-depth'] = nextDepth.toString();
+
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Workflow Trigger Preview\n\n";
                 summaryContent += "The following workflow dispatch would be triggered if staged mode was disabled:\n\n";
                 summaryContent += `**Workflow:** ${workflow}\n\n`;
+                summaryContent += `**Dispatch Depth:** ${nextDepth}\n\n`;
                 if (payload) {
                   summaryContent += `**Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n\n`;
                 } else {
-                  summaryContent += `**Inputs:** None\n\n`;
+                  summaryContent += `**Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n\n`;
                 }
                 await core.summary.addRaw(summaryContent).write();
                 core.info("📝 Workflow trigger preview written to step summary");

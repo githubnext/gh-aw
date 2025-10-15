@@ -2,6 +2,12 @@
 name: Security Fix PR
 on:
   workflow_dispatch:
+    inputs:
+      dispatch-depth:
+        description: "Current dispatch depth (tracks chained workflow dispatches)"
+        required: false
+        type: string
+        default: "0"
 permissions:
   contents: read
   actions: read
