@@ -151,6 +151,31 @@ func TestClaudeEngineComputeAllowedTools(t *testing.T) {
 			expected: "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,mcp__github__create_issue,mcp__github__list_issues,mcp__notion",
 		},
 		{
+			name: "bash with * wildcard (should ignore other bash tools)",
+			tools: map[string]any{
+				"bash": []any{"*"},
+			},
+			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
+		{
+			name: "bash with * wildcard mixed with other commands (should ignore other commands)",
+			tools: map[string]any{
+				"bash": []any{"echo", "ls", "*", "cat"},
+			},
+			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite",
+		},
+		{
+			name: "bash with * wildcard and other tools",
+			tools: map[string]any{
+				"bash":      []any{"*"},
+				"web-fetch": nil,
+				"github": map[string]any{
+					"allowed": []any{"list_issues"},
+				},
+			},
+			expected: "Bash,BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite,WebFetch,mcp__github__list_issues",
+		},
+		{
 			name: "bash with :* wildcard (should ignore other bash tools)",
 			tools: map[string]any{
 				"bash": []any{":*"},
