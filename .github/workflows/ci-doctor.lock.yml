@@ -10,14 +10,14 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
+#   pre_activation["pre_activation"]
 #   activation["activation"]
-#   stop_time_check["stop_time_check"]
 #   agent["agent"]
 #   detection["detection"]
 #   create_issue["create_issue"]
 #   add_comment["add_comment"]
 #   missing_tool["missing_tool"]
-#   activation --> stop_time_check
+#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> create_issue
@@ -45,33 +45,16 @@ concurrency:
 run-name: "CI Failure Doctor"
 
 jobs:
-  activation:
+  pre_activation:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check workflow file timestamps
-        run: |
-          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
-          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
-          
-          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
-            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
-              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
-              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
-              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
-              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
-              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
-
-  stop_time_check:
-    needs: activation
     runs-on: ubuntu-latest
     permissions:
       actions: write  # Required for gh workflow disable
+    outputs:
+      activated: ${{ steps.set_activated.outputs.activated }}
     steps:
       - name: Safety checks
+        id: safety_checks
         run: |
           set -e
           echo "Performing safety checks before executing agentic tools..."
@@ -100,6 +83,31 @@ jobs:
           echo "All safety checks passed. Proceeding with agentic tool execution."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set activation status
+        id: set_activated
+        run: |
+          echo "activated=true" >> $GITHUB_OUTPUT
+
+  activation:
+    needs: pre_activation
+    if: (needs.pre_activation.outputs.activated == 'true') && (${{ github.event.workflow_run.conclusion == 'failure' }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check workflow file timestamps
+        run: |
+          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
+          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
+          
+          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
+            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
+              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
+              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
+              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
+              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
+              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
 
   agent:
     needs: activation

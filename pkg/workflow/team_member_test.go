@@ -135,9 +135,10 @@ Test workflow content.`,
 			}
 			lockContentStr := string(lockContent)
 
-			// Check for team member check (now in check_membership job)
+			// Check for team member check (now in pre_activation job)
 			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for command workflow") ||
-				strings.Contains(lockContentStr, constants.CheckMembershipJobName+":")
+				strings.Contains(lockContentStr, "Check team membership for workflow") ||
+				strings.Contains(lockContentStr, constants.PreActivationJobName+":")
 
 			if tt.expectTeamMemberCheck {
 				if !hasTeamMemberCheck {
@@ -156,11 +157,27 @@ Test workflow content.`,
 				// Find the team member check section and ensure it doesn't have github.event_name logic
 				teamMemberCheckStart := strings.Index(lockContentStr, "Check team membership for command workflow")
 				if teamMemberCheckStart == -1 {
-					// Look for the new check_membership job structure
-					teamMemberCheckStart = strings.Index(lockContentStr, constants.CheckMembershipJobName+":")
+					teamMemberCheckStart = strings.Index(lockContentStr, "Check team membership for workflow")
 				}
-				teamMemberCheckEnd := strings.Index(lockContentStr[teamMemberCheckStart:], "task:")
-				if teamMemberCheckStart != -1 && teamMemberCheckEnd != -1 {
+				if teamMemberCheckStart == -1 {
+					// Look for the new pre_activation job structure
+					teamMemberCheckStart = strings.Index(lockContentStr, constants.PreActivationJobName+":")
+				}
+				// Find the next job after the team member check to extract the section
+				var teamMemberCheckEnd int
+				if strings.Contains(lockContentStr, "activation:") {
+					activationStart := strings.Index(lockContentStr, "\n  activation:")
+					if activationStart != -1 && activationStart > teamMemberCheckStart {
+						teamMemberCheckEnd = activationStart - teamMemberCheckStart
+					}
+				}
+				if teamMemberCheckEnd == 0 && strings.Contains(lockContentStr, "agent:") {
+					agentStart := strings.Index(lockContentStr, "\n  agent:")
+					if agentStart != -1 && agentStart > teamMemberCheckStart {
+						teamMemberCheckEnd = agentStart - teamMemberCheckStart
+					}
+				}
+				if teamMemberCheckStart != -1 && teamMemberCheckEnd > 0 {
 					teamMemberSection := lockContentStr[teamMemberCheckStart : teamMemberCheckStart+teamMemberCheckEnd]
 					if strings.Contains(teamMemberSection, "github.event_name") {
 						t.Errorf("Team member check section should not contain github.event_name logic")

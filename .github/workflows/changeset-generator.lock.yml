@@ -10,13 +10,13 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   check_membership["check_membership"]
+#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
 #   missing_tool["missing_tool"]
-#   check_membership --> activation
+#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> push_to_pull_request_branch
@@ -40,14 +40,11 @@ concurrency:
 run-name: "Changeset Generator"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check_membership.outputs.error_message }}
-      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
-      result: ${{ steps.check_membership.outputs.result }}
-      user_permission: ${{ steps.check_membership.outputs.user_permission }}
+      activated: ${{ steps.set_activated.outputs.activated }}
     steps:
       - name: Check team membership for workflow
         id: check_membership
@@ -129,11 +126,19 @@ jobs:
               }
             }
             await main();
+      - name: Set activation status
+        id: set_activated
+        run: |
+          if [ "${{ steps.check_membership.outputs.is_team_member }}" = "true" ]; then
+            echo "activated=true" >> $GITHUB_OUTPUT
+          else
+            echo "activated=false" >> $GITHUB_OUTPUT
+          fi
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (github.event.pull_request.base.ref == github.event.repository.default_branch)
+      (needs.pre_activation.outputs.activated == 'true') && (github.event.pull_request.base.ref == github.event.repository.default_branch)
     runs-on: ubuntu-latest
     permissions:
       discussions: write
