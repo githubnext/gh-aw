@@ -123,7 +123,6 @@ var AllowedExpressions = []string{
 
 const AgentJobName = "agent"
 const ActivationJobName = "activation"
-const CheckMembershipJobName = "check_membership" // Deprecated: use PreActivationJobName
 const PreActivationJobName = "pre_activation"
 const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"

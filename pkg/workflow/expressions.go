@@ -401,6 +401,18 @@ func BuildExpressionWithDescription(expression, description string) *ExpressionN
 	}
 }
 
+// stripExpressionWrapper removes the ${{ }} wrapper from an expression if present
+func stripExpressionWrapper(expression string) string {
+	// Trim whitespace
+	expr := strings.TrimSpace(expression)
+	// Check if it starts with ${{ and ends with }}
+	if strings.HasPrefix(expr, "${{") && strings.HasSuffix(expr, "}}") {
+		// Remove the wrapper and trim inner whitespace
+		return strings.TrimSpace(expr[3 : len(expr)-2])
+	}
+	return expr
+}
+
 // BuildDisjunction creates a disjunction node (OR operation) from the given terms
 // Handles arrays of size 0, 1, or more correctly
 // The multiline parameter controls whether to render each term on a separate line

@@ -2026,7 +2026,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		steps = append(steps, "        id: check_stop_time\n")
 		// Only add the if condition if membership check exists
 		if needsPermissionCheck {
-			steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.is_team_member == 'true'\n", constants.CheckMembershipJobName))
+			steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.is_team_member == 'true'\n", "check_membership"))
 		}
 		steps = append(steps, "        uses: actions/github-script@v8\n")
 		steps = append(steps, "        env:\n")
@@ -2049,7 +2049,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if needsPermissionCheck {
 		// Add membership check condition
 		membershipCheck := BuildComparison(
-			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.is_team_member", constants.CheckMembershipJobName)),
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.is_team_member", "check_membership")),
 			"==",
 			BuildStringLiteral("true"),
 		)
@@ -2189,7 +2189,9 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			BuildStringLiteral("true"),
 		)
 		if data.If != "" {
-			ifExpr := &ExpressionNode{Expression: data.If}
+			// Strip ${{ }} wrapper from data.If before combining
+			unwrappedIf := stripExpressionWrapper(data.If)
+			ifExpr := &ExpressionNode{Expression: unwrappedIf}
 			combinedExpr := &AndNode{Left: activatedExpr, Right: ifExpr}
 			activationCondition = combinedExpr.Render()
 		} else {
