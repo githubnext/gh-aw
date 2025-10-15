@@ -562,6 +562,7 @@ func (e *CopilotEngine) parseCopilotToolCallsWithSequence(line string, toolCallM
 				toolCallMap[toolName] = &ToolCallInfo{
 					Name:          toolName,
 					CallCount:     1,
+					MaxInputSize:  0, // TODO: Extract input size from tool call parameters if available
 					MaxOutputSize: 0, // TODO: Extract output size from results if available
 				}
 			}

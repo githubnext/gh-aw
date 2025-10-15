@@ -190,6 +190,82 @@ func TestClaudeEngine_ParseLogMetrics_WithDuration(t *testing.T) {
 	}
 }
 
+func TestClaudeEngine_ParseLogMetrics_WithInputSizes(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	// Test Claude log with tool calls that have varying input sizes
+	claudeLogWithInputSizes := `[
+  {
+    "type": "assistant",
+    "message": {
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "tool_123",
+          "name": "mcp__github__get_issue",
+          "input": {
+            "owner": "test-owner",
+            "repo": "test-repo",
+            "issue_number": 42
+          }
+        },
+        {
+          "type": "tool_use",
+          "id": "tool_456",
+          "name": "Bash",
+          "input": {
+            "command": "echo 'This is a longer command with more content to test input size tracking'"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "user",
+    "message": {
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "tool_123",
+          "content": "Issue data with some content that is longer than the input"
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "tool_456",
+          "content": "output"
+        }
+      ]
+    }
+  }
+]`
+
+	metrics := engine.ParseLogMetrics(claudeLogWithInputSizes, false)
+
+	// Verify tool calls were parsed
+	if len(metrics.ToolCalls) != 2 {
+		t.Fatalf("Expected 2 tool calls, got %d", len(metrics.ToolCalls))
+	}
+
+	// Verify that input sizes are captured
+	for _, toolCall := range metrics.ToolCalls {
+		if toolCall.MaxInputSize == 0 {
+			t.Errorf("Tool %s should have MaxInputSize > 0, got %d", toolCall.Name, toolCall.MaxInputSize)
+		}
+		
+		// Both tools should have some input size since they have input fields
+		if toolCall.MaxInputSize < 10 {
+			t.Errorf("Tool %s MaxInputSize seems too small: %d tokens", toolCall.Name, toolCall.MaxInputSize)
+		}
+	}
+
+	// Verify output sizes are also captured
+	for _, toolCall := range metrics.ToolCalls {
+		if toolCall.MaxOutputSize == 0 {
+			t.Errorf("Tool %s should have MaxOutputSize > 0, got %d", toolCall.Name, toolCall.MaxOutputSize)
+		}
+	}
+}
+
 func TestCodexEngine_ParseLogMetrics_Basic(t *testing.T) {
 	engine := NewCodexEngine()
 
