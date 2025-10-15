@@ -33,8 +33,8 @@ safe-outputs:
               if (configEnv) {
                 try {
                   const config = JSON.parse(configEnv);
-                  if (config['trigger-workflow'] && Array.isArray(config['trigger-workflow'].allowed)) {
-                    allowedWorkflows = config['trigger-workflow'].allowed;
+                  if (config['trigger_workflow'] && Array.isArray(config['trigger_workflow'].allowed)) {
+                    allowedWorkflows = config['trigger_workflow'].allowed;
                   }
                 } catch (error) {
                   core.setFailed(`Error parsing safe outputs config: ${error instanceof Error ? error.message : String(error)}`);
@@ -130,12 +130,28 @@ safe-outputs:
                   core.info(`With inputs: ${JSON.stringify(inputs)}`);
                 }
                 
+                // Resolve the ref to use (current ref or repository default branch)
+                let ref = context.ref;
+                if (!ref) {
+                  try {
+                    const repoData = await github.rest.repos.get({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo
+                    });
+                    ref = repoData.data.default_branch;
+                    core.info(`Using repository default branch: ${ref}`);
+                  } catch (error) {
+                    core.setFailed(`Failed to resolve default branch: ${error instanceof Error ? error.message : String(error)}`);
+                    return;
+                  }
+                }
+                
                 try {
                   const response = await github.rest.actions.createWorkflowDispatch({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     workflow_id: workflow,
-                    ref: context.ref || 'main',
+                    ref: ref,
                     inputs: inputs
                   });
                   
