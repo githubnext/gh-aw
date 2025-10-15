@@ -119,9 +119,7 @@ jobs:
 
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.is_team_member == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
-      (contains(github.event.issue.body, '/poem-bot')))) || (!(github.event_name == 'issues')))
+    if: needs.pre_activation.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     permissions:
       discussions: write

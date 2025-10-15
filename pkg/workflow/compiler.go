@@ -1764,7 +1764,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
-		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, hasStopTime)
+		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, needsPermissionCheck, hasStopTime)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -2020,7 +2020,7 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
-func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, hasStopTime bool) (*Job, error) {
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, needsPermissionCheck bool, hasStopTime bool) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
@@ -2104,14 +2104,17 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		activationNeeds = []string{constants.PreActivationJobName}
 		
 		// Build condition: is_team_member == 'true' AND stop_time_expired != 'true'
+		// Note: We don't include data.If here because pre_activation already has it
 		var conditions []ConditionNode
 		
-		// Add membership check condition
-		membershipExpr := BuildEquals(
-			BuildPropertyAccess("needs."+constants.PreActivationJobName+".outputs.is_team_member"),
-			BuildStringLiteral("true"),
-		)
-		conditions = append(conditions, membershipExpr)
+		// Add membership check condition if permission checks are needed
+		if needsPermissionCheck {
+			membershipExpr := BuildEquals(
+				BuildPropertyAccess("needs."+constants.PreActivationJobName+".outputs.is_team_member"),
+				BuildStringLiteral("true"),
+			)
+			conditions = append(conditions, membershipExpr)
+		}
 		
 		// Add stop-time check condition if stop-time is configured
 		if hasStopTime {
@@ -2123,18 +2126,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		}
 		
 		// Combine all conditions
-		var combinedExpr ConditionNode = conditions[0]
-		for i := 1; i < len(conditions); i++ {
-			combinedExpr = &AndNode{Left: combinedExpr, Right: conditions[i]}
+		if len(conditions) > 0 {
+			var combinedExpr ConditionNode = conditions[0]
+			for i := 1; i < len(conditions); i++ {
+				combinedExpr = &AndNode{Left: combinedExpr, Right: conditions[i]}
+			}
+			activationCondition = combinedExpr.Render()
 		}
-		
-		// Add user's if condition if present
-		if data.If != "" {
-			ifExpr := &ExpressionNode{Expression: data.If}
-			combinedExpr = &AndNode{Left: combinedExpr, Right: ifExpr}
-		}
-		
-		activationCondition = combinedExpr.Render()
+		// If no conditions, leave activationCondition empty (job always runs after pre_activation)
 	} else {
 		// No pre-activation check needed
 		activationCondition = data.If

@@ -115,9 +115,7 @@ jobs:
 
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.is_team_member == 'true') && ((github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/brave')) && (github.event.issue.pull_request == null)))
+    if: needs.pre_activation.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     permissions:
       discussions: write

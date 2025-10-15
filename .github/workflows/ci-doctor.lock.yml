@@ -66,9 +66,7 @@ jobs:
 
   activation:
     needs: pre_activation
-    if: >
-      ((needs.pre_activation.outputs.is_team_member == 'true') && (needs.pre_activation.outputs.stop_time_expired != 'true')) &&
-      (${{ github.event.workflow_run.conclusion == 'failure' }})
+    if: needs.pre_activation.outputs.stop_time_expired != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
