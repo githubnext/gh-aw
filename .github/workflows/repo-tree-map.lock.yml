@@ -1252,7 +1252,6 @@ jobs:
                 const rendered = renderMarkdownTemplate(markdown);
                 fs.writeFileSync(promptPath, rendered, "utf8");
                 core.info("Template rendered successfully");
-                core.summary.addHeading("Template Rendering", 3).addRaw("\n").addRaw("Processed conditional blocks in prompt\n").write();
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
@@ -1268,6 +1267,7 @@ jobs:
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |

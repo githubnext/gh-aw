@@ -16,7 +16,7 @@ import (
 )
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, verbose bool) error {
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, verbose bool) error {
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
 	}
@@ -141,6 +141,9 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		args = append(args, "--repo", repoOverride)
 	}
 	
+	// Record the start time for auto-merge PR filtering
+	workflowStartTime := time.Now()
+
 	// Execute gh workflow run command and capture output
 	cmd := exec.Command("gh", args...)
 
@@ -178,10 +181,44 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
-	if runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose); err == nil && runInfo.URL != "" {
+	runInfo, runErr := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose)
+	if runErr == nil && runInfo.URL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
-	} else if verbose && err != nil {
-		fmt.Printf("Note: Could not get workflow run URL: %v\n", err)
+	} else if verbose && runErr != nil {
+		fmt.Printf("Note: Could not get workflow run URL: %v\n", runErr)
+	}
+
+	// Auto-merge PRs if requested and we have a valid run
+	if autoMergePRs {
+		if runErr != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not get workflow run information for auto-merge: %v", runErr)))
+		} else {
+			// Wait for workflow completion before attempting to auto-merge PRs
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-merge PRs enabled - waiting for workflow completion..."))
+			
+			// Determine target repository: use repo override if provided, otherwise get current repo
+			targetRepo := repoOverride
+			if targetRepo == "" {
+				if currentRepo, err := GetCurrentRepoSlug(); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not determine target repository for auto-merge: %v", err)))
+					targetRepo = ""
+				} else {
+					targetRepo = currentRepo
+				}
+			}
+			
+			if targetRepo != "" {
+				runIDStr := fmt.Sprintf("%d", runInfo.DatabaseID)
+				if err := WaitForWorkflowCompletion(targetRepo, runIDStr, 30, verbose); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Workflow did not complete successfully, skipping auto-merge: %v", err)))
+				} else {
+					// Auto-merge PRs created after the workflow start time
+					if err := AutoMergePullRequestsCreatedAfter(targetRepo, workflowStartTime, verbose); err != nil {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
+					}
+				}
+			}
+		}
 	}
 
 	// Restore workflow state if it was disabled and we enabled it
@@ -193,7 +230,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, verbose bool) error {
+func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, autoMergePRs bool, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -229,7 +266,7 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, 
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, autoMergePRs, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 

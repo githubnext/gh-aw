@@ -179,20 +179,22 @@ It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on G
 Examples:
   gh aw run daily-perf-improver
   gh aw run daily-perf-improver --repeat 3  # Run 3 times total
-  gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state`,
+  gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state
+  gh aw run daily-perf-improver --auto-merge-prs # Auto-merge any PRs created during execution`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
 		enable, _ := cmd.Flags().GetBool("enable-if-needed")
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		repoOverride, _ := cmd.Flags().GetString("repo")
+		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 		
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
 		
-		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, verboseFlag); err != nil {
+		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -267,6 +269,7 @@ func init() {
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
 	runCmd.Flags().StringP("repo", "r", "", "Repository to run the workflow in (owner/repo format)")
+	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()
