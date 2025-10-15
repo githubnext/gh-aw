@@ -3043,8 +3043,8 @@ jobs:
                   }
                   const isPremiumModel =
                     initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-                  if (isPremiumModel && lastEntry.num_turns) {
-                    markdown += `**Premium Requests Consumed:** ${lastEntry.num_turns}\n\n`;
+                  if (isPremiumModel) {
+                    markdown += `**Premium Requests Consumed:** 1\n\n`;
                   }
                   if (lastEntry.usage) {
                     const usage = lastEntry.usage;
