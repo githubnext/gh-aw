@@ -52,7 +52,7 @@ tools:
   bash: []
 
   # All commands: Unrestricted bash access (use with caution)
-  bash: [":*"]
+  bash: [":*"]  # or ["*"]
 ```
 
 **Configuration Options:**
@@ -61,7 +61,11 @@ tools:
 - **`bash: null`** → Adds default commands (only if no git commands needed for safe outputs)  
 - **`bash: []`** → No bash commands allowed (empty array preserved)
 - **`bash: ["cmd1", "cmd2"]`** → Only specified commands allowed
-- **`bash: [":*"]`** → All bash commands allowed (unrestricted access)
+- **`bash: [":*"]` or `bash: ["*"]`** → All bash commands allowed (unrestricted access)
+
+:::caution[Copilot Engine Behavior]
+When using the Copilot engine with `bash: ["*"]` or `bash: [":*"]`, the workflow will use the `--allow-all-tools` flag instead of listing individual tool permissions. This grants unrestricted access to all tools available to the Copilot CLI, not just bash commands.
+:::
 
 **Default Bash Commands:**
 
@@ -78,12 +82,15 @@ These defaults ensure consistent behavior across Claude and Copilot engines whil
 ```yaml
 tools:
   bash: [":*"]                    # Allow ALL bash commands - use with caution
+  bash: ["*"]                     # Alternative syntax - same as ":*"
   bash: ["git:*"]                 # Allow all git commands with any arguments
   bash: ["npm:*", "echo", "ls"]   # Mix of wildcards and specific commands
 ```
 
 **Wildcard Options:**
-- **`:*`**: Allows **all bash commands** without restriction
+- **`:*` or `*`**: Allows **all bash commands** without restriction
+  - For Copilot engine: Uses `--allow-all-tools` flag (grants access to all tools, not just bash)
+  - For Claude engine: Allows all bash commands
 - **`command:*`**: Allows **all invocations of a specific command** with any arguments
 
 ## Web Fetch Tool (`web-fetch:`)
