@@ -10,13 +10,13 @@
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
-#   create_issue["create_issue"]
+#   create_pull_request["create_pull_request"]
 #   missing_tool["missing_tool"]
 #   check_membership --> activation
 #   activation --> agent
 #   agent --> detection
-#   agent --> create_issue
-#   detection --> create_issue
+#   agent --> create_pull_request
+#   detection --> create_pull_request
 #   agent --> missing_tool
 #   detection --> missing_tool
 # ```
