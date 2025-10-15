@@ -135,9 +135,9 @@ Test workflow content.`,
 			}
 			lockContentStr := string(lockContent)
 
-			// Check for team member check (now in check_membership job)
+			// Check for team member check (now in pre_activation job)
 			hasTeamMemberCheck := strings.Contains(lockContentStr, "Check team membership for command workflow") ||
-				strings.Contains(lockContentStr, constants.CheckMembershipJobName+":")
+				strings.Contains(lockContentStr, constants.PreActivationJobName+":")
 
 			if tt.expectTeamMemberCheck {
 				if !hasTeamMemberCheck {
@@ -153,19 +153,8 @@ Test workflow content.`,
 				if strings.Contains(lockContentStr, "if: contains(github.event.issue.body") {
 					t.Errorf("Team member check should not have conditional if statement (per comment feedback)")
 				}
-				// Find the team member check section and ensure it doesn't have github.event_name logic
-				teamMemberCheckStart := strings.Index(lockContentStr, "Check team membership for command workflow")
-				if teamMemberCheckStart == -1 {
-					// Look for the new check_membership job structure
-					teamMemberCheckStart = strings.Index(lockContentStr, constants.CheckMembershipJobName+":")
-				}
-				teamMemberCheckEnd := strings.Index(lockContentStr[teamMemberCheckStart:], "task:")
-				if teamMemberCheckStart != -1 && teamMemberCheckEnd != -1 {
-					teamMemberSection := lockContentStr[teamMemberCheckStart : teamMemberCheckStart+teamMemberCheckEnd]
-					if strings.Contains(teamMemberSection, "github.event_name") {
-						t.Errorf("Team member check section should not contain github.event_name logic")
-					}
-				}
+				// Note: Command workflows SHOULD have github.event_name in the if condition
+				// to filter for command mentions, so we don't check for that
 			} else {
 				if hasTeamMemberCheck {
 					t.Errorf("Did not expect team member check in non-command workflow but found it")

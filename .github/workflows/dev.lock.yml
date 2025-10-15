@@ -15,7 +15,7 @@ concurrency:
 run-name: "Dev"
 
 jobs:
-  check_membership:
+  pre_activation:
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check_membership.outputs.error_message }}
@@ -105,8 +105,8 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
-    if: needs.check_membership.outputs.is_team_member == 'true'
+    needs: pre_activation
+    if: needs.pre_activation.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps

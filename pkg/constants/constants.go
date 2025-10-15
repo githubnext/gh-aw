@@ -124,6 +124,7 @@ var AllowedExpressions = []string{
 const AgentJobName = "agent"
 const ActivationJobName = "activation"
 const CheckMembershipJobName = "check_membership"
+const PreActivationJobName = "pre_activation"
 const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"

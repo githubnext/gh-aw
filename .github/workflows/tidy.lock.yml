@@ -28,7 +28,7 @@ concurrency:
 run-name: "Tidy"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: >
       ((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/tidy')) &&
       (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))
@@ -121,9 +121,9 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (((github.event_name == 'issue_comment') &&
+      (needs.pre_activation.outputs.is_team_member == 'true') && (((github.event_name == 'issue_comment') &&
       ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/tidy')) && (github.event.issue.pull_request != null)))) ||
       (!(github.event_name == 'issue_comment')))
     runs-on: ubuntu-latest

@@ -25,7 +25,7 @@ concurrency:
 run-name: "Poem Bot - A Creative Agentic Workflow"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: >
       ((github.event_name == 'issues') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/poem-bot')))) ||
       (!(github.event_name == 'issues'))
@@ -118,9 +118,9 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
+      (needs.pre_activation.outputs.is_team_member == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
       (contains(github.event.issue.body, '/poem-bot')))) || (!(github.event_name == 'issues')))
     runs-on: ubuntu-latest
     permissions:

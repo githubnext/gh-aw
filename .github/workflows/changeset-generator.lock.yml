@@ -18,7 +18,7 @@ concurrency:
 run-name: "Changeset Generator"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: ubuntu-latest
     outputs:
@@ -109,9 +109,9 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (github.event.pull_request.base.ref == github.event.repository.default_branch)
+      (needs.pre_activation.outputs.is_team_member == 'true') && (github.event.pull_request.base.ref == github.event.repository.default_branch)
     runs-on: ubuntu-latest
     permissions:
       discussions: write

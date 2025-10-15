@@ -1741,27 +1741,30 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Main job ID is always constants.AgentJobName
 
-	// Build check_membership job if needed (validates team membership levels)
-	// Team membership checks are specifically for command workflows
-	// Non-command workflows use general role checks instead
+	// Determine if we need pre-activation job (for permission checks and/or stop-time)
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
+	hasStopTime := data.StopTime != ""
+	needsPreActivation := needsPermissionCheck || hasStopTime
 
-	if needsPermissionCheck {
-		checkMembershipJob, err := c.buildCheckMembershipJob(data)
+	// Build pre_activation job if needed (combines permission checks and stop-time validation)
+	var preActivationJobCreated bool
+	if needsPreActivation {
+		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
-			return fmt.Errorf("failed to build %s job: %w", constants.CheckMembershipJobName, err)
+			return fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
 		}
-		if err := c.jobManager.AddJob(checkMembershipJob); err != nil {
-			return fmt.Errorf("failed to add %s job: %w", constants.CheckMembershipJobName, err)
+		if err := c.jobManager.AddJob(preActivationJob); err != nil {
+			return fmt.Errorf("failed to add %s job: %w", constants.PreActivationJobName, err)
 		}
+		preActivationJobCreated = true
 	}
 
 	// Build activation job if needed (preamble job that handles runtime conditions)
-	// If check_membership job exists, activation job is ALWAYS created and depends on it
+	// If pre_activation job exists, activation job is ALWAYS created and depends on it
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
-		activationJob, err := c.buildActivationJob(data, needsPermissionCheck)
+		activationJob, err := c.buildActivationJob(data, preActivationJobCreated, hasStopTime)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -1769,17 +1772,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			return fmt.Errorf("failed to add activation job: %w", err)
 		}
 		activationJobCreated = true
-	}
-
-	// Build stop-time check job if stop-time is configured
-	if data.StopTime != "" {
-		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
-		if err != nil {
-			return fmt.Errorf("failed to build stop_time_check job: %w", err)
-		}
-		if err := c.jobManager.AddJob(stopTimeCheckJob); err != nil {
-			return fmt.Errorf("failed to add stop_time_check job: %w", err)
-		}
 	}
 
 	// Build main workflow job
@@ -2028,7 +2020,7 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
-func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCreated bool) (*Job, error) {
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool, hasStopTime bool) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
@@ -2107,22 +2099,44 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 	var activationNeeds []string
 	var activationCondition string
 
-	if checkMembershipJobCreated {
-		// Activation job is the only job that can rely on check_membership
-		activationNeeds = []string{constants.CheckMembershipJobName}
+	if preActivationJobCreated {
+		// Activation job depends on pre_activation
+		activationNeeds = []string{constants.PreActivationJobName}
+		
+		// Build condition: is_team_member == 'true' AND stop_time_expired != 'true'
+		var conditions []ConditionNode
+		
+		// Add membership check condition
 		membershipExpr := BuildEquals(
-			BuildPropertyAccess("needs."+constants.CheckMembershipJobName+".outputs.is_team_member"),
+			BuildPropertyAccess("needs."+constants.PreActivationJobName+".outputs.is_team_member"),
 			BuildStringLiteral("true"),
 		)
+		conditions = append(conditions, membershipExpr)
+		
+		// Add stop-time check condition if stop-time is configured
+		if hasStopTime {
+			stopTimeNotExpiredExpr := BuildNotEquals(
+				BuildPropertyAccess("needs."+constants.PreActivationJobName+".outputs.stop_time_expired"),
+				BuildStringLiteral("true"),
+			)
+			conditions = append(conditions, stopTimeNotExpiredExpr)
+		}
+		
+		// Combine all conditions
+		var combinedExpr ConditionNode = conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			combinedExpr = &AndNode{Left: combinedExpr, Right: conditions[i]}
+		}
+		
+		// Add user's if condition if present
 		if data.If != "" {
 			ifExpr := &ExpressionNode{Expression: data.If}
-			combinedExpr := &AndNode{Left: membershipExpr, Right: ifExpr}
-			activationCondition = combinedExpr.Render()
-		} else {
-			activationCondition = membershipExpr.Render()
+			combinedExpr = &AndNode{Left: combinedExpr, Right: ifExpr}
 		}
+		
+		activationCondition = combinedExpr.Render()
 	} else {
-		// No membership check needed
+		// No pre-activation check needed
 		activationCondition = data.If
 	}
 
@@ -2139,7 +2153,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
-		Needs:       activationNeeds, // Depend on check_membership job if it exists
+		Needs:       activationNeeds, // Depend on pre_activation job if it exists
 	}
 
 	return job, nil

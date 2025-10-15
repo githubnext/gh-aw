@@ -46,7 +46,7 @@ concurrency:
 run-name: "Q"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: >
       (github.event_name == 'issues') && (contains(github.event.issue.body, '/q')) || (github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/q')) && (github.event.issue.pull_request == null)) ||
@@ -147,9 +147,9 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/q')) ||
+      (needs.pre_activation.outputs.is_team_member == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/q')) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/q')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/q')) && (github.event.issue.pull_request != null)) ||
       (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/q')) ||
