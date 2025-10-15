@@ -28,10 +28,10 @@ gh aw trial githubnext/agentics/ci-doctor  # Test workflow safely before adding
 gh aw trial ./my-workflow.md                # Test local workflow during development
 gh aw update                                     # Update all workflows with source field
 gh aw status                                     # Check status
-gh aw run ci-doctor                        # Execute workflow
-gh aw run ci-doctor daily-plan             # Execute multiple workflows
-gh aw run ci-doctor --repeat 3600          # Execute workflow every hour
-gh aw logs ci-doctor                             # View execution logs
+gh aw run daily-perf                        # Execute workflow
+gh aw run daily-perf daily-plan             # Execute multiple workflows
+gh aw run daily-perf --repeat 10            # Execute workflow 10 times
+gh aw logs daily-perf                             # View execution logs
 gh aw audit 12345678                             # Audit a specific run
 ```
 
