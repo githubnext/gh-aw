@@ -2828,21 +2828,23 @@ jobs:
             while IFS= read -r line; do
               if [ -n "$line" ]; then
                 # Extract branch from create-pull-request line using simple grep and sed
-                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create-pull-request"'; then
-                  echo "Found create-pull-request line: $line"
+                # Note: types use underscores (normalized by safe-outputs MCP server)
+                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
+                  echo "Found create_pull_request line: $line"
                   # Extract branch value using sed
                   BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
                   if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from create-pull-request: $BRANCH_NAME"
+                    echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
                     break
                   fi
-                # Extract branch from push-to-pull-request-branch line using simple grep and sed
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push-to-pull-request-branch"'; then
-                  echo "Found push-to-pull-request-branch line: $line"
+                # Extract branch from push_to_pull_request_branch line using simple grep and sed
+                # Note: types use underscores (normalized by safe-outputs MCP server)
+                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
+                  echo "Found push_to_pull_request_branch line: $line"
                   # Extract branch value using sed
                   BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
                   if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push-to-pull-request-branch: $BRANCH_NAME"
+                    echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
                     break
                   fi
                 fi
