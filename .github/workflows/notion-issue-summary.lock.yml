@@ -6,6 +6,18 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/notion.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   notion_add_comment["notion_add_comment"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> notion_add_comment
+# ```
 
 name: "Issue Summary to Notion"
 "on":

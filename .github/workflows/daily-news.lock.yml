@@ -6,6 +6,24 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/tavily.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   detection["detection"]
+#   create_discussion["create_discussion"]
+#   missing_tool["missing_tool"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> detection
+#   agent --> create_discussion
+#   detection --> create_discussion
+#   agent --> missing_tool
+#   detection --> missing_tool
+# ```
 
 name: "Daily News"
 "on":
