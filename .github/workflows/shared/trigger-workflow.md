@@ -26,24 +26,32 @@ safe-outputs:
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               
-              // Read allowed workflows from config
-              const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+              // Read allowed workflows from environment variable or config
               let allowedWorkflows = [];
               
-              if (configEnv) {
-                try {
-                  const config = JSON.parse(configEnv);
-                  if (config['trigger_workflow'] && Array.isArray(config['trigger_workflow'].allowed)) {
-                    allowedWorkflows = config['trigger_workflow'].allowed;
+              // First, try to read from GH_AW_TRIGGER_WORKFLOW_ALLOWED environment variable
+              const allowedEnv = process.env.GH_AW_TRIGGER_WORKFLOW_ALLOWED;
+              if (allowedEnv) {
+                // Split by comma and trim whitespace
+                allowedWorkflows = allowedEnv.split(',').map(w => w.trim()).filter(Boolean);
+              } else {
+                // Fall back to reading from config (for backwards compatibility)
+                const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+                if (configEnv) {
+                  try {
+                    const config = JSON.parse(configEnv);
+                    if (config['trigger_workflow'] && Array.isArray(config['trigger_workflow'].allowed)) {
+                      allowedWorkflows = config['trigger_workflow'].allowed;
+                    }
+                  } catch (error) {
+                    core.setFailed(`Error parsing safe outputs config: ${error instanceof Error ? error.message : String(error)}`);
+                    return;
                   }
-                } catch (error) {
-                  core.setFailed(`Error parsing safe outputs config: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
                 }
               }
               
               if (allowedWorkflows.length === 0) {
-                core.setFailed('No allowed workflows configured for trigger-workflow. Please specify allowed workflows in safe-outputs configuration.');
+                core.setFailed('No allowed workflows configured for trigger-workflow. Please set GH_AW_TRIGGER_WORKFLOW_ALLOWED environment variable with comma-separated workflow filenames.');
                 return;
               }
               

@@ -456,7 +456,7 @@ safe-outputs:
 
 ### Usage
 
-Import the shared configuration and specify allowed workflows:
+Import the shared configuration and specify allowed workflows via environment variables:
 
 ```yaml
 ---
@@ -470,10 +470,8 @@ engine: claude
 imports:
   - shared/trigger-workflow.md
 safe-outputs:
-  trigger-workflow:
-    allowed:
-      - "build.yml"
-      - "deploy.yml"
+  env:
+    GH_AW_TRIGGER_WORKFLOW_ALLOWED: "build.yml,deploy.yml"
 ---
 
 # Issue-Triggered Automation
@@ -483,6 +481,8 @@ When a new issue is created, analyze it and trigger the appropriate workflow.
 If the issue mentions "build", trigger the build.yml workflow.
 If the issue mentions "deploy", trigger the deploy.yml workflow.
 ```
+
+**Configuration Note**: The `GH_AW_TRIGGER_WORKFLOW_ALLOWED` environment variable accepts a comma-separated list of allowed workflow filenames.
 
 ### Security Features
 

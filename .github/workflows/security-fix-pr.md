@@ -7,6 +7,8 @@ permissions:
   actions: read
   security-events: read
 engine: claude
+imports:
+  - shared/trigger-workflow.md
 tools:
   github:
     toolset: [context, repos, code_security, pull_requests]
@@ -23,6 +25,8 @@ safe-outputs:
   create-pull-request:
     title-prefix: "[security-fix] "
     labels: [security, automated-fix]
+  env:
+    GH_AW_TRIGGER_WORKFLOW_ALLOWED: "security-fix-pr.yml"
 timeout_minutes: 20
 ---
 
@@ -38,8 +42,9 @@ When triggered manually via workflow_dispatch, you must:
 2. **List Code Scanning Alerts**: Retrieve all open code scanning alerts from the repository
 3. **Select a Security Alert**: Pick the first open security alert to fix that is not already being addressed in an open PR or recently fixed
 4. **Analyze the Issue**: Understand the security vulnerability and its context
-5. **Generate a Fix**: Create code changes that address the security issue.
+5. **Generate a Fix**: Create code changes that address the security issue
 6. **Create Pull Request**: Submit a pull request with the fix
+7. **Trigger Next Fix**: If there are more open alerts remaining, trigger this workflow again to process the next alert
 
 ## Current Context
 
@@ -94,6 +99,17 @@ After making the code changes:
   - The changes made to fix the issue
   - Any relevant security best practices applied
 
+### 6. Trigger Next Fix (If More Alerts Exist)
+
+After creating a pull request:
+- Check if there are more open security alerts remaining
+- If there are more alerts to fix, trigger the `security-fix-pr.yml` workflow using the `trigger_workflow` safe output
+- This allows the workflow to process the next security alert automatically
+- **Do not trigger** if:
+  - No pull request was created (no security alerts found)
+  - There are no more open security alerts remaining
+  - This was the last alert to fix
+
 ## Security Guidelines
 
 - **Minimal Changes**: Make only the changes necessary to fix the security issue
@@ -132,7 +148,8 @@ Your pull request should include:
 
 ## Important Notes
 
-- **One Alert at a Time**: This workflow fixes only the first open alert
+- **One Alert at a Time**: This workflow fixes only the first open alert, then can trigger itself to process the next
+- **Self-Triggering**: After successfully creating a PR, the workflow will trigger itself if more alerts remain
 - **Safe Operation**: All changes go through pull request review before merging
 - **No Execute**: Never execute untrusted code during analysis
 - **Analysis Tools**: Use read-only GitHub API tools for security analysis; edit and bash tools for creating fixes
