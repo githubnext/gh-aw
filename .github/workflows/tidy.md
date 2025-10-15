@@ -29,6 +29,7 @@ network: {}
 tools:
   github:
     allowed: [list_pull_requests, pull_request_read]
+  edit:
   bash: ["make:*"]
 
 safe-outputs:
