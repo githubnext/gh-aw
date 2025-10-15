@@ -20,7 +20,7 @@ async function main() {
     core.warning("No valid items found in agent output");
     return;
   }
-  const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create-discussion");
+  const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
   if (createDiscussionItems.length === 0) {
     core.warning("No create-discussion items found in agent output");
     return;

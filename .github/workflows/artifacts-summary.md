@@ -2,7 +2,7 @@
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9 * * 1"  # Every Monday at 9 AM UTC
+    - cron: "0 9 * * 0"  # Weekly on Sundays at 9 AM UTC
 permissions:
   contents: read
   actions: read

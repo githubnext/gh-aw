@@ -188,7 +188,7 @@ async function main() {
   }
 
   // Find the create-pull-request item
-  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create-pull-request");
+  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create_pull_request");
   if (!pullRequestItem) {
     core.warning("No create-pull-request item found in agent output");
     return;

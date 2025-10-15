@@ -120,7 +120,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "custom-label"],
           },
         ],
@@ -145,7 +145,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "custom-label"],
           },
         ],
@@ -170,7 +170,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "custom-label", "documentation"],
           },
         ],
@@ -195,7 +195,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -214,7 +214,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -233,7 +233,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "feature", "documentation"],
           },
         ],
@@ -259,7 +259,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -280,7 +280,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -298,7 +298,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -323,7 +323,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -348,7 +348,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -368,7 +368,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -391,7 +391,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "documentation"],
           },
         ],
@@ -417,7 +417,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -439,7 +439,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "-enhancement"],
           },
         ],
@@ -457,7 +457,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "bug", "enhancement"],
           },
         ],
@@ -479,7 +479,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "feature", "documentation", "question"],
           },
         ],
@@ -503,7 +503,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["invalid", "another-invalid"],
           },
         ],
@@ -525,7 +525,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -557,7 +557,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -584,7 +584,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -607,7 +607,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -632,7 +632,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -649,7 +649,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -668,7 +668,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "invalid"],
           },
         ],
@@ -685,7 +685,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -704,7 +704,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement"],
           },
         ],
@@ -727,7 +727,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -744,7 +744,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -770,7 +770,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "enhancement", "bug", "automation", "enhancement"],
           },
         ],
@@ -793,7 +793,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug<script>", "enhancement@user", "automation&test", "normal-label"],
           },
         ],
@@ -819,7 +819,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: [longLabel, "short"],
           },
         ],
@@ -840,7 +840,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "", "   ", "enhancement", null, undefined, 0, false],
           },
         ],
@@ -870,7 +870,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -897,7 +897,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["enhancement"],
           },
         ],
@@ -925,7 +925,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -950,7 +950,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug", "urgent"],
           },
         ],
@@ -979,7 +979,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["documentation"],
             item_number: 555,
           },
@@ -1009,7 +1009,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -1027,7 +1027,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
           },
         ],
@@ -1045,7 +1045,7 @@ describe("add_labels.cjs", () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
         items: [
           {
-            type: "add-labels",
+            type: "add_labels",
             labels: ["bug"],
             item_number: -5,
           },

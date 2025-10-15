@@ -15,7 +15,7 @@ interface BaseSafeOutputItem {
  * JSONL item for creating a GitHub issue
  */
 interface CreateIssueItem extends BaseSafeOutputItem {
-  type: "create-issue";
+  type: "create_issue";
   /** Issue title */
   title: string;
   /** Issue body content */
@@ -30,7 +30,7 @@ interface CreateIssueItem extends BaseSafeOutputItem {
  * JSONL item for creating a GitHub discussion
  */
 interface CreateDiscussionItem extends BaseSafeOutputItem {
-  type: "create-discussion";
+  type: "create_discussion";
   /** Discussion title */
   title: string;
   /** Discussion body content */
@@ -43,7 +43,7 @@ interface CreateDiscussionItem extends BaseSafeOutputItem {
  * JSONL item for adding a comment to an issue or PR
  */
 interface AddCommentItem extends BaseSafeOutputItem {
-  type: "add-comment";
+  type: "add_comment";
   /** Comment body content */
   body: string;
 }
@@ -52,7 +52,7 @@ interface AddCommentItem extends BaseSafeOutputItem {
  * JSONL item for creating a pull request
  */
 interface CreatePullRequestItem extends BaseSafeOutputItem {
-  type: "create-pull-request";
+  type: "create_pull_request";
   /** Pull request title */
   title: string;
   /** Pull request body content */
@@ -67,7 +67,7 @@ interface CreatePullRequestItem extends BaseSafeOutputItem {
  * JSONL item for creating a pull request review comment
  */
 interface CreatePullRequestReviewCommentItem extends BaseSafeOutputItem {
-  type: "create-pull-request-review-comment";
+  type: "create_pull_request_review_comment";
   /** File path for the review comment */
   path: string;
   /** Line number for the comment */
@@ -84,7 +84,7 @@ interface CreatePullRequestReviewCommentItem extends BaseSafeOutputItem {
  * JSONL item for creating a code scanning alert
  */
 interface CreateCodeScanningAlertItem extends BaseSafeOutputItem {
-  type: "create-code-scanning-alert";
+  type: "create_code_scanning_alert";
   /** File path where the issue was found */
   file: string;
   /** Line number where the issue was found */
@@ -103,7 +103,7 @@ interface CreateCodeScanningAlertItem extends BaseSafeOutputItem {
  * JSONL item for adding labels to an issue or PR
  */
 interface AddLabelsItem extends BaseSafeOutputItem {
-  type: "add-labels";
+  type: "add_labels";
   /** Array of label names to add */
   labels: string[];
   /** Target issue; otherwize resolved from current context */
@@ -114,7 +114,7 @@ interface AddLabelsItem extends BaseSafeOutputItem {
  * JSONL item for updating an issue
  */
 interface UpdateIssueItem extends BaseSafeOutputItem {
-  type: "update-issue";
+  type: "update_issue";
   /** Optional new issue status */
   status?: "open" | "closed";
   /** Optional new issue title */
@@ -129,7 +129,7 @@ interface UpdateIssueItem extends BaseSafeOutputItem {
  * JSONL item for pushing to a PR branch
  */
 interface PushToPrBranchItem extends BaseSafeOutputItem {
-  type: "push-to-pull-request-branch";
+  type: "push_to_pull_request_branch";
   /** Optional commit message */
   message?: string;
   /** Optional pull request number for target "*" */
@@ -140,7 +140,7 @@ interface PushToPrBranchItem extends BaseSafeOutputItem {
  * JSONL item for reporting missing tools
  */
 interface MissingToolItem extends BaseSafeOutputItem {
-  type: "missing-tool";
+  type: "missing_tool";
   /** Name of the missing tool */
   tool: string;
   /** Reason why the tool is needed */
@@ -153,7 +153,7 @@ interface MissingToolItem extends BaseSafeOutputItem {
  * JSONL item for uploading an asset file
  */
 interface UploadAssetItem extends BaseSafeOutputItem {
-  type: "upload-asset";
+  type: "upload_asset";
   /** File path to upload */
   file_path: string;
 }

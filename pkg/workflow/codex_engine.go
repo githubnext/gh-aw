@@ -57,13 +57,25 @@ func NewCodexEngine() *CodexEngine {
 }
 
 func (e *CodexEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	return BuildStandardNpmEngineInstallSteps(
+	var steps []GitHubActionStep
+
+	// Add secret validation step - Codex supports both CODEX_API_KEY and OPENAI_API_KEY as fallback
+	secretValidation := GenerateMultiSecretValidationStep(
+		[]string{"CODEX_API_KEY", "OPENAI_API_KEY"},
+		"Codex",
+		"https://githubnext.github.io/gh-aw/reference/engines/#openai-codex",
+	)
+	steps = append(steps, secretValidation)
+
+	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@openai/codex",
 		constants.DefaultCodexVersion,
 		"Install Codex",
 		"codex",
 		workflowData,
 	)
+	steps = append(steps, npmSteps...)
+	return steps
 }
 
 // GetVersionCommand returns the command to get Codex's version
@@ -333,9 +345,6 @@ func (e *CodexEngine) ParseLogMetrics(logContent string, verbose bool) LogMetric
 	if len(errorPatterns) > 0 {
 		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 	}
-
-	// Detect permission errors and create missing-tool entries
-	e.detectPermissionErrorsAndCreateMissingTools(logContent, verbose)
 
 	return metrics
 }
@@ -743,28 +752,4 @@ func (e *CodexEngine) GetErrorPatterns() []ErrorPattern {
 	}...)
 
 	return patterns
-}
-
-// detectPermissionErrorsAndCreateMissingTools scans Codex log content for permission errors
-// and creates missing-tool entries in the safe outputs file
-func (e *CodexEngine) detectPermissionErrorsAndCreateMissingTools(logContent string, verbose bool) {
-	patterns := FilterPermissionErrorPatterns(e.GetErrorPatterns())
-	ScanLogForPermissionErrors(logContent, patterns, e.extractCodexToolNameFromContext, "codex-agent", verbose)
-}
-
-// extractCodexToolNameFromContext attempts to extract the tool name that failed due to permissions
-func (e *CodexEngine) extractCodexToolNameFromContext(lines []string, errorLineIndex int, defaultTool string) string {
-	// Look for tool usage in previous lines (Codex logs typically show tool calls before errors)
-	for i := errorLineIndex - 1; i >= 0 && i >= errorLineIndex-10; i-- {
-		line := lines[i]
-		// Look for patterns like "] tool toolname(" or "] exec command"
-		if strings.Contains(line, "] tool ") {
-			// Extract tool name from "tool toolname("
-			if toolMatch := regexp.MustCompile(`\] tool ([^(]+)\(`).FindStringSubmatch(line); len(toolMatch) > 1 {
-				return toolMatch[1]
-			}
-		}
-	}
-
-	return defaultTool
 }

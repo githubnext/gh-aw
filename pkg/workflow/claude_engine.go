@@ -3,8 +3,6 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -37,6 +35,14 @@ func NewClaudeEngine() *ClaudeEngine {
 
 func (e *ClaudeEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
 	var steps []GitHubActionStep
+
+	// Add secret validation step
+	secretValidation := GenerateSecretValidationStep(
+		"ANTHROPIC_API_KEY",
+		"Claude Code",
+		"https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code",
+	)
+	steps = append(steps, secretValidation)
 
 	// Use shared helper for standard npm installation
 	npmSteps := BuildStandardNpmEngineInstallSteps(
@@ -817,9 +823,6 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 		metrics.TokenUsage = maxTokenUsage
 	}
 
-	// Detect permission errors and create missing-tool entries
-	e.detectPermissionErrorsAndCreateMissingTools(logContent, verbose)
-
 	return metrics
 }
 
@@ -1127,13 +1130,23 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 							// Add to sequence
 							sequence = append(sequence, prettifiedName)
 
+							// Calculate input size from the input field
+							inputSize := 0
+							if input, exists := contentMap["input"]; exists {
+								inputSize = e.estimateInputSize(input)
+							}
+
 							// Initialize or update tool call info
 							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
 								toolInfo.CallCount++
+								if inputSize > toolInfo.MaxInputSize {
+									toolInfo.MaxInputSize = inputSize
+								}
 							} else {
 								toolCallMap[prettifiedName] = &ToolCallInfo{
 									Name:          prettifiedName,
 									CallCount:     1,
+									MaxInputSize:  inputSize,
 									MaxOutputSize: 0, // Will be updated when we find tool results
 									MaxDuration:   0, // Will be updated when we find execution timing
 								}
@@ -1196,13 +1209,23 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 								}
 							}
 
+							// Calculate input size from the input field
+							inputSize := 0
+							if input, exists := contentMap["input"]; exists {
+								inputSize = e.estimateInputSize(input)
+							}
+
 							// Initialize or update tool call info
 							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
 								toolInfo.CallCount++
+								if inputSize > toolInfo.MaxInputSize {
+									toolInfo.MaxInputSize = inputSize
+								}
 							} else {
 								toolCallMap[prettifiedName] = &ToolCallInfo{
 									Name:          prettifiedName,
 									CallCount:     1,
+									MaxInputSize:  inputSize,
 									MaxOutputSize: 0, // Will be updated when we find tool results
 									MaxDuration:   0, // Will be updated when we find execution timing
 								}
@@ -1244,6 +1267,17 @@ func (e *ClaudeEngine) shortenCommand(command string) string {
 		shortened = shortened[:20] + "..."
 	}
 	return shortened
+}
+
+// estimateInputSize estimates the input size in tokens from a tool input object
+func (e *ClaudeEngine) estimateInputSize(input any) int {
+	// Convert input to JSON string to get approximate size
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		return 0
+	}
+	// Estimate token count (rough approximation: 1 token = ~4 characters)
+	return len(inputJSON) / 4
 }
 
 // distributeTotalDurationToToolCalls distributes the total workflow duration among tool calls
@@ -1343,173 +1377,4 @@ func (e *ClaudeEngine) GetErrorPatterns() []ErrorPattern {
 	}...)
 
 	return patterns
-}
-
-// detectPermissionErrorsAndCreateMissingTools scans Claude log content for permission errors
-// and creates missing-tool entries in the safe outputs file
-func (e *ClaudeEngine) detectPermissionErrorsAndCreateMissingTools(logContent string, verbose bool) {
-	// Get permission error patterns
-	patterns := e.GetErrorPatterns()
-
-	// Try to parse as JSON array first (Claude logs are structured)
-	var logEntries []map[string]any
-	if err := json.Unmarshal([]byte(logContent), &logEntries); err == nil {
-		e.processClaudeJSONForPermissionErrors(logEntries, verbose)
-	} else {
-		// Fallback to line-by-line processing for mixed format logs
-		e.processClaudeTextForPermissionErrors(logContent, patterns, verbose)
-	}
-}
-
-// processClaudeJSONForPermissionErrors processes structured Claude JSON logs for permission errors
-func (e *ClaudeEngine) processClaudeJSONForPermissionErrors(logEntries []map[string]any, verbose bool) {
-	for _, entry := range logEntries {
-		if entry["type"] == "user" {
-			if message, exists := entry["message"]; exists {
-				if messageMap, ok := message.(map[string]any); ok {
-					if content, exists := messageMap["content"]; exists {
-						if contentArray, ok := content.([]any); ok {
-							for _, contentItem := range contentArray {
-								if contentMap, ok := contentItem.(map[string]any); ok {
-									if contentMap["type"] == "tool_result" && contentMap["is_error"] == true {
-										// Check if the error content matches permission patterns
-										if contentStr, exists := contentMap["content"].(string); exists {
-											if e.isPermissionError(contentStr) {
-												// Extract tool name from tool_use_id or context
-												toolName := e.extractToolNameFromContext(logEntries, contentMap, "unknown-tool")
-												e.createMissingToolEntry(toolName, contentStr, verbose)
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-// processClaudeTextForPermissionErrors processes text-based Claude logs for permission errors
-func (e *ClaudeEngine) processClaudeTextForPermissionErrors(logContent string, patterns []ErrorPattern, verbose bool) {
-	lines := strings.Split(logContent, "\n")
-
-	for _, pattern := range patterns {
-		regex, err := regexp.Compile(pattern.Pattern)
-		if err != nil {
-			continue // Skip invalid patterns
-		}
-
-		for _, line := range lines {
-			if regex.MatchString(line) {
-				// Found a permission error, create missing-tool entry
-				toolName := "permission-restricted-tool"
-				e.createMissingToolEntry(toolName, line, verbose)
-			}
-		}
-	}
-}
-
-// isPermissionError checks if an error message indicates a permission issue
-func (e *ClaudeEngine) isPermissionError(errorContent string) bool {
-	patterns := []string{
-		`(?i)access denied.*only authorized.*can trigger.*workflow`,
-		`(?i)access denied.*user.*not authorized`,
-		`(?i)repository permission check failed`,
-		`(?i)configuration error.*required permissions not specified`,
-		`(?i)permission.*denied`,
-		`(?i)unauthorized`,
-		`(?i)forbidden`,
-		`(?i)access.*restricted`,
-		`(?i)insufficient.*permission`,
-	}
-
-	for _, pattern := range patterns {
-		if matched, _ := regexp.MatchString(pattern, errorContent); matched {
-			return true
-		}
-	}
-	return false
-}
-
-// extractToolNameFromContext attempts to extract the tool name that failed due to permissions
-func (e *ClaudeEngine) extractToolNameFromContext(logEntries []map[string]any, toolResult map[string]any, defaultTool string) string {
-	// Try to find the corresponding tool_use entry by tool_use_id
-	if toolUseID, exists := toolResult["tool_use_id"].(string); exists {
-		for _, entry := range logEntries {
-			if entry["type"] == "assistant" {
-				if message, exists := entry["message"]; exists {
-					if messageMap, ok := message.(map[string]any); ok {
-						if content, exists := messageMap["content"]; exists {
-							if contentArray, ok := content.([]any); ok {
-								for _, contentItem := range contentArray {
-									if contentMap, ok := contentItem.(map[string]any); ok {
-										if contentMap["type"] == "tool_use" && contentMap["id"] == toolUseID {
-											if name, exists := contentMap["name"].(string); exists {
-												return name
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return defaultTool
-}
-
-// createMissingToolEntry creates a missing-tool entry in the safe outputs file
-func (e *ClaudeEngine) createMissingToolEntry(toolName, reason string, verbose bool) {
-	// Get the safe outputs file path from environment
-	safeOutputsFile := os.Getenv("GITHUB_AW_SAFE_OUTPUTS")
-	if safeOutputsFile == "" {
-		if verbose {
-			fmt.Printf("GITHUB_AW_SAFE_OUTPUTS not set, cannot write permission error missing-tool entry\n")
-		}
-		return
-	}
-
-	// Create missing-tool entry
-	missingToolEntry := map[string]any{
-		"type":         "missing-tool",
-		"tool":         toolName,
-		"reason":       fmt.Sprintf("Permission denied: %s", reason),
-		"alternatives": "Check repository permissions and access controls",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-	}
-
-	// Convert to JSON and append to safe outputs file
-	entryJSON, err := json.Marshal(missingToolEntry)
-	if err != nil {
-		if verbose {
-			fmt.Printf("Failed to marshal missing-tool entry: %v\n", err)
-		}
-		return
-	}
-
-	// Append to the safe outputs file
-	file, err := os.OpenFile(safeOutputsFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		if verbose {
-			fmt.Printf("Failed to open safe outputs file: %v\n", err)
-		}
-		return
-	}
-	defer file.Close()
-
-	if _, err := file.WriteString(string(entryJSON) + "\n"); err != nil {
-		if verbose {
-			fmt.Printf("Failed to write missing-tool entry: %v\n", err)
-		}
-		return
-	}
-
-	if verbose {
-		fmt.Printf("Recorded permission error as missing tool: %s\n", toolName)
-	}
 }

@@ -45,7 +45,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "create-issue"
+          "const": "create_issue"
         },
         "title": {
           "type": "string",
@@ -74,7 +74,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "add-comment"
+          "const": "add_comment"
         },
         "body": {
           "type": "string",
@@ -91,7 +91,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "create-pull-request"
+          "const": "create_pull_request"
         },
         "title": {
           "type": "string",
@@ -124,7 +124,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "add-labels"
+          "const": "add_labels"
         },
         "labels": {
           "type": "array",
@@ -144,7 +144,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "update-issue"
+          "const": "update_issue"
         },
         "status": {
           "type": "string",
@@ -176,7 +176,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "push-to-pull-request-branch"
+          "const": "push_to_pull_request_branch"
         },
         "message": {
           "type": "string",
@@ -199,7 +199,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "create-pull-request-review-comment"
+          "const": "create_pull_request_review_comment"
         },
         "path": {
           "type": "string",
@@ -240,7 +240,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "create-discussion"
+          "const": "create_discussion"
         },
         "title": {
           "type": "string",
@@ -262,7 +262,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "missing-tool"
+          "const": "missing_tool"
         },
         "tool": {
           "type": "string",
@@ -288,7 +288,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "create-code-scanning-alert"
+          "const": "create_code_scanning_alert"
         },
         "sarif": {
           "oneOf": [

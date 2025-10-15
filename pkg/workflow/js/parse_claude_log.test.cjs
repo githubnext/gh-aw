@@ -588,7 +588,7 @@ npm warn exec The following package was not found
       const result = parseClaudeLog(logWithDuration);
 
       // Should contain duration in seconds (2500ms rounds to 3s)
-      expect(result.markdown).toMatch(/`\d+s`/);
+      expect(result.markdown).toMatch(/<code>\d+s<\/code>/);
 
       // Should also contain token estimate
       expect(result.markdown).toMatch(/~\d+t/);

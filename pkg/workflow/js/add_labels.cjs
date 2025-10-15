@@ -34,7 +34,7 @@ async function main() {
     core.warning("No valid items found in agent output");
     return;
   }
-  const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
+  const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
   if (!labelsItem) {
     core.warning("No add-labels item found in agent output");
     return;

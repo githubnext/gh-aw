@@ -140,9 +140,12 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		err := compileAllWorkflowFiles(compiler, workflowsDir, true)
+		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles should handle empty directory: %v", err)
+		}
+		if stats.Total != 0 {
+			t.Errorf("Expected 0 total files, got %d", stats.Total)
 		}
 	})
 
@@ -162,9 +165,14 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		// Create a basic compiler
 		compiler := workflow.NewCompiler(false, "", "test")
 
-		err := compileAllWorkflowFiles(compiler, workflowsDir, true)
+		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles failed: %v", err)
+		}
+
+		// Check stats
+		if stats.Total != len(testFiles) {
+			t.Errorf("Expected %d total files, got %d", len(testFiles), stats.Total)
 		}
 
 		// Check that lock files were created
@@ -182,7 +190,7 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 
 		compiler := &workflow.Compiler{}
 
-		err := compileAllWorkflowFiles(compiler, invalidDir, false)
+		_, err := compileAllWorkflowFiles(compiler, invalidDir, false)
 		if err == nil {
 			t.Error("compileAllWorkflowFiles should handle glob errors")
 		}
@@ -205,9 +213,12 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		compiler := workflow.NewCompiler(false, "", "test")
 
 		// This should not return an error (it prints errors but continues)
-		err := compileAllWorkflowFiles(compiler, workflowsDir, false)
+		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, false)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles should handle compilation errors gracefully: %v", err)
+		}
+		if stats.Errors == 0 {
+			t.Error("Expected at least 1 compilation error")
 		}
 	})
 
@@ -224,9 +235,12 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		compiler := workflow.NewCompiler(false, "", "test")
 
 		// Test verbose mode (should not error)
-		err := compileAllWorkflowFiles(compiler, workflowsDir, true)
+		stats, err := compileAllWorkflowFiles(compiler, workflowsDir, true)
 		if err != nil {
 			t.Errorf("compileAllWorkflowFiles verbose mode failed: %v", err)
+		}
+		if stats.Total != 1 {
+			t.Errorf("Expected 1 total file, got %d", stats.Total)
 		}
 	})
 }

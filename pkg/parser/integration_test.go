@@ -4,13 +4,21 @@ package parser
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestFrontmatterLocationIntegration(t *testing.T) {
 	// Create a temporary file with frontmatter that has additional properties
-	tempFile := "/tmp/gh-aw/th-aw/test_frontmatter_location.md"
+	tempFile := "/tmp/gh-aw/gh-aw/test_frontmatter_location.md"
+
+	// Ensure the directory exists
+	err := os.MkdirAll(filepath.Dir(tempFile), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+
 	content := `---
 name: Test Workflow
 on: push
@@ -24,7 +32,7 @@ engine: claude
 This is a test workflow with invalid additional properties in frontmatter.
 `
 
-	err := os.WriteFile(tempFile, []byte(content), 0644)
+	err = os.WriteFile(tempFile, []byte(content), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
@@ -74,7 +82,14 @@ This is a test workflow with invalid additional properties in frontmatter.
 
 func TestFrontmatterOffsetCalculation(t *testing.T) {
 	// Test frontmatter at the beginning of the file
-	tempFile := "/tmp/gh-aw/th-aw/test_frontmatter_offset.md"
+	tempFile := "/tmp/gh-aw/gh-aw/test_frontmatter_offset.md"
+
+	// Ensure the directory exists
+	err := os.MkdirAll(filepath.Dir(tempFile), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+
 	content := `---
 name: Test Workflow
 invalid_prop: bad
@@ -86,7 +101,7 @@ invalid_prop: bad
 Content here.
 `
 
-	err := os.WriteFile(tempFile, []byte(content), 0644)
+	err = os.WriteFile(tempFile, []byte(content), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}

@@ -616,7 +616,7 @@ jobs:
       group: "gh-aw-copilot"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":3,\"target\":\"*\"},\"add-labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create-issue\":{\"max\":2},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{\"max\":2},\"upload-asset\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -691,6 +691,18 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
+      - name: Validate COPILOT_CLI_TOKEN secret
+        run: |
+          if [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: COPILOT_CLI_TOKEN secret is not set"
+            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            exit 1
+          fi
+          echo "COPILOT_CLI_TOKEN secret is configured"
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -701,7 +713,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"add-comment":{"max":3,"target":"*"},"add-labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"create-issue":{"max":2},"create-pull-request":{},"create-pull-request-review-comment":{"max":2},"missing-tool":{},"push-to-pull-request-branch":{},"update-issue":{"max":2},"upload-asset":{}}
+          {"add_comment":{"max":3,"target":"*"},"add_labels":{"allowed":["poetry","creative","automation","ai-generated","epic","haiku","sonnet","limerick"],"max":5},"create_issue":{"max":2},"create_pull_request":{},"create_pull_request_review_comment":{"max":2},"missing_tool":{},"push_to_pull_request_branch":{},"update_issue":{"max":2},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -829,7 +841,7 @@ jobs:
             }
             function appendSafeOutput(entry) {
               if (!outputFile) throw new Error("No output file configured");
-              entry.type = entry.type.replace(/_/g, "-");
+              entry.type = entry.type.replace(/-/g, "_");
               const jsonLine = JSON.stringify(entry) + "\n";
               try {
                 fs.appendFileSync(outputFile, jsonLine);
@@ -1658,6 +1670,40 @@ jobs:
           To create a pull request review comment, use the create-pull-request-review-comment tool from the safe-outputs MCP
           
           EOF
+      - name: Append GitHub context to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          ---
+          
+          ## GitHub Context
+          
+          The following GitHub context information is available for this workflow:
+          
+          {{#if ${{ github.repository }} }}
+          - **Repository**: `${{ github.repository }}`
+          {{/if}}
+          {{#if ${{ github.event.issue.number }} }}
+          - **Issue Number**: `#${{ github.event.issue.number }}`
+          {{/if}}
+          {{#if ${{ github.event.discussion.number }} }}
+          - **Discussion Number**: `#${{ github.event.discussion.number }}`
+          {{/if}}
+          {{#if ${{ github.event.pull_request.number }} }}
+          - **Pull Request Number**: `#${{ github.event.pull_request.number }}`
+          {{/if}}
+          {{#if ${{ github.event.comment.id }} }}
+          - **Comment ID**: `${{ github.event.comment.id }}`
+          {{/if}}
+          {{#if ${{ github.run_id }} }}
+          - **Workflow Run ID**: `${{ github.run_id }}`
+          {{/if}}
+          
+          Use this context information to understand the scope of your work.
+          
+          EOF
       - name: Append PR context instructions to prompt
         if: |
           (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
@@ -1864,7 +1910,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":3,\"target\":\"*\"},\"add-labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create-issue\":{\"max\":2},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{\"max\":2},\"upload-asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -1882,7 +1928,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add-comment\":{\"max\":3,\"target\":\"*\"},\"add-labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create-issue\":{\"max\":2},\"create-pull-request\":{},\"create-pull-request-review-comment\":{\"max\":2},\"missing-tool\":{},\"push-to-pull-request-branch\":{},\"update-issue\":{\"max\":2},\"upload-asset\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -1958,27 +2004,27 @@ jobs:
                   return itemConfig.max;
                 }
                 switch (itemType) {
-                  case "create-issue":
+                  case "create_issue":
                     return 1;
-                  case "add-comment":
+                  case "add_comment":
                     return 1;
-                  case "create-pull-request":
+                  case "create_pull_request":
                     return 1;
-                  case "create-pull-request-review-comment":
+                  case "create_pull_request_review_comment":
                     return 1;
-                  case "add-labels":
+                  case "add_labels":
                     return 5;
-                  case "update-issue":
+                  case "update_issue":
                     return 1;
-                  case "push-to-pull-request-branch":
+                  case "push_to_pull_request_branch":
                     return 1;
-                  case "create-discussion":
+                  case "create_discussion":
                     return 1;
-                  case "missing-tool":
+                  case "missing_tool":
                     return 20;
-                  case "create-code-scanning-alert":
+                  case "create_code_scanning_alert":
                     return 40;
-                  case "upload-asset":
+                  case "upload_asset":
                     return 10;
                   default:
                     return 1;
@@ -2028,16 +2074,16 @@ jobs:
               }
               function validatePositiveInteger(value, fieldName, lineNum) {
                 if (value === undefined || value === null) {
-                  if (fieldName.includes("create-code-scanning-alert 'line'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert requires a 'line' field (number or string)`,
+                      error: `Line ${lineNum}: create_code_scanning_alert requires a 'line' field (number or string)`,
                     };
                   }
-                  if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment requires a 'line' number`,
                     };
                   }
                   return {
@@ -2046,16 +2092,16 @@ jobs:
                   };
                 }
                 if (typeof value !== "number" && typeof value !== "string") {
-                  if (fieldName.includes("create-code-scanning-alert 'line'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert requires a 'line' field (number or string)`,
+                      error: `Line ${lineNum}: create_code_scanning_alert requires a 'line' field (number or string)`,
                     };
                   }
-                  if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment requires a 'line' number or string field`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment requires a 'line' number or string field`,
                     };
                   }
                   return {
@@ -2065,16 +2111,16 @@ jobs:
                 }
                 const parsed = typeof value === "string" ? parseInt(value, 10) : value;
                 if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-                  if (fieldName.includes("create-code-scanning-alert 'line'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert 'line' must be a valid positive integer (got: ${value})`,
+                      error: `Line ${lineNum}: create_code_scanning_alert 'line' must be a valid positive integer (got: ${value})`,
                     };
                   }
-                  if (fieldName.includes("create-pull-request-review-comment 'line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment 'line' must be a positive integer`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment 'line' must be a positive integer`,
                     };
                   }
                   return {
@@ -2089,16 +2135,16 @@ jobs:
                   return { isValid: true };
                 }
                 if (typeof value !== "number" && typeof value !== "string") {
-                  if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'start_line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a number or string`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment 'start_line' must be a number or string`,
                     };
                   }
-                  if (fieldName.includes("create-code-scanning-alert 'column'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'column'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a number or string`,
+                      error: `Line ${lineNum}: create_code_scanning_alert 'column' must be a number or string`,
                     };
                   }
                   return {
@@ -2108,16 +2154,16 @@ jobs:
                 }
                 const parsed = typeof value === "string" ? parseInt(value, 10) : value;
                 if (isNaN(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-                  if (fieldName.includes("create-pull-request-review-comment 'start_line'")) {
+                  if (fieldName.includes("create_pull_request_review_comment 'start_line'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-pull-request-review-comment 'start_line' must be a positive integer`,
+                      error: `Line ${lineNum}: create_pull_request_review_comment 'start_line' must be a positive integer`,
                     };
                   }
-                  if (fieldName.includes("create-code-scanning-alert 'column'")) {
+                  if (fieldName.includes("create_code_scanning_alert 'column'")) {
                     return {
                       isValid: false,
-                      error: `Line ${lineNum}: create-code-scanning-alert 'column' must be a valid positive integer (got: ${value})`,
+                      error: `Line ${lineNum}: create_code_scanning_alert 'column' must be a valid positive integer (got: ${value})`,
                     };
                   }
                   return {
@@ -2266,7 +2312,8 @@ jobs:
               let expectedOutputTypes = {};
               if (safeOutputsConfig) {
                 try {
-                  expectedOutputTypes = JSON.parse(safeOutputsConfig);
+                  const rawConfig = JSON.parse(safeOutputsConfig);
+                  expectedOutputTypes = Object.fromEntries(Object.entries(rawConfig).map(([key, value]) => [key.replace(/-/g, "_"), value]));
                   core.info(`Expected output types: ${JSON.stringify(Object.keys(expectedOutputTypes))}`);
                 } catch (error) {
                   const errorMsg = error instanceof Error ? error.message : String(error);
@@ -2289,7 +2336,8 @@ jobs:
                     errors.push(`Line ${i + 1}: Missing required 'type' field`);
                     continue;
                   }
-                  const itemType = item.type;
+                  const itemType = item.type.replace(/-/g, "_");
+                  item.type = itemType;
                   if (!expectedOutputTypes[itemType]) {
                     errors.push(`Line ${i + 1}: Unexpected output type '${itemType}'. Expected one of: ${Object.keys(expectedOutputTypes).join(", ")}`);
                     continue;
@@ -2302,7 +2350,7 @@ jobs:
                   }
                   core.info(`Line ${i + 1}: type '${itemType}'`);
                   switch (itemType) {
-                    case "create-issue":
+                    case "create_issue":
                       if (!item.title || typeof item.title !== "string") {
                         errors.push(`Line ${i + 1}: create_issue requires a 'title' string field`);
                         continue;
@@ -2324,7 +2372,7 @@ jobs:
                         }
                       }
                       break;
-                    case "add-comment":
+                    case "add_comment":
                       if (!item.body || typeof item.body !== "string") {
                         errors.push(`Line ${i + 1}: add_comment requires a 'body' string field`);
                         continue;
@@ -2338,7 +2386,7 @@ jobs:
                       }
                       item.body = sanitizeContent(item.body, maxBodyLength);
                       break;
-                    case "create-pull-request":
+                    case "create_pull_request":
                       if (!item.title || typeof item.title !== "string") {
                         errors.push(`Line ${i + 1}: create_pull_request requires a 'title' string field`);
                         continue;
@@ -2358,7 +2406,7 @@ jobs:
                         item.labels = item.labels.map(label => (typeof label === "string" ? sanitizeContent(label, 128) : label));
                       }
                       break;
-                    case "add-labels":
+                    case "add_labels":
                       if (!item.labels || !Array.isArray(item.labels)) {
                         errors.push(`Line ${i + 1}: add_labels requires a 'labels' array field`);
                         continue;
@@ -2367,14 +2415,14 @@ jobs:
                         errors.push(`Line ${i + 1}: add_labels labels array must contain only strings`);
                         continue;
                       }
-                      const labelsItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add-labels 'item_number'", i + 1);
+                      const labelsItemNumberValidation = validateIssueOrPRNumber(item.item_number, "add_labels 'item_number'", i + 1);
                       if (!labelsItemNumberValidation.isValid) {
                         if (labelsItemNumberValidation.error) errors.push(labelsItemNumberValidation.error);
                         continue;
                       }
                       item.labels = item.labels.map(label => sanitizeContent(label, 128));
                       break;
-                    case "update-issue":
+                    case "update_issue":
                       const hasValidField = item.status !== undefined || item.title !== undefined || item.body !== undefined;
                       if (!hasValidField) {
                         errors.push(`Line ${i + 1}: update_issue requires at least one of: 'status', 'title', or 'body' fields`);
@@ -2388,25 +2436,25 @@ jobs:
                       }
                       if (item.title !== undefined) {
                         if (typeof item.title !== "string") {
-                          errors.push(`Line ${i + 1}: update-issue 'title' must be a string`);
+                          errors.push(`Line ${i + 1}: update_issue 'title' must be a string`);
                           continue;
                         }
                         item.title = sanitizeContent(item.title, 128);
                       }
                       if (item.body !== undefined) {
                         if (typeof item.body !== "string") {
-                          errors.push(`Line ${i + 1}: update-issue 'body' must be a string`);
+                          errors.push(`Line ${i + 1}: update_issue 'body' must be a string`);
                           continue;
                         }
                         item.body = sanitizeContent(item.body, maxBodyLength);
                       }
-                      const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update-issue 'issue_number'", i + 1);
+                      const updateIssueNumValidation = validateIssueOrPRNumber(item.issue_number, "update_issue 'issue_number'", i + 1);
                       if (!updateIssueNumValidation.isValid) {
                         if (updateIssueNumValidation.error) errors.push(updateIssueNumValidation.error);
                         continue;
                       }
                       break;
-                    case "push-to-pull-request-branch":
+                    case "push_to_pull_request_branch":
                       if (!item.branch || typeof item.branch !== "string") {
                         errors.push(`Line ${i + 1}: push_to_pull_request_branch requires a 'branch' string field`);
                         continue;
@@ -2419,7 +2467,7 @@ jobs:
                       item.message = sanitizeContent(item.message, maxBodyLength);
                       const pushPRNumValidation = validateIssueOrPRNumber(
                         item.pull_request_number,
-                        "push-to-pull-request-branch 'pull_request_number'",
+                        "push_to_pull_request_branch 'pull_request_number'",
                         i + 1
                       );
                       if (!pushPRNumValidation.isValid) {
@@ -2427,25 +2475,25 @@ jobs:
                         continue;
                       }
                       break;
-                    case "create-pull-request-review-comment":
+                    case "create_pull_request_review_comment":
                       if (!item.path || typeof item.path !== "string") {
-                        errors.push(`Line ${i + 1}: create-pull-request-review-comment requires a 'path' string field`);
+                        errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'path' string field`);
                         continue;
                       }
-                      const lineValidation = validatePositiveInteger(item.line, "create-pull-request-review-comment 'line'", i + 1);
+                      const lineValidation = validatePositiveInteger(item.line, "create_pull_request_review_comment 'line'", i + 1);
                       if (!lineValidation.isValid) {
                         if (lineValidation.error) errors.push(lineValidation.error);
                         continue;
                       }
                       const lineNumber = lineValidation.normalizedValue;
                       if (!item.body || typeof item.body !== "string") {
-                        errors.push(`Line ${i + 1}: create-pull-request-review-comment requires a 'body' string field`);
+                        errors.push(`Line ${i + 1}: create_pull_request_review_comment requires a 'body' string field`);
                         continue;
                       }
                       item.body = sanitizeContent(item.body, maxBodyLength);
                       const startLineValidation = validateOptionalPositiveInteger(
                         item.start_line,
-                        "create-pull-request-review-comment 'start_line'",
+                        "create_pull_request_review_comment 'start_line'",
                         i + 1
                       );
                       if (!startLineValidation.isValid) {
@@ -2457,17 +2505,17 @@ jobs:
                         lineNumber !== undefined &&
                         startLineValidation.normalizedValue > lineNumber
                       ) {
-                        errors.push(`Line ${i + 1}: create-pull-request-review-comment 'start_line' must be less than or equal to 'line'`);
+                        errors.push(`Line ${i + 1}: create_pull_request_review_comment 'start_line' must be less than or equal to 'line'`);
                         continue;
                       }
                       if (item.side !== undefined) {
                         if (typeof item.side !== "string" || (item.side !== "LEFT" && item.side !== "RIGHT")) {
-                          errors.push(`Line ${i + 1}: create-pull-request-review-comment 'side' must be 'LEFT' or 'RIGHT'`);
+                          errors.push(`Line ${i + 1}: create_pull_request_review_comment 'side' must be 'LEFT' or 'RIGHT'`);
                           continue;
                         }
                       }
                       break;
-                    case "create-discussion":
+                    case "create_discussion":
                       if (!item.title || typeof item.title !== "string") {
                         errors.push(`Line ${i + 1}: create_discussion requires a 'title' string field`);
                         continue;
@@ -2486,7 +2534,7 @@ jobs:
                       item.title = sanitizeContent(item.title, 128);
                       item.body = sanitizeContent(item.body, maxBodyLength);
                       break;
-                    case "missing-tool":
+                    case "missing_tool":
                       if (!item.tool || typeof item.tool !== "string") {
                         errors.push(`Line ${i + 1}: missing_tool requires a 'tool' string field`);
                         continue;
@@ -2499,24 +2547,24 @@ jobs:
                       item.reason = sanitizeContent(item.reason, 256);
                       if (item.alternatives !== undefined) {
                         if (typeof item.alternatives !== "string") {
-                          errors.push(`Line ${i + 1}: missing-tool 'alternatives' must be a string`);
+                          errors.push(`Line ${i + 1}: missing_tool 'alternatives' must be a string`);
                           continue;
                         }
                         item.alternatives = sanitizeContent(item.alternatives, 512);
                       }
                       break;
-                    case "upload-asset":
+                    case "upload_asset":
                       if (!item.path || typeof item.path !== "string") {
                         errors.push(`Line ${i + 1}: upload_asset requires a 'path' string field`);
                         continue;
                       }
                       break;
-                    case "create-code-scanning-alert":
+                    case "create_code_scanning_alert":
                       if (!item.file || typeof item.file !== "string") {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'file' field (string)`);
+                        errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'file' field (string)`);
                         continue;
                       }
-                      const alertLineValidation = validatePositiveInteger(item.line, "create-code-scanning-alert 'line'", i + 1);
+                      const alertLineValidation = validatePositiveInteger(item.line, "create_code_scanning_alert 'line'", i + 1);
                       if (!alertLineValidation.isValid) {
                         if (alertLineValidation.error) {
                           errors.push(alertLineValidation.error);
@@ -2524,33 +2572,33 @@ jobs:
                         continue;
                       }
                       if (!item.severity || typeof item.severity !== "string") {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'severity' field (string)`);
+                        errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'severity' field (string)`);
                         continue;
                       }
                       if (!item.message || typeof item.message !== "string") {
-                        errors.push(`Line ${i + 1}: create-code-scanning-alert requires a 'message' field (string)`);
+                        errors.push(`Line ${i + 1}: create_code_scanning_alert requires a 'message' field (string)`);
                         continue;
                       }
                       const allowedSeverities = ["error", "warning", "info", "note"];
                       if (!allowedSeverities.includes(item.severity.toLowerCase())) {
                         errors.push(
-                          `Line ${i + 1}: create-code-scanning-alert 'severity' must be one of: ${allowedSeverities.join(", ")}, got ${item.severity.toLowerCase()}`
+                          `Line ${i + 1}: create_code_scanning_alert 'severity' must be one of: ${allowedSeverities.join(", ")}, got ${item.severity.toLowerCase()}`
                         );
                         continue;
                       }
-                      const columnValidation = validateOptionalPositiveInteger(item.column, "create-code-scanning-alert 'column'", i + 1);
+                      const columnValidation = validateOptionalPositiveInteger(item.column, "create_code_scanning_alert 'column'", i + 1);
                       if (!columnValidation.isValid) {
                         if (columnValidation.error) errors.push(columnValidation.error);
                         continue;
                       }
                       if (item.ruleIdSuffix !== undefined) {
                         if (typeof item.ruleIdSuffix !== "string") {
-                          errors.push(`Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must be a string`);
+                          errors.push(`Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must be a string`);
                           continue;
                         }
                         if (!/^[a-zA-Z0-9_-]+$/.test(item.ruleIdSuffix.trim())) {
                           errors.push(
-                            `Line ${i + 1}: create-code-scanning-alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
+                            `Line ${i + 1}: create_code_scanning_alert 'ruleIdSuffix' must contain only alphanumeric characters, hyphens, and underscores`
                           );
                           continue;
                         }
@@ -3389,10 +3437,10 @@ jobs:
               const totalTokens = estimateTokens(inputText) + estimateTokens(outputText);
               let metadata = "";
               if (toolResult && toolResult.duration_ms) {
-                metadata += ` \`${formatDuration(toolResult.duration_ms)}\``;
+                metadata += ` <code>${formatDuration(toolResult.duration_ms)}</code>`;
               }
               if (totalTokens > 0) {
-                metadata += ` \`~${totalTokens}t\``;
+                metadata += ` <code>~${totalTokens}t</code>`;
               }
               switch (toolName) {
                 case "Bash":
@@ -3938,6 +3986,18 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
+      - name: Validate COPILOT_CLI_TOKEN secret
+        run: |
+          if [ -z "$COPILOT_CLI_TOKEN" ]; then
+            echo "Error: COPILOT_CLI_TOKEN secret is not set"
+            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
+            echo "Please configure this secret in your repository settings."
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            exit 1
+          fi
+          echo "COPILOT_CLI_TOKEN secret is configured"
+        env:
+          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -4013,7 +4073,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-issue'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4079,7 +4139,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create-issue");
+              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
               if (createIssueItems.length === 0) {
                 core.info("No create-issue items found in agent output");
                 return;
@@ -4260,7 +4320,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'add-comment'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -4360,7 +4420,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add-comment");
+              const commentItems = validatedOutput.items.filter( item => item.type === "add_comment");
               if (commentItems.length === 0) {
                 core.info("No add-comment items found in agent output");
                 return;
@@ -4538,7 +4598,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'create-pull-request-review-comment'))) &&
+      ((always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment'))) &&
       (((github.event.issue.number) && (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
     permissions:
@@ -4603,7 +4663,7 @@ jobs:
                 return;
               }
               const reviewCommentItems = validatedOutput.items.filter(
-                 item => item.type === "create-pull-request-review-comment"
+                 item => item.type === "create_pull_request_review_comment"
               );
               if (reviewCommentItems.length === 0) {
                 core.info("No create-pull-request-review-comment items found in agent output");
@@ -4797,7 +4857,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create-pull-request'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -4975,7 +5035,7 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create-pull-request");
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
               if (!pullRequestItem) {
                 core.warning("No create-pull-request item found in agent output");
                 return;
@@ -5240,7 +5300,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add-labels'))) && ((github.event.issue.number) ||
+      ((always()) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
       (github.event.pull_request.number))
     runs-on: ubuntu-latest
     permissions:
@@ -5297,7 +5357,7 @@ jobs:
                 core.warning("No valid items found in agent output");
                 return;
               }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add-labels");
+              const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
               if (!labelsItem) {
                 core.warning("No add-labels item found in agent output");
                 return;
@@ -5463,7 +5523,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'update-issue'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'update_issue'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -5508,7 +5568,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const updateItems = validatedOutput.items.filter( item => item.type === "update-issue");
+              const updateItems = validatedOutput.items.filter( item => item.type === "update_issue");
               if (updateItems.length === 0) {
                 core.info("No update-issue items found in agent output");
                 return;
@@ -5659,7 +5719,7 @@ jobs:
       - agent
       - detection
     if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'push-to-pull-request-branch'))) &&
+      ((always()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
       (((github.event.issue.number) &&
       (github.event.issue.pull_request)) || (github.event.pull_request))
     runs-on: ubuntu-latest
@@ -5780,7 +5840,7 @@ jobs:
                 core.info("No valid items found in agent output");
                 return;
               }
-              const pushItem = validatedOutput.items.find( item => item.type === "push-to-pull-request-branch");
+              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
               if (!pushItem) {
                 core.info("No push-to-pull-request-branch item found in agent output");
                 return;
@@ -5953,7 +6013,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing-tool'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'missing_tool'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -6000,7 +6060,7 @@ jobs:
               }
               core.info(`Parsed agent output with ${validatedOutput.items.length} entries`);
               for (const entry of validatedOutput.items) {
-                if (entry.type === "missing-tool") {
+                if (entry.type === "missing_tool") {
                   if (!entry.tool) {
                     core.warning(`missing-tool entry missing 'tool' field: ${JSON.stringify(entry)}`);
                     continue;
@@ -6060,7 +6120,7 @@ jobs:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'upload-asset'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required for creating orphaned branch and pushing assets
@@ -6138,7 +6198,7 @@ jobs:
                 core.setOutput("branch_name", branchName);
                 return;
               }
-              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload-asset");
+              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
               if (uploadAssetItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");

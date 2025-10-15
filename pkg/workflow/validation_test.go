@@ -497,3 +497,56 @@ func TestValidateRuntimePackages(t *testing.T) {
 		})
 	}
 }
+
+func TestIsTimeoutError(t *testing.T) {
+	tests := []struct {
+		name     string
+		output   string
+		expected bool
+	}{
+		{
+			name:     "timeout error with TimeoutError",
+			output:   "TimeoutError: The read operation timed out",
+			expected: true,
+		},
+		{
+			name:     "timeout error with ReadTimeoutError",
+			output:   "pip._vendor.urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='pypi.org', port=443): Read timed out.",
+			expected: true,
+		},
+		{
+			name:     "timeout error with 'timed out'",
+			output:   "Connection timed out while connecting to server",
+			expected: true,
+		},
+		{
+			name:     "timeout error with 'timeout' (case insensitive)",
+			output:   "ERROR: Request timeout occurred",
+			expected: true,
+		},
+		{
+			name:     "not a timeout error - package not found",
+			output:   "ERROR: No matching distribution found for nonexistent-package",
+			expected: false,
+		},
+		{
+			name:     "not a timeout error - network error",
+			output:   "ERROR: Could not find a version that satisfies the requirement",
+			expected: false,
+		},
+		{
+			name:     "not a timeout error - empty output",
+			output:   "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isTimeoutError(tt.output)
+			if result != tt.expected {
+				t.Errorf("isTimeoutError() = %v, want %v for output: %s", result, tt.expected, tt.output)
+			}
+		})
+	}
+}

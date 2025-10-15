@@ -117,7 +117,7 @@ func runCompileWorkflows(verbose bool, engineOverride string) error {
 
 	// Compile all workflows in the workflows directory
 	workflowsDir := getWorkflowsDir()
-	err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
+	_, err := compileAllWorkflowFiles(compiler, workflowsDir, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to compile workflows: %w", err)
 	}

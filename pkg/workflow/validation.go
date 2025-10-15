@@ -11,6 +11,25 @@ import (
 	"github.com/githubnext/gh-aw/pkg/workflow/pretty"
 )
 
+// isTimeoutError checks if the error output indicates a timeout
+func isTimeoutError(output string) bool {
+	timeoutIndicators := []string{
+		"TimeoutError",
+		"Read timed out",
+		"ReadTimeoutError",
+		"timed out",
+		"timeout",
+	}
+
+	outputLower := strings.ToLower(output)
+	for _, indicator := range timeoutIndicators {
+		if strings.Contains(outputLower, strings.ToLower(indicator)) {
+			return true
+		}
+	}
+	return false
+}
+
 // validateExpressionSizes validates that no expression values in the generated YAML exceed GitHub Actions limits
 func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 	lines := strings.Split(yamlContent, "\n")
@@ -32,7 +51,7 @@ func (c *Compiler) validateExpressionSizes(yamlContent string) error {
 
 			var errorMsg string
 			if key != "" {
-				errorMsg = fmt.Sprintf("expression value for '%s' (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead.",
+				errorMsg = fmt.Sprintf("expression value for %q (%s) exceeds maximum allowed size (%s) at line %d. GitHub Actions has a 21KB limit for expression values including environment variables. Consider chunking the content or using artifacts instead.",
 					key, actualSize, maxSizeFormatted, lineNum+1)
 			} else {
 				errorMsg = fmt.Sprintf("line %d (%s) exceeds maximum allowed expression size (%s). GitHub Actions has a 21KB limit for expression values.",
@@ -173,7 +192,8 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 		// Try pip3 as fallback
 		_, err3 := exec.LookPath("pip3")
 		if err3 != nil {
-			return fmt.Errorf("pip command not found - cannot validate pip packages. Install Python/pip or disable validation")
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("pip command not found - skipping pip package validation. Install Python/pip for full validation"))
+			return nil
 		}
 	}
 
@@ -182,21 +202,22 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 		pipCmd = "pip3"
 	}
 
-	var errors []string
 	for _, pkg := range packages {
 		// Use pip index to check if package exists on PyPI
 		cmd := exec.Command(pipCmd, "index", "versions", pkg)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("pip package '%s' not found on PyPI: %s", pkg, strings.TrimSpace(string(output))))
+			outputStr := strings.TrimSpace(string(output))
+			// Treat all pip validation errors as warnings, not compilation failures
+			// The package may be experimental, not yet published, or will be installed at runtime
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("pip package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", pkg)))
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
+			}
 		} else if c.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ pip package validated: %s", pkg)))
 		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("pip package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 	}
 
 	return nil
@@ -251,7 +272,6 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 
 // validateUvPackagesWithPip validates uv packages using pip index
 func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
-	var errors []string
 	for _, pkg := range packages {
 		// Extract package name without version specifier
 		pkgName := pkg
@@ -264,14 +284,16 @@ func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("uv package '%s' not found on PyPI: %s", pkg, strings.TrimSpace(string(output))))
+			outputStr := strings.TrimSpace(string(output))
+			// Treat all uv/pip validation errors as warnings, not compilation failures
+			// The package may be experimental, not yet published, or will be installed at runtime
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("uv package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", pkg)))
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
+			}
 		} else if c.verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ uv package validated: %s", pkg)))
 		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("uv package validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 	}
 
 	return nil

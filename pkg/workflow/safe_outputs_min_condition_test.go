@@ -24,7 +24,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 					},
 				},
 			},
-			expectedCondition:   "contains(needs.agent.outputs.output_types, 'missing-tool')",
+			expectedCondition:   "contains(needs.agent.outputs.output_types, 'missing_tool')",
 			unexpectedCondition: "",
 		},
 		{
@@ -39,7 +39,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 				},
 			},
 			expectedCondition:   "always()",
-			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'missing-tool')",
+			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'missing_tool')",
 		},
 		{
 			name: "create-issue without min should check contains",
@@ -52,7 +52,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 					"missing-tool": false,
 				},
 			},
-			expectedCondition:   "contains(needs.agent.outputs.output_types, 'create-issue')",
+			expectedCondition:   "contains(needs.agent.outputs.output_types, 'create_issue')",
 			unexpectedCondition: "",
 		},
 		{
@@ -68,7 +68,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 				},
 			},
 			expectedCondition:   "always()",
-			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'create-issue')",
+			unexpectedCondition: "contains(needs.agent.outputs.output_types, 'create_issue')",
 		},
 		{
 			name: "add-comment with min > 0 should not check contains",

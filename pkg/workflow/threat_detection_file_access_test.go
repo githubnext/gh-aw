@@ -15,9 +15,7 @@ func TestThreatDetectionUsesFilePathNotInline(t *testing.T) {
 		Description:     "Test Description",
 		MarkdownContent: "Test markdown content",
 		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: true,
-			},
+			ThreatDetection: &ThreatDetectionConfig{},
 		},
 	}
 
@@ -61,9 +59,7 @@ func TestThreatDetectionHasBashReadTools(t *testing.T) {
 
 	data := &WorkflowData{
 		SafeOutputs: &SafeOutputsConfig{
-			ThreatDetection: &ThreatDetectionConfig{
-				Enabled: true,
-			},
+			ThreatDetection: &ThreatDetectionConfig{},
 		},
 	}
 

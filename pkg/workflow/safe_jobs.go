@@ -206,8 +206,11 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 	}
 
 	for jobName, jobConfig := range data.SafeOutputs.Jobs {
+		// Normalize job name to use underscores for consistency
+		normalizedJobName := normalizeSafeOutputIdentifier(jobName)
+
 		job := &Job{
-			Name: jobName,
+			Name: normalizedJobName,
 		}
 
 		// Set custom job name if specified
@@ -244,9 +247,19 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 			job.RunsOn = "runs-on: ubuntu-latest" // Default
 		}
 
-		// Set if condition
+		// Set if condition - combine safe output type check with user-provided condition
+		// Custom safe jobs should only run if the agent output contains the job name (tool call)
+		// Use normalized job name to match the underscore format in output_types
+		safeOutputCondition := BuildSafeOutputType(normalizedJobName, 0) // min=0 means check for the tool in output_types
+
 		if jobConfig.If != "" {
-			job.If = c.extractExpressionFromIfString(jobConfig.If)
+			// If user provided a custom condition, combine it with the safe output type check
+			userConditionStr := c.extractExpressionFromIfString(jobConfig.If)
+			userCondition := &ExpressionNode{Expression: userConditionStr}
+			job.If = buildAnd(safeOutputCondition, userCondition).Render()
+		} else {
+			// Otherwise, just use the safe output type check
+			job.If = safeOutputCondition.Render()
 		}
 
 		// Build job steps
@@ -258,15 +271,17 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		steps = append(steps, "        uses: actions/download-artifact@v5\n")
 		steps = append(steps, "        with:\n")
 		steps = append(steps, fmt.Sprintf("          name: %s\n", constants.AgentOutputArtifactName))
-		steps = append(steps, "          path: /tmp/gh-aw/sh-aw/safe-jobs/\n")
+		steps = append(steps, "          path: /tmp/gh-aw/safe-jobs/\n")
+
+		// the download artifacts always creates a folder, then unpacks in that folder
+		agentOutputArtifactFilename := fmt.Sprintf("/tmp/gh-aw/safe-jobs/%s", constants.AgentOutputArtifactName)
 
 		// Add environment variables step
 		steps = append(steps, "      - name: Setup Safe Job Environment Variables\n")
 		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          echo \"Setting up environment for safe job\"\n")
-
+		steps = append(steps, "          find /tmp/gh-aw/safe-jobs/ -type f -print\n")
 		// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
-		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/%s\" >> $GITHUB_ENV\n", constants.AgentOutputArtifactName))
+		steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=%s\" >> $GITHUB_ENV\n", agentOutputArtifactFilename))
 
 		// Add job-specific environment variables
 		if jobConfig.Env != nil {

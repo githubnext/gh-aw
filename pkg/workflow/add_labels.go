@@ -74,7 +74,7 @@ func (c *Compiler) buildAddLabelsJob(data *WorkflowData, mainJobName string) (*J
 		"labels_added": "${{ steps.add_labels.outputs.labels_added }}",
 	}
 
-	var jobCondition = BuildSafeOutputType("add-labels", minValue)
+	var jobCondition = BuildSafeOutputType("add_labels", minValue)
 	if data.SafeOutputs.AddLabels.Target == "" {
 		eventCondition := buildOr(
 			BuildPropertyAccess("github.event.issue.number"),

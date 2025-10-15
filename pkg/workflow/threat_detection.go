@@ -13,7 +13,6 @@ var defaultThreatDetectionPrompt string
 
 // ThreatDetectionConfig holds configuration for threat detection in agent output
 type ThreatDetectionConfig struct {
-	Enabled      bool          `yaml:"enabled,omitempty"`       // Whether threat detection is enabled
 	Prompt       string        `yaml:"prompt,omitempty"`        // Additional custom prompt instructions to append
 	Steps        []any         `yaml:"steps,omitempty"`         // Array of extra job steps
 	EngineConfig *EngineConfig `yaml:"engine-config,omitempty"` // Extended engine configuration for threat detection
@@ -24,23 +23,28 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 	if configData, exists := outputMap["threat-detection"]; exists {
 		// Handle boolean values
 		if boolVal, ok := configData.(bool); ok {
-			return &ThreatDetectionConfig{
-				Enabled: boolVal,
+			if !boolVal {
+				// When explicitly disabled, return nil
+				return nil
 			}
+			// When enabled as boolean, return empty config
+			return &ThreatDetectionConfig{}
 		}
 
 		// Handle object configuration
 		if configMap, ok := configData.(map[string]any); ok {
-			threatConfig := &ThreatDetectionConfig{
-				Enabled: true, // Default to enabled when object is provided
-			}
-
-			// Parse enabled field
+			// Check for enabled field
 			if enabled, exists := configMap["enabled"]; exists {
 				if enabledBool, ok := enabled.(bool); ok {
-					threatConfig.Enabled = enabledBool
+					if !enabledBool {
+						// When explicitly disabled, return nil
+						return nil
+					}
 				}
 			}
+
+			// Build the config (enabled by default when object is provided)
+			threatConfig := &ThreatDetectionConfig{}
 
 			// Parse prompt field
 			if prompt, exists := configMap["prompt"]; exists {
@@ -73,14 +77,12 @@ func (c *Compiler) parseThreatDetectionConfig(outputMap map[string]any) *ThreatD
 	}
 
 	// Default behavior: enabled if any safe-outputs are configured
-	return &ThreatDetectionConfig{
-		Enabled: true,
-	}
+	return &ThreatDetectionConfig{}
 }
 
 // buildThreatDetectionJob creates the detection job
 func (c *Compiler) buildThreatDetectionJob(data *WorkflowData, mainJobName string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil || !data.SafeOutputs.ThreatDetection.Enabled {
+	if data.SafeOutputs == nil || data.SafeOutputs.ThreatDetection == nil {
 		return nil, fmt.Errorf("threat detection is not enabled")
 	}
 

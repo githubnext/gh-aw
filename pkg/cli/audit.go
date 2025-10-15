@@ -370,6 +370,9 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 			displayKey := workflow.PrettifyToolName(toolCall.Name)
 			if existing, exists := toolStats[displayKey]; exists {
 				existing.CallCount += toolCall.CallCount
+				if toolCall.MaxInputSize > existing.MaxInputSize {
+					existing.MaxInputSize = toolCall.MaxInputSize
+				}
 				if toolCall.MaxOutputSize > existing.MaxOutputSize {
 					existing.MaxOutputSize = toolCall.MaxOutputSize
 				}
@@ -380,6 +383,7 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 				toolStats[displayKey] = &workflow.ToolCallInfo{
 					Name:          displayKey,
 					CallCount:     toolCall.CallCount,
+					MaxInputSize:  toolCall.MaxInputSize,
 					MaxOutputSize: toolCall.MaxOutputSize,
 					MaxDuration:   toolCall.MaxDuration,
 				}
@@ -393,10 +397,14 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 		}
 
 		// Display top tools
-		report.WriteString("| Tool | Calls | Max Output | Max Duration |\n")
-		report.WriteString("|------|-------|------------|-------------|\n")
+		report.WriteString("| Tool | Calls | Max Input | Max Output | Max Duration |\n")
+		report.WriteString("|------|-------|-----------|------------|-------------|\n")
 		for _, name := range toolNames {
 			tool := toolStats[name]
+			inputStr := "N/A"
+			if tool.MaxInputSize > 0 {
+				inputStr = formatNumber(tool.MaxInputSize)
+			}
 			outputStr := "N/A"
 			if tool.MaxOutputSize > 0 {
 				outputStr = formatNumber(tool.MaxOutputSize)
@@ -405,8 +413,8 @@ func generateAuditReport(processedRun ProcessedRun, metrics LogMetrics) string {
 			if tool.MaxDuration > 0 {
 				durationStr = formatDuration(tool.MaxDuration)
 			}
-			report.WriteString(fmt.Sprintf("| %s | %d | %s | %s |\n",
-				name, tool.CallCount, outputStr, durationStr))
+			report.WriteString(fmt.Sprintf("| %s | %d | %s | %s | %s |\n",
+				name, tool.CallCount, inputStr, outputStr, durationStr))
 		}
 		report.WriteString("\n")
 	}

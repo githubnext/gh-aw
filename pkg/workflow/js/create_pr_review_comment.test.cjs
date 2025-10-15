@@ -111,7 +111,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "Consider using const instead of let here.",
@@ -152,7 +152,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/utils.js",
           line: 25,
           start_line: 20,
@@ -200,13 +200,13 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "First comment",
         },
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/utils.js",
           line: 25,
           body: "Second comment",
@@ -238,7 +238,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "Comment on left side",
@@ -272,7 +272,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "This should not be created",
@@ -292,25 +292,25 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           // Missing path
           line: 10,
           body: "Missing path",
         },
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           // Missing line
           body: "Missing line",
         },
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           // Missing body
         },
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: "invalid",
           body: "Invalid line number",
@@ -330,7 +330,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           start_line: 15, // Invalid: start_line > line
@@ -350,7 +350,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           side: "INVALID_SIDE",
@@ -377,7 +377,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "Original comment",
@@ -419,7 +419,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "Review comment on specific PR",
@@ -471,7 +471,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           pull_request_number: 789,
           path: "src/utils.js",
           line: 20,
@@ -508,7 +508,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "Review comment without PR number",
@@ -548,7 +548,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "This should not be created",
@@ -567,7 +567,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "Test review comment with source",
@@ -626,7 +626,7 @@ describe("create_pr_review_comment.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-pull-request-review-comment",
+          type: "create_pull_request_review_comment",
           path: "src/main.js",
           line: 10,
           body: "Test review comment without source",

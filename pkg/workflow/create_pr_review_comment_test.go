@@ -285,7 +285,7 @@ This workflow tests job generation for PR review comments.
 		// Verify job condition uses BuildSafeOutputType combined with pull request context
 		expectedConditionParts := []string{
 			"always()",
-			"contains(needs.agent.outputs.output_types, 'create-pull-request-review-comment')",
+			"contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment')",
 			"github.event.issue.number",
 			"github.event.issue.pull_request",
 			"github.event.pull_request",
@@ -392,7 +392,7 @@ This workflow tests job generation for PR review comments with target configurat
 			t.Error("Expected job condition to not include issue event context checks when target is specified")
 		}
 		// The job condition should only contain the safe-output type check
-		if !strings.Contains(jobSection, "contains(needs.agent.outputs.output_types, 'create-pull-request-review-comment')") {
+		if !strings.Contains(jobSection, "contains(needs.agent.outputs.output_types, 'create_pull_request_review_comment')") {
 			t.Error("Expected job condition to contain safe-output type check")
 		}
 	})

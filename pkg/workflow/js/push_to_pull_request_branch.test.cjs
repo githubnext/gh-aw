@@ -183,7 +183,7 @@ const exec = global.exec;`
 
     it("should handle missing patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pull-request-branch", content: "test" }],
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
 
       mockFs.existsSync.mockReturnValue(false);
@@ -197,7 +197,7 @@ const exec = global.exec;`
 
     it("should fail when patch file missing and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pull-request-branch", content: "test" }],
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
 
@@ -211,7 +211,7 @@ const exec = global.exec;`
 
     it("should silently succeed when patch file missing and if-no-changes is 'ignore'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pull-request-branch", content: "test" }],
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "ignore";
 
@@ -226,7 +226,7 @@ const exec = global.exec;`
 
     it("should handle patch file with error content", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pull-request-branch", content: "test" }],
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
 
       mockFs.existsSync.mockReturnValue(true);
@@ -241,7 +241,7 @@ const exec = global.exec;`
 
     it("should handle empty patch file with default 'warn' behavior", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pull-request-branch", content: "test" }],
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
 
       mockFs.existsSync.mockReturnValue(true);
@@ -259,7 +259,7 @@ const exec = global.exec;`
 
     it("should fail when empty patch and if-no-changes is 'error'", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pull-request-branch", content: "test" }],
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
 
@@ -276,7 +276,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -327,7 +327,7 @@ const exec = global.exec;`
 
     it("should use custom target configuration", async () => {
       process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
-        items: [{ type: "push-to-pull-request-branch", content: "test" }],
+        items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_TARGET = "custom-target";
 
@@ -367,7 +367,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -395,7 +395,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -420,7 +420,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -447,7 +447,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -473,7 +473,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -520,7 +520,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -566,7 +566,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -613,7 +613,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],
@@ -661,7 +661,7 @@ const exec = global.exec;`
       const validOutput = {
         items: [
           {
-            type: "push-to-pull-request-branch",
+            type: "push_to_pull_request_branch",
             content: "some changes to push",
           },
         ],

@@ -3,11 +3,14 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"regexp"
 	"strings"
-	"time"
 )
+
+// normalizeSafeOutputIdentifier converts dashes to underscores for safe output identifiers
+// This ensures consistency across the system while remaining resilient to LLM-generated variations
+func normalizeSafeOutputIdentifier(identifier string) string {
+	return strings.ReplaceAll(identifier, "-", "_")
+}
 
 // GitHubScriptStepConfig holds configuration for building a GitHub Script step
 type GitHubScriptStepConfig struct {
@@ -81,7 +84,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateIssues.Min > 0 {
 				issueConfig["min"] = data.SafeOutputs.CreateIssues.Min
 			}
-			safeOutputsConfig["create-issue"] = issueConfig
+			safeOutputsConfig["create_issue"] = issueConfig
 		}
 		if data.SafeOutputs.AddComments != nil {
 			commentConfig := map[string]any{}
@@ -94,7 +97,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.AddComments.Min > 0 {
 				commentConfig["min"] = data.SafeOutputs.AddComments.Min
 			}
-			safeOutputsConfig["add-comment"] = commentConfig
+			safeOutputsConfig["add_comment"] = commentConfig
 		}
 		if data.SafeOutputs.CreateDiscussions != nil {
 			discussionConfig := map[string]any{}
@@ -104,7 +107,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateDiscussions.Min > 0 {
 				discussionConfig["min"] = data.SafeOutputs.CreateDiscussions.Min
 			}
-			safeOutputsConfig["create-discussion"] = discussionConfig
+			safeOutputsConfig["create_discussion"] = discussionConfig
 		}
 		if data.SafeOutputs.CreatePullRequests != nil {
 			prConfig := map[string]any{}
@@ -112,7 +115,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreatePullRequests.Min > 0 {
 				prConfig["min"] = data.SafeOutputs.CreatePullRequests.Min
 			}
-			safeOutputsConfig["create-pull-request"] = prConfig
+			safeOutputsConfig["create_pull_request"] = prConfig
 		}
 		if data.SafeOutputs.CreatePullRequestReviewComments != nil {
 			prReviewCommentConfig := map[string]any{}
@@ -122,7 +125,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreatePullRequestReviewComments.Min > 0 {
 				prReviewCommentConfig["min"] = data.SafeOutputs.CreatePullRequestReviewComments.Min
 			}
-			safeOutputsConfig["create-pull-request-review-comment"] = prReviewCommentConfig
+			safeOutputsConfig["create_pull_request_review_comment"] = prReviewCommentConfig
 		}
 		if data.SafeOutputs.CreateCodeScanningAlerts != nil {
 			// Security reports typically have unlimited max, but check if configured
@@ -133,7 +136,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.CreateCodeScanningAlerts.Min > 0 {
 				securityReportConfig["min"] = data.SafeOutputs.CreateCodeScanningAlerts.Min
 			}
-			safeOutputsConfig["create-code-scanning-alert"] = securityReportConfig
+			safeOutputsConfig["create_code_scanning_alert"] = securityReportConfig
 		}
 		if data.SafeOutputs.AddLabels != nil {
 			labelConfig := map[string]any{}
@@ -146,7 +149,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if len(data.SafeOutputs.AddLabels.Allowed) > 0 {
 				labelConfig["allowed"] = data.SafeOutputs.AddLabels.Allowed
 			}
-			safeOutputsConfig["add-labels"] = labelConfig
+			safeOutputsConfig["add_labels"] = labelConfig
 		}
 		if data.SafeOutputs.UpdateIssues != nil {
 			updateConfig := map[string]any{}
@@ -156,7 +159,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.UpdateIssues.Min > 0 {
 				updateConfig["min"] = data.SafeOutputs.UpdateIssues.Min
 			}
-			safeOutputsConfig["update-issue"] = updateConfig
+			safeOutputsConfig["update_issue"] = updateConfig
 		}
 		if data.SafeOutputs.PushToPullRequestBranch != nil {
 			pushToBranchConfig := map[string]any{}
@@ -169,7 +172,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.PushToPullRequestBranch.Min > 0 {
 				pushToBranchConfig["min"] = data.SafeOutputs.PushToPullRequestBranch.Min
 			}
-			safeOutputsConfig["push-to-pull-request-branch"] = pushToBranchConfig
+			safeOutputsConfig["push_to_pull_request_branch"] = pushToBranchConfig
 		}
 		if data.SafeOutputs.UploadAssets != nil {
 			uploadConfig := map[string]any{}
@@ -179,7 +182,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.UploadAssets.Min > 0 {
 				uploadConfig["min"] = data.SafeOutputs.UploadAssets.Min
 			}
-			safeOutputsConfig["upload-asset"] = uploadConfig
+			safeOutputsConfig["upload_asset"] = uploadConfig
 		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}
@@ -189,7 +192,7 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			if data.SafeOutputs.MissingTool.Min > 0 {
 				missingToolConfig["min"] = data.SafeOutputs.MissingTool.Min
 			}
-			safeOutputsConfig["missing-tool"] = missingToolConfig
+			safeOutputsConfig["missing_tool"] = missingToolConfig
 		}
 	}
 
@@ -307,131 +310,4 @@ func buildSafeOutputJobEnvVars(trialMode bool, trialLogicalRepoSlug string, stag
 	}
 
 	return customEnvVars
-}
-
-// FilterPermissionErrorPatterns filters error patterns to only those related to permissions
-// This helper extracts the common pattern shared by Copilot and Codex engines.
-func FilterPermissionErrorPatterns(allPatterns []ErrorPattern) []ErrorPattern {
-	var permissionPatterns []ErrorPattern
-
-	for _, pattern := range allPatterns {
-		desc := strings.ToLower(pattern.Description)
-		if strings.Contains(desc, "permission") ||
-			strings.Contains(desc, "unauthorized") ||
-			strings.Contains(desc, "forbidden") ||
-			strings.Contains(desc, "access") ||
-			strings.Contains(desc, "authentication") ||
-			strings.Contains(desc, "token") {
-			permissionPatterns = append(permissionPatterns, pattern)
-		}
-	}
-
-	return permissionPatterns
-}
-
-// CreateMissingToolEntry creates a missing-tool entry in the safe outputs file
-// This helper extracts the common pattern shared by Copilot and Codex engines.
-//
-// Parameters:
-//   - toolName: The name of the tool that encountered a permission error
-//   - reason: The reason/error message for the permission denial
-//   - verbose: Whether to print verbose output
-//
-// Returns:
-//   - error: An error if the operation failed, nil otherwise
-func CreateMissingToolEntry(toolName, reason string, verbose bool) error {
-	// Get the safe outputs file path from environment
-	safeOutputsFile := os.Getenv("GITHUB_AW_SAFE_OUTPUTS")
-	if safeOutputsFile == "" {
-		if verbose {
-			fmt.Printf("GITHUB_AW_SAFE_OUTPUTS not set, cannot write permission error missing-tool entry\n")
-		}
-		return nil
-	}
-
-	// Create missing-tool entry
-	missingToolEntry := map[string]any{
-		"type":         "missing-tool",
-		"tool":         toolName,
-		"reason":       fmt.Sprintf("Permission denied: %s", reason),
-		"alternatives": "Check repository permissions and access controls",
-		"timestamp":    time.Now().UTC().Format(time.RFC3339),
-	}
-
-	// Convert to JSON and append to safe outputs file
-	entryJSON, err := json.Marshal(missingToolEntry)
-	if err != nil {
-		if verbose {
-			fmt.Printf("Failed to marshal missing-tool entry: %v\n", err)
-		}
-		return err
-	}
-
-	// Append to the safe outputs file
-	file, err := os.OpenFile(safeOutputsFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		if verbose {
-			fmt.Printf("Failed to open safe outputs file: %v\n", err)
-		}
-		return err
-	}
-	defer file.Close()
-
-	if _, err := file.WriteString(string(entryJSON) + "\n"); err != nil {
-		if verbose {
-			fmt.Printf("Failed to write missing-tool entry: %v\n", err)
-		}
-		return err
-	}
-
-	if verbose {
-		fmt.Printf("Recorded permission error as missing tool: %s\n", toolName)
-	}
-
-	return nil
-}
-
-// ToolNameExtractor is a function type that extracts tool name from log context
-// Used by ScanLogForPermissionErrors to allow engine-specific tool name extraction
-type ToolNameExtractor func(lines []string, errorLineIndex int, defaultTool string) string
-
-// ScanLogForPermissionErrors scans log content for permission errors and creates missing-tool entries
-// This helper extracts the common pattern shared by Copilot and Codex engines.
-//
-// Parameters:
-//   - logContent: The log content to scan for permission errors
-//   - patterns: The permission error patterns to match against
-//   - extractToolName: Engine-specific function to extract tool name from context (can be nil)
-//   - defaultTool: Default tool name to use if extraction fails
-//   - verbose: Whether to print verbose output
-func ScanLogForPermissionErrors(
-	logContent string,
-	patterns []ErrorPattern,
-	extractToolName ToolNameExtractor,
-	defaultTool string,
-	verbose bool,
-) {
-	lines := strings.Split(logContent, "\n")
-
-	for _, pattern := range patterns {
-		regex, err := regexp.Compile(pattern.Pattern)
-		if err != nil {
-			continue // Skip invalid patterns
-		}
-
-		for i, line := range lines {
-			if regex.MatchString(line) {
-				// Extract tool name using engine-specific logic or use default
-				toolName := defaultTool
-				if extractToolName != nil {
-					toolName = extractToolName(lines, i, defaultTool)
-				}
-
-				// Create missing-tool entry
-				if err := CreateMissingToolEntry(toolName, line, verbose); err != nil && verbose {
-					fmt.Printf("Warning: failed to create missing-tool entry: %v\n", err)
-				}
-			}
-		}
-	}
 }

@@ -147,7 +147,8 @@ function replyError(id, code, message, data) {
 
 function appendSafeOutput(entry) {
   if (!outputFile) throw new Error("No output file configured");
-  entry.type = entry.type.replace(/_/g, "-");
+  // Normalize type to use underscores (convert any dashes to underscores)
+  entry.type = entry.type.replace(/-/g, "_");
   const jsonLine = JSON.stringify(entry) + "\n";
   try {
     fs.appendFileSync(outputFile, jsonLine);

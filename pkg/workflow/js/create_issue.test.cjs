@@ -118,7 +118,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           body: "This is the issue body content",
         },
       ],
@@ -150,7 +150,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Bug Report",
           body: "This is a detailed bug description\n\nSteps to reproduce:\n1. Step one",
         },
@@ -177,7 +177,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Issue with labels",
           body: "Issue with labels",
         },
@@ -203,7 +203,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Simple issue title",
           body: "Simple issue title",
         },
@@ -229,7 +229,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "[AUTO] Issue title already prefixed",
           body: "Issue body content",
         },
@@ -255,7 +255,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Child issue content",
           body: "Child issue content",
         },
@@ -302,7 +302,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Issue without labels",
           body: "Issue without labels",
         },
@@ -328,7 +328,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Test issue content",
           body: "Test issue content",
         },
@@ -354,7 +354,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Test issue",
           body: "This should fail gracefully",
         },
@@ -392,12 +392,12 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "First issue",
           body: "This will fail",
         },
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Second issue",
           body: "This should succeed",
         },
@@ -427,7 +427,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Issue with duplicate labels",
           body: "Testing duplicate label handling",
           labels: ["bug", "enhancement", "bug", "automation"],
@@ -456,7 +456,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Issue with problematic labels",
           body: "Testing label sanitization",
           labels: ["bug<script>", "enhancement@user", "automation&test", "normal-label"],
@@ -484,7 +484,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Issue with long labels",
           body: "Testing label length limiting",
           labels: [longLabel, "short"],
@@ -513,7 +513,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Issue with empty labels",
           body: "Testing empty label removal",
           labels: ["bug", "", "   ", "enhancement", null, undefined, 0, false],
@@ -540,7 +540,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Test Issue",
           body: "Test issue with source",
         },
@@ -575,7 +575,7 @@ describe("create_issue.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
       items: [
         {
-          type: "create-issue",
+          type: "create_issue",
           title: "Test Issue",
           body: "Test issue without source",
         },

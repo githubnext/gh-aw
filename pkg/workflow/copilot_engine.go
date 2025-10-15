@@ -33,13 +33,25 @@ func NewCopilotEngine() *CopilotEngine {
 }
 
 func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
-	return BuildStandardNpmEngineInstallSteps(
+	var steps []GitHubActionStep
+
+	// Add secret validation step
+	secretValidation := GenerateSecretValidationStep(
+		"COPILOT_CLI_TOKEN",
+		"GitHub Copilot CLI",
+		"https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default",
+	)
+	steps = append(steps, secretValidation)
+
+	npmSteps := BuildStandardNpmEngineInstallSteps(
 		"@github/copilot",
 		constants.DefaultCopilotVersion,
 		"Install GitHub Copilot CLI",
 		"copilot",
 		workflowData,
 	)
+	steps = append(steps, npmSteps...)
+	return steps
 }
 
 func (e *CopilotEngine) GetDeclaredOutputFiles() []string {
@@ -522,9 +534,6 @@ func (e *CopilotEngine) ParseLogMetrics(logContent string, verbose bool) LogMetr
 		metrics.Errors = CountErrorsAndWarningsWithPatterns(logContent, errorPatterns)
 	}
 
-	// Detect permission errors and create missing-tool entries
-	e.detectPermissionErrorsAndCreateMissingTools(logContent, verbose)
-
 	return metrics
 }
 
@@ -553,6 +562,7 @@ func (e *CopilotEngine) parseCopilotToolCallsWithSequence(line string, toolCallM
 				toolCallMap[toolName] = &ToolCallInfo{
 					Name:          toolName,
 					CallCount:     1,
+					MaxInputSize:  0, // TODO: Extract input size from tool call parameters if available
 					MaxOutputSize: 0, // TODO: Extract output size from results if available
 				}
 			}
@@ -985,12 +995,4 @@ func (e *CopilotEngine) GetErrorPatterns() []ErrorPattern {
 	}...)
 
 	return patterns
-}
-
-// detectPermissionErrorsAndCreateMissingTools scans Copilot CLI log content for permission errors
-// and creates missing-tool entries in the safe outputs file
-func (e *CopilotEngine) detectPermissionErrorsAndCreateMissingTools(logContent string, verbose bool) {
-	patterns := FilterPermissionErrorPatterns(e.GetErrorPatterns())
-	// For Copilot CLI, the tool is generally the CLI itself (no context extraction needed)
-	ScanLogForPermissionErrors(logContent, patterns, nil, "github-copilot-cli", verbose)
 }
