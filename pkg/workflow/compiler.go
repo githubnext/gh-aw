@@ -2006,32 +2006,6 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	return nil
 }
 
-// buildCheckMembershipJob creates the check_membership job that validates team membership levels
-// Deprecated: This function is kept for backwards compatibility. Use buildPreActivationJob instead.
-func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
-	outputs := map[string]string{
-		"is_team_member":  fmt.Sprintf("${{ steps.%s.outputs.is_team_member }}", constants.CheckMembershipJobName),
-		"result":          fmt.Sprintf("${{ steps.%s.outputs.result }}", constants.CheckMembershipJobName),
-		"user_permission": fmt.Sprintf("${{ steps.%s.outputs.user_permission }}", constants.CheckMembershipJobName),
-		"error_message":   fmt.Sprintf("${{ steps.%s.outputs.error_message }}", constants.CheckMembershipJobName),
-	}
-	var steps []string
-
-	// Add team member check that only sets outputs
-	steps = c.generateMembershipCheck(data, steps)
-
-	job := &Job{
-		Name:        constants.CheckMembershipJobName,
-		If:          data.If, // Use the existing condition (which may include alias checks)
-		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: "", // No special permissions needed - just reading repo permissions
-		Steps:       steps,
-		Outputs:     outputs,
-	}
-
-	return job, nil
-}
-
 // buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation
 // This job exposes a single "activated" output that indicates whether the workflow should proceed
 func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (*Job, error) {

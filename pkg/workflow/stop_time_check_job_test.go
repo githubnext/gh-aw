@@ -249,14 +249,14 @@ This workflow has both membership check and stop-after.
 		// Verify the structure: membership check happens before safety check
 		membershipIdx := strings.Index(lockContentStr, "Check team membership")
 		safetyIdx := strings.Index(lockContentStr, "Safety checks")
-		
+
 		if membershipIdx == -1 {
 			t.Error("Could not find membership check")
 		}
 		if safetyIdx == -1 {
 			t.Error("Could not find safety checks")
 		}
-		
+
 		if membershipIdx > 0 && safetyIdx > 0 && membershipIdx > safetyIdx {
 			t.Error("Membership check should come before safety checks")
 		}
