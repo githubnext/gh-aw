@@ -2019,55 +2019,44 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 	// Add stop-time check if configured
 	if data.StopTime != "" {
-		// Extract workflow name for gh workflow commands
+		// Extract workflow name for the stop-time check
 		workflowName := data.Name
 
-		steps = append(steps, "      - name: Safety checks\n")
+		steps = append(steps, "      - name: Check stop-time limit\n")
 		steps = append(steps, "        id: safety_checks\n")
 		// Only add the if condition if membership check exists
 		if needsPermissionCheck {
 			steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.is_team_member == 'true'\n", constants.CheckMembershipJobName))
 		}
-		steps = append(steps, "        run: |\n")
-		steps = append(steps, "          set -e\n")
-		steps = append(steps, "          echo \"Performing safety checks before executing agentic tools...\"\n")
-		steps = append(steps, fmt.Sprintf("          WORKFLOW_NAME=\"%s\"\n", workflowName))
-		steps = append(steps, "          \n")
-		steps = append(steps, "          # Check stop-time limit\n")
-		steps = append(steps, fmt.Sprintf("          STOP_TIME=\"%s\"\n", data.StopTime))
-		steps = append(steps, "          echo \"Checking stop-time limit: $STOP_TIME\"\n")
-		steps = append(steps, "          \n")
-		steps = append(steps, "          # Convert stop time to epoch seconds\n")
-		steps = append(steps, "          STOP_EPOCH=$(date -d \"$STOP_TIME\" +%s 2>/dev/null || echo \"invalid\")\n")
-		steps = append(steps, "          if [ \"$STOP_EPOCH\" = \"invalid\" ]; then\n")
-		steps = append(steps, "            echo \"Warning: Invalid stop-time format: $STOP_TIME. Expected format: YYYY-MM-DD HH:MM:SS\"\n")
-		steps = append(steps, "          else\n")
-		steps = append(steps, "            CURRENT_EPOCH=$(date +%s)\n")
-		steps = append(steps, "            echo \"Current time: $(date)\"\n")
-		steps = append(steps, "            echo \"Stop time: $STOP_TIME\"\n")
-		steps = append(steps, "            \n")
-		steps = append(steps, "            if [ \"$CURRENT_EPOCH\" -ge \"$STOP_EPOCH\" ]; then\n")
-		steps = append(steps, "              echo \"Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting.\"\n")
-		steps = append(steps, "              gh workflow disable \"$WORKFLOW_NAME\"\n")
-		steps = append(steps, "              echo \"Workflow disabled. No future runs will be triggered.\"\n")
-		steps = append(steps, "              exit 1\n")
-		steps = append(steps, "            fi\n")
-		steps = append(steps, "          fi\n")
-		steps = append(steps, "          echo \"All safety checks passed. Proceeding with agentic tool execution.\"\n")
+		steps = append(steps, "        uses: actions/github-script@v8\n")
 		steps = append(steps, "        env:\n")
-		steps = append(steps, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_STOP_TIME: %s\n", data.StopTime))
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
 
-		// Add actions: write permission for stop-time check (gh workflow disable)
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
+		steps = append(steps, formattedScript...)
+
+		// Add actions: write permission for stop-time check (workflow disable)
 		permissions = "permissions:\n      actions: write  # Required for gh workflow disable"
 	}
 
 	// Generate the activated output expression directly
 	var activatedExpression string
-	if needsPermissionCheck {
-		// When permission check exists, activated is true when membership check passes
+	if needsPermissionCheck && data.StopTime != "" {
+		// Both permission check and stop-time check exist
+		// activated is true when membership check passes AND stop-time check passes
+		activatedExpression = fmt.Sprintf("${{ steps.%s.outputs.is_team_member == 'true' && steps.safety_checks.outputs.stop_time_ok == 'true' }}", constants.CheckMembershipJobName)
+	} else if needsPermissionCheck {
+		// When only permission check exists, activated is true when membership check passes
 		activatedExpression = fmt.Sprintf("${{ steps.%s.outputs.is_team_member == 'true' }}", constants.CheckMembershipJobName)
+	} else if data.StopTime != "" {
+		// When only stop-time check exists, activated is true when stop-time check passes
+		activatedExpression = "${{ steps.safety_checks.outputs.stop_time_ok == 'true' }}"
 	} else {
-		// No permission check, always activated
+		// No checks, always activated
 		activatedExpression = "'true'"
 	}
 

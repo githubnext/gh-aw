@@ -60,26 +60,27 @@ This workflow has a stop-after configuration.
 		// Verify safety checks are in pre_activation job, not main job
 		preActivationStart := strings.Index(lockContentStr, "pre_activation:")
 		agentStart := strings.Index(lockContentStr, "agent:")
-		safetyChecksPos := strings.Index(lockContentStr, "Performing safety checks before executing agentic tools")
+		safetyChecksPos := strings.Index(lockContentStr, "Check stop-time limit")
 
 		if safetyChecksPos == -1 {
-			t.Error("Expected safety checks to be present")
+			t.Error("Expected stop-time check to be present")
 		}
 
 		// Safety checks should be in pre_activation job (before agent job)
 		if safetyChecksPos > agentStart {
-			t.Error("Safety checks should be in pre_activation job, not in agent job")
+			t.Error("Stop-time check should be in pre_activation job, not in agent job")
 		}
 
 		// Safety checks should be after pre_activation job start
 		if safetyChecksPos < preActivationStart {
-			t.Error("Safety checks should be in pre_activation job")
+			t.Error("Stop-time check should be in pre_activation job")
 		}
 
-		// Verify pre_activation job outputs "activated" as a direct expression
-		// Since workflow_dispatch requires permission checks by default, it should be an expression
-		if !strings.Contains(lockContentStr, "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}") {
-			t.Error("Expected pre_activation job to have 'activated' output as expression")
+		// Verify pre_activation job outputs "activated" as a direct expression combining both checks
+		// Since workflow_dispatch requires permission checks by default, AND has stop-time
+		expectedActivated := "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.safety_checks.outputs.stop_time_ok == 'true' }}"
+		if !strings.Contains(lockContentStr, expectedActivated) {
+			t.Error("Expected pre_activation job to have combined 'activated' output expression")
 		}
 
 		// Verify old jobs don't exist
@@ -230,32 +231,33 @@ This workflow has both membership check and stop-after.
 			t.Error("Expected team membership check in pre_activation job")
 		}
 
-		if !strings.Contains(lockContentStr, "Safety checks") {
-			t.Error("Expected safety checks (stop-time) in pre_activation job")
+		if !strings.Contains(lockContentStr, "Check stop-time limit") {
+			t.Error("Expected stop-time check in pre_activation job")
 		}
 
 		if !strings.Contains(lockContentStr, "actions: write") {
 			t.Error("Expected actions: write permission in pre_activation job")
 		}
 
-		// Verify the activated output is set as a direct expression based on membership check
-		if !strings.Contains(lockContentStr, "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}") {
-			t.Error("Expected activated output to be a direct expression in pre_activation job")
+		// Verify the activated output combines both membership and stop-time checks
+		expectedActivated := "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' && steps.safety_checks.outputs.stop_time_ok == 'true' }}"
+		if !strings.Contains(lockContentStr, expectedActivated) {
+			t.Error("Expected activated output to combine both membership and stop-time checks")
 		}
 
-		// Verify the structure: membership check happens before safety check
+		// Verify the structure: membership check happens before stop-time check
 		membershipIdx := strings.Index(lockContentStr, "Check team membership")
-		safetyIdx := strings.Index(lockContentStr, "Safety checks")
+		stopTimeIdx := strings.Index(lockContentStr, "Check stop-time limit")
 
 		if membershipIdx == -1 {
 			t.Error("Could not find membership check")
 		}
-		if safetyIdx == -1 {
-			t.Error("Could not find safety checks")
+		if stopTimeIdx == -1 {
+			t.Error("Could not find stop-time check")
 		}
 
-		if membershipIdx > 0 && safetyIdx > 0 && membershipIdx > safetyIdx {
-			t.Error("Membership check should come before safety checks")
+		if membershipIdx > 0 && stopTimeIdx > 0 && membershipIdx > stopTimeIdx {
+			t.Error("Membership check should come before stop-time check")
 		}
 	})
 }
