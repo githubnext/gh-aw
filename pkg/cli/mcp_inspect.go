@@ -91,7 +91,7 @@ func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser
 }
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
-func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool) error {
+func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool, useActionsSecrets bool) error {
 	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, show available workflow files with MCP configs
@@ -200,7 +200,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		if i > 0 {
 			fmt.Println()
 		}
-		if err := inspectMCPServer(config, toolFilter, verbose); err != nil {
+		if err := inspectMCPServer(config, toolFilter, verbose, useActionsSecrets); err != nil {
 			fmt.Println(console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("Failed to inspect MCP server '%s': %v", config.Name, err),
@@ -284,6 +284,7 @@ func NewMCPInspectCommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
+	var useActionsSecrets bool
 
 	cmd := &cobra.Command{
 		Use:   "mcp inspect [workflow-file]",
@@ -300,6 +301,7 @@ Examples:
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
+  gh aw mcp inspect weekly-research --actions-secrets  # Check GitHub Actions secrets
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -330,7 +332,7 @@ The command will:
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, useActionsSecrets)
 		},
 	}
 
@@ -338,6 +340,7 @@ The command will:
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed connection information")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
+	cmd.Flags().BoolVar(&useActionsSecrets, "actions-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
 
 	return cmd
 }
@@ -562,6 +565,7 @@ func NewMCPInspectSubcommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
+	var useActionsSecrets bool
 
 	cmd := &cobra.Command{
 		Use:   "inspect [workflow-file]",
@@ -577,6 +581,7 @@ Examples:
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
+  gh aw mcp inspect weekly-research --actions-secrets  # Check GitHub Actions secrets
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -614,13 +619,14 @@ The command will:
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, useActionsSecrets)
 		},
 	}
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "Filter to inspect only the specified MCP server")
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
+	cmd.Flags().BoolVar(&useActionsSecrets, "actions-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
 
 	return cmd
 }
