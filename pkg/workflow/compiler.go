@@ -1998,12 +1998,29 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 // buildPreActivationJob creates the pre_activation job that validates team membership levels and stop-time limits
 func (c *Compiler) buildPreActivationJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{
-		"is_team_member":  fmt.Sprintf("${{ steps.%s.outputs.is_team_member }}", constants.CheckMembershipJobName),
-		"result":          fmt.Sprintf("${{ steps.%s.outputs.result }}", constants.CheckMembershipJobName),
-		"user_permission": fmt.Sprintf("${{ steps.%s.outputs.user_permission }}", constants.CheckMembershipJobName),
-		"error_message":   fmt.Sprintf("${{ steps.%s.outputs.error_message }}", constants.CheckMembershipJobName),
+		"is_team_member":  "${{ steps.check_membership.outputs.is_team_member }}",
+		"result":          "${{ steps.check_membership.outputs.result }}",
+		"user_permission": "${{ steps.check_membership.outputs.user_permission }}",
+		"error_message":   "${{ steps.check_membership.outputs.error_message }}",
 	}
 	var steps []string
+
+	// Add timestamp check for lock file vs source file
+	steps = append(steps, "      - name: Check workflow file timestamps\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          WORKFLOW_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$(basename \"$GITHUB_WORKFLOW\" .lock.yml).md\"\n")
+	steps = append(steps, "          LOCK_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW\"\n")
+	steps = append(steps, "          \n")
+	steps = append(steps, "          if [ -f \"$WORKFLOW_FILE\" ] && [ -f \"$LOCK_FILE\" ]; then\n")
+	steps = append(steps, "            if [ \"$WORKFLOW_FILE\" -nt \"$LOCK_FILE\" ]; then\n")
+	steps = append(steps, "              echo \"🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.\" >&2\n")
+	steps = append(steps, "              echo \"## ⚠️ Workflow Lock File Warning\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"🔴🔴🔴 **WARNING**: Lock file \\`$LOCK_FILE\\` is outdated!\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"The workflow file \\`$WORKFLOW_FILE\\` has been modified more recently.\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"Run \\`gh aw compile\\` to regenerate the lock file.\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "              echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+	steps = append(steps, "            fi\n")
+	steps = append(steps, "          fi\n")
 
 	// Add team member check that only sets outputs
 	steps = c.generateMembershipCheck(data, steps)
@@ -2069,23 +2086,26 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 
 	// Team member check is now handled by the separate pre_activation job
 	// No inline role checks needed in the task job anymore
+	// Timestamp check is in pre_activation when it exists, otherwise here
 
-	// Add timestamp check for lock file vs source file
-	steps = append(steps, "      - name: Check workflow file timestamps\n")
-	steps = append(steps, "        run: |\n")
-	steps = append(steps, "          WORKFLOW_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$(basename \"$GITHUB_WORKFLOW\" .lock.yml).md\"\n")
-	steps = append(steps, "          LOCK_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW\"\n")
-	steps = append(steps, "          \n")
-	steps = append(steps, "          if [ -f \"$WORKFLOW_FILE\" ] && [ -f \"$LOCK_FILE\" ]; then\n")
-	steps = append(steps, "            if [ \"$WORKFLOW_FILE\" -nt \"$LOCK_FILE\" ]; then\n")
-	steps = append(steps, "              echo \"🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.\" >&2\n")
-	steps = append(steps, "              echo \"## ⚠️ Workflow Lock File Warning\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"🔴🔴🔴 **WARNING**: Lock file \\`$LOCK_FILE\\` is outdated!\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"The workflow file \\`$WORKFLOW_FILE\\` has been modified more recently.\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"Run \\`gh aw compile\\` to regenerate the lock file.\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "              echo \"\" >> $GITHUB_STEP_SUMMARY\n")
-	steps = append(steps, "            fi\n")
-	steps = append(steps, "          fi\n")
+	// Add timestamp check for lock file vs source file if no pre_activation job exists
+	if !preActivationJobCreated {
+		steps = append(steps, "      - name: Check workflow file timestamps\n")
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          WORKFLOW_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$(basename \"$GITHUB_WORKFLOW\" .lock.yml).md\"\n")
+		steps = append(steps, "          LOCK_FILE=\"${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW\"\n")
+		steps = append(steps, "          \n")
+		steps = append(steps, "          if [ -f \"$WORKFLOW_FILE\" ] && [ -f \"$LOCK_FILE\" ]; then\n")
+		steps = append(steps, "            if [ \"$WORKFLOW_FILE\" -nt \"$LOCK_FILE\" ]; then\n")
+		steps = append(steps, "              echo \"🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file.\" >&2\n")
+		steps = append(steps, "              echo \"## ⚠️ Workflow Lock File Warning\" >> $GITHUB_STEP_SUMMARY\n")
+		steps = append(steps, "              echo \"🔴🔴🔴 **WARNING**: Lock file \\`$LOCK_FILE\\` is outdated!\" >> $GITHUB_STEP_SUMMARY\n")
+		steps = append(steps, "              echo \"The workflow file \\`$WORKFLOW_FILE\\` has been modified more recently.\" >> $GITHUB_STEP_SUMMARY\n")
+		steps = append(steps, "              echo \"Run \\`gh aw compile\\` to regenerate the lock file.\" >> $GITHUB_STEP_SUMMARY\n")
+		steps = append(steps, "              echo \"\" >> $GITHUB_STEP_SUMMARY\n")
+		steps = append(steps, "            fi\n")
+		steps = append(steps, "          fi\n")
+	}
 
 	// Use inlined compute-text script only if needed (no shared action)
 	if data.NeedsTextOutput {

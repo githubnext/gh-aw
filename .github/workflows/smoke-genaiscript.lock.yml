@@ -22,13 +22,28 @@ jobs:
   pre_activation:
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.pre_activation.outputs.error_message }}
-      is_team_member: ${{ steps.pre_activation.outputs.is_team_member }}
-      result: ${{ steps.pre_activation.outputs.result }}
-      user_permission: ${{ steps.pre_activation.outputs.user_permission }}
+      error_message: ${{ steps.check_membership.outputs.error_message }}
+      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
+      result: ${{ steps.check_membership.outputs.result }}
+      user_permission: ${{ steps.check_membership.outputs.user_permission }}
     steps:
+      - name: Check workflow file timestamps
+        run: |
+          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
+          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
+          
+          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
+            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
+              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
+              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
+              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
+              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
+              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
       - name: Check team membership for workflow
-        id: pre_activation
+        id: check_membership
         uses: actions/github-script@v8
         env:
           GITHUB_AW_REQUIRED_ROLES: admin,maintainer
@@ -113,21 +128,7 @@ jobs:
     if: needs.pre_activation.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Check workflow file timestamps
-        run: |
-          WORKFLOW_FILE="${GITHUB_WORKSPACE}/.github/workflows/$(basename "$GITHUB_WORKFLOW" .lock.yml).md"
-          LOCK_FILE="${GITHUB_WORKSPACE}/.github/workflows/$GITHUB_WORKFLOW"
-          
-          if [ -f "$WORKFLOW_FILE" ] && [ -f "$LOCK_FILE" ]; then
-            if [ "$WORKFLOW_FILE" -nt "$LOCK_FILE" ]; then
-              echo "🔴🔴🔴 WARNING: Lock file '$LOCK_FILE' is outdated! The workflow file '$WORKFLOW_FILE' has been modified more recently. Run 'gh aw compile' to regenerate the lock file." >&2
-              echo "## ⚠️ Workflow Lock File Warning" >> $GITHUB_STEP_SUMMARY
-              echo "🔴🔴🔴 **WARNING**: Lock file \`$LOCK_FILE\` is outdated!" >> $GITHUB_STEP_SUMMARY
-              echo "The workflow file \`$WORKFLOW_FILE\` has been modified more recently." >> $GITHUB_STEP_SUMMARY
-              echo "Run \`gh aw compile\` to regenerate the lock file." >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
-          fi
+      - run: echo "Activation success"
 
   agent:
     needs: activation
