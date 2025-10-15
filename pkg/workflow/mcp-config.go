@@ -310,8 +310,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
 
-				// Collect all env keys (both existing and header secrets)
-				envKeys := make([]string, 0, len(mcpConfig.Env)+len(headerSecrets))
+				// CWE-190: Allocation Size Overflow Prevention
+				// Instead of pre-calculating capacity (len(mcpConfig.Env)+len(headerSecrets)),
+				// which could overflow if the maps are extremely large, we let Go's append
+				// handle capacity growth automatically. This is safe and efficient for
+				// environment variable maps which are typically small in practice.
+				var envKeys []string
 				for key := range mcpConfig.Env {
 					envKeys = append(envKeys, key)
 				}
