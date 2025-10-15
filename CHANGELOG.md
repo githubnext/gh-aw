@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.1 - 2025-10-15
+
+### Bug Fixes
+
+#### Add Mermaid graph generation to compiled workflow lock file headers
+
+#### Fixed safe outputs MCP server to return stringified JSON results for Copilot CLI compatibility
+
+#### Add strict mode validation for bash tool wildcards and update documentation
+
+
 ## v0.22.0 - 2025-10-15
 
 ### Features
