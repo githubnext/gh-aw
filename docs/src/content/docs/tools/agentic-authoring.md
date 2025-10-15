@@ -35,10 +35,10 @@ Use the prompt file when you want to:
 
 The prompt contains instructions and toolset to enable efficient workflow authoring.
 
-To get this file in your repository, run the compile command:
+To get this file in your repository, run the init command:
 
 ```bash
-gh aw compile
+gh aw init
 ```
 
 ## How to use the `/create-agentic-workflow` prompt
@@ -64,24 +64,6 @@ load @.github/prompts/create-agentic-workflow.prompt.md
 ## Other Agents and chats
 
 Load the prompt file into your preferred AI chat or agent interface that supports loading from files. The prompt is designed to be compatible with various AI tools, although the tools might not be completely configured and you'll need to allow running the compiler.
-
-### After compiling
-
-Commit the generated files (`.lock.yml`) if they are part of the project's tracked artifacts. The project uses compiled workflows in version control.
-
-```sh
-/create-agentic-workflow
-```
-
-This will start the agentic workflow authoring process.
-
-### GitHub Copilot CLI
-
-Assuming you have the GitHub Copilot CLI installed, you can load the file in a session using the `@` syntax:
-
-```bash
-load @.github/prompts/create-agentic-workflow.prompt.md
-```
 
 ## After compiling
 
