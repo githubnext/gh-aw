@@ -34,7 +34,7 @@ This is an engine-neutral tool that allows shell command execution by the agenti
 
 ```yaml
 tools:
-  bash: true    # Default safe commands (echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date)
+  bash:           # Default safe commands (echo, ls, pwd, cat, etc.)
   # bash: ["echo", "ls", "git status"]  # Or specify custom commands
 ```
 
@@ -42,13 +42,15 @@ The bash tool provides access to shell commands with different levels of control
 
 ```yaml
 tools:
-  # Default commands: Provides common safe commands (echo, ls, pwd, cat, etc.)
-  bash: true
+  # Default commands: Provides common safe commands when needed
+  bash:
+  # Or explicitly use null
+  bash: null
 
   # Specific commands: Only allow specified commands
   bash: ["echo", "ls", "git status", "npm test"]
 
-  # No commands: Bash tool enabled but no commands allowed
+  # No commands: Bash tool with no commands allowed
   bash: []
 
   # All commands: Unrestricted bash access (use with caution)
@@ -57,8 +59,7 @@ tools:
 
 **Configuration Options:**
 
-- **`bash: true`** → Adds default safe commands (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`)
-- **`bash: null`** → Adds default commands (only if no git commands needed for safe outputs)  
+- **`bash: null`** or **`bash:`** → Adds default safe commands when needed (`echo`, `ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `wc`, `sort`, `uniq`, `date`)
 - **`bash: []`** → No bash commands allowed (empty array preserved)
 - **`bash: ["cmd1", "cmd2"]`** → Only specified commands allowed
 - **`bash: [":*"]` or `bash: ["*"]`** → All bash commands allowed (unrestricted access)
@@ -69,7 +70,7 @@ When using the Copilot engine with `bash: ["*"]` or `bash: [":*"]`, the workflow
 
 **Default Bash Commands:**
 
-When `bash: true` or `bash: null` is specified, the system automatically provides these safe, read-only commands:
+When `bash: null` or `bash:` (with no value) is specified, the system automatically provides these safe, read-only commands when needed for workflow execution:
 
 **File Operations**: `ls`, `pwd`, `cat`, `head`, `tail`  
 **Text Processing**: `grep`, `sort`, `uniq`, `wc`  
@@ -91,7 +92,10 @@ tools:
 - **`:*` or `*`**: Allows **all bash commands** without restriction
   - For Copilot engine: Uses `--allow-all-tools` flag (grants access to all tools, not just bash)
   - For Claude engine: Allows all bash commands
+  - **Note**: Refused in strict mode (use `--strict` flag or `strict: true` in frontmatter)
 - **`command:*`**: Allows **all invocations of a specific command** with any arguments
+  - Example: `git:*` allows `git add`, `git commit`, `git push`, etc.
+  - Allowed in strict mode
 
 ## Web Fetch Tool (`web-fetch:`)
 
