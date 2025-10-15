@@ -15,9 +15,38 @@ async function main() {
   const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
   const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
 
+  // Parse the validated output JSON first to get patch information
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    core.warning("No valid items found in agent output");
+    return;
+  }
+
+  // Find the push-to-pull-request-branch item
+  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push_to_pull_request_branch");
+  if (!pushItem) {
+    core.warning("No push-to-pull-request-branch item found in agent output");
+    return;
+  }
+
+  core.debug(`Found push-to-pull-request-branch item: message="${pushItem.message}"`);
+
+  // Get patch filename from the item (if present)
+  const patchFilename = pushItem.patch;
+  const patchPath = patchFilename ? `/tmp/gh-aw/patches/${patchFilename}` : null;
+
   // Check if patch file exists and has valid content
-  if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-    const message = "No patch file found - cannot push without changes";
+  if (!patchPath || !fs.existsSync(patchPath)) {
+    const message = patchFilename 
+      ? `Patch file ${patchFilename} not found - cannot push without changes`
+      : "No patch file found - cannot push without changes";
 
     switch (ifNoChanges) {
       case "error":
@@ -33,7 +62,7 @@ async function main() {
     }
   }
 
-  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+  const patchContent = fs.readFileSync(patchPath, "utf8");
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
@@ -94,29 +123,6 @@ async function main() {
   }
   core.info(`Target configuration: ${target}`);
 
-  // Parse the validated output JSON
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.info("No valid items found in agent output");
-    return;
-  }
-
-  // Find the push-to-pull-request-branch item
-  const pushItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "push_to_pull_request_branch");
-  if (!pushItem) {
-    core.info("No push-to-pull-request-branch item found in agent output");
-    return;
-  }
-
-  core.info("Found push-to-pull-request-branch item");
-
   // If in staged mode, emit step summary instead of pushing changes
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
@@ -128,8 +134,8 @@ async function main() {
       summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
     }
 
-    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    if (patchPath && fs.existsSync(patchPath)) {
+      const patchStats = fs.readFileSync(patchPath, "utf8");
       if (patchStats.trim()) {
         summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
         summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -263,7 +269,7 @@ async function main() {
     core.info("Applying patch...");
     try {
       // Patches are created with git format-patch, so use git am to apply them
-      await exec.exec("git am /tmp/gh-aw/aw.patch");
+      await exec.exec(`git am ${patchPath}`);
       core.info("Patch applied successfully");
 
       // Push the applied commits to the branch

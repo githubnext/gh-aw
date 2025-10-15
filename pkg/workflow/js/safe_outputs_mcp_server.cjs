@@ -285,8 +285,82 @@ function getCurrentBranch() {
 }
 
 /**
+ * Generate a unique patch filename using random hex
+ * @returns {string} The patch filename
+ */
+function generatePatchFilename() {
+  const randomHex = crypto.randomBytes(8).toString("hex");
+  return `${randomHex}.patch`;
+}
+
+/**
+ * Generate a git patch for the given branch and save to patches directory
+ * @param {string} branch - The branch name to generate patch for
+ * @returns {string|null} The patch filename or null if no patch was generated
+ */
+function generateGitPatch(branch) {
+  // Create patches directory if it doesn't exist
+  const patchesDir = "/tmp/gh-aw/patches";
+  if (!fs.existsSync(patchesDir)) {
+    debug(`Creating patches directory: ${patchesDir}`);
+    fs.mkdirSync(patchesDir, { recursive: true });
+  }
+
+  const patchFilename = generatePatchFilename();
+  const patchPath = path.join(patchesDir, patchFilename);
+  debug(`Generating patch for branch: ${branch} -> ${patchPath}`);
+
+  try {
+    // Check if the branch exists - use try/catch instead of checking return value
+    try {
+      execSync(`git show-ref --verify --quiet refs/heads/${branch}`, { stdio: "ignore" });
+    } catch (error) {
+      debug(`Branch ${branch} does not exist, no patch generated`);
+      return null;
+    }
+
+    // Determine base reference for patch generation
+    let baseRef;
+    try {
+      // Try to use origin/branch as base
+      execSync(`git show-ref --verify --quiet refs/remotes/origin/${branch}`, { stdio: "ignore" });
+      baseRef = `origin/${branch}`;
+      debug(`Using origin/${branch} as base for patch generation`);
+    } catch (error) {
+      // Fall back to merge-base with default branch
+      const defaultBranch = process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
+      debug(`origin/${branch} does not exist, using merge-base with ${defaultBranch}`);
+      
+      // Fetch the default branch to ensure it's available locally
+      try {
+        execSync(`git fetch origin ${defaultBranch}`, { stdio: "ignore" });
+      } catch (fetchError) {
+        debug(`Failed to fetch default branch: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+      }
+      
+      // Find merge base between default branch and current branch
+      baseRef = execSync(`git merge-base origin/${defaultBranch} ${branch}`, { encoding: "utf8" }).trim();
+      debug(`Using merge-base as base: ${baseRef}`);
+    }
+
+    // Generate patch from the determined base to the branch
+    const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
+    const patchData = execSync(patchCmd, { encoding: "utf8" });
+    fs.writeFileSync(patchPath, patchData);
+    
+    debug(`Patch file created: ${patchFilename}`);
+    return patchFilename;
+  } catch (error) {
+    debug(`Error generating patch: ${error instanceof Error ? error.message : String(error)}`);
+    // Write error message to patch file
+    fs.writeFileSync(patchPath, `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
+    return patchFilename;
+  }
+}
+
+/**
  * Handler for create_pull_request tool
- * Resolves the current branch if branch is not provided
+ * Resolves the current branch if branch is not provided and generates a git patch
  */
 const createPullRequestHandler = args => {
   const entry = { ...args, type: "create_pull_request" };
@@ -295,6 +369,13 @@ const createPullRequestHandler = args => {
   if (!entry.branch || entry.branch.trim() === "") {
     entry.branch = getCurrentBranch();
     debug(`Using current branch for create_pull_request: ${entry.branch}`);
+  }
+
+  // Generate patch for the branch
+  const patchFilename = generateGitPatch(entry.branch);
+  if (patchFilename) {
+    entry.patch = patchFilename;
+    debug(`Patch generated for create_pull_request: ${patchFilename}`);
   }
 
   appendSafeOutput(entry);
@@ -310,7 +391,7 @@ const createPullRequestHandler = args => {
 
 /**
  * Handler for push_to_pull_request_branch tool
- * Resolves the current branch if branch is not provided
+ * Resolves the current branch if branch is not provided and generates a git patch
  */
 const pushToPullRequestBranchHandler = args => {
   const entry = { ...args, type: "push_to_pull_request_branch" };
@@ -319,6 +400,13 @@ const pushToPullRequestBranchHandler = args => {
   if (!entry.branch || entry.branch.trim() === "") {
     entry.branch = getCurrentBranch();
     debug(`Using current branch for push_to_pull_request_branch: ${entry.branch}`);
+  }
+
+  // Generate patch for the branch
+  const patchFilename = generateGitPatch(entry.branch);
+  if (patchFilename) {
+    entry.patch = patchFilename;
+    debug(`Patch generated for push_to_pull_request_branch: ${patchFilename}`);
   }
 
   appendSafeOutput(entry);

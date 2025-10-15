@@ -771,11 +771,63 @@ jobs:
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
+            function generatePatchFilename() {
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              return `${randomHex}.patch`;
+            }
+            function generateGitPatch(branch) {
+              const patchesDir = "/tmp/gh-aw/patches";
+              if (!fs.existsSync(patchesDir)) {
+                debug(`Creating patches directory: ${patchesDir}`);
+                fs.mkdirSync(patchesDir, { recursive: true });
+              }
+              const patchFilename = generatePatchFilename();
+              const patchPath = path.join(patchesDir, patchFilename);
+              debug(`Generating patch for branch: ${branch} -> ${patchPath}`);
+              try {
+                try {
+                  execSync(`git show-ref --verify --quiet refs/heads/${branch}`, { stdio: "ignore" });
+                } catch (error) {
+                  debug(`Branch ${branch} does not exist, no patch generated`);
+                  return null;
+                }
+                let baseRef;
+                try {
+                  execSync(`git show-ref --verify --quiet refs/remotes/origin/${branch}`, { stdio: "ignore" });
+                  baseRef = `origin/${branch}`;
+                  debug(`Using origin/${branch} as base for patch generation`);
+                } catch (error) {
+                  const defaultBranch = process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
+                  debug(`origin/${branch} does not exist, using merge-base with ${defaultBranch}`);
+                  try {
+                    execSync(`git fetch origin ${defaultBranch}`, { stdio: "ignore" });
+                  } catch (fetchError) {
+                    debug(`Failed to fetch default branch: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                  }
+                  baseRef = execSync(`git merge-base origin/${defaultBranch} ${branch}`, { encoding: "utf8" }).trim();
+                  debug(`Using merge-base as base: ${baseRef}`);
+                }
+                const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
+                const patchData = execSync(patchCmd, { encoding: "utf8" });
+                fs.writeFileSync(patchPath, patchData);
+                debug(`Patch file created: ${patchFilename}`);
+                return patchFilename;
+              } catch (error) {
+                debug(`Error generating patch: ${error instanceof Error ? error.message : String(error)}`);
+                fs.writeFileSync(patchPath, `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
+                return patchFilename;
+              }
+            }
             const createPullRequestHandler = args => {
               const entry = { ...args, type: "create_pull_request" };
               if (!entry.branch || entry.branch.trim() === "") {
                 entry.branch = getCurrentBranch();
                 debug(`Using current branch for create_pull_request: ${entry.branch}`);
+              }
+              const patchFilename = generateGitPatch(entry.branch);
+              if (patchFilename) {
+                entry.patch = patchFilename;
+                debug(`Patch generated for create_pull_request: ${patchFilename}`);
               }
               appendSafeOutput(entry);
               return {
@@ -792,6 +844,11 @@ jobs:
               if (!entry.branch || entry.branch.trim() === "") {
                 entry.branch = getCurrentBranch();
                 debug(`Using current branch for push_to_pull_request_branch: ${entry.branch}`);
+              }
+              const patchFilename = generateGitPatch(entry.branch);
+              if (patchFilename) {
+                entry.patch = patchFilename;
+                debug(`Patch generated for push_to_pull_request_branch: ${patchFilename}`);
               }
               appendSafeOutput(entry);
               return {
@@ -3572,86 +3629,49 @@ jobs:
           # Check current git status
           echo "Current git status:"
           git status
-          # Extract branch name from JSONL output
-          BRANCH_NAME=""
-          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
-            echo "Checking for branch name in JSONL output..."
-            while IFS= read -r line; do
-              if [ -n "$line" ]; then
-                # Extract branch from create-pull-request line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
-                  echo "Found create_pull_request line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
-                    break
+          # Show patch info if patches directory exists
+          if [ -d /tmp/gh-aw/patches ]; then
+            echo "Patches directory found"
+            ls -la /tmp/gh-aw/patches/
+            # Count patches
+            PATCH_COUNT=$(ls -1 /tmp/gh-aw/patches/*.patch 2>/dev/null | wc -l)
+            if [ "$PATCH_COUNT" -gt 0 ]; then
+              echo "Found $PATCH_COUNT patch file(s)"
+              # Show summary in step summary
+              echo '## Git Patches' >> $GITHUB_STEP_SUMMARY
+              echo '' >> $GITHUB_STEP_SUMMARY
+              echo "Found $PATCH_COUNT patch file(s)" >> $GITHUB_STEP_SUMMARY
+              echo '' >> $GITHUB_STEP_SUMMARY
+              # Show preview of each patch (truncated)
+              for patch_file in /tmp/gh-aw/patches/*.patch; do
+                if [ -f "$patch_file" ]; then
+                  patch_name=$(basename "$patch_file")
+                  echo "### Patch: $patch_name" >> $GITHUB_STEP_SUMMARY
+                  echo '' >> $GITHUB_STEP_SUMMARY
+                  echo '```diff' >> $GITHUB_STEP_SUMMARY
+                  head -100 "$patch_file" >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
+                  # Check if file is longer than 100 lines
+                  LINE_COUNT=$(wc -l < "$patch_file")
+                  if [ "$LINE_COUNT" -gt 100 ]; then
+                    echo '...' >> $GITHUB_STEP_SUMMARY
+                    echo "(Truncated - showing first 100 of $LINE_COUNT lines)" >> $GITHUB_STEP_SUMMARY
                   fi
-                # Extract branch from push_to_pull_request_branch line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
-                  echo "Found push_to_pull_request_branch line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
-                    break
-                  fi
+                  echo '```' >> $GITHUB_STEP_SUMMARY
+                  echo '' >> $GITHUB_STEP_SUMMARY
                 fi
-              fi
-            done < "$GITHUB_AW_SAFE_OUTPUTS"
-          fi
-          # If no branch or branch doesn't exist, no patch
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "No branch found, no patch generation"
-          fi
-          # If we have a branch name, check if that branch exists and get its diff
-          if [ -n "$BRANCH_NAME" ]; then
-            echo "Looking for branch: $BRANCH_NAME"
-            # Check if the branch exists
-            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
-              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
-              # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
-                echo "Using origin/$BRANCH_NAME as base for patch generation"
-                BASE_REF="origin/$BRANCH_NAME"
-              else
-                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Get the default branch name
-                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-                echo "Default branch: $DEFAULT_BRANCH"
-                # Fetch the default branch to ensure it's available locally
-                git fetch origin $DEFAULT_BRANCH
-                # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
-                echo "Using merge-base as base: $BASE_REF"
-              fi
-              # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
-              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
+              done
             else
-              echo "Branch $BRANCH_NAME does not exist, no patch"
+              echo "No patch files found in patches directory"
             fi
+          else
+            echo "Patches directory does not exist"
           fi
-          # Show patch info if it exists
-          if [ -f /tmp/gh-aw/aw.patch ]; then
-            ls -la /tmp/gh-aw/aw.patch
-            # Show the first 50 lines of the patch for review
-            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
-            echo '...' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-          fi
-      - name: Upload git patch
+      - name: Upload git patches
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
+          name: patches
+          path: /tmp/gh-aw/patches/
           if-no-files-found: ignore
 
   detection:
@@ -3885,8 +3905,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
-          name: aw.patch
-          path: /tmp/gh-aw/
+          name: patches
+          path: /tmp/gh-aw/patches/
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
@@ -3947,8 +3967,29 @@ jobs:
                 core.info("Agent output content is empty");
               }
               const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
+              if (!pullRequestItem) {
+                core.warning("No create-pull-request item found in agent output");
+                return;
+              }
+              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              const patchFilename = pullRequestItem.patch;
+              const patchPath = patchFilename ? `/tmp/gh-aw/patches/${patchFilename}` : null;
+              if (!patchPath || !fs.existsSync(patchPath)) {
+                const message = patchFilename 
+                  ? `Patch file ${patchFilename} not found - cannot create pull request without changes`
+                  : "No patch file found - cannot create pull request without changes";
                 if (isStaged) {
                   let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
                   summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
@@ -3969,7 +4010,7 @@ jobs:
                     return;
                 }
               }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              const patchContent = fs.readFileSync(patchPath, "utf8");
               if (patchContent.includes("Failed to generate patch")) {
                 const message = "Patch file contains error message - cannot create pull request without changes";
                 if (isStaged) {
@@ -4032,23 +4073,6 @@ jobs:
               } else {
                 core.info("Patch file is empty - processing noop operation");
               }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
-              }
-              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
                 summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
@@ -4058,8 +4082,8 @@ jobs:
                 if (pullRequestItem.body) {
                   summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
                 }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                if (patchPath && fs.existsSync(patchPath)) {
+                  const patchStats = fs.readFileSync(patchPath, "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
                     summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -4120,7 +4144,7 @@ jobs:
               core.info(`Created new branch from base: ${branchName}`);
               if (!isEmpty) {
                 core.info("Applying patch...");
-                await exec.exec("git am /tmp/gh-aw/aw.patch");
+                await exec.exec(`git am ${patchPath}`);
                 core.info("Patch applied successfully");
                 try {
                   let remoteBranchExists = false;
@@ -4151,8 +4175,8 @@ jobs:
                     ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                     : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
                   let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  if (patchPath && fs.existsSync(patchPath)) {
+                    const patchContent = fs.readFileSync(patchPath, "utf8");
                     patchPreview = generatePatchPreview(patchContent);
                   }
                   const fallbackBody = `${body}
@@ -4162,14 +4186,14 @@ jobs:
             >
             > **Workflow Run:** [View run details and download patch artifact](${runUrl})
             >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+            > The patch file is available as an artifact (\`patches/${patchFilename}\`) in the workflow run linked above.
             To apply the patch locally:
             \`\`\`sh
             # Download the artifact from the workflow run ${runUrl}
             # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
+            gh run download ${runId} -n patches
             # Apply the patch
-            git am aw.patch
+            git am patches/${patchFilename}
             \`\`\`
             ${patchPreview}`;
                   try {
@@ -4260,8 +4284,8 @@ jobs:
                   ? `${context.payload.repository.html_url}/tree/${branchName}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
                 let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                if (patchPath && fs.existsSync(patchPath)) {
+                  const patchContent = fs.readFileSync(patchPath, "utf8");
                   patchPreview = generatePatchPreview(patchContent);
                 }
                 const fallbackBody = `${body}
@@ -4326,8 +4350,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
-          name: aw.patch
-          path: /tmp/gh-aw/
+          name: patches
+          path: /tmp/gh-aw/patches/
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
@@ -4357,8 +4381,29 @@ jobs:
               }
               const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
               const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot push without changes";
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
+              if (!pushItem) {
+                core.warning("No push-to-pull-request-branch item found in agent output");
+                return;
+              }
+              core.debug(`Found push-to-pull-request-branch item: message="${pushItem.message}"`);
+              const patchFilename = pushItem.patch;
+              const patchPath = patchFilename ? `/tmp/gh-aw/patches/${patchFilename}` : null;
+              if (!patchPath || !fs.existsSync(patchPath)) {
+                const message = patchFilename 
+                  ? `Patch file ${patchFilename} not found - cannot push without changes`
+                  : "No patch file found - cannot push without changes";
                 switch (ifNoChanges) {
                   case "error":
                     core.setFailed(message);
@@ -4371,7 +4416,7 @@ jobs:
                     return;
                 }
               }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              const patchContent = fs.readFileSync(patchPath, "utf8");
               if (patchContent.includes("Failed to generate patch")) {
                 const message = "Patch file contains error message - cannot push without changes";
                 switch (ifNoChanges) {
@@ -4418,23 +4463,6 @@ jobs:
                 core.info("Patch content validation passed");
               }
               core.info(`Target configuration: ${target}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
-              if (!pushItem) {
-                core.info("No push-to-pull-request-branch item found in agent output");
-                return;
-              }
-              core.info("Found push-to-pull-request-branch item");
               if (isStaged) {
                 let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
                 summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
@@ -4442,8 +4470,8 @@ jobs:
                 if (pushItem.commit_message) {
                   summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
                 }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                if (patchPath && fs.existsSync(patchPath)) {
+                  const patchStats = fs.readFileSync(patchPath, "utf8");
                   if (patchStats.trim()) {
                     summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
                     summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -4546,7 +4574,7 @@ jobs:
               if (!isEmpty) {
                 core.info("Applying patch...");
                 try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
+                  await exec.exec(`git am ${patchPath}`);
                   core.info("Patch applied successfully");
                   await exec.exec(`git push origin ${branchName}`);
                   core.info(`Changes committed and pushed to branch: ${branchName}`);

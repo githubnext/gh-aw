@@ -57,9 +57,38 @@ async function main() {
 
   const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
 
+  // Parse the validated output JSON first to get patch information
+  let validatedOutput;
+  try {
+    validatedOutput = JSON.parse(outputContent);
+  } catch (error) {
+    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+    core.warning("No valid items found in agent output");
+    return;
+  }
+
+  // Find the create-pull-request item
+  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create_pull_request");
+  if (!pullRequestItem) {
+    core.warning("No create-pull-request item found in agent output");
+    return;
+  }
+
+  core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+
+  // Get patch filename from the item (if present)
+  const patchFilename = pullRequestItem.patch;
+  const patchPath = patchFilename ? `/tmp/gh-aw/patches/${patchFilename}` : null;
+
   // Check if patch file exists and has valid content
-  if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-    const message = "No patch file found - cannot create pull request without changes";
+  if (!patchPath || !fs.existsSync(patchPath)) {
+    const message = patchFilename 
+      ? `Patch file ${patchFilename} not found - cannot create pull request without changes`
+      : "No patch file found - cannot create pull request without changes";
 
     // If in staged mode, still show preview
     if (isStaged) {
@@ -87,7 +116,7 @@ async function main() {
     }
   }
 
-  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+  const patchContent = fs.readFileSync(patchPath, "utf8");
 
   // Check for actual error conditions (but allow empty patches as valid noop)
   if (patchContent.includes("Failed to generate patch")) {
@@ -172,30 +201,6 @@ async function main() {
   } else {
     core.info("Patch file is empty - processing noop operation");
   }
-
-  // Parse the validated output JSON
-  let validatedOutput;
-  try {
-    validatedOutput = JSON.parse(outputContent);
-  } catch (error) {
-    core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-    return;
-  }
-
-  if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-    core.warning("No valid items found in agent output");
-    return;
-  }
-
-  // Find the create-pull-request item
-  const pullRequestItem = validatedOutput.items.find(/** @param {any} item */ item => item.type === "create_pull_request");
-  if (!pullRequestItem) {
-    core.warning("No create-pull-request item found in agent output");
-    return;
-  }
-
-  core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {
     let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
@@ -209,8 +214,8 @@ async function main() {
       summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
     }
 
-    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-      const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    if (patchPath && fs.existsSync(patchPath)) {
+      const patchStats = fs.readFileSync(patchPath, "utf8");
       if (patchStats.trim()) {
         summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
         summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
@@ -301,7 +306,7 @@ async function main() {
   if (!isEmpty) {
     core.info("Applying patch...");
     // Patches are created with git format-patch, so use git am to apply them
-    await exec.exec("git am /tmp/gh-aw/aw.patch");
+    await exec.exec(`git am ${patchPath}`);
     core.info("Patch applied successfully");
 
     // Push the applied commits to the branch (with fallback to issue creation on failure)
@@ -342,8 +347,8 @@ async function main() {
 
       // Read patch content for preview
       let patchPreview = "";
-      if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-        const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+      if (patchPath && fs.existsSync(patchPath)) {
+        const patchContent = fs.readFileSync(patchPath, "utf8");
         patchPreview = generatePatchPreview(patchContent);
       }
 
@@ -356,17 +361,17 @@ async function main() {
 >
 > **Workflow Run:** [View run details and download patch artifact](${runUrl})
 >
-> The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+> The patch file is available as an artifact (\`patches/${patchFilename}\`) in the workflow run linked above.
 
 To apply the patch locally:
 
 \`\`\`sh
 # Download the artifact from the workflow run ${runUrl}
 # (Use GitHub MCP tools if gh CLI is not available)
-gh run download ${runId} -n aw.patch
+gh run download ${runId} -n patches
 
 # Apply the patch
-git am aw.patch
+git am patches/${patchFilename}
 \`\`\`
 ${patchPreview}`;
 
@@ -483,8 +488,8 @@ ${patchPreview}`;
 
     // Read patch content for preview
     let patchPreview = "";
-    if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-      const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+    if (patchPath && fs.existsSync(patchPath)) {
+      const patchContent = fs.readFileSync(patchPath, "utf8");
       patchPreview = generatePatchPreview(patchContent);
     }
 

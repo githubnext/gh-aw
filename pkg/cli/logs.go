@@ -264,7 +264,7 @@ Downloaded artifacts include:
 - safe_output.jsonl: Agent's final output content (available when non-empty)
 - agent_output/: Agent logs directory (if the workflow produced logs)
 - agent-stdio.log: Agent standard output/error logs
-- aw.patch: Git patch of changes made during execution
+- patches/: Git patches of changes made during execution (one or more .patch files)
 - Various log files with execution details and metrics
 
 The agentic-workflow-id is the basename of the markdown file without the .md extension.
@@ -1199,14 +1199,38 @@ func extractLogMetrics(logDir string, verbose bool) (LogMetrics, error) {
 		}
 	}
 
-	// Check for aw.patch artifact file
-	awPatchPath := filepath.Join(logDir, "aw.patch")
-	if _, err := os.Stat(awPatchPath); err == nil {
+	// Check for patches artifact directory
+	patchesDir := filepath.Join(logDir, "patches")
+	if stat, err := os.Stat(patchesDir); err == nil && stat.IsDir() {
 		if verbose {
-			// Report that the git patch file was found
-			fileInfo, statErr := os.Stat(awPatchPath)
-			if statErr == nil {
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", pretty.FormatFileSize(fileInfo.Size()))))
+			// Report that the patches directory was found
+			patchFiles, readErr := os.ReadDir(patchesDir)
+			if readErr == nil {
+				patchCount := 0
+				var totalSize int64
+				for _, f := range patchFiles {
+					if !f.IsDir() && filepath.Ext(f.Name()) == ".patch" {
+						patchCount++
+						if info, err := f.Info(); err == nil {
+							totalSize += info.Size()
+						}
+					}
+				}
+				if patchCount > 0 {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found %d git patch file(s) in patches/ (%s total)", patchCount, pretty.FormatFileSize(totalSize))))
+				}
+			}
+		}
+	} else {
+		// Fallback to checking for legacy aw.patch file
+		awPatchPath := filepath.Join(logDir, "aw.patch")
+		if _, err := os.Stat(awPatchPath); err == nil {
+			if verbose {
+				// Report that the git patch file was found
+				fileInfo, statErr := os.Stat(awPatchPath)
+				if statErr == nil {
+					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Found git patch file: aw.patch (%s)", pretty.FormatFileSize(fileInfo.Size()))))
+				}
 			}
 		}
 	}
