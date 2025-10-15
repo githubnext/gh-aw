@@ -16,6 +16,8 @@ imports:
 tools:
   cache-memory: true
 safe-outputs:
+  add-comment:
+    max: 1
   create-pull-request:
     title-prefix: "[q] "
     labels: [automation, workflow-optimization]
