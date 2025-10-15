@@ -76,9 +76,10 @@ This workflow has a stop-after configuration.
 			t.Error("Safety checks should be in pre_activation job")
 		}
 
-		// Verify pre_activation job outputs "activated"
-		if !strings.Contains(lockContentStr, "activated: ${{ steps.set_activated.outputs.activated }}") {
-			t.Error("Expected pre_activation job to have 'activated' output")
+		// Verify pre_activation job outputs "activated" as a direct expression
+		// Since workflow_dispatch requires permission checks by default, it should be an expression
+		if !strings.Contains(lockContentStr, "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}") {
+			t.Error("Expected pre_activation job to have 'activated' output as expression")
 		}
 
 		// Verify old jobs don't exist
@@ -237,13 +238,9 @@ This workflow has both membership check and stop-after.
 			t.Error("Expected actions: write permission in pre_activation job")
 		}
 
-		// Verify the activated output is set based on membership check
-		if !strings.Contains(lockContentStr, "Set activation status") {
-			t.Error("Expected 'Set activation status' step in pre_activation job")
-		}
-
-		if !strings.Contains(lockContentStr, "activated=true") {
-			t.Error("Expected activated output to be set in pre_activation job")
+		// Verify the activated output is set as a direct expression based on membership check
+		if !strings.Contains(lockContentStr, "activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}") {
+			t.Error("Expected activated output to be a direct expression in pre_activation job")
 		}
 
 		// Verify the structure: membership check happens before safety check

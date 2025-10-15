@@ -51,7 +51,7 @@ jobs:
     permissions:
       actions: write  # Required for gh workflow disable
     outputs:
-      activated: ${{ steps.set_activated.outputs.activated }}
+      activated: 'true'
     steps:
       - name: Safety checks
         id: safety_checks
@@ -83,10 +83,6 @@ jobs:
           echo "All safety checks passed. Proceeding with agentic tool execution."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set activation status
-        id: set_activated
-        run: |
-          echo "activated=true" >> $GITHUB_OUTPUT
 
   activation:
     needs: pre_activation

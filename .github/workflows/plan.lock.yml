@@ -41,7 +41,7 @@ jobs:
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) && (github.event.issue.pull_request == null))
     runs-on: ubuntu-latest
     outputs:
-      activated: ${{ steps.set_activated.outputs.activated }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Check team membership for command workflow
         id: check_membership
@@ -123,14 +123,6 @@ jobs:
               }
             }
             await main();
-      - name: Set activation status
-        id: set_activated
-        run: |
-          if [ "${{ steps.check_membership.outputs.is_team_member }}" = "true" ]; then
-            echo "activated=true" >> $GITHUB_OUTPUT
-          else
-            echo "activated=false" >> $GITHUB_OUTPUT
-          fi
 
   activation:
     needs: pre_activation

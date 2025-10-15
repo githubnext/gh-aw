@@ -2061,23 +2061,18 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		permissions = "permissions:\n      actions: write  # Required for gh workflow disable"
 	}
 
-	// Set the activated output - true if all checks pass
-	steps = append(steps, "      - name: Set activation status\n")
-	steps = append(steps, "        id: set_activated\n")
-	steps = append(steps, "        run: |\n")
+	// Generate the activated output expression directly
+	var activatedExpression string
 	if needsPermissionCheck {
-		steps = append(steps, fmt.Sprintf("          if [ \"${{ steps.%s.outputs.is_team_member }}\" = \"true\" ]; then\n", constants.CheckMembershipJobName))
-		steps = append(steps, "            echo \"activated=true\" >> $GITHUB_OUTPUT\n")
-		steps = append(steps, "          else\n")
-		steps = append(steps, "            echo \"activated=false\" >> $GITHUB_OUTPUT\n")
-		steps = append(steps, "          fi\n")
+		// When permission check exists, activated is true when membership check passes
+		activatedExpression = fmt.Sprintf("${{ steps.%s.outputs.is_team_member == 'true' }}", constants.CheckMembershipJobName)
 	} else {
-		// No permission check, just set activated to true
-		steps = append(steps, "          echo \"activated=true\" >> $GITHUB_OUTPUT\n")
+		// No permission check, always activated
+		activatedExpression = "'true'"
 	}
 
 	outputs := map[string]string{
-		"activated": "${{ steps.set_activated.outputs.activated }}",
+		"activated": activatedExpression,
 	}
 
 	job := &Job{

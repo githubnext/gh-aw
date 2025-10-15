@@ -38,7 +38,7 @@ jobs:
   pre_activation:
     runs-on: ubuntu-latest
     outputs:
-      activated: ${{ steps.set_activated.outputs.activated }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Check team membership for workflow
         id: check_membership
@@ -120,14 +120,6 @@ jobs:
               }
             }
             await main();
-      - name: Set activation status
-        id: set_activated
-        run: |
-          if [ "${{ steps.check_membership.outputs.is_team_member }}" = "true" ]; then
-            echo "activated=true" >> $GITHUB_OUTPUT
-          else
-            echo "activated=false" >> $GITHUB_OUTPUT
-          fi
 
   activation:
     needs: pre_activation
