@@ -334,6 +334,10 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
+      - name: Downloading container images
+        run: |
+          set -e
+          docker pull ghcr.io/github/github-mcp-server:v0.18.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs

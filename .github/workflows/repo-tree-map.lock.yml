@@ -206,6 +206,10 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.340
+      - name: Downloading container images
+        run: |
+          set -e
+          docker pull ghcr.io/github/github-mcp-server:v0.18.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs

@@ -765,6 +765,13 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.340
+      - name: Downloading container images
+        run: |
+          set -e
+          docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          docker pull mcp/arxiv-mcp-server
+          docker pull mcp/context7
+          docker pull ubuntu/squid:latest
       - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
           echo "Generating proxy configuration files for MCP tools with network restrictions..."
@@ -993,11 +1000,10 @@ jobs:
           EOF
           
           echo "Proxy configuration files generated."
-      - name: Pre-pull images and start Squid proxy
+      - name: Start Squid proxy
         run: |
           set -e
-          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'
-          docker pull ubuntu/squid:latest
+          echo 'Starting squid-proxy services for proxy-enabled MCP tools...'
           echo 'Starting squid-proxy service for arxiv'
           docker compose -f docker-compose-arxiv.yml up -d squid-proxy
           echo 'Enforcing egress to proxy for arxiv (subnet 172.28.172.0/24, squid 172.28.172.10)'
