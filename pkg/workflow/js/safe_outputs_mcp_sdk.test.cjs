@@ -119,7 +119,7 @@ describe("safe_outputs_mcp_server.cjs using MCP TypeScript SDK", () => {
         content: [
           {
             type: "text",
-            text: "success",
+            text: JSON.stringify({ result: "success" }),
           },
         ],
       };
