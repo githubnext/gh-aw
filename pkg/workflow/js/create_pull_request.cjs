@@ -86,7 +86,7 @@ async function main() {
 
   // Check if patch file exists and has valid content
   if (!patchPath || !fs.existsSync(patchPath)) {
-    const message = patchFilename 
+    const message = patchFilename
       ? `Patch file ${patchFilename} not found - cannot create pull request without changes`
       : "No patch file found - cannot create pull request without changes";
 

@@ -330,14 +330,14 @@ function generateGitPatch(branch) {
       // Fall back to merge-base with default branch
       const defaultBranch = process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
       debug(`origin/${branch} does not exist, using merge-base with ${defaultBranch}`);
-      
+
       // Fetch the default branch to ensure it's available locally
       try {
         execSync(`git fetch origin ${defaultBranch}`, { stdio: "ignore" });
       } catch (fetchError) {
         debug(`Failed to fetch default branch: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
       }
-      
+
       // Find merge base between default branch and current branch
       baseRef = execSync(`git merge-base origin/${defaultBranch} ${branch}`, { encoding: "utf8" }).trim();
       debug(`Using merge-base as base: ${baseRef}`);
@@ -347,7 +347,7 @@ function generateGitPatch(branch) {
     const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
     const patchData = execSync(patchCmd, { encoding: "utf8" });
     fs.writeFileSync(patchPath, patchData);
-    
+
     debug(`Patch file created: ${patchFilename}`);
     return patchFilename;
   } catch (error) {
