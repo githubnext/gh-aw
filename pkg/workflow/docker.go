@@ -4,10 +4,92 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/githubnext/gh-aw/pkg/console"
 )
+
+// collectDockerImages collects all Docker images used in MCP configurations
+func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []string {
+	var images []string
+	imageSet := make(map[string]bool) // Use a set to avoid duplicates
+
+	// Check for GitHub tool (uses Docker image)
+	if githubTool, hasGitHub := tools["github"]; hasGitHub {
+		githubType := getGitHubType(githubTool)
+		// Only add if using local (Docker) mode
+		if githubType == "local" {
+			githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
+			image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
+			if !imageSet[image] {
+				images = append(images, image)
+				imageSet[image] = true
+			}
+		}
+	}
+
+	// Collect images from custom MCP tools with container configurations
+	for toolName, toolValue := range tools {
+		if mcpConfig, ok := toolValue.(map[string]any); ok {
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
+				// Check if this tool uses a container
+				if mcpConf, err := getMCPConfig(mcpConfig, toolName); err == nil {
+					// Check for direct container field
+					if mcpConf.Container != "" {
+						image := mcpConf.Container
+						if !imageSet[image] {
+							images = append(images, image)
+							imageSet[image] = true
+						}
+					} else if mcpConf.Command == "docker" && len(mcpConf.Args) > 0 {
+						// Extract container image from docker args
+						// Args format: ["run", "--rm", "-i", ... , "container-image"]
+						// The container image is the last arg
+						image := mcpConf.Args[len(mcpConf.Args)-1]
+						// Skip if it's a docker flag (starts with -)
+						if !strings.HasPrefix(image, "-") && !imageSet[image] {
+							images = append(images, image)
+							imageSet[image] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Add squid proxy image if any tool needs proxy
+	for _, toolValue := range tools {
+		if mcpConfig, ok := toolValue.(map[string]any); ok {
+			if needsProxySetup, _ := needsProxy(mcpConfig); needsProxySetup {
+				squidImage := "ubuntu/squid:latest"
+				if !imageSet[squidImage] {
+					images = append(images, squidImage)
+					imageSet[squidImage] = true
+				}
+				break // Only need to add once
+			}
+		}
+	}
+
+	// Sort for stable output
+	sort.Strings(images)
+	return images
+}
+
+// generateDownloadDockerImagesStep generates the step to download Docker images
+func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []string) {
+	if len(dockerImages) == 0 {
+		return
+	}
+
+	yaml.WriteString("      - name: Downloading container images\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          set -e\n")
+	for _, image := range dockerImages {
+		fmt.Fprintf(yaml, "          docker pull %s\n", image)
+	}
+}
 
 // validateDockerImage checks if a Docker image exists and is accessible
 // Returns nil if docker is not available (with a warning printed)

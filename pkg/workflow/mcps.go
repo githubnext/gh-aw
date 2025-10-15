@@ -36,73 +36,6 @@ func HasMCPServers(workflowData *WorkflowData) bool {
 	return false
 }
 
-// collectDockerImages collects all Docker images used in MCP configurations
-func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []string {
-	var images []string
-	imageSet := make(map[string]bool) // Use a set to avoid duplicates
-
-	// Check for GitHub tool (uses Docker image)
-	if githubTool, hasGitHub := tools["github"]; hasGitHub {
-		githubType := getGitHubType(githubTool)
-		// Only add if using local (Docker) mode
-		if githubType == "local" {
-			githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
-			image := "ghcr.io/github/github-mcp-server:" + githubDockerImageVersion
-			if !imageSet[image] {
-				images = append(images, image)
-				imageSet[image] = true
-			}
-		}
-	}
-
-	// Collect images from custom MCP tools with container configurations
-	for toolName, toolValue := range tools {
-		if mcpConfig, ok := toolValue.(map[string]any); ok {
-			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-				// Check if this tool uses a container
-				if mcpConf, err := getMCPConfig(mcpConfig, toolName); err == nil {
-					// Check for direct container field
-					if mcpConf.Container != "" {
-						image := mcpConf.Container
-						if !imageSet[image] {
-							images = append(images, image)
-							imageSet[image] = true
-						}
-					} else if mcpConf.Command == "docker" && len(mcpConf.Args) > 0 {
-						// Extract container image from docker args
-						// Args format: ["run", "--rm", "-i", ... , "container-image"]
-						// The container image is the last arg
-						image := mcpConf.Args[len(mcpConf.Args)-1]
-						// Skip if it's a docker flag (starts with -)
-						if !strings.HasPrefix(image, "-") && !imageSet[image] {
-							images = append(images, image)
-							imageSet[image] = true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Add squid proxy image if any tool needs proxy
-	for _, toolValue := range tools {
-		if mcpConfig, ok := toolValue.(map[string]any); ok {
-			if needsProxySetup, _ := needsProxy(mcpConfig); needsProxySetup {
-				squidImage := "ubuntu/squid:latest"
-				if !imageSet[squidImage] {
-					images = append(images, squidImage)
-					imageSet[squidImage] = true
-				}
-				break // Only need to add once
-			}
-		}
-	}
-
-	// Sort for stable output
-	sort.Strings(images)
-	return images
-}
-
 // generateMCPSetup generates the MCP server configuration setup
 func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any, engine CodingAgentEngine, workflowData *WorkflowData) {
 	// Collect tools that need MCP server configuration
@@ -148,21 +81,9 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	sort.Strings(mcpTools)
 	sort.Strings(proxyTools)
 
-	// Collect all Docker images that will be used
+	// Collect all Docker images that will be used and generate download step
 	dockerImages := collectDockerImages(tools, workflowData)
-
-	// Add a step to pre-download all Docker images if any are needed
-	if len(dockerImages) > 0 {
-		yaml.WriteString("      - name: Downloading container images\n")
-		yaml.WriteString("        run: |\n")
-		yaml.WriteString("          set -e\n")
-		yaml.WriteString("          echo 'Downloading Docker images for MCP servers...'\n")
-		for _, image := range dockerImages {
-			fmt.Fprintf(yaml, "          echo 'Pulling %s'\n", image)
-			fmt.Fprintf(yaml, "          docker pull %s\n", image)
-		}
-		yaml.WriteString("          echo 'All Docker images downloaded successfully'\n")
-	}
+	generateDownloadDockerImagesStep(yaml, dockerImages)
 
 	// Generate proxy configuration files inline for proxy-enabled tools
 	// These files will be used automatically by docker compose when MCP tools run

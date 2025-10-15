@@ -768,16 +768,10 @@ jobs:
       - name: Downloading container images
         run: |
           set -e
-          echo 'Downloading Docker images for MCP servers...'
-          echo 'Pulling ghcr.io/github/github-mcp-server:v0.18.0'
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
-          echo 'Pulling mcp/arxiv-mcp-server'
           docker pull mcp/arxiv-mcp-server
-          echo 'Pulling mcp/context7'
           docker pull mcp/context7
-          echo 'Pulling ubuntu/squid:latest'
           docker pull ubuntu/squid:latest
-          echo 'All Docker images downloaded successfully'
       - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
           echo "Generating proxy configuration files for MCP tools with network restrictions..."
