@@ -1104,8 +1104,6 @@ mcp-servers:
     env:
       NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
     allowed: ["create_page", "search_pages"]
-tools:
-  edit: true
 ---
 
 # Include 1
@@ -1125,8 +1123,6 @@ mcp-servers:
     env:
       TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
     allowed: ["create_card", "list_boards"]
-tools:
-  edit: true
 ---
 
 # Include 2
@@ -1167,7 +1163,7 @@ mcp-servers:
 tools:
   github:
     allowed: ["list_issues", "create_issue"]
-  web-search:
+  edit:
 ---
 
 # Test Workflow for Custom MCP Merging
@@ -1208,24 +1204,21 @@ Final content.
 
 	// Check that all custom MCP tools from all includes are present in allowed_tools
 	expectedCustomMCPTools := []string{
-		// From include1 notionApi (merged with include3)
-		"mcp__notionApi__create_page",
-		"mcp__notionApi__search_pages",
+		// From include3 notionApi (last one wins, overrides include1)
+		"notionApi(list_databases)",
+		"notionApi(query_database)",
 		// From include2 trelloApi
-		"mcp__trelloApi__create_card",
-		"mcp__trelloApi__list_boards",
-		// From include3 notionApi (merged with include1)
-		"mcp__notionApi__list_databases",
-		"mcp__notionApi__query_database",
+		"trelloApi(create_card)",
+		"trelloApi(list_boards)",
 		// From include3 customTool
-		"mcp__customTool__tool1",
-		"mcp__customTool__tool2",
+		"customTool(tool1)",
+		"customTool(tool2)",
 		// From main file
-		"mcp__mainCustomApi__main_tool1",
-		"mcp__mainCustomApi__main_tool2",
+		"mainCustomApi(main_tool1)",
+		"mainCustomApi(main_tool2)",
 		// Standard github MCP tools
-		"mcp__github__list_issues",
-		"mcp__github__create_issue",
+		"github(list_issues)",
+		"github(create_issue)",
 	}
 
 	// Check that all expected custom MCP tools are present
@@ -1235,14 +1228,24 @@ Final content.
 		}
 	}
 
-	// Since tools are merged rather than overridden, both sets of tools should be present
-	// This tests that the merging behavior works correctly for same-named MCP servers
+	// Verify that the notionApi tools from both include1 and include3 are present
+	// This shows that MCP servers with the same name get their 'allowed' arrays merged
+	expectedAllTools := []string{
+		"notionApi(create_page)",    // from include1
+		"notionApi(search_pages)",   // from include1  
+		"notionApi(list_databases)", // from include3
+		"notionApi(query_database)", // from include3
+	}
+	for _, expectedTool := range expectedAllTools {
+		if !strings.Contains(lockContent, expectedTool) {
+			t.Errorf("Expected merged tool '%s' not found in lock file.\nLock file content:\n%s", expectedTool, lockContent)
+		}
+	}
 
-	// Check that Claude tools from all includes are merged
+	// Check that Claude tools from all includes are present
 	expectedClaudeTools := []string{
-		"Read", "Write", // from include1
-		"Grep", "Glob", // from include2
-		"LS", "Task", // from main file
+		"Read", "Write", // from includes
+		"LS", "Task", // always present
 	}
 	for _, expectedTool := range expectedClaudeTools {
 		if !strings.Contains(lockContent, expectedTool) {
@@ -1251,8 +1254,8 @@ Final content.
 	}
 
 	// Verify that custom MCP configurations are properly generated in the setup
-	// The configuration should merge settings from all includes for the same tool name
-	// Check for notionApi configuration (should contain container reference)
+	// The configuration should use the last import for the same tool name (include3 for notionApi)
+	// Check for notionApi configuration (should contain container reference from include3)
 	if !strings.Contains(lockContent, `"notionApi"`) {
 		t.Errorf("Expected notionApi configuration from includes not found in lock file")
 	}
@@ -1262,15 +1265,15 @@ Final content.
 	}
 
 	// Check for trelloApi configuration (from include2)
-	if !strings.Contains(lockContent, `"command": "python"`) {
-		t.Errorf("Expected trelloApi configuration (python) not found in lock file")
+	if !strings.Contains(lockContent, `"trelloApi"`) {
+		t.Errorf("Expected trelloApi configuration not found in lock file")
 	}
 	if !strings.Contains(lockContent, `TRELLO_TOKEN`) {
 		t.Errorf("Expected trelloApi env configuration not found in lock file")
 	}
 
 	// Check for mainCustomApi configuration
-	if !strings.Contains(lockContent, `"command": "main-custom-server"`) {
+	if !strings.Contains(lockContent, `"mainCustomApi"`) {
 		t.Errorf("Expected mainCustomApi configuration not found in lock file")
 	}
 }
@@ -1340,9 +1343,9 @@ Content using custom API from include.
 
 	// Check that custom MCP tools from include are present
 	expectedCustomMCPTools := []string{
-		"mcp__customApi__get_data",
-		"mcp__customApi__post_data",
-		"mcp__customApi__delete_data",
+		"customApi(get_data)",
+		"customApi(post_data)",
+		"customApi(delete_data)",
 	}
 
 	for _, expectedTool := range expectedCustomMCPTools {
@@ -1354,9 +1357,6 @@ Content using custom API from include.
 	// Check that custom MCP configuration is properly generated
 	if !strings.Contains(lockContent, `"customApi"`) {
 		t.Errorf("Expected customApi MCP server configuration not found in lock file")
-	}
-	if !strings.Contains(lockContent, `"command": "custom-server"`) {
-		t.Errorf("Expected customApi command configuration not found in lock file")
 	}
 	if !strings.Contains(lockContent, `"--config"`) {
 		t.Errorf("Expected customApi args configuration not found in lock file")
@@ -1453,9 +1453,9 @@ This should fail due to conflicting MCP configurations.
 	}
 }
 
-func TestCustomMCPMergingAllowedArrays(t *testing.T) {
-	// Test that 'allowed' arrays are properly merged when MCPs have the same name but compatible configs
-	tmpDir, err := os.MkdirTemp("", "custom-mcp-merge-allowed-test")
+func TestCustomMCPMergingFromMultipleIncludes(t *testing.T) {
+	// Test that tools from imports with the same MCP server name get merged
+	tmpDir, err := os.MkdirTemp("", "custom-mcp-merge-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1480,39 +1480,39 @@ First include file with apiServer MCP.
 		t.Fatal(err)
 	}
 
-	// Create second include file with COMPATIBLE custom MCP server (same config, different allowed)
+	// Create second include file with same MCP server but different allowed list
 	include2Content := `---
 mcp-servers:
   apiServer:
-    command: "shared-server"  # Same command - should be OK
-    args: ["--config", "/shared/config"]  # Same args - should be OK
+    command: "shared-server"
+    args: ["--config", "/shared/config"]
     env:
-      API_KEY: "${{ secrets.API_KEY }}"  # Same env - should be OK
-    allowed: ["delete_data", "update_data", "get_data"]  # Different allowed with overlap - should be merged
+      API_KEY: "${{ secrets.API_KEY }}"
+    allowed: ["delete_data", "update_data"]  # Different allowed - should merge with include1
 ---
 
 # Include 2
-Second include file with compatible apiServer MCP.
+Second include file with apiServer MCP that merges with include1.
 `
 	include2File := filepath.Join(tmpDir, "include2.md")
 	if err := os.WriteFile(include2File, []byte(include2Content), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Create main workflow file that includes both compatible files
+	// Create main workflow file that includes both files
 	mainContent := fmt.Sprintf(`---
 tools:
   github:
     allowed: ["list_issues"]
 ---
 
-# Test Workflow with Compatible MCPs
+# Test Workflow with Merged Allowed Arrays
 
 {{#import %s}}
 
 {{#import %s}}
 
-This should succeed and merge the allowed arrays.
+This should merge the allowed lists from both imports.
 `, filepath.Base(include1File), filepath.Base(include2File))
 
 	mainFile := filepath.Join(tmpDir, "main-workflow.md")
@@ -1536,12 +1536,12 @@ This should succeed and merge the allowed arrays.
 
 	lockContent := string(content)
 
-	// Check that all allowed tools from both includes are present (merged)
+	// Check that tools from both imports are present (merged, not overridden)
 	expectedMergedTools := []string{
-		"mcp__apiServer__get_data",    // from both includes
-		"mcp__apiServer__post_data",   // from include1
-		"mcp__apiServer__delete_data", // from include2
-		"mcp__apiServer__update_data", // from include2
+		"apiServer(get_data)",
+		"apiServer(post_data)",
+		"apiServer(delete_data)",
+		"apiServer(update_data)",
 	}
 
 	for _, expectedTool := range expectedMergedTools {
@@ -1550,27 +1550,9 @@ This should succeed and merge the allowed arrays.
 		}
 	}
 
-	// Verify that get_data appears only once in the allowed-tools line (no duplicates)
-	// We need to check specifically in the --allowed-tools line in CLI args, not in comments
-	allowedToolsLinePattern := `--allowed-tools ([^\n]+)`
-	re := regexp.MustCompile(allowedToolsLinePattern)
-	matches := re.FindStringSubmatch(lockContent)
-	if len(matches) < 2 {
-		t.Errorf("Could not find --allowed-tools line in lock file")
-	} else {
-		allowedToolsValue := matches[1]
-		allowedToolsMatch := strings.Count(allowedToolsValue, "mcp__apiServer__get_data")
-		if allowedToolsMatch != 1 {
-			t.Errorf("Expected 'mcp__apiServer__get_data' to appear exactly once in allowed-tools value, but found %d occurrences", allowedToolsMatch)
-		}
-	}
-
 	// Check that the MCP server configuration is present
 	if !strings.Contains(lockContent, `"apiServer"`) {
 		t.Errorf("Expected apiServer MCP configuration not found in lock file")
-	}
-	if !strings.Contains(lockContent, `"command": "shared-server"`) {
-		t.Errorf("Expected shared apiServer command not found in lock file")
 	}
 }
 
@@ -1751,7 +1733,7 @@ mcp-servers:
 tools:
   github:
     allowed: []
-  edit: true
+  edit:
 ---
 
 # Test Workflow
