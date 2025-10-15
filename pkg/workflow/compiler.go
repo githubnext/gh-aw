@@ -2682,6 +2682,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add temporary folder usage instructions
 	c.generateTempFolderPromptStep(yaml)
 
+	// Add playwright output directory instructions if playwright tool is enabled
+	c.generatePlaywrightPromptStep(yaml, data)
+
 	// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 	// if len(trialTargetRepoName) == 2 {
 	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
