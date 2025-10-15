@@ -80,6 +80,9 @@ Repeat and cleanup examples:
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --delete-host-repo        # Delete repo after completion
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --quiet --host-repo my-trial # Custom host repo
 
+Auto-merge examples:
+  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --auto-merge-prs          # Auto-merge any PRs created during trial
+
 Advanced examples:
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --host-repo . # Use current repo as host
   ` + constants.CLIExtensionPrefix + ` trial ./local-workflow.md --clone-repo upstream/repo --repeat 600
@@ -104,9 +107,10 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			timeout, _ := cmd.Flags().GetInt("timeout")
 			triggerContext, _ := cmd.Flags().GetString("trigger-context")
 			repeatSeconds, _ := cmd.Flags().GetInt("repeat")
+			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
-			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatSeconds, verbose); err != nil {
+			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatSeconds, autoMergePRs, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -131,12 +135,13 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Int("timeout", 30, "Timeout in minutes for workflow execution (default: 30)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
+	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the trial (requires --clone-repo)")
 
 	return cmd
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatSeconds int, verbose bool) error {
+func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatSeconds int, autoMergePRs bool, verbose bool) error {
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -306,6 +311,13 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			// Wait for workflow completion
 			if err := waitForWorkflowCompletion(hostRepoSlug, runID, timeoutMinutes, verbose); err != nil {
 				return fmt.Errorf("workflow '%s' execution failed or timed out: %w", parsedSpec.WorkflowName, err)
+			}
+
+			// Auto-merge PRs if requested
+			if autoMergePRs {
+				if err := autoMergePullRequests(hostRepoSlug, verbose); err != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
+				}
 			}
 
 			// Download and process all artifacts
@@ -1584,6 +1596,75 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, hostRepoSlug string, verbos
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully pushed contents from %s to %s", cloneRepoSlug, hostRepoSlug)))
+	}
+
+	return nil
+}
+
+// autoMergePullRequests checks for open PRs in the repository and auto-merges them
+func autoMergePullRequests(repoSlug string, verbose bool) error {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking for open pull requests in %s", repoSlug)))
+	}
+
+	// List open PRs
+	listCmd := exec.Command("gh", "pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable")
+	output, err := listCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to list pull requests: %w", err)
+	}
+
+	// Parse JSON response
+	var prs []struct {
+		Number    int    `json:"number"`
+		Title     string `json:"title"`
+		IsDraft   bool   `json:"isDraft"`
+		Mergeable string `json:"mergeable"`
+	}
+
+	if err := json.Unmarshal(output, &prs); err != nil {
+		return fmt.Errorf("failed to parse pull request list: %w", err)
+	}
+
+	if len(prs) == 0 {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No open pull requests found"))
+		}
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d open pull request(s)", len(prs))))
+
+	for _, pr := range prs {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing PR #%d: %s (draft: %t, mergeable: %s)", pr.Number, pr.Title, pr.IsDraft, pr.Mergeable)))
+		}
+
+		// Convert from draft to non-draft if necessary
+		if pr.IsDraft {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Converting PR #%d from draft to ready for review", pr.Number)))
+			readyCmd := exec.Command("gh", "pr", "ready", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug)
+			if output, err := readyCmd.CombinedOutput(); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to convert PR #%d from draft: %v (output: %s)", pr.Number, err, string(output))))
+				continue
+			}
+		}
+
+		// Check if PR is mergeable
+		if pr.Mergeable != "MERGEABLE" {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("PR #%d is not mergeable (status: %s), skipping auto-merge", pr.Number, pr.Mergeable)))
+			continue
+		}
+
+		// Auto-merge the PR
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auto-merging PR #%d", pr.Number)))
+		mergeCmd := exec.Command("gh", "pr", "merge", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug, "--auto", "--squash")
+		if output, err := mergeCmd.CombinedOutput(); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge PR #%d: %v (output: %s)", pr.Number, err, string(output))))
+			continue
+		}
+
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully enabled auto-merge for PR #%d", pr.Number)))
 	}
 
 	return nil
