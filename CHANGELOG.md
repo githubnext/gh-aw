@@ -2,6 +2,97 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.0 - 2025-10-15
+
+### Features
+
+#### Add builtin "agentic-workflows" tool for workflow introspection and analysis
+
+Adds a new builtin tool that enables AI agents to analyze GitHub Actions workflow traces and improve workflows based on execution history. The tool exposes the `gh aw mcp-server` command as an MCP server, providing agents with four powerful capabilities:
+
+- **status** - Check compilation status and GitHub Actions state of all workflows
+- **compile** - Programmatically compile markdown workflows to YAML
+- **logs** - Download and analyze workflow run logs with filtering options
+- **audit** - Investigate specific workflow run failures with detailed diagnostics
+
+When enabled in a workflow's frontmatter, the tool automatically installs the gh-aw extension and configures the MCP server for all supported engines (Claude, Copilot, Custom, Codex). This enables continuous workflow improvement driven by AI analysis of actual execution data.
+
+#### Add container image and runtime package validation to --validate flag
+
+Enhances the `--validate` flag to perform additional validation checks beyond GitHub Actions schema validation:
+
+- **Container images**: Validates Docker container images used in MCP configurations are accessible
+- **npm packages**: Validates packages referenced with `npx` exist on the npm registry
+- **Python packages**: Validates packages referenced with `pip`, `pip3`, `uv`, or `uvx` exist on PyPI
+
+The validator provides early detection of non-existent Docker images, typos in package names, and missing dependencies during compilation, giving immediate feedback to workflow authors before runtime failures occur.
+
+#### Add secret validation steps to agentic engines (Claude, Copilot, Codex)
+
+Added secret validation steps to all agentic engines to fail early with helpful error messages when required API secrets are missing. This includes new helper functions `GenerateSecretValidationStep()` and `GenerateMultiSecretValidationStep()` for single and multi-secret validation with fallback logic.
+
+#### Clear terminal in watch mode before recompiling
+
+Adds automatic terminal clearing when files are modified in `--watch` mode, improving readability by removing cluttered output from previous compilations. The new `ClearScreen()` function uses ANSI escape sequences and only clears when stdout is a TTY, ensuring compatibility with pipes, redirects, and CI/CD environments.
+
+
+### Bug Fixes
+
+#### Add "Downloading container images" step to predownload Docker images used in MCP configs
+
+#### Add shared agentic workflow for Microsoft Fabric RTI MCP server
+
+Adds a new shared MCP workflow configuration for the Microsoft Fabric Real-Time Intelligence (RTI) MCP Server, enabling AI agents to interact with Fabric RTI services for data querying and analysis. The configuration provides access to Eventhouse (Kusto) queries and Eventstreams management capabilities.
+
+#### Add if condition to custom safe output jobs to check agent output
+
+Custom safe output jobs now automatically include an `if` condition that checks whether the safe output type (job ID) is present in the agent output, matching the behavior of built-in safe output jobs. When users provide a custom `if` condition, it's combined with the safe output type check using AND logic.
+
+#### Add documentation for init command to CLI docs
+
+#### Clarify that edit: tool is required for writing to files
+
+Updated documentation in instruction files to explicitly state that the `edit:` tool is required when workflows need to write to files in the repository. This helps users understand they must include this tool in their workflow configuration to enable file writing capabilities.
+
+#### Treat container image validation as warning instead of error
+
+Container image validation failures during `compile --validate` are now treated as warnings instead of errors. This prevents compilation from failing due to local Docker authentication issues or private registry access problems, while still informing users about potential container validation issues.
+
+#### Fix patch generation to handle underscored safe-output type names
+
+The patch generation script now correctly searches for underscored type names (`push_to_pull_request_branch`, `create_pull_request`) to match the format used by the safe-outputs MCP server. This fixes a mismatch that was causing the `push_to_pull_request_branch` safe-output job to fail when looking for the patch file.
+
+#### Update q.md workflow to use MCP server tools instead of CLI commands
+
+The Q agentic workflow was incorrectly referencing the `gh aw` CLI command, which won't work because the agent doesn't have GitHub token access. Updated all references to explicitly use the gh-aw MCP server's `compile` tool instead.
+
+#### Pretty print unauthorized expressions error message with line breaks
+
+When compilation fails due to unauthorized expressions, the error message now displays each expression on its own line with bullet points, making it much easier to read and identify which expressions are valid. Previously, all expressions were displayed in a single long line that was difficult to scan.
+
+#### Use --allow-all-tools flag for bash wildcards in Copilot engine
+
+#### Optimize changeset-generator workflow for token efficiency
+
+#### Reduce bloat in CLI commands documentation by 72%
+
+Dramatically reduced bloat in CLI commands documentation from 803 lines to 224 lines while preserving all essential information. Removed excessive command examples, redundant explanations, duplicate information, and verbose descriptions to improve documentation clarity and scannability.
+
+#### Reduced bloat in packaging-imports.md documentation (58% reduction)
+
+#### Remove detection of missing tools using error patterns
+
+Removed fragile error pattern matching logic that attempted to detect missing tools from log parsing infrastructure. This detection is now the exclusive responsibility of coding agents. Cleaned up 569 lines of code across Claude, Copilot, and Codex engine implementations while maintaining all error pattern functionality for legitimate use cases (counting and categorizing errors/warnings).
+
+#### Update tool call rendering to include duration and token size
+
+Enhanced log parsers for Claude, Codex, and Copilot to display execution duration and approximate token counts for tool calls. Adds helper functions for token estimation (using chars/token formula) and human-readable duration formatting to provide better visibility into tool execution performance and resource usage.
+
+#### Add Playwright, upload-assets, and documentation build pipeline to unbloat-docs workflow
+
+#### Update Claude Code to version 2.0.15
+
+
 ## v0.21.0 - 2025-10-14
 
 ### Features
