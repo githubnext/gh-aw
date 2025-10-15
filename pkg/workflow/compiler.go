@@ -2651,8 +2651,8 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// if len(trialTargetRepoName) == 2 {
 	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 	// }
-	// If trialling with logical repo simulation, generate a step to append a note about it in the prompt
-	if c.trialMode && c.trialLogicalRepoSlug != "" {
+	// If trialling, generate a step to append a note about it in the prompt
+	if c.trialMode {
 		yaml.WriteString("      - name: Append trial mode note to prompt\n")
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
