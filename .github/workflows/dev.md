@@ -6,6 +6,9 @@ engine: copilot
 permissions:
   contents: read
   actions: read
+tools:
+  edit:
+  bash:
 safe-outputs:
   staged: true
   create-pull-request:
