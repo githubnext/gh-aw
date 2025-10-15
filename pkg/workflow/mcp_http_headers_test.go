@@ -48,11 +48,11 @@ func TestExtractSecretsFromValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractSecretsFromValue(tt.value)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d secrets, got %d", len(tt.expected), len(result))
 			}
-			
+
 			for key, expectedValue := range tt.expected {
 				if actualValue, exists := result[key]; !exists {
 					t.Errorf("Expected secret %s not found", key)
@@ -279,9 +279,9 @@ func TestCollectHTTPMCPHeaderSecrets(t *testing.T) {
 	result := collectHTTPMCPHeaderSecrets(tools)
 
 	expected := map[string]string{
-		"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
-		"DD_APP_KEY":         "${{ secrets.DD_APP_KEY }}",
-		"CUSTOM_API_TOKEN":   "${{ secrets.CUSTOM_API_TOKEN }}",
+		"DD_API_KEY":       "${{ secrets.DD_API_KEY }}",
+		"DD_APP_KEY":       "${{ secrets.DD_APP_KEY }}",
+		"CUSTOM_API_TOKEN": "${{ secrets.CUSTOM_API_TOKEN }}",
 	}
 
 	if len(result) != len(expected) {

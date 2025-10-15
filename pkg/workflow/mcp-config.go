@@ -309,7 +309,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					comma = ""
 				}
 				fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
-				
+
 				// Collect all env keys (both existing and header secrets)
 				envKeys := make([]string, 0, len(mcpConfig.Env)+len(headerSecrets))
 				for key := range mcpConfig.Env {
@@ -323,13 +323,13 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					}
 				}
 				sort.Strings(envKeys)
-				
+
 				for envIndex, envKey := range envKeys {
 					envComma := ","
 					if envIndex == len(envKeys)-1 {
 						envComma = ""
 					}
-					
+
 					// Check if this is a header secret (needs passthrough)
 					if _, isHeaderSecret := headerSecrets[envKey]; isHeaderSecret && renderer.RequiresCopilotFields {
 						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
@@ -363,13 +363,13 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				if headerIndex == len(headerKeys)-1 {
 					headerComma = ""
 				}
-				
+
 				// Replace secret expressions with env var references for copilot
 				headerValue := mcpConfig.Headers[headerKey]
 				if renderer.RequiresCopilotFields && len(headerSecrets) > 0 {
 					headerValue = replaceSecretsWithEnvVars(headerValue, headerSecrets)
 				}
-				
+
 				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma)
 			}
 			fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
@@ -478,7 +478,7 @@ func (m MapToolConfig) GetAny(key string) (any, bool) {
 // Example: "${{ secrets.DD_SITE || 'datadoghq.com' }}" -> {"DD_SITE": "${{ secrets.DD_SITE || 'datadoghq.com' }}"}
 func extractSecretsFromValue(value string) map[string]string {
 	secrets := make(map[string]string)
-	
+
 	// Pattern to match ${{ secrets.VARIABLE_NAME }} or ${{ secrets.VARIABLE_NAME || 'default' }}
 	// We need to extract the variable name and the full expression
 	start := 0
@@ -489,36 +489,36 @@ func extractSecretsFromValue(value string) map[string]string {
 			break
 		}
 		startIdx += start
-		
+
 		// Find the end of the expression
 		endIdx := strings.Index(value[startIdx:], "}}")
 		if endIdx == -1 {
 			break
 		}
 		endIdx += startIdx + 2 // Include the closing }}
-		
+
 		// Extract the full expression
 		fullExpr := value[startIdx:endIdx]
-		
+
 		// Extract the variable name from "secrets.VARIABLE_NAME" or "secrets.VARIABLE_NAME ||"
 		secretsPart := strings.TrimPrefix(fullExpr, "${{ secrets.")
 		secretsPart = strings.TrimSuffix(secretsPart, "}}")
 		secretsPart = strings.TrimSpace(secretsPart)
-		
+
 		// Find the variable name (everything before space, ||, or end)
 		varName := secretsPart
 		if spaceIdx := strings.IndexAny(varName, " |"); spaceIdx != -1 {
 			varName = varName[:spaceIdx]
 		}
-		
+
 		// Store the variable name and full expression
 		if varName != "" {
 			secrets[varName] = fullExpr
 		}
-		
+
 		start = endIdx
 	}
-	
+
 	return secrets
 }
 
@@ -526,14 +526,14 @@ func extractSecretsFromValue(value string) map[string]string {
 // Returns a map of environment variable names to their secret expressions
 func extractSecretsFromHeaders(headers map[string]string) map[string]string {
 	allSecrets := make(map[string]string)
-	
+
 	for _, headerValue := range headers {
 		secrets := extractSecretsFromValue(headerValue)
 		for varName, expr := range secrets {
 			allSecrets[varName] = expr
 		}
 	}
-	
+
 	return allSecrets
 }
 
@@ -552,7 +552,7 @@ func replaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 // Returns a map of environment variable names to their secret expressions
 func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 	allSecrets := make(map[string]string)
-	
+
 	for toolName, toolValue := range tools {
 		// Check if this is an MCP tool configuration
 		if toolConfig, ok := toolValue.(map[string]any); ok {
@@ -567,7 +567,7 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 			}
 		}
 	}
-	
+
 	return allSecrets
 }
 

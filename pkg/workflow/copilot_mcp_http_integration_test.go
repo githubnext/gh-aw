@@ -78,7 +78,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 
 	// Test execution steps to verify env variables are declared
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/log.txt")
-	
+
 	// Find the execution step
 	var executionStepContent string
 	for _, step := range steps {
@@ -140,7 +140,7 @@ func TestCopilotEngine_MultipleHTTPMCPTools_Integration(t *testing.T) {
 
 	// Test execution steps
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/log.txt")
-	
+
 	// Find the execution step
 	var executionStepContent string
 	for _, step := range steps {
@@ -219,7 +219,7 @@ func TestCopilotEngine_HTTPMCPWithoutSecrets_Integration(t *testing.T) {
 			nextToolIdx = len(mcpOutput) - customIdx - 12
 		}
 		customSection := mcpOutput[customIdx : customIdx+12+nextToolIdx]
-		
+
 		if strings.Contains(customSection, `"env": {`) {
 			t.Errorf("Unexpected env section found in MCP config for tool without secrets:\n%s", mcpOutput)
 		}
@@ -227,7 +227,7 @@ func TestCopilotEngine_HTTPMCPWithoutSecrets_Integration(t *testing.T) {
 
 	// Test execution steps - should not have extra env variables
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/log.txt")
-	
+
 	var executionStepContent string
 	for _, step := range steps {
 		stepStr := strings.Join(step, "\n")
