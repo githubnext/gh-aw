@@ -2014,11 +2014,11 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData) (*Job, error) {
 		steps = append(steps, "        run: |\n")
 		steps = append(steps, "          set -e\n")
 		steps = append(steps, "          echo \"Checking stop-time limit...\"\n")
-		
+
 		// Extract workflow name for gh workflow commands
 		workflowName := data.Name
 		steps = append(steps, fmt.Sprintf("          WORKFLOW_NAME=\"%s\"\n", workflowName))
-		
+
 		// Add stop-time check
 		steps = append(steps, fmt.Sprintf("          STOP_TIME=\"%s\"\n", data.StopTime))
 		steps = append(steps, "          echo \"Stop-time limit: $STOP_TIME\"\n")
@@ -2149,14 +2149,11 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 			BuildPropertyAccess("needs."+constants.CheckMembershipJobName+".outputs.is_team_member"),
 			BuildStringLiteral("true"),
 		)
-		
-		// If stop-time is configured, also check stop_time_valid
+
+		// The pre_activation job will fail if stop-time is exceeded, so we just check membership here
+		// The stop-time validation happens in pre_activation which will cause workflow failure if exceeded
 		var combinedExpr ConditionNode = membershipExpr
-		if data.StopTime != "" {
-			// The pre_activation job will fail if stop-time is exceeded, so we just check membership here
-			// The stop-time validation happens in pre_activation which will cause workflow failure if exceeded
-		}
-		
+
 		if data.If != "" {
 			ifExpr := &ExpressionNode{Expression: data.If}
 			combinedExpr = &AndNode{Left: combinedExpr, Right: ifExpr}
