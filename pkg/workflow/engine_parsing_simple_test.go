@@ -251,7 +251,7 @@ func TestClaudeEngine_ParseLogMetrics_WithInputSizes(t *testing.T) {
 		if toolCall.MaxInputSize == 0 {
 			t.Errorf("Tool %s should have MaxInputSize > 0, got %d", toolCall.Name, toolCall.MaxInputSize)
 		}
-		
+
 		// Both tools should have some input size since they have input fields
 		if toolCall.MaxInputSize < 10 {
 			t.Errorf("Tool %s MaxInputSize seems too small: %d tokens", toolCall.Name, toolCall.MaxInputSize)
