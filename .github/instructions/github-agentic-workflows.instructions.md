@@ -134,7 +134,7 @@ The YAML frontmatter supports these fields:
       - `audit` - Investigate workflow run failures and generate reports
     - **Use case**: Enable AI agents to analyze GitHub Actions traces and improve workflows based on execution history
     - **Example**: Configure with `agentic-workflows: true` or `agentic-workflows:` (no additional configuration needed)
-  - `edit:` - File editing tools
+  - `edit:` - File editing tools (required to write to files in the repository)
   - `web-fetch:` - Web content fetching tools
   - `web-search:` - Web search tools
   - `bash:` - Shell command tools
@@ -502,7 +502,7 @@ Deploy to environment: "${{ github.event.inputs.environment }}"
 ### General Tools
 ```yaml
 tools:
-  edit:           # File editing
+  edit:           # File editing (required to write to files)
   web-fetch:       # Web content fetching
   web-search:      # Web searching
   bash:           # Shell commands
