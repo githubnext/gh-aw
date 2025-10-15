@@ -128,7 +128,7 @@ func TestSafeOutputsGitHubTokenIntegration(t *testing.T) {
 
 			// Test create-issue job if configured
 			if config != nil && config.CreateIssues != nil {
-				job, err := compiler.buildCreateOutputIssueJob(workflowData, "main", false, tt.frontmatter)
+				job, err := compiler.buildCreateOutputIssueJob(workflowData, "main")
 				if err != nil {
 					t.Fatalf("Failed to build create issue job: %v", err)
 				}

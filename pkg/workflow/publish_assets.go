@@ -71,7 +71,7 @@ func (c *Compiler) parseUploadAssetConfig(outputMap map[string]any) *UploadAsset
 }
 
 // buildUploadAssetsJob creates the publish_assets job
-func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string, taskJobCreated bool, frontmatter map[string]any) (*Job, error) {
+func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.UploadAssets == nil {
 		return nil, fmt.Errorf("safe-outputs.upload-asset configuration is required")
 	}

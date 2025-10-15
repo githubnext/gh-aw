@@ -115,7 +115,7 @@ func (c *Compiler) buildThreatDetectionSteps(data *WorkflowData, mainJobName str
 	steps = append(steps, c.buildEchoAgentOutputsStep(mainJobName)...)
 
 	// Step 3: Setup and run threat detection
-	steps = append(steps, c.buildThreatDetectionAnalysisStep(data, mainJobName)...)
+	steps = append(steps, c.buildThreatDetectionAnalysisStep(data)...)
 
 	// Step 4: Add custom steps if configured
 	if len(data.SafeOutputs.ThreatDetection.Steps) > 0 {
@@ -158,7 +158,7 @@ func (c *Compiler) buildEchoAgentOutputsStep(mainJobName string) []string {
 }
 
 // buildThreatDetectionAnalysisStep creates the main threat analysis step
-func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData, mainJobName string) []string {
+func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string {
 	var steps []string
 
 	// Setup step

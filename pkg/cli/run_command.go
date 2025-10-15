@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
@@ -201,38 +199,13 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatSeconds int, enable bool
 		return nil
 	}
 
-	// Run workflows once
-	if err := runAllWorkflows(); err != nil {
-		return err
-	}
-
-	// If repeat is specified, set up a ticker
-	if repeatSeconds > 0 {
-		fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Repeating every %d seconds. Press Ctrl+C to stop.", repeatSeconds)))
-
-		ticker := time.NewTicker(time.Duration(repeatSeconds) * time.Second)
-		defer ticker.Stop()
-
-		// Set up signal handling for graceful shutdown
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-		for {
-			select {
-			case <-ticker.C:
-				fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Repeating workflow run at %s", time.Now().Format("2006-01-02 15:04:05"))))
-				if err := runAllWorkflows(); err != nil {
-					fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Error during repeat: %v", err)))
-					// Continue running on error during repeat
-				}
-			case <-sigChan:
-				fmt.Println(console.FormatInfoMessage("Received interrupt signal, stopping repeat..."))
-				return nil
-			}
-		}
-	}
-
-	return nil
+	// Execute workflows with optional repeat functionality
+	return ExecuteWithRepeat(RepeatOptions{
+		RepeatSeconds: repeatSeconds,
+		RepeatMessage: "Repeating workflow run at %s",
+		ExecuteFunc:   runAllWorkflows,
+		UseStderr:     false, // Use stdout for run command
+	})
 }
 
 // IsRunnable checks if a workflow can be run (has schedule or workflow_dispatch trigger)

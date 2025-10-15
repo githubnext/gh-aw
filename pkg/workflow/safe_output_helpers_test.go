@@ -240,9 +240,9 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 		{
 			name: "trial mode",
 			workflowData: &WorkflowData{
-				TrialMode:       true,
-				TrialTargetRepo: "owner/repo",
-				SafeOutputs:     &SafeOutputsConfig{},
+				TrialMode:        true,
+				TrialLogicalRepo: "owner/repo",
+				SafeOutputs:      &SafeOutputsConfig{},
 			},
 			expected: map[string]string{
 				"GITHUB_AW_SAFE_OUTPUTS":        "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
@@ -330,9 +330,9 @@ func TestApplySafeOutputEnvToSlice(t *testing.T) {
 		{
 			name: "trial mode",
 			workflowData: &WorkflowData{
-				TrialMode:       true,
-				TrialTargetRepo: "owner/repo",
-				SafeOutputs:     &SafeOutputsConfig{},
+				TrialMode:        true,
+				TrialLogicalRepo: "owner/repo",
+				SafeOutputs:      &SafeOutputsConfig{},
 			},
 			expected: []string{
 				"          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
@@ -478,8 +478,8 @@ func TestBuildSafeOutputJobEnvVars(t *testing.T) {
 // TestEnginesUseSameHelperLogic ensures all engines produce consistent env vars
 func TestEnginesUseSameHelperLogic(t *testing.T) {
 	workflowData := &WorkflowData{
-		TrialMode:       true,
-		TrialTargetRepo: "owner/trial-repo",
+		TrialMode:        true,
+		TrialLogicalRepo: "owner/trial-repo",
 		SafeOutputs: &SafeOutputsConfig{
 			Staged: true,
 			UploadAssets: &UploadAssetsConfig{

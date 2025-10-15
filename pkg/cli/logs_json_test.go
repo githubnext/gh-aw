@@ -70,7 +70,7 @@ func TestBuildLogsData(t *testing.T) {
 	}
 
 	// Build logs data
-	logsData := buildLogsData(processedRuns, tmpDir, false)
+	logsData := buildLogsData(processedRuns, tmpDir)
 
 	// Verify summary
 	if logsData.Summary.TotalRuns != 2 {

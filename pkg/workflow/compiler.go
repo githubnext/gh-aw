@@ -46,7 +46,7 @@ type Compiler struct {
 	noEmit               bool            // If true, validate without generating lock files
 	strictMode           bool            // If true, enforce strict validation requirements
 	trialMode            bool            // If true, suppress safe outputs for trial mode execution
-	trialLogicalRepoSlug string          // If set in trial mode, the target repository to checkout
+	trialLogicalRepoSlug string          // If set in trial mode, the logical repository to checkout
 	jobManager           *JobManager     // Manages jobs and dependencies
 	engineRegistry       *EngineRegistry // Registry of available agentic engines
 	fileTracker          FileTracker     // Optional file tracker for tracking created files
@@ -66,32 +66,32 @@ func NewCompiler(verbose bool, engineOverride string, version string) *Compiler 
 	return c
 }
 
-// SetSkipValidation configures whether to skip schema validation
+// Configures whether to skip schema validation
 func (c *Compiler) SetSkipValidation(skip bool) {
 	c.skipValidation = skip
 }
 
-// SetNoEmit configures whether to validate without generating lock files
+// Configures whether to validate without generating lock files
 func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
 }
 
-// SetFileTracker sets the file tracker for tracking created files
+// Sets the file tracker for tracking created files
 func (c *Compiler) SetFileTracker(tracker FileTracker) {
 	c.fileTracker = tracker
 }
 
-// SetTrialMode configures whether to run in trial mode (suppresses safe outputs)
+// Configures whether to run in trial mode (suppresses safe outputs)
 func (c *Compiler) SetTrialMode(trialMode bool) {
 	c.trialMode = trialMode
 }
 
-// SetTrialLogicalRepoSlug configures the target repository for trial mode
+// Configures the target repository for trial mode
 func (c *Compiler) SetTrialLogicalRepoSlug(repo string) {
 	c.trialLogicalRepoSlug = repo
 }
 
-// SetStrictMode configures whether to enable strict validation mode
+// Configures whether to enable strict validation mode
 func (c *Compiler) SetStrictMode(strict bool) {
 	c.strictMode = strict
 }
@@ -115,7 +115,7 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 type WorkflowData struct {
 	Name               string
 	TrialMode          bool     // whether the workflow is running in trial mode
-	TrialTargetRepo    string   // target repository slug for trial mode (owner/repo)
+	TrialLogicalRepo   string   // target repository slug for trial mode (owner/repo)
 	FrontmatterName    string   // name field from frontmatter (for code scanning alert driver default)
 	Description        string   // optional description rendered as comment in lock file
 	Source             string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
@@ -782,6 +782,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		NetworkPermissions: networkPermissions,
 		NeedsTextOutput:    needsTextOutput,
 		SafetyPrompt:       safetyPrompt,
+		TrialMode:          c.trialMode,
+		TrialLogicalRepo:   c.trialLogicalRepoSlug,
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -1683,7 +1685,7 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 
 	yamlContent := yaml.String()
 
-	// If we're in trial mode and this workflow has issue triggers,
+	// If we're in non-cloning trial mode and this workflow has issue triggers,
 	// replace github.event.issue.number with inputs.issue_number
 	if c.trialMode && c.hasIssueTrigger(data.On) {
 		yamlContent = c.replaceIssueNumberReferences(yamlContent)
@@ -1768,7 +1770,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 	}
 
 	// Build safe outputs jobs if configured
-	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, activationJobCreated, frontmatter, markdownPath); err != nil {
+	if err := c.buildSafeOutputsJobs(data, constants.AgentJobName, markdownPath); err != nil {
 		return fmt.Errorf("failed to build safe outputs jobs: %w", err)
 	}
 
@@ -1788,7 +1790,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 }
 
 // buildSafeOutputsJobs creates all safe outputs jobs if configured
-func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, taskJobCreated bool, frontmatter map[string]any, markdownPath string) error {
+func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPath string) error {
 	if data.SafeOutputs == nil {
 		return nil
 	}
@@ -1810,7 +1812,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build create_issue job if output.create_issue is configured
 	if data.SafeOutputs.CreateIssues != nil {
-		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName, taskJobCreated, frontmatter)
+		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build create_issue job: %w", err)
 		}
@@ -1962,7 +1964,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName string, task
 
 	// Build upload_assets job if output.upload-asset is configured
 	if data.SafeOutputs.UploadAssets != nil {
-		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName, taskJobCreated, frontmatter)
+		uploadAssetsJob, err := c.buildUploadAssetsJob(data, jobName)
 		if err != nil {
 			return fmt.Errorf("failed to build upload_assets job: %w", err)
 		}
@@ -2204,6 +2206,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
 		yaml.WriteString("        uses: actions/checkout@v5\n")
+		// In trial mode without cloning, checkout the logical repo if specified
 		if c.trialMode {
 			yaml.WriteString("        with:\n")
 			if c.trialLogicalRepoSlug != "" {
@@ -2642,14 +2645,14 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	c.generateXPIAPromptStep(yaml, data)
 
 	// Add temporary folder usage instructions
-	c.generateTempFolderPromptStep(yaml, data)
+	c.generateTempFolderPromptStep(yaml)
 
 	// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 	// if len(trialTargetRepoName) == 2 {
 	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 	// }
-	// If trialling, generate a step to append a note about it in the prompt
-	if c.trialMode {
+	// If trialling with logical repo simulation, generate a step to append a note about it in the prompt
+	if c.trialMode && c.trialLogicalRepoSlug != "" {
 		yaml.WriteString("      - name: Append trial mode note to prompt\n")
 		yaml.WriteString("        env:\n")
 		yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
@@ -2821,9 +2824,6 @@ func (c *Compiler) convertStepToYAML(stepMap map[string]any) (string, error) {
 
 // generateEngineExecutionSteps uses the new GetExecutionSteps interface method
 func (c *Compiler) generateEngineExecutionSteps(yaml *strings.Builder, data *WorkflowData, engine CodingAgentEngine, logFile string) {
-	// Set trial mode information before calling engine
-	data.TrialMode = c.trialMode
-	data.TrialTargetRepo = c.trialLogicalRepoSlug
 
 	steps := engine.GetExecutionSteps(data, logFile)
 

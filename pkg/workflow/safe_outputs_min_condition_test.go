@@ -107,7 +107,7 @@ func TestSafeOutputConditionWithMin(t *testing.T) {
 			if safeOutputs.MissingTool != nil {
 				job, err = compiler.buildCreateOutputMissingToolJob(workflowData, "agent")
 			} else if safeOutputs.CreateIssues != nil {
-				job, err = compiler.buildCreateOutputIssueJob(workflowData, "agent", false, tt.frontmatter)
+				job, err = compiler.buildCreateOutputIssueJob(workflowData, "agent")
 			} else if safeOutputs.AddComments != nil {
 				job, err = compiler.buildCreateOutputAddCommentJob(workflowData, "agent")
 			}
