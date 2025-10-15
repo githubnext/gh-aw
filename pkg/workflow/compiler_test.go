@@ -1926,14 +1926,30 @@ This is a test workflow.
 		}
 	}
 
-	// Check that line 5 is empty (separator after disclaimer)
-	if lines[4] != "" {
-		t.Errorf("Line 5 should be empty (separator), but got: %s", lines[4])
+	// Verify that the Mermaid graph is present in the header (as comments)
+	if !strings.Contains(lockContent, "# Job Dependency Graph:") {
+		t.Error("Expected 'Job Dependency Graph:' comment not found in generated YAML")
+	}
+	if !strings.Contains(lockContent, "# ```mermaid") {
+		t.Error("Expected Mermaid code block not found in generated YAML")
+	}
+	if !strings.Contains(lockContent, "# graph LR") {
+		t.Error("Expected Mermaid graph directive not found in generated YAML")
 	}
 
-	// Check that line 6 starts the actual workflow content
-	if !strings.HasPrefix(lines[5], "name:") {
-		t.Errorf("Line 6 should start with 'name:', but got: %s", lines[5])
+	// Find the first non-comment, non-empty line - this should be the workflow name
+	var firstContentLine string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			firstContentLine = trimmed
+			break
+		}
+	}
+
+	// Check that the first content line starts the actual workflow with name:
+	if !strings.HasPrefix(firstContentLine, "name:") {
+		t.Errorf("First non-comment line should start with 'name:', but got: %s", firstContentLine)
 	}
 }
 

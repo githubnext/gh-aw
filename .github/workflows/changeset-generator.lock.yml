@@ -6,6 +6,24 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/changeset-format.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   detection["detection"]
+#   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   missing_tool["missing_tool"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> detection
+#   agent --> push_to_pull_request_branch
+#   detection --> push_to_pull_request_branch
+#   agent --> missing_tool
+#   detection --> missing_tool
+# ```
 
 name: "Changeset Generator"
 "on":

@@ -331,3 +331,37 @@ func (jm *JobManager) GetTopologicalOrder() ([]string, error) {
 
 	return result, nil
 }
+
+// GenerateMermaidGraph generates a Mermaid flowchart diagram of the job dependency graph
+func (jm *JobManager) GenerateMermaidGraph() string {
+	if len(jm.jobs) == 0 {
+		return ""
+	}
+
+	var mermaid strings.Builder
+	mermaid.WriteString("```mermaid\n")
+	mermaid.WriteString("graph LR\n")
+
+	// Add nodes for each job in the order they were added
+	for _, jobName := range jm.jobOrder {
+		job := jm.jobs[jobName]
+		displayName := job.DisplayName
+		if displayName == "" {
+			displayName = jobName
+		}
+		// Sanitize display name for Mermaid (replace quotes with escaped quotes)
+		displayName = strings.ReplaceAll(displayName, "\"", "\\\"")
+		mermaid.WriteString(fmt.Sprintf("  %s[\"%s\"]\n", jobName, displayName))
+	}
+
+	// Add edges for dependencies
+	for _, jobName := range jm.jobOrder {
+		job := jm.jobs[jobName]
+		for _, dep := range job.Needs {
+			mermaid.WriteString(fmt.Sprintf("  %s --> %s\n", dep, jobName))
+		}
+	}
+
+	mermaid.WriteString("```")
+	return mermaid.String()
+}

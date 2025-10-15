@@ -6,6 +6,24 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/mcp/markitdown.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   detection["detection"]
+#   add_comment["add_comment"]
+#   missing_tool["missing_tool"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> detection
+#   agent --> add_comment
+#   detection --> add_comment
+#   agent --> missing_tool
+#   detection --> missing_tool
+# ```
 
 name: "Resource Summarizer Agent"
 "on":
