@@ -143,8 +143,8 @@ func (c *Compiler) buildDownloadArtifactStep() []string {
 		"        continue-on-error: true\n",
 		"        uses: actions/download-artifact@v5\n",
 		"        with:\n",
-		"          name: aw.patch\n",
-		"          path: /tmp/gh-aw/threat-detection/\n",
+		"          name: patches\n",
+		"          path: /tmp/gh-aw/threat-detection/patches/\n",
 	}
 }
 
@@ -226,19 +226,28 @@ if (fs.existsSync(agentOutputPath)) {
   core.info('No agent output file found at: ' + agentOutputPath);
 }
 
-// Check if patch file exists
-const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
-let patchFileInfo = 'No patch file found';
-if (fs.existsSync(patchPath)) {
+// Check if patches directory exists
+const patchesDir = '/tmp/gh-aw/threat-detection/patches';
+let patchFileInfo = 'No patch files found';
+if (fs.existsSync(patchesDir)) {
   try {
-    const stats = fs.statSync(patchPath);
-    patchFileInfo = patchPath + ' (' + stats.size + ' bytes)';
-    core.info('Patch file found: ' + patchFileInfo);
+    const patchFiles = fs.readdirSync(patchesDir).filter(f => f.endsWith('.patch'));
+    if (patchFiles.length > 0) {
+      let totalSize = 0;
+      patchFiles.forEach(file => {
+        const stats = fs.statSync(patchesDir + '/' + file);
+        totalSize += stats.size;
+      });
+      patchFileInfo = patchFiles.length + ' patch file(s) (' + totalSize + ' bytes total)';
+      core.info('Found ' + patchFiles.length + ' patch file(s): ' + patchFileInfo);
+    } else {
+      core.info('No patch files found in patches directory');
+    }
   } catch (error) {
-    core.warning('Failed to stat patch file: ' + error.message);
+    core.warning('Failed to read patches directory: ' + error.message);
   }
 } else {
-  core.info('No patch file found at: ' + patchPath);
+  core.info('No patches directory found at: ' + patchesDir);
 }
 
 // Create threat detection prompt with embedded template
