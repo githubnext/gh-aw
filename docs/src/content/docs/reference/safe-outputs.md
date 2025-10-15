@@ -38,10 +38,9 @@ This declares that the workflow should create at most one new issue.
 | **Create Discussions** | `create-discussion:` | Create GitHub discussions based on workflow output | 1 | ✅ |
 | **Push to Pull Request Branch** | `push-to-pull-request-branch:` | Push changes directly to a branch | 1 | ❌ |
 | **Create Code Scanning Alerts** | `create-code-scanning-alert:` | Generate SARIF repository security advisories and upload to GitHub Code Scanning | unlimited | ❌ |
-| **Trigger Workflow** | `trigger-workflow:` | Trigger workflow dispatches on allowed workflows | 10 | ❌ |
 | **Missing Tool Reporting** | `missing-tool:` | Report missing tools or functionality (enabled by default when safe-outputs is configured) | unlimited | ❌ |
 
-Custom safe output types can be defined through [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/).
+Custom safe output types can be defined through [Custom Safe Output Jobs](/gh-aw/guides/custom-safe-outputs/), such as the `trigger-workflow` safe output for triggering workflow dispatches.
 
 ### New Issue Creation (`create-issue:`)
 
@@ -580,122 +579,6 @@ Similar to GitHub's `actions/upload-artifact` action, you can configure how the 
 - Only GitHub's `issues.addLabels` API endpoint is used (no removal endpoints)
 
 When `create-pull-request` or `push-to-pull-request-branch` are enabled in the `safe-outputs` configuration, the system automatically adds the following additional Claude tools to enable file editing and pull request creation:
-
-### Trigger Workflow (`trigger-workflow:`)
-
-The `trigger-workflow` safe output enables agentic workflows to trigger workflow dispatches on allowed workflows. This is useful for workflows that need to kick off other automation processes like builds, deployments, or tests based on analysis or decisions made by the AI.
-
-**Basic Configuration:**
-```yaml
-safe-outputs:
-  trigger-workflow:
-    allowed:
-      - "build.yml"
-      - "deploy.yml"
-```
-
-**With Configuration:**
-```yaml
-safe-outputs:
-  trigger-workflow:
-    allowed:
-      - "build.yml"
-      - "deploy.yml"
-      - "test.yml"
-    max: 10                           # Optional: maximum number of workflow triggers (default: 10)
-```
-
-**Required Permissions:**
-
-The `trigger-workflow` safe output requires `actions: write` permission. This permission must be explicitly granted for workflow dispatch operations:
-
-```yaml
-permissions:
-  contents: read
-  actions: write    # Required for trigger-workflow
-```
-
-**Security Features:**
-
-- **Allowed List Validation**: Only workflows explicitly listed in the `allowed` configuration can be triggered
-- **Payload Validation**: Optional JSON payloads are validated to ensure they are well-formed objects
-- **Staged Mode Support**: When `staged: true` is set, workflow triggers are previewed instead of executed
-- **Permission Separation**: The main agentic job runs with minimal permissions; only the safe-output job has `actions: write`
-
-**Example Usage:**
-
-```aw wrap
----
-on:
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-  issues: read
-engine: claude
-imports:
-  - shared/trigger-workflow.md
-safe-outputs:
-  trigger-workflow:
-    allowed:
-      - "build.yml"
-      - "deploy.yml"
----
-
-# Issue-Triggered Automation
-
-When a new issue is created, analyze it and trigger the appropriate workflow.
-
-If the issue mentions "build" or "compile", trigger the build.yml workflow.
-If the issue mentions "deploy" or "release", trigger the deploy.yml workflow with a production environment payload.
-
-Use the trigger_workflow safe output to trigger the appropriate workflow.
-```
-
-**Agent Output Format:**
-
-The agent should output JSON with items of type `trigger_workflow`:
-
-```json
-{
-  "items": [
-    {
-      "type": "trigger_workflow",
-      "workflow": "build.yml",
-      "payload": "{\"environment\":\"production\",\"version\":\"1.0.0\"}"
-    }
-  ]
-}
-```
-
-**Payload Field:**
-
-The optional `payload` field should be a JSON string containing workflow inputs. The payload must:
-- Be valid JSON
-- Be an object (not an array or primitive)
-- Match the input schema of the target workflow
-
-**Using with Shared Configuration:**
-
-For easier reuse, import the trigger-workflow shared configuration:
-
-```yaml
-imports:
-  - shared/trigger-workflow.md
-safe-outputs:
-  trigger-workflow:
-    allowed:
-      - "build.yml"
-```
-
-This automatically includes the safe-job definition and MCP tool registration.
-
-**Safety Considerations:**
-
-- Only workflows in the same repository can be triggered (no cross-repository support)
-- The `ref` parameter defaults to the current workflow's ref or `main`
-- Failed triggers will fail the entire safe-output job with an error message
-- Workflow dispatch events may have rate limits imposed by GitHub
 
 ### Missing Tool Reporting (`missing-tool:`)
 

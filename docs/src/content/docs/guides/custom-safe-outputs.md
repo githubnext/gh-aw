@@ -410,3 +410,85 @@ core.warning('Warning message');
 core.error('Error message');
 core.setFailed('Failure message that stops the job');
 ```
+
+## Example: Trigger Workflow Safe Output
+
+The `trigger-workflow` safe output is a practical example of a custom safe output that enables agentic workflows to trigger workflow dispatches on allowed workflows.
+
+### Configuration
+
+Create a shared configuration file at `.github/workflows/shared/trigger-workflow.md`:
+
+```yaml
+---
+safe-outputs:
+  jobs:
+    trigger-workflow:
+      description: "Trigger a workflow dispatch for allowed workflows"
+      runs-on: ubuntu-latest
+      output: "Workflow triggered successfully!"
+      inputs:
+        workflow:
+          description: "The workflow filename to trigger"
+          required: true
+          type: string
+        payload:
+          description: "Optional JSON payload for workflow inputs"
+          required: false
+          type: string
+      permissions:
+        actions: write
+        contents: read
+      steps:
+        - name: Trigger workflow dispatch
+          uses: actions/github-script@v8
+          with:
+            script: |
+              // Read allowed workflows from config
+              const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+              const config = JSON.parse(configEnv);
+              const allowedWorkflows = config['trigger-workflow']?.allowed || [];
+              
+              // Validate and trigger workflow
+              // (Full implementation in shared/trigger-workflow.md)
+---
+```
+
+### Usage
+
+Import the shared configuration and specify allowed workflows:
+
+```yaml
+---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+engine: claude
+imports:
+  - shared/trigger-workflow.md
+safe-outputs:
+  trigger-workflow:
+    allowed:
+      - "build.yml"
+      - "deploy.yml"
+---
+
+# Issue-Triggered Automation
+
+When a new issue is created, analyze it and trigger the appropriate workflow.
+
+If the issue mentions "build", trigger the build.yml workflow.
+If the issue mentions "deploy", trigger the deploy.yml workflow.
+```
+
+### Security Features
+
+- **Allow-list validation**: Only explicitly approved workflows can be triggered
+- **Permission separation**: Main job runs without `actions: write` permission
+- **Payload validation**: Ensures well-formed JSON objects
+- **Staged mode support**: Preview triggers without execution
+
+For the complete implementation, see `.github/workflows/shared/trigger-workflow.md` in the repository.

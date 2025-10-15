@@ -147,7 +147,7 @@ safe-outputs:
                 }
               }
 ---
-
+<!--
 ## Trigger Workflow Integration
 
 This shared configuration provides a custom safe-job for triggering workflow dispatches on allowed workflows.
@@ -241,3 +241,4 @@ This safe-job fully supports staged mode. When `staged: true` is set in the work
 - The `ref` parameter defaults to the current workflow's ref or `main`
 - Payload validation ensures only valid JSON objects are passed
 - Failed triggers will fail the entire safe-job with an error message
+-->

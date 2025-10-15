@@ -713,25 +713,6 @@ jobs:
                   additionalProperties: false,
                 },
               },
-              {
-                name: "trigger_workflow",
-                description: "Trigger a workflow dispatch for allowed workflows. Requires actions: write permission.",
-                inputSchema: {
-                  type: "object",
-                  required: ["workflow"],
-                  properties: {
-                    workflow: {
-                      type: "string",
-                      description: "Workflow filename to trigger (e.g., 'build.yml'). Must be in the allowed list.",
-                    },
-                    payload: {
-                      type: "string",
-                      description: 'Optional JSON payload for workflow inputs (e.g., \'{"environment":"production"}\')',
-                    },
-                  },
-                  additionalProperties: false,
-                },
-              },
             ];
             debug(`v${SERVER_INFO.version} ready on stdio`);
             debug(`  output file: ${outputFile}`);

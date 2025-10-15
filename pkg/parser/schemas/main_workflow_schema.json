@@ -2527,47 +2527,6 @@
             }
           ]
         },
-        "trigger-workflow": {
-          "oneOf": [
-            {
-              "type": "object",
-              "description": "Configuration for triggering workflow dispatches on allowed workflows",
-              "properties": {
-                "allowed": {
-                  "type": "array",
-                  "description": "List of allowed workflow filenames that can be triggered (e.g., ['build.yml', 'deploy.yml'])",
-                  "items": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9_.-]+\\.(yml|yaml)$"
-                  },
-                  "minItems": 1
-                },
-                "max": {
-                  "type": "integer",
-                  "description": "Maximum number of workflow dispatches to trigger (default: 10)",
-                  "minimum": 1,
-                  "maximum": 100
-                },
-                "min": {
-                  "type": "integer",
-                  "description": "Minimum number of workflow dispatches to trigger (default: 0 - no requirement)",
-                  "minimum": 0,
-                  "maximum": 100
-                },
-                "github-token": {
-                  "type": "string",
-                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified. Requires actions:write permission."
-                }
-              },
-              "required": ["allowed"],
-              "additionalProperties": false
-            },
-            {
-              "type": "null",
-              "description": "Enable workflow triggering with empty allowed list (will fail if used)"
-            }
-          ]
-        },
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"

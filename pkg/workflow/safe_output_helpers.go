@@ -184,19 +184,6 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 			}
 			safeOutputsConfig["upload_asset"] = uploadConfig
 		}
-		if data.SafeOutputs.TriggerWorkflow != nil {
-			triggerConfig := map[string]any{}
-			if data.SafeOutputs.TriggerWorkflow.Max > 0 {
-				triggerConfig["max"] = data.SafeOutputs.TriggerWorkflow.Max
-			}
-			if data.SafeOutputs.TriggerWorkflow.Min > 0 {
-				triggerConfig["min"] = data.SafeOutputs.TriggerWorkflow.Min
-			}
-			if len(data.SafeOutputs.TriggerWorkflow.Allowed) > 0 {
-				triggerConfig["allowed"] = data.SafeOutputs.TriggerWorkflow.Allowed
-			}
-			safeOutputsConfig["trigger_workflow"] = triggerConfig
-		}
 		if data.SafeOutputs.MissingTool != nil {
 			missingToolConfig := map[string]any{}
 			if data.SafeOutputs.MissingTool.Max > 0 {

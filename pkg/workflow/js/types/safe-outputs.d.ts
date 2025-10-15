@@ -159,17 +159,6 @@ interface UploadAssetItem extends BaseSafeOutputItem {
 }
 
 /**
- * JSONL item for triggering a workflow dispatch
- */
-interface TriggerWorkflowItem extends BaseSafeOutputItem {
-  type: "trigger_workflow";
-  /** Workflow filename to trigger (must be in allowed list) */
-  workflow: string;
-  /** Optional JSON payload for workflow inputs */
-  payload?: string;
-}
-
-/**
  * Union type of all possible safe output items
  */
 type SafeOutputItem =
@@ -183,8 +172,7 @@ type SafeOutputItem =
   | UpdateIssueItem
   | PushToPrBranchItem
   | MissingToolItem
-  | UploadAssetItem
-  | TriggerWorkflowItem;
+  | UploadAssetItem;
 
 /**
  * Sanitized safe output items
@@ -208,7 +196,6 @@ export {
   PushToPrBranchItem,
   MissingToolItem,
   UploadAssetItem,
-  TriggerWorkflowItem,
   SafeOutputItem,
   SafeOutputItems,
 };

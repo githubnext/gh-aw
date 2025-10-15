@@ -190,7 +190,6 @@ type SafeOutputsConfig struct {
 	UpdateIssues                    *UpdateIssuesConfig                    `yaml:"update-issues,omitempty"`
 	PushToPullRequestBranch         *PushToPullRequestBranchConfig         `yaml:"push-to-pull-request-branch,omitempty"`
 	UploadAssets                    *UploadAssetsConfig                    `yaml:"upload-assets,omitempty"`
-	TriggerWorkflow                 *TriggerWorkflowConfig                 `yaml:"trigger-workflow,omitempty"`
 	MissingTool                     *MissingToolConfig                     `yaml:"missing-tool,omitempty"`     // Optional for reporting missing functionality
 	ThreatDetection                 *ThreatDetectionConfig                 `yaml:"threat-detection,omitempty"` // Threat detection configuration
 	Jobs                            map[string]*SafeJobConfig              `yaml:"jobs,omitempty"`             // Safe-jobs configuration (moved from top-level)
