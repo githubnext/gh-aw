@@ -8,7 +8,8 @@ if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
   echo "Checking for branch name in JSONL output..."
   while IFS= read -r line; do
     if [ -n "$line" ]; then
-      # Extract branch from create_pull_request line using simple grep and sed
+      # Extract branch from create-pull-request line using simple grep and sed
+      # Note: types use underscores (normalized by safe-outputs MCP server)
       if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
         echo "Found create_pull_request line: $line"
         # Extract branch value using sed
@@ -18,6 +19,7 @@ if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
           break
         fi
       # Extract branch from push_to_pull_request_branch line using simple grep and sed
+      # Note: types use underscores (normalized by safe-outputs MCP server)
       elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
         echo "Found push_to_pull_request_branch line: $line"
         # Extract branch value using sed

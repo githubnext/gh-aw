@@ -66,9 +66,10 @@ type CompileConfig struct {
 
 // CompilationStats tracks the results of workflow compilation
 type CompilationStats struct {
-	Total    int
-	Errors   int
-	Warnings int
+	Total           int
+	Errors          int
+	Warnings        int
+	FailedWorkflows []string // Names of workflows that failed compilation
 }
 
 func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
@@ -158,6 +159,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
+				stats.FailedWorkflows = append(stats.FailedWorkflows, markdownFile)
 				continue
 			}
 
@@ -169,6 +171,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
+				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
 				continue
 			}
 			workflowDataList = append(workflowDataList, workflowData)
@@ -182,6 +185,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 				errorMessages = append(errorMessages, err.Error())
 				errorCount++
 				stats.Errors++
+				stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(resolvedFile))
 				continue
 			}
 			compiledCount++
@@ -283,6 +287,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("failed to parse workflow file %s: %v", file, err)))
 			errorCount++
 			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 			continue
 		}
 		workflowDataList = append(workflowDataList, workflowData)
@@ -292,6 +297,7 @@ func CompileWorkflows(config CompileConfig) ([]*workflow.WorkflowData, error) {
 			fmt.Fprintln(os.Stderr, err.Error())
 			errorCount++
 			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 			continue
 		}
 		successCount++
@@ -572,6 +578,7 @@ func compileAllWorkflowFiles(compiler *workflow.Compiler, workflowsDir string, v
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 		} else if verbose {
 			fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
 		}
@@ -629,6 +636,7 @@ func compileModifiedFiles(compiler *workflow.Compiler, files []string, verbose b
 			// Always show compilation errors on new line
 			fmt.Fprintln(os.Stderr, err.Error())
 			stats.Errors++
+			stats.FailedWorkflows = append(stats.FailedWorkflows, filepath.Base(file))
 		} else if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Compiled %s", file)))
 		}
@@ -679,6 +687,13 @@ func printCompilationSummary(stats *CompilationStats) {
 	// Use different formatting based on whether there were errors
 	if stats.Errors > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(summary))
+		// List the failed workflows
+		if len(stats.FailedWorkflows) > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage("Failed workflows:"))
+			for _, workflow := range stats.FailedWorkflows {
+				fmt.Fprintf(os.Stderr, "  - %s\n", workflow)
+			}
+		}
 	} else if stats.Warnings > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(summary))
 	} else {
