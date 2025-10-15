@@ -128,6 +128,15 @@ const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
 
+// Step IDs for pre-activation job
+const CheckMembershipStepID = "check_membership"
+const CheckStopTimeStepID = "check_stop_time"
+
+// Output names for pre-activation job steps
+const IsTeamMemberOutput = "is_team_member"
+const StopTimeOkOutput = "stop_time_ok"
+const ActivatedOutput = "activated"
+
 var AgenticEngines = []string{"claude", "codex", "copilot"}
 
 // DefaultGitHubTools defines the default read-only GitHub MCP tools

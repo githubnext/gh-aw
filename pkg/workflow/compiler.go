@@ -2023,10 +2023,10 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		workflowName := data.Name
 
 		steps = append(steps, "      - name: Check stop-time limit\n")
-		steps = append(steps, "        id: check_stop_time\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
 		// Only add the if condition if membership check exists
 		if needsPermissionCheck {
-			steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.is_team_member == 'true'\n", "check_membership"))
+			steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.%s == 'true'\n", constants.CheckMembershipStepID, constants.IsTeamMemberOutput))
 		}
 		steps = append(steps, "        uses: actions/github-script@v8\n")
 		steps = append(steps, "        env:\n")
@@ -2049,7 +2049,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if needsPermissionCheck {
 		// Add membership check condition
 		membershipCheck := BuildComparison(
-			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.is_team_member", "check_membership")),
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckMembershipStepID, constants.IsTeamMemberOutput)),
 			"==",
 			BuildStringLiteral("true"),
 		)
@@ -2059,7 +2059,7 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 	if data.StopTime != "" {
 		// Add stop-time check condition
 		stopTimeCheck := BuildComparison(
-			BuildPropertyAccess("steps.check_stop_time.outputs.stop_time_ok"),
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckStopTimeStepID, constants.StopTimeOkOutput)),
 			"==",
 			BuildStringLiteral("true"),
 		)
@@ -2185,14 +2185,14 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		// Activation job depends on pre-activation job and checks the "activated" output
 		activationNeeds = []string{constants.PreActivationJobName}
 		activatedExpr := BuildEquals(
-			BuildPropertyAccess("needs."+constants.PreActivationJobName+".outputs.activated"),
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
 			BuildStringLiteral("true"),
 		)
 		if data.If != "" {
 			// Strip ${{ }} wrapper from data.If before combining
 			unwrappedIf := stripExpressionWrapper(data.If)
 			ifExpr := &ExpressionNode{Expression: unwrappedIf}
-			combinedExpr := &AndNode{Left: activatedExpr, Right: ifExpr}
+			combinedExpr := buildAnd(activatedExpr, ifExpr)
 			activationCondition = combinedExpr.Render()
 		} else {
 			activationCondition = activatedExpr.Render()
