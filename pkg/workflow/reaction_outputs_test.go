@@ -144,11 +144,13 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 	}
 
 	// Ensure it's in the activation job section (not a separate add_reaction job)
-	// Find the activation job section
-	activationJobStart := strings.Index(yamlContent, "activation:")
+	// Find the activation job section (not pre_activation)
+	activationJobStart := strings.Index(yamlContent, "\n  activation:")
 	if activationJobStart == -1 {
 		t.Fatal("Could not find activation job in generated YAML")
 	}
+	// Adjust to point to the start of "activation:" line
+	activationJobStart += 1 // Skip the newline
 
 	// Find the next job or end of file
 	nextJobStart := len(yamlContent)

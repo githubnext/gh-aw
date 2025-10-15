@@ -1743,27 +1743,29 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Main job ID is always constants.AgentJobName
 
-	// Build check_membership job if needed (validates team membership levels)
+	// Build pre_activation job if needed (validates team membership levels and stop-time limits)
 	// Team membership checks are specifically for command workflows
 	// Non-command workflows use general role checks instead
+	// Stop-time checks are now integrated into this job
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
+	needsStopTimeCheck := data.StopTime != ""
 
-	if needsPermissionCheck {
-		checkMembershipJob, err := c.buildCheckMembershipJob(data)
+	if needsPermissionCheck || needsStopTimeCheck {
+		preActivationJob, err := c.buildPreActivationJob(data)
 		if err != nil {
 			return fmt.Errorf("failed to build %s job: %w", constants.CheckMembershipJobName, err)
 		}
-		if err := c.jobManager.AddJob(checkMembershipJob); err != nil {
+		if err := c.jobManager.AddJob(preActivationJob); err != nil {
 			return fmt.Errorf("failed to add %s job: %w", constants.CheckMembershipJobName, err)
 		}
 	}
 
 	// Build activation job if needed (preamble job that handles runtime conditions)
-	// If check_membership job exists, activation job is ALWAYS created and depends on it
+	// If pre_activation job exists, activation job is ALWAYS created and depends on it
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
-		activationJob, err := c.buildActivationJob(data, needsPermissionCheck)
+		activationJob, err := c.buildActivationJob(data, needsPermissionCheck || needsStopTimeCheck)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -1771,17 +1773,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			return fmt.Errorf("failed to add activation job: %w", err)
 		}
 		activationJobCreated = true
-	}
-
-	// Build stop-time check job if stop-time is configured
-	if data.StopTime != "" {
-		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
-		if err != nil {
-			return fmt.Errorf("failed to build stop_time_check job: %w", err)
-		}
-		if err := c.jobManager.AddJob(stopTimeCheckJob); err != nil {
-			return fmt.Errorf("failed to add stop_time_check job: %w", err)
-		}
 	}
 
 	// Build main workflow job
@@ -2004,8 +1995,8 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 	return nil
 }
 
-// buildCheckMembershipJob creates the check_membership job that validates team membership levels
-func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
+// buildPreActivationJob creates the pre_activation job that validates team membership levels and stop-time limits
+func (c *Compiler) buildPreActivationJob(data *WorkflowData) (*Job, error) {
 	outputs := map[string]string{
 		"is_team_member":  fmt.Sprintf("${{ steps.%s.outputs.is_team_member }}", constants.CheckMembershipJobName),
 		"result":          fmt.Sprintf("${{ steps.%s.outputs.result }}", constants.CheckMembershipJobName),
@@ -2017,11 +2008,53 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 	// Add team member check that only sets outputs
 	steps = c.generateMembershipCheck(data, steps)
 
+	// Add stop-time check if stop-time is configured
+	if data.StopTime != "" {
+		steps = append(steps, "      - name: Check stop-time limit\n")
+		steps = append(steps, "        run: |\n")
+		steps = append(steps, "          set -e\n")
+		steps = append(steps, "          echo \"Checking stop-time limit...\"\n")
+		
+		// Extract workflow name for gh workflow commands
+		workflowName := data.Name
+		steps = append(steps, fmt.Sprintf("          WORKFLOW_NAME=\"%s\"\n", workflowName))
+		
+		// Add stop-time check
+		steps = append(steps, fmt.Sprintf("          STOP_TIME=\"%s\"\n", data.StopTime))
+		steps = append(steps, "          echo \"Stop-time limit: $STOP_TIME\"\n")
+		steps = append(steps, "          \n")
+		steps = append(steps, "          # Convert stop time to epoch seconds\n")
+		steps = append(steps, "          STOP_EPOCH=$(date -d \"$STOP_TIME\" +%s 2>/dev/null || echo \"invalid\")\n")
+		steps = append(steps, "          if [ \"$STOP_EPOCH\" = \"invalid\" ]; then\n")
+		steps = append(steps, "            echo \"Warning: Invalid stop-time format: $STOP_TIME. Expected format: YYYY-MM-DD HH:MM:SS\"\n")
+		steps = append(steps, "          else\n")
+		steps = append(steps, "            CURRENT_EPOCH=$(date +%s)\n")
+		steps = append(steps, "            echo \"Current time: $(date)\"\n")
+		steps = append(steps, "            echo \"Stop time: $STOP_TIME\"\n")
+		steps = append(steps, "            \n")
+		steps = append(steps, "            if [ \"$CURRENT_EPOCH\" -ge \"$STOP_EPOCH\" ]; then\n")
+		steps = append(steps, "              echo \"Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting.\"\n")
+		steps = append(steps, "              gh workflow disable \"$WORKFLOW_NAME\"\n")
+		steps = append(steps, "              echo \"Workflow disabled. No future runs will be triggered.\"\n")
+		steps = append(steps, "              exit 1\n")
+		steps = append(steps, "            fi\n")
+		steps = append(steps, "          fi\n")
+		steps = append(steps, "          echo \"Stop-time check passed.\"\n")
+		steps = append(steps, "        env:\n")
+		steps = append(steps, "          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n")
+	}
+
+	// Determine permissions needed
+	var permissions string
+	if data.StopTime != "" {
+		permissions = "permissions:\n      actions: write  # Required for gh workflow disable"
+	}
+
 	job := &Job{
 		Name:        constants.CheckMembershipJobName,
 		If:          data.If, // Use the existing condition (which may include alias checks)
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: "", // No special permissions needed - just reading repo permissions
+		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
 	}
@@ -2030,11 +2063,11 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
-func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCreated bool) (*Job, error) {
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
-	// Team member check is now handled by the separate check_membership job
+	// Team member check is now handled by the separate pre_activation job
 	// No inline role checks needed in the task job anymore
 
 	// Add timestamp check for lock file vs source file
@@ -2105,26 +2138,32 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		steps = append(steps, "      - run: echo \"Activation success\"\n")
 	}
 
-	// Build the conditional expression that validates membership and other conditions
+	// Build the conditional expression that validates membership, stop-time, and other conditions
 	var activationNeeds []string
 	var activationCondition string
 
-	if checkMembershipJobCreated {
-		// Activation job is the only job that can rely on check_membership
+	if preActivationJobCreated {
+		// Activation job is the only job that can rely on pre_activation
 		activationNeeds = []string{constants.CheckMembershipJobName}
 		membershipExpr := BuildEquals(
 			BuildPropertyAccess("needs."+constants.CheckMembershipJobName+".outputs.is_team_member"),
 			BuildStringLiteral("true"),
 		)
+		
+		// If stop-time is configured, also check stop_time_valid
+		var combinedExpr ConditionNode = membershipExpr
+		if data.StopTime != "" {
+			// The pre_activation job will fail if stop-time is exceeded, so we just check membership here
+			// The stop-time validation happens in pre_activation which will cause workflow failure if exceeded
+		}
+		
 		if data.If != "" {
 			ifExpr := &ExpressionNode{Expression: data.If}
-			combinedExpr := &AndNode{Left: membershipExpr, Right: ifExpr}
-			activationCondition = combinedExpr.Render()
-		} else {
-			activationCondition = membershipExpr.Render()
+			combinedExpr = &AndNode{Left: combinedExpr, Right: ifExpr}
 		}
+		activationCondition = combinedExpr.Render()
 	} else {
-		// No membership check needed
+		// No pre-activation check needed
 		activationCondition = data.If
 	}
 
@@ -2141,7 +2180,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
-		Needs:       activationNeeds, // Depend on check_membership job if it exists
+		Needs:       activationNeeds, // Depend on pre_activation job if it exists
 	}
 
 	return job, nil
@@ -2155,7 +2194,7 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	if activationJobCreated {
 		jobCondition = "" // Main job depends on activation job, so no need for inline condition
 	}
-	// Permission checks are now handled by the separate check_membership job
+	// Permission checks are now handled by the separate pre_activation job
 	// No role checks needed in the main job
 
 	// Build step content using the generateMainJobSteps helper method
@@ -2314,7 +2353,7 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Add MCP setup
 	c.generateMCPSetup(yaml, data.Tools, engine, data)
 
-	// Stop-time safety checks are now handled by a dedicated job (stop_time_check)
+	// Stop-time safety checks are now handled by the pre_activation job (merged with permission checks)
 	// No longer generated in the main job steps
 
 	// Add prompt creation step

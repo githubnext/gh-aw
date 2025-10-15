@@ -7,7 +7,7 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-// generateMembershipCheck generates steps for the check_membership job that only sets outputs
+// generateMembershipCheck generates steps for the pre_activation job that only sets outputs
 func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) []string {
 	if data.Command != "" {
 		steps = append(steps, "      - name: Check team membership for command workflow\n")

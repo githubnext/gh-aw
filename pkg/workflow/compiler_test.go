@@ -2607,10 +2607,10 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify three jobs are created (check_membership, activation, main) - reaction step is now in activation job
+	// Verify three jobs are created (pre_activation, activation, main) - reaction step is now in activation job
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
+		t.Errorf("Expected 3 jobs (pre_activation, activation, main), found %d", jobCount)
 	}
 
 	// Verify reaction step is in activation job, not a separate job
@@ -2689,10 +2689,10 @@ Test workflow without explicit reaction (should not create reaction action).
 		}
 	}
 
-	// Verify three jobs are created (check_membership, activation, main) - no separate add_reaction job
+	// Verify three jobs are created (pre_activation, activation, main) - no separate add_reaction job
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
 	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
+		t.Errorf("Expected 3 jobs (pre_activation, activation, main), found %d", jobCount)
 	}
 }
 

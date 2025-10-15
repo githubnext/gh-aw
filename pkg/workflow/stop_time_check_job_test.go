@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-// TestStopTimeCheckJob tests that stop-time check job is created correctly
-func TestStopTimeCheckJob(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "stop-time-check-job-test")
+// TestPreActivationJob tests that pre_activation job is created correctly with stop-time checks
+func TestPreActivationJob(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "pre-activation-job-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,7 +17,7 @@ func TestStopTimeCheckJob(t *testing.T) {
 
 	compiler := NewCompiler(false, "", "test")
 
-	t.Run("stop_time_check_job_created_with_stop_after", func(t *testing.T) {
+	t.Run("pre_activation_job_created_with_stop_after", func(t *testing.T) {
 		workflowContent := `---
 on:
   workflow_dispatch:
@@ -47,46 +47,47 @@ This workflow has a stop-after configuration.
 
 		lockContentStr := string(lockContent)
 
-		// Verify stop_time_check job exists
-		if !strings.Contains(lockContentStr, "stop_time_check:") {
-			t.Error("Expected stop_time_check job to be created")
+		// Verify pre_activation job exists
+		if !strings.Contains(lockContentStr, "pre_activation:") {
+			t.Error("Expected pre_activation job to be created")
 		}
 
-		// Verify stop_time_check job has actions: write permission
+		// Verify pre_activation job has actions: write permission
 		if !strings.Contains(lockContentStr, "actions: write  # Required for gh workflow disable") {
-			t.Error("Expected stop_time_check job to have actions: write permission")
+			t.Error("Expected pre_activation job to have actions: write permission")
 		}
 
-		// Verify safety checks are in stop_time_check job, not main job
-		stopTimeCheckStart := strings.Index(lockContentStr, "stop_time_check:")
+		// Verify stop-time checks are in pre_activation job
+		preActivationStart := strings.Index(lockContentStr, "pre_activation:")
 		agentStart := strings.Index(lockContentStr, "agent:")
-		safetyChecksPos := strings.Index(lockContentStr, "Performing safety checks before executing agentic tools")
+		stopTimeCheckPos := strings.Index(lockContentStr, "Checking stop-time limit")
 
-		if safetyChecksPos == -1 {
-			t.Error("Expected safety checks to be present")
+		if stopTimeCheckPos == -1 {
+			t.Error("Expected stop-time checks to be present")
 		}
 
-		// Safety checks should be in stop_time_check job (before agent job)
-		if safetyChecksPos > agentStart {
-			t.Error("Safety checks should be in stop_time_check job, not in agent job")
+		// Stop-time checks should be in pre_activation job (before agent job)
+		if stopTimeCheckPos > agentStart {
+			t.Error("Stop-time checks should be in pre_activation job, not in agent job")
 		}
 
-		// Safety checks should be after stop_time_check job start
-		if safetyChecksPos < stopTimeCheckStart {
-			t.Error("Safety checks should be in stop_time_check job")
+		// Stop-time checks should be after pre_activation job start
+		if stopTimeCheckPos < preActivationStart {
+			t.Error("Stop-time checks should be in pre_activation job")
 		}
 	})
 
-	t.Run("no_stop_time_check_job_without_stop_after", func(t *testing.T) {
+	t.Run("no_pre_activation_job_without_stop_after_or_roles", func(t *testing.T) {
 		workflowContent := `---
 on:
   workflow_dispatch:
 engine: claude
+roles: all
 ---
 
 # Normal Workflow
 
-This workflow has no stop-after configuration.
+This workflow has no stop-after configuration and roles: all.
 `
 		workflowFile := filepath.Join(tmpDir, "normal-workflow.md")
 		if err := os.WriteFile(workflowFile, []byte(workflowContent), 0644); err != nil {
@@ -106,13 +107,13 @@ This workflow has no stop-after configuration.
 
 		lockContentStr := string(lockContent)
 
-		// Verify stop_time_check job does not exist
-		if strings.Contains(lockContentStr, "stop_time_check:") {
-			t.Error("Expected NO stop_time_check job without stop-after")
+		// Verify pre_activation job does not exist
+		if strings.Contains(lockContentStr, "pre_activation:") {
+			t.Error("Expected NO pre_activation job without stop-after or required roles")
 		}
 	})
 
-	t.Run("stop_time_check_job_depends_on_activation", func(t *testing.T) {
+	t.Run("pre_activation_job_with_activation", func(t *testing.T) {
 		workflowContent := `---
 on:
   issues:
@@ -148,33 +149,33 @@ This workflow has activation job and stop-after.
 			t.Error("Expected activation job for unsafe events")
 		}
 
-		// Verify stop_time_check job exists
-		if !strings.Contains(lockContentStr, "stop_time_check:") {
-			t.Error("Expected stop_time_check job")
+		// Verify pre_activation job exists
+		if !strings.Contains(lockContentStr, "pre_activation:") {
+			t.Error("Expected pre_activation job")
 		}
 
 		// Verify the job dependency chain
 		// Extract the jobs section to analyze dependencies
 		jobsSection := lockContentStr[strings.Index(lockContentStr, "jobs:"):]
 
-		// Find stop_time_check job section
-		stopTimeCheckIdx := strings.Index(jobsSection, "stop_time_check:")
-		if stopTimeCheckIdx == -1 {
-			t.Error("Expected stop_time_check job")
+		// Find activation job section and verify it depends on pre_activation
+		activationIdx := strings.Index(jobsSection, "activation:")
+		if activationIdx == -1 {
+			t.Error("Expected activation job")
 		}
 
-		// Find the needs line in stop_time_check job
-		stopTimeCheckSection := jobsSection[stopTimeCheckIdx:]
-		nextJobIdx := strings.Index(stopTimeCheckSection[20:], "\n  ")
+		activationSection := jobsSection[activationIdx:]
+		// Find the next job (starts with "\n  " followed by a non-whitespace character at the beginning of a line)
+		nextJobIdx := strings.Index(activationSection[20:], "\nagent:")
 		if nextJobIdx != -1 {
-			stopTimeCheckSection = stopTimeCheckSection[:nextJobIdx+20]
+			activationSection = activationSection[:nextJobIdx+20]
 		}
 
-		if !strings.Contains(stopTimeCheckSection, "needs: activation") {
-			t.Error("Expected stop_time_check job to depend on activation job")
+		if !strings.Contains(activationSection, "needs: pre_activation") {
+			t.Errorf("Expected activation job to depend on pre_activation job. Got activation section:\n%s", activationSection)
 		}
 
-		// Verify agent job exists and depends on activation (not stop_time_check)
+		// Verify agent job exists and depends on activation
 		if !strings.Contains(lockContentStr, "agent:") {
 			t.Error("Expected agent job")
 		}

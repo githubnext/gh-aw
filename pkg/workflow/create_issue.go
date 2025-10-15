@@ -69,7 +69,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	var steps []string
 
-	// Permission checks are now handled by the separate check_membership job
+	// Permission checks are now handled by the separate pre_activation job
 	// which is always created when needed (when activation job is created)
 
 	// Build custom environment variables specific to create-issue
