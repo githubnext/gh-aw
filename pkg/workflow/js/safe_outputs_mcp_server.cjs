@@ -126,7 +126,7 @@ function replyResult(id, result) {
   const res = { jsonrpc: "2.0", id, result };
   writeMessage(res);
 }
-function replyError(id, code, message, data) {
+function replyError(id, code, message) {
   // Don't send error responses for notifications (id is null/undefined)
   if (id === undefined || id === null) {
     debug(`Error for notification: ${message}`);
@@ -134,9 +134,6 @@ function replyError(id, code, message, data) {
   }
 
   const error = { code, message };
-  if (data !== undefined) {
-    error.data = data;
-  }
   const res = {
     jsonrpc: "2.0",
     id,
@@ -187,7 +184,7 @@ const uploadAssetHandler = args => {
   if (!isInWorkspace && !isInTmp) {
     throw new Error(
       `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-        `Provided path: ${filePath} (resolved to: ${absolutePath})`
+      `Provided path: ${filePath} (resolved to: ${absolutePath})`
     );
   }
 
@@ -212,11 +209,11 @@ const uploadAssetHandler = args => {
   const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
     ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
     : [
-        // Default set as specified in problem statement
-        ".png",
-        ".jpg",
-        ".jpeg",
-      ];
+      // Default set as specified in problem statement
+      ".png",
+      ".jpg",
+      ".jpeg",
+    ];
 
   if (!allowedExts.includes(ext)) {
     throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);
@@ -777,9 +774,7 @@ function handleMessage(req) {
       replyError(id, -32601, `Method not found: ${method}`);
     }
   } catch (e) {
-    replyError(id, -32603, "Internal error", {
-      message: e instanceof Error ? e.message : String(e),
-    });
+    replyError(id, -32603, e instanceof Error ? e.message : String(e));
   }
 }
 
