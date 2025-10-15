@@ -593,27 +593,28 @@ func (e *CopilotEngine) computeCopilotToolArguments(tools map[string]any, safeOu
 
 	var args []string
 
-	// Handle bash/shell tools
+	// Check if bash has wildcard - if so, use --allow-all-tools instead
 	if bashConfig, hasBash := tools["bash"]; hasBash {
-		hasWildcard := false
 		if bashCommands, ok := bashConfig.([]any); ok {
-			// Check for :* wildcard first - if present, allow all shell commands
+			// Check for :* or * wildcard - if present, allow all tools
 			for _, cmd := range bashCommands {
 				if cmdStr, ok := cmd.(string); ok {
 					if cmdStr == ":*" || cmdStr == "*" {
-						// Allow all shell commands
-						args = append(args, "--allow-tool", "shell")
-						hasWildcard = true
-						break
+						// Use --allow-all-tools flag instead of individual tool permissions
+						return []string{"--allow-all-tools"}
 					}
 				}
 			}
-			// Add specific shell commands only if no wildcard found
-			if !hasWildcard {
-				for _, cmd := range bashCommands {
-					if cmdStr, ok := cmd.(string); ok {
-						args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
-					}
+		}
+	}
+
+	// Handle bash/shell tools (when no wildcard)
+	if bashConfig, hasBash := tools["bash"]; hasBash {
+		if bashCommands, ok := bashConfig.([]any); ok {
+			// Add specific shell commands
+			for _, cmd := range bashCommands {
+				if cmdStr, ok := cmd.(string); ok {
+					args = append(args, "--allow-tool", fmt.Sprintf("shell(%s)", cmdStr))
 				}
 			}
 		} else {
