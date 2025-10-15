@@ -618,13 +618,16 @@ jobs:
                 }
                 const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
                 const patchData = execSync(patchCmd, { encoding: "utf8" });
+                if (!patchData || patchData.trim().length === 0) {
+                  debug(`No changes in branch ${branch}, no patch generated`);
+                  return null;
+                }
                 fs.writeFileSync(patchPath, patchData);
                 debug(`Patch file created: ${patchFilename}`);
                 return patchFilename;
               } catch (error) {
                 debug(`Error generating patch: ${error instanceof Error ? error.message : String(error)}`);
-                fs.writeFileSync(patchPath, `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
-                return patchFilename;
+                return null;
               }
             }
             const createPullRequestHandler = args => {
@@ -3684,28 +3687,6 @@ jobs:
                 }
               }
               const patchContent = fs.readFileSync(patchPath, "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
               const isEmpty = !patchContent || !patchContent.trim();
               if (!isEmpty) {
                 const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);

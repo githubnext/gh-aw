@@ -1051,13 +1051,16 @@ jobs:
                 }
                 const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
                 const patchData = execSync(patchCmd, { encoding: "utf8" });
+                if (!patchData || patchData.trim().length === 0) {
+                  debug(`No changes in branch ${branch}, no patch generated`);
+                  return null;
+                }
                 fs.writeFileSync(patchPath, patchData);
                 debug(`Patch file created: ${patchFilename}`);
                 return patchFilename;
               } catch (error) {
                 debug(`Error generating patch: ${error instanceof Error ? error.message : String(error)}`);
-                fs.writeFileSync(patchPath, `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
-                return patchFilename;
+                return null;
               }
             }
             const createPullRequestHandler = args => {
@@ -3671,20 +3674,6 @@ jobs:
                 }
               }
               const patchContent = fs.readFileSync(patchPath, "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot push without changes";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed(message);
-                    return;
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    return;
-                }
-              }
               const isEmpty = !patchContent || !patchContent.trim();
               if (!isEmpty) {
                 const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);

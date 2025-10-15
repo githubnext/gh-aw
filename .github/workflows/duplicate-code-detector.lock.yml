@@ -501,13 +501,16 @@ jobs:
                 }
                 const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
                 const patchData = execSync(patchCmd, { encoding: "utf8" });
+                if (!patchData || patchData.trim().length === 0) {
+                  debug(`No changes in branch ${branch}, no patch generated`);
+                  return null;
+                }
                 fs.writeFileSync(patchPath, patchData);
                 debug(`Patch file created: ${patchFilename}`);
                 return patchFilename;
               } catch (error) {
                 debug(`Error generating patch: ${error instanceof Error ? error.message : String(error)}`);
-                fs.writeFileSync(patchPath, `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
-                return patchFilename;
+                return null;
               }
             }
             const createPullRequestHandler = args => {
