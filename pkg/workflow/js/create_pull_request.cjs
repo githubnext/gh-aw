@@ -118,36 +118,6 @@ async function main() {
 
   const patchContent = fs.readFileSync(patchPath, "utf8");
 
-  // Check for actual error conditions (but allow empty patches as valid noop)
-  if (patchContent.includes("Failed to generate patch")) {
-    const message = "Patch file contains error message - cannot create pull request without changes";
-
-    // If in staged mode, still show preview
-    if (isStaged) {
-      let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-      summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-      summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-      summaryContent += `**Message:** ${message}\n\n`;
-
-      // Write to step summary
-      await core.summary.addRaw(summaryContent).write();
-      core.info("📝 Pull request creation preview written to step summary (patch error)");
-      return;
-    }
-
-    switch (ifNoChanges) {
-      case "error":
-        throw new Error(message);
-      case "ignore":
-        // Silent success - no console output
-        return;
-      case "warn":
-      default:
-        core.warning(message);
-        return;
-    }
-  }
-
   // Validate patch size (unless empty)
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {

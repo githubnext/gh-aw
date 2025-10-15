@@ -64,24 +64,6 @@ async function main() {
 
   const patchContent = fs.readFileSync(patchPath, "utf8");
 
-  // Check for actual error conditions (but allow empty patches as valid noop)
-  if (patchContent.includes("Failed to generate patch")) {
-    const message = "Patch file contains error message - cannot push without changes";
-
-    switch (ifNoChanges) {
-      case "error":
-        core.setFailed(message);
-        return;
-      case "ignore":
-        // Silent success - no console output
-        return;
-      case "warn":
-      default:
-        core.info(message);
-        return;
-    }
-  }
-
   // Validate patch size (unless empty)
   const isEmpty = !patchContent || !patchContent.trim();
   if (!isEmpty) {

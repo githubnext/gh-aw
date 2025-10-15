@@ -346,15 +346,22 @@ function generateGitPatch(branch) {
     // Generate patch from the determined base to the branch
     const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
     const patchData = execSync(patchCmd, { encoding: "utf8" });
+    
+    // Check if patch data is empty or whitespace only
+    if (!patchData || patchData.trim().length === 0) {
+      debug(`No changes in branch ${branch}, no patch generated`);
+      return null;
+    }
+    
     fs.writeFileSync(patchPath, patchData);
 
     debug(`Patch file created: ${patchFilename}`);
     return patchFilename;
   } catch (error) {
     debug(`Error generating patch: ${error instanceof Error ? error.message : String(error)}`);
-    // Write error message to patch file
-    fs.writeFileSync(patchPath, `Failed to generate patch: ${error instanceof Error ? error.message : String(error)}`);
-    return patchFilename;
+    // Don't create a patch file with error message, just return null
+    // This prevents invalid patches from being uploaded
+    return null;
   }
 }
 
