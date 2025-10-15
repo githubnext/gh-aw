@@ -76,11 +76,83 @@ func isMCPType(typeStr string) bool {
 	}
 }
 
+// ToolConfig represents a single tool configuration
+// Tools can be configured in multiple ways:
+// - nil: tool is enabled with default settings
+// - string: simple string configuration
+// - []string: array of allowed items (e.g., bash commands)
+// - ToolObjectConfig: complex object configuration with specific properties
+type ToolConfig struct {
+	// Raw holds the original configuration value (nil, string, []any, or map[string]any)
+	Raw any
+}
+
+// ToolsConfig holds the parsed tools configuration from frontmatter
+type ToolsConfig struct {
+	// Tools maps tool names to their configurations
+	// Known tools: github, bash, playwright, edit, web-fetch, web-search, agentic-workflows, claude, cache-memory, safety-prompt
+	// Custom MCP servers can also be added as additional entries
+	Tools map[string]*ToolConfig
+}
+
+// ToMap converts ToolsConfig to a map[string]any for compatibility with existing code
+func (tc *ToolsConfig) ToMap() map[string]any {
+	if tc == nil || tc.Tools == nil {
+		return make(map[string]any)
+	}
+
+	result := make(map[string]any)
+	for name, config := range tc.Tools {
+		if config != nil {
+			result[name] = config.Raw
+		}
+	}
+	return result
+}
+
+// Get returns the tool configuration for a given tool name
+func (tc *ToolsConfig) Get(name string) (*ToolConfig, bool) {
+	if tc == nil || tc.Tools == nil {
+		return nil, false
+	}
+	config, exists := tc.Tools[name]
+	return config, exists
+}
+
+// Has returns true if the tool is configured
+func (tc *ToolsConfig) Has(name string) bool {
+	_, exists := tc.Get(name)
+	return exists
+}
+
+// IsNil returns true if the tool configuration is nil (default settings)
+func (tc *ToolConfig) IsNil() bool {
+	return tc.Raw == nil
+}
+
+// AsString returns the tool configuration as a string if possible
+func (tc *ToolConfig) AsString() (string, bool) {
+	s, ok := tc.Raw.(string)
+	return s, ok
+}
+
+// AsArray returns the tool configuration as an array if possible
+func (tc *ToolConfig) AsArray() ([]any, bool) {
+	arr, ok := tc.Raw.([]any)
+	return arr, ok
+}
+
+// AsObject returns the tool configuration as a map if possible
+func (tc *ToolConfig) AsObject() (map[string]any, bool) {
+	obj, ok := tc.Raw.(map[string]any)
+	return obj, ok
+}
+
 // FrontmatterResult holds parsed frontmatter and markdown content
 type FrontmatterResult struct {
 	Frontmatter map[string]any
 	Markdown    string
-	Tools       map[string]any // Parsed tools section from frontmatter
+	Tools       *ToolsConfig // Parsed tools section from frontmatter
 	// Additional fields for error context
 	FrontmatterLines []string // Original frontmatter lines for error context
 	FrontmatterStart int      // Line number where frontmatter starts (1-based)
@@ -108,7 +180,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		return &FrontmatterResult{
 			Frontmatter:      make(map[string]any),
 			Markdown:         content,
-			Tools:            make(map[string]any),
+			Tools:            &ToolsConfig{Tools: make(map[string]*ToolConfig)},
 			FrontmatterLines: []string{},
 			FrontmatterStart: 0,
 		}, nil
@@ -1555,19 +1627,26 @@ func reconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, e
 }
 
 // parseToolsFromFrontmatter extracts and parses the tools section from frontmatter
-func parseToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
+func parseToolsFromFrontmatter(frontmatter map[string]any) *ToolsConfig {
 	if frontmatter == nil {
-		return make(map[string]any)
+		return &ToolsConfig{Tools: make(map[string]*ToolConfig)}
 	}
 
 	tools, exists := frontmatter["tools"]
 	if !exists {
-		return make(map[string]any)
+		return &ToolsConfig{Tools: make(map[string]*ToolConfig)}
 	}
 
-	if toolsMap, ok := tools.(map[string]any); ok {
-		return toolsMap
+	toolsMap, ok := tools.(map[string]any)
+	if !ok {
+		return &ToolsConfig{Tools: make(map[string]*ToolConfig)}
 	}
 
-	return make(map[string]any)
+	// Parse each tool configuration
+	parsedTools := make(map[string]*ToolConfig)
+	for name, value := range toolsMap {
+		parsedTools[name] = &ToolConfig{Raw: value}
+	}
+
+	return &ToolsConfig{Tools: parsedTools}
 }

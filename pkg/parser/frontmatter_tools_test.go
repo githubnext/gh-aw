@@ -176,18 +176,21 @@ This is a test workflow without frontmatter.`,
 
 			// Check that Tools field is populated
 			if result.Tools == nil {
-				t.Errorf("ExtractFrontmatterFromContent() Tools field is nil, want map")
+				t.Errorf("ExtractFrontmatterFromContent() Tools field is nil, want ToolsConfig")
 				return
 			}
 
+			// Convert ToolsConfig to map for comparison
+			actualTools := result.Tools.ToMap()
+
 			// Check tools length
-			if len(tt.wantTools) != len(result.Tools) {
-				t.Errorf("ExtractFrontmatterFromContent() tools length = %v, want %v", len(result.Tools), len(tt.wantTools))
+			if len(tt.wantTools) != len(actualTools) {
+				t.Errorf("ExtractFrontmatterFromContent() tools length = %v, want %v", len(actualTools), len(tt.wantTools))
 			}
 
 			// Check each tool
 			for key, expectedValue := range tt.wantTools {
-				actualValue, exists := result.Tools[key]
+				actualValue, exists := actualTools[key]
 				if !exists {
 					t.Errorf("ExtractFrontmatterFromContent() missing tool key %v", key)
 					continue
@@ -252,7 +255,10 @@ func TestParseToolsFromFrontmatter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotTools := parseToolsFromFrontmatter(tt.frontmatter)
+			gotToolsConfig := parseToolsFromFrontmatter(tt.frontmatter)
+
+			// Convert to map for comparison
+			gotTools := gotToolsConfig.ToMap()
 
 			if len(tt.wantTools) != len(gotTools) {
 				t.Errorf("parseToolsFromFrontmatter() length = %v, want %v", len(gotTools), len(tt.wantTools))
@@ -319,4 +325,153 @@ func compareToolValues(actual, expected any) bool {
 
 	// Handle primitive types
 	return actual == expected
+}
+
+func TestToolConfigHelperMethods(t *testing.T) {
+	tests := []struct {
+		name       string
+		config     *ToolConfig
+		wantNil    bool
+		wantString string
+		hasString  bool
+		wantArray  []any
+		hasArray   bool
+		wantObject map[string]any
+		hasObject  bool
+	}{
+		{
+			name:      "nil configuration",
+			config:    &ToolConfig{Raw: nil},
+			wantNil:   true,
+			hasString: false,
+			hasArray:  false,
+			hasObject: false,
+		},
+		{
+			name:       "string configuration",
+			config:     &ToolConfig{Raw: "simple"},
+			wantNil:    false,
+			wantString: "simple",
+			hasString:  true,
+			hasArray:   false,
+			hasObject:  false,
+		},
+		{
+			name:      "array configuration",
+			config:    &ToolConfig{Raw: []any{"echo", "ls"}},
+			wantNil:   false,
+			hasString: false,
+			wantArray: []any{"echo", "ls"},
+			hasArray:  true,
+			hasObject: false,
+		},
+		{
+			name:       "object configuration",
+			config:     &ToolConfig{Raw: map[string]any{"allowed": []any{"create_issue"}}},
+			wantNil:    false,
+			hasString:  false,
+			hasArray:   false,
+			wantObject: map[string]any{"allowed": []any{"create_issue"}},
+			hasObject:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test IsNil
+			if got := tt.config.IsNil(); got != tt.wantNil {
+				t.Errorf("IsNil() = %v, want %v", got, tt.wantNil)
+			}
+
+			// Test AsString
+			gotString, hasString := tt.config.AsString()
+			if hasString != tt.hasString {
+				t.Errorf("AsString() hasString = %v, want %v", hasString, tt.hasString)
+			}
+			if hasString && gotString != tt.wantString {
+				t.Errorf("AsString() = %v, want %v", gotString, tt.wantString)
+			}
+
+			// Test AsArray
+			gotArray, hasArray := tt.config.AsArray()
+			if hasArray != tt.hasArray {
+				t.Errorf("AsArray() hasArray = %v, want %v", hasArray, tt.hasArray)
+			}
+			if hasArray && !compareToolValues(gotArray, tt.wantArray) {
+				t.Errorf("AsArray() = %v, want %v", gotArray, tt.wantArray)
+			}
+
+			// Test AsObject
+			gotObject, hasObject := tt.config.AsObject()
+			if hasObject != tt.hasObject {
+				t.Errorf("AsObject() hasObject = %v, want %v", hasObject, tt.hasObject)
+			}
+			if hasObject && !compareToolValues(gotObject, tt.wantObject) {
+				t.Errorf("AsObject() = %v, want %v", gotObject, tt.wantObject)
+			}
+		})
+	}
+}
+
+func TestToolsConfigHelperMethods(t *testing.T) {
+	toolsConfig := &ToolsConfig{
+		Tools: map[string]*ToolConfig{
+			"github": {Raw: map[string]any{"allowed": []any{"create_issue"}}},
+			"edit":   {Raw: nil},
+			"bash":   {Raw: []any{"echo", "ls"}},
+		},
+	}
+
+	t.Run("Has returns true for existing tool", func(t *testing.T) {
+		if !toolsConfig.Has("github") {
+			t.Error("Has(github) = false, want true")
+		}
+	})
+
+	t.Run("Has returns false for non-existing tool", func(t *testing.T) {
+		if toolsConfig.Has("nonexistent") {
+			t.Error("Has(nonexistent) = true, want false")
+		}
+	})
+
+	t.Run("Get returns config for existing tool", func(t *testing.T) {
+		config, exists := toolsConfig.Get("github")
+		if !exists {
+			t.Error("Get(github) exists = false, want true")
+		}
+		if config == nil {
+			t.Error("Get(github) config = nil, want non-nil")
+		}
+	})
+
+	t.Run("Get returns false for non-existing tool", func(t *testing.T) {
+		_, exists := toolsConfig.Get("nonexistent")
+		if exists {
+			t.Error("Get(nonexistent) exists = true, want false")
+		}
+	})
+
+	t.Run("ToMap returns correct map", func(t *testing.T) {
+		m := toolsConfig.ToMap()
+		if len(m) != 3 {
+			t.Errorf("ToMap() length = %v, want 3", len(m))
+		}
+		if _, exists := m["github"]; !exists {
+			t.Error("ToMap() missing github")
+		}
+	})
+
+	t.Run("nil ToolsConfig", func(t *testing.T) {
+		var nilConfig *ToolsConfig
+		if nilConfig.Has("github") {
+			t.Error("nil.Has(github) = true, want false")
+		}
+		if _, exists := nilConfig.Get("github"); exists {
+			t.Error("nil.Get(github) exists = true, want false")
+		}
+		m := nilConfig.ToMap()
+		if len(m) != 0 {
+			t.Errorf("nil.ToMap() length = %v, want 0", len(m))
+		}
+	})
 }
