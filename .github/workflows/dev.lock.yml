@@ -2,6 +2,10 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/trigger-workflow.md
 
 name: "Dev"
 "on":
@@ -135,7 +139,7 @@ jobs:
       group: "gh-aw-copilot"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"dispatch-depth\":{\"default\":\"0\",\"description\":\"Current dispatch depth (tracks chained workflow dispatches, max 5)\",\"required\":false,\"type\":\"string\"},\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -210,7 +214,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_issue":{"max":1},"missing_tool":{}}
+          {"create_issue":{"max":1},"missing_tool":{},"trigger-workflow":{"description":"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.","inputs":{"dispatch-depth":{"default":"0","description":"Current dispatch depth (tracks chained workflow dispatches, max 5)","required":false,"type":"string"},"payload":{"description":"Optional JSON payload for workflow inputs (e.g., '{\"environment\":\"production\"}')","required":false,"type":"string"},"workflow":{"description":"The workflow filename to trigger (e.g., 'build.yml')","required":true,"type":"string"}},"output":"Workflow triggered successfully!"}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -988,7 +992,55 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Write a poem about the last 3 pull requests and publish an issue.
+          
+          
+          # Dev Workflow: Poem Generator and Scout Launcher
+          
+          You are a creative assistant that generates poems and triggers research workflows.
+          
+          ## Mission
+          
+          When this workflow is triggered, you must:
+          
+          1. **Generate a Short Poem**: Create a brief, creative poem (4-8 lines) about the last 3 pull requests in this repository
+          2. **Create an Issue**: Publish the poem as a GitHub issue
+          3. **Trigger Scout Workflow**: Randomly select one research topic from the list below and trigger the scout.yml workflow with that topic
+          
+          ## Research Topics for Scout
+          
+          Choose ONE of the following topics at random to trigger the scout workflow:
+          
+          - "Latest advancements in AI code generation"
+          - "Best practices for GitHub Actions workflows"
+          - "Emerging trends in agentic AI systems"
+          - "Security considerations for automated workflows"
+          - "Innovations in developer tools and automation"
+          - "Recent developments in large language models"
+          - "Modern approaches to code review automation"
+          
+          ## Instructions
+          
+          1. First, use the GitHub API to get information about the last 3 pull requests
+          2. Write a creative, fun poem about these pull requests (keep it short - 4-8 lines)
+          3. Create an issue with your poem (the create-issue safe output will handle this)
+          4. Randomly select ONE topic from the list above
+          5. Use the trigger_workflow safe output to trigger scout.yml with your selected topic as the `topic` input
+          
+          ## Example trigger_workflow Output
+          
+          ```json
+          {
+            "items": [
+              {
+                "type": "trigger_workflow",
+                "workflow": "scout.yml",
+                "payload": "{\"topic\":\"Latest advancements in AI code generation\"}"
+              }
+            ]
+          }
+          ```
+          
+          Remember: Generate the poem, create the issue, then trigger scout with ONE randomly chosen research topic.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1251,7 +1303,7 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"dispatch-depth\":{\"default\":\"0\",\"description\":\"Current dispatch depth (tracks chained workflow dispatches, max 5)\",\"required\":false,\"type\":\"string\"},\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"}}"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -1269,7 +1321,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"dispatch-depth\":{\"default\":\"0\",\"description\":\"Current dispatch depth (tracks chained workflow dispatches, max 5)\",\"required\":false,\"type\":\"string\"},\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"}}"
         with:
           script: |
             async function main() {
@@ -3137,7 +3189,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Write a poem about the last 3 pull requests and publish an issue.\n"
+          WORKFLOW_MARKDOWN: "<!--\n## Trigger Workflow Integration\n\nThis shared configuration provides a custom safe-job for triggering workflow dispatches on allowed workflows.\n\n### Safe Job: trigger-workflow\n\nThe `trigger-workflow` safe-job allows agentic workflows to trigger workflow dispatches on specified workflows using the GitHub REST API.\n\n**Agent Output Format:**\n\nThe agent should output JSON with items of type `trigger_workflow`:\n\n```json\n{\n  \"items\": [\n    {\n      \"type\": \"trigger_workflow\",\n      \"workflow\": \"build.yml\",\n      \"payload\": \"{\\\"environment\\\":\\\"production\\\",\\\"version\\\":\\\"1.0.0\\\"}\"\n    }\n  ]\n}\n```\n\n**Required Configuration:**\n\nYou must configure allowed workflows in your workflow's `safe-outputs` configuration:\n\n```yaml\nsafe-outputs:\n  trigger-workflow:\n    allowed:\n      - \"build.yml\"\n      - \"deploy.yml\"\n      - \"test.yml\"\n```\n\n**Fields:**\n\n- `workflow`: The workflow filename to trigger (must be in the allowed list)\n- `payload`: Optional JSON string containing workflow inputs\n\n**Permissions:**\n\nThis safe-job requires `actions: write` permission to trigger workflow dispatches. The default `GITHUB_TOKEN` should have sufficient permissions in most cases.\n\n**Example Usage in Workflow:**\n\n```markdown\n---\non:\n  issues:\n    types: [opened]\npermissions:\n  contents: read\n  issues: read\nengine: claude\nimports:\n  - shared/trigger-workflow.md\nsafe-outputs:\n  trigger-workflow:\n    allowed:\n      - \"build.yml\"\n      - \"deploy.yml\"\n---\n\n# Issue-Triggered Build\n\nWhen a new issue is created, analyze it and trigger the appropriate workflow.\n\nIf the issue mentions \"deploy\", trigger the deploy.yml workflow.\nIf the issue mentions \"build\", trigger the build.yml workflow.\n\nUse the trigger_workflow safe output to trigger the appropriate workflow.\n```\n\n**Validation:**\n\nThe safe-job validates:\n- Workflow filename is in the allowed list\n- Payload is valid JSON (if provided)\n- Payload is an object, not an array or primitive\n\n**Staged Mode Support:**\n\nThis safe-job fully supports staged mode. When `staged: true` is set in the workflow's safe-outputs configuration, workflow triggers will be previewed in the step summary instead of being dispatched.\n\n**Security Considerations:**\n\n- Only workflows explicitly listed in the `allowed` configuration can be triggered\n- The `ref` parameter defaults to the current workflow's ref or `main`\n- Payload validation ensures only valid JSON objects are passed\n- Failed triggers will fail the entire safe-job with an error message\n-->\n\n# Dev Workflow: Poem Generator and Scout Launcher\n\nYou are a creative assistant that generates poems and triggers research workflows.\n\n## Mission\n\nWhen this workflow is triggered, you must:\n\n1. **Generate a Short Poem**: Create a brief, creative poem (4-8 lines) about the last 3 pull requests in this repository\n2. **Create an Issue**: Publish the poem as a GitHub issue\n3. **Trigger Scout Workflow**: Randomly select one research topic from the list below and trigger the scout.yml workflow with that topic\n\n## Research Topics for Scout\n\nChoose ONE of the following topics at random to trigger the scout workflow:\n\n- \"Latest advancements in AI code generation\"\n- \"Best practices for GitHub Actions workflows\"\n- \"Emerging trends in agentic AI systems\"\n- \"Security considerations for automated workflows\"\n- \"Innovations in developer tools and automation\"\n- \"Recent developments in large language models\"\n- \"Modern approaches to code review automation\"\n\n## Instructions\n\n1. First, use the GitHub API to get information about the last 3 pull requests\n2. Write a creative, fun poem about these pull requests (keep it short - 4-8 lines)\n3. Create an issue with your poem (the create-issue safe output will handle this)\n4. Randomly select ONE topic from the list above\n5. Use the trigger_workflow safe output to trigger scout.yml with your selected topic as the `topic` input\n\n## Example trigger_workflow Output\n\n```json\n{\n  \"items\": [\n    {\n      \"type\": \"trigger_workflow\",\n      \"workflow\": \"scout.yml\",\n      \"payload\": \"{\\\"topic\\\":\\\"Latest advancements in AI code generation\\\"}\"\n    }\n  ]\n}\n```\n\nRemember: Generate the poem, create the issue, then trigger scout with ONE randomly chosen research topic.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3336,6 +3388,7 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Dev"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GH_AW_TRIGGER_WORKFLOW_ALLOWED: scout.yml
         with:
           script: |
             function sanitizeLabelContent(content) {
@@ -3578,6 +3631,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GH_AW_TRIGGER_WORKFLOW_ALLOWED: scout.yml
         with:
           script: |
             async function main() {
@@ -3666,4 +3720,207 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  trigger_workflow:
+    needs:
+      - agent
+      - detection
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'trigger_workflow'))
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-jobs/
+      - name: Setup Safe Job Environment Variables
+        run: |
+          find /tmp/gh-aw/safe-jobs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> $GITHUB_ENV
+      - name: Trigger workflow dispatch
+        uses: actions/github-script@v8
+        with:
+          script: |-
+            const fs = require('fs');
+            const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
+            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+
+            // Read allowed workflows from environment variable or config
+            let allowedWorkflows = [];
+
+            // First, try to read from GH_AW_TRIGGER_WORKFLOW_ALLOWED environment variable
+            const allowedEnv = process.env.GH_AW_TRIGGER_WORKFLOW_ALLOWED;
+            if (allowedEnv) {
+              // Split by comma and trim whitespace
+              allowedWorkflows = allowedEnv.split(',').map(w => w.trim()).filter(Boolean);
+            } else {
+              // Fall back to reading from config (for backwards compatibility)
+              const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+              if (configEnv) {
+                try {
+                  const config = JSON.parse(configEnv);
+                  if (config['trigger_workflow'] && Array.isArray(config['trigger_workflow'].allowed)) {
+                    allowedWorkflows = config['trigger_workflow'].allowed;
+                  }
+                } catch (error) {
+                  core.setFailed(`Error parsing safe outputs config: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+            }
+
+            if (allowedWorkflows.length === 0) {
+              core.setFailed('No allowed workflows configured for trigger-workflow. Please set GH_AW_TRIGGER_WORKFLOW_ALLOWED environment variable with comma-separated workflow filenames.');
+              return;
+            }
+
+            core.info(`Allowed workflows: ${allowedWorkflows.join(', ')}`);
+
+            // Check dispatch depth to prevent infinite recursion
+            const MAX_DISPATCH_DEPTH = 5;
+            const dispatchDepthInput = core.getInput('dispatch-depth') || '0';
+            let currentDepth = 0;
+
+            try {
+              currentDepth = parseInt(dispatchDepthInput, 10);
+              if (isNaN(currentDepth) || currentDepth < 0) {
+                core.setFailed(`Invalid dispatch-depth value: ${dispatchDepthInput}. Must be a non-negative number.`);
+                return;
+              }
+            } catch (error) {
+              core.setFailed(`Failed to parse dispatch-depth: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+
+            core.info(`Current dispatch depth: ${currentDepth}`);
+
+            if (currentDepth >= MAX_DISPATCH_DEPTH) {
+              core.setFailed(`Maximum dispatch depth of ${MAX_DISPATCH_DEPTH} reached. This prevents infinite recursive workflow dispatches. Current depth: ${currentDepth}`);
+              return;
+            }
+
+            const nextDepth = currentDepth + 1;
+            core.info(`Next dispatch depth will be: ${nextDepth}`);
+
+            // Read and parse agent output
+            if (!outputContent) {
+              core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+              return;
+            }
+
+            let agentOutputData;
+            try {
+              const fileContent = fs.readFileSync(outputContent, 'utf8');
+              agentOutputData = JSON.parse(fileContent);
+            } catch (error) {
+              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+
+            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
+              core.info('No valid items found in agent output');
+              return;
+            }
+
+            // Filter for trigger_workflow items
+            const triggerItems = agentOutputData.items.filter(item => item.type === 'trigger_workflow');
+
+            if (triggerItems.length === 0) {
+              core.info('No trigger_workflow items found in agent output');
+              return;
+            }
+
+            core.info(`Found ${triggerItems.length} trigger_workflow item(s)`);
+
+            // Process each trigger item
+            for (let i = 0; i < triggerItems.length; i++) {
+              const item = triggerItems[i];
+              const workflow = item.workflow;
+              const payload = item.payload;
+
+              if (!workflow) {
+                core.warning(`Item ${i + 1}: Missing workflow field, skipping`);
+                continue;
+              }
+
+              // Validate workflow is in allowed list
+              if (!allowedWorkflows.includes(workflow)) {
+                core.warning(`Item ${i + 1}: Workflow '${workflow}' is not in allowed list. Allowed workflows: ${allowedWorkflows.join(', ')}`);
+                continue;
+              }
+
+              // Parse payload if provided
+              let inputs = {};
+              if (payload) {
+                try {
+                  inputs = JSON.parse(payload);
+                  if (typeof inputs !== 'object' || Array.isArray(inputs)) {
+                    core.warning(`Item ${i + 1}: Payload must be a JSON object, got ${typeof inputs}`);
+                    continue;
+                  }
+                } catch (error) {
+                  core.warning(`Item ${i + 1}: Invalid JSON payload: ${error instanceof Error ? error.message : String(error)}`);
+                  continue;
+                }
+              }
+
+              // Add dispatch-depth to inputs to track recursion depth
+              inputs['dispatch-depth'] = nextDepth.toString();
+
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Workflow Trigger Preview\n\n";
+                summaryContent += "The following workflow dispatch would be triggered if staged mode was disabled:\n\n";
+                summaryContent += `**Workflow:** ${workflow}\n\n`;
+                summaryContent += `**Dispatch Depth:** ${nextDepth}\n\n`;
+                if (payload) {
+                  summaryContent += `**Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n\n`;
+                } else {
+                  summaryContent += `**Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Workflow trigger preview written to step summary");
+                continue;
+              }
+
+              core.info(`Triggering workflow ${i + 1}/${triggerItems.length}: ${workflow}`);
+              if (payload) {
+                core.info(`With inputs: ${JSON.stringify(inputs)}`);
+              }
+
+              // Resolve the ref to use (current ref or repository default branch)
+              let ref = context.ref;
+              if (!ref) {
+                try {
+                  const repoData = await github.rest.repos.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo
+                  });
+                  ref = repoData.data.default_branch;
+                  core.info(`Using repository default branch: ${ref}`);
+                } catch (error) {
+                  core.setFailed(`Failed to resolve default branch: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
+
+              try {
+                const response = await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow,
+                  ref: ref,
+                  inputs: inputs
+                });
+
+                core.info(`✅ Workflow ${i + 1} triggered successfully`);
+                core.info(`Status: ${response.status}`);
+              } catch (error) {
+                core.setFailed(`Failed to trigger workflow ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
 

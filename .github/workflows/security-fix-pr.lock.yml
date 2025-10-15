@@ -3790,8 +3790,8 @@ jobs:
     if: (always()) && (contains(needs.agent.outputs.output_types, 'trigger_workflow'))
     runs-on: ubuntu-latest
     permissions:
-      actions: write
       contents: read
+      actions: write
     steps:
       - name: Download agent output artifact
         continue-on-error: true
