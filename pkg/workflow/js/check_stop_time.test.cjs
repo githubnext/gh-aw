@@ -102,39 +102,36 @@ describe("check_stop_time.cjs", () => {
   });
 
   describe("when stop time is not configured", () => {
-    it("should allow execution if GITHUB_AW_STOP_TIME is not set", async () => {
+    it("should fail if GITHUB_AW_STOP_TIME is not set", async () => {
       delete process.env.GITHUB_AW_STOP_TIME;
       process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GITHUB_AW_STOP_TIME not specified"));
-      expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "config_error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_AW_STOP_TIME not specified"));
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
 
-    it("should allow execution if GITHUB_AW_WORKFLOW_NAME is not set", async () => {
+    it("should fail if GITHUB_AW_WORKFLOW_NAME is not set", async () => {
       process.env.GITHUB_AW_STOP_TIME = "2025-12-31 23:59:59";
       delete process.env.GITHUB_AW_WORKFLOW_NAME;
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("GITHUB_AW_WORKFLOW_NAME not specified"));
-      expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "config_error");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("GITHUB_AW_WORKFLOW_NAME not specified"));
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
   });
 
   describe("when stop time format is invalid", () => {
-    it("should allow execution with warning for invalid format", async () => {
+    it("should fail with error for invalid format", async () => {
       process.env.GITHUB_AW_STOP_TIME = "invalid-date";
       process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Invalid stop-time format"));
-      expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "invalid_format");
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid stop-time format"));
+      expect(mockCore.setOutput).not.toHaveBeenCalled();
     });
   });
 
@@ -150,9 +147,7 @@ describe("check_stop_time.cjs", () => {
 
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("All safety checks passed"));
       expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "true");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "ok");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
@@ -174,7 +169,6 @@ describe("check_stop_time.cjs", () => {
       expect(mockGithub.rest.actions.listRepoWorkflows).not.toHaveBeenCalled();
       expect(mockGithub.rest.actions.disableWorkflow).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "false");
-      expect(mockCore.setOutput).toHaveBeenCalledWith("result", "stop_time_reached");
       // Should NOT call setFailed - let the activation job handle it
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });

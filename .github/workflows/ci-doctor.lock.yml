@@ -5,7 +5,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md
 #
-# Effective stop-time: 2025-10-17 20:00:58
+# Effective stop-time: 2025-10-17 20:30:47
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -55,7 +55,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_STOP_TIME: 2025-10-17 20:00:58
+          GITHUB_AW_STOP_TIME: 2025-10-17 20:30:47
           GITHUB_AW_WORKFLOW_NAME: "CI Failure Doctor"
         with:
           script: |
@@ -63,23 +63,17 @@ jobs:
               const stopTime = process.env.GITHUB_AW_STOP_TIME;
               const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME;
               if (!stopTime) {
-                core.warning("❌ Configuration error: GITHUB_AW_STOP_TIME not specified.");
-                core.setOutput("stop_time_ok", "true"); 
-                core.setOutput("result", "config_error");
+                core.setFailed("Configuration error: GITHUB_AW_STOP_TIME not specified.");
                 return;
               }
               if (!workflowName) {
-                core.warning("❌ Configuration error: GITHUB_AW_WORKFLOW_NAME not specified.");
-                core.setOutput("stop_time_ok", "true"); 
-                core.setOutput("result", "config_error");
+                core.setFailed("Configuration error: GITHUB_AW_WORKFLOW_NAME not specified.");
                 return;
               }
               core.info(`Checking stop-time limit: ${stopTime}`);
               const stopTimeDate = new Date(stopTime);
               if (isNaN(stopTimeDate.getTime())) {
-                core.warning(`⚠️ Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
-                core.setOutput("stop_time_ok", "true"); 
-                core.setOutput("result", "invalid_format");
+                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
                 return;
               }
               const currentTime = new Date();
@@ -88,12 +82,9 @@ jobs:
               if (currentTime >= stopTimeDate) {
                 core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
                 core.setOutput("stop_time_ok", "false");
-                core.setOutput("result", "stop_time_reached");
                 return;
               }
-              core.info("✅ All safety checks passed. Proceeding with agentic tool execution.");
               core.setOutput("stop_time_ok", "true");
-              core.setOutput("result", "ok");
             }
             await main();
 
