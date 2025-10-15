@@ -28,10 +28,10 @@ gh aw trial githubnext/agentics/ci-doctor  # Test workflow safely before adding
 gh aw trial ./my-workflow.md                # Test local workflow during development
 gh aw update                                     # Update all workflows with source field
 gh aw status                                     # Check status
-gh aw run ci-doctor                        # Execute workflow
-gh aw run ci-doctor daily-plan             # Execute multiple workflows
-gh aw run ci-doctor --repeat 3600          # Execute workflow every hour
-gh aw logs ci-doctor                             # View execution logs
+gh aw run daily-perf                        # Execute workflow
+gh aw run daily-perf daily-plan             # Execute multiple workflows
+gh aw run daily-perf --repeat 10            # Execute workflow 10 times
+gh aw logs daily-perf                             # View execution logs
 gh aw audit 12345678                             # Audit a specific run
 ```
 
@@ -112,7 +112,7 @@ These commands control the execution and state of your compiled agentic workflow
 ```bash
 gh aw run WorkflowName                      # Run single workflow
 gh aw run WorkflowName1 WorkflowName2       # Run multiple workflows
-gh aw run WorkflowName --repeat 180         # Repeat every 3 minutes
+gh aw run WorkflowName --repeat 3           # Run 3 times total
 gh aw run weekly-research --enable-if-needed --input priority=high
 ```
 

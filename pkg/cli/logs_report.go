@@ -77,7 +77,7 @@ type AccessLogSummary struct {
 }
 
 // buildLogsData creates structured logs data from processed runs
-func buildLogsData(processedRuns []ProcessedRun, outputDir string, verbose bool) LogsData {
+func buildLogsData(processedRuns []ProcessedRun, outputDir string) LogsData {
 	// Build summary
 	var totalDuration time.Duration
 	var totalTokens int
@@ -380,7 +380,7 @@ func renderLogsJSON(data LogsData) error {
 }
 
 // renderLogsConsole outputs the logs data as formatted console output
-func renderLogsConsole(data LogsData, verbose bool) {
+func renderLogsConsole(data LogsData) {
 	// Use unified console rendering for the entire logs data structure
 	fmt.Print(console.RenderStruct(data))
 

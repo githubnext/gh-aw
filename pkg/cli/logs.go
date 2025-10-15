@@ -649,7 +649,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 	}
 
 	// Build structured logs data
-	logsData := buildLogsData(processedRuns, outputDir, verbose)
+	logsData := buildLogsData(processedRuns, outputDir)
 
 	// Render output based on format preference
 	if jsonOutput {
@@ -657,7 +657,7 @@ func DownloadWorkflowLogs(workflowName string, count int, startDate, endDate, ou
 			return fmt.Errorf("failed to render JSON output: %w", err)
 		}
 	} else {
-		renderLogsConsole(logsData, verbose)
+		renderLogsConsole(logsData)
 
 		// Generate tool sequence graph if requested (console output only)
 		if toolGraph {

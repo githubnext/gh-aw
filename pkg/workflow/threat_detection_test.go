@@ -291,7 +291,10 @@ func TestThreatDetectionJobDependencies(t *testing.T) {
 
 	// Build safe output jobs (this will automatically build the detection job too)
 	frontmatter := map[string]any{}
-	if err := compiler.buildSafeOutputsJobs(data, "agent", false, frontmatter, "test.md"); err != nil {
+	if err := func() error {
+		var _ map[string]any = frontmatter
+		return compiler.buildSafeOutputsJobs(data, "agent", "test.md")
+	}(); err != nil {
 		t.Fatalf("Failed to build safe output jobs: %v", err)
 	}
 

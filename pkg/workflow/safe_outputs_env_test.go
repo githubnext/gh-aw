@@ -57,7 +57,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			},
 		}
 
-		job, err := compiler.buildCreateOutputIssueJob(data, "main_job", false, nil)
+		job, err := compiler.buildCreateOutputIssueJob(data, "main_job")
 		if err != nil {
 			t.Fatalf("Failed to build create issue job: %v", err)
 		}
@@ -119,7 +119,7 @@ func TestSafeOutputsEnvConfiguration(t *testing.T) {
 			SafeOutputs:     config,
 		}
 
-		_, err := compiler.buildCreateOutputIssueJob(data, "main_job", false, nil)
+		_, err := compiler.buildCreateOutputIssueJob(data, "main_job")
 		if err != nil {
 			t.Errorf("Job creation should work without env configuration: %v", err)
 		}

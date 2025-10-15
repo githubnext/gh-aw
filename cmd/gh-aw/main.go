@@ -178,13 +178,13 @@ It executes 'gh workflow run <workflow-lock-file>' to trigger each workflow on G
 
 Examples:
   gh aw run daily-perf-improver
-  gh aw run daily-perf-improver --repeat 3600  # Run every hour
+  gh aw run daily-perf-improver --repeat 3  # Run 3 times total
   gh aw run daily-perf-improver --enable-if-needed # Enable if disabled, run, then restore state`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		repeatSeconds, _ := cmd.Flags().GetInt("repeat")
+		repeatCount, _ := cmd.Flags().GetInt("repeat")
 		enable, _ := cmd.Flags().GetBool("enable-if-needed")
-		if err := cli.RunWorkflowsOnGitHub(args, repeatSeconds, enable, verboseFlag); err != nil {
+		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -255,7 +255,7 @@ func init() {
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
 
 	// Add flags to run command
-	runCmd.Flags().Int("repeat", 0, "Repeat running workflows every SECONDS (0 = run once)")
+	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 
 	// Create and setup status command
