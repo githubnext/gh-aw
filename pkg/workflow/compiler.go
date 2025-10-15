@@ -2038,9 +2038,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 		// Add the JavaScript script with proper indentation
 		formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
 		steps = append(steps, formattedScript...)
-
-		// Add actions: write permission for stop-time check (workflow disable)
-		permissions = "permissions:\n      actions: write  # Required for gh workflow disable"
 	}
 
 	// Generate the activated output expression using expression builders

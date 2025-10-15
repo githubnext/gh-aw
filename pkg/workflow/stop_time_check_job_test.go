@@ -52,11 +52,6 @@ This workflow has a stop-after configuration.
 			t.Error("Expected pre_activation job to be created")
 		}
 
-		// Verify pre_activation job has actions: write permission for stop-time check
-		if !strings.Contains(lockContentStr, "actions: write  # Required for gh workflow disable") {
-			t.Error("Expected pre_activation job to have actions: write permission")
-		}
-
 		// Verify safety checks are in pre_activation job, not main job
 		preActivationStart := strings.Index(lockContentStr, "pre_activation:")
 		agentStart := strings.Index(lockContentStr, "agent:")
@@ -234,10 +229,6 @@ This workflow has both membership check and stop-after.
 
 		if !strings.Contains(lockContentStr, "Check stop-time limit") {
 			t.Error("Expected stop-time check in pre_activation job")
-		}
-
-		if !strings.Contains(lockContentStr, "actions: write") {
-			t.Error("Expected actions: write permission in pre_activation job")
 		}
 
 		// Verify the activated output combines both membership and stop-time checks

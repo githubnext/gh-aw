@@ -33,38 +33,9 @@ async function main() {
   core.info(`Stop time: ${stopTimeDate.toISOString()}`);
 
   if (currentTime >= stopTimeDate) {
-    core.warning(`⏰ Stop time reached. Attempting to disable workflow to prevent cost overrun.`);
-
-    try {
-      // Disable the workflow using GitHub API
-      const { owner, repo } = context.repo;
-
-      // Get all workflows to find the one with matching name
-      const { data: workflows } = await github.rest.actions.listRepoWorkflows({
-        owner,
-        repo,
-      });
-
-      const workflow = workflows.workflows.find(w => w.name === workflowName);
-
-      if (workflow) {
-        await github.rest.actions.disableWorkflow({
-          owner,
-          repo,
-          workflow_id: workflow.id,
-        });
-        core.info(`✅ Workflow '${workflowName}' disabled. No future runs will be triggered.`);
-      } else {
-        core.warning(`⚠️ Could not find workflow '${workflowName}' to disable.`);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      core.warning(`⚠️ Failed to disable workflow: ${errorMessage}`);
-    }
-
+    core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
     core.setOutput("stop_time_ok", "false");
     core.setOutput("result", "stop_time_reached");
-    core.setFailed("Stop time reached. Workflow execution stopped to prevent cost overrun.");
     return;
   }
 

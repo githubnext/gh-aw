@@ -158,7 +158,7 @@ describe("check_stop_time.cjs", () => {
   });
 
   describe("when stop time has been reached", () => {
-    it("should fail and attempt to disable workflow", async () => {
+    it("should set stop_time_ok to false without attempting to disable workflow", async () => {
       // Set stop time to 1 year in the past
       const pastDate = new Date();
       pastDate.setFullYear(pastDate.getFullYear() - 1);
@@ -167,70 +167,16 @@ describe("check_stop_time.cjs", () => {
       process.env.GITHUB_AW_STOP_TIME = stopTime;
       process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
 
-      mockGithub.rest.actions.listRepoWorkflows.mockResolvedValue({
-        data: {
-          workflows: [
-            { id: 123, name: "test-workflow" },
-            { id: 456, name: "other-workflow" },
-          ],
-        },
-      });
-      mockGithub.rest.actions.disableWorkflow.mockResolvedValue({});
-
       await eval(`(async () => { ${checkStopTimeScript} })()`);
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Stop time reached"));
-      expect(mockGithub.rest.actions.listRepoWorkflows).toHaveBeenCalledWith({
-        owner: "testowner",
-        repo: "testrepo",
-      });
-      expect(mockGithub.rest.actions.disableWorkflow).toHaveBeenCalledWith({
-        owner: "testowner",
-        repo: "testrepo",
-        workflow_id: 123,
-      });
-      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Workflow 'test-workflow' disabled"));
+      // Should NOT attempt to disable workflow
+      expect(mockGithub.rest.actions.listRepoWorkflows).not.toHaveBeenCalled();
+      expect(mockGithub.rest.actions.disableWorkflow).not.toHaveBeenCalled();
       expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "false");
       expect(mockCore.setOutput).toHaveBeenCalledWith("result", "stop_time_reached");
-      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Stop time reached"));
-    });
-
-    it("should handle workflow not found gracefully", async () => {
-      const pastDate = new Date();
-      pastDate.setFullYear(pastDate.getFullYear() - 1);
-      const stopTime = pastDate.toISOString().replace("T", " ").substring(0, 19);
-
-      process.env.GITHUB_AW_STOP_TIME = stopTime;
-      process.env.GITHUB_AW_WORKFLOW_NAME = "non-existent-workflow";
-
-      mockGithub.rest.actions.listRepoWorkflows.mockResolvedValue({
-        data: {
-          workflows: [{ id: 123, name: "other-workflow" }],
-        },
-      });
-
-      await eval(`(async () => { ${checkStopTimeScript} })()`);
-
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not find workflow"));
-      expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "false");
-      expect(mockCore.setFailed).toHaveBeenCalled();
-    });
-
-    it("should handle API errors gracefully", async () => {
-      const pastDate = new Date();
-      pastDate.setFullYear(pastDate.getFullYear() - 1);
-      const stopTime = pastDate.toISOString().replace("T", " ").substring(0, 19);
-
-      process.env.GITHUB_AW_STOP_TIME = stopTime;
-      process.env.GITHUB_AW_WORKFLOW_NAME = "test-workflow";
-
-      mockGithub.rest.actions.listRepoWorkflows.mockRejectedValue(new Error("API error"));
-
-      await eval(`(async () => { ${checkStopTimeScript} })()`);
-
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to disable workflow"));
-      expect(mockCore.setOutput).toHaveBeenCalledWith("stop_time_ok", "false");
-      expect(mockCore.setFailed).toHaveBeenCalled();
+      // Should NOT call setFailed - let the activation job handle it
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
   });
 });

@@ -5,7 +5,7 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md
 #
-# Effective stop-time: 2025-10-17 19:39:27
+# Effective stop-time: 2025-10-17 20:00:58
 #
 # Job Dependency Graph:
 # ```mermaid
@@ -48,8 +48,6 @@ jobs:
   pre_activation:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
-    permissions:
-      actions: write  # Required for gh workflow disable
     outputs:
       activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
     steps:
@@ -57,7 +55,7 @@ jobs:
         id: check_stop_time
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_STOP_TIME: 2025-10-17 19:39:27
+          GITHUB_AW_STOP_TIME: 2025-10-17 20:00:58
           GITHUB_AW_WORKFLOW_NAME: "CI Failure Doctor"
         with:
           script: |
@@ -88,31 +86,9 @@ jobs:
               core.info(`Current time: ${currentTime.toISOString()}`);
               core.info(`Stop time: ${stopTimeDate.toISOString()}`);
               if (currentTime >= stopTimeDate) {
-                core.warning(`⏰ Stop time reached. Attempting to disable workflow to prevent cost overrun.`);
-                try {
-                  const { owner, repo } = context.repo;
-                  const { data: workflows } = await github.rest.actions.listRepoWorkflows({
-                    owner,
-                    repo,
-                  });
-                  const workflow = workflows.workflows.find(w => w.name === workflowName);
-                  if (workflow) {
-                    await github.rest.actions.disableWorkflow({
-                      owner,
-                      repo,
-                      workflow_id: workflow.id,
-                    });
-                    core.info(`✅ Workflow '${workflowName}' disabled. No future runs will be triggered.`);
-                  } else {
-                    core.warning(`⚠️ Could not find workflow '${workflowName}' to disable.`);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  core.warning(`⚠️ Failed to disable workflow: ${errorMessage}`);
-                }
+                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
                 core.setOutput("stop_time_ok", "false");
                 core.setOutput("result", "stop_time_reached");
-                core.setFailed("Stop time reached. Workflow execution stopped to prevent cost overrun.");
                 return;
               }
               core.info("✅ All safety checks passed. Proceeding with agentic tool execution.");
