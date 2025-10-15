@@ -2,6 +2,24 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   detection["detection"]
+#   create_discussion["create_discussion"]
+#   missing_tool["missing_tool"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> detection
+#   agent --> create_discussion
+#   detection --> create_discussion
+#   agent --> missing_tool
+#   detection --> missing_tool
+# ```
 
 name: "GitHub MCP Remote Server Tools Report Generator"
 "on":
@@ -482,7 +500,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -551,7 +569,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: url,
+                    text: JSON.stringify({ result: url }),
                   },
                 ],
               };
@@ -576,7 +594,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -592,7 +610,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -875,7 +893,7 @@ jobs:
                       content: [
                         {
                           type: "text",
-                          text: outputText,
+                          text: JSON.stringify({ result: outputText }),
                         },
                       ],
                     };

@@ -8,6 +8,24 @@
 #     - shared/mcp/gh-aw.md
 #     - shared/mcp/serena.md
 #     - shared/mcp/tavily.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   detection["detection"]
+#   create_pull_request["create_pull_request"]
+#   missing_tool["missing_tool"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> detection
+#   agent --> create_pull_request
+#   detection --> create_pull_request
+#   agent --> missing_tool
+#   detection --> missing_tool
+# ```
 
 name: "Q"
 "on":
@@ -919,7 +937,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -988,7 +1006,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: url,
+                    text: JSON.stringify({ result: url }),
                   },
                 ],
               };
@@ -1013,7 +1031,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -1029,7 +1047,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -1312,7 +1330,7 @@ jobs:
                       content: [
                         {
                           type: "text",
-                          text: outputText,
+                          text: JSON.stringify({ result: outputText }),
                         },
                       ],
                     };

@@ -1685,6 +1685,17 @@ func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string
 		yaml.WriteString(fmt.Sprintf("# Effective stop-time: %s\n", data.StopTime))
 	}
 
+	// Add Mermaid graph of job dependencies
+	mermaidGraph := c.jobManager.GenerateMermaidGraph()
+	if mermaidGraph != "" {
+		yaml.WriteString("#\n")
+		yaml.WriteString("# Job Dependency Graph:\n")
+		// Add each line of the mermaid graph as a comment
+		for _, line := range strings.Split(mermaidGraph, "\n") {
+			yaml.WriteString(fmt.Sprintf("# %s\n", line))
+		}
+	}
+
 	yaml.WriteString("\n")
 
 	// Write basic workflow structure
@@ -2670,6 +2681,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 
 	// Add temporary folder usage instructions
 	c.generateTempFolderPromptStep(yaml)
+
+	// Add playwright output directory instructions if playwright tool is enabled
+	c.generatePlaywrightPromptStep(yaml, data)
 
 	// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 	// if len(trialTargetRepoName) == 2 {

@@ -6,6 +6,24 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/genaiscript.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   detection["detection"]
+#   create_issue["create_issue"]
+#   missing_tool["missing_tool"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> detection
+#   agent --> create_issue
+#   detection --> create_issue
+#   agent --> missing_tool
+#   detection --> missing_tool
+# ```
 
 name: "Smoke GenAIScript"
 "on":
@@ -343,7 +361,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -412,7 +430,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: url,
+                    text: JSON.stringify({ result: url }),
                   },
                 ],
               };
@@ -437,7 +455,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -453,7 +471,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -736,7 +754,7 @@ jobs:
                       content: [
                         {
                           type: "text",
-                          text: outputText,
+                          text: JSON.stringify({ result: outputText }),
                         },
                       ],
                     };
