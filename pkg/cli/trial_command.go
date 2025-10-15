@@ -108,9 +108,15 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			triggerContext, _ := cmd.Flags().GetString("trigger-context")
 			repeatCount, _ := cmd.Flags().GetInt("repeat")
 			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
+			engineOverride, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
-			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, verbose); err != nil {
+			if err := validateEngine(engineOverride); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+				os.Exit(1)
+			}
+
+			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, engineOverride, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -136,12 +142,13 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the trial (requires --clone-repo)")
+	cmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
 
 	return cmd
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, verbose bool) error {
+func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, verbose bool) error {
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -287,7 +294,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 			// Install workflow with trial mode compilation
-			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, verbose); err != nil {
+			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
 				return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 			}
 
@@ -703,7 +710,7 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, verbose bool) error {
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, verbose bool) error {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -750,7 +757,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 	config := CompileConfig{
 		MarkdownFiles:        []string{".github/workflows/" + parsedSpec.WorkflowName + ".md"},
 		Verbose:              verbose,
-		EngineOverride:       "",
+		EngineOverride:       engineOverride,
 		Validate:             true,
 		Watch:                false,
 		WorkflowDir:          "",
@@ -770,7 +777,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 	workflowData := workflowDataList[0]
 
 	// Determine required engine secret from workflow data
-	if err := determineAndAddEngineSecret(workflowData, hostRepoSlug, secretTracker, verbose); err != nil {
+	if err := determineAndAddEngineSecret(workflowData, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
 		return fmt.Errorf("failed to determine engine secret: %w", err)
 	}
 
@@ -993,23 +1000,32 @@ func waitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbo
 }
 
 // determineAndAddEngineSecret determines and sets the appropriate engine secret based on workflow configuration with tracking
-func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, tracker *TrialSecretTracker, verbose bool) error {
+func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, tracker *TrialSecretTracker, engineOverride string, verbose bool) error {
 	var engineType string
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Determining required engine secret for workflow"))
 	}
 
-	// Find the matching workflow and determine its engine
-	// Check both the original filename-based name and the processed display name
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found matching workflow: %s", workflowData.Name)))
-	}
-	// Check if engine is specified in the EngineConfig
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		engineType = workflowData.EngineConfig.ID
+	// Debug: Always show what engine override we received
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("DEBUG: engineOverride parameter = '%s'", engineOverride)))
+
+	// Use engine override if provided
+	if engineOverride != "" {
+		engineType = engineOverride
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using engine override: %s", engineType)))
+	} else {
+		// Find the matching workflow and determine its engine
+		// Check both the original filename-based name and the processed display name
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in EngineConfig: %s", engineType)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found matching workflow: %s", workflowData.Name)))
+		}
+		// Check if engine is specified in the EngineConfig
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+			engineType = workflowData.EngineConfig.ID
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in EngineConfig: %s", engineType)))
+			}
 		}
 	}
 

@@ -184,7 +184,15 @@ Examples:
 	Run: func(cmd *cobra.Command, args []string) {
 		repeatCount, _ := cmd.Flags().GetInt("repeat")
 		enable, _ := cmd.Flags().GetBool("enable-if-needed")
-		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, verboseFlag); err != nil {
+		engineOverride, _ := cmd.Flags().GetString("engine")
+		repoOverride, _ := cmd.Flags().GetString("repo")
+		
+		if err := validateEngine(engineOverride); err != nil {
+			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+			os.Exit(1)
+		}
+		
+		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("running workflows on GitHub Actions: %v", err),
@@ -257,6 +265,8 @@ func init() {
 	// Add flags to run command
 	runCmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
+	runCmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
+	runCmd.Flags().StringP("repo", "r", "", "Repository to run the workflow in (owner/repo format)")
 
 	// Create and setup status command
 	statusCmd := cli.NewStatusCommand()

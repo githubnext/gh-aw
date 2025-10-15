@@ -16,7 +16,7 @@ import (
 )
 
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
-func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) error {
+func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride string, repoOverride string, verbose bool) error {
 	if workflowIdOrName == "" {
 		return fmt.Errorf("workflow name or ID is required")
 	}
@@ -51,7 +51,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 	var workflowID int64
 	if enable {
 		// Get current workflow status
-		workflow, err := getWorkflowStatus(workflowIdOrName, verbose)
+		workflow, err := getWorkflowStatus(workflowIdOrName, repoOverride, verbose)
 		if err != nil {
 			if verbose {
 				fmt.Printf("Warning: Could not check workflow status: %v\n", err)
@@ -67,7 +67,11 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 					fmt.Println(console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
 				}
 				// Enable the workflow
-				cmd := exec.Command("gh", "workflow", "enable", strconv.FormatInt(workflow.ID, 10))
+				enableArgs := []string{"workflow", "enable", strconv.FormatInt(workflow.ID, 10)}
+				if repoOverride != "" {
+					enableArgs = append(enableArgs, "--repo", repoOverride)
+				}
+				cmd := exec.Command("gh", enableArgs...)
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("failed to enable workflow '%s': %w", workflowIdOrName, err)
 				}
@@ -97,15 +101,55 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 		return fmt.Errorf("workflow lock file '%s' not found in .github/workflows - run '"+constants.CLIExtensionPrefix+" compile' first", lockFileName)
 	}
 
+	// Recompile workflow if engine override is provided
+	if engineOverride != "" {
+		if verbose {
+			fmt.Printf("Recompiling workflow with engine override: %s\n", engineOverride)
+		}
+		
+		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
+		config := CompileConfig{
+			MarkdownFiles:        []string{workflowMarkdownPath},
+			Verbose:              verbose,
+			EngineOverride:       engineOverride,
+			Validate:             true,
+			Watch:                false,
+			WorkflowDir:          "",
+			SkipInstructions:     false,
+			NoEmit:               false,
+			Purge:                false,
+			TrialMode:            false,
+			TrialLogicalRepoSlug: "",
+			Strict:               false,
+		}
+		if _, err := CompileWorkflows(config); err != nil {
+			return fmt.Errorf("failed to recompile workflow with engine override: %w", err)
+		}
+		
+		if verbose {
+			fmt.Printf("Successfully recompiled workflow with engine: %s\n", engineOverride)
+		}
+	}
+
 	if verbose {
 		fmt.Printf("Using lock file: %s\n", lockFileName)
 	}
 
+	// Build the gh workflow run command with optional repo override
+	args := []string{"workflow", "run", lockFileName}
+	if repoOverride != "" {
+		args = append(args, "--repo", repoOverride)
+	}
+	
 	// Execute gh workflow run command and capture output
-	cmd := exec.Command("gh", "workflow", "run", lockFileName)
+	cmd := exec.Command("gh", args...)
 
 	if verbose {
-		fmt.Printf("Executing: gh workflow run %s\n", lockFileName)
+		if repoOverride != "" {
+			fmt.Printf("Executing: gh workflow run %s --repo %s\n", lockFileName, repoOverride)
+		} else {
+			fmt.Printf("Executing: gh workflow run %s\n", lockFileName)
+		}
 	}
 
 	// Capture both stdout and stderr
@@ -118,7 +162,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 
 		// Restore workflow state if it was disabled and we enabled it (even on error)
 		if enable && wasDisabled && workflowID != 0 {
-			restoreWorkflowState(workflowIdOrName, workflowID, verbose)
+				restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
 		}
 
 		return fmt.Errorf("failed to run workflow on GitHub Actions: %w", err)
@@ -134,7 +178,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 
 	// Try to get the latest run for this workflow to show a direct link
 	// Add a delay to allow GitHub Actions time to register the new workflow run
-	if runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, "", verbose); err == nil && runInfo.URL != "" {
+	if runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoOverride, verbose); err == nil && runInfo.URL != "" {
 		fmt.Printf("\n🔗 View workflow run: %s\n", runInfo.URL)
 	} else if verbose && err != nil {
 		fmt.Printf("Note: Could not get workflow run URL: %v\n", err)
@@ -142,14 +186,14 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, verbose bool) err
 
 	// Restore workflow state if it was disabled and we enabled it
 	if enable && wasDisabled && workflowID != 0 {
-		restoreWorkflowState(workflowIdOrName, workflowID, verbose)
+		restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
 	}
 
 	return nil
 }
 
 // RunWorkflowsOnGitHub runs multiple agentic workflows on GitHub Actions, optionally repeating a specified number of times
-func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, verbose bool) error {
+func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, engineOverride string, repoOverride string, verbose bool) error {
 	if len(workflowNames) == 0 {
 		return fmt.Errorf("at least one workflow name or ID is required")
 	}
@@ -185,7 +229,7 @@ func RunWorkflowsOnGitHub(workflowNames []string, repeatCount int, enable bool, 
 				fmt.Println(console.FormatProgressMessage(fmt.Sprintf("Running workflow %d/%d: %s", i+1, len(workflowNames), workflowName)))
 			}
 
-			if err := RunWorkflowOnGitHub(workflowName, enable, verbose); err != nil {
+			if err := RunWorkflowOnGitHub(workflowName, enable, engineOverride, repoOverride, verbose); err != nil {
 				return fmt.Errorf("failed to run workflow '%s': %w", workflowName, err)
 			}
 

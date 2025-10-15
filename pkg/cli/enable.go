@@ -83,7 +83,7 @@ func toggleWorkflowsByNames(workflowNames []string, enable bool) error {
 	}
 
 	// Get GitHub workflows status for comparison; warn but continue if unavailable
-	githubWorkflows, err := fetchGitHubWorkflows(false)
+	githubWorkflows, err := fetchGitHubWorkflows("", false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Unable to fetch GitHub workflows (gh CLI may not be authenticated): %v\n", err)
 		githubWorkflows = make(map[string]*GitHubWorkflow)
