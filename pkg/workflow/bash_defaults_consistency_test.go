@@ -120,7 +120,16 @@ func TestBashDefaultsConsistency(t *testing.T) {
 
 			copilotHasShell := false
 			copilotHasGit := false
-			for i := 0; i < len(copilotResult); i += 2 {
+			for i := 0; i < len(copilotResult); i++ {
+				// Check for --allow-all-tools flag
+				if copilotResult[i] == "--allow-all-tools" {
+					copilotHasShell = true // --allow-all-tools includes shell
+					// Note: Don't set copilotHasGit=true here because --allow-all-tools
+					// means all tools are allowed, but for consistency checking we should
+					// only flag git as true if git commands are explicitly listed
+					break
+				}
+				// Check for specific tool permissions
 				if i+1 < len(copilotResult) && copilotResult[i] == "--allow-tool" {
 					tool := copilotResult[i+1]
 					if tool == "shell" || strings.HasPrefix(tool, "shell(") {
