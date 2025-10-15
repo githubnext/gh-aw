@@ -209,7 +209,8 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 
 // buildSetupScript creates the setup portion
 func (c *Compiler) buildSetupScript() string {
-	return fmt.Sprintf(`const fs = require('fs');
+	// Build the JavaScript code with proper handling of backticks for markdown code blocks
+	script := `const fs = require('fs');
 
 // Check if agent output file exists
 const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
@@ -263,15 +264,16 @@ core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
 
 // Note: creation of /tmp/gh-aw/threat-detection and detection.log is handled by a separate shell step
 
-// Write rendered prompt to step summary
+// Write rendered prompt to step summary using HTML details/summary
 await core.summary
   .addHeading('Threat Detection Prompt', 2)
   .addRaw('\n')
-  .addCodeBlock(promptContent, 'text')
+  .addRaw('<details>\n<summary>Click to expand prompt</summary>\n\n' + '` + "`" + `` + "`" + `` + "`" + `text\n' + promptContent + '\n' + '` + "`" + `` + "`" + `` + "`" + `\n\n</details>\n')
   .write();
 
-core.info('Threat detection setup completed');`,
-		c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
+core.info('Threat detection setup completed');`
+
+	return fmt.Sprintf(script, c.formatStringAsJavaScriptLiteral(defaultThreatDetectionPrompt))
 }
 
 // buildEngineSteps creates the engine execution steps

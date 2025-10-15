@@ -3320,7 +3320,7 @@ jobs:
             await core.summary
               .addHeading('Threat Detection Prompt', 2)
               .addRaw('\n')
-              .addCodeBlock(promptContent, 'text')
+              .addRaw('<details>\n<summary>Click to expand prompt</summary>\n\n' + '```text\n' + promptContent + '\n' + '```\n\n</details>\n')
               .write();
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log
