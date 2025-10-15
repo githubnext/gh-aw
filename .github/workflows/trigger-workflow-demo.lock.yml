@@ -2,24 +2,26 @@
 # To update this file, edit the corresponding .md file and run:
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
+#
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/trigger-workflow.md
 
-name: "Changeset Generator"
+name: "Workflow Trigger Demo"
 "on":
-  pull_request:
+  issues:
     types:
-    - ready_for_review
+    - opened
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
-  cancel-in-progress: true
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Changeset Generator"
+run-name: "Workflow Trigger Demo"
 
 jobs:
   check_membership:
-    if: github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: ubuntu-latest
     outputs:
       error_message: ${{ steps.check_membership.outputs.error_message }}
@@ -110,18 +112,8 @@ jobs:
 
   activation:
     needs: check_membership
-    if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (github.event.pull_request.base.ref == github.event.repository.default_branch)
+    if: needs.check_membership.outputs.is_team_member == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      discussions: write
-      issues: write
-      pull-requests: write
-    outputs:
-      comment_id: ${{ steps.react.outputs.comment-id }}
-      comment_url: ${{ steps.react.outputs.comment-url }}
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
-      text: ${{ steps.compute-text.outputs.text }}
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -138,472 +130,16 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-      - name: Compute current body text
-        id: compute-text
-        uses: actions/github-script@v8
-        with:
-          script: |
-            function sanitizeContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              const allowedDomainsEnv = process.env.GITHUB_AW_ALLOWED_DOMAINS;
-              const defaultAllowedDomains = ["github.com", "github.io", "githubusercontent.com", "githubassets.com", "github.dev", "codespaces.new"];
-              const allowedDomains = allowedDomainsEnv
-                ? allowedDomainsEnv
-                    .split(",")
-                    .map(d => d.trim())
-                    .filter(d => d)
-                : defaultAllowedDomains;
-              let sanitized = content;
-              sanitized = neutralizeMentions(sanitized);
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = convertXmlTagsToParentheses(sanitized);
-              sanitized = sanitizeUrlProtocols(sanitized);
-              sanitized = sanitizeUrlDomains(sanitized);
-              const maxLength = 524288;
-              if (sanitized.length > maxLength) {
-                sanitized = sanitized.substring(0, maxLength) + "\n[Content truncated due to length]";
-              }
-              const lines = sanitized.split("\n");
-              const maxLines = 65000;
-              if (lines.length > maxLines) {
-                sanitized = lines.slice(0, maxLines).join("\n") + "\n[Content truncated due to line count]";
-              }
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = neutralizeBotTriggers(sanitized);
-              return sanitized.trim();
-              function convertXmlTagsToParentheses(s) {
-                if (!s || typeof s !== "string") {
-                  return s;
-                }
-                return (
-                  s
-                    .replace(/<\/?[a-zA-Z][a-zA-Z0-9\-_:]*(?:\s[^>]*|\/)?>/g, match => {
-                      const innerContent = match.slice(1, -1);
-                      return `(${innerContent})`;
-                    })
-                    .replace(/<!--[\s\S]*?-->/g, match => {
-                      const innerContent = match.slice(4, -3); 
-                      return `(!--${innerContent}--)`;
-                    })
-                    .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => {
-                      const innerContent = match.slice(9, -3); 
-                      return `(![CDATA[${innerContent}]])`;
-                    })
-                    .replace(/<\?[\s\S]*?\?>/g, match => {
-                      const innerContent = match.slice(2, -2); 
-                      return `(?${innerContent}?)`;
-                    })
-                    .replace(/<!DOCTYPE[^>]*>/gi, match => {
-                      const innerContent = match.slice(9, -1); 
-                      return `(!DOCTYPE${innerContent})`;
-                    })
-                );
-              }
-              function sanitizeUrlDomains(s) {
-                s = s.replace(/\bhttps:\/\/([^\/\s\])}'"<>&\x00-\x1f]+)/gi, (match, domain) => {
-                  const hostname = domain.split(/[\/:\?#]/)[0].toLowerCase();
-                  const isAllowed = allowedDomains.some(allowedDomain => {
-                    const normalizedAllowed = allowedDomain.toLowerCase();
-                    return hostname === normalizedAllowed || hostname.endsWith("." + normalizedAllowed);
-                  });
-                  return isAllowed ? match : "(redacted)";
-                });
-                return s;
-              }
-              function sanitizeUrlProtocols(s) {
-                return s.replace(/\b(\w+):(?:\/\/)?[^\s\])}'"<>&\x00-\x1f]+/gi, (match, protocol) => {
-                  return protocol.toLowerCase() === "https" ? match : "(redacted)";
-                });
-              }
-              function neutralizeMentions(s) {
-                return s.replace(
-                  /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                  (_m, p1, p2) => `${p1}\`@${p2}\``
-                );
-              }
-              function neutralizeBotTriggers(s) {
-                return s.replace(/\b(fixes?|closes?|resolves?|fix|close|resolve)\s+#(\w+)/gi, (match, action, ref) => `\`${action} #${ref}\``);
-              }
-            }
-            async function main() {
-              let text = "";
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: owner,
-                repo: repo,
-                username: actor,
-              });
-              const permission = repoPermission.data.permission;
-              core.debug(`Repository permission level: ${permission}`);
-              if (permission !== "admin" && permission !== "maintain") {
-                core.setOutput("text", "");
-                return;
-              }
-              switch (context.eventName) {
-                case "issues":
-                  if (context.payload.issue) {
-                    const title = context.payload.issue.title || "";
-                    const body = context.payload.issue.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "pull_request_target":
-                  if (context.payload.pull_request) {
-                    const title = context.payload.pull_request.title || "";
-                    const body = context.payload.pull_request.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "issue_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                case "pull_request_review":
-                  if (context.payload.review) {
-                    text = context.payload.review.body || "";
-                  }
-                  break;
-                case "discussion":
-                  if (context.payload.discussion) {
-                    const title = context.payload.discussion.title || "";
-                    const body = context.payload.discussion.body || "";
-                    text = `${title}\n\n${body}`;
-                  }
-                  break;
-                case "discussion_comment":
-                  if (context.payload.comment) {
-                    text = context.payload.comment.body || "";
-                  }
-                  break;
-                default:
-                  text = "";
-                  break;
-              }
-              const sanitizedText = sanitizeContent(text);
-              core.debug(`text: ${sanitizedText}`);
-              core.setOutput("text", sanitizedText);
-            }
-            await main();
-      - name: Add rocket reaction to the triggering item
-        id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REACTION: rocket
-          GITHUB_AW_WORKFLOW_NAME: "Changeset Generator"
-        with:
-          script: |
-            async function main() {
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const command = process.env.GITHUB_AW_COMMAND; 
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              core.info(`Reaction type: ${reaction}`);
-              core.info(`Command name: ${command || "none"}`);
-              core.info(`Run ID: ${runId}`);
-              core.info(`Run URL: ${runUrl}`);
-              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-                return;
-              }
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldEditComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-                    shouldEditComment = true;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-                    shouldEditComment = true;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    shouldEditComment = command ? true : false;
-                    break;
-                  case "discussion":
-                    const discussionNumber = context.payload?.discussion?.number;
-                    if (!discussionNumber) {
-                      core.setFailed("Discussion number not found in event payload");
-                      return;
-                    }
-                    const discussion = await getDiscussionId(owner, repo, discussionNumber);
-                    reactionEndpoint = discussion.id; 
-                    commentUpdateEndpoint = `discussion:${discussionNumber}`; 
-                    shouldEditComment = true;
-                    break;
-                  case "discussion_comment":
-                    const discussionCommentNumber = context.payload?.discussion?.number;
-                    const discussionCommentId = context.payload?.comment?.id;
-                    if (!discussionCommentNumber || !discussionCommentId) {
-                      core.setFailed("Discussion or comment information not found in event payload");
-                      return;
-                    }
-                    const commentNodeId = context.payload?.comment?.node_id;
-                    if (!commentNodeId) {
-                      core.setFailed("Discussion comment node ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = commentNodeId; 
-                    commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
-                    shouldEditComment = command ? true : false;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                const isDiscussionEvent = eventName === "discussion" || eventName === "discussion_comment";
-                if (isDiscussionEvent) {
-                  await addDiscussionReaction(reactionEndpoint, reaction);
-                } else {
-                  await addReaction(reactionEndpoint, reaction);
-                }
-                if (shouldEditComment && commentUpdateEndpoint) {
-                  core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-                  await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
-                } else {
-                  if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment edit - only available for command workflows");
-                  } else {
-                    core.info(`Skipping comment for event type: ${eventName}`);
-                  }
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
-              }
-            }
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                core.info(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            async function addDiscussionReaction(subjectId, reaction) {
-              const reactionMap = {
-                "+1": "THUMBS_UP",
-                "-1": "THUMBS_DOWN",
-                laugh: "LAUGH",
-                confused: "CONFUSED",
-                heart: "HEART",
-                hooray: "HOORAY",
-                rocket: "ROCKET",
-                eyes: "EYES",
-              };
-              const reactionContent = reactionMap[reaction];
-              if (!reactionContent) {
-                throw new Error(`Invalid reaction type for GraphQL: ${reaction}`);
-              }
-              const result = await github.graphql(
-                `
-                mutation($subjectId: ID!, $content: ReactionContent!) {
-                  addReaction(input: { subjectId: $subjectId, content: $content }) {
-                    reaction {
-                      id
-                      content
-                    }
-                  }
-                }`,
-                { subjectId, content: reactionContent }
-              );
-              const reactionId = result.addReaction.reaction.id;
-              core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-              core.setOutput("reaction-id", reactionId);
-            }
-            async function getDiscussionId(owner, repo, discussionNumber) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              return {
-                id: repository.discussion.id,
-                url: repository.discussion.url,
-              };
-            }
-            async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
-              const discussion = await getDiscussionId(owner, repo, discussionNumber);
-              if (!discussion) throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              const nodeId = context.payload?.comment?.node_id;
-              if (nodeId) {
-                return {
-                  id: nodeId,
-                  url: context.payload.comment?.html_url || discussion?.url,
-                };
-              }
-              throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
-            }
-            async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
-              try {
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                if (eventName === "discussion") {
-                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
-                  const { repository } = await github.graphql(
-                    `
-                    query($owner: String!, $repo: String!, $num: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        discussion(number: $num) { 
-                          id 
-                        }
-                      }
-                    }`,
-                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
-                  );
-                  const discussionId = repository.discussion.id;
-                  const result = await github.graphql(
-                    `
-                    mutation($dId: ID!, $body: String!) {
-                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                        comment { 
-                          id 
-                          url
-                        }
-                      }
-                    }`,
-                    { dId: discussionId, body: workflowLinkText }
-                  );
-                  const comment = result.addDiscussionComment.comment;
-                  core.info(`Successfully created discussion comment with workflow link`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                  core.setOutput("comment-id", comment.id);
-                  core.setOutput("comment-url", comment.url);
-                  return;
-                } else if (eventName === "discussion_comment") {
-                  core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
-                  return;
-                }
-                const isCreateComment = eventName === "issues" || eventName === "pull_request";
-                if (isCreateComment) {
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
-                  const createResponse = await github.request("POST " + endpoint, {
-                    body: workflowLinkText,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully created comment with workflow link`);
-                  core.info(`Comment ID: ${createResponse.data.id}`);
-                  core.info(`Comment URL: ${createResponse.data.html_url}`);
-                  core.setOutput("comment-id", createResponse.data.id.toString());
-                  core.setOutput("comment-url", createResponse.data.html_url);
-                } else {
-                  const getResponse = await github.request("GET " + endpoint, {
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const originalBody = getResponse.data.body || "";
-                  const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
-                  const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
-                  if (duplicatePattern.test(originalBody)) {
-                    core.info("Comment already contains a workflow run link, skipping edit");
-                    return;
-                  }
-                  const updatedBody = originalBody + workflowLinkText;
-                  const updateResponse = await github.request("PATCH " + endpoint, {
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment with workflow link`);
-                  core.info(`Comment ID: ${updateResponse.data.id}`);
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to add/edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
-              }
-            }
-            await main();
 
   agent:
     needs: activation
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      issues: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"push_to_pull_request_branch\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"},\"trigger_workflow\":{\"allowed\":[\"ci.yml\",\"release.yml\"]}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -787,7 +323,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"missing_tool":{},"push_to_pull_request_branch":{}}
+          {"missing_tool":{},"trigger-workflow":{"description":"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.","inputs":{"payload":{"description":"Optional JSON payload for workflow inputs (e.g., '{\"environment\":\"production\"}')","required":false,"type":"string"},"workflow":{"description":"The workflow filename to trigger (e.g., 'build.yml')","required":true,"type":"string"}},"output":"Workflow triggered successfully!"},"trigger_workflow":{"allowed":["ci.yml","release.yml"]}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -1520,90 +1056,108 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Changeset Generator
+          ## Trigger Workflow Integration
           
-          You are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.
+          This shared configuration provides a custom safe-job for triggering workflow dispatches on allowed workflows.
           
-          ## Mission
+          ### Safe Job: trigger-workflow
           
-          When a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.
+          The `trigger-workflow` safe-job allows agentic workflows to trigger workflow dispatches on specified workflows using the GitHub REST API.
           
-          ## Current Context
+          **Agent Output Format:**
           
-          - **Repository**: ${{ github.repository }}
-          - **Pull Request Number**: ${{ github.event.pull_request.number }}
-          - **Pull Request Content**: "${{ needs.activation.outputs.text }}"
+          The agent should output JSON with items of type `trigger_workflow`:
           
-          ## Task
+          ```json
+          {
+            "items": [
+              {
+                "type": "trigger_workflow",
+                "workflow": "build.yml",
+                "payload": "{\"environment\":\"production\",\"version\":\"1.0.0\"}"
+              }
+            ]
+          }
+          ```
           
-          Your task is to:
+          **Required Configuration:**
           
-          1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.
+          You must configure allowed workflows in your workflow's `safe-outputs` configuration:
           
-          2. **use the repository name as the package identifier**
+          ```yaml
+          safe-outputs:
+            trigger-workflow:
+              allowed:
+                - "build.yml"
+                - "deploy.yml"
+                - "test.yml"
+          ```
           
-          3. **Determine the Change Type**:
-             - **major**: Breaking changes (indicated by "BREAKING CHANGE" in PR or major API changes)
-             - **minor**: New features, enhancements (look for "feat:", "feature:", "add:", etc.)
-             - **patch**: Bug fixes, documentation, refactoring, internal changes, tooling changes (look for "fix:", "bug:", "docs:", "chore:", "refactor:", "test:", etc.)
-             
-             **Important**: Always treat internal changes, tooling changes, and documentation changes as "patch" level only, even if they might seem like features. These changes don't affect the public API or user-facing functionality.
+          **Fields:**
           
-          4. **Generate the Changeset File**:
-             - Create a file in the `.changeset/` directory with a descriptive kebab-case name
-             - Use the format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)
-             - Follow the changeset format specification:
+          - `workflow`: The workflow filename to trigger (must be in the allowed list)
+          - `payload`: Optional JSON string containing workflow inputs
+          
+          **Permissions:**
+          
+          This safe-job requires `actions: write` permission to trigger workflow dispatches. The default `GITHUB_TOKEN` should have sufficient permissions in most cases.
+          
+          **Example Usage in Workflow:**
           
           ```markdown
           ---
-          "package-name": <major|minor|patch>
+          on:
+            issues:
+              types: [opened]
+          permissions:
+            contents: read
+            issues: read
+          engine: claude
+          imports:
+            - shared/trigger-workflow.md
+          safe-outputs:
+            trigger-workflow:
+              allowed:
+                - "build.yml"
+                - "deploy.yml"
           ---
           
-          Brief summary of the change (from PR title or first line of description)
+          # Issue-Triggered Build
           
-          Optional: More detailed explanation based on PR body
+          When a new issue is created, analyze it and trigger the appropriate workflow.
+          
+          If the issue mentions "deploy", trigger the deploy.yml workflow.
+          If the issue mentions "build", trigger the build.yml workflow.
+          
+          Use the trigger_workflow safe output to trigger the appropriate workflow.
           ```
           
-          5. **Commit and Push Changes**:
-             - Add and commit the changeset file to the current pull request branch
-             - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes
-             - The changeset will be added directly to this pull request
+          **Validation:**
           
-          ## Changeset Format Reference
+          The safe-job validates:
+          - Workflow filename is in the allowed list
+          - Payload is valid JSON (if provided)
+          - Payload is an object, not an array or primitive
           
-          Based on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md
+          **Staged Mode Support:**
           
-          ### Basic Format
+          This safe-job fully supports staged mode. When `staged: true` is set in the workflow's safe-outputs configuration, workflow triggers will be previewed in the step summary instead of being dispatched.
           
-          ```markdown
-          ---
-          "gh-aw": patch
-          ---
+          **Security Considerations:**
           
-          Fixed a bug in the component rendering logic
-          ```
+          - Only workflows explicitly listed in the `allowed` configuration can be triggered
+          - The `ref` parameter defaults to the current workflow's ref or `main`
+          - Payload validation ensures only valid JSON objects are passed
+          - Failed triggers will fail the entire safe-job with an error message
           
-          ### Version Bump Types
-          - **patch**: Bug fixes, documentation updates, refactoring, non-breaking additions, new shared workflows (0.0.X)
-          - **minor**: Breaking changes in the cli (0.X.0)
-          - **major**: Major breaking changes. Very unlikely to be used often (X.0.0). You should be very careful when using this, it's probably a **minor**.
+          # Workflow Trigger Demo
           
-          ## Guidelines
+          When a new issue is created, analyze it and trigger the appropriate workflow.
           
-          - **Be Accurate**: Analyze the PR content carefully to determine the correct change type
-          - **Be Clear**: The changeset description should clearly explain what changed
-          - **Be Concise**: Keep descriptions brief but informative
-          - **Follow Conventions**: Use the exact changeset format specified above
-          - **Single Package Default**: If unsure about package structure, default to a single package using the repo name
-          - **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
+          If the issue mentions "ci" or "test", trigger the ci.yml workflow.
+          If the issue mentions "release" or "deploy", trigger the release.yml workflow with a test payload.
           
-          ## Important Notes
-          
-          - The changeset file must be created in the `.changeset/` directory
-          - If `.changeset/` doesn't exist, create it first
-          - The changeset filename should be unique and descriptive
-          - Use quotes around package names in the YAML frontmatter
-          - The changeset description should be based on the PR title and body
+          Use the trigger_workflow safe output to trigger the appropriate workflow.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1659,16 +1213,9 @@ jobs:
           
           ---
           
-          ## Pushing Changes to Branch, Reporting Missing Tools or Functionality
+          ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Pushing Changes to Pull Request Branch**
-          
-          To push changes to the branch of a pull request:
-          1. Make any file changes directly in the working directory
-          2. Add and commit your changes to the local copy of the pull request branch. Be careful to add exactly the files you intend, and check there are no extra files left un-added. Check you haven't deleted or changed any files you didn't intend to.
-          3. Push the branch to the repo by using the push-to-pull-request-branch tool from the safe-outputs MCP
           
           **Reporting Missing Tools or Functionality**
           
@@ -1773,7 +1320,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Changeset Generator",
+              workflow_name: "Workflow Trigger Demo",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1804,34 +1351,10 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
-        # - Bash(cat)
-        # - Bash(date)
-        # - Bash(echo)
-        # - Bash(git add:*)
-        # - Bash(git branch:*)
-        # - Bash(git checkout:*)
-        # - Bash(git commit:*)
-        # - Bash(git merge:*)
-        # - Bash(git rm:*)
-        # - Bash(git status)
-        # - Bash(git switch:*)
-        # - Bash(grep)
-        # - Bash(head)
-        # - Bash(ls)
-        # - Bash(pwd)
-        # - Bash(sort)
-        # - Bash(tail)
-        # - Bash(uniq)
-        # - Bash(wc)
-        # - BashOutput
-        # - Edit
         # - ExitPlanMode
         # - Glob
         # - Grep
-        # - KillBash
         # - LS
-        # - MultiEdit
-        # - NotebookEdit
         # - NotebookRead
         # - Read
         # - Task
@@ -1891,11 +1414,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep),Bash(head),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "ExitPlanMode,Glob,Grep,LS,NotebookRead,Read,Task,TodoWrite,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -1923,7 +1446,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"push_to_pull_request_branch\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"missing_tool\":{},\"trigger-workflow\":{\"description\":\"Trigger a workflow dispatch for allowed workflows. Requires actions: write permission or a custom GitHub token.\",\"inputs\":{\"payload\":{\"description\":\"Optional JSON payload for workflow inputs (e.g., '{\\\"environment\\\":\\\"production\\\"}')\",\"required\":false,\"type\":\"string\"},\"workflow\":{\"description\":\"The workflow filename to trigger (e.g., 'build.yml')\",\"required\":true,\"type\":\"string\"}},\"output\":\"Workflow triggered successfully!\"},\"trigger_workflow\":{\"allowed\":[\"ci.yml\",\"release.yml\"]}}"
         with:
           script: |
             async function main() {
@@ -3309,96 +2832,6 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
-      - name: Generate git patch
-        if: always()
-        env:
-          GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: |
-          # Check current git status
-          echo "Current git status:"
-          git status
-          # Extract branch name from JSONL output
-          BRANCH_NAME=""
-          if [ -f "$GITHUB_AW_SAFE_OUTPUTS" ]; then
-            echo "Checking for branch name in JSONL output..."
-            while IFS= read -r line; do
-              if [ -n "$line" ]; then
-                # Extract branch from create-pull-request line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                if echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"create_pull_request"'; then
-                  echo "Found create_pull_request line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from create_pull_request: $BRANCH_NAME"
-                    break
-                  fi
-                # Extract branch from push_to_pull_request_branch line using simple grep and sed
-                # Note: types use underscores (normalized by safe-outputs MCP server)
-                elif echo "$line" | grep -q '"type"[[:space:]]*:[[:space:]]*"push_to_pull_request_branch"'; then
-                  echo "Found push_to_pull_request_branch line: $line"
-                  # Extract branch value using sed
-                  BRANCH_NAME=$(echo "$line" | sed -n 's/.*"branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                  if [ -n "$BRANCH_NAME" ]; then
-                    echo "Extracted branch name from push_to_pull_request_branch: $BRANCH_NAME"
-                    break
-                  fi
-                fi
-              fi
-            done < "$GITHUB_AW_SAFE_OUTPUTS"
-          fi
-          # If no branch or branch doesn't exist, no patch
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "No branch found, no patch generation"
-          fi
-          # If we have a branch name, check if that branch exists and get its diff
-          if [ -n "$BRANCH_NAME" ]; then
-            echo "Looking for branch: $BRANCH_NAME"
-            # Check if the branch exists
-            if git show-ref --verify --quiet refs/heads/$BRANCH_NAME; then
-              echo "Branch $BRANCH_NAME exists, generating patch from branch changes"
-              # Check if origin/$BRANCH_NAME exists to use as base
-              if git show-ref --verify --quiet refs/remotes/origin/$BRANCH_NAME; then
-                echo "Using origin/$BRANCH_NAME as base for patch generation"
-                BASE_REF="origin/$BRANCH_NAME"
-              else
-                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
-                # Get the default branch name
-                DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
-                echo "Default branch: $DEFAULT_BRANCH"
-                # Fetch the default branch to ensure it's available locally
-                git fetch origin $DEFAULT_BRANCH
-                # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
-                echo "Using merge-base as base: $BASE_REF"
-              fi
-              # Generate patch from the determined base to the branch
-              git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
-              echo "Patch file created from branch: $BRANCH_NAME (base: $BASE_REF)"
-            else
-              echo "Branch $BRANCH_NAME does not exist, no patch"
-            fi
-          fi
-          # Show patch info if it exists
-          if [ -f /tmp/gh-aw/aw.patch ]; then
-            ls -la /tmp/gh-aw/aw.patch
-            # Show the first 50 lines of the patch for review
-            echo '## Git Patch' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo '```diff' >> $GITHUB_STEP_SUMMARY
-            head -500 /tmp/gh-aw/aw.patch >> $GITHUB_STEP_SUMMARY || echo "Could not display patch contents" >> $GITHUB_STEP_SUMMARY
-            echo '...' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-          fi
-      - name: Upload git patch
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/aw.patch
-          if-no-files-found: ignore
 
   detection:
     needs: agent
@@ -3426,9 +2859,9 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          WORKFLOW_NAME: "Changeset Generator"
+          WORKFLOW_NAME: "Workflow Trigger Demo"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Changeset Generator\n\nYou are the Changeset Generator agent - responsible for automatically creating changeset files when a pull request becomes ready for review.\n\n## Mission\n\nWhen a pull request is marked as ready for review, analyze the changes and create a properly formatted changeset file that documents the changes according to the changeset specification.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Pull Request Number**: ${{ github.event.pull_request.number }}\n- **Pull Request Content**: \"${{ needs.activation.outputs.text }}\"\n\n## Task\n\nYour task is to:\n\n1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.\n\n2. **use the repository name as the package identifier**\n\n3. **Determine the Change Type**:\n   - **major**: Breaking changes (indicated by \"BREAKING CHANGE\" in PR or major API changes)\n   - **minor**: New features, enhancements (look for \"feat:\", \"feature:\", \"add:\", etc.)\n   - **patch**: Bug fixes, documentation, refactoring, internal changes, tooling changes (look for \"fix:\", \"bug:\", \"docs:\", \"chore:\", \"refactor:\", \"test:\", etc.)\n   \n   **Important**: Always treat internal changes, tooling changes, and documentation changes as \"patch\" level only, even if they might seem like features. These changes don't affect the public API or user-facing functionality.\n\n4. **Generate the Changeset File**:\n   - Create a file in the `.changeset/` directory with a descriptive kebab-case name\n   - Use the format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)\n   - Follow the changeset format specification:\n\n```markdown\n---\n\"package-name\": <major|minor|patch>\n---\n\nBrief summary of the change (from PR title or first line of description)\n\nOptional: More detailed explanation based on PR body\n```\n\n5. **Commit and Push Changes**:\n   - Add and commit the changeset file to the current pull request branch\n   - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes\n   - The changeset will be added directly to this pull request\n\n## Changeset Format Reference\n\nBased on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md\n\n### Basic Format\n\n```markdown\n---\n\"gh-aw\": patch\n---\n\nFixed a bug in the component rendering logic\n```\n\n### Version Bump Types\n- **patch**: Bug fixes, documentation updates, refactoring, non-breaking additions, new shared workflows (0.0.X)\n- **minor**: Breaking changes in the cli (0.X.0)\n- **major**: Major breaking changes. Very unlikely to be used often (X.0.0). You should be very careful when using this, it's probably a **minor**.\n\n## Guidelines\n\n- **Be Accurate**: Analyze the PR content carefully to determine the correct change type\n- **Be Clear**: The changeset description should clearly explain what changed\n- **Be Concise**: Keep descriptions brief but informative\n- **Follow Conventions**: Use the exact changeset format specified above\n- **Single Package Default**: If unsure about package structure, default to a single package using the repo name\n- **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)\n\n## Important Notes\n\n- The changeset file must be created in the `.changeset/` directory\n- If `.changeset/` doesn't exist, create it first\n- The changeset filename should be unique and descriptive\n- Use quotes around package names in the YAML frontmatter\n- The changeset description should be based on the PR title and body\n"
+          WORKFLOW_MARKDOWN: "## Trigger Workflow Integration\n\nThis shared configuration provides a custom safe-job for triggering workflow dispatches on allowed workflows.\n\n### Safe Job: trigger-workflow\n\nThe `trigger-workflow` safe-job allows agentic workflows to trigger workflow dispatches on specified workflows using the GitHub REST API.\n\n**Agent Output Format:**\n\nThe agent should output JSON with items of type `trigger_workflow`:\n\n```json\n{\n  \"items\": [\n    {\n      \"type\": \"trigger_workflow\",\n      \"workflow\": \"build.yml\",\n      \"payload\": \"{\\\"environment\\\":\\\"production\\\",\\\"version\\\":\\\"1.0.0\\\"}\"\n    }\n  ]\n}\n```\n\n**Required Configuration:**\n\nYou must configure allowed workflows in your workflow's `safe-outputs` configuration:\n\n```yaml\nsafe-outputs:\n  trigger-workflow:\n    allowed:\n      - \"build.yml\"\n      - \"deploy.yml\"\n      - \"test.yml\"\n```\n\n**Fields:**\n\n- `workflow`: The workflow filename to trigger (must be in the allowed list)\n- `payload`: Optional JSON string containing workflow inputs\n\n**Permissions:**\n\nThis safe-job requires `actions: write` permission to trigger workflow dispatches. The default `GITHUB_TOKEN` should have sufficient permissions in most cases.\n\n**Example Usage in Workflow:**\n\n```markdown\n---\non:\n  issues:\n    types: [opened]\npermissions:\n  contents: read\n  issues: read\nengine: claude\nimports:\n  - shared/trigger-workflow.md\nsafe-outputs:\n  trigger-workflow:\n    allowed:\n      - \"build.yml\"\n      - \"deploy.yml\"\n---\n\n# Issue-Triggered Build\n\nWhen a new issue is created, analyze it and trigger the appropriate workflow.\n\nIf the issue mentions \"deploy\", trigger the deploy.yml workflow.\nIf the issue mentions \"build\", trigger the build.yml workflow.\n\nUse the trigger_workflow safe output to trigger the appropriate workflow.\n```\n\n**Validation:**\n\nThe safe-job validates:\n- Workflow filename is in the allowed list\n- Payload is valid JSON (if provided)\n- Payload is an object, not an array or primitive\n\n**Staged Mode Support:**\n\nThis safe-job fully supports staged mode. When `staged: true` is set in the workflow's safe-outputs configuration, workflow triggers will be previewed in the step summary instead of being dispatched.\n\n**Security Considerations:**\n\n- Only workflows explicitly listed in the `allowed` configuration can be triggered\n- The `ref` parameter defaults to the current workflow's ref or `main`\n- Payload validation ensures only valid JSON objects are passed\n- Failed triggers will fail the entire safe-job with an error message\n\n# Workflow Trigger Demo\n\nWhen a new issue is created, analyze it and trigger the appropriate workflow.\n\nIf the issue mentions \"ci\" or \"test\", trigger the ci.yml workflow.\nIf the issue mentions \"release\" or \"deploy\", trigger the release.yml workflow with a test payload.\n\nUse the trigger_workflow safe output to trigger the appropriate workflow.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3617,301 +3050,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  push_to_pull_request_branch:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))) &&
-      (((github.event.issue.number) &&
-      (github.event.issue.pull_request)) || (github.event.pull_request))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: read
-      issues: read
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.push_to_pull_request_branch.outputs.branch_name }}
-      commit_sha: ${{ steps.push_to_pull_request_branch.outputs.commit_sha }}
-      push_url: ${{ steps.push_to_pull_request_branch.outputs.push_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Configure Git credentials
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Push to Branch
-        id: push_to_pull_request_branch
-        uses: actions/github-script@v8
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1024
-        with:
-          script: |
-            const fs = require("fs");
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
-              const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot push without changes";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed(message);
-                    return;
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot push without changes";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed(message);
-                    return;
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  core.setFailed(message);
-                  return;
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed("No changes to push - failing as configured by if-no-changes: error");
-                    return;
-                  case "ignore":
-                    break;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    break;
-                }
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              }
-              core.info(`Target configuration: ${target}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const pushItem = validatedOutput.items.find( item => item.type === "push_to_pull_request_branch");
-              if (!pushItem) {
-                core.info("No push-to-pull-request-branch item found in agent output");
-                return;
-              }
-              core.info("Found push-to-pull-request-branch item");
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Push to PR Branch Preview\n\n";
-                summaryContent += "The following changes would be pushed if staged mode was disabled:\n\n";
-                summaryContent += `**Target:** ${target}\n\n`;
-                if (pushItem.commit_message) {
-                  summaryContent += `**Commit Message:** ${pushItem.commit_message}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Push to PR branch preview written to step summary");
-                return;
-              }
-              if (target !== "*" && target !== "triggering") {
-                const pullNumber = parseInt(target, 10);
-                if (isNaN(pullNumber)) {
-                  core.setFailed('Invalid target configuration: must be "triggering", "*", or a valid pull request number');
-                  return;
-                }
-              }
-              let pullNumber;
-              if (target === "triggering") {
-                pullNumber = context.payload?.pull_request?.number || context.payload?.issue?.number;
-                if (!pullNumber) {
-                  core.setFailed('push-to-pull-request-branch with target "triggering" requires pull request context');
-                  return;
-                }
-              } else if (target === "*") {
-                if (pushItem.pull_number) {
-                  pullNumber = parseInt(pushItem.pull_number, 10);
-                }
-              } else {
-                pullNumber = parseInt(target, 10);
-              }
-              let branchName;
-              let prTitle = "";
-              let prLabels = [];
-              try {
-                const prInfoRes = await exec.getExecOutput(`gh`, [
-                  `pr`,
-                  `view`,
-                  `${pullNumber}`,
-                  `--json`,
-                  `headRefName,title,labels`,
-                  `--jq`,
-                  `{headRefName, title, labels: (.labels // [] | map(.name))}`,
-                ]);
-                if (prInfoRes.exitCode === 0) {
-                  const prData = JSON.parse(prInfoRes.stdout.trim());
-                  branchName = prData.headRefName;
-                  prTitle = prData.title || "";
-                  prLabels = prData.labels || [];
-                } else {
-                  throw new Error("No PR data found");
-                }
-              } catch (error) {
-                core.info(`Warning: Could not fetch PR ${pullNumber} details: ${error instanceof Error ? error.message : String(error)}`);
-                core.setFailed(`Failed to determine branch name for PR ${pullNumber}`);
-                return;
-              }
-              core.info(`Target branch: ${branchName}`);
-              core.info(`PR title: ${prTitle}`);
-              core.info(`PR labels: ${prLabels.join(", ")}`);
-              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !prTitle.startsWith(titlePrefix)) {
-                core.setFailed(`Pull request title "${prTitle}" does not start with required prefix "${titlePrefix}"`);
-                return;
-              }
-              const requiredLabelsStr = process.env.GITHUB_AW_PR_LABELS;
-              if (requiredLabelsStr) {
-                const requiredLabels = requiredLabelsStr.split(",").map(label => label.trim());
-                const missingLabels = requiredLabels.filter(label => !prLabels.includes(label));
-                if (missingLabels.length > 0) {
-                  core.setFailed(`Pull request is missing required labels: ${missingLabels.join(", ")}. Current labels: ${prLabels.join(", ")}`);
-                  return;
-                }
-              }
-              if (titlePrefix) {
-                core.info(`✓ Title prefix validation passed: "${titlePrefix}"`);
-              }
-              if (requiredLabelsStr) {
-                core.info(`✓ Labels validation passed: ${requiredLabelsStr}`);
-              }
-              const hasChanges = !isEmpty;
-              core.info(`Switching to branch: ${branchName}`);
-              try {
-                await exec.exec("git fetch origin");
-                try {
-                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
-                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                  core.info(`Checked out existing branch from origin: ${branchName}`);
-                } catch (originError) {
-                  core.setFailed(
-                    `Branch ${branchName} does not exist on origin, can't push to it: ${originError instanceof Error ? originError.message : String(originError)}`
-                  );
-                  return;
-                }
-              } catch (error) {
-                core.setFailed(`Failed to switch to branch ${branchName}: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                try {
-                  await exec.exec("git am /tmp/gh-aw/aw.patch");
-                  core.info("Patch applied successfully");
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info(`Changes committed and pushed to branch: ${branchName}`);
-                } catch (error) {
-                  core.error(`Failed to apply patch: ${error instanceof Error ? error.message : String(error)}`);
-                  core.setFailed("Failed to apply patch");
-                  return;
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    core.setFailed("No changes to apply - failing as configured by if-no-changes: error");
-                    return;
-                  case "ignore":
-                    break;
-                  case "warn":
-                  default:
-                    core.info(message);
-                    break;
-                }
-              }
-              const commitShaRes = await exec.getExecOutput("git", ["rev-parse", "HEAD"]);
-              if (commitShaRes.exitCode !== 0) throw new Error("Failed to get commit SHA");
-              const commitSha = commitShaRes.stdout.trim();
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const pushUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/tree/${branchName}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-              core.setOutput("branch_name", branchName);
-              core.setOutput("commit_sha", commitSha);
-              core.setOutput("push_url", pushUrl);
-              const summaryTitle = hasChanges ? "Push to Branch" : "Push to Branch (No Changes)";
-              const summaryContent = hasChanges
-                ? `
-            ## ${summaryTitle}
-            - **Branch**: \`${branchName}\`
-            - **Commit**: [${commitSha.substring(0, 7)}](${pushUrl})
-            - **URL**: [${pushUrl}](${pushUrl})
-            `
-                : `
-            ## ${summaryTitle}
-            - **Branch**: \`${branchName}\`
-            - **Status**: No changes to apply (noop operation)
-            - **URL**: [${pushUrl}](${pushUrl})
-            `;
-              await core.summary.addRaw(summaryContent).write();
-            }
-            await main();
-
   missing_tool:
     needs:
       - agent
@@ -4018,4 +3156,153 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  trigger_workflow:
+    needs:
+      - agent
+      - detection
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'trigger_workflow'))
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-jobs/
+      - name: Setup Safe Job Environment Variables
+        run: |
+          find /tmp/gh-aw/safe-jobs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-jobs/agent_output.json" >> $GITHUB_ENV
+      - name: Trigger workflow dispatch
+        uses: actions/github-script@v8
+        with:
+          script: |-
+            const fs = require('fs');
+            const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === 'true';
+            const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+
+            // Read allowed workflows from config
+            const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
+            let allowedWorkflows = [];
+
+            if (configEnv) {
+              try {
+                const config = JSON.parse(configEnv);
+                if (config['trigger-workflow'] && Array.isArray(config['trigger-workflow'].allowed)) {
+                  allowedWorkflows = config['trigger-workflow'].allowed;
+                }
+              } catch (error) {
+                core.setFailed(`Error parsing safe outputs config: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
+
+            if (allowedWorkflows.length === 0) {
+              core.setFailed('No allowed workflows configured for trigger-workflow. Please specify allowed workflows in safe-outputs configuration.');
+              return;
+            }
+
+            core.info(`Allowed workflows: ${allowedWorkflows.join(', ')}`);
+
+            // Read and parse agent output
+            if (!outputContent) {
+              core.info('No GITHUB_AW_AGENT_OUTPUT environment variable found');
+              return;
+            }
+
+            let agentOutputData;
+            try {
+              const fileContent = fs.readFileSync(outputContent, 'utf8');
+              agentOutputData = JSON.parse(fileContent);
+            } catch (error) {
+              core.setFailed(`Error reading or parsing agent output: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
+
+            if (!agentOutputData.items || !Array.isArray(agentOutputData.items)) {
+              core.info('No valid items found in agent output');
+              return;
+            }
+
+            // Filter for trigger_workflow items
+            const triggerItems = agentOutputData.items.filter(item => item.type === 'trigger_workflow');
+
+            if (triggerItems.length === 0) {
+              core.info('No trigger_workflow items found in agent output');
+              return;
+            }
+
+            core.info(`Found ${triggerItems.length} trigger_workflow item(s)`);
+
+            // Process each trigger item
+            for (let i = 0; i < triggerItems.length; i++) {
+              const item = triggerItems[i];
+              const workflow = item.workflow;
+              const payload = item.payload;
+
+              if (!workflow) {
+                core.warning(`Item ${i + 1}: Missing workflow field, skipping`);
+                continue;
+              }
+
+              // Validate workflow is in allowed list
+              if (!allowedWorkflows.includes(workflow)) {
+                core.warning(`Item ${i + 1}: Workflow '${workflow}' is not in allowed list. Allowed workflows: ${allowedWorkflows.join(', ')}`);
+                continue;
+              }
+
+              // Parse payload if provided
+              let inputs = {};
+              if (payload) {
+                try {
+                  inputs = JSON.parse(payload);
+                  if (typeof inputs !== 'object' || Array.isArray(inputs)) {
+                    core.warning(`Item ${i + 1}: Payload must be a JSON object, got ${typeof inputs}`);
+                    continue;
+                  }
+                } catch (error) {
+                  core.warning(`Item ${i + 1}: Invalid JSON payload: ${error instanceof Error ? error.message : String(error)}`);
+                  continue;
+                }
+              }
+
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Workflow Trigger Preview\n\n";
+                summaryContent += "The following workflow dispatch would be triggered if staged mode was disabled:\n\n";
+                summaryContent += `**Workflow:** ${workflow}\n\n`;
+                if (payload) {
+                  summaryContent += `**Inputs:**\n\`\`\`json\n${JSON.stringify(inputs, null, 2)}\n\`\`\`\n\n`;
+                } else {
+                  summaryContent += `**Inputs:** None\n\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Workflow trigger preview written to step summary");
+                continue;
+              }
+
+              core.info(`Triggering workflow ${i + 1}/${triggerItems.length}: ${workflow}`);
+              if (payload) {
+                core.info(`With inputs: ${JSON.stringify(inputs)}`);
+              }
+
+              try {
+                const response = await github.rest.actions.createWorkflowDispatch({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflow,
+                  ref: context.ref || 'main',
+                  inputs: inputs
+                });
+
+                core.info(`✅ Workflow ${i + 1} triggered successfully`);
+                core.info(`Status: ${response.status}`);
+              } catch (error) {
+                core.setFailed(`Failed to trigger workflow ${i + 1}: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+            }
 
