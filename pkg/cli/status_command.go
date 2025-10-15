@@ -56,7 +56,7 @@ func StatusWorkflows(pattern string, verbose bool, jsonOutput bool) error {
 	}
 
 	// Get GitHub workflows data
-	githubWorkflows, err := fetchGitHubWorkflows(verbose && !jsonOutput)
+	githubWorkflows, err := fetchGitHubWorkflows("", verbose && !jsonOutput)
 	if err != nil {
 		if verbose && !jsonOutput {
 			fmt.Printf("Verbose: Failed to fetch GitHub workflows: %v\n", err)

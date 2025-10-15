@@ -284,7 +284,34 @@ func findWorkflowInPackageForRepo(workflow *WorkflowSpec, verbose bool) ([]byte,
 
 	content, err := os.ReadFile(workflowFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.RepoSlug)
+		// If the initial path failed and it starts with "workflows/",
+		// try with ".github/workflows/" prefix as a fallback
+		if strings.HasPrefix(workflow.WorkflowPath, "workflows/") {
+			// Extract just the filename part after "workflows/"
+			filenamePart := strings.TrimPrefix(workflow.WorkflowPath, "workflows/")
+			fallbackPath := filepath.Join(".github", "workflows", filenamePart)
+			fallbackWorkflowFile := filepath.Join(packagePath, fallbackPath)
+
+			if verbose {
+				fmt.Printf("Initial path not found, trying fallback: %s\n", fallbackWorkflowFile)
+			}
+
+			var fallbackErr error
+			content, fallbackErr = os.ReadFile(fallbackWorkflowFile)
+			if fallbackErr == nil {
+				// Success with fallback path, update workflowFile to the fallback path
+				workflowFile = fallbackWorkflowFile
+				if verbose {
+					fmt.Printf("Found workflow at fallback path: %s\n", fallbackWorkflowFile)
+				}
+			} else {
+				// Both attempts failed, return the original error
+				return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.RepoSlug)
+			}
+		} else {
+			// Not a workflows/ path, return the original error
+			return nil, nil, fmt.Errorf("workflow '%s' not found in repo '%s'", workflow.WorkflowPath, workflow.RepoSlug)
+		}
 	}
 
 	// Try to read the commit SHA from metadata file

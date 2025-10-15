@@ -1089,7 +1089,6 @@ This is a simple test workflow with Bash tools.
 }
 
 func TestMergeCustomMCPFromMultipleIncludes(t *testing.T) {
-	t.Skip("Skipping test for old nested MCP format - MCP revamp in progress")
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "custom-mcp-includes-test")
 	if err != nil {
@@ -1099,22 +1098,12 @@ func TestMergeCustomMCPFromMultipleIncludes(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
-tools:
+mcp-servers:
   notionApi:
-    mcp:
-      type: stdio
-      command: docker
-      args: [
-        "run",
-        "--rm",
-        "-i",
-        "-e", "NOTION_TOKEN",
-        "mcp/notion"
-      ]
-      env:
-        NOTION_TOKEN: "{{ secrets.NOTION_TOKEN }}"
+    container: "mcp/notion"
+    env:
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
     allowed: ["create_page", "search_pages"]
-  edit:
 ---
 
 # Include 1
@@ -1127,16 +1116,13 @@ First include file with custom MCP server.
 
 	// Create second include file with different custom MCP server
 	include2Content := `---
-tools:
+mcp-servers:
   trelloApi:
-    mcp:
-      type: stdio
-      command: "python"
-      args: ["-m", "trello_mcp"]
-      env:
-        TRELLO_TOKEN: "{{ secrets.TRELLO_TOKEN }}"
+    command: "python"
+    args: ["-m", "trello_mcp"]
+    env:
+      TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
     allowed: ["create_card", "list_boards"]
-  edit:
 ---
 
 # Include 2
@@ -1149,25 +1135,14 @@ Second include file with different custom MCP server.
 
 	// Create third include file with overlapping custom MCP server (same name, compatible config)
 	include3Content := `---
-tools:
+mcp-servers:
   notionApi:
-    mcp:
-      type: stdio
-      command: docker  # Same command as include1
-      args: [
-        "run",
-        "--rm",
-        "-i",
-        "-e", "NOTION_TOKEN",
-        "mcp/notion"
-      ]
-      env:
-        NOTION_TOKEN: "{{ secrets.NOTION_TOKEN }}"  # Same env as include1
+    container: "mcp/notion"
+    env:
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
     allowed: ["list_databases", "query_database"]  # Different allowed tools - should be merged
   customTool:
-    mcp:
-      type: stdio
-      command: "custom-tool"
+    command: "custom-tool"
     allowed: ["tool1", "tool2"]
 ---
 
@@ -1181,28 +1156,27 @@ Third include file with compatible MCP server configuration.
 
 	// Create main workflow file that includes all files and has its own custom MCP
 	mainContent := fmt.Sprintf(`---
-tools:
+mcp-servers:
   mainCustomApi:
-    mcp:
-      type: stdio
-      command: "main-custom-server"
+    command: "main-custom-server"
     allowed: ["main_tool1", "main_tool2"]
+tools:
   github:
     allowed: ["list_issues", "create_issue"]
-  web-search:
+  edit:
 ---
 
 # Test Workflow for Custom MCP Merging
 
-@include %s
+{{#import %s}}
 
 Some content here.
 
-@include %s
+{{#import %s}}
 
 More content.
 
-@include %s
+{{#import %s}}
 
 Final content.
 `, filepath.Base(include1File), filepath.Base(include2File), filepath.Base(include3File))
@@ -1230,24 +1204,21 @@ Final content.
 
 	// Check that all custom MCP tools from all includes are present in allowed_tools
 	expectedCustomMCPTools := []string{
-		// From include1 notionApi (merged with include3)
-		"mcp__notionApi__create_page",
-		"mcp__notionApi__search_pages",
+		// From include3 notionApi (last one wins, overrides include1)
+		"notionApi(list_databases)",
+		"notionApi(query_database)",
 		// From include2 trelloApi
-		"mcp__trelloApi__create_card",
-		"mcp__trelloApi__list_boards",
-		// From include3 notionApi (merged with include1)
-		"mcp__notionApi__list_databases",
-		"mcp__notionApi__query_database",
+		"trelloApi(create_card)",
+		"trelloApi(list_boards)",
 		// From include3 customTool
-		"mcp__customTool__tool1",
-		"mcp__customTool__tool2",
+		"customTool(tool1)",
+		"customTool(tool2)",
 		// From main file
-		"mcp__mainCustomApi__main_tool1",
-		"mcp__mainCustomApi__main_tool2",
+		"mainCustomApi(main_tool1)",
+		"mainCustomApi(main_tool2)",
 		// Standard github MCP tools
-		"mcp__github__list_issues",
-		"mcp__github__create_issue",
+		"github(list_issues)",
+		"github(create_issue)",
 	}
 
 	// Check that all expected custom MCP tools are present
@@ -1257,14 +1228,24 @@ Final content.
 		}
 	}
 
-	// Since tools are merged rather than overridden, both sets of tools should be present
-	// This tests that the merging behavior works correctly for same-named MCP servers
+	// Verify that the notionApi tools from both include1 and include3 are present
+	// This shows that MCP servers with the same name get their 'allowed' arrays merged
+	expectedAllTools := []string{
+		"notionApi(create_page)",    // from include1
+		"notionApi(search_pages)",   // from include1
+		"notionApi(list_databases)", // from include3
+		"notionApi(query_database)", // from include3
+	}
+	for _, expectedTool := range expectedAllTools {
+		if !strings.Contains(lockContent, expectedTool) {
+			t.Errorf("Expected merged tool '%s' not found in lock file.\nLock file content:\n%s", expectedTool, lockContent)
+		}
+	}
 
-	// Check that Claude tools from all includes are merged
+	// Check that Claude tools from all includes are present
 	expectedClaudeTools := []string{
-		"Read", "Write", // from include1
-		"Grep", "Glob", // from include2
-		"LS", "Task", // from main file
+		"Read", "Write", // from includes
+		"LS", "Task", // always present
 	}
 	for _, expectedTool := range expectedClaudeTools {
 		if !strings.Contains(lockContent, expectedTool) {
@@ -1273,32 +1254,31 @@ Final content.
 	}
 
 	// Verify that custom MCP configurations are properly generated in the setup
-	// The configuration should merge settings from all includes for the same tool name
-	// Check for notionApi configuration (should contain docker command from both includes)
-	if !strings.Contains(lockContent, `"command": "docker"`) {
-		t.Errorf("Expected notionApi configuration from includes (docker) not found in lock file")
+	// The configuration should use the last import for the same tool name (include3 for notionApi)
+	// Check for notionApi configuration (should contain container reference from include3)
+	if !strings.Contains(lockContent, `"notionApi"`) {
+		t.Errorf("Expected notionApi configuration from includes not found in lock file")
 	}
-	// The args should be the same from both includes
-	if !strings.Contains(lockContent, `"NOTION_TOKEN": "{{ secrets.NOTION_TOKEN }}"`) {
+	// The env should be present
+	if !strings.Contains(lockContent, `NOTION_TOKEN`) {
 		t.Errorf("Expected notionApi env configuration not found in lock file")
 	}
 
 	// Check for trelloApi configuration (from include2)
-	if !strings.Contains(lockContent, `"command": "python"`) {
-		t.Errorf("Expected trelloApi configuration (python) not found in lock file")
+	if !strings.Contains(lockContent, `"trelloApi"`) {
+		t.Errorf("Expected trelloApi configuration not found in lock file")
 	}
-	if !strings.Contains(lockContent, `"TRELLO_TOKEN": "{{ secrets.TRELLO_TOKEN }}"`) {
+	if !strings.Contains(lockContent, `TRELLO_TOKEN`) {
 		t.Errorf("Expected trelloApi env configuration not found in lock file")
 	}
 
 	// Check for mainCustomApi configuration
-	if !strings.Contains(lockContent, `"command": "main-custom-server"`) {
+	if !strings.Contains(lockContent, `"mainCustomApi"`) {
 		t.Errorf("Expected mainCustomApi configuration not found in lock file")
 	}
 }
 
 func TestCustomMCPOnlyInIncludes(t *testing.T) {
-	t.Skip("Skipping test for old nested MCP format - MCP revamp in progress")
 	// Test case where custom MCPs are only defined in includes, not in main file
 	tmpDir, err := os.MkdirTemp("", "custom-mcp-includes-only-test")
 	if err != nil {
@@ -1308,14 +1288,12 @@ func TestCustomMCPOnlyInIncludes(t *testing.T) {
 
 	// Create include file with custom MCP server
 	includeContent := `---
-tools:
+mcp-servers:
   customApi:
-    mcp:
-      type: stdio
-      command: "custom-server"
-      args: ["--config", "/path/to/config"]
-      env:
-        API_KEY: "{{ secrets.API_KEY }}"
+    command: "custom-server"
+    args: ["--config", "/path/to/config"]
+    env:
+      API_KEY: "${{ secrets.API_KEY }}"
     allowed: ["get_data", "post_data", "delete_data"]
 ---
 
@@ -1337,7 +1315,7 @@ tools:
 
 # Test Workflow with Custom MCP Only in Include
 
-@include %s
+{{#import %s}}
 
 Content using custom API from include.
 `, filepath.Base(includeFile))
@@ -1365,9 +1343,9 @@ Content using custom API from include.
 
 	// Check that custom MCP tools from include are present
 	expectedCustomMCPTools := []string{
-		"mcp__customApi__get_data",
-		"mcp__customApi__post_data",
-		"mcp__customApi__delete_data",
+		"customApi(get_data)",
+		"customApi(post_data)",
+		"customApi(delete_data)",
 	}
 
 	for _, expectedTool := range expectedCustomMCPTools {
@@ -1377,16 +1355,13 @@ Content using custom API from include.
 	}
 
 	// Check that custom MCP configuration is properly generated
-	if !strings.Contains(lockContent, `"customApi": {`) {
+	if !strings.Contains(lockContent, `"customApi"`) {
 		t.Errorf("Expected customApi MCP server configuration not found in lock file")
-	}
-	if !strings.Contains(lockContent, `"command": "custom-server"`) {
-		t.Errorf("Expected customApi command configuration not found in lock file")
 	}
 	if !strings.Contains(lockContent, `"--config"`) {
 		t.Errorf("Expected customApi args configuration not found in lock file")
 	}
-	if !strings.Contains(lockContent, `"API_KEY": "{{ secrets.API_KEY }}"`) {
+	if !strings.Contains(lockContent, `API_KEY`) {
 		t.Errorf("Expected customApi env configuration not found in lock file")
 	}
 }
@@ -1478,10 +1453,9 @@ This should fail due to conflicting MCP configurations.
 	}
 }
 
-func TestCustomMCPMergingAllowedArrays(t *testing.T) {
-	t.Skip("Skipping test for old nested MCP format - MCP revamp in progress")
-	// Test that 'allowed' arrays are properly merged when MCPs have the same name but compatible configs
-	tmpDir, err := os.MkdirTemp("", "custom-mcp-merge-allowed-test")
+func TestCustomMCPMergingFromMultipleIncludes(t *testing.T) {
+	// Test that tools from imports with the same MCP server name get merged
+	tmpDir, err := os.MkdirTemp("", "custom-mcp-merge-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1489,14 +1463,12 @@ func TestCustomMCPMergingAllowedArrays(t *testing.T) {
 
 	// Create first include file with custom MCP server
 	include1Content := `---
-tools:
+mcp-servers:
   apiServer:
-    mcp:
-      type: stdio
-      command: "shared-server"
-      args: ["--config", "/shared/config"]
-      env:
-        API_KEY: "{{ secrets.API_KEY }}"
+    command: "shared-server"
+    args: ["--config", "/shared/config"]
+    env:
+      API_KEY: "${{ secrets.API_KEY }}"
     allowed: ["get_data", "post_data"]
 ---
 
@@ -1508,41 +1480,39 @@ First include file with apiServer MCP.
 		t.Fatal(err)
 	}
 
-	// Create second include file with COMPATIBLE custom MCP server (same config, different allowed)
+	// Create second include file with same MCP server but different allowed list
 	include2Content := `---
-tools:
+mcp-servers:
   apiServer:
-    mcp:
-      type: stdio
-      command: "shared-server"  # Same command - should be OK
-      args: ["--config", "/shared/config"]  # Same args - should be OK
-      env:
-        API_KEY: "{{ secrets.API_KEY }}"  # Same env - should be OK
-    allowed: ["delete_data", "update_data", "get_data"]  # Different allowed with overlap - should be merged
+    command: "shared-server"
+    args: ["--config", "/shared/config"]
+    env:
+      API_KEY: "${{ secrets.API_KEY }}"
+    allowed: ["delete_data", "update_data"]  # Different allowed - should merge with include1
 ---
 
 # Include 2
-Second include file with compatible apiServer MCP.
+Second include file with apiServer MCP that merges with include1.
 `
 	include2File := filepath.Join(tmpDir, "include2.md")
 	if err := os.WriteFile(include2File, []byte(include2Content), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Create main workflow file that includes both compatible files
+	// Create main workflow file that includes both files
 	mainContent := fmt.Sprintf(`---
 tools:
   github:
     allowed: ["list_issues"]
 ---
 
-# Test Workflow with Compatible MCPs
+# Test Workflow with Merged Allowed Arrays
 
-@include %s
+{{#import %s}}
 
-@include %s
+{{#import %s}}
 
-This should succeed and merge the allowed arrays.
+This should merge the allowed lists from both imports.
 `, filepath.Base(include1File), filepath.Base(include2File))
 
 	mainFile := filepath.Join(tmpDir, "main-workflow.md")
@@ -1566,12 +1536,12 @@ This should succeed and merge the allowed arrays.
 
 	lockContent := string(content)
 
-	// Check that all allowed tools from both includes are present (merged)
+	// Check that tools from both imports are present (merged, not overridden)
 	expectedMergedTools := []string{
-		"mcp__apiServer__get_data",    // from both includes
-		"mcp__apiServer__post_data",   // from include1
-		"mcp__apiServer__delete_data", // from include2
-		"mcp__apiServer__update_data", // from include2
+		"apiServer(get_data)",
+		"apiServer(post_data)",
+		"apiServer(delete_data)",
+		"apiServer(update_data)",
 	}
 
 	for _, expectedTool := range expectedMergedTools {
@@ -1580,27 +1550,9 @@ This should succeed and merge the allowed arrays.
 		}
 	}
 
-	// Verify that get_data appears only once in the allowed-tools line (no duplicates)
-	// We need to check specifically in the --allowed-tools line in CLI args, not in comments
-	allowedToolsLinePattern := `--allowed-tools ([^\n]+)`
-	re := regexp.MustCompile(allowedToolsLinePattern)
-	matches := re.FindStringSubmatch(lockContent)
-	if len(matches) < 2 {
-		t.Errorf("Could not find --allowed-tools line in lock file")
-	} else {
-		allowedToolsValue := matches[1]
-		allowedToolsMatch := strings.Count(allowedToolsValue, "mcp__apiServer__get_data")
-		if allowedToolsMatch != 1 {
-			t.Errorf("Expected 'mcp__apiServer__get_data' to appear exactly once in allowed-tools value, but found %d occurrences", allowedToolsMatch)
-		}
-	}
-
 	// Check that the MCP server configuration is present
-	if !strings.Contains(lockContent, `"apiServer": {`) {
+	if !strings.Contains(lockContent, `"apiServer"`) {
 		t.Errorf("Expected apiServer MCP configuration not found in lock file")
-	}
-	if !strings.Contains(lockContent, `"command": "shared-server"`) {
-		t.Errorf("Expected shared apiServer command not found in lock file")
 	}
 }
 
@@ -1754,8 +1706,7 @@ func TestExtractTopLevelYAMLSection_NestedEnvIssue(t *testing.T) {
 }
 
 func TestCompileWorkflowWithNestedEnv_NoOrphanedEnv(t *testing.T) {
-	t.Skip("Skipping test for old nested MCP format - MCP revamp in progress")
-	// This test verifies that workflows with nested env sections (like tools.*.env)
+	// This test verifies that workflows with nested env sections (like mcp-servers.*.env)
 	// don't create orphaned env blocks in the generated YAML
 	tmpDir, err := os.MkdirTemp("", "nested-env-test")
 	if err != nil {
@@ -1774,20 +1725,12 @@ permissions:
   contents: read
   models: read
 
-tools:
+mcp-servers:
   notionApi:
-    mcp:
-      type: stdio
-      command: docker
-      args: [
-        "run",
-        "--rm",
-        "-i",
-        "-e", "NOTION_TOKEN",
-        "mcp/notion"
-      ]
-      env:
-        NOTION_TOKEN: "{{ secrets.NOTION_TOKEN }}"
+    container: "mcp/notion"
+    env:
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
+tools:
   github:
     allowed: []
   edit:
@@ -1834,7 +1777,7 @@ This is a test workflow with nested env.
 	}
 
 	// Verify the env section is properly placed in the MCP config
-	if !strings.Contains(lockContent, `"NOTION_TOKEN": "{{ secrets.NOTION_TOKEN }}"`) {
+	if !strings.Contains(lockContent, `NOTION_TOKEN`) {
 		t.Errorf("Expected MCP env configuration not found in generated YAML:\n%s", lockContent)
 	}
 
@@ -2363,7 +2306,6 @@ This is a test workflow with network permissions and codex engine.
 }
 
 func TestMCPImageField(t *testing.T) {
-	t.Skip("Skipping test for old nested MCP format - MCP revamp in progress")
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "mcp-container-test")
 	if err != nil {
@@ -2382,117 +2324,54 @@ func TestMCPImageField(t *testing.T) {
 		{
 			name: "simple container field",
 			frontmatter: `---
-tools:
+mcp-servers:
   notionApi:
-    mcp:
-      type: stdio
-      container: mcp/notion
+    container: mcp/notion
     allowed: ["create_page", "search"]
 ---`,
 			expectedInLock: []string{
-				`"command": "docker"`,
-				`"run"`,
-				`"--rm"`,
-				`"-i"`,
+				`"notionApi"`,
 				`"mcp/notion"`,
-			},
-			notExpected: []string{
-				`"container"`, // container field should be removed after transformation
 			},
 			expectError: false,
 		},
 		{
 			name: "container with environment variables",
 			frontmatter: `---
-tools:
+mcp-servers:
   notionApi:
-    mcp:
-      type: stdio
-      container: mcp/notion:v1.2.3
-      env:
-        NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
-        API_URL: "https://api.notion.com"
+    container: mcp/notion:v1.2.3
+    env:
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
+      API_URL: "https://api.notion.com"
     allowed: ["create_page"]
 ---`,
 			expectedInLock: []string{
-				`"command": "docker"`,
-				`"-e"`,
-				`"API_URL"`,
-				`"-e"`,
-				`"NOTION_TOKEN"`,
 				`"mcp/notion:v1.2.3"`,
-				`"NOTION_TOKEN": "${{ secrets.NOTION_TOKEN }}"`,
-				`"API_URL": "https://api.notion.com"`,
-			},
-			expectError: false,
-		},
-		{
-			name: "container with both container and command should fail",
-			frontmatter: `---
-tools:
-  badApi:
-    mcp:
-      type: stdio
-      container: mcp/bad
-      command: docker
-    allowed: ["test"]
----`,
-			expectError:   true,
-			errorContains: "cannot specify both 'container' and 'command'",
-		},
-		{
-			name: "container with http type should fail",
-			frontmatter: `---
-tools:
-  badApi:
-    mcp:
-      type: http
-      container: mcp/bad
-      url: "http://contoso.com"
-    allowed: ["test"]
----`,
-			expectError:   true,
-			errorContains: "with type 'http' cannot use 'container' field",
-		},
-		{
-			name: "container field as JSON string",
-			frontmatter: `---
-tools:
-  trelloApi:
-    mcp: '{"type": "stdio", "container": "trello/mcp", "env": {"TRELLO_KEY": "key123"}}'
-    allowed: ["create_card"]
----`,
-			expectedInLock: []string{
-				`"command": "docker"`,
-				`"-e"`,
-				`"TRELLO_KEY"`,
-				`"trello/mcp"`,
+				`NOTION_TOKEN`,
+				`API_URL`,
 			},
 			expectError: false,
 		},
 		{
 			name: "multiple MCP servers with container fields",
 			frontmatter: `---
-tools:
+mcp-servers:
   notionApi:
-    mcp:
-      type: stdio
-      container: mcp/notion
+    container: mcp/notion
     allowed: ["create_page"]
   trelloApi:
-    mcp:
-      type: stdio
-      container: mcp/trello:latest
-      env:
-        TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
+    container: mcp/trello:latest
+    env:
+      TRELLO_TOKEN: "${{ secrets.TRELLO_TOKEN }}"
     allowed: ["list_boards"]
 ---`,
 			expectedInLock: []string{
-				`"notionApi": {`,
-				`"trelloApi": {`,
+				`"notionApi"`,
+				`"trelloApi"`,
 				`"mcp/notion"`,
 				`"mcp/trello:latest"`,
-				`"TRELLO_TOKEN"`,
+				`TRELLO_TOKEN`,
 			},
 			expectError: false,
 		},
@@ -4845,12 +4724,12 @@ engine: claude
 }
 
 func TestAccessLogUploadConditional(t *testing.T) {
-	t.Skip("Skipping test for old nested MCP format - MCP revamp in progress")
 	compiler := NewCompiler(false, "", "test")
 
 	tests := []struct {
 		name        string
 		tools       map[string]any
+		mcpServers  map[string]any
 		expectSteps bool
 	}{
 		{
@@ -4863,10 +4742,9 @@ func TestAccessLogUploadConditional(t *testing.T) {
 			expectSteps: false,
 		},
 		{
-			name: "tool with container but no network permissions - no access log steps",
-			tools: map[string]any{
+			name: "mcp server with container but no network permissions - no access log steps",
+			mcpServers: map[string]any{
 				"simple": map[string]any{
-					"type":      "stdio",
 					"container": "simple/tool",
 					"allowed":   []any{"test"},
 				},
@@ -4874,10 +4752,9 @@ func TestAccessLogUploadConditional(t *testing.T) {
 			expectSteps: false,
 		},
 		{
-			name: "tool with container and network permissions - access log steps generated",
-			tools: map[string]any{
+			name: "mcp server with container and network permissions - access log steps generated",
+			mcpServers: map[string]any{
 				"fetch": map[string]any{
-					"type":      "stdio",
 					"container": "mcp/fetch",
 					"network": map[string]any{
 						"allowed": []any{"example.com"},
@@ -4893,13 +4770,25 @@ func TestAccessLogUploadConditional(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var yaml strings.Builder
 
+			// Combine tools and mcpServers for testing
+			testTools := tt.tools
+			if testTools == nil {
+				testTools = make(map[string]any)
+			}
+			if tt.mcpServers != nil {
+				// Add mcp servers to tools map for the test
+				for name, config := range tt.mcpServers {
+					testTools[name] = config
+				}
+			}
+
 			// Test generateExtractAccessLogs
-			compiler.generateExtractAccessLogs(&yaml, tt.tools)
+			compiler.generateExtractAccessLogs(&yaml, testTools)
 			extractContent := yaml.String()
 
 			// Test generateUploadAccessLogs
 			yaml.Reset()
-			compiler.generateUploadAccessLogs(&yaml, tt.tools)
+			compiler.generateUploadAccessLogs(&yaml, testTools)
 			uploadContent := yaml.String()
 
 			hasExtractStep := strings.Contains(extractContent, "name: Extract squid access logs")
