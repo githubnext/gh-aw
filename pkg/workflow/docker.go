@@ -11,7 +11,7 @@ import (
 )
 
 // collectDockerImages collects all Docker images used in MCP configurations
-func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []string {
+func collectDockerImages(tools map[string]any) []string {
 	var images []string
 	imageSet := make(map[string]bool) // Use a set to avoid duplicates
 

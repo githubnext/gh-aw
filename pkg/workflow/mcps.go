@@ -82,7 +82,7 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	sort.Strings(proxyTools)
 
 	// Collect all Docker images that will be used and generate download step
-	dockerImages := collectDockerImages(tools, workflowData)
+	dockerImages := collectDockerImages(tools)
 	generateDownloadDockerImagesStep(yaml, dockerImages)
 
 	// Generate proxy configuration files inline for proxy-enabled tools
