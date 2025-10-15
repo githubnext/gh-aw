@@ -749,7 +749,7 @@ func (e *ClaudeEngine) ParseLogMetrics(logContent string, verbose bool) LogMetri
 
 	// First try to parse as JSON array (Claude logs are structured as JSON arrays)
 	if strings.TrimSpace(logContent) != "" {
-		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 || resultMetrics.Turns > 0 {
+		if resultMetrics := e.parseClaudeJSONLog(logContent, verbose); resultMetrics.TokenUsage > 0 || resultMetrics.EstimatedCost > 0 || resultMetrics.Turns > 0 || len(resultMetrics.ToolCalls) > 0 || len(resultMetrics.ToolSequences) > 0 {
 			metrics.TokenUsage = resultMetrics.TokenUsage
 			metrics.EstimatedCost = resultMetrics.EstimatedCost
 			metrics.Turns = resultMetrics.Turns
@@ -1049,8 +1049,8 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 			}
 		}
 
-		// Parse tool_use entries for tool call statistics from both assistant and user entries
-		if entry["type"] == "user" || entry["type"] == "assistant" {
+		// Parse tool results from user entries for output sizes
+		if entry["type"] == "user" {
 			if message, exists := entry["message"]; exists {
 				if messageMap, ok := message.(map[string]any); ok {
 					if content, exists := messageMap["content"]; exists {
@@ -1097,77 +1097,79 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 	for _, contentItem := range contentArray {
 		if contentMap, ok := contentItem.(map[string]any); ok {
 			if contentType, exists := contentMap["type"]; exists {
-				if typeStr, ok := contentType.(string); ok && typeStr == "tool_use" {
-					// Extract tool name
-					if toolName, exists := contentMap["name"]; exists {
-						if nameStr, ok := toolName.(string); ok {
-							// Skip internal tools as per existing JavaScript logic (disabled for tool graph visualization)
-							// internalTools := []string{
-							//	"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
-							// }
-							// if slices.Contains(internalTools, nameStr) {
-							//	continue
-							// }
+				if typeStr, ok := contentType.(string); ok {
+					if typeStr == "tool_use" {
+						// Extract tool name
+						if toolName, exists := contentMap["name"]; exists {
+							if nameStr, ok := toolName.(string); ok {
+								// Skip internal tools as per existing JavaScript logic (disabled for tool graph visualization)
+								// internalTools := []string{
+								//	"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
+								// }
+								// if slices.Contains(internalTools, nameStr) {
+								//	continue
+								// }
 
-							// Prettify tool name
-							prettifiedName := PrettifyToolName(nameStr)
+								// Prettify tool name
+								prettifiedName := PrettifyToolName(nameStr)
 
-							// Special handling for bash - each invocation is unique
-							if nameStr == "Bash" {
-								if input, exists := contentMap["input"]; exists {
-									if inputMap, ok := input.(map[string]any); ok {
-										if command, exists := inputMap["command"]; exists {
-											if commandStr, ok := command.(string); ok {
-												// Create unique bash entry with command info, avoiding colons
-												uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
-												prettifiedName = uniqueBashName
+								// Special handling for bash - each invocation is unique
+								if nameStr == "Bash" {
+									if input, exists := contentMap["input"]; exists {
+										if inputMap, ok := input.(map[string]any); ok {
+											if command, exists := inputMap["command"]; exists {
+												if commandStr, ok := command.(string); ok {
+													// Create unique bash entry with command info, avoiding colons
+													uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
+													prettifiedName = uniqueBashName
+												}
 											}
 										}
 									}
 								}
-							}
 
-							// Add to sequence
-							sequence = append(sequence, prettifiedName)
+								// Add to sequence
+								sequence = append(sequence, prettifiedName)
 
-							// Calculate input size from the input field
-							inputSize := 0
-							if input, exists := contentMap["input"]; exists {
-								inputSize = e.estimateInputSize(input)
-							}
-
-							// Initialize or update tool call info
-							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
-								toolInfo.CallCount++
-								if inputSize > toolInfo.MaxInputSize {
-									toolInfo.MaxInputSize = inputSize
+								// Calculate input size from the input field
+								inputSize := 0
+								if input, exists := contentMap["input"]; exists {
+									inputSize = e.estimateInputSize(input)
 								}
-							} else {
-								toolCallMap[prettifiedName] = &ToolCallInfo{
-									Name:          prettifiedName,
-									CallCount:     1,
-									MaxInputSize:  inputSize,
-									MaxOutputSize: 0, // Will be updated when we find tool results
-									MaxDuration:   0, // Will be updated when we find execution timing
+
+								// Initialize or update tool call info
+								if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+									toolInfo.CallCount++
+									if inputSize > toolInfo.MaxInputSize {
+										toolInfo.MaxInputSize = inputSize
+									}
+								} else {
+									toolCallMap[prettifiedName] = &ToolCallInfo{
+										Name:          prettifiedName,
+										CallCount:     1,
+										MaxInputSize:  inputSize,
+										MaxOutputSize: 0, // Will be updated when we find tool results
+										MaxDuration:   0, // Will be updated when we find execution timing
+									}
 								}
 							}
 						}
-					}
-				} else if typeStr == "tool_result" {
-					// Extract output size for tool results
-					if content, exists := contentMap["content"]; exists {
-						if contentStr, ok := content.(string); ok {
-							// Estimate token count (rough approximation: 1 token = ~4 characters)
-							outputSize := len(contentStr) / 4
+					} else if typeStr == "tool_result" {
+						// Extract output size for tool results
+						if content, exists := contentMap["content"]; exists {
+							if contentStr, ok := content.(string); ok {
+								// Estimate token count (rough approximation: 1 token = ~4 characters)
+								outputSize := len(contentStr) / 4
 
-							// Find corresponding tool call to update max output size
-							if toolUseID, exists := contentMap["tool_use_id"]; exists {
-								if _, ok := toolUseID.(string); ok {
-									// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
-									// For now, we'll update the max output size for all tools (conservative estimate)
-									for _, toolInfo := range toolCallMap {
-										if outputSize > toolInfo.MaxOutputSize {
-											toolInfo.MaxOutputSize = outputSize
+								// Find corresponding tool call to update max output size
+								if toolUseID, exists := contentMap["tool_use_id"]; exists {
+									if _, ok := toolUseID.(string); ok {
+										// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
+										// For now, we'll update the max output size for all tools (conservative estimate)
+										for _, toolInfo := range toolCallMap {
+											if outputSize > toolInfo.MaxOutputSize {
+												toolInfo.MaxOutputSize = outputSize
+											}
 										}
 									}
 								}
@@ -1187,47 +1189,49 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 	for _, contentItem := range contentArray {
 		if contentMap, ok := contentItem.(map[string]any); ok {
 			if contentType, exists := contentMap["type"]; exists {
-				if typeStr, ok := contentType.(string); ok && typeStr == "tool_use" {
-					// Extract tool name
-					if toolName, exists := contentMap["name"]; exists {
-						if nameStr, ok := toolName.(string); ok {
-							// Prettify tool name
-							prettifiedName := PrettifyToolName(nameStr)
+				if typeStr, ok := contentType.(string); ok {
+					if typeStr == "tool_use" {
+						// Extract tool name
+						if toolName, exists := contentMap["name"]; exists {
+							if nameStr, ok := toolName.(string); ok {
+								// Prettify tool name
+								prettifiedName := PrettifyToolName(nameStr)
 
-							// Special handling for bash - each invocation is unique
-							if nameStr == "Bash" {
-								if input, exists := contentMap["input"]; exists {
-									if inputMap, ok := input.(map[string]any); ok {
-										if command, exists := inputMap["command"]; exists {
-											if commandStr, ok := command.(string); ok {
-												// Create unique bash entry with command info, avoiding colons
-												uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
-												prettifiedName = uniqueBashName
+								// Special handling for bash - each invocation is unique
+								if nameStr == "Bash" {
+									if input, exists := contentMap["input"]; exists {
+										if inputMap, ok := input.(map[string]any); ok {
+											if command, exists := inputMap["command"]; exists {
+												if commandStr, ok := command.(string); ok {
+													// Create unique bash entry with command info, avoiding colons
+													uniqueBashName := fmt.Sprintf("bash_%s", e.shortenCommand(commandStr))
+													prettifiedName = uniqueBashName
+												}
 											}
 										}
 									}
 								}
-							}
 
-							// Calculate input size from the input field
-							inputSize := 0
-							if input, exists := contentMap["input"]; exists {
-								inputSize = e.estimateInputSize(input)
-							}
-
-							// Initialize or update tool call info
-							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
-								toolInfo.CallCount++
-								if inputSize > toolInfo.MaxInputSize {
-									toolInfo.MaxInputSize = inputSize
+								// Calculate input size from the input field
+								inputSize := 0
+								if input, exists := contentMap["input"]; exists {
+									inputSize = e.estimateInputSize(input)
 								}
-							} else {
-								toolCallMap[prettifiedName] = &ToolCallInfo{
-									Name:          prettifiedName,
-									CallCount:     1,
-									MaxInputSize:  inputSize,
-									MaxOutputSize: 0, // Will be updated when we find tool results
-									MaxDuration:   0, // Will be updated when we find execution timing
+
+								// Initialize or update tool call info
+								if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+									toolInfo.CallCount++
+									if inputSize > toolInfo.MaxInputSize {
+										toolInfo.MaxInputSize = inputSize
+									}
+								} else {
+									toolCallMap[prettifiedName] = &ToolCallInfo{
+										Name:          prettifiedName,
+										CallCount:     1,
+										MaxInputSize:  inputSize,
+										MaxOutputSize: 0, // Will be updated when we find tool results
+										MaxDuration:   0, // Will be updated when we find execution timing
+									}
 								}
 							}
 						}

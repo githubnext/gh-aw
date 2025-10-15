@@ -61,6 +61,34 @@ function main() {
 }
 
 /**
+ * Extracts the premium request count from the log content using regex
+ * @param {string} logContent - The raw log content as a string
+ * @returns {number} The number of premium requests consumed (defaults to 1 if not found)
+ */
+function extractPremiumRequestCount(logContent) {
+  // Try various patterns that might appear in the Copilot CLI output
+  const patterns = [
+    /premium\s+requests?\s+consumed:?\s*(\d+)/i,
+    /(\d+)\s+premium\s+requests?\s+consumed/i,
+    /consumed\s+(\d+)\s+premium\s+requests?/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = logContent.match(pattern);
+    if (match && match[1]) {
+      const count = parseInt(match[1], 10);
+      if (!isNaN(count) && count > 0) {
+        return count;
+      }
+    }
+  }
+
+  // Default to 1 if no match found
+  // For agentic workflows, 1 premium request is consumed per workflow run
+  return 1;
+}
+
+/**
  * Parses Copilot CLI log content and converts it to markdown format
  * @param {string} logContent - The raw log content as a string
  * @returns {string} Formatted markdown content
@@ -243,10 +271,12 @@ function parseCopilotLog(logContent) {
       }
 
       // Display premium request consumption if using a premium model
+      // Extract the number from the stdio log if available, otherwise default to 1
       const isPremiumModel =
         initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-      if (isPremiumModel && lastEntry.num_turns) {
-        markdown += `**Premium Requests Consumed:** ${lastEntry.num_turns}\n\n`;
+      if (isPremiumModel) {
+        const premiumRequestCount = extractPremiumRequestCount(logContent);
+        markdown += `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
       }
 
       if (lastEntry.usage) {
@@ -962,6 +992,7 @@ function truncateString(str, maxLength) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     parseCopilotLog,
+    extractPremiumRequestCount,
     formatInitializationSummary,
     formatToolUseWithDetails,
     formatBashCommand,

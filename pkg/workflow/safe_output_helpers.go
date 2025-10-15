@@ -241,29 +241,29 @@ func generateSafeOutputsConfig(data *WorkflowData) string {
 
 // applySafeOutputEnvToMap adds safe-output related environment variables to an env map
 // This extracts the duplicated safe-output env setup logic across all engines (copilot, codex, claude, custom)
-func applySafeOutputEnvToMap(env map[string]string, workflowData *WorkflowData) {
-	if workflowData.SafeOutputs == nil {
+func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
+	if data.SafeOutputs == nil {
 		return
 	}
 
 	env["GITHUB_AW_SAFE_OUTPUTS"] = "${{ env.GITHUB_AW_SAFE_OUTPUTS }}"
 
-	safeOutputConfig := generateSafeOutputsConfig(workflowData)
+	safeOutputConfig := generateSafeOutputsConfig(data)
 	env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 
 	// Add staged flag if specified
-	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
+	if data.TrialMode || data.SafeOutputs.Staged {
 		env["GITHUB_AW_SAFE_OUTPUTS_STAGED"] = "true"
 	}
-	if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-		env["GITHUB_AW_TARGET_REPO_SLUG"] = workflowData.TrialTargetRepo
+	if data.TrialMode && data.TrialLogicalRepo != "" {
+		env["GITHUB_AW_TARGET_REPO_SLUG"] = data.TrialLogicalRepo
 	}
 
 	// Add branch name if upload assets is configured
-	if workflowData.SafeOutputs.UploadAssets != nil {
-		env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", workflowData.SafeOutputs.UploadAssets.BranchName)
-		env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", workflowData.SafeOutputs.UploadAssets.MaxSizeKB)
-		env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(workflowData.SafeOutputs.UploadAssets.AllowedExts, ","))
+	if data.SafeOutputs.UploadAssets != nil {
+		env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+		env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+		env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 	}
 }
 
@@ -280,8 +280,8 @@ func applySafeOutputEnvToSlice(stepLines *[]string, workflowData *WorkflowData) 
 	if workflowData.TrialMode || workflowData.SafeOutputs.Staged {
 		*stepLines = append(*stepLines, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"")
 	}
-	if workflowData.TrialMode && workflowData.TrialTargetRepo != "" {
-		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q", workflowData.TrialTargetRepo))
+	if workflowData.TrialMode && workflowData.TrialLogicalRepo != "" {
+		*stepLines = append(*stepLines, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q", workflowData.TrialLogicalRepo))
 	}
 
 	// Add branch name if upload assets is configured

@@ -243,7 +243,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.14
+        run: npm install -g @anthropic-ai/claude-code@2.0.15
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -353,6 +353,10 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
+      - name: Downloading container images
+        run: |
+          set -e
+          docker pull ghcr.io/github/github-mcp-server:v0.18.0
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -3249,7 +3253,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.14
+        run: npm install -g @anthropic-ai/claude-code@2.0.15
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):

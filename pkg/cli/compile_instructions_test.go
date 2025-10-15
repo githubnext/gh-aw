@@ -183,7 +183,8 @@ This is a test workflow for compilation.
 		Purge:                false,
 		TrialMode:            false,
 		TrialLogicalRepoSlug: "",
-		Strict:               false,
+
+		Strict: false,
 	}
 
 	_, err = CompileWorkflows(config)

@@ -158,7 +158,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			tools: map[string]any{
 				"bash": []any{":*"},
 			},
-			expected: []string{"--allow-tool", "shell"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
 			name: "bash with nil (all commands allowed)",
@@ -195,7 +195,7 @@ func TestCopilotEngineComputeToolArguments(t *testing.T) {
 			tools: map[string]any{
 				"bash": []any{"*"},
 			},
-			expected: []string{"--allow-tool", "shell"},
+			expected: []string{"--allow-all-tools"},
 		},
 		{
 			name: "comprehensive with multiple tools",

@@ -93,8 +93,8 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 		}
 	}()
 
-	renderLogsConsole(data, false)
-	renderLogsConsole(data, true)
+	renderLogsConsole(data)
+	renderLogsConsole(data)
 }
 
 // TestBuildToolUsageSummaryPopulatesDisplay tests that buildToolUsageSummary works correctly

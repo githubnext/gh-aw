@@ -13,6 +13,14 @@ safe-outputs:
   push-to-pull-request-branch:
 timeout_minutes: 10
 strict: true
+imports:
+  - shared/changeset-format.md
+steps:
+  - name: Setup changeset directory
+    run: |
+      mkdir -p .changeset
+      git config user.name "github-actions[bot]"
+      git config user.email "github-actions[bot]@users.noreply.github.com"
 ---
 
 # Changeset Generator
@@ -29,59 +37,33 @@ When a pull request is marked as ready for review, analyze the changes and creat
 - **Pull Request Number**: ${{ github.event.pull_request.number }}
 - **Pull Request Content**: "${{ needs.activation.outputs.text }}"
 
+**IMPORTANT - Token Optimization**: The pull request content above is already sanitized and available. DO NOT use `pull_request_read` or similar GitHub API tools to fetch PR details - you already have everything you need in the context above. Using API tools wastes 40k+ tokens per call.
+
 ## Task
 
 Your task is to:
 
-1. **Analyze the Pull Request**: Review the pull request title, description, and changes to understand what has been modified.
+1. **Analyze the Pull Request**: Review the pull request title and description above to understand what has been modified.
 
-2. **use the repository name as the package identifier**
+2. **Use the repository name as the package identifier** (gh-aw)
 
 3. **Determine the Change Type**:
-   - **major**: Breaking changes (indicated by "BREAKING CHANGE" in PR or major API changes)
-   - **minor**: New features, enhancements (look for "feat:", "feature:", "add:", etc.)
-   - **patch**: Bug fixes, documentation, refactoring, internal changes, tooling changes (look for "fix:", "bug:", "docs:", "chore:", "refactor:", "test:", etc.)
+   - **major**: Major breaking changes (X.0.0) - Very unlikely, probably should be **minor**
+   - **minor**: Breaking changes in the CLI (0.X.0) - indicated by "BREAKING CHANGE" or major API changes
+   - **patch**: Bug fixes, docs, refactoring, internal changes, tooling, new shared workflows (0.0.X)
    
-   **Important**: Always treat internal changes, tooling changes, and documentation changes as "patch" level only, even if they might seem like features. These changes don't affect the public API or user-facing functionality.
+   **Important**: Internal changes, tooling, and documentation are always "patch" level.
 
 4. **Generate the Changeset File**:
-   - Create a file in the `.changeset/` directory with a descriptive kebab-case name
-   - Use the format: `<type>-<short-description>.md` (e.g., `minor-add-new-feature.md`)
-   - Follow the changeset format specification:
-
-```markdown
----
-"package-name": <major|minor|patch>
----
-
-Brief summary of the change (from PR title or first line of description)
-
-Optional: More detailed explanation based on PR body
-```
+   - Create file in `.changeset/` directory (already created by pre-step)
+   - Use format from the changeset format reference above
+   - Filename: `<type>-<short-description>.md` (e.g., `patch-fix-bug.md`)
 
 5. **Commit and Push Changes**:
+   - Git is already configured by pre-step
    - Add and commit the changeset file to the current pull request branch
-   - Use the push-to-pull-request-branch tool from the safe-outputs MCP to push the changes
+   - Use the push-to-pull-request-branch tool from safe-outputs to push changes
    - The changeset will be added directly to this pull request
-
-## Changeset Format Reference
-
-Based on https://github.com/changesets/changesets/blob/main/docs/adding-a-changeset.md
-
-### Basic Format
-
-```markdown
----
-"gh-aw": patch
----
-
-Fixed a bug in the component rendering logic
-```
-
-### Version Bump Types
-- **patch**: Bug fixes, documentation updates, refactoring, non-breaking additions, new shared workflows (0.0.X)
-- **minor**: Breaking changes in the cli (0.X.0)
-- **major**: Major breaking changes. Very unlikely to be used often (X.0.0). You should be very careful when using this, it's probably a **minor**.
 
 ## Guidelines
 
@@ -89,13 +71,6 @@ Fixed a bug in the component rendering logic
 - **Be Clear**: The changeset description should clearly explain what changed
 - **Be Concise**: Keep descriptions brief but informative
 - **Follow Conventions**: Use the exact changeset format specified above
-- **Single Package Default**: If unsure about package structure, default to a single package using the repo name
+- **Single Package Default**: If unsure about package structure, default to "gh-aw"
 - **Smart Naming**: Use descriptive filenames that indicate the change (e.g., `patch-fix-rendering-bug.md`)
 
-## Important Notes
-
-- The changeset file must be created in the `.changeset/` directory
-- If `.changeset/` doesn't exist, create it first
-- The changeset filename should be unique and descriptive
-- Use quotes around package names in the YAML frontmatter
-- The changeset description should be based on the PR title and body
