@@ -15,11 +15,11 @@ function generateFooter(workflowName, runUrl, workflowSource, workflowSourceURL,
 
   // Add triggering reference if available
   if (triggeringContext && triggeringContext.number) {
-    if (triggeringContext.type === 'discussion' && triggeringContext.url) {
+    if (triggeringContext.type === "discussion" && triggeringContext.url) {
       footer += ` for [discussion #${triggeringContext.number}](${triggeringContext.url})`;
-    } else if (triggeringContext.type === 'pull_request') {
+    } else if (triggeringContext.type === "pull_request") {
       footer += ` for #${triggeringContext.number}`;
-    } else if (triggeringContext.type === 'issue') {
+    } else if (triggeringContext.type === "issue") {
       footer += ` for #${triggeringContext.number}`;
     }
   }
@@ -144,8 +144,8 @@ async function main() {
   let triggeringContext = undefined;
   if (isPRContext && context.payload.pull_request) {
     triggeringContext = {
-      type: 'pull_request',
-      number: context.payload.pull_request.number
+      type: "pull_request",
+      number: context.payload.pull_request.number,
     };
   }
 
