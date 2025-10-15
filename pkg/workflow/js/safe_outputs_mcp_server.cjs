@@ -164,7 +164,7 @@ const defaultHandler = type => args => {
     content: [
       {
         type: "text",
-        text: `success`,
+        text: JSON.stringify({ result: "success" }),
       },
     ],
   };
@@ -264,7 +264,7 @@ const uploadAssetHandler = args => {
     content: [
       {
         type: "text",
-        text: url,
+        text: JSON.stringify({ result: url }),
       },
     ],
   };
@@ -390,7 +390,7 @@ const createPullRequestHandler = args => {
     content: [
       {
         type: "text",
-        text: `success`,
+        text: JSON.stringify({ result: "success" }),
       },
     ],
   };
@@ -421,7 +421,7 @@ const pushToPullRequestBranchHandler = args => {
     content: [
       {
         type: "text",
-        text: `success`,
+        text: JSON.stringify({ result: "success" }),
       },
     ],
   };
@@ -724,7 +724,7 @@ Object.keys(safeOutputsConfig).forEach(configKey => {
           content: [
             {
               type: "text",
-              text: outputText,
+              text: JSON.stringify({ result: outputText }),
             },
           ],
         };

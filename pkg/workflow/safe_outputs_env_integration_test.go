@@ -142,7 +142,7 @@ func TestSafeOutputsEnvIntegration(t *testing.T) {
 
 			// Test job generation for each safe output type
 			if strings.Contains(tt.expectedSafeOutput, "create-issue") {
-				job, err := compiler.buildCreateOutputIssueJob(data, "main_job", false, tt.frontmatter)
+				job, err := compiler.buildCreateOutputIssueJob(data, "main_job")
 				if err != nil {
 					t.Errorf("Error building create issue job: %v", err)
 				}
@@ -220,7 +220,7 @@ Create an issue with test results.
 
 	// Build the create issue job and verify it includes our environment variables
 	compiler := NewCompiler(false, "", "test")
-	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
+	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job")
 	if err != nil {
 		t.Fatalf("Failed to build create issue job: %v", err)
 	}
@@ -275,7 +275,7 @@ This workflow tests that custom environment variables work with staged mode.
 
 	// Build the create issue job and verify it includes our environment variables and staged flag
 	compiler := NewCompiler(false, "", "test")
-	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job", false, nil)
+	job, err := compiler.buildCreateOutputIssueJob(workflowData, "main_job")
 	if err != nil {
 		t.Fatalf("Failed to build create issue job: %v", err)
 	}

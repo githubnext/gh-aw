@@ -123,6 +123,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
 	}
 
+	// Extract secrets from headers for HTTP MCP tools (copilot engine only)
+	var headerSecrets map[string]string
+	if mcpConfig.Type == "http" && renderer.RequiresCopilotFields {
+		headerSecrets = extractSecretsFromHeaders(mcpConfig.Headers)
+	}
+
 	// Determine properties based on type
 	var propertyOrder []string
 	mcpType := mcpConfig.Type
@@ -143,7 +149,12 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 		} else {
 			// JSON format - include copilot fields if required
 			if renderer.RequiresCopilotFields {
-				propertyOrder = []string{"type", "url", "headers", "tools"}
+				// For HTTP MCP with secrets in headers, env passthrough is needed
+				if len(headerSecrets) > 0 {
+					propertyOrder = []string{"type", "url", "headers", "tools", "env"}
+				} else {
+					propertyOrder = []string{"type", "url", "headers", "tools"}
+				}
 			} else {
 				propertyOrder = []string{"type", "url", "headers"}
 			}
@@ -178,7 +189,8 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				existingProperties = append(existingProperties, prop)
 			}
 		case "env":
-			if len(mcpConfig.Env) > 0 {
+			// Include env if there are existing env vars OR if there are header secrets to passthrough
+			if len(mcpConfig.Env) > 0 || len(headerSecrets) > 0 {
 				existingProperties = append(existingProperties, prop)
 			}
 		case "url":
@@ -297,17 +309,39 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 					comma = ""
 				}
 				fmt.Fprintf(yaml, "%s\"env\": {\n", renderer.IndentLevel)
-				envKeys := make([]string, 0, len(mcpConfig.Env))
+
+				// CWE-190: Allocation Size Overflow Prevention
+				// Instead of pre-calculating capacity (len(mcpConfig.Env)+len(headerSecrets)),
+				// which could overflow if the maps are extremely large, we let Go's append
+				// handle capacity growth automatically. This is safe and efficient for
+				// environment variable maps which are typically small in practice.
+				var envKeys []string
 				for key := range mcpConfig.Env {
 					envKeys = append(envKeys, key)
 				}
+				// Add header secrets for passthrough (copilot only)
+				for varName := range headerSecrets {
+					// Only add if not already in env
+					if _, exists := mcpConfig.Env[varName]; !exists {
+						envKeys = append(envKeys, varName)
+					}
+				}
 				sort.Strings(envKeys)
+
 				for envIndex, envKey := range envKeys {
 					envComma := ","
 					if envIndex == len(envKeys)-1 {
 						envComma = ""
 					}
-					fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, mcpConfig.Env[envKey], envComma)
+
+					// Check if this is a header secret (needs passthrough)
+					if _, isHeaderSecret := headerSecrets[envKey]; isHeaderSecret && renderer.RequiresCopilotFields {
+						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
+						fmt.Fprintf(yaml, "%s  \"%s\": \"\\${%s}\"%s\n", renderer.IndentLevel, envKey, envKey, envComma)
+					} else {
+						// Use existing env value
+						fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, mcpConfig.Env[envKey], envComma)
+					}
 				}
 				fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 			}
@@ -333,7 +367,14 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				if headerIndex == len(headerKeys)-1 {
 					headerComma = ""
 				}
-				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, mcpConfig.Headers[headerKey], headerComma)
+
+				// Replace secret expressions with env var references for copilot
+				headerValue := mcpConfig.Headers[headerKey]
+				if renderer.RequiresCopilotFields && len(headerSecrets) > 0 {
+					headerValue = replaceSecretsWithEnvVars(headerValue, headerSecrets)
+				}
+
+				fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, headerKey, headerValue, headerComma)
 			}
 			fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
 		case "proxy-args":
@@ -433,6 +474,105 @@ func (m MapToolConfig) GetStringMap(key string) (map[string]string, bool) {
 func (m MapToolConfig) GetAny(key string) (any, bool) {
 	value, exists := m[key]
 	return value, exists
+}
+
+// extractSecretsFromValue extracts GitHub Actions secret expressions from a string value
+// Returns a map of environment variable names to their secret expressions
+// Example: "${{ secrets.DD_API_KEY }}" -> {"DD_API_KEY": "${{ secrets.DD_API_KEY }}"}
+// Example: "${{ secrets.DD_SITE || 'datadoghq.com' }}" -> {"DD_SITE": "${{ secrets.DD_SITE || 'datadoghq.com' }}"}
+func extractSecretsFromValue(value string) map[string]string {
+	secrets := make(map[string]string)
+
+	// Pattern to match ${{ secrets.VARIABLE_NAME }} or ${{ secrets.VARIABLE_NAME || 'default' }}
+	// We need to extract the variable name and the full expression
+	start := 0
+	for {
+		// Find the start of an expression
+		startIdx := strings.Index(value[start:], "${{ secrets.")
+		if startIdx == -1 {
+			break
+		}
+		startIdx += start
+
+		// Find the end of the expression
+		endIdx := strings.Index(value[startIdx:], "}}")
+		if endIdx == -1 {
+			break
+		}
+		endIdx += startIdx + 2 // Include the closing }}
+
+		// Extract the full expression
+		fullExpr := value[startIdx:endIdx]
+
+		// Extract the variable name from "secrets.VARIABLE_NAME" or "secrets.VARIABLE_NAME ||"
+		secretsPart := strings.TrimPrefix(fullExpr, "${{ secrets.")
+		secretsPart = strings.TrimSuffix(secretsPart, "}}")
+		secretsPart = strings.TrimSpace(secretsPart)
+
+		// Find the variable name (everything before space, ||, or end)
+		varName := secretsPart
+		if spaceIdx := strings.IndexAny(varName, " |"); spaceIdx != -1 {
+			varName = varName[:spaceIdx]
+		}
+
+		// Store the variable name and full expression
+		if varName != "" {
+			secrets[varName] = fullExpr
+		}
+
+		start = endIdx
+	}
+
+	return secrets
+}
+
+// extractSecretsFromHeaders extracts all secrets from HTTP MCP headers
+// Returns a map of environment variable names to their secret expressions
+func extractSecretsFromHeaders(headers map[string]string) map[string]string {
+	allSecrets := make(map[string]string)
+
+	for _, headerValue := range headers {
+		secrets := extractSecretsFromValue(headerValue)
+		for varName, expr := range secrets {
+			allSecrets[varName] = expr
+		}
+	}
+
+	return allSecrets
+}
+
+// replaceSecretsWithEnvVars replaces secret expressions in a value with environment variable references
+// Example: "${{ secrets.DD_API_KEY }}" -> "${DD_API_KEY}"
+func replaceSecretsWithEnvVars(value string, secrets map[string]string) string {
+	result := value
+	for varName, secretExpr := range secrets {
+		// Replace ${{ secrets.VAR }} with ${VAR}
+		result = strings.ReplaceAll(result, secretExpr, "${"+varName+"}")
+	}
+	return result
+}
+
+// collectHTTPMCPHeaderSecrets collects all secrets from HTTP MCP tool headers
+// Returns a map of environment variable names to their secret expressions
+func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
+	allSecrets := make(map[string]string)
+
+	for toolName, toolValue := range tools {
+		// Check if this is an MCP tool configuration
+		if toolConfig, ok := toolValue.(map[string]any); ok {
+			if hasMcp, mcpType := hasMCPConfig(toolConfig); hasMcp && mcpType == "http" {
+				// Extract MCP config to get headers
+				if mcpConfig, err := getMCPConfig(toolConfig, toolName); err == nil {
+					secrets := extractSecretsFromHeaders(mcpConfig.Headers)
+					for varName, expr := range secrets {
+						allSecrets[varName] = expr
+					}
+				}
+			}
+		}
+	}
+
+	return allSecrets
 }
 
 // getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig

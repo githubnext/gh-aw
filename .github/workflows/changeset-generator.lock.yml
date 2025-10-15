@@ -6,6 +6,24 @@
 # Resolved workflow manifest:
 #   Imports:
 #     - shared/changeset-format.md
+#
+# Job Dependency Graph:
+# ```mermaid
+# graph LR
+#   check_membership["check_membership"]
+#   activation["activation"]
+#   agent["agent"]
+#   detection["detection"]
+#   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   missing_tool["missing_tool"]
+#   check_membership --> activation
+#   activation --> agent
+#   agent --> detection
+#   agent --> push_to_pull_request_branch
+#   detection --> push_to_pull_request_branch
+#   agent --> missing_tool
+#   detection --> missing_tool
+# ```
 
 name: "Changeset Generator"
 "on":
@@ -943,7 +961,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -1012,7 +1030,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: url,
+                    text: JSON.stringify({ result: url }),
                   },
                 ],
               };
@@ -1092,7 +1110,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -1113,7 +1131,7 @@ jobs:
                 content: [
                   {
                     type: "text",
-                    text: `success`,
+                    text: JSON.stringify({ result: "success" }),
                   },
                 ],
               };
@@ -1396,7 +1414,7 @@ jobs:
                       content: [
                         {
                           type: "text",
-                          text: outputText,
+                          text: JSON.stringify({ result: outputText }),
                         },
                       ],
                     };
@@ -1784,7 +1802,6 @@ jobs:
                 const rendered = renderMarkdownTemplate(markdown);
                 fs.writeFileSync(promptPath, rendered, "utf8");
                 core.info("Template rendered successfully");
-                core.summary.addHeading("Template Rendering", 3).addRaw("\n").addRaw("Processed conditional blocks in prompt\n").write();
               } catch (error) {
                 core.setFailed(error instanceof Error ? error.message : String(error));
               }
@@ -1794,11 +1811,14 @@ jobs:
         env:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         run: |
-          echo "## Generated Prompt" >> $GITHUB_STEP_SUMMARY
+          echo "<details>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>Generated Prompt</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```markdown' >> $GITHUB_STEP_SUMMARY
           cat $GITHUB_AW_PROMPT >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
@@ -3485,9 +3505,7 @@ jobs:
             fs.writeFileSync('/tmp/gh-aw/aw-prompts/prompt.txt', promptContent);
             core.exportVariable('GITHUB_AW_PROMPT', '/tmp/gh-aw/aw-prompts/prompt.txt');
             await core.summary
-              .addHeading('Threat Detection Prompt', 2)
-              .addRaw('\n')
-              .addCodeBlock(promptContent, 'text')
+              .addRaw('<details>\n<summary>Threat Detection Prompt</summary>\n\n' + '``````markdown\n' + promptContent + '\n' + '``````\n\n</details>\n')
               .write();
             core.info('Threat detection setup completed');
       - name: Ensure threat-detection directory and log

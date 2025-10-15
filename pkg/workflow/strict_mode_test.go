@@ -396,6 +396,174 @@ tools:
 	}
 }
 
+func TestStrictModeBashTools(t *testing.T) {
+	tests := []struct {
+		name        string
+		content     string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "specific bash commands allowed in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+tools:
+  bash: ["echo", "ls", "pwd"]
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+		{
+			name: "bash null allowed in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+tools:
+  bash:
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+		{
+			name: "bash empty array allowed in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+tools:
+  bash: []
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+		{
+			name: "bash wildcard star refused in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+tools:
+  bash: ["*"]
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: bash wildcard '*' is not allowed - use specific commands instead",
+		},
+		{
+			name: "bash wildcard colon-star refused in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+tools:
+  bash: [":*"]
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: bash wildcard ':*' is not allowed - use specific commands instead",
+		},
+		{
+			name: "bash wildcard star mixed with commands refused in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+tools:
+  bash: ["echo", "ls", "*", "pwd"]
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: true,
+			errorMsg:    "strict mode: bash wildcard '*' is not allowed - use specific commands instead",
+		},
+		{
+			name: "bash command wildcards like git:* are allowed in strict mode",
+			content: `---
+on: push
+permissions:
+  contents: read
+timeout_minutes: 10
+engine: claude
+tools:
+  bash: ["git:*", "npm:*"]
+network:
+  allowed:
+    - "api.example.com"
+---
+
+# Test Workflow`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir, err := os.MkdirTemp("", "strict-bash-test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir)
+
+			testFile := filepath.Join(tmpDir, "test-workflow.md")
+			if err := os.WriteFile(testFile, []byte(tt.content), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			compiler := NewCompiler(false, "", "")
+			compiler.SetStrictMode(true)
+			err = compiler.CompileWorkflow(testFile)
+
+			if tt.expectError && err == nil {
+				t.Error("Expected compilation to fail but it succeeded")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("Expected compilation to succeed but it failed: %v", err)
+			} else if tt.expectError && err != nil && tt.errorMsg != "" {
+				if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			}
+		})
+	}
+}
+
 // Note: Detailed MCP network validation tests are skipped because they require
 // complex schema validation setup. The validation logic is implemented in
 // validateStrictMCPNetwork() and will be triggered during actual workflow compilation

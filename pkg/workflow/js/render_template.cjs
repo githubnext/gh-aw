@@ -51,7 +51,7 @@ function main() {
     fs.writeFileSync(promptPath, rendered, "utf8");
 
     core.info("Template rendered successfully");
-    core.summary.addHeading("Template Rendering", 3).addRaw("\n").addRaw("Processed conditional blocks in prompt\n").write();
+    // core.summary.addHeading("Template Rendering", 3).addRaw("\n").addRaw("Processed conditional blocks in prompt\n").write();
   } catch (error) {
     core.setFailed(error instanceof Error ? error.message : String(error));
   }

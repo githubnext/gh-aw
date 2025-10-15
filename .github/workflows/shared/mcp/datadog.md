@@ -7,16 +7,10 @@ mcp-servers:
       DD_APP_KEY: "${{ secrets.DD_APP_KEY }}"
       DD_SITE: "${{ secrets.DD_SITE || 'datadoghq.com' }}"
     allowed:
-      - get-monitors
-      - get-monitor
-      - get-dashboards
-      - get-dashboard
-      - get-metrics
-      - get-metric-metadata
-      - get-events
-      - get-incidents
-      - search-logs
-      - aggregate-logs
+      - search_datadog_dashboards
+      - search_datadog_slos
+      - search_datadog_metrics
+      - get_datadog_metric
 ---
 
 <!--

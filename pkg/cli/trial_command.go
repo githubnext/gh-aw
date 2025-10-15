@@ -108,9 +108,15 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			triggerContext, _ := cmd.Flags().GetString("trigger-context")
 			repeatCount, _ := cmd.Flags().GetInt("repeat")
 			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
+			engineOverride, _ := cmd.Flags().GetString("engine")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
-			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, verbose); err != nil {
+			if err := validateEngine(engineOverride); err != nil {
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
+				os.Exit(1)
+			}
+
+			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, engineOverride, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -136,12 +142,13 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
 	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the trial (requires --clone-repo)")
+	cmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
 
 	return cmd
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, verbose bool) error {
+func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, verbose bool) error {
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -287,7 +294,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 			// Install workflow with trial mode compilation
-			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, verbose); err != nil {
+			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
 				return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 			}
 
@@ -309,13 +316,13 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow run started with ID: %s (%s)", runID, workflowRunURL)))
 
 			// Wait for workflow completion
-			if err := waitForWorkflowCompletion(hostRepoSlug, runID, timeoutMinutes, verbose); err != nil {
+			if err := WaitForWorkflowCompletion(hostRepoSlug, runID, timeoutMinutes, verbose); err != nil {
 				return fmt.Errorf("workflow '%s' execution failed or timed out: %w", parsedSpec.WorkflowName, err)
 			}
 
 			// Auto-merge PRs if requested
 			if autoMergePRs {
-				if err := autoMergePullRequests(hostRepoSlug, verbose); err != nil {
+				if err := AutoMergePullRequestsLegacy(hostRepoSlug, verbose); err != nil {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge pull requests: %v", err)))
 				}
 			}
@@ -473,28 +480,6 @@ func getCurrentGitHubUsername() (string, error) {
 	}
 
 	return username, nil
-}
-
-// getCurrentRepoSlug gets the current repository slug (owner/repo) using gh CLI
-func getCurrentRepoSlug() (string, error) {
-	cmd := exec.Command("gh", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current repository: %w", err)
-	}
-
-	repoSlug := strings.TrimSpace(string(output))
-	if repoSlug == "" {
-		return "", fmt.Errorf("repository slug is empty")
-	}
-
-	// Validate format (should be owner/repo)
-	parts := strings.Split(repoSlug, "/")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", fmt.Errorf("invalid repository format: %s", repoSlug)
-	}
-
-	return repoSlug, nil
 }
 
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
@@ -703,7 +688,7 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, verbose bool) error {
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, verbose bool) error {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -750,7 +735,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 	config := CompileConfig{
 		MarkdownFiles:        []string{".github/workflows/" + parsedSpec.WorkflowName + ".md"},
 		Verbose:              verbose,
-		EngineOverride:       "",
+		EngineOverride:       engineOverride,
 		Validate:             true,
 		Watch:                false,
 		WorkflowDir:          "",
@@ -770,7 +755,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 	workflowData := workflowDataList[0]
 
 	// Determine required engine secret from workflow data
-	if err := determineAndAddEngineSecret(workflowData, hostRepoSlug, secretTracker, verbose); err != nil {
+	if err := determineAndAddEngineSecret(workflowData, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
 		return fmt.Errorf("failed to determine engine secret: %w", err)
 	}
 
@@ -941,75 +926,33 @@ func parseIssueSpec(input string) string {
 	return ""
 }
 
-func waitForWorkflowCompletion(repoSlug, runID string, timeoutMinutes int, verbose bool) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Waiting for workflow completion (timeout: %d minutes)", timeoutMinutes)))
-	}
-
-	// Use the repository slug directly
-	fullRepoName := repoSlug
-
-	timeout := time.Duration(timeoutMinutes) * time.Minute
-	start := time.Now()
-
-	for {
-		// Check if timeout exceeded
-		if time.Since(start) > timeout {
-			return fmt.Errorf("workflow execution timed out after %d minutes", timeoutMinutes)
-		}
-
-		// Check workflow status
-		cmd := exec.Command("gh", "run", "view", runID, "--repo", fullRepoName, "--json", "status,conclusion")
-		output, err := cmd.Output()
-
-		if err != nil {
-			return fmt.Errorf("failed to check workflow status: %w", err)
-		}
-
-		status := string(output)
-
-		// Check if completed
-		if strings.Contains(status, `"status":"completed"`) {
-			if strings.Contains(status, `"conclusion":"success"`) {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow completed successfully"))
-				}
-				return nil
-			} else if strings.Contains(status, `"conclusion":"failure"`) {
-				return fmt.Errorf("workflow failed")
-			} else if strings.Contains(status, `"conclusion":"cancelled"`) {
-				return fmt.Errorf("workflow was cancelled")
-			} else {
-				return fmt.Errorf("workflow completed with unknown conclusion")
-			}
-		}
-
-		// Still running, wait before checking again
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Workflow still running..."))
-		}
-		time.Sleep(10 * time.Second)
-	}
-}
-
 // determineAndAddEngineSecret determines and sets the appropriate engine secret based on workflow configuration with tracking
-func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, tracker *TrialSecretTracker, verbose bool) error {
+func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, tracker *TrialSecretTracker, engineOverride string, verbose bool) error {
 	var engineType string
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Determining required engine secret for workflow"))
 	}
 
-	// Find the matching workflow and determine its engine
-	// Check both the original filename-based name and the processed display name
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found matching workflow: %s", workflowData.Name)))
-	}
-	// Check if engine is specified in the EngineConfig
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
-		engineType = workflowData.EngineConfig.ID
+	// Debug: Always show what engine override we received
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("DEBUG: engineOverride parameter = '%s'", engineOverride)))
+
+	// Use engine override if provided
+	if engineOverride != "" {
+		engineType = engineOverride
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using engine override: %s", engineType)))
+	} else {
+		// Find the matching workflow and determine its engine
+		// Check both the original filename-based name and the processed display name
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in EngineConfig: %s", engineType)))
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found matching workflow: %s", workflowData.Name)))
+		}
+		// Check if engine is specified in the EngineConfig
+		if workflowData.EngineConfig != nil && workflowData.EngineConfig.ID != "" {
+			engineType = workflowData.EngineConfig.ID
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Found engine in EngineConfig: %s", engineType)))
+			}
 		}
 	}
 
@@ -1596,75 +1539,6 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, hostRepoSlug string, verbos
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully pushed contents from %s to %s", cloneRepoSlug, hostRepoSlug)))
-	}
-
-	return nil
-}
-
-// autoMergePullRequests checks for open PRs in the repository and auto-merges them
-func autoMergePullRequests(repoSlug string, verbose bool) error {
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Checking for open pull requests in %s", repoSlug)))
-	}
-
-	// List open PRs
-	listCmd := exec.Command("gh", "pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable")
-	output, err := listCmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to list pull requests: %w", err)
-	}
-
-	// Parse JSON response
-	var prs []struct {
-		Number    int    `json:"number"`
-		Title     string `json:"title"`
-		IsDraft   bool   `json:"isDraft"`
-		Mergeable string `json:"mergeable"`
-	}
-
-	if err := json.Unmarshal(output, &prs); err != nil {
-		return fmt.Errorf("failed to parse pull request list: %w", err)
-	}
-
-	if len(prs) == 0 {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No open pull requests found"))
-		}
-		return nil
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d open pull request(s)", len(prs))))
-
-	for _, pr := range prs {
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing PR #%d: %s (draft: %t, mergeable: %s)", pr.Number, pr.Title, pr.IsDraft, pr.Mergeable)))
-		}
-
-		// Convert from draft to non-draft if necessary
-		if pr.IsDraft {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Converting PR #%d from draft to ready for review", pr.Number)))
-			readyCmd := exec.Command("gh", "pr", "ready", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug)
-			if output, err := readyCmd.CombinedOutput(); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to convert PR #%d from draft: %v (output: %s)", pr.Number, err, string(output))))
-				continue
-			}
-		}
-
-		// Check if PR is mergeable
-		if pr.Mergeable != "MERGEABLE" {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("PR #%d is not mergeable (status: %s), skipping auto-merge", pr.Number, pr.Mergeable)))
-			continue
-		}
-
-		// Auto-merge the PR
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auto-merging PR #%d", pr.Number)))
-		mergeCmd := exec.Command("gh", "pr", "merge", fmt.Sprintf("%d", pr.Number), "--repo", repoSlug, "--auto", "--squash")
-		if output, err := mergeCmd.CombinedOutput(); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge PR #%d: %v (output: %s)", pr.Number, err, string(output))))
-			continue
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully enabled auto-merge for PR #%d", pr.Number)))
 	}
 
 	return nil

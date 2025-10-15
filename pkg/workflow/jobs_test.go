@@ -440,3 +440,127 @@ func TestJobManager_GetAllJobs(t *testing.T) {
 		t.Error("Internal state was modified by external change to GetAllJobs() result")
 	}
 }
+
+func TestJobManager_GenerateMermaidGraph(t *testing.T) {
+	tests := []struct {
+		name     string
+		jobs     []*Job
+		expected []string // Strings that should be present in the Mermaid graph
+	}{
+		{
+			name:     "empty job manager",
+			jobs:     []*Job{},
+			expected: []string{},
+		},
+		{
+			name: "single job without dependencies",
+			jobs: []*Job{
+				{
+					Name:        "build",
+					DisplayName: "Build Project",
+					RunsOn:      "ubuntu-latest",
+				},
+			},
+			expected: []string{
+				"```mermaid",
+				"graph LR",
+				"  build[\"Build Project\"]",
+				"```",
+			},
+		},
+		{
+			name: "single job without display name",
+			jobs: []*Job{
+				{
+					Name:   "test",
+					RunsOn: "ubuntu-latest",
+				},
+			},
+			expected: []string{
+				"```mermaid",
+				"graph LR",
+				"  test[\"test\"]",
+				"```",
+			},
+		},
+		{
+			name: "linear dependency chain",
+			jobs: []*Job{
+				{Name: "build", DisplayName: "Build", RunsOn: "ubuntu-latest"},
+				{Name: "test", DisplayName: "Test", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+				{Name: "deploy", DisplayName: "Deploy", RunsOn: "ubuntu-latest", Needs: []string{"test"}},
+			},
+			expected: []string{
+				"```mermaid",
+				"graph LR",
+				"  build[\"Build\"]",
+				"  test[\"Test\"]",
+				"  deploy[\"Deploy\"]",
+				"  build --> test",
+				"  test --> deploy",
+				"```",
+			},
+		},
+		{
+			name: "multiple dependencies",
+			jobs: []*Job{
+				{Name: "build", DisplayName: "Build", RunsOn: "ubuntu-latest"},
+				{Name: "test", DisplayName: "Test", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+				{Name: "lint", DisplayName: "Lint", RunsOn: "ubuntu-latest", Needs: []string{"build"}},
+				{Name: "deploy", DisplayName: "Deploy", RunsOn: "ubuntu-latest", Needs: []string{"test", "lint"}},
+			},
+			expected: []string{
+				"```mermaid",
+				"graph LR",
+				"  build[\"Build\"]",
+				"  test[\"Test\"]",
+				"  lint[\"Lint\"]",
+				"  deploy[\"Deploy\"]",
+				"  build --> test",
+				"  build --> lint",
+				"  test --> deploy",
+				"  lint --> deploy",
+				"```",
+			},
+		},
+		{
+			name: "job with quotes in display name",
+			jobs: []*Job{
+				{Name: "build", DisplayName: "Build \"Production\"", RunsOn: "ubuntu-latest"},
+			},
+			expected: []string{
+				"```mermaid",
+				"graph LR",
+				"  build[\"Build \\\"Production\\\"\"]",
+				"```",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jm := NewJobManager()
+			for _, job := range tt.jobs {
+				if err := jm.AddJob(job); err != nil {
+					t.Fatalf("Failed to add job %s: %v", job.Name, err)
+				}
+			}
+
+			result := jm.GenerateMermaidGraph()
+
+			// For empty job manager, expect empty string
+			if len(tt.jobs) == 0 {
+				if result != "" {
+					t.Errorf("GenerateMermaidGraph() for empty manager = %q, want empty string", result)
+				}
+				return
+			}
+
+			for _, expected := range tt.expected {
+				if !strings.Contains(result, expected) {
+					t.Errorf("GenerateMermaidGraph() result does not contain expected string: %s\nFull result:\n%s", expected, result)
+				}
+			}
+		})
+	}
+}
