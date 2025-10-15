@@ -315,6 +315,13 @@ jobs:
           
           EOF
           chmod +x .claude/hooks/network_permissions.py
+      - name: Downloading container images
+        run: |
+          set -e
+          echo 'Downloading Docker images for MCP servers...'
+          echo 'Pulling ghcr.io/github/github-mcp-server:v0.18.0'
+          docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          echo 'All Docker images downloaded successfully'
       - name: Install gh-aw extension
         run: |
           echo "Installing gh-aw extension..."

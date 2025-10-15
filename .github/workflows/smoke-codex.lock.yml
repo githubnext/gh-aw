@@ -207,6 +207,13 @@ jobs:
           node-version: '24'
       - name: Install Codex
         run: npm install -g @openai/codex@0.46.0
+      - name: Downloading container images
+        run: |
+          set -e
+          echo 'Downloading Docker images for MCP servers...'
+          echo 'Pulling ghcr.io/github/github-mcp-server:v0.18.0'
+          docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          echo 'All Docker images downloaded successfully'
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs

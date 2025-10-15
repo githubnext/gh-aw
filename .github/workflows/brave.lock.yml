@@ -683,6 +683,15 @@ jobs:
           node-version: '24'
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot@0.0.340
+      - name: Downloading container images
+        run: |
+          set -e
+          echo 'Downloading Docker images for MCP servers...'
+          echo 'Pulling ghcr.io/github/github-mcp-server:v0.18.0'
+          docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          echo 'Pulling ubuntu/squid:latest'
+          docker pull ubuntu/squid:latest
+          echo 'All Docker images downloaded successfully'
       - name: Setup Proxy Configuration for MCP Network Restrictions
         run: |
           echo "Generating proxy configuration files for MCP tools with network restrictions..."
@@ -801,11 +810,10 @@ jobs:
           EOF
           
           echo "Proxy configuration files generated."
-      - name: Pre-pull images and start Squid proxy
+      - name: Start Squid proxy
         run: |
           set -e
-          echo 'Pre-pulling Docker images for proxy-enabled MCP tools...'
-          docker pull ubuntu/squid:latest
+          echo 'Starting squid-proxy services for proxy-enabled MCP tools...'
           echo 'Starting squid-proxy service for brave-search'
           docker compose -f docker-compose-brave-search.yml up -d squid-proxy
           echo 'Enforcing egress to proxy for brave-search (subnet 172.28.108.0/24, squid 172.28.108.10)'
