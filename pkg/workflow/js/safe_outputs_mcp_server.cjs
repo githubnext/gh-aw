@@ -570,6 +570,26 @@ const ALL_TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: "dispatch_workflow",
+    description: "Dispatch a workflow_dispatch event to trigger a workflow",
+    inputSchema: {
+      type: "object",
+      required: ["workflow_name"],
+      properties: {
+        workflow_name: {
+          type: "string",
+          description: "Name of the workflow file to dispatch (must be in the allowed list)",
+        },
+        inputs: {
+          type: "object",
+          description: "Optional inputs to pass to the workflow",
+          additionalProperties: { type: "string" },
+        },
+      },
+      additionalProperties: false,
+    },
+  },
 ];
 
 debug(`v${SERVER_INFO.version} ready on stdio`);
@@ -582,7 +602,28 @@ const TOOLS = {};
 // Add predefined tools that are enabled in configuration
 ALL_TOOLS.forEach(tool => {
   if (Object.keys(safeOutputsConfig).find(config => normTool(config) === tool.name)) {
-    TOOLS[tool.name] = tool;
+    // For dispatch_workflow, update the description and enum with allowed workflows
+    if (tool.name === "dispatch_workflow" && safeOutputsConfig.dispatch_workflow) {
+      const allowedWorkflows = safeOutputsConfig.dispatch_workflow.allowed_workflows || [];
+      const enhancedTool = {
+        ...tool,
+        description: `Dispatch a workflow_dispatch event to trigger a workflow. Allowed workflows: ${allowedWorkflows.join(", ")}`,
+        inputSchema: {
+          ...tool.inputSchema,
+          properties: {
+            ...tool.inputSchema.properties,
+            workflow_name: {
+              type: "string",
+              description: `Name of the workflow file to dispatch. Must be one of: ${allowedWorkflows.join(", ")}`,
+              enum: allowedWorkflows,
+            },
+          },
+        },
+      };
+      TOOLS[tool.name] = enhancedTool;
+    } else {
+      TOOLS[tool.name] = tool;
+    }
   }
 });
 

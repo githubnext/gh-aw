@@ -2527,6 +2527,46 @@
             }
           ]
         },
+        "dispatch-workflow": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Configuration for dispatching workflow_dispatch events to trigger other workflows",
+              "properties": {
+                "allowed-workflows": {
+                  "type": "array",
+                  "description": "Required list of workflow filenames that can be dispatched (e.g., ['ci.yml', 'build.yml'])",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1
+                },
+                "max": {
+                  "type": "integer",
+                  "description": "Maximum number of workflows to dispatch (default: 1)",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "min": {
+                  "type": "integer",
+                  "description": "Minimum number of workflows to dispatch (default: 0 - no requirement)",
+                  "minimum": 0,
+                  "maximum": 10
+                },
+                "github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                }
+              },
+              "required": ["allowed-workflows"],
+              "additionalProperties": false
+            },
+            {
+              "type": "null",
+              "description": "Dispatch workflow must be configured with allowed-workflows"
+            }
+          ]
+        },
         "staged": {
           "type": "boolean",
           "description": "If true, emit step summary messages instead of making GitHub API calls (preview mode)"

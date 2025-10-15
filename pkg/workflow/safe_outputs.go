@@ -29,6 +29,7 @@ func HasSafeOutputsEnabled(safeOutputs *SafeOutputsConfig) bool {
 		safeOutputs.UpdateIssues != nil ||
 		safeOutputs.PushToPullRequestBranch != nil ||
 		safeOutputs.UploadAssets != nil ||
+		safeOutputs.DispatchWorkflow != nil ||
 		safeOutputs.MissingTool != nil ||
 		len(safeOutputs.Jobs) > 0
 }
@@ -100,6 +101,14 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 			yaml.WriteString(", ")
 		}
 		yaml.WriteString("Uploading Assets")
+		written = true
+	}
+
+	if safeOutputs.DispatchWorkflow != nil {
+		if written {
+			yaml.WriteString(", ")
+		}
+		yaml.WriteString("Dispatching Workflows")
 		written = true
 	}
 
@@ -181,6 +190,16 @@ func generateSafeOutputsPromptSection(yaml *strings.Builder, safeOutputs *SafeOu
 		yaml.WriteString("          2. Provide the path to the file you want to upload\n")
 		yaml.WriteString("          3. The tool will copy the file to a staging area and return a GitHub raw content URL\n")
 		yaml.WriteString("          4. Assets are uploaded to an orphaned git branch after workflow completion\n")
+		yaml.WriteString("          \n")
+	}
+
+	if safeOutputs.DispatchWorkflow != nil {
+		yaml.WriteString("          **Dispatching Workflows**\n")
+		yaml.WriteString("          \n")
+		yaml.WriteString("          To dispatch a workflow, use the dispatch-workflow tool from the safe-outputs MCP.\n")
+		yaml.WriteString("          You can only dispatch workflows from the allowed list: ")
+		yaml.WriteString(strings.Join(safeOutputs.DispatchWorkflow.AllowedWorkflows, ", "))
+		yaml.WriteString("\n")
 		yaml.WriteString("          \n")
 	}
 
@@ -367,6 +386,12 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 			uploadAssetsConfig := c.parseUploadAssetConfig(outputMap)
 			if uploadAssetsConfig != nil {
 				config.UploadAssets = uploadAssetsConfig
+			}
+
+			// Handle dispatch-workflow
+			dispatchWorkflowConfig := c.parseDispatchWorkflowConfig(outputMap)
+			if dispatchWorkflowConfig != nil {
+				config.DispatchWorkflow = dispatchWorkflowConfig
 			}
 
 			// Handle missing-tool (parse configuration if present, or enable by default)
