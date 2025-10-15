@@ -1130,13 +1130,23 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 							// Add to sequence
 							sequence = append(sequence, prettifiedName)
 
+							// Calculate input size from the input field
+							inputSize := 0
+							if input, exists := contentMap["input"]; exists {
+								inputSize = e.estimateInputSize(input)
+							}
+
 							// Initialize or update tool call info
 							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
 								toolInfo.CallCount++
+								if inputSize > toolInfo.MaxInputSize {
+									toolInfo.MaxInputSize = inputSize
+								}
 							} else {
 								toolCallMap[prettifiedName] = &ToolCallInfo{
 									Name:          prettifiedName,
 									CallCount:     1,
+									MaxInputSize:  inputSize,
 									MaxOutputSize: 0, // Will be updated when we find tool results
 									MaxDuration:   0, // Will be updated when we find execution timing
 								}
@@ -1199,13 +1209,23 @@ func (e *ClaudeEngine) parseToolCalls(contentArray []any, toolCallMap map[string
 								}
 							}
 
+							// Calculate input size from the input field
+							inputSize := 0
+							if input, exists := contentMap["input"]; exists {
+								inputSize = e.estimateInputSize(input)
+							}
+
 							// Initialize or update tool call info
 							if toolInfo, exists := toolCallMap[prettifiedName]; exists {
 								toolInfo.CallCount++
+								if inputSize > toolInfo.MaxInputSize {
+									toolInfo.MaxInputSize = inputSize
+								}
 							} else {
 								toolCallMap[prettifiedName] = &ToolCallInfo{
 									Name:          prettifiedName,
 									CallCount:     1,
+									MaxInputSize:  inputSize,
 									MaxOutputSize: 0, // Will be updated when we find tool results
 									MaxDuration:   0, // Will be updated when we find execution timing
 								}
@@ -1247,6 +1267,17 @@ func (e *ClaudeEngine) shortenCommand(command string) string {
 		shortened = shortened[:20] + "..."
 	}
 	return shortened
+}
+
+// estimateInputSize estimates the input size in tokens from a tool input object
+func (e *ClaudeEngine) estimateInputSize(input any) int {
+	// Convert input to JSON string to get approximate size
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		return 0
+	}
+	// Estimate token count (rough approximation: 1 token = ~4 characters)
+	return len(inputJSON) / 4
 }
 
 // distributeTotalDurationToToolCalls distributes the total workflow duration among tool calls

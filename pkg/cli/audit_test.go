@@ -181,12 +181,14 @@ func TestGenerateAuditReport(t *testing.T) {
 			{
 				Name:          "github_get_issue",
 				CallCount:     3,
+				MaxInputSize:  256,
 				MaxOutputSize: 1024,
 				MaxDuration:   2 * time.Second,
 			},
 			{
 				Name:          "bash_echo",
 				CallCount:     2,
+				MaxInputSize:  128,
 				MaxOutputSize: 512,
 				MaxDuration:   1 * time.Second,
 			},
@@ -504,6 +506,7 @@ func TestBuildAuditData(t *testing.T) {
 			{
 				Name:          "github_get_issue",
 				CallCount:     3,
+				MaxInputSize:  256,
 				MaxOutputSize: 1024,
 				MaxDuration:   2 * time.Second,
 			},

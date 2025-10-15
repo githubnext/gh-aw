@@ -13,6 +13,7 @@ import (
 type ToolCallInfo struct {
 	Name          string        // Prettified tool name (e.g., "github::search_issues", "bash")
 	CallCount     int           // Number of times this tool was called
+	MaxInputSize  int           // Maximum input size in tokens for any call
 	MaxOutputSize int           // Maximum output size in tokens for any call
 	MaxDuration   time.Duration // Maximum execution duration for any call
 }

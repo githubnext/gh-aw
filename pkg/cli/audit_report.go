@@ -79,6 +79,7 @@ type ErrorInfo struct {
 type ToolUsageInfo struct {
 	Name          string `json:"name" console:"header:Tool"`
 	CallCount     int    `json:"call_count" console:"header:Calls"`
+	MaxInputSize  int    `json:"max_input_size,omitempty" console:"header:Max Input,format:number,omitempty"`
 	MaxOutputSize int    `json:"max_output_size,omitempty" console:"header:Max Output,format:number,omitempty"`
 	MaxDuration   string `json:"max_duration,omitempty" console:"header:Max Duration,omitempty"`
 }
@@ -165,6 +166,9 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 		displayKey := workflow.PrettifyToolName(toolCall.Name)
 		if existing, exists := toolStats[displayKey]; exists {
 			existing.CallCount += toolCall.CallCount
+			if toolCall.MaxInputSize > existing.MaxInputSize {
+				existing.MaxInputSize = toolCall.MaxInputSize
+			}
 			if toolCall.MaxOutputSize > existing.MaxOutputSize {
 				existing.MaxOutputSize = toolCall.MaxOutputSize
 			}
@@ -178,6 +182,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics) AuditData {
 			info := &ToolUsageInfo{
 				Name:          displayKey,
 				CallCount:     toolCall.CallCount,
+				MaxInputSize:  toolCall.MaxInputSize,
 				MaxOutputSize: toolCall.MaxOutputSize,
 			}
 			if toolCall.MaxDuration > 0 {
@@ -470,11 +475,15 @@ func renderJobsTable(jobs []JobData) {
 // renderToolUsageTable renders tool usage as a table with custom formatting
 func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 	config := console.TableConfig{
-		Headers: []string{"Tool", "Calls", "Max Output", "Max Duration"},
+		Headers: []string{"Tool", "Calls", "Max Input", "Max Output", "Max Duration"},
 		Rows:    make([][]string, 0, len(toolUsage)),
 	}
 
 	for _, tool := range toolUsage {
+		inputStr := "N/A"
+		if tool.MaxInputSize > 0 {
+			inputStr = formatNumber(tool.MaxInputSize)
+		}
 		outputStr := "N/A"
 		if tool.MaxOutputSize > 0 {
 			outputStr = formatNumber(tool.MaxOutputSize)
@@ -487,6 +496,7 @@ func renderToolUsageTable(toolUsage []ToolUsageInfo) {
 		row := []string{
 			truncateString(tool.Name, 40),
 			fmt.Sprintf("%d", tool.CallCount),
+			inputStr,
 			outputStr,
 			durationStr,
 		}
