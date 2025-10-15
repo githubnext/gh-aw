@@ -687,6 +687,8 @@ jobs:
         run: |
           set -e
           echo 'Downloading Docker images for MCP servers...'
+          echo 'Pulling docker.io/mcp/brave-search'
+          docker pull docker.io/mcp/brave-search
           echo 'Pulling ghcr.io/github/github-mcp-server:v0.18.0'
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
           echo 'Pulling ubuntu/squid:latest'

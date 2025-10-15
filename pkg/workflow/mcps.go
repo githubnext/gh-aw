@@ -60,11 +60,24 @@ func collectDockerImages(tools map[string]any, workflowData *WorkflowData) []str
 		if mcpConfig, ok := toolValue.(map[string]any); ok {
 			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
 				// Check if this tool uses a container
-				if mcpConf, err := getMCPConfig(mcpConfig, toolName); err == nil && mcpConf.Container != "" {
-					image := mcpConf.Container
-					if !imageSet[image] {
-						images = append(images, image)
-						imageSet[image] = true
+				if mcpConf, err := getMCPConfig(mcpConfig, toolName); err == nil {
+					// Check for direct container field
+					if mcpConf.Container != "" {
+						image := mcpConf.Container
+						if !imageSet[image] {
+							images = append(images, image)
+							imageSet[image] = true
+						}
+					} else if mcpConf.Command == "docker" && len(mcpConf.Args) > 0 {
+						// Extract container image from docker args
+						// Args format: ["run", "--rm", "-i", ... , "container-image"]
+						// The container image is the last arg
+						image := mcpConf.Args[len(mcpConf.Args)-1]
+						// Skip if it's a docker flag (starts with -)
+						if !strings.HasPrefix(image, "-") && !imageSet[image] {
+							images = append(images, image)
+							imageSet[image] = true
+						}
 					}
 				}
 			}

@@ -219,6 +219,8 @@ jobs:
           echo 'Downloading Docker images for MCP servers...'
           echo 'Pulling ghcr.io/github/github-mcp-server:v0.18.0'
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
+          echo 'Pulling mcp/notion'
+          docker pull mcp/notion
           echo 'All Docker images downloaded successfully'
       - name: Setup Safe Outputs Collector MCP
         run: |

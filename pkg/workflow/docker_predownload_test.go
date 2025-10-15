@@ -78,6 +78,25 @@ Test workflow.`,
 			expectedImages: nil,
 			expectStep:     false,
 		},
+		{
+			name: "Custom MCP server with container",
+			frontmatter: `---
+on: issues
+engine: claude
+mcp-servers:
+  custom-tool:
+    container: myorg/custom-mcp:v1.0.0
+    allowed: ["*"]
+---
+
+# Test
+Test workflow with custom MCP container.`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.18.0",
+				"myorg/custom-mcp:v1.0.0",
+			},
+			expectStep: true,
+		},
 	}
 
 	for _, tt := range tests {
