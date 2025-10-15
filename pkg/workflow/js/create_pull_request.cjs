@@ -89,7 +89,7 @@ async function main() {
     const branch = pullRequestItem.branch;
     
     if (branch) {
-      core.info(`No patch file provided, attempting to generate patch from branch: ${branch}`);
+      core.info(`No patch file provided by MCP server, attempting to generate patch from branch: ${branch}`);
       
       // Import child_process for running git commands
       const { execSync } = require("child_process");
@@ -101,10 +101,25 @@ async function main() {
           fs.mkdirSync(patchesDir, { recursive: true });
         }
         
-        // Check if the branch exists
+        // First, check current git status
+        try {
+          const gitStatus = execSync('git status --short', { encoding: "utf8" });
+          core.info(`Git status:\n${gitStatus || '(no changes)'}`);
+        } catch (e) {
+          core.warning(`Failed to get git status: ${e instanceof Error ? e.message : String(e)}`);
+        }
+        
+        // Check if the branch exists locally
+        let branchExists = false;
         try {
           execSync(`git show-ref --verify --quiet refs/heads/${branch}`, { stdio: "ignore" });
+          branchExists = true;
+          core.info(`Branch ${branch} exists locally`);
         } catch (error) {
+          core.info(`Branch ${branch} does not exist locally`);
+        }
+        
+        if (!branchExists) {
           core.info(`Branch ${branch} does not exist, cannot generate patch`);
           throw new Error(`Branch ${branch} does not exist`);
         }
@@ -129,17 +144,25 @@ async function main() {
           }
           
           // Find merge base between default branch and current branch
-          baseRef = execSync(`git merge-base origin/${defaultBranch} ${branch}`, { encoding: "utf8" }).trim();
-          core.info(`Using merge-base as base: ${baseRef}`);
+          try {
+            baseRef = execSync(`git merge-base origin/${defaultBranch} ${branch}`, { encoding: "utf8" }).trim();
+            core.info(`Using merge-base as base: ${baseRef}`);
+          } catch (mergeBaseError) {
+            core.warning(`Failed to find merge-base: ${mergeBaseError instanceof Error ? mergeBaseError.message : String(mergeBaseError)}`);
+            // As a last resort, use the default branch directly
+            baseRef = `origin/${defaultBranch}`;
+            core.info(`Using origin/${defaultBranch} directly as base`);
+          }
         }
         
         // Generate patch from the determined base to the branch
         const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
+        core.info(`Running: ${patchCmd}`);
         const patchData = execSync(patchCmd, { encoding: "utf8" });
         
         // Check if patch data is empty
         if (!patchData || patchData.trim().length === 0) {
-          core.info(`No changes in branch ${branch}, no patch generated`);
+          core.info(`No changes in branch ${branch} relative to ${baseRef}`);
           throw new Error("No changes in branch");
         }
         
@@ -149,12 +172,14 @@ async function main() {
         patchPath = `/tmp/gh-aw/patches/${generatedPatchFilename}`;
         
         fs.writeFileSync(patchPath, patchData);
-        core.info(`Successfully generated patch file: ${generatedPatchFilename}`);
+        core.info(`Successfully generated patch file: ${generatedPatchFilename} (${patchData.length} bytes)`);
       } catch (error) {
         const message = `Failed to generate patch from branch ${branch}: ${error instanceof Error ? error.message : String(error)}`;
         core.warning(message);
         patchPath = null;
       }
+    } else {
+      core.warning("No branch specified in pull request item, cannot generate patch");
     }
   }
 
