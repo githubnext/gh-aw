@@ -482,8 +482,6 @@ func getCurrentGitHubUsername() (string, error) {
 	return username, nil
 }
 
-
-
 // showTrialConfirmation displays a confirmation prompt to the user using parsed workflow specs
 func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, deleteHostRepo bool) error {
 	hostRepoSlugURL := fmt.Sprintf("https://github.com/%s", hostRepoSlug)
@@ -927,8 +925,6 @@ func parseIssueSpec(input string) string {
 
 	return ""
 }
-
-
 
 // determineAndAddEngineSecret determines and sets the appropriate engine secret based on workflow configuration with tracking
 func determineAndAddEngineSecret(workflowData *workflow.WorkflowData, hostRepoSlug string, tracker *TrialSecretTracker, engineOverride string, verbose bool) error {
@@ -1547,5 +1543,3 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, hostRepoSlug string, verbos
 
 	return nil
 }
-
-

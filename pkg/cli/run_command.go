@@ -106,7 +106,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		if verbose {
 			fmt.Printf("Recompiling workflow with engine override: %s\n", engineOverride)
 		}
-		
+
 		workflowMarkdownPath := strings.TrimSuffix(lockFilePath, ".lock.yml") + ".md"
 		config := CompileConfig{
 			MarkdownFiles:        []string{workflowMarkdownPath},
@@ -125,7 +125,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		if _, err := CompileWorkflows(config); err != nil {
 			return fmt.Errorf("failed to recompile workflow with engine override: %w", err)
 		}
-		
+
 		if verbose {
 			fmt.Printf("Successfully recompiled workflow with engine: %s\n", engineOverride)
 		}
@@ -140,7 +140,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	
+
 	// Record the start time for auto-merge PR filtering
 	workflowStartTime := time.Now()
 
@@ -165,7 +165,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 
 		// Restore workflow state if it was disabled and we enabled it (even on error)
 		if enable && wasDisabled && workflowID != 0 {
-				restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
+			restoreWorkflowState(workflowIdOrName, workflowID, repoOverride, verbose)
 		}
 
 		return fmt.Errorf("failed to run workflow on GitHub Actions: %w", err)
@@ -195,7 +195,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 		} else {
 			// Wait for workflow completion before attempting to auto-merge PRs
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-merge PRs enabled - waiting for workflow completion..."))
-			
+
 			// Determine target repository: use repo override if provided, otherwise get current repo
 			targetRepo := repoOverride
 			if targetRepo == "" {
@@ -206,7 +206,7 @@ func RunWorkflowOnGitHub(workflowIdOrName string, enable bool, engineOverride st
 					targetRepo = currentRepo
 				}
 			}
-			
+
 			if targetRepo != "" {
 				runIDStr := fmt.Sprintf("%d", runInfo.DatabaseID)
 				if err := WaitForWorkflowCompletion(targetRepo, runIDStr, 30, verbose); err != nil {

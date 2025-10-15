@@ -68,7 +68,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 
 	for _, pr := range eligiblePRs {
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing PR #%d: %s (draft: %t, mergeable: %s, created: %s)", 
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Processing PR #%d: %s (draft: %t, mergeable: %s, created: %s)",
 				pr.Number, pr.Title, pr.IsDraft, pr.Mergeable, pr.CreatedAt.Format(time.RFC3339))))
 		}
 

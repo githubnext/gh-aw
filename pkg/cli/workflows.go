@@ -129,7 +129,7 @@ func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverrid
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Restoring workflow '%s' to disabled state...", workflowIdOrName)))
 	}
-	
+
 	args := []string{"workflow", "disable", strconv.FormatInt(workflowID, 10)}
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)

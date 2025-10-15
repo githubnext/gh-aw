@@ -188,12 +188,12 @@ Examples:
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		repoOverride, _ := cmd.Flags().GetString("repo")
 		autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
-		
+
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 			os.Exit(1)
 		}
-		
+
 		if err := cli.RunWorkflowsOnGitHub(args, repeatCount, enable, engineOverride, repoOverride, autoMergePRs, verboseFlag); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatError(console.CompilerError{
 				Type:    "error",

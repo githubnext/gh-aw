@@ -14,7 +14,7 @@ func TestGetCurrentRepoSlug(t *testing.T) {
 
 	t.Run("function exists", func(t *testing.T) {
 		// Test that the function exists and returns the expected types
-		_, err := getCurrentRepoSlug()
+		_, err := GetCurrentRepoSlug()
 		// We expect an error in test environment since there may not be a git repo
 		// but the important thing is that the function compiles and exists
 		if err != nil {
