@@ -653,8 +653,8 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	var tools map[string]any
 
-	// Extract tools from the main file
-	topTools := extractToolsFromFrontmatter(result.Frontmatter)
+	// Extract tools from the main file (use parsed Tools field from FrontmatterResult)
+	topTools := result.Tools
 
 	// Extract mcp-servers from the main file and merge them into tools
 	mcpServers := extractMCPServersFromFrontmatter(result.Frontmatter)
@@ -721,7 +721,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		// For engines that don't support tool allowlists (like codex), ignore tools section and provide warnings
 		fmt.Println(console.FormatWarningMessage(fmt.Sprintf("Using experimental %s support (engine: %s)", agenticEngine.GetDisplayName(), engineSetting)))
 		c.IncrementWarningCount()
-		if _, hasTools := result.Frontmatter["tools"]; hasTools {
+		if len(result.Tools) > 0 {
 			fmt.Println(console.FormatWarningMessage(fmt.Sprintf("'tools' section ignored when using engine: %s (%s doesn't support MCP tool allow-listing)", engineSetting, agenticEngine.GetDisplayName())))
 			c.IncrementWarningCount()
 		}

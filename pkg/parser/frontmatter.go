@@ -80,6 +80,7 @@ func isMCPType(typeStr string) bool {
 type FrontmatterResult struct {
 	Frontmatter map[string]any
 	Markdown    string
+	Tools       map[string]any // Parsed tools section from frontmatter
 	// Additional fields for error context
 	FrontmatterLines []string // Original frontmatter lines for error context
 	FrontmatterStart int      // Line number where frontmatter starts (1-based)
@@ -107,6 +108,7 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 		return &FrontmatterResult{
 			Frontmatter:      make(map[string]any),
 			Markdown:         content,
+			Tools:            make(map[string]any),
 			FrontmatterLines: []string{},
 			FrontmatterStart: 0,
 		}, nil
@@ -142,9 +144,13 @@ func ExtractFrontmatterFromContent(content string) (*FrontmatterResult, error) {
 	}
 	markdown := strings.Join(markdownLines, "\n")
 
+	// Parse tools section from frontmatter
+	tools := parseToolsFromFrontmatter(frontmatter)
+
 	return &FrontmatterResult{
 		Frontmatter:      frontmatter,
 		Markdown:         strings.TrimSpace(markdown),
+		Tools:            tools,
 		FrontmatterLines: frontmatterLines,
 		FrontmatterStart: 2, // Line 2 is where frontmatter content starts (after opening ---)
 	}, nil
@@ -1546,4 +1552,22 @@ func reconstructWorkflowFile(frontmatterYAML, markdownContent string) (string, e
 	}
 
 	return strings.Join(lines, "\n"), nil
+}
+
+// parseToolsFromFrontmatter extracts and parses the tools section from frontmatter
+func parseToolsFromFrontmatter(frontmatter map[string]any) map[string]any {
+	if frontmatter == nil {
+		return make(map[string]any)
+	}
+
+	tools, exists := frontmatter["tools"]
+	if !exists {
+		return make(map[string]any)
+	}
+
+	if toolsMap, ok := tools.(map[string]any); ok {
+		return toolsMap
+	}
+
+	return make(map[string]any)
 }
