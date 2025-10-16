@@ -1951,6 +1951,17 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createCommentJob); err != nil {
 			return fmt.Errorf("failed to add add_comment job: %w", err)
 		}
+
+		// Build notify_with_comment job to update comment when agent fails without producing output
+		notifyJob, err := c.buildNotifyWithCommentJob(data, jobName, threatDetectionEnabled)
+		if err != nil {
+			return fmt.Errorf("failed to build notify_with_comment job: %w", err)
+		}
+		if notifyJob != nil {
+			if err := c.jobManager.AddJob(notifyJob); err != nil {
+				return fmt.Errorf("failed to add notify_with_comment job: %w", err)
+			}
+		}
 	}
 
 	// Build create_pr_review_comment job if output.create-pull-request-review-comment is configured
