@@ -21,12 +21,16 @@ func (g *NetworkHookGenerator) GenerateNetworkHookScript(allowedDomains []string
 		domainsJSON = string(jsonBytes)
 	}
 
-	// Embed domain list JSON directly as a Python literal (safe for []string from json.Marshal)
-	// This prevents any quote-related injection vulnerabilities (CWE-78, CWE-89, CWE-94)
-	// Use domainsJSON directly for ALLOWED_DOMAINS assignment
+	// Use json.loads() to parse the JSON string at runtime instead of embedding as a literal
+	// This eliminates any potential quoting issues (CWE-78, CWE-89, CWE-94)
+	// The JSON string is embedded as a Python string literal with proper escaping
+
+	// Escape backslashes and single quotes for safe embedding in Python string literal
+	escapedJSON := strings.ReplaceAll(domainsJSON, `\`, `\\`)
+	escapedJSON = strings.ReplaceAll(escapedJSON, `'`, `\'`)
 
 	// Build the Python script using a safe template approach
-	// The JSON array is embedded directly as a Python list literal
+	// The JSON is parsed at runtime using json.loads() to avoid literal embedding issues
 	return fmt.Sprintf(`#!/usr/bin/env python3
 """
 Network permissions validator for Claude Code engine.
@@ -39,8 +43,8 @@ import urllib.parse
 import re
 
 # Domain allow-list (populated during generation)
-# JSON array safely embedded as Python list literal
-ALLOWED_DOMAINS = %s
+# JSON string is parsed at runtime to avoid quoting vulnerabilities
+ALLOWED_DOMAINS = json.loads('%s')
 
 def extract_domain(url_or_query):
     """Extract domain from URL or search query."""
@@ -109,7 +113,7 @@ try:
 except Exception as e:
     print(f"Network validation error: {e}", file=sys.stderr)
     sys.exit(2)  # Block on errors
-`, domainsJSON)
+`, escapedJSON)
 }
 
 // GenerateNetworkHookWorkflowStep generates a GitHub Actions workflow step that creates the network permissions hook
