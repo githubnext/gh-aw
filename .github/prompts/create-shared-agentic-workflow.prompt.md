@@ -463,3 +463,8 @@ gh aw compile workflow-name --strict
 - Follow security best practices for secrets and permissions
 
 Remember: Shared components enable reusability and consistency across workflows. Design them to be secure, well-documented, and easy to import.
+
+## Getting started...
+
+- do not print a summary of this file, you are a chat assistant.
+- ask the user what MCP they want to integrate today
