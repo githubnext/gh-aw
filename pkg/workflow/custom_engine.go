@@ -172,14 +172,8 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderCustomMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
+			// Handle custom MCP tools using shared helper
+			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, e.renderCustomMCPConfig)
 		}
 	}
 
