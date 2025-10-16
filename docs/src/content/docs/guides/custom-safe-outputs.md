@@ -9,13 +9,13 @@ Custom safe outputs enable you to extend GitHub Agentic Workflows with your own 
 
 ## Overview
 
-Custom safe outputs provide a pattern for integrating external services while maintaining security:
+Custom safe outputs integrate external services securely by separating read and write operations:
 
-1. **Read-only MCP server** provides tools for querying data from the external service
-2. **Custom safe-job** handles write operations through a separate job with appropriate permissions
-3. **Shared configuration files** make integrations reusable across multiple workflows
+- **Read-only MCP server** queries external service data
+- **Custom safe-job** handles write operations with appropriate permissions in a separate job
+- **Shared configuration files** enable reusable integrations
 
-This pattern ensures the main agentic job runs with minimal permissions while still enabling powerful integrations.
+This pattern maintains minimal permissions in the main agentic job while enabling powerful integrations.
 
 ## Architecture
 
@@ -58,11 +58,7 @@ mcp-servers:
 ---
 ```
 
-**Key Points:**
-- Use `container:` for Docker-based MCP servers
-- Use `command:` and `args:` for npx or local commands
-- List only **read-only tools** in the `allowed` section
-- Store sensitive tokens in GitHub Secrets
+Use `container:` for Docker-based MCP servers or `command:`/`args:` for npx/local commands. List only read-only tools in `allowed` and store sensitive tokens in GitHub Secrets.
 
 ### Step 2: Define the Custom Safe-Job (Write Operations)
 
@@ -150,13 +146,7 @@ safe-outputs:
 ---
 ```
 
-**Key Points:**
-- `description:` field appears in the MCP tool registration
-- `inputs:` section defines the tool's parameters (required for all safe-jobs)
-- `output:` field provides custom success message
-- Use `actions/github-script@v8` for JavaScript-based API calls
-- Include error handling with `core.setFailed()`
-- Store the configuration in `.github/workflows/shared/` for reusability
+The `description:` appears in MCP tool registration. The required `inputs:` section defines tool parameters. Use `output:` for custom success messages. Include error handling with `core.setFailed()` and store configurations in `.github/workflows/shared/` for reusability.
 
 ### Step 3: Use the Custom Safe Output in a Workflow
 
@@ -182,25 +172,13 @@ Analyze the issue: "${{ needs.activation.outputs.text }}"
 Search for the GitHub Issues page in Notion using the read-only Notion tools, then add a summary comment using the notion-add-comment safe-job.
 ```
 
-**How It Works:**
-1. The `imports:` directive loads the Notion MCP server and safe-job
-2. The agent can use read-only Notion tools to search and query
-3. The agent calls the `notion-add-comment` tool (registered from the safe-job)
-4. The safe-job executes with appropriate permissions after the main job completes
+The `imports:` directive loads the MCP server and safe-job. The agent uses read-only tools to query data, then calls the safe-job tool which executes with appropriate permissions after the main job completes.
 
 ## Safe Jobs Technical Specification
 
-The `safe-outputs.jobs:` element of your workflow's frontmatter enables you to define custom post-processing jobs that execute after the main agentic workflow completes. Safe-jobs provide a powerful way to create sophisticated automation workflows while maintaining security through controlled job execution.
+Define custom post-processing jobs under `safe-outputs.jobs:` in your workflow frontmatter. Safe-jobs execute after the main agentic workflow completes and provide secure, controlled automation.
 
-**How It Works:**
-1. Safe-jobs are defined under the `safe-outputs.jobs` section of the frontmatter
-2. Each safe-job **must have an "inputs" section with at least one input** - these inputs become the arguments of the MCP tool
-3. Each safe-job has access to all standard GitHub Actions job properties (runs-on, if, needs, env, permissions, steps)
-4. Safe-jobs automatically download the agent output artifact and can process it using jq
-5. Safe-jobs become available as callable tools in the safe-outputs MCP server
-6. Safe-jobs can be imported from included workflows with automatic conflict detection
-
-**Important Requirement**: Every safe-job definition must include an `inputs` section with at least one input parameter. These inputs define the MCP tool's arguments and enable the agentic workflow to call the safe-job with appropriate parameters.
+**Requirements**: Each safe-job must have an `inputs` section with at least one input parameter. These inputs become the MCP tool's arguments. Safe-jobs support all standard GitHub Actions job properties (runs-on, if, needs, env, permissions, steps), automatically download agent output artifacts, register as callable tools in the safe-outputs MCP server, and can be imported from included workflows with automatic conflict detection.
 
 ### GitHub Actions Job Properties
 
@@ -231,7 +209,7 @@ safe-outputs:
 
 ### Safe Job Inputs
 
-**Every safe-job must define inputs** using workflow_dispatch syntax for parameterization. The inputs become the MCP tool arguments:
+Safe-jobs require inputs defined using workflow_dispatch syntax. The inputs become MCP tool arguments:
 
 ```yaml
 safe-outputs:
@@ -260,122 +238,27 @@ safe-outputs:
 
 ### Custom Output Messages
 
-Safe-jobs can return custom response messages via the MCP server:
+Use the `output:` field to return custom response messages:
 
 ```yaml
-safe-outputs:
-  jobs:
-    notify:
-      runs-on: ubuntu-latest
-      output: "Notification sent successfully!"
-      inputs:
-        message:
-          description: "Notification message"
-          required: true
-          type: string
-      steps:
-        - name: Send notification
-          run: echo "Sending notification..."
+output: "Notification sent successfully!"
 ```
 
 ### Agent Output Processing
 
-Safe-jobs automatically receive access to the agent output artifact:
+Safe-jobs automatically receive the agent output artifact via `$GITHUB_AW_AGENT_OUTPUT`. Extract data using jq:
 
-```yaml
-safe-outputs:
-  jobs:
-    analyze:
-      runs-on: ubuntu-latest
-      inputs:
-        data_type:
-          description: "Type of data to analyze"
-          required: true
-          type: string
-      steps:
-        - name: Process agent output
-          run: |
-            if [ -f "$GITHUB_AW_AGENT_OUTPUT" ]; then
-              # Extract specific data from agent output
-              RESULT=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
-              echo "Agent analysis result: $RESULT"
-            else
-              echo "No agent output available"
-            fi
+```bash
+RESULT=$(cat "$GITHUB_AW_AGENT_OUTPUT" | jq -r 'select(.tool == "analyze") | .result')
 ```
 
 ### Include Support
 
-Safe-jobs can be imported from included workflows with automatic conflict detection:
-
-**Main workflow:**
-```aw wrap
----
-safe-outputs:
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      inputs:
-        target:
-          description: "Deployment target"
-          required: true
-          type: string
-      steps:
-        - name: Deploy
-          run: echo "Deploying..."
----
-
-@import shared/common-jobs.md
-```
-
-**Imported file (shared/common-jobs.md):**
-```aw wrap
----
-safe-outputs:
-  jobs:
-    test:
-      runs-on: ubuntu-latest
-      inputs:
-        suite:
-          description: "Test suite to run"
-          required: true
-          type: string
-      steps:
-        - name: Test
-          run: echo "Testing..."
----
-```
-
-**Result:** Both `deploy` and `test` safe-jobs are available.
-
-**Conflict Detection:** If both files define a safe-job with the same name, compilation fails with:
-```
-failed to merge safe-jobs: safe-job name conflict: 'deploy' is defined in both main workflow and included files
-```
+Import safe-jobs from shared files using `@import shared/common-jobs.md`. Both main and imported safe-jobs become available. Name conflicts fail compilation with a clear error message.
 
 ### MCP Server Integration
 
-Safe-jobs are automatically registered as tools in the safe-outputs MCP server, allowing the agentic workflow to call them:
-
-```yaml
-safe-outputs:
-  jobs:
-    database-backup:
-      runs-on: ubuntu-latest
-      inputs:
-        database:
-          description: "Database to backup"
-          required: true
-          type: string
-      steps:
-        - name: Backup database
-          run: echo "Backing up database..."
-```
-
-The agent can then call this safe-job:
-```
-Please backup the user database using the database-backup safe-job.
-```
+Safe-jobs automatically register as callable tools in the safe-outputs MCP server. For example, defining a `database-backup` safe-job with a `database` input allows the agent to call it naturally: "Please backup the user database using the database-backup safe-job."
 
 ## Best Practices
 
