@@ -167,9 +167,35 @@ const defaultHandler = type => args => {
   };
 };
 
+/**
+ * Normalize branch name for upload-assets
+ * Keeps only alphanumeric characters, -, _, / and limits to 128 characters
+ * @param {string} branchName - The branch name to normalize
+ * @returns {string} - The normalized branch name
+ */
+function normalizeBranchName(branchName) {
+  if (!branchName || typeof branchName !== "string") {
+    throw new Error("Branch name must be a non-empty string");
+  }
+
+  // Remove characters that are not alphanumeric, -, _, or /
+  const normalized = branchName.replace(/[^a-zA-Z0-9\-_/]/g, "");
+
+  // Check if normalization resulted in an empty string
+  if (normalized.length === 0) {
+    throw new Error("Branch name must be a non-empty string");
+  }
+
+  // Limit to 128 characters
+  return normalized.substring(0, 128);
+}
+
 const uploadAssetHandler = args => {
   const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
   if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+
+  // Normalize the branch name
+  const normalizedBranchName = normalizeBranchName(branchName);
 
   const { path: filePath } = args;
 
@@ -242,7 +268,7 @@ const uploadAssetHandler = args => {
 
   const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
   const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-  const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
+  const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
 
   // Create entry for safe outputs
   const entry = {

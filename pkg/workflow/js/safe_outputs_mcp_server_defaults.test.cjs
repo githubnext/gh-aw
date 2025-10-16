@@ -1390,3 +1390,446 @@ describe("safe_outputs_mcp_server.cjs tool call response format", () => {
     });
   });
 });
+
+// Test branch name normalization for upload_asset
+describe("safe_outputs_mcp_server.cjs branch name normalization for upload_asset", () => {
+  let tempTestFile;
+  let tempOutputDir;
+
+  beforeEach(() => {
+    // Create a temporary test file
+    tempOutputDir = path.join("/tmp", `test_upload_asset_${Date.now()}`);
+    fs.mkdirSync(tempOutputDir, { recursive: true });
+    tempTestFile = path.join(tempOutputDir, "test.png");
+    fs.writeFileSync(tempTestFile, "test content");
+  });
+
+  afterEach(() => {
+    // Clean up
+    if (fs.existsSync(tempOutputDir)) {
+      fs.rmSync(tempOutputDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should normalize branch name by removing invalid characters", async () => {
+    const config = {
+      upload_asset: {},
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: path.join(tempOutputDir, "outputs.jsonl"),
+          GITHUB_AW_ASSETS_BRANCH: "feature/my@branch#name!",
+          GITHUB_WORKSPACE: tempOutputDir,
+        },
+      });
+
+      let stderr = "";
+      let receivedMessages = [];
+
+      child.stderr.on("data", data => {
+        stderr += data.toString();
+      });
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/call request for upload_asset
+      setTimeout(() => {
+        const toolCallMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/call",
+            params: {
+              name: "upload_asset",
+              arguments: {
+                path: tempTestFile,
+              },
+            },
+          }) + "\n";
+        child.stdin.write(toolCallMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/call response
+        const toolCallResponse = receivedMessages.find(m => m.id === 2);
+        expect(toolCallResponse).toBeDefined();
+        expect(toolCallResponse.result).toBeDefined();
+
+        // Parse the response content
+        const content = toolCallResponse.result.content[0];
+        const result = JSON.parse(content.text);
+
+        // Check that the URL contains normalized branch name (feature/mybranchname)
+        expect(result.result).toContain("feature/mybranchname");
+        expect(result.result).not.toContain("@");
+        expect(result.result).not.toContain("#");
+        expect(result.result).not.toContain("!");
+
+        resolve();
+      }, 500);
+    });
+  });
+
+  it("should preserve alphanumeric, -, _, / characters in branch name", async () => {
+    const config = {
+      upload_asset: {},
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: path.join(tempOutputDir, "outputs.jsonl"),
+          GITHUB_AW_ASSETS_BRANCH: "feature/my-branch_123",
+          GITHUB_WORKSPACE: tempOutputDir,
+        },
+      });
+
+      let receivedMessages = [];
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/call request for upload_asset
+      setTimeout(() => {
+        const toolCallMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/call",
+            params: {
+              name: "upload_asset",
+              arguments: {
+                path: tempTestFile,
+              },
+            },
+          }) + "\n";
+        child.stdin.write(toolCallMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/call response
+        const toolCallResponse = receivedMessages.find(m => m.id === 2);
+        expect(toolCallResponse).toBeDefined();
+        expect(toolCallResponse.result).toBeDefined();
+
+        // Parse the response content
+        const content = toolCallResponse.result.content[0];
+        const result = JSON.parse(content.text);
+
+        // Check that the URL contains the branch name unchanged
+        expect(result.result).toContain("feature/my-branch_123");
+
+        resolve();
+      }, 500);
+    });
+  });
+
+  it("should truncate branch name to 128 characters", async () => {
+    const config = {
+      upload_asset: {},
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    // Create a branch name longer than 128 characters
+    const longBranchName = "a".repeat(150);
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: path.join(tempOutputDir, "outputs.jsonl"),
+          GITHUB_AW_ASSETS_BRANCH: longBranchName,
+          GITHUB_WORKSPACE: tempOutputDir,
+        },
+      });
+
+      let receivedMessages = [];
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/call request for upload_asset
+      setTimeout(() => {
+        const toolCallMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/call",
+            params: {
+              name: "upload_asset",
+              arguments: {
+                path: tempTestFile,
+              },
+            },
+          }) + "\n";
+        child.stdin.write(toolCallMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/call response
+        const toolCallResponse = receivedMessages.find(m => m.id === 2);
+        expect(toolCallResponse).toBeDefined();
+        expect(toolCallResponse.result).toBeDefined();
+
+        // Parse the response content
+        const content = toolCallResponse.result.content[0];
+        const result = JSON.parse(content.text);
+
+        // Check that the URL contains the truncated branch name (128 'a' characters)
+        const expectedBranchName = "a".repeat(128);
+        expect(result.result).toContain(expectedBranchName);
+
+        // Verify it doesn't contain more than 128 'a' characters in sequence
+        const match = result.result.match(/a+/g);
+        expect(match).toBeDefined();
+        const longestASequence = Math.max(...match.map(s => s.length));
+        expect(longestASequence).toBeLessThanOrEqual(128);
+
+        resolve();
+      }, 500);
+    });
+  });
+
+  it("should handle branch names with only special characters", async () => {
+    const config = {
+      upload_asset: {},
+    };
+
+    const serverPath = path.join(__dirname, "safe_outputs_mcp_server.cjs");
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error("Test timeout"));
+      }, 5000);
+
+      const child = spawn("node", [serverPath], {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: JSON.stringify(config),
+          GITHUB_AW_SAFE_OUTPUTS: path.join(tempOutputDir, "outputs.jsonl"),
+          GITHUB_AW_ASSETS_BRANCH: "@#$%^&*()",
+          GITHUB_WORKSPACE: tempOutputDir,
+        },
+      });
+
+      let receivedMessages = [];
+
+      child.stderr.on("data", data => {
+        // Capture stderr for error checking
+      });
+
+      child.stdout.on("data", data => {
+        const lines = data
+          .toString()
+          .split("\n")
+          .filter(l => l.trim());
+        lines.forEach(line => {
+          try {
+            const msg = JSON.parse(line);
+            receivedMessages.push(msg);
+          } catch (e) {
+            // Ignore parse errors
+          }
+        });
+      });
+
+      child.on("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+
+      // Send initialization message
+      setTimeout(() => {
+        const initMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2024-11-05",
+              capabilities: {},
+              clientInfo: { name: "test-client", version: "1.0.0" },
+            },
+          }) + "\n";
+        child.stdin.write(initMessage);
+      }, 100);
+
+      // Send tools/call request for upload_asset
+      setTimeout(() => {
+        const toolCallMessage =
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/call",
+            params: {
+              name: "upload_asset",
+              arguments: {
+                path: tempTestFile,
+              },
+            },
+          }) + "\n";
+        child.stdin.write(toolCallMessage);
+      }, 200);
+
+      // Check results after a delay
+      setTimeout(() => {
+        clearTimeout(timeout);
+        child.kill();
+
+        // Find the tools/call response
+        const toolCallResponse = receivedMessages.find(m => m.id === 2);
+        expect(toolCallResponse).toBeDefined();
+
+        // Should have an error because normalized branch name becomes empty
+        expect(toolCallResponse.error).toBeDefined();
+        expect(toolCallResponse.error.message).toContain("Branch name must be a non-empty string");
+
+        resolve();
+      }, 500);
+    });
+  });
+});
