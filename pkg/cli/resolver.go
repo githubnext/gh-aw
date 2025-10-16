@@ -10,64 +10,96 @@ import (
 // ResolveWorkflowPath resolves a workflow file path from various formats:
 // - Absolute path to .md file
 // - Relative path to .md file
-// - Workflow name (adds .md extension and looks in .github/workflows, shared/, and shared/mcp/)
-// - Workflow name with .md extension
+// - Workflow name with subpath (e.g., "shared/serena" or "shared/mcp/serena")
+// - Workflow name (searches recursively in .github/workflows)
+//
+// Resolution order:
+// 1. If path exists as-is, use it
+// 2. Try exact relative path match under .github/workflows (e.g., "shared/b.md" -> ".github/workflows/shared/b.md")
+// 3. Search recursively for files ending with the input path (subpath matching)
+// 4. Search recursively for files with matching basename
 func ResolveWorkflowPath(workflowFile string) (string, error) {
 	workflowsDir := ".github/workflows"
-	sharedDir := filepath.Join(workflowsDir, "shared")
-	sharedMCPDir := filepath.Join(sharedDir, "mcp")
 
-	var workflowPath string
-
-	if strings.HasSuffix(workflowFile, ".md") {
-		// If it's already a .md file, use it directly if it exists
-		if _, err := os.Stat(workflowFile); err == nil {
-			workflowPath = workflowFile
-		} else {
-			// Try in workflows directory first
-			workflowPath = filepath.Join(workflowsDir, workflowFile)
-
-			// If not found, try shared directories
-			if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-				// Try shared directory
-				sharedPath := filepath.Join(sharedDir, workflowFile)
-				if _, err := os.Stat(sharedPath); err == nil {
-					workflowPath = sharedPath
-				} else {
-					// Try shared/mcp directory
-					sharedMCPPath := filepath.Join(sharedMCPDir, workflowFile)
-					if _, err := os.Stat(sharedMCPPath); err == nil {
-						workflowPath = sharedMCPPath
-					}
-				}
-			}
-		}
-	} else {
-		// Add .md extension and look in workflows directory first
-		workflowPath = filepath.Join(workflowsDir, workflowFile+".md")
-
-		// If not found, try shared directories
-		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-			// Try shared directory
-			sharedPath := filepath.Join(sharedDir, workflowFile+".md")
-			if _, err := os.Stat(sharedPath); err == nil {
-				workflowPath = sharedPath
-			} else {
-				// Try shared/mcp directory
-				sharedMCPPath := filepath.Join(sharedMCPDir, workflowFile+".md")
-				if _, err := os.Stat(sharedMCPPath); err == nil {
-					workflowPath = sharedMCPPath
-				}
-			}
-		}
+	// Add .md extension if not present
+	searchPath := workflowFile
+	if !strings.HasSuffix(searchPath, ".md") {
+		searchPath += ".md"
 	}
 
-	// Verify the workflow file exists
-	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("workflow file not found: %s", workflowPath)
+	// 1. If it's a path that exists as-is (absolute or relative), use it
+	if _, err := os.Stat(searchPath); err == nil {
+		return searchPath, nil
 	}
 
-	return workflowPath, nil
+	// 2. Try exact relative path under .github/workflows
+	exactPath := filepath.Join(workflowsDir, searchPath)
+	if _, err := os.Stat(exactPath); err == nil {
+		return exactPath, nil
+	}
+
+	// 3 & 4. Search recursively through .github/workflows
+	var matches []string
+	var exactSubpathMatches []string
+
+	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors, continue walking
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Only consider .md files
+		if !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+
+		// Get relative path from workflows directory
+		relPath, err := filepath.Rel(workflowsDir, path)
+		if err != nil {
+			return nil
+		}
+
+		// Check for exact subpath match (e.g., "shared/mcp/serena.md" matches "shared/mcp/serena.md")
+		if relPath == searchPath {
+			exactSubpathMatches = append(exactSubpathMatches, path)
+			return nil
+		}
+
+		// Check for suffix match (e.g., "serena.md" matches ".../shared/mcp/serena.md")
+		if strings.HasSuffix(relPath, searchPath) {
+			matches = append(matches, path)
+			return nil
+		}
+
+		// Check for basename match (e.g., "serena.md" matches any "serena.md" in subdirs)
+		if filepath.Base(path) == filepath.Base(searchPath) {
+			matches = append(matches, path)
+			return nil
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("error searching for workflow file: %w", err)
+	}
+
+	// Return exact subpath match if found (highest priority)
+	if len(exactSubpathMatches) > 0 {
+		return exactSubpathMatches[0], nil
+	}
+
+	// Return first match if any found
+	if len(matches) > 0 {
+		return matches[0], nil
+	}
+
+	// No matches found
+	return "", fmt.Errorf("workflow file not found: %s", searchPath)
 }
 
 // NormalizeWorkflowFile normalizes a workflow file name by adding .md extension if missing
