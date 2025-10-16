@@ -9,6 +9,7 @@ permissions:
 engine: copilot
 
 tools:
+  edit:
   bash:
     - "*"
 
