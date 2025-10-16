@@ -62,6 +62,7 @@ This workflow should generate add_reaction job with comment outputs.
 		"reaction_id:",
 		"comment_id:",
 		"comment_url:",
+		"comment_repo:",
 	}
 
 	for _, expected := range expectedOutputs {
@@ -79,6 +80,9 @@ This workflow should generate add_reaction job with comment outputs.
 	}
 	if !strings.Contains(yamlContent, "steps.react.outputs.comment-url") {
 		t.Error("Generated YAML should contain comment-url output reference")
+	}
+	if !strings.Contains(yamlContent, "steps.react.outputs.comment-repo") {
+		t.Error("Generated YAML should contain comment-repo output reference")
 	}
 
 	// Verify reaction step is in activation job, not a separate add_reaction job
