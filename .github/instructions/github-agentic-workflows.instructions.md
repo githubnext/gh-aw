@@ -270,7 +270,7 @@ tools:
 ```
 
 **How It Works:**
-- **Single Cache**: Mounts a memory MCP server at `/tmp/gh-aw/cache-memory/` that persists across workflow runs
+- **Single Cache**: Mounts a memory MCP server at `/tmp/gh-aw/cache-memory/default/` that persists across workflow runs
 - **Multiple Caches**: Each cache mounts at `/tmp/gh-aw/cache-memory/{id}/` with its own persistence
 - Uses `actions/cache` with resolution field so the last cache wins
 - Automatically adds the memory MCP server to available tools
@@ -280,7 +280,7 @@ tools:
 **Supported Parameters:**
 
 For single cache (object notation):
-- `key:` - Custom cache key (defaults to `memory-${{ github.workflow }}-${{ github.run_id }}`)
+- `key:` - Custom cache key (defaults to `memory-default-${{ github.workflow }}-${{ github.run_id }}`)
 
 For multiple caches (array notation):
 - `id:` - Cache identifier (required for array notation, defaults to "default" if omitted)
@@ -293,7 +293,7 @@ The system automatically generates restore keys by progressively splitting the c
 
 **Prompt Injection:**
 When cache-memory is enabled, the agent receives instructions about available cache folders:
-- Single cache: Information about `/tmp/gh-aw/cache-memory/`
+- Single cache: Information about `/tmp/gh-aw/cache-memory/default/`
 - Multiple caches: List of all cache folders with their IDs and paths
 
 **Import Support:**

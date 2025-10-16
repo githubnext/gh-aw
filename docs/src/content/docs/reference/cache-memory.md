@@ -14,7 +14,7 @@ This document covers "cache memory".
 
 ## Cache Memory
 
-The `cache-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using GitHub Actions cache infrastructure. AI agents can store and retrieve files using standard file system operations at `/tmp/gh-aw/cache-memory/`.
+The `cache-memory` feature enables agentic workflows to maintain persistent file storage across workflow runs using GitHub Actions cache infrastructure. AI agents can store and retrieve files using standard file system operations at `/tmp/gh-aw/cache-memory/default/` (or custom cache ID subfolders).
 
 When enabled, the workflow compiler automatically creates the cache directory, adds GitHub Actions cache steps for restore and save operations, generates intelligent cache keys with progressive fallback, and informs the AI agent about the available storage location.
 
@@ -32,7 +32,7 @@ tools:
 ---
 ```
 
-This uses the default cache key `memory-${{ github.workflow }}-${{ github.run_id }}` and stores files at `/tmp/gh-aw/cache-memory/` using standard file operations.
+This uses the default cache key `memory-default-${{ github.workflow }}-${{ github.run_id }}` and stores files at `/tmp/gh-aw/cache-memory/default/` using standard file operations.
 
 ## Using the Cache Folder
 
@@ -153,7 +153,7 @@ Cache Memory leverages GitHub Actions cache with 7-day retention, 10GB per repos
 **File Organization**: Use descriptive file names and directory structures:
 
 ```
-/tmp/gh-aw/cache-memory/
+/tmp/gh-aw/cache-memory/default/
 ├── preferences/user-settings.json
 ├── logs/activity.log
 ├── state/context.json
@@ -168,9 +168,9 @@ Cache Memory leverages GitHub Actions cache with 7-day retention, 10GB per repos
 
 ## Troubleshooting
 
-**Files Not Persisting**: Ensure cache keys are consistent between runs, verify `/tmp/gh-aw/cache-memory/` directory exists, and check workflow logs for cache restore/save messages.
+**Files Not Persisting**: Ensure cache keys are consistent between runs, verify `/tmp/gh-aw/cache-memory/default/` directory exists, and check workflow logs for cache restore/save messages.
 
-**File Access Issues**: Create subdirectories before use, verify write permissions, and use absolute paths within `/tmp/gh-aw/cache-memory/`.
+**File Access Issues**: Create subdirectories before use, verify write permissions, and use absolute paths within `/tmp/gh-aw/cache-memory/{id}/`.
 
 **Cache Size Issues**: Track cache growth, implement periodic cache clearing, or use time-based cache keys for automatic expiration.
 
