@@ -2973,15 +2973,21 @@ jobs:
                 echo "Using origin/$BRANCH_NAME as base for patch generation"
                 BASE_REF="origin/$BRANCH_NAME"
               else
-                echo "origin/$BRANCH_NAME does not exist, using merge-base with default branch"
+                echo "origin/$BRANCH_NAME does not exist, trying merge-base with default branch"
                 # Get the default branch name
                 DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
                 echo "Default branch: $DEFAULT_BRANCH"
                 # Fetch the default branch to ensure it's available locally
                 git fetch origin $DEFAULT_BRANCH
-                # Find merge base between default branch and current branch
-                BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME)
-                echo "Using merge-base as base: $BASE_REF"
+                # Try to find merge base between default branch and current branch
+                # If this fails (no common ancestor), fall back to GITHUB_SHA (the commit the workflow started from)
+                if BASE_REF=$(git merge-base origin/$DEFAULT_BRANCH $BRANCH_NAME 2>/dev/null); then
+                  echo "Using merge-base as base: $BASE_REF"
+                else
+                  echo "No common ancestor found with default branch, using GITHUB_SHA as base"
+                  BASE_REF="$GITHUB_SHA"
+                  echo "Using workflow starting commit as base: $BASE_REF"
+                fi
               fi
               # Generate patch from the determined base to the branch
               git format-patch "$BASE_REF".."$BRANCH_NAME" --stdout > /tmp/gh-aw/aw.patch || echo "Failed to generate patch from branch" > /tmp/gh-aw/aw.patch
