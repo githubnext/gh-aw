@@ -52,4 +52,9 @@ Test workflow.
 	if !strings.Contains(string(lockContent), `MCP_TIMEOUT: "90000"`) {
 		t.Errorf("Expected MCP_TIMEOUT: \"90000\" in lock file, got:\n%s", string(lockContent))
 	}
+
+	// Check for GH_AW_TOOL_TIMEOUT: "90"
+	if !strings.Contains(string(lockContent), `GH_AW_TOOL_TIMEOUT: "90"`) {
+		t.Errorf("Expected GH_AW_TOOL_TIMEOUT: \"90\" in lock file, got:\n%s", string(lockContent))
+	}
 }

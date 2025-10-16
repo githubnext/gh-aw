@@ -12,21 +12,25 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 		name            string
 		toolsTimeout    int
 		expectedTimeout string
+		expectedEnvVar  string
 	}{
 		{
 			name:            "default timeout when not specified",
 			toolsTimeout:    0,
 			expectedTimeout: "MCP_TIMEOUT: \"60000\"", // 60 seconds default in milliseconds
+			expectedEnvVar:  "",                       // GH_AW_TOOL_TIMEOUT not set when 0
 		},
 		{
 			name:            "custom timeout of 30 seconds",
 			toolsTimeout:    30,
-			expectedTimeout: "MCP_TIMEOUT: \"30000\"", // 30 seconds in milliseconds
+			expectedTimeout: "MCP_TIMEOUT: \"30000\"",      // 30 seconds in milliseconds
+			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: \"30\"", // env var in seconds
 		},
 		{
 			name:            "custom timeout of 120 seconds",
 			toolsTimeout:    120,
-			expectedTimeout: "MCP_TIMEOUT: \"120000\"", // 120 seconds in milliseconds
+			expectedTimeout: "MCP_TIMEOUT: \"120000\"",     // 120 seconds in milliseconds
+			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: \"120\"", // env var in seconds
 		},
 	}
 
@@ -48,6 +52,18 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 			if !strings.Contains(stepContent, tt.expectedTimeout) {
 				t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedTimeout, stepContent)
 			}
+
+			// Check for GH_AW_TOOL_TIMEOUT if expected
+			if tt.expectedEnvVar != "" {
+				if !strings.Contains(stepContent, tt.expectedEnvVar) {
+					t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedEnvVar, stepContent)
+				}
+			} else {
+				// When timeout is 0, GH_AW_TOOL_TIMEOUT should not be present
+				if strings.Contains(stepContent, "GH_AW_TOOL_TIMEOUT") {
+					t.Errorf("Did not expect GH_AW_TOOL_TIMEOUT in execution step when timeout is 0")
+				}
+			}
 		})
 	}
 }
@@ -59,21 +75,25 @@ func TestCodexEngineWithToolsTimeout(t *testing.T) {
 		name            string
 		toolsTimeout    int
 		expectedTimeout string
+		expectedEnvVar  string
 	}{
 		{
 			name:            "default timeout when not specified",
 			toolsTimeout:    0,
 			expectedTimeout: "tool_timeout_sec = 120", // 120 seconds default
+			expectedEnvVar:  "",                        // GH_AW_TOOL_TIMEOUT not set when 0
 		},
 		{
 			name:            "custom timeout of 30 seconds",
 			toolsTimeout:    30,
 			expectedTimeout: "tool_timeout_sec = 30",
+			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: 30", // env var in seconds
 		},
 		{
 			name:            "custom timeout of 180 seconds",
 			toolsTimeout:    180,
 			expectedTimeout: "tool_timeout_sec = 180",
+			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: 180", // env var in seconds
 		},
 	}
 
@@ -95,6 +115,24 @@ func TestCodexEngineWithToolsTimeout(t *testing.T) {
 
 			if !strings.Contains(configContent, tt.expectedTimeout) {
 				t.Errorf("Expected '%s' in MCP config, got: %s", tt.expectedTimeout, configContent)
+			}
+
+			// Check for GH_AW_TOOL_TIMEOUT in execution steps
+			executionSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(executionSteps) == 0 {
+				t.Fatal("Expected at least one execution step")
+			}
+
+			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+			if tt.expectedEnvVar != "" {
+				if !strings.Contains(stepContent, tt.expectedEnvVar) {
+					t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedEnvVar, stepContent)
+				}
+			} else {
+				// When timeout is 0, GH_AW_TOOL_TIMEOUT should not be present
+				if strings.Contains(stepContent, "GH_AW_TOOL_TIMEOUT") {
+					t.Errorf("Did not expect GH_AW_TOOL_TIMEOUT in execution step when timeout is 0")
+				}
 			}
 		})
 	}
@@ -160,6 +198,61 @@ func TestExtractToolsTimeout(t *testing.T) {
 			timeout := compiler.extractToolsTimeout(tt.tools)
 			if timeout != tt.expectedTimeout {
 				t.Errorf("Expected timeout %d, got %d", tt.expectedTimeout, timeout)
+			}
+		})
+	}
+}
+
+func TestCopilotEngineWithToolsTimeout(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name           string
+		toolsTimeout   int
+		expectedEnvVar string
+	}{
+		{
+			name:           "default timeout when not specified",
+			toolsTimeout:   0,
+			expectedEnvVar: "", // GH_AW_TOOL_TIMEOUT not set when 0
+		},
+		{
+			name:           "custom timeout of 45 seconds",
+			toolsTimeout:   45,
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 45", // env var in seconds
+		},
+		{
+			name:           "custom timeout of 200 seconds",
+			toolsTimeout:   200,
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: 200", // env var in seconds
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				ToolsTimeout: tt.toolsTimeout,
+				Tools:        map[string]any{},
+			}
+
+			// Get execution steps
+			executionSteps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			if len(executionSteps) == 0 {
+				t.Fatal("Expected at least one execution step")
+			}
+
+			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+
+			// Check for GH_AW_TOOL_TIMEOUT if expected
+			if tt.expectedEnvVar != "" {
+				if !strings.Contains(stepContent, tt.expectedEnvVar) {
+					t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedEnvVar, stepContent)
+				}
+			} else {
+				// When timeout is 0, GH_AW_TOOL_TIMEOUT should not be present
+				if strings.Contains(stepContent, "GH_AW_TOOL_TIMEOUT") {
+					t.Errorf("Did not expect GH_AW_TOOL_TIMEOUT in execution step when timeout is 0")
+				}
 			}
 		})
 	}
