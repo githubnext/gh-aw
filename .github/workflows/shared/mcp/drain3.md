@@ -12,7 +12,6 @@ steps:
     uses: actions/setup-python@v5
     with:
       python-version: '3.11'
-      cache: 'pip'
   - name: Install Drain3 dependencies
     run: |
       pip install "mcp[server]" drain3

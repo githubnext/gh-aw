@@ -559,7 +559,6 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          cache: pip
           python-version: "3.11"
       - name: Install Drain3 dependencies
         run: |
