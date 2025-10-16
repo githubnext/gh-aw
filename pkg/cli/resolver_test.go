@@ -59,12 +59,6 @@ func TestResolveWorkflowPath(t *testing.T) {
 		t.Fatalf("Failed to create MCP workflow: %v", err)
 	}
 
-	// Create another file in shared/mcp
-	tavilyWorkflow := filepath.Join(sharedMCPDir, "tavily.md")
-	if err := os.WriteFile(tavilyWorkflow, []byte("# Tavily"), 0644); err != nil {
-		t.Fatalf("Failed to create Tavily workflow: %v", err)
-	}
-
 	tests := []struct {
 		name        string
 		input       string
@@ -102,24 +96,14 @@ func TestResolveWorkflowPath(t *testing.T) {
 			expected: mcpWorkflow,
 		},
 		{
-			name:     "basename match for serena",
-			input:    "serena",
-			expected: mcpWorkflow,
+			name:        "basename only (no recursive matching)",
+			input:       "serena",
+			expectError: true,
 		},
 		{
-			name:     "basename match for serena with extension",
-			input:    "serena.md",
-			expected: mcpWorkflow,
-		},
-		{
-			name:     "basename match for tavily",
-			input:    "tavily",
-			expected: tavilyWorkflow,
-		},
-		{
-			name:     "subpath match mcp/serena",
-			input:    "mcp/serena",
-			expected: mcpWorkflow,
+			name:        "partial subpath (no recursive matching)",
+			input:       "mcp/serena",
+			expectError: true,
 		},
 		{
 			name:        "nonexistent workflow",
