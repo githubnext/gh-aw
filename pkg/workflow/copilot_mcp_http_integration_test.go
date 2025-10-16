@@ -14,9 +14,9 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 				"type": "http",
 				"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 				"headers": map[string]any{
-					"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
+					"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
 					"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
-					"DD_SITE":    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+					"DD_SITE":            "${{ secrets.DD_SITE || 'datadoghq.com' }}",
 				},
 				"allowed": []string{
 					"search_datadog_dashboards",

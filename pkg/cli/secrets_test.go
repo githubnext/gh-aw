@@ -67,9 +67,9 @@ func TestExtractSecretsFromConfig(t *testing.T) {
 				Name: "datadog",
 				Type: "http",
 				Headers: map[string]string{
-					"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
+					"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
 					"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
-					"DD_SITE":    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+					"DD_SITE":            "${{ secrets.DD_SITE || 'datadoghq.com' }}",
 				},
 			},
 			expectedSecrets: []string{"DD_API_KEY", "DD_APPLICATION_KEY", "DD_SITE"},
