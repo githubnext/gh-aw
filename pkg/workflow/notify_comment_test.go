@@ -7,46 +7,46 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-func TestNotifyWithCommentJob(t *testing.T) {
+func TestUpdateReactionJob(t *testing.T) {
 	tests := []struct {
-		name                   string
-		addCommentConfig       bool
-		threatDetectionEnabled bool
-		expectJob              bool
-		expectConditions       []string
-		expectNeeds            []string
+		name               string
+		addCommentConfig   bool
+		safeOutputJobNames []string
+		expectJob          bool
+		expectConditions   []string
+		expectNeeds        []string
 	}{
 		{
-			name:                   "notify job created when add-comment is configured",
-			addCommentConfig:       true,
-			threatDetectionEnabled: false,
-			expectJob:              true,
+			name:               "update_reaction job created when add-comment is configured",
+			addCommentConfig:   true,
+			safeOutputJobNames: []string{"add_comment", "missing_tool"},
+			expectJob:          true,
 			expectConditions: []string{
 				"always()",
 				"needs.activation.outputs.comment_id",
 				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "missing_tool"},
 		},
 		{
-			name:                   "notify job includes detection dependency when threat detection is enabled",
-			addCommentConfig:       true,
-			threatDetectionEnabled: true,
-			expectJob:              true,
+			name:               "update_reaction job depends on all safe output jobs",
+			addCommentConfig:   true,
+			safeOutputJobNames: []string{"add_comment", "create_issue", "missing_tool"},
+			expectJob:          true,
 			expectConditions: []string{
 				"always()",
 				"needs.activation.outputs.comment_id",
 				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
 			},
-			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, constants.DetectionJobName},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
 		{
-			name:                   "notify job not created when add-comment is not configured",
-			addCommentConfig:       false,
-			threatDetectionEnabled: false,
-			expectJob:              false,
+			name:               "update_reaction job not created when add-comment is not configured",
+			addCommentConfig:   false,
+			safeOutputJobNames: []string{},
+			expectJob:          false,
 		},
 	}
 
@@ -68,20 +68,20 @@ func TestNotifyWithCommentJob(t *testing.T) {
 				}
 			}
 
-			// Build the notify job
-			job, err := compiler.buildNotifyWithCommentJob(workflowData, constants.AgentJobName, tt.threatDetectionEnabled)
+			// Build the update_reaction job
+			job, err := compiler.buildUpdateReactionJob(workflowData, constants.AgentJobName, tt.safeOutputJobNames)
 			if err != nil {
-				t.Fatalf("Failed to build notify_with_comment job: %v", err)
+				t.Fatalf("Failed to build update_reaction job: %v", err)
 			}
 
 			if tt.expectJob {
 				if job == nil {
-					t.Fatal("Expected notify_with_comment job to be created, but got nil")
+					t.Fatal("Expected update_reaction job to be created, but got nil")
 				}
 
 				// Check job name
-				if job.Name != "notify_with_comment" {
-					t.Errorf("Expected job name 'notify_with_comment', got '%s'", job.Name)
+				if job.Name != "update_reaction" {
+					t.Errorf("Expected job name 'update_reaction', got '%s'", job.Name)
 				}
 
 				// Check conditions
@@ -110,36 +110,36 @@ func TestNotifyWithCommentJob(t *testing.T) {
 
 				// Check permissions
 				if !strings.Contains(job.Permissions, "issues: write") {
-					t.Error("Expected 'issues: write' permission in notify_with_comment job")
+					t.Error("Expected 'issues: write' permission in update_reaction job")
 				}
 				if !strings.Contains(job.Permissions, "pull-requests: write") {
-					t.Error("Expected 'pull-requests: write' permission in notify_with_comment job")
+					t.Error("Expected 'pull-requests: write' permission in update_reaction job")
 				}
 				if !strings.Contains(job.Permissions, "discussions: write") {
-					t.Error("Expected 'discussions: write' permission in notify_with_comment job")
+					t.Error("Expected 'discussions: write' permission in update_reaction job")
 				}
 
-				// Check that the job has the update comment step
+				// Check that the job has the update reaction step
 				stepsYAML := strings.Join(job.Steps, "")
-				if !strings.Contains(stepsYAML, "Update comment with error notification") {
-					t.Error("Expected 'Update comment with error notification' step in notify_with_comment job")
+				if !strings.Contains(stepsYAML, "Update reaction comment with error notification") {
+					t.Error("Expected 'Update reaction comment with error notification' step in update_reaction job")
 				}
 				if !strings.Contains(stepsYAML, "GITHUB_AW_COMMENT_ID") {
-					t.Error("Expected GITHUB_AW_COMMENT_ID environment variable in notify_with_comment job")
+					t.Error("Expected GITHUB_AW_COMMENT_ID environment variable in update_reaction job")
 				}
 				if !strings.Contains(stepsYAML, "GITHUB_AW_AGENT_CONCLUSION") {
-					t.Error("Expected GITHUB_AW_AGENT_CONCLUSION environment variable in notify_with_comment job")
+					t.Error("Expected GITHUB_AW_AGENT_CONCLUSION environment variable in update_reaction job")
 				}
 			} else {
 				if job != nil {
-					t.Errorf("Expected no notify_with_comment job, but got one: %v", job)
+					t.Errorf("Expected no update_reaction job, but got one: %v", job)
 				}
 			}
 		})
 	}
 }
 
-func TestNotifyWithCommentJobIntegration(t *testing.T) {
+func TestUpdateReactionJobIntegration(t *testing.T) {
 	// Test that the job is properly integrated with activation job outputs
 	compiler := NewCompiler(false, "", "")
 	workflowData := &WorkflowData{
@@ -154,14 +154,15 @@ func TestNotifyWithCommentJobIntegration(t *testing.T) {
 		},
 	}
 
-	// Build the notify job
-	job, err := compiler.buildNotifyWithCommentJob(workflowData, constants.AgentJobName, false)
+	// Build the update_reaction job with sample safe output job names
+	safeOutputJobNames := []string{"add_comment", "missing_tool"}
+	job, err := compiler.buildUpdateReactionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
 	if err != nil {
-		t.Fatalf("Failed to build notify_with_comment job: %v", err)
+		t.Fatalf("Failed to build update_reaction job: %v", err)
 	}
 
 	if job == nil {
-		t.Fatal("Expected notify_with_comment job to be created")
+		t.Fatal("Expected update_reaction job to be created")
 	}
 
 	// Convert job to YAML string for checking
@@ -169,7 +170,7 @@ func TestNotifyWithCommentJobIntegration(t *testing.T) {
 
 	// Check that the job references activation outputs
 	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
-		t.Error("Expected notify_with_comment to reference activation.outputs.comment_id")
+		t.Error("Expected update_reaction to reference activation.outputs.comment_id")
 	}
 
 	// Check that environment variables reference activation outputs
@@ -187,15 +188,29 @@ func TestNotifyWithCommentJobIntegration(t *testing.T) {
 
 	// Check all four conditions are present
 	if !strings.Contains(job.If, "always()") {
-		t.Error("Expected always() in notify_with_comment condition")
+		t.Error("Expected always() in update_reaction condition")
 	}
 	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
-		t.Error("Expected comment_id check in notify_with_comment condition")
+		t.Error("Expected comment_id check in update_reaction condition")
 	}
 	if !strings.Contains(job.If, "!(contains(needs.agent.outputs.output_types, 'add_comment'))") {
-		t.Error("Expected NOT contains add_comment check in notify_with_comment condition")
+		t.Error("Expected NOT contains add_comment check in update_reaction condition")
 	}
 	if !strings.Contains(job.If, "!(contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
-		t.Error("Expected NOT contains create_pull_request check in notify_with_comment condition")
+		t.Error("Expected NOT contains create_pull_request check in update_reaction condition")
+	}
+
+	// Verify job depends on the safe output jobs
+	for _, expectedNeed := range safeOutputJobNames {
+		found := false
+		for _, need := range job.Needs {
+			if need == expectedNeed {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected update_reaction job to depend on '%s'", expectedNeed)
+		}
 	}
 }

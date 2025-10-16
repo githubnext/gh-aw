@@ -1908,6 +1908,9 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		threatDetectionEnabled = true
 	}
 
+	// Track safe output job names to establish dependencies for update_reaction job
+	var safeOutputJobNames []string
+
 	// Build create_issue job if output.create_issue is configured
 	if data.SafeOutputs.CreateIssues != nil {
 		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
@@ -1921,6 +1924,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createIssueJob); err != nil {
 			return fmt.Errorf("failed to add create_issue job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createIssueJob.Name)
 	}
 
 	// Build create_discussion job if output.create_discussion is configured
@@ -1936,6 +1940,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createDiscussionJob); err != nil {
 			return fmt.Errorf("failed to add create_discussion job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createDiscussionJob.Name)
 	}
 
 	// Build add_comment job if output.add-comment is configured
@@ -1951,17 +1956,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createCommentJob); err != nil {
 			return fmt.Errorf("failed to add add_comment job: %w", err)
 		}
-
-		// Build notify_with_comment job to update comment when agent fails without producing output
-		notifyJob, err := c.buildNotifyWithCommentJob(data, jobName, threatDetectionEnabled)
-		if err != nil {
-			return fmt.Errorf("failed to build notify_with_comment job: %w", err)
-		}
-		if notifyJob != nil {
-			if err := c.jobManager.AddJob(notifyJob); err != nil {
-				return fmt.Errorf("failed to add notify_with_comment job: %w", err)
-			}
-		}
+		safeOutputJobNames = append(safeOutputJobNames, createCommentJob.Name)
 	}
 
 	// Build create_pr_review_comment job if output.create-pull-request-review-comment is configured
@@ -1977,6 +1972,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createPRReviewCommentJob); err != nil {
 			return fmt.Errorf("failed to add create_pr_review_comment job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createPRReviewCommentJob.Name)
 	}
 
 	// Build create_code_scanning_alert job if output.create-code-scanning-alert is configured
@@ -1994,6 +1990,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createCodeScanningAlertJob); err != nil {
 			return fmt.Errorf("failed to add create_code_scanning_alert job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createCodeScanningAlertJob.Name)
 	}
 
 	// Build create_pull_request job if output.create-pull-request is configured
@@ -2009,6 +2006,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
 			return fmt.Errorf("failed to add create_pull_request job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createPullRequestJob.Name)
 	}
 
 	// Build add_labels job if output.add-labels is configured (including null/empty)
@@ -2024,6 +2022,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(addLabelsJob); err != nil {
 			return fmt.Errorf("failed to add add_labels job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, addLabelsJob.Name)
 	}
 
 	// Build update_issue job if output.update-issue is configured
@@ -2039,6 +2038,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(updateIssueJob); err != nil {
 			return fmt.Errorf("failed to add update_issue job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, updateIssueJob.Name)
 	}
 
 	// Build push_to_pull_request_branch job if output.push-to-pull-request-branch is configured
@@ -2054,6 +2054,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
 			return fmt.Errorf("failed to add push_to_pull_request_branch job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, pushToBranchJob.Name)
 	}
 
 	// Build missing_tool job (always enabled when SafeOutputs exists)
@@ -2069,6 +2070,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(missingToolJob); err != nil {
 			return fmt.Errorf("failed to add missing_tool job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, missingToolJob.Name)
 	}
 
 	// Build upload_assets job if output.upload-asset is configured
@@ -2083,6 +2085,21 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		}
 		if err := c.jobManager.AddJob(uploadAssetsJob); err != nil {
 			return fmt.Errorf("failed to add upload_assets job: %w", err)
+		}
+		safeOutputJobNames = append(safeOutputJobNames, uploadAssetsJob.Name)
+	}
+
+	// Build update_reaction job if add-comment is configured
+	// This job runs last, after all safe output jobs, to update the activation comment on failure
+	if data.SafeOutputs.AddComments != nil {
+		updateReactionJob, err := c.buildUpdateReactionJob(data, jobName, safeOutputJobNames)
+		if err != nil {
+			return fmt.Errorf("failed to build update_reaction job: %w", err)
+		}
+		if updateReactionJob != nil {
+			if err := c.jobManager.AddJob(updateReactionJob); err != nil {
+				return fmt.Errorf("failed to add update_reaction job: %w", err)
+			}
 		}
 	}
 

@@ -6,13 +6,14 @@ import (
 	"github.com/githubnext/gh-aw/pkg/constants"
 )
 
-// buildNotifyWithCommentJob creates a job that updates the activation comment when the agent fails
+// buildUpdateReactionJob creates a job that updates the activation comment when the agent fails
 // This job runs when:
 // 1. always() - runs even if agent fails
 // 2. A comment was created in activation job (comment_id exists)
 // 3. NO add_comment output was produced by the agent
 // 4. NO create_pull_request output was produced by the agent
-func (c *Compiler) buildNotifyWithCommentJob(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) (*Job, error) {
+// This job depends on all safe output jobs to ensure it runs last
+func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
 	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
 		return nil, nil // Only create this job when add-comment is configured
 	}
@@ -49,8 +50,8 @@ func (c *Compiler) buildNotifyWithCommentJob(data *WorkflowData, mainJobName str
 
 	// Build the GitHub Script step using the common helper
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
-		StepName:      "Update comment with error notification",
-		StepID:        "notify_comment",
+		StepName:      "Update reaction comment with error notification",
+		StepID:        "update_reaction",
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        notifyCommentErrorScript,
@@ -92,14 +93,12 @@ func (c *Compiler) buildNotifyWithCommentJob(data *WorkflowData, mainJobName str
 		noCreatePR,
 	)
 
-	// Build dependencies
+	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
 	needs := []string{mainJobName, constants.ActivationJobName}
-	if threatDetectionEnabled {
-		needs = append(needs, constants.DetectionJobName)
-	}
+	needs = append(needs, safeOutputJobNames...)
 
 	job := &Job{
-		Name:        "notify_with_comment",
+		Name:        "update_reaction",
 		If:          condition.Render(),
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
 		Permissions: "permissions:\n      contents: read\n      issues: write\n      pull-requests: write\n      discussions: write",
