@@ -22,9 +22,6 @@ type CacheMemoryEntry struct {
 
 // generateDefaultCacheKey generates a default cache key for a given cache ID
 func generateDefaultCacheKey(cacheID string) string {
-	if cacheID == "default" {
-		return "memory-${{ github.workflow }}-${{ github.run_id }}"
-	}
 	return fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cacheID)
 }
 
@@ -295,32 +292,17 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 
 	builder.WriteString("      # Cache memory file share configuration from frontmatter processed below\n")
 
-	// Use backward-compatible paths only when there's a single cache with ID "default"
-	// This maintains compatibility with existing workflows
-	useBackwardCompatiblePaths := len(data.CacheMemoryConfig.Caches) == 1 && data.CacheMemoryConfig.Caches[0].ID == "default"
-
 	for _, cache := range data.CacheMemoryConfig.Caches {
 		cacheDir := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s", cache.ID)
 
 		// Add step to create cache-memory directory for this cache
-		if useBackwardCompatiblePaths {
-			// For single default cache, use the original directory for backward compatibility
-			builder.WriteString("      - name: Create cache-memory directory\n")
-			builder.WriteString("        run: |\n")
-			WriteShellScriptToYAML(builder, createCacheMemoryDirScript, "          ")
-		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Create cache-memory directory (%s)\n", cache.ID))
-			builder.WriteString("        run: |\n")
-			builder.WriteString(fmt.Sprintf("          mkdir -p %s\n", cacheDir))
-		}
+		builder.WriteString(fmt.Sprintf("      - name: Create cache-memory directory (%s)\n", cache.ID))
+		builder.WriteString("        run: |\n")
+		builder.WriteString(fmt.Sprintf("          mkdir -p %s\n", cacheDir))
 
 		cacheKey := cache.Key
 		if cacheKey == "" {
-			if useBackwardCompatiblePaths {
-				cacheKey = "memory-${{ github.workflow }}-${{ github.run_id }}"
-			} else {
-				cacheKey = fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cache.ID)
-			}
+			cacheKey = fmt.Sprintf("memory-%s-${{ github.workflow }}-${{ github.run_id }}", cache.ID)
 		}
 
 		// Automatically append -${{ github.run_id }} if the key doesn't already end with it
@@ -338,21 +320,13 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Step name
-		if useBackwardCompatiblePaths {
-			builder.WriteString("      - name: Cache memory file share data\n")
-		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Cache memory file share data (%s)\n", cache.ID))
-		}
+		builder.WriteString(fmt.Sprintf("      - name: Cache memory file share data (%s)\n", cache.ID))
 		builder.WriteString("        uses: actions/cache@v4\n")
 		builder.WriteString("        with:\n")
 		fmt.Fprintf(builder, "          key: %s\n", cacheKey)
 
-		// Path - use original path for single default cache for backward compatibility
-		if useBackwardCompatiblePaths {
-			builder.WriteString("          path: /tmp/gh-aw/cache-memory\n")
-		} else {
-			fmt.Fprintf(builder, "          path: %s\n", cacheDir)
-		}
+		// Path
+		fmt.Fprintf(builder, "          path: %s\n", cacheDir)
 
 		builder.WriteString("          restore-keys: |\n")
 		for _, key := range restoreKeys {
@@ -360,20 +334,11 @@ func generateCacheMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		}
 
 		// Add upload-artifact step for each cache (runs always)
-		if useBackwardCompatiblePaths {
-			builder.WriteString("      - name: Upload cache-memory data as artifact\n")
-		} else {
-			builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
-		}
+		builder.WriteString(fmt.Sprintf("      - name: Upload cache-memory data as artifact (%s)\n", cache.ID))
 		builder.WriteString("        uses: actions/upload-artifact@v4\n")
 		builder.WriteString("        with:\n")
-		if useBackwardCompatiblePaths {
-			builder.WriteString("          name: cache-memory\n")
-			builder.WriteString("          path: /tmp/gh-aw/cache-memory\n")
-		} else {
-			fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
-			fmt.Fprintf(builder, "          path: %s\n", cacheDir)
-		}
+		fmt.Fprintf(builder, "          name: cache-memory-%s\n", cache.ID)
+		fmt.Fprintf(builder, "          path: %s\n", cacheDir)
 		// Add retention-days if configured
 		if cache.RetentionDays != nil {
 			fmt.Fprintf(builder, "          retention-days: %d\n", *cache.RetentionDays)
@@ -392,15 +357,16 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 	yaml.WriteString("          ---\n")
 	yaml.WriteString("          \n")
 
-	// Check if there's only one cache with ID "default" to use singular form
-	if len(config.Caches) == 1 && config.Caches[0].ID == "default" {
+	// Check if there's only one cache to use singular form
+	if len(config.Caches) == 1 {
 		yaml.WriteString("          ## Cache Folder Available\n")
 		yaml.WriteString("          \n")
 		cache := config.Caches[0]
+		cacheDir := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s/", cache.ID)
 		if cache.Description != "" {
-			yaml.WriteString(fmt.Sprintf("          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information. %s\n", cache.Description))
+			yaml.WriteString(fmt.Sprintf("          You have access to a persistent cache folder at `%s` where you can read and write files to create memories and store information. %s\n", cacheDir, cache.Description))
 		} else {
-			yaml.WriteString("          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.\n")
+			yaml.WriteString(fmt.Sprintf("          You have access to a persistent cache folder at `%s` where you can read and write files to create memories and store information.\n", cacheDir))
 		}
 		yaml.WriteString("          \n")
 		yaml.WriteString("          - **Read/Write Access**: You can freely read from and write to any files in this folder\n")
@@ -409,14 +375,15 @@ func generateCacheMemoryPromptSection(yaml *strings.Builder, config *CacheMemory
 		yaml.WriteString("          - **File Share**: Use this as a simple file share - organize files as you see fit\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Examples of what you can store:\n")
-		yaml.WriteString("          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations\n")
-		yaml.WriteString("          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings\n")
-		yaml.WriteString("          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs\n")
-		yaml.WriteString("          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories\n")
+		cacheDirNoSlash := fmt.Sprintf("/tmp/gh-aw/cache-memory/%s", cache.ID)
+		yaml.WriteString(fmt.Sprintf("          - `%s/notes.txt` - general notes and observations\n", cacheDirNoSlash))
+		yaml.WriteString(fmt.Sprintf("          - `%s/preferences.json` - user preferences and settings\n", cacheDirNoSlash))
+		yaml.WriteString(fmt.Sprintf("          - `%s/history.log` - activity history and logs\n", cacheDirNoSlash))
+		yaml.WriteString(fmt.Sprintf("          - `%s/state/` - organized state files in subdirectories\n", cacheDirNoSlash))
 		yaml.WriteString("          \n")
 		yaml.WriteString("          Feel free to create, read, update, and organize files in this folder as needed for your tasks.\n")
 	} else {
-		// Multiple caches or non-default single cache
+		// Multiple caches
 		yaml.WriteString("          ## Cache Folders Available\n")
 		yaml.WriteString("          \n")
 		yaml.WriteString("          You have access to persistent cache folders where you can read and write files to create memories and store information:\n")

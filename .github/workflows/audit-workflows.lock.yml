@@ -180,25 +180,23 @@ jobs:
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
       # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory
+      - name: Create cache-memory directory (default)
         run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
-          echo "This folder provides persistent file storage across workflow runs"
-          echo "LLMs and agentic tools can freely read and write files in this directory"
-      - name: Cache memory file share data
+          mkdir -p /tmp/gh-aw/cache-memory/default
+      - name: Cache memory file share data (default)
         uses: actions/cache@v4
         with:
-          key: memory-${{ github.workflow }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
+          key: memory-default-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory/default
           restore-keys: |
-            memory-${{ github.workflow }}-
+            memory-default-${{ github.workflow }}-
+            memory-default-
             memory-
-      - name: Upload cache-memory data as artifact
+      - name: Upload cache-memory data as artifact (default)
         uses: actions/upload-artifact@v4
         with:
-          name: cache-memory
-          path: /tmp/gh-aw/cache-memory
+          name: cache-memory-default
+          path: /tmp/gh-aw/cache-memory/default
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -1422,7 +1420,7 @@ jobs:
           
           ## Cache Folder Available
           
-          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/default/` where you can read and write files to create memories and store information.
           
           - **Read/Write Access**: You can freely read from and write to any files in this folder
           - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
@@ -1430,10 +1428,10 @@ jobs:
           - **File Share**: Use this as a simple file share - organize files as you see fit
           
           Examples of what you can store:
-          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
-          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
-          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
-          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          - `/tmp/gh-aw/cache-memory/default/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/default/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/default/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/default/state/` - organized state files in subdirectories
           
           Feel free to create, read, update, and organize files in this folder as needed for your tasks.
           EOF

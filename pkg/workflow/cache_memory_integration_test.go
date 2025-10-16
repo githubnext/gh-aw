@@ -15,7 +15,7 @@ func TestCacheMemoryMultipleIntegration(t *testing.T) {
 		notExpectedInLock []string
 	}{
 		{
-			name: "single cache-memory (backward compatible)",
+			name: "single cache-memory (default follows subfolder pattern)",
 			frontmatter: `---
 name: Test Cache Memory Single
 on: workflow_dispatch
@@ -29,20 +29,20 @@ tools:
 ---`,
 			expectedInLock: []string{
 				"# Cache memory file share configuration from frontmatter processed below",
-				"- name: Create cache-memory directory",
-				"- name: Cache memory file share data",
+				"- name: Create cache-memory directory (default)",
+				"mkdir -p /tmp/gh-aw/cache-memory/default",
+				"- name: Cache memory file share data (default)",
 				"uses: actions/cache@v4",
-				"key: memory-${{ github.workflow }}-${{ github.run_id }}",
-				"path: /tmp/gh-aw/cache-memory",
-				"- name: Upload cache-memory data as artifact",
-				"name: cache-memory",
+				"key: memory-default-${{ github.workflow }}-${{ github.run_id }}",
+				"path: /tmp/gh-aw/cache-memory/default",
+				"- name: Upload cache-memory data as artifact (default)",
+				"name: cache-memory-default",
 				"## Cache Folder Available",
-				"You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/`",
+				"You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/default/`",
 			},
 			notExpectedInLock: []string{
 				"## Cache Folders Available",
-				"cache-memory/default/",
-				"cache-memory/session/",
+				"path: /tmp/gh-aw/cache-memory\n",
 			},
 		},
 		{

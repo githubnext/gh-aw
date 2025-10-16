@@ -27,9 +27,6 @@ var extractSquidLogsSetupScript string
 //go:embed sh/extract_squid_log_per_tool.sh
 var extractSquidLogPerToolScript string
 
-//go:embed sh/create_cache_memory_dir.sh
-var createCacheMemoryDirScript string
-
 //go:embed sh/create_gh_aw_tmp_dir.sh
 var createGhAwTmpDirScript string
 
