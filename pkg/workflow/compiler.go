@@ -2871,13 +2871,11 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 		return
 	}
 
-	yaml.WriteString("      - name: Append cache memory instructions to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
-	generateCacheMemoryPromptSection(yaml, config)
-	yaml.WriteString("          EOF\n")
+	appendPromptStepWithHeredoc(yaml,
+		"Append cache memory instructions to prompt",
+		func(y *strings.Builder) {
+			generateCacheMemoryPromptSection(y, config)
+		})
 }
 
 // generateSafeOutputsPromptStep generates a separate step for safe outputs prompt section
@@ -2886,13 +2884,11 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 		return
 	}
 
-	yaml.WriteString("      - name: Append safe outputs instructions to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
-	generateSafeOutputsPromptSection(yaml, safeOutputs)
-	yaml.WriteString("          EOF\n")
+	appendPromptStepWithHeredoc(yaml,
+		"Append safe outputs instructions to prompt",
+		func(y *strings.Builder) {
+			generateSafeOutputsPromptSection(y, safeOutputs)
+		})
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution

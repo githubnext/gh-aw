@@ -17,9 +17,11 @@ func (c *Compiler) generateEditToolPromptStep(yaml *strings.Builder, data *Workf
 		return
 	}
 
-	yaml.WriteString("      - name: Append edit tool accessibility instructions to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	WritePromptTextToYAML(yaml, editToolPromptText, "          ")
+	appendPromptStep(yaml,
+		"Append edit tool accessibility instructions to prompt",
+		func(y *strings.Builder, indent string) {
+			WritePromptTextToYAML(y, editToolPromptText, indent)
+		},
+		"", // no condition
+		"          ")
 }
