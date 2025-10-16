@@ -11,13 +11,13 @@ const crypto = require("crypto");
 function normalizeBranchName(branchName) {
   // Remove all characters that are not alphanumeric, dash, underscore, or forward slash
   let normalized = branchName.replace(/[^a-zA-Z0-9\-_/]/g, "");
-  
+
   // Clean up consecutive slashes
   normalized = normalized.replace(/\/+/g, "/");
-  
+
   // Remove leading/trailing slashes and dashes
   normalized = normalized.replace(/^[/-]+|[/-]+$/g, "");
-  
+
   return normalized;
 }
 
@@ -31,14 +31,14 @@ async function main() {
     core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
     return;
   }
-  
+
   // Normalize the branch name to remove spaces and special characters
   const branchName = normalizeBranchName(rawBranchName);
   if (!branchName) {
     core.setFailed(`Branch name normalization resulted in empty string from: ${rawBranchName}`);
     return;
   }
-  
+
   if (branchName !== rawBranchName) {
     core.info(`Normalized branch name from "${rawBranchName}" to "${branchName}"`);
   }

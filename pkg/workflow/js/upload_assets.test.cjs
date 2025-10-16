@@ -9,13 +9,13 @@ import { describe, it, expect } from "vitest";
 function normalizeBranchName(branchName) {
   // Remove all characters that are not alphanumeric, dash, underscore, or forward slash
   let normalized = branchName.replace(/[^a-zA-Z0-9\-_/]/g, "");
-  
+
   // Clean up consecutive slashes
   normalized = normalized.replace(/\/+/g, "/");
-  
+
   // Remove leading/trailing slashes and dashes
   normalized = normalized.replace(/^[/-]+|[/-]+$/g, "");
-  
+
   return normalized;
 }
 
