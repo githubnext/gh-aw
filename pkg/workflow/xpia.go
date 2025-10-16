@@ -11,9 +11,11 @@ func (c *Compiler) generateXPIAPromptStep(yaml *strings.Builder, data *WorkflowD
 		return
 	}
 
-	yaml.WriteString("      - name: Append XPIA security instructions to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	WritePromptTextToYAML(yaml, xpiaPromptText, "          ")
+	appendPromptStep(yaml,
+		"Append XPIA security instructions to prompt",
+		func(y *strings.Builder, indent string) {
+			WritePromptTextToYAML(y, xpiaPromptText, indent)
+		},
+		"", // no condition
+		"          ")
 }

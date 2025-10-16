@@ -17,9 +17,11 @@ func (c *Compiler) generatePlaywrightPromptStep(yaml *strings.Builder, data *Wor
 		return
 	}
 
-	yaml.WriteString("      - name: Append playwright output directory instructions to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	WritePromptTextToYAML(yaml, playwrightPromptText, "          ")
+	appendPromptStep(yaml,
+		"Append playwright output directory instructions to prompt",
+		func(y *strings.Builder, indent string) {
+			WritePromptTextToYAML(y, playwrightPromptText, indent)
+		},
+		"", // no condition
+		"          ")
 }
