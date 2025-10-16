@@ -61,11 +61,20 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 
 	// Build the condition for this job:
 	// 1. always() - run even if agent fails
-	// 2. comment_id exists (comment was created in activation)
-	// 3. NOT contains(output_types, 'add_comment')
-	// 4. NOT contains(output_types, 'create_pull_request')
+	// 2. agent was activated (not skipped)
+	// 3. comment_id exists (comment was created in activation)
+	// 4. NOT contains(output_types, 'add_comment')
+	// 5. NOT contains(output_types, 'create_pull_request')
 
 	alwaysFunc := BuildFunctionCall("always")
+
+	// Check that agent job was activated (not skipped)
+	agentNotSkipped := BuildNotEquals(
+		BuildPropertyAccess(fmt.Sprintf("needs.%s.result", constants.AgentJobName)),
+		BuildStringLiteral("skipped"),
+	)
+
+	// Check that a comment was created in activation
 	commentIdExists := BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.comment_id", constants.ActivationJobName))
 
 	// Check that output_types doesn't contain add_comment
@@ -87,7 +96,10 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	// Combine all conditions with AND
 	condition := buildAnd(
 		buildAnd(
-			buildAnd(alwaysFunc, commentIdExists),
+			buildAnd(
+				buildAnd(alwaysFunc, agentNotSkipped),
+				commentIdExists,
+			),
 			noAddComment,
 		),
 		noCreatePR,

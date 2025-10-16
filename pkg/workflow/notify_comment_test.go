@@ -23,6 +23,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectJob:          true,
 			expectConditions: []string{
 				"always()",
+				"needs.agent.result != 'skipped'",
 				"needs.activation.outputs.comment_id",
 				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
@@ -36,6 +37,7 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectJob:          true,
 			expectConditions: []string{
 				"always()",
+				"needs.agent.result != 'skipped'",
 				"needs.activation.outputs.comment_id",
 				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
@@ -186,9 +188,12 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 		t.Error("Expected GITHUB_AW_AGENT_CONCLUSION to reference needs.agent.result")
 	}
 
-	// Check all four conditions are present
+	// Check all five conditions are present
 	if !strings.Contains(job.If, "always()") {
 		t.Error("Expected always() in update_reaction condition")
+	}
+	if !strings.Contains(job.If, "needs.agent.result != 'skipped'") {
+		t.Error("Expected agent not skipped check in update_reaction condition")
 	}
 	if !strings.Contains(job.If, "needs.activation.outputs.comment_id") {
 		t.Error("Expected comment_id check in update_reaction condition")

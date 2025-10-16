@@ -4207,7 +4207,7 @@ jobs:
       - add_comment
       - missing_tool
     if: >
-      (((always()) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
+      ((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
       (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))
     runs-on: ubuntu-latest
     permissions:
