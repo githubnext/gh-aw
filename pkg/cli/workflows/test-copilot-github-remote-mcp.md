@@ -19,4 +19,4 @@ Please use the remote GitHub MCP server to:
 2. List the first 3 open issues
 3. Get details for issue #1 if it exists
 
-The workflow uses `mode: remote` to connect to the hosted GitHub MCP server at https://api.githubcopilot.com/mcp/ with GITHUB_MCP_TOKEN for authentication.
+The workflow uses `mode: remote` to connect to the hosted GitHub MCP server at https://api.githubcopilot.com/mcp/ with GH_AW_GITHUB_TOKEN for authentication.

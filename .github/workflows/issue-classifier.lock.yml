@@ -135,6 +135,7 @@ jobs:
       pull-requests: write
     outputs:
       comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
       text: ${{ steps.compute-text.outputs.text }}
@@ -529,7 +530,7 @@ jobs:
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -558,50 +559,46 @@ jobs:
                   core.info(`Successfully created discussion comment with workflow link`);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
                   core.setOutput("comment-id", comment.id);
                   core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 } else if (eventName === "discussion_comment") {
                   core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
                   return;
                 }
-                const isCreateComment = eventName === "issues" || eventName === "pull_request";
-                if (isCreateComment) {
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
-                  const createResponse = await github.request("POST " + endpoint, {
-                    body: workflowLinkText,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully created comment with workflow link`);
-                  core.info(`Comment ID: ${createResponse.data.id}`);
-                  core.info(`Comment URL: ${createResponse.data.html_url}`);
-                  core.setOutput("comment-id", createResponse.data.id.toString());
-                  core.setOutput("comment-url", createResponse.data.html_url);
-                } else {
-                  const getResponse = await github.request("GET " + endpoint, {
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const originalBody = getResponse.data.body || "";
-                  const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
-                  const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
-                  if (duplicatePattern.test(originalBody)) {
-                    core.info("Comment already contains a workflow run link, skipping edit");
-                    return;
-                  }
-                  const updatedBody = originalBody + workflowLinkText;
-                  const updateResponse = await github.request("PATCH " + endpoint, {
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment with workflow link`);
-                  core.info(`Comment ID: ${updateResponse.data.id}`);
+                let eventTypeDescription;
+                switch (eventName) {
+                  case "issues":
+                    eventTypeDescription = "issue";
+                    break;
+                  case "pull_request":
+                    eventTypeDescription = "pull request";
+                    break;
+                  case "issue_comment":
+                    eventTypeDescription = "issue comment";
+                    break;
+                  case "pull_request_review_comment":
+                    eventTypeDescription = "pull request review comment";
+                    break;
+                  default:
+                    eventTypeDescription = "event";
                 }
+                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
+                const createResponse = await github.request("POST " + endpoint, {
+                  body: workflowLinkText,
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+                core.info(`Successfully created comment with workflow link`);
+                core.info(`Comment ID: ${createResponse.data.id}`);
+                core.info(`Comment URL: ${createResponse.data.html_url}`);
+                core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                core.setOutput("comment-id", createResponse.data.id.toString());
+                core.setOutput("comment-url", createResponse.data.html_url);
+                core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.warning(
@@ -1640,8 +1637,8 @@ jobs:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_SAFE_OUTPUTS_CONFIG: "\"{\\\"add_labels\\\":{\\\"allowed\\\":[\\\"bug\\\",\\\"feature\\\",\\\"enhancement\\\",\\\"documentation\\\"],\\\"max\\\":1},\\\"missing_tool\\\":{}}\""
         with:
-          enable-github-mcp: ${{ secrets.GITHUB_MCP_TOKEN != '' }}
-          github-mcp-token: ${{ secrets.GITHUB_MCP_TOKEN }}
+          enable-github-mcp: ${{ secrets.GH_AW_GITHUB_TOKEN != '' }}
+          github-mcp-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           model: gpt-4o-mini
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
       - name: Ensure log file exists
@@ -2457,7 +2454,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Issue Classifier"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using GitHub's AI inference action.\n\n**Note**: When using this shared configuration, ensure your workflow includes `models: read` permission.\n\n## GitHub MCP Integration (Optional)\n\nThis configuration supports optional GitHub MCP (Model Context Protocol) integration, which provides AI models with access to GitHub tools for repository management, issue tracking, and pull request operations.\n\n### Enabling GitHub MCP\n\nTo enable GitHub MCP, configure a `GITHUB_MCP_TOKEN` secret in your repository:\n\n1. Go to your repository settings → Secrets and variables → Actions\n2. Create a new repository secret named `GITHUB_MCP_TOKEN`\n3. Use a Personal Access Token (PAT) with appropriate permissions as the secret value\n\n**Important**: The GitHub MCP integration requires a Personal Access Token (PAT) and cannot use the built-in `GITHUB_TOKEN`.\n\nWhen the `GITHUB_MCP_TOKEN` secret is configured, the AI model will automatically have access to GitHub tools. If the secret is not configured, the workflow will function normally without MCP capabilities.\n-->\n\n# Issue Classification\n\nYou are an issue classification assistant. Your task is to analyze newly created issues and classify them as either a \"bug\" or a \"feature\".\n\n## Current Issue\n\n- **Issue Number**: ${{ github.event.issue.number }}\n- **Repository**: ${{ github.repository }}\n- **Issue Content**: \n  ```\n  ${{ needs.activation.outputs.text }}\n  ```\n\n## Classification Guidelines\n\n**Bug**: An issue that describes:\n- Something that is broken or not working as expected\n- An error, exception, or crash\n- Incorrect behavior compared to documentation\n- Performance degradation or regression\n- Security vulnerabilities\n\n**Feature**: An issue that describes:\n- A request for new functionality\n- An enhancement to existing features\n- A suggestion for improvement\n- Documentation additions or updates\n- New capabilities or options\n\n## Your Task\n\n1. Read and analyze the issue content above\n2. Determine whether this is a \"bug\" or a \"feature\" based on the guidelines\n3. Add the appropriate label to the issue using the safe-outputs configuration\n\n**Important**: Only add ONE label - either \"bug\" or \"feature\". Choose the most appropriate classification based on the primary nature of the issue.\n"
+          WORKFLOW_MARKDOWN: "<!--\nThis shared configuration sets up a custom agentic engine using GitHub's AI inference action.\n\n**Note**: When using this shared configuration, ensure your workflow includes `models: read` permission.\n\n## GitHub MCP Integration (Optional)\n\nThis configuration supports optional GitHub MCP (Model Context Protocol) integration, which provides AI models with access to GitHub tools for repository management, issue tracking, and pull request operations.\n\n### Enabling GitHub MCP\n\nTo enable GitHub MCP, configure a `GH_AW_GITHUB_TOKEN` secret in your repository:\n\n1. Go to your repository settings → Secrets and variables → Actions\n2. Create a new repository secret named `GH_AW_GITHUB_TOKEN`\n3. Use a Personal Access Token (PAT) with appropriate permissions as the secret value\n\n**Important**: The GitHub MCP integration requires a Personal Access Token (PAT) and cannot use the built-in `GITHUB_TOKEN`.\n\nWhen the `GH_AW_GITHUB_TOKEN` secret is configured, the AI model will automatically have access to GitHub tools. If the secret is not configured, the workflow will function normally without MCP capabilities.\n-->\n\n# Issue Classification\n\nYou are an issue classification assistant. Your task is to analyze newly created issues and classify them as either a \"bug\" or a \"feature\".\n\n## Current Issue\n\n- **Issue Number**: ${{ github.event.issue.number }}\n- **Repository**: ${{ github.repository }}\n- **Issue Content**: \n  ```\n  ${{ needs.activation.outputs.text }}\n  ```\n\n## Classification Guidelines\n\n**Bug**: An issue that describes:\n- Something that is broken or not working as expected\n- An error, exception, or crash\n- Incorrect behavior compared to documentation\n- Performance degradation or regression\n- Security vulnerabilities\n\n**Feature**: An issue that describes:\n- A request for new functionality\n- An enhancement to existing features\n- A suggestion for improvement\n- Documentation additions or updates\n- New capabilities or options\n\n## Your Task\n\n1. Read and analyze the issue content above\n2. Determine whether this is a \"bug\" or a \"feature\" based on the guidelines\n3. Add the appropriate label to the issue using the safe-outputs configuration\n\n**Important**: Only add ONE label - either \"bug\" or \"feature\". Choose the most appropriate classification based on the primary nature of the issue.\n"
         with:
           script: |
             const fs = require('fs');
@@ -2556,8 +2553,8 @@ jobs:
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
         with:
-          enable-github-mcp: ${{ secrets.GITHUB_MCP_TOKEN != '' }}
-          github-mcp-token: ${{ secrets.GITHUB_MCP_TOKEN }}
+          enable-github-mcp: ${{ secrets.GH_AW_GITHUB_TOKEN != '' }}
+          github-mcp-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           model: gpt-4o-mini
           prompt-file: ${{ env.GITHUB_AW_PROMPT }}
       - name: Ensure log file exists

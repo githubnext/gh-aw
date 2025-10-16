@@ -302,7 +302,7 @@ func TestCodexEngineRenderMCPConfig(t *testing.T) {
 				"[mcp_servers.github]",
 				"user_agent = \"test-workflow\"",
 				"startup_timeout_sec = 120",
-				"tool_timeout_sec = 120",
+				"tool_timeout_sec = 60",
 				"command = \"docker\"",
 				"args = [",
 				"\"run\",",

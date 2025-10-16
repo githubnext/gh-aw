@@ -62,6 +62,40 @@ func TestValidateServerSecrets(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "github remote mode requires GH_AW_GITHUB_TOKEN",
+			config: parser.MCPServerConfig{
+				Name: "github",
+				Type: "http",
+				URL:  "https://api.githubcopilot.com/mcp/",
+				Env:  map[string]string{},
+			},
+			envVars: map[string]string{
+				"GH_AW_GITHUB_TOKEN": "test_token",
+			},
+			expectError: false,
+		},
+		{
+			name: "github remote mode with custom token",
+			config: parser.MCPServerConfig{
+				Name: "github",
+				Type: "http",
+				URL:  "https://api.githubcopilot.com/mcp/",
+				Env: map[string]string{
+					"GITHUB_TOKEN": "${{ secrets.CUSTOM_PAT }}",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "github local mode does not require GH_AW_GITHUB_TOKEN",
+			config: parser.MCPServerConfig{
+				Name: "github",
+				Type: "docker",
+				Env:  map[string]string{},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {

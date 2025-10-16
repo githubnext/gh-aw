@@ -85,6 +85,12 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/gh-aw/cache-memory/")
 	}
 
+	// Add --add-dir / when edit tool is enabled to allow write on all paths
+	// Workaround for GitHub/copilot-cli issue 67: https://github.com/GitHub/copilot-cli/issues/67
+	if _, hasEdit := workflowData.Tools["edit"]; hasEdit {
+		copilotArgs = append(copilotArgs, "--add-dir", "/")
+	}
+
 	// Add custom args from engine configuration before the prompt
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
 		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
@@ -122,6 +128,16 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
+
+	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
+	if workflowData.ToolsStartupTimeout > 0 {
+		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+	}
+
+	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
+	if workflowData.ToolsTimeout > 0 {
+		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns

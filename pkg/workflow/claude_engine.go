@@ -207,10 +207,42 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
-	// Set MCP_TIMEOUT to 60000ms for MCP server communication
-	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
+	// Set timeout environment variables for Claude Code
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeoutMs := constants.DefaultMCPStartupTimeoutSeconds * 1000 // convert seconds to milliseconds
+	if workflowData.ToolsStartupTimeout > 0 {
+		startupTimeoutMs = workflowData.ToolsStartupTimeout * 1000 // convert seconds to milliseconds
+	}
+
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
+	timeoutMs := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
+	if workflowData.ToolsTimeout > 0 {
+		timeoutMs = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
+	}
+
+	// MCP_TIMEOUT: Timeout for MCP server startup
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", startupTimeoutMs))
+
+	// MCP_TOOL_TIMEOUT: Timeout for MCP tool execution
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TOOL_TIMEOUT: \"%d\"", timeoutMs))
+
+	// BASH_DEFAULT_TIMEOUT_MS: Default timeout for Bash commands
+	stepLines = append(stepLines, fmt.Sprintf("          BASH_DEFAULT_TIMEOUT_MS: \"%d\"", timeoutMs))
+
+	// BASH_MAX_TIMEOUT_MS: Maximum timeout for Bash commands
+	stepLines = append(stepLines, fmt.Sprintf("          BASH_MAX_TIMEOUT_MS: \"%d\"", timeoutMs))
 
 	applySafeOutputEnvToSlice(&stepLines, workflowData)
+
+	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
+	if workflowData.ToolsStartupTimeout > 0 {
+		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_STARTUP_TIMEOUT: \"%d\"", workflowData.ToolsStartupTimeout))
+	}
+
+	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
+	if workflowData.ToolsTimeout > 0 {
+		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_TOOL_TIMEOUT: \"%d\"", workflowData.ToolsTimeout))
+	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))

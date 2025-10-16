@@ -424,6 +424,94 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 	if !strings.Contains(stepContent, "# --allow-tool write") {
 		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
 	}
+
+	// Should contain --add-dir / for edit tool (workaround for GitHub/copilot-cli#67)
+	// Check specifically for "--add-dir / " or "--add-dir /'" to avoid matching "--add-dir /tmp/gh-aw/"
+	if !strings.Contains(stepContent, "--add-dir / ") && !strings.Contains(stepContent, "--add-dir /'") {
+		t.Errorf("Expected step to contain '--add-dir /' for edit tool workaround:\n%s", stepContent)
+	}
+}
+
+func TestCopilotEngineEditToolAddsRootDir(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	tests := []struct {
+		name       string
+		tools      map[string]any
+		shouldHave bool
+	}{
+		{
+			name: "edit tool present",
+			tools: map[string]any{
+				"edit": nil,
+			},
+			shouldHave: true,
+		},
+		{
+			name: "edit tool with other tools",
+			tools: map[string]any{
+				"edit": nil,
+				"bash": []any{"echo"},
+			},
+			shouldHave: true,
+		},
+		{
+			name: "no edit tool",
+			tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+			shouldHave: false,
+		},
+		{
+			name:       "empty tools",
+			tools:      map[string]any{},
+			shouldHave: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:  "test-workflow",
+				Tools: tt.tools,
+			}
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+
+			if len(steps) != 1 {
+				t.Fatalf("Expected 1 step, got %d", len(steps))
+			}
+
+			stepContent := strings.Join([]string(steps[0]), "\n")
+
+			// Check specifically for "--add-dir / " (with space) or "--add-dir /" at end
+			// to avoid matching "--add-dir /tmp/gh-aw/"
+			hasAddDirRoot := strings.Contains(stepContent, "--add-dir / ") ||
+				strings.Contains(stepContent, "--add-dir /'")
+
+			if tt.shouldHave && !hasAddDirRoot {
+				t.Errorf("Expected step to contain '--add-dir /' when edit tool is present, but it was missing:\n%s", stepContent)
+			}
+
+			if !tt.shouldHave && hasAddDirRoot {
+				t.Errorf("Expected step to NOT contain '--add-dir /' when edit tool is absent, but it was present:\n%s", stepContent)
+			}
+
+			// When edit tool is present, verify it's in the command line
+			if tt.shouldHave {
+				lines := strings.Split(stepContent, "\n")
+				foundInCommand := false
+				for _, line := range lines {
+					if strings.Contains(line, "copilot ") && (strings.Contains(line, "--add-dir / ") || strings.Contains(line, "--add-dir /'")) {
+						foundInCommand = true
+						break
+					}
+				}
+				if !foundInCommand {
+					t.Errorf("Expected '--add-dir /' in copilot command line:\n%s", stepContent)
+				}
+			}
+		})
+	}
 }
 
 func TestCopilotEngineShellEscaping(t *testing.T) {
