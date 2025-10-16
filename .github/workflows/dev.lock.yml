@@ -3,6 +3,10 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/drain3.md
+#
 # Effective stop-time: 2025-11-16 00:00:00
 #
 # Job Dependency Graph:
@@ -542,6 +546,28 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          cache: pip
+          python-version: "3.11"
+      - name: Install Drain3 dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "mcp[server]" drain3
+      - name: Copy Drain3 MCP server script
+        run: |
+          mkdir -p ${{ github.workspace }}/.mcp-servers
+          cp .github/workflows/shared/mcp/drain3_server.py ${{ github.workspace }}/.mcp-servers/
+          chmod +x ${{ github.workspace }}/.mcp-servers/drain3_server.py
+      - env:
+          HOST: 0.0.0.0
+          MOUNT_PATH: /mcp
+          PORT: "8000"
+          STATE_DIR: ${{ github.workspace }}/.drain3
+        name: Start Drain3 MCP server
+        run: "set -e\npython ${{ github.workspace }}/.mcp-servers/drain3_server.py &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Drain3 MCP server failed to start\"\n  exit 1\nfi\n\n# Verify server is responding\nfor i in {1..10}; do\n  if curl -s http://localhost:8000/mcp/health > /dev/null 2>&1 || \\\n     curl -s http://localhost:8000/mcp > /dev/null 2>&1; then\n    echo \"Drain3 MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  sleep 1\ndone\n\necho \"Drain3 MCP server health check failed\"\nexit 1\n"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -1302,6 +1328,15 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
+              "drain3": {
+                "type": "http",
+                "url": "http://localhost:8000/mcp",
+                "tools": [
+                  "index_file",
+                  "query_file",
+                  "list_templates"
+                ]
+              },
               "github": {
                 "type": "local",
                 "command": "docker",
@@ -1405,7 +1440,18 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Write a poem about the last 3 pull requests and publish an issue.
+          
+          
+          # Drain3 Log Pattern Mining Test
+          
+          Test the drain3 MCP server by:
+          1. Creating a sample log file with test log entries
+          2. Using the index_file tool to analyze the log file
+          3. Using the list_templates tool to see the extracted patterns
+          4. Using the query_file tool to match a specific log line
+          
+          Provide a summary of the templates found and demonstrate the query functionality.
+          Then write a brief poem about log pattern mining and publish it as an issue.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1627,6 +1673,10 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
+        # --allow-tool drain3
+        # --allow-tool drain3(index_file)
+        # --allow-tool drain3(list_templates)
+        # --allow-tool drain3(query_file)
         # --allow-tool github(download_workflow_run_artifact)
         # --allow-tool github(get_code_scanning_alert)
         # --allow-tool github(get_commit)
@@ -1686,7 +1736,7 @@ jobs:
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool drain3 --allow-tool 'drain3(index_file)' --allow-tool 'drain3(list_templates)' --allow-tool 'drain3(query_file)' --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
@@ -3599,7 +3649,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Write a poem about the last 3 pull requests and publish an issue.\n"
+          WORKFLOW_MARKDOWN: "<!--\n\nDrain3 MCP Server\nLog template mining and pattern extraction tool\n\nDrain3 is an online log template miner that extracts structured patterns from \nunstructured log files. This MCP server provides tools for indexing log files, \nquerying patterns, and listing extracted templates.\n\nDocumentation: https://github.com/logpai/Drain3\n\nThis shared configuration provides a local HTTP MCP server that runs Drain3\nfor log analysis and template extraction. The server uses streaming JSONL\nresponses for progressive results.\n\nAvailable tools:\n  - index_file: Stream-mine templates from a log file and persist snapshot\n    Parameters:\n      - path: Path to the log file to analyze\n      - encoding: File encoding (default: utf-8)\n      - max_lines: Maximum lines to process (optional)\n    Returns: Streaming JSONL events (start, progress, template, summary)\n\n  - query_file: Match a log line against previously indexed templates\n    Parameters:\n      - path: Path to the indexed log file\n      - text: Log line text to match\n    Returns: Matching cluster information (cluster_id, size, template)\n\n  - list_templates: List all extracted templates from an indexed file\n    Parameters:\n      - path: Path to the indexed log file\n      - limit: Maximum number of templates to return (optional)\n    Returns: Streaming JSONL events for each template\n\nConfiguration:\n  The server can be configured via environment variables in the workflow:\n  - DRAIN3_SIM_TH: Similarity threshold (default: 0.4)\n  - DRAIN3_DEPTH: Tree depth (default: 4)\n  - DRAIN3_MAX_CHILDREN: Maximum children per node (default: 100)\n  - DRAIN3_MAX_CLUSTERS: Maximum clusters (default: 0 = unlimited)\n  - STREAM_FLUSH_EVERY: Progress event frequency (default: 500 lines)\n  - STREAM_SLEEP: Throttle between flushes in seconds (default: 0)\n\nSetup:\n  1. Include in Your Workflow:\n     imports:\n       - shared/mcp/drain3.md\n\n  2. The server will be automatically installed and started on localhost:8000\n\nExample Usage:\n  Analyze GitHub Actions workflow logs to identify common error patterns\n  and failure templates. Index a log file, then query specific error messages\n  to find which cluster they belong to.\n\n  ```\n  Use the drain3 tool to index the workflow log file at /tmp/workflow.log\n  and extract error patterns. Then query a specific error message to find\n  its template cluster.\n  ```\n\nConnection Type:\n  This configuration uses a local HTTP MCP server running Python with FastMCP.\n  The server streams responses as JSONL (JSON Lines) for progressive results.\n\nState Persistence:\n  Drain3 snapshots are stored in ${{ github.workspace }}/.drain3/ directory.\n  Each indexed file gets its own snapshot file for quick reloading.\n\nTroubleshooting:\n  Server Failed to Start:\n  - Verify Python 3.11+ is available\n  - Check that port 8000 is not in use\n  - Review server logs for dependency installation issues\n  \n  Index/Query Errors:\n  - Ensure file paths are absolute or relative to workspace\n  - Check that the file was indexed before querying\n  - Verify file permissions are readable\n\nUsage:\n  imports:\n    - shared/mcp/drain3.md\n\n-->\n\n# Drain3 Log Pattern Mining Test\n\nTest the drain3 MCP server by:\n1. Creating a sample log file with test log entries\n2. Using the index_file tool to analyze the log file\n3. Using the list_templates tool to see the extracted patterns\n4. Using the query_file tool to match a specific log line\n\nProvide a summary of the templates found and demonstrate the query functionality.\nThen write a brief poem about log pattern mining and publish it as an issue.\n"
         with:
           script: |
             const fs = require('fs');
