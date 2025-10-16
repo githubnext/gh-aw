@@ -15,7 +15,8 @@ GitHub Copilot is the default and recommended AI engine for most workflows. The 
 engine: copilot
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: copilot
@@ -24,15 +25,18 @@ engine:
   args: ["--add-dir", "/workspace"]     # Optional: custom CLI arguments
 ```
 
-**Configuration options:**
+#### Configuration Options
+
 - **`model`**: AI model (`gpt-5` or `claude-sonnet-4`)
 - **`version`**: CLI version to install
 - **`args`**: Custom command-line arguments (supported by all engines)
 
-**Environment Variables:**
+#### Environment Variables
+
 - **`COPILOT_MODEL`**: Alternative way to set the model
 
-**Required Secrets:**
+#### Required Secrets
+
 - **`COPILOT_CLI_TOKEN`**: [GitHub Personal Access Token with Copilot subscription](https://github.com/settings/tokens)
 - **`GITHUB_MCP_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
@@ -54,7 +58,8 @@ Claude Code excels at reasoning, code analysis, and understanding complex contex
 engine: claude
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: claude
@@ -67,7 +72,8 @@ engine:
     DEBUG_MODE: "true"
 ```
 
-**Required Secrets:**
+#### Required Secrets
+
 - **`ANTHROPIC_API_KEY`**: Anthropic API key
 - **`GITHUB_MCP_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
@@ -85,7 +91,8 @@ OpenAI Codex CLI with MCP server support. Designed for code-focused tasks.
 engine: codex
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: codex
@@ -101,12 +108,14 @@ engine:
     timeout = 60
 ```
 
-**Codex-specific fields:**
+#### Codex-Specific Fields
+
 - **`user-agent`**: Custom user agent string for GitHub MCP server
 - **`config`**: Additional TOML configuration appended to generated config.toml
 - **`args`**: Custom command-line arguments (supported by all engines)
 
-**Required Secrets:**
+#### Required Secrets
+
 - **`OPENAI_API_KEY`**: OpenAI API key
 
 Set secrets using:
@@ -122,7 +131,8 @@ Define custom GitHub Actions steps without AI interpretation for deterministic w
 engine: custom
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: custom
