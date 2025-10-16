@@ -59,7 +59,7 @@ DO NOT ask all these questions at once; instead, engage in a back-and-forth conv
      - Declare it in **`tools:`** (for built-in tools) or in **`mcp-servers:`** (for MCP servers).
      - If a tool needs installation (e.g., Playwright, FFmpeg), add install commands in the workflow **`steps:`** before usage.
    - For MCP inspection/listing details in workflows, use:
-     - `gh aw mcp inspect` (and flags like `--server`, `--tool`, `--verbose`) to analyze configured MCP servers and tool availability.
+     - `gh aw mcp inspect` (and flags like `--server`, `--tool`) to analyze configured MCP servers and tool availability.
 
    ### Correct tool snippets (reference)
 

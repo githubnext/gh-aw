@@ -975,9 +975,6 @@ gh aw mcp inspect workflow-name --server server-name
 
 # Show detailed information about a specific tool
 gh aw mcp inspect workflow-name --server server-name --tool tool-name
-
-# Enable verbose output with connection details
-gh aw mcp inspect workflow-name --verbose
 ```
 
 The `--tool` flag provides detailed information about a specific tool, including:
@@ -998,9 +995,6 @@ gh aw mcp list-tools github
 
 # List tools from a specific MCP server in a workflow
 gh aw mcp list-tools github weekly-research
-
-# List tools with detailed descriptions and allowance status  
-gh aw mcp list-tools safe-outputs issue-triage --verbose
 ```
 
 This command is useful for:
@@ -1018,11 +1012,10 @@ Agentic workflows compile to GitHub Actions YAML:
 
 ### Compilation Commands
 
-- **`gh aw compile`** - Compile all workflow files in `.github/workflows/`
+- **`gh aw compile --strict`** - Compile all workflow files in `.github/workflows/` with strict security checks
 - **`gh aw compile <workflow-id>`** - Compile a specific workflow by ID (filename without extension)
   - Example: `gh aw compile issue-triage` compiles `issue-triage.md`
   - Supports partial matching and fuzzy search for workflow names
-- **`gh aw compile --verbose`** - Show detailed compilation and validation messages
 - **`gh aw compile --purge`** - Remove orphaned `.lock.yml` files that no longer have corresponding `.md` files
 
 ## Best Practices
