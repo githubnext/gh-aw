@@ -257,33 +257,132 @@ safe-outputs:
 
 ## Creating Shared Components
 
-### Step 1: Understand the MCP Server
+### Step 1: Understand Requirements
 
 Ask the user:
-- What MCP server are you wrapping?
+- Do you want to configure an MCP server?
+- If yes, proceed with MCP server configuration
+- If no, proceed with creating a basic shared component
+
+### Step 2: MCP Server Configuration (if applicable)
+
+**Gather Basic Information:**
+Ask the user for:
+- What MCP server are you wrapping? (name/identifier)
 - What is the server's documentation URL?
-- Is there an official Docker container available?
-- What are the available tools and their capabilities?
-- Which tools are read-only vs write operations?
-- What authentication/secrets are required?
+- Where can we find information about this MCP server? (GitHub repo, npm package, docs site, etc.)
 
-### Step 2: Design the Component
+**Research and Extract Configuration:**
+Using the provided URLs and documentation, research and identify:
+- Is there an official Docker container available? If yes:
+  - Container registry and image name (e.g., `mcp/notion`, `ghcr.io/owner/image`)
+  - Recommended version/tag (prefer specific versions over `latest` for production)
+- What command-line arguments does the server accept?
+- What environment variables are required or optional?
+  - Which ones should come from GitHub Actions secrets?
+  - What are sensible defaults for non-sensitive variables?
+- Does the server need volume mounts or special Docker configuration?
 
-Based on the MCP server:
-- Choose container vs HTTP transport
-- Identify read-only tools for the `allowed:` list
-- Determine required environment variables and secrets
-- Plan custom Docker args if needed (volume mounts, working directory)
-- Document any special configuration requirements
-
-### Step 3: Create the Shared File
-
+**Create Initial Shared File:**
+Before running compile or inspect commands, create the shared workflow file:
 - File location: `.github/workflows/shared/<name>-mcp.md`
-- Naming convention: `<service>-mcp.md` (e.g., `tavily-mcp.md`, `deepwiki-mcp.md`)
-- Use frontmatter-only format (no markdown body)
-- Include clear comments for required secrets
+- Naming convention: `<service>-mcp.md` (e.g., `notion-mcp.md`, `tavily-mcp.md`)
+- Initial content with basic MCP server configuration from research:
+  ```yaml
+  ---
+  mcp-servers:
+    <server-name>:
+      container: "<registry/image>"
+      version: "<tag>"
+      env:
+        SECRET_NAME: "${{ secrets.SECRET_NAME }}"
+  ---
+  ```
 
-### Step 4: Document Usage
+**Validate Secrets Availability:**
+- List all required GitHub Actions secrets
+- Inform the user which secrets need to be configured
+- Provide clear instructions on how to set them:
+  ```
+  Required secrets for this MCP server:
+  - SECRET_NAME: Description of what this secret is for
+  
+  To configure in GitHub Actions:
+  1. Go to your repository Settings → Secrets and variables → Actions
+  2. Click "New repository secret"
+  3. Add each required secret
+  ```
+- Remind the user that secrets can also be checked with: `gh aw mcp inspect <workflow-name> --check-secrets`
+
+**Analyze Available Tools:**
+Now that the workflow file exists, use the `gh aw mcp inspect` command to discover tools:
+1. Run: `gh aw mcp inspect <workflow-name> --server <server-name> -v`
+2. Parse the output to identify all available tools
+3. Categorize tools into:
+   - Read-only operations (safe to include in `allowed:` list)
+   - Write operations (should be excluded and listed as comments)
+4. Update the workflow file with the `allowed:` list of read-only tools
+5. Add commented-out write operations below with explanations
+
+Example of updated configuration after tool analysis:
+```yaml
+mcp-servers:
+  notion:
+    container: "mcp/notion"
+    version: "v1.2.0"
+    env:
+      NOTION_TOKEN: "${{ secrets.NOTION_TOKEN }}"
+    allowed:
+      # Read-only tools (safe for shared components)
+      - search_pages
+      - read_page
+      - list_databases
+      # Write operations (excluded - use safe-outputs instead):
+      # - create_page
+      # - update_page
+      # - delete_page
+```
+
+**Iterative Configuration:**
+Emphasize that MCP server configuration can be complex and error-prone:
+- Test the configuration after each change
+- Compile the workflow to validate: `gh aw compile <workflow-name>`
+- Use `gh aw mcp inspect` to verify server connection and available tools
+- Iterate based on errors or missing functionality
+- Common issues to watch for:
+  - Missing or incorrect secrets
+  - Wrong Docker image names or versions
+  - Incompatible environment variables
+  - Network connectivity problems (for HTTP MCP servers)
+  - Permission issues with Docker volume mounts
+
+**Configuration Validation Loop:**
+Guide the user through iterative refinement:
+1. Compile: `gh aw compile <workflow-name> -v`
+2. Inspect: `gh aw mcp inspect <workflow-name> -v`
+3. Review errors and warnings
+4. Update the workflow file based on feedback
+5. Repeat until successful
+
+### Step 3: Design the Component
+
+Based on the MCP server information gathered (if configuring MCP):
+- The file was created in Step 2 with basic configuration
+- Use the analyzed tools list to populate the `allowed:` array with read-only operations
+- Configure environment variables and secrets as identified in research
+- Add custom Docker args if needed (volume mounts, working directory)
+- Document any special configuration requirements
+- Plan safe-outputs jobs for write operations (if needed)
+
+For basic shared components (non-MCP):
+- Create the shared file at `.github/workflows/shared/<name>.md`
+- Define reusable tool configurations
+- Set up imports structure
+- Document usage patterns
+
+### Step 4: Add Documentation
+
+Add comprehensive documentation to the shared file using XML comments:
 
 Create a comment header explaining:
 ```markdown
