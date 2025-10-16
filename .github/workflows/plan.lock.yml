@@ -6,13 +6,13 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   check_membership["check_membership"]
+#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
 #   create_issue["create_issue"]
 #   missing_tool["missing_tool"]
-#   check_membership --> activation
+#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> create_issue
@@ -36,15 +36,12 @@ concurrency:
 run-name: "Plan Command"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: >
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) && (github.event.issue.pull_request == null))
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check_membership.outputs.error_message }}
-      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
-      result: ${{ steps.check_membership.outputs.result }}
-      user_permission: ${{ steps.check_membership.outputs.user_permission }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Check team membership for command workflow
         id: check_membership
@@ -128,10 +125,10 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && ((github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/plan')) && (github.event.issue.pull_request == null)))
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/plan')) &&
+      (github.event.issue.pull_request == null)))
     runs-on: ubuntu-latest
     permissions:
       discussions: write

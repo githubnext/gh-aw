@@ -6,7 +6,7 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   check_membership["check_membership"]
+#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
@@ -14,7 +14,7 @@
 #   create_pull_request["create_pull_request"]
 #   missing_tool["missing_tool"]
 #   upload_assets["upload_assets"]
-#   check_membership --> activation
+#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> add_comment
@@ -44,13 +44,10 @@ concurrency:
 run-name: "Technical Documentation Writer for GitHub Actions"
 
 jobs:
-  check_membership:
+  pre_activation:
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check_membership.outputs.error_message }}
-      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
-      result: ${{ steps.check_membership.outputs.result }}
-      user_permission: ${{ steps.check_membership.outputs.user_permission }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Check team membership for workflow
         id: check_membership
@@ -134,8 +131,8 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
-    if: needs.check_membership.outputs.is_team_member == 'true'
+    needs: pre_activation
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
