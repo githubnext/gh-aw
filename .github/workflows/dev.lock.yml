@@ -51,6 +51,7 @@ name: "Dev"
     types:
     - created
     - edited
+  workflow_dispatch: null
 
 permissions: {}
 
@@ -62,7 +63,9 @@ run-name: "Dev"
 jobs:
   pre_activation:
     if: >
-      (github.event_name == 'issues') && (contains(github.event.issue.body, '/dev')) || (github.event_name == 'issue_comment') &&
+      ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
+      ((github.event_name == 'issues') && (contains(github.event.issue.body, '/dev')) || (github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') &&
       ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request != null)) ||
@@ -71,7 +74,9 @@ jobs:
       (contains(github.event.pull_request.body, '/dev')) ||
       (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/dev')) ||
       (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/dev'))
+      (contains(github.event.comment.body, '/dev')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment'))
     runs-on: ubuntu-latest
     outputs:
       activated: ${{ (steps.check_membership.outputs.is_team_member == 'true') && (steps.check_stop_time.outputs.stop_time_ok == 'true') }}
@@ -196,14 +201,18 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/dev')) ||
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
+      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
+      github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/dev')) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request == null)) ||
       (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request != null)) ||
       (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/dev')) ||
       (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/dev')) ||
       (github.event_name == 'discussion') &&
       (contains(github.event.discussion.body, '/dev')) || (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/dev')))
+      (contains(github.event.comment.body, '/dev')))) ||
+      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment')))
     runs-on: ubuntu-latest
     permissions:
       discussions: write
@@ -479,7 +488,40 @@ jobs:
                   core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 } else if (eventName === "discussion_comment") {
-                  core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
+                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) { 
+                          id 
+                        }
+                      }
+                    }`,
+                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+                  );
+                  const discussionId = repository.discussion.id;
+                  const result = await github.graphql(
+                    `
+                    mutation($dId: ID!, $body: String!) {
+                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                        comment { 
+                          id 
+                          url
+                        }
+                      }
+                    }`,
+                    { dId: discussionId, body: workflowLinkText }
+                  );
+                  const comment = result.addDiscussionComment.comment;
+                  core.info(`Successfully created discussion comment with workflow link`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.setOutput("comment-id", comment.id);
+                  core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 }
                 let eventTypeDescription;

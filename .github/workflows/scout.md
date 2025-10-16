@@ -88,14 +88,18 @@ Create a comprehensive research summary that includes:
 
 ## Research Guidelines
 
+- **Always Respond**: You must ALWAYS post a comment, even if you found no relevant information
 - **Be Thorough**: Don't stop at the first search result - investigate deeply
 - **Be Critical**: Evaluate source quality and cross-check information
 - **Be Specific**: Provide concrete examples, code snippets, or implementation details when relevant
 - **Be Organized**: Structure your findings clearly with headers and bullet points
 - **Be Actionable**: Focus on practical insights that can be applied to the issue/PR
 - **Cite Sources**: Include links to important references and documentation
+- **Report Null Results**: If searches yield no relevant results, explain what was searched and why nothing was found
 
 ## Output Format
+
+**IMPORTANT**: You must ALWAYS post a comment with your findings, even if you did not find any relevant information. If you didn't find anything useful, explain what you searched for and why no relevant results were found.
 
 Your research summary should be formatted as a comment with:
 
@@ -105,7 +109,7 @@ Your research summary should be formatted as a comment with:
 *Triggered by @${{ github.actor }}*
 
 ## Executive Summary
-[Brief overview of key findings]
+[Brief overview of key findings - or state that no relevant findings were discovered]
 
 <details>
 <summary>Click to expand detailed findings</summary>
@@ -134,6 +138,28 @@ Your research summary should be formatted as a comment with:
 2. [Action item 2]
 [...]
 </details>
+```
+
+**If no relevant findings were discovered**, use this format:
+
+```markdown
+# 🔍 Scout Research Report
+
+*Triggered by @${{ github.actor }}*
+
+## Executive Summary
+No relevant findings were discovered for this research request.
+
+## Search Conducted
+- Query 1: [What you searched for]
+- Query 2: [What you searched for]
+- [...]
+
+## Explanation
+[Brief explanation of why no relevant results were found - e.g., topic too specific, no recent information available, search terms didn't match available content, etc.]
+
+## Suggestions
+[Optional: Suggestions for alternative searches or approaches that might yield better results]
 ```
 
 ## SHORTER IS BETTER
