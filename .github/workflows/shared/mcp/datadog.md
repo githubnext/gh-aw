@@ -4,7 +4,7 @@ mcp-servers:
     url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
     headers:
       DD_API_KEY: "${{ secrets.DD_API_KEY }}"
-      DD_APP_KEY: "${{ secrets.DD_APP_KEY }}"
+      DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY }}"
       DD_SITE: "${{ secrets.DD_SITE || 'datadoghq.com' }}"
     allowed:
       - search_datadog_dashboards
@@ -44,7 +44,7 @@ Setup:
 #
   2. Add Repository Secrets:
      - DD_API_KEY: Your Datadog API key (required)
-     - DD_APP_KEY: Your Datadog Application key (required)
+     - DD_APPLICATION_KEY: Your Datadog Application key (required)
      - DD_SITE: Your Datadog site domain (optional, defaults to datadoghq.com)
 #
   3. Include in Your Workflow:

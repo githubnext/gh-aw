@@ -214,7 +214,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 						"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 						"headers": map[string]any{
 							"DD_API_KEY": "test-api-key",
-							"DD_APP_KEY": "test-app-key",
+							"DD_APPLICATION_KEY": "test-app-key",
 							"DD_SITE":    "datadoghq.com",
 						},
 						"allowed": []any{"get-monitors", "get-monitor"},
@@ -228,7 +228,7 @@ func TestExtractMCPConfigurations(t *testing.T) {
 					URL:  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 					Headers: map[string]string{
 						"DD_API_KEY": "test-api-key",
-						"DD_APP_KEY": "test-app-key",
+						"DD_APPLICATION_KEY": "test-app-key",
 						"DD_SITE":    "datadoghq.com",
 					},
 					Env:     map[string]string{},
@@ -756,7 +756,7 @@ func TestParseMCPConfig(t *testing.T) {
 				"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 				"headers": map[string]any{
 					"DD_API_KEY": "test-api-key",
-					"DD_APP_KEY": "test-app-key",
+					"DD_APPLICATION_KEY": "test-app-key",
 					"DD_SITE":    "datadoghq.com",
 				},
 			},
@@ -767,7 +767,7 @@ func TestParseMCPConfig(t *testing.T) {
 				URL:  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 				Headers: map[string]string{
 					"DD_API_KEY": "test-api-key",
-					"DD_APP_KEY": "test-app-key",
+					"DD_APPLICATION_KEY": "test-app-key",
 					"DD_SITE":    "datadoghq.com",
 				},
 				Env:     map[string]string{},

@@ -68,11 +68,11 @@ func TestExtractSecretsFromConfig(t *testing.T) {
 				Type: "http",
 				Headers: map[string]string{
 					"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
-					"DD_APP_KEY": "${{ secrets.DD_APP_KEY }}",
+					"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
 					"DD_SITE":    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
 				},
 			},
-			expectedSecrets: []string{"DD_API_KEY", "DD_APP_KEY", "DD_SITE"},
+			expectedSecrets: []string{"DD_API_KEY", "DD_APPLICATION_KEY", "DD_SITE"},
 		},
 		{
 			name: "env vars with secrets",
