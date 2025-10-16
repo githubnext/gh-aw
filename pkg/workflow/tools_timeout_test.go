@@ -80,8 +80,8 @@ func TestCodexEngineWithToolsTimeout(t *testing.T) {
 		{
 			name:            "default timeout when not specified",
 			toolsTimeout:    0,
-			expectedTimeout: "tool_timeout_sec = 120", // 120 seconds default
-			expectedEnvVar:  "",                        // GH_AW_TOOL_TIMEOUT not set when 0
+			expectedTimeout: "tool_timeout_sec = 60", // 60 seconds default (changed from 120)
+			expectedEnvVar:  "",                       // GH_AW_TOOL_TIMEOUT not set when 0
 		},
 		{
 			name:            "custom timeout of 30 seconds",

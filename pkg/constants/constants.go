@@ -50,6 +50,12 @@ const DefaultHaskellVersion = "9.10"
 // DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
 const DefaultAgenticWorkflowTimeoutMinutes = 20
 
+// DefaultToolTimeoutSeconds is the default timeout for tool/MCP server operations in seconds
+const DefaultToolTimeoutSeconds = 60
+
+// DefaultMCPStartupTimeoutSeconds is the default timeout for MCP server startup in seconds
+const DefaultMCPStartupTimeoutSeconds = 120
+
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
 var DefaultAllowedDomains = []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}

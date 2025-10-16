@@ -214,8 +214,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Set MCP_TIMEOUT for MCP server communication
-	// Use tools.timeout if specified, otherwise default to 60000ms (60 seconds)
-	mcpTimeout := 60000 // default in milliseconds
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
+	mcpTimeout := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
 	if workflowData.ToolsTimeout > 0 {
 		mcpTimeout = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
 	}
