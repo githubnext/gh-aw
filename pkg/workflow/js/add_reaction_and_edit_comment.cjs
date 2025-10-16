@@ -287,7 +287,7 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
+      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
 
       // Create a new comment on the discussion using GraphQL
       const { repository } = await github.graphql(
@@ -353,7 +353,7 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
         eventTypeDescription = "event";
     }
 
-    const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}`;
+    const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
 
     const createResponse = await github.request("POST " + endpoint, {
       body: workflowLinkText,
