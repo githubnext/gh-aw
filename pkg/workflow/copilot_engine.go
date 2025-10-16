@@ -96,6 +96,11 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/gh-aw/cache-memory/")
 	}
 
+	// Add custom args from engine configuration before the prompt
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
+	}
+
 	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
 	command := fmt.Sprintf(`set -o pipefail
 COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
