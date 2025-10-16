@@ -48,6 +48,9 @@ var addReactionAndEditCommentScript string
 //go:embed js/check_membership.cjs
 var checkMembershipScript string
 
+//go:embed js/check_stop_time.cjs
+var checkStopTimeScript string
+
 //go:embed js/parse_claude_log.cjs
 var parseClaudeLogScript string
 

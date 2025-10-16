@@ -17,6 +17,7 @@ type EngineConfig struct {
 	Steps         []map[string]any
 	ErrorPatterns []ErrorPattern
 	Config        string
+	Args          []string
 }
 
 // NetworkPermissions represents network access permissions
@@ -180,6 +181,20 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if config_field, hasConfig := engineObj["config"]; hasConfig {
 				if configStr, ok := config_field.(string); ok {
 					config.Config = configStr
+				}
+			}
+
+			// Extract optional 'args' field (array of strings)
+			if args, hasArgs := engineObj["args"]; hasArgs {
+				if argsArray, ok := args.([]any); ok {
+					config.Args = make([]string, 0, len(argsArray))
+					for _, arg := range argsArray {
+						if argStr, ok := arg.(string); ok {
+							config.Args = append(config.Args, argStr)
+						}
+					}
+				} else if argsStrArray, ok := args.([]string); ok {
+					config.Args = argsStrArray
 				}
 			}
 

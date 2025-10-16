@@ -21,11 +21,13 @@ engine:
   id: copilot
   version: latest
   model: gpt-5                          # Optional: uses claude-sonnet-4 by default
+  args: ["--add-dir", "/workspace"]     # Optional: custom CLI arguments
 ```
 
 **Copilot-specific fields:**
 - **`model`** (optional): AI model to use (`gpt-5` or defaults to `claude-sonnet-4`)
 - **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
+- **`args`** (optional): Array of custom command-line arguments to pass to the Copilot CLI (supported by all engines)
 
 **Environment Variables:**
 - **`COPILOT_MODEL`**: Alternative way to set the model (e.g., `gpt-5`)
@@ -69,6 +71,7 @@ engine:
   version: beta
   model: claude-3-5-sonnet-20241022
   max-turns: 5
+  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
   env:
     AWS_REGION: us-west-2
     DEBUG_MODE: "true"
@@ -107,6 +110,7 @@ engine: codex
 engine:
   id: codex
   model: gpt-4
+  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
   user-agent: custom-workflow-name
   env:
     CODEX_API_KEY: ${{ secrets.CODEX_API_KEY_CI }}
@@ -123,6 +127,7 @@ engine:
 **Codex-specific fields:**
 - **`user-agent`** (optional): Custom user agent string for GitHub MCP server configuration
 - **`config`** (optional): Additional TOML configuration text appended to generated config.toml
+- **`args`** (optional): Array of custom command-line arguments to pass to the Codex CLI (supported by all engines)
 
 **Secrets:**
 
@@ -170,6 +175,39 @@ engine:
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com
 ```
+
+## Engine Command-Line Arguments
+
+All engines support custom command-line arguments through the `args` field. These arguments are injected into the AI engine CLI command after all other arguments but before the prompt:
+
+```yaml
+engine:
+  id: copilot
+  args: ["--add-dir", "/workspace"]
+```
+
+**Common use cases:**
+- Adding additional directories to the context with `--add-dir`
+- Enabling verbose logging with `--verbose` or `--debug`
+- Passing engine-specific flags for advanced configuration
+
+**Example with multiple arguments:**
+```yaml
+engine:
+  id: copilot
+  args: ["--add-dir", "/workspace", "--verbose"]
+```
+
+This generates the following CLI command structure:
+```bash
+copilot [default-args] [tool-args] --add-dir /workspace --verbose --prompt "$INSTRUCTION"
+```
+
+**Important notes:**
+- Arguments are added in the order specified in the array
+- Arguments are always placed before the `--prompt` flag
+- Different engines may support different command-line arguments
+- Consult the specific engine's CLI documentation for available flags
 
 ## Engine Error Patterns
 

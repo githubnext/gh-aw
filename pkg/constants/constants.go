@@ -15,10 +15,10 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.15"
+const DefaultClaudeCodeVersion = "2.0.19"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.340"
+const DefaultCopilotVersion = "0.0.342"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.46.0"
@@ -123,10 +123,19 @@ var AllowedExpressions = []string{
 
 const AgentJobName = "agent"
 const ActivationJobName = "activation"
-const CheckMembershipJobName = "check_membership"
+const PreActivationJobName = "pre_activation"
 const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
+
+// Step IDs for pre-activation job
+const CheckMembershipStepID = "check_membership"
+const CheckStopTimeStepID = "check_stop_time"
+
+// Output names for pre-activation job steps
+const IsTeamMemberOutput = "is_team_member"
+const StopTimeOkOutput = "stop_time_ok"
+const ActivatedOutput = "activated"
 
 var AgenticEngines = []string{"claude", "codex", "copilot"}
 
@@ -215,6 +224,7 @@ var DefaultBashTools = []string{
 	"sort",
 	"uniq",
 	"date",
+	"yq",
 }
 
 // PriorityStepFields defines the conventional field order for GitHub Actions workflow steps

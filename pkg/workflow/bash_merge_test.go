@@ -20,7 +20,7 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 				"bash": []any{"make:*"},
 			},
 			safeOutputs: nil,
-			expected:    []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "make:*"},
+			expected:    []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "yq", "make:*"},
 		},
 		{
 			name: "bash with multiple commands should include defaults + custom",
@@ -28,7 +28,7 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 				"bash": []any{"make:*", "npm:*"},
 			},
 			safeOutputs: nil,
-			expected:    []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "make:*", "npm:*"},
+			expected:    []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "yq", "make:*", "npm:*"},
 		},
 		{
 			name: "bash with empty array should remain empty",
@@ -46,7 +46,7 @@ func TestBashToolsMergeCustomWithDefaults(t *testing.T) {
 			safeOutputs: &SafeOutputsConfig{
 				CreatePullRequests: &CreatePullRequestsConfig{},
 			},
-			expected: []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "make:*", "git checkout:*", "git branch:*", "git switch:*", "git add:*", "git rm:*", "git commit:*", "git merge:*", "git status"},
+			expected: []string{"echo", "ls", "pwd", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "date", "yq", "make:*", "git checkout:*", "git branch:*", "git switch:*", "git add:*", "git rm:*", "git commit:*", "git merge:*", "git status"},
 		},
 	}
 

@@ -135,8 +135,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(uploadAssetsScript)
-	steps = append(steps, formattedScript...)
+	uploadAssetsFormatted := FormatJavaScriptForYAML(uploadAssetsScript)
+	steps = append(steps, uploadAssetsFormatted...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
