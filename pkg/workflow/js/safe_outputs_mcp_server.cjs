@@ -184,7 +184,7 @@ const uploadAssetHandler = args => {
   if (!isInWorkspace && !isInTmp) {
     throw new Error(
       `File path must be within workspace directory (${workspaceDir}) or /tmp directory. ` +
-      `Provided path: ${filePath} (resolved to: ${absolutePath})`
+        `Provided path: ${filePath} (resolved to: ${absolutePath})`
     );
   }
 
@@ -209,11 +209,11 @@ const uploadAssetHandler = args => {
   const allowedExts = process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS
     ? process.env.GITHUB_AW_ASSETS_ALLOWED_EXTS.split(",").map(ext => ext.trim())
     : [
-      // Default set as specified in problem statement
-      ".png",
-      ".jpg",
-      ".jpeg",
-    ];
+        // Default set as specified in problem statement
+        ".png",
+        ".jpg",
+        ".jpeg",
+      ];
 
   if (!allowedExts.includes(ext)) {
     throw new Error(`File extension '${ext}' is not allowed. Allowed extensions: ${allowedExts.join(", ")}`);

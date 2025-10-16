@@ -2209,6 +2209,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 			// The JSON string needs to be properly quoted for YAML
 			env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
 		}
+
+		// Add asset-related environment variables if upload-assets is configured
+		if data.SafeOutputs.UploadAssets != nil {
+			env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+			env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
+		}
 	}
 
 	// Generate agent concurrency configuration
