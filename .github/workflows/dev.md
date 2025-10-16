@@ -10,18 +10,33 @@ permissions:
   actions: read
 imports:
   - shared/mcp/drain3.md
+  - shared/mcp/gh-aw.md
+tools:
+  agentic-workflows:
 safe-outputs:
   staged: true
   create-issue:
 ---
 
-# Drain3 Log Pattern Mining Test
+# Agentic Workflow Log Analysis with Drain3
 
-Test the drain3 MCP server by:
-1. Creating a sample log file with test log entries
-2. Using the index_file tool to analyze the log file
-3. Using the list_templates tool to see the extracted patterns
-4. Using the query_file tool to match a specific log line
+This workflow demonstrates analyzing GitHub Actions workflow logs using Drain3 for pattern extraction.
 
-Provide a summary of the templates found and demonstrate the query functionality.
-Then write a brief poem about log pattern mining and publish it as an issue.
+## Task
+
+1. Use the agentic-workflows tool to download logs from the last 24 hours:
+   - Use the `logs` command with `--start-date -1d` to get logs from the last 24 hours
+   - Save the logs to a file for analysis
+
+2. Analyze the downloaded logs with drain3:
+   - Use the `index_file` tool to extract log patterns from the downloaded logs
+   - Use the `list_templates` tool to see all extracted templates
+   - Use the `query_file` tool to match specific error patterns
+
+3. Provide insights based on the analysis:
+   - Identify the most common log patterns
+   - Highlight any error or warning patterns
+   - Suggest potential improvements or areas of concern
+   - Write a brief summary and publish it as an issue
+
+The agentic-workflows tool provides workflow introspection capabilities, while drain3 extracts meaningful patterns from the log data.

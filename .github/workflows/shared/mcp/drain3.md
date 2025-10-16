@@ -2,7 +2,7 @@
 mcp-servers:
   drain3:
     type: http
-    url: http://localhost:8765/mcp
+    url: http://localhost:8766/mcp
     allowed:
       - index_file
       - query_file
@@ -38,8 +38,8 @@ steps:
       
       # Verify server is responding
       for i in {1..10}; do
-        if curl -s http://localhost:8765/mcp/health > /dev/null 2>&1 || \
-           curl -s http://localhost:8765/mcp > /dev/null 2>&1; then
+        if curl -s http://localhost:8766/mcp/health > /dev/null 2>&1 || \
+           curl -s http://localhost:8766/mcp > /dev/null 2>&1; then
           echo "Drain3 MCP server started successfully with PID $MCP_PID"
           exit 0
         fi
@@ -49,7 +49,7 @@ steps:
       echo "Drain3 MCP server health check failed"
       exit 1
     env:
-      PORT: "8765"
+      PORT: "8766"
       HOST: "0.0.0.0"
       MOUNT_PATH: "/mcp"
       STATE_DIR: "${{ github.workspace }}/.drain3"
@@ -104,7 +104,7 @@ Setup:
      imports:
        - shared/mcp/drain3.md
 
-  2. The server will be automatically installed and started on localhost:8765
+  2. The server will be automatically installed and started on localhost:8766
 
 Example Usage:
   Analyze GitHub Actions workflow logs to identify common error patterns
@@ -128,7 +128,7 @@ State Persistence:
 Troubleshooting:
   Server Failed to Start:
   - Verify Python 3.11+ is available
-  - Check that port 8765 is not in use
+  - Check that port 8766 is not in use
   - Review server logs for dependency installation issues
   
   Index/Query Errors:
