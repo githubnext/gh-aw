@@ -4948,8 +4948,8 @@ jobs:
       - add_comment
       - missing_tool
     if: >
-      ((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
-      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
+      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
     runs-on: ubuntu-latest
     permissions:
       contents: read

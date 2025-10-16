@@ -27,6 +27,7 @@ func TestUpdateReactionJob(t *testing.T) {
 				"needs.activation.outputs.comment_id",
 				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
+				"!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "missing_tool"},
 		},
@@ -41,6 +42,7 @@ func TestUpdateReactionJob(t *testing.T) {
 				"needs.activation.outputs.comment_id",
 				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
 				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
+				"!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
 			},
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
@@ -188,7 +190,7 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 		t.Error("Expected GITHUB_AW_AGENT_CONCLUSION to reference needs.agent.result")
 	}
 
-	// Check all five conditions are present
+	// Check all six conditions are present
 	if !strings.Contains(job.If, "always()") {
 		t.Error("Expected always() in update_reaction condition")
 	}
@@ -203,6 +205,9 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 	}
 	if !strings.Contains(job.If, "!(contains(needs.agent.outputs.output_types, 'create_pull_request'))") {
 		t.Error("Expected NOT contains create_pull_request check in update_reaction condition")
+	}
+	if !strings.Contains(job.If, "!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))") {
+		t.Error("Expected NOT contains push_to_pull_request_branch check in update_reaction condition")
 	}
 
 	// Verify job depends on the safe output jobs

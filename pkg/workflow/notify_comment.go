@@ -65,6 +65,7 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	// 3. comment_id exists (comment was created in activation)
 	// 4. NOT contains(output_types, 'add_comment')
 	// 5. NOT contains(output_types, 'create_pull_request')
+	// 6. NOT contains(output_types, 'push_to_pull_request_branch')
 
 	alwaysFunc := BuildFunctionCall("always")
 
@@ -93,16 +94,27 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 		),
 	}
 
+	// Check that output_types doesn't contain push_to_pull_request_branch
+	noPushToBranch := &NotNode{
+		Child: BuildFunctionCall("contains",
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.output_types", constants.AgentJobName)),
+			BuildStringLiteral("push_to_pull_request_branch"),
+		),
+	}
+
 	// Combine all conditions with AND
 	condition := buildAnd(
 		buildAnd(
 			buildAnd(
-				buildAnd(alwaysFunc, agentNotSkipped),
-				commentIdExists,
+				buildAnd(
+					buildAnd(alwaysFunc, agentNotSkipped),
+					commentIdExists,
+				),
+				noAddComment,
 			),
-			noAddComment,
+			noCreatePR,
 		),
-		noCreatePR,
+		noPushToBranch,
 	)
 
 	// Build dependencies - this job depends on all safe output jobs to ensure it runs last
