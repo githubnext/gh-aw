@@ -694,6 +694,17 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
+	// Normalize boolean true to nil for simple enable/disable tools
+	// These tools don't have configuration options, so true and nil are equivalent
+	// Normalizing early ensures consistent representation throughout compilation
+	for _, toolName := range []string{"edit", "web-fetch", "web-search", "playwright"} {
+		if toolValue, exists := tools[toolName]; exists {
+			if toolValue == true {
+				tools[toolName] = nil
+			}
+		}
+	}
+
 	// Extract safety-prompt setting from tools (defaults to true)
 	safetyPrompt := c.extractSafetyPromptSetting(topTools)
 
@@ -1592,17 +1603,6 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 				tools["bash"] = mergedCommands
 			}
 			// Note: bash with empty array (bash: []) means "no bash tools allowed" and is left as-is
-		}
-	}
-
-	// Normalize boolean true to nil for simple enable/disable tools
-	// These tools don't have configuration options, so true and nil are equivalent
-	// Normalizing to nil keeps the internal representation consistent
-	for _, toolName := range []string{"edit", "web-fetch", "web-search", "playwright"} {
-		if toolValue, exists := tools[toolName]; exists {
-			if toolValue == true {
-				tools[toolName] = nil
-			}
 		}
 	}
 
