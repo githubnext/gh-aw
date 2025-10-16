@@ -200,26 +200,26 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 
 	// Create proper mailbox format patch that git am expects
 	var patchBuilder strings.Builder
-	
+
 	// Required mailbox format headers for git am
 	patchBuilder.WriteString(fmt.Sprintf("From %s Mon Sep 17 00:00:00 2001\n", prInfo.HeadSHA))
 	patchBuilder.WriteString(fmt.Sprintf("From: %s <%s@users.noreply.github.com>\n", prInfo.AuthorLogin, prInfo.AuthorLogin))
 	patchBuilder.WriteString(fmt.Sprintf("Date: %s\n", time.Now().Format(time.RFC1123)))
 	patchBuilder.WriteString(fmt.Sprintf("Subject: [PATCH] %s\n", prInfo.Title))
 	patchBuilder.WriteString("\n")
-	
+
 	if prInfo.Body != "" {
 		patchBuilder.WriteString(fmt.Sprintf("%s\n", prInfo.Body))
 		patchBuilder.WriteString("\n")
 	}
-	
+
 	patchBuilder.WriteString(fmt.Sprintf("Original-PR: %s#%d\n", prInfo.SourceRepo, prInfo.Number))
 	patchBuilder.WriteString(fmt.Sprintf("Original-Author: %s\n", prInfo.AuthorLogin))
 	patchBuilder.WriteString("---\n")
-	
+
 	// Add the actual diff content
 	patchBuilder.Write(diffContent)
-	
+
 	if err := os.WriteFile(patchFile, []byte(patchBuilder.String()), 0644); err != nil {
 		return "", fmt.Errorf("failed to write patch file: %w", err)
 	}
@@ -227,10 +227,9 @@ func createPatchFromPR(sourceOwner, sourceRepo string, prInfo *PRInfo, verbose b
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Successfully created patch using gh pr diff"))
 	}
-	
-	
+
 	return patchFile, nil
-}// applyPatchToRepo applies a patch to the target repository and returns the branch name
+} // applyPatchToRepo applies a patch to the target repository and returns the branch name
 func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo string, verbose bool) (string, error) {
 	// Get current branch to restore later
 	cmd := exec.Command("git", "branch", "--show-current")
@@ -298,16 +297,16 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 	if err != nil {
 		return "", fmt.Errorf("failed to read patch file: %w", err)
 	}
-	
+
 	var appliedWithAm bool
 	isMailboxFormat := strings.HasPrefix(string(patchContent), "From ")
-	
+
 	if isMailboxFormat {
 		// Try git am for mailbox format patches
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying mailbox format patch with git am..."))
 		}
-		
+
 		cmd = exec.Command("git", "am", patchFile)
 		if err := cmd.Run(); err == nil {
 			appliedWithAm = true
@@ -322,43 +321,43 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 			_ = exec.Command("git", "am", "--abort").Run()
 		}
 	}
-	
+
 	if !appliedWithAm {
 		// Try git apply for standard diff format or as fallback
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying patch with git apply..."))
 		}
-		
+
 		cmd = exec.Command("git", "apply", "--3way", patchFile)
 		if err := cmd.Run(); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("3-way merge failed, trying with whitespace options..."))
 			}
-			
+
 			// Try with --ignore-space-change and --ignore-whitespace
 			cmd = exec.Command("git", "apply", "--ignore-space-change", "--ignore-whitespace", patchFile)
 			if err := cmd.Run(); err != nil {
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Standard apply failed, trying with --reject to see what failed..."))
-					
+
 					// Try with --reject to see which parts fail
 					rejectCmd := exec.Command("git", "apply", "--reject", patchFile)
 					rejectOutput, _ := rejectCmd.CombinedOutput()
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Patch rejection details:"))
 					fmt.Fprintln(os.Stderr, string(rejectOutput))
 				}
-				
+
 				// Try to reset back to original branch and clean up
 				_ = exec.Command("git", "checkout", currentBranch).Run()
 				_ = exec.Command("git", "branch", "-D", branchName).Run()
 				return "", fmt.Errorf("failed to apply patch: %w. You may need to resolve conflicts manually", err)
 			}
 		}
-		
+
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Successfully applied patch with git apply"))
 		}
-	}	// If we didn't use git am, we need to stage and commit manually
+	} // If we didn't use git am, we need to stage and commit manually
 	if !appliedWithAm {
 		// Stage all changes
 		cmd = exec.Command("git", "add", ".")
