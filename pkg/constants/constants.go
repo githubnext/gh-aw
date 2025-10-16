@@ -215,6 +215,7 @@ var DefaultBashTools = []string{
 	"sort",
 	"uniq",
 	"date",
+	"yq",
 }
 
 // PriorityStepFields defines the conventional field order for GitHub Actions workflow steps
