@@ -5,19 +5,15 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md
 #
-# Effective stop-time: 2025-10-18 03:18:18
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
 #   create_issue["create_issue"]
 #   add_comment["add_comment"]
 #   missing_tool["missing_tool"]
-#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> create_issue
@@ -45,52 +41,8 @@ concurrency:
 run-name: "CI Failure Doctor"
 
 jobs:
-  pre_activation:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    runs-on: ubuntu-latest
-    outputs:
-      activated: ${{ steps.check_stop_time.outputs.stop_time_ok == 'true' }}
-    steps:
-      - name: Check stop-time limit
-        id: check_stop_time
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_STOP_TIME: 2025-10-18 03:18:18
-          GITHUB_AW_WORKFLOW_NAME: "CI Failure Doctor"
-        with:
-          script: |
-            async function main() {
-              const stopTime = process.env.GITHUB_AW_STOP_TIME;
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME;
-              if (!stopTime) {
-                core.setFailed("Configuration error: GITHUB_AW_STOP_TIME not specified.");
-                return;
-              }
-              if (!workflowName) {
-                core.setFailed("Configuration error: GITHUB_AW_WORKFLOW_NAME not specified.");
-                return;
-              }
-              core.info(`Checking stop-time limit: ${stopTime}`);
-              const stopTimeDate = new Date(stopTime);
-              if (isNaN(stopTimeDate.getTime())) {
-                core.setFailed(`Invalid stop-time format: ${stopTime}. Expected format: YYYY-MM-DD HH:MM:SS`);
-                return;
-              }
-              const currentTime = new Date();
-              core.info(`Current time: ${currentTime.toISOString()}`);
-              core.info(`Stop time: ${stopTimeDate.toISOString()}`);
-              if (currentTime >= stopTimeDate) {
-                core.warning(`⏰ Stop time reached. Workflow execution will be prevented by activation job.`);
-                core.setOutput("stop_time_ok", "false");
-                return;
-              }
-              core.setOutput("stop_time_ok", "true");
-            }
-            await main();
-
   activation:
-    needs: pre_activation
-    if: (needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.conclusion == 'failure')
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
