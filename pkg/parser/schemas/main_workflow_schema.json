@@ -1724,6 +1724,11 @@
               "description": "Enable web fetch tool with default configuration"
             },
             {
+              "type": "boolean",
+              "const": true,
+              "description": "Enable web fetch tool with default configuration (same as null)"
+            },
+            {
               "type": "object",
               "description": "Web fetch tool configuration object",
               "additionalProperties": false
@@ -1736,6 +1741,11 @@
             {
               "type": "null",
               "description": "Enable web search tool with default configuration"
+            },
+            {
+              "type": "boolean",
+              "const": true,
+              "description": "Enable web search tool with default configuration (same as null)"
             },
             {
               "type": "object",
@@ -1752,6 +1762,11 @@
               "description": "Enable edit tool"
             },
             {
+              "type": "boolean",
+              "const": true,
+              "description": "Enable edit tool (same as null)"
+            },
+            {
               "type": "object",
               "description": "Edit tool configuration object",
               "additionalProperties": false
@@ -1764,6 +1779,11 @@
             {
               "type": "null",
               "description": "Enable Playwright tool with default settings (localhost access only for security)"
+            },
+            {
+              "type": "boolean",
+              "const": true,
+              "description": "Enable Playwright tool with default settings (same as null)"
             },
             {
               "type": "object",
