@@ -5,10 +5,11 @@ sidebar:
   order: 400
 ---
 
-The `gh aw mcp-server` command exposes `gh aw` CLI tools (status, compile, logs, audit) to AI agents through the Model Context Protocol. The MCP server enables AI agents to:
+The `gh aw mcp-server` command exposes `gh aw` CLI tools (status, compile, logs, audit, mcp-inspect) to AI agents through the Model Context Protocol. The MCP server enables AI agents to:
 - Check workflow status and compile workflows
 - Download and analyze workflow logs
 - Investigate workflow run failures
+- Inspect MCP servers in workflows
 
 Start the server for local CLI usage:
 
@@ -70,6 +71,7 @@ The MCP server provides these tools:
 - **compile** - Compile workflows to GitHub Actions YAML
 - **logs** - Download workflow logs (saved to `/tmp/gh-aw/aw-mcp/logs`)
 - **audit** - Generate detailed workflow run report (saved to `/tmp/gh-aw/aw-mcp/logs`)
+- **mcp-inspect** - Inspect MCP servers in workflows and validate secrets
 
 ## Example Prompt
 
@@ -90,9 +92,9 @@ The MCP server is available as a builtin tool called `agentic-workflows` in agen
 ```yaml
 ---
 tools:
-  agentic-workflows:  # Enables status, compile, logs, and audit tools
+  agentic-workflows:  # Enables status, compile, logs, audit, and mcp-inspect tools
 ---
 
-Check workflow status, download recent logs, and audit any failures.
+Check workflow status, inspect MCP servers, download recent logs, and audit any failures.
 ```
 
