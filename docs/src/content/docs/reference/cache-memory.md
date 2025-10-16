@@ -197,7 +197,8 @@ tools:
   cache-memory: true
 ---
 
-# Store the note "${{ inputs.note }}" in a timestamped file
+# Store the note in a timestamped file
+# Use ${{ github.event.inputs.note }} as the content
 # List all files in the cache folder
 ```
 
