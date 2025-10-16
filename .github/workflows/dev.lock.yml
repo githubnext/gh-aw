@@ -158,7 +158,6 @@ jobs:
             await main();
       - name: Check stop-time limit
         id: check_stop_time
-        if: steps.check_membership.outputs.is_team_member == 'true'
         uses: actions/github-script@v8
         env:
           GITHUB_AW_STOP_TIME: 2025-11-16 00:00:00

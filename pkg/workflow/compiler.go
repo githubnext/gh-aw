@@ -2024,10 +2024,6 @@ func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionChec
 
 		steps = append(steps, "      - name: Check stop-time limit\n")
 		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
-		// Only add the if condition if membership check exists
-		if needsPermissionCheck {
-			steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.%s == 'true'\n", constants.CheckMembershipStepID, constants.IsTeamMemberOutput))
-		}
 		steps = append(steps, "        uses: actions/github-script@v8\n")
 		steps = append(steps, "        env:\n")
 		steps = append(steps, fmt.Sprintf("          GITHUB_AW_STOP_TIME: %s\n", data.StopTime))
