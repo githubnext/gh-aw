@@ -129,46 +129,48 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
-	Name               string
-	TrialMode          bool     // whether the workflow is running in trial mode
-	TrialLogicalRepo   string   // target repository slug for trial mode (owner/repo)
-	FrontmatterName    string   // name field from frontmatter (for code scanning alert driver default)
-	Description        string   // optional description rendered as comment in lock file
-	Source             string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
-	ImportedFiles      []string // list of files imported via imports field (rendered as comment in lock file)
-	IncludedFiles      []string // list of files included via @include directives (rendered as comment in lock file)
-	On                 string
-	Permissions        string
-	Network            string // top-level network permissions configuration
-	Concurrency        string // workflow-level concurrency configuration
-	RunName            string
-	Env                string
-	If                 string
-	TimeoutMinutes     string
-	CustomSteps        string
-	PostSteps          string // steps to run after AI execution
-	RunsOn             string
-	Environment        string // environment setting for the main job
-	Container          string // container setting for the main job
-	Services           string // services setting for the main job
-	Tools              map[string]any
-	MarkdownContent    string
-	AI                 string        // "claude" or "codex" (for backwards compatibility)
-	EngineConfig       *EngineConfig // Extended engine configuration
-	StopTime           string
-	Command            string              // for /command trigger support
-	CommandEvents      []string            // events where command should be active (nil = all events)
-	CommandOtherEvents map[string]any      // for merging command with other events
-	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
-	Jobs               map[string]any      // custom job configurations with dependencies
-	Cache              string              // cache configuration
-	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
-	NetworkPermissions *NetworkPermissions // parsed network permissions
-	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
-	Roles              []string            // permission levels required to trigger workflow
-	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
-	SafetyPrompt       bool                // whether to include XPIA safety prompt (default true)
-	Runtimes           map[string]any      // runtime version overrides from frontmatter
+	Name                string
+	TrialMode           bool     // whether the workflow is running in trial mode
+	TrialLogicalRepo    string   // target repository slug for trial mode (owner/repo)
+	FrontmatterName     string   // name field from frontmatter (for code scanning alert driver default)
+	Description         string   // optional description rendered as comment in lock file
+	Source              string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	ImportedFiles       []string // list of files imported via imports field (rendered as comment in lock file)
+	IncludedFiles       []string // list of files included via @include directives (rendered as comment in lock file)
+	On                  string
+	Permissions         string
+	Network             string // top-level network permissions configuration
+	Concurrency         string // workflow-level concurrency configuration
+	RunName             string
+	Env                 string
+	If                  string
+	TimeoutMinutes      string
+	CustomSteps         string
+	PostSteps           string // steps to run after AI execution
+	RunsOn              string
+	Environment         string // environment setting for the main job
+	Container           string // container setting for the main job
+	Services            string // services setting for the main job
+	Tools               map[string]any
+	MarkdownContent     string
+	AI                  string        // "claude" or "codex" (for backwards compatibility)
+	EngineConfig        *EngineConfig // Extended engine configuration
+	StopTime            string
+	Command             string              // for /command trigger support
+	CommandEvents       []string            // events where command should be active (nil = all events)
+	CommandOtherEvents  map[string]any      // for merging command with other events
+	AIReaction          string              // AI reaction type like "eyes", "heart", etc.
+	Jobs                map[string]any      // custom job configurations with dependencies
+	Cache               string              // cache configuration
+	NeedsTextOutput     bool                // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions  *NetworkPermissions // parsed network permissions
+	SafeOutputs         *SafeOutputsConfig  // output configuration for automatic output routes
+	Roles               []string            // permission levels required to trigger workflow
+	CacheMemoryConfig   *CacheMemoryConfig  // parsed cache-memory configuration
+	SafetyPrompt        bool                // whether to include XPIA safety prompt (default true)
+	Runtimes            map[string]any      // runtime version overrides from frontmatter
+	ToolsTimeout        int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
+	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -694,8 +696,20 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
-	// Extract safety-prompt setting from tools (defaults to true)
-	safetyPrompt := c.extractSafetyPromptSetting(topTools)
+	// Extract safety-prompt setting from merged tools (defaults to true)
+	safetyPrompt := c.extractSafetyPromptSetting(tools)
+
+	// Extract timeout setting from merged tools (defaults to 0 which means use engine defaults)
+	toolsTimeout := c.extractToolsTimeout(tools)
+
+	// Extract startup-timeout setting from merged tools (defaults to 0 which means use engine defaults)
+	toolsStartupTimeout := c.extractToolsStartupTimeout(tools)
+
+	// Remove meta fields (safety-prompt, timeout, startup-timeout) from merged tools map
+	// These are configuration fields, not actual tools
+	delete(tools, "safety-prompt")
+	delete(tools, "timeout")
+	delete(tools, "startup-timeout")
 
 	// Extract and merge runtimes from frontmatter and imports
 	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
@@ -792,22 +806,24 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Build workflow data
 	workflowData := &WorkflowData{
-		Name:               workflowName,
-		FrontmatterName:    frontmatterName,
-		Description:        c.extractDescription(result.Frontmatter),
-		Source:             c.extractSource(result.Frontmatter),
-		ImportedFiles:      importsResult.ImportedFiles,
-		IncludedFiles:      allIncludedFiles,
-		Tools:              tools,
-		Runtimes:           runtimes,
-		MarkdownContent:    markdownContent,
-		AI:                 engineSetting,
-		EngineConfig:       engineConfig,
-		NetworkPermissions: networkPermissions,
-		NeedsTextOutput:    needsTextOutput,
-		SafetyPrompt:       safetyPrompt,
-		TrialMode:          c.trialMode,
-		TrialLogicalRepo:   c.trialLogicalRepoSlug,
+		Name:                workflowName,
+		FrontmatterName:     frontmatterName,
+		Description:         c.extractDescription(result.Frontmatter),
+		Source:              c.extractSource(result.Frontmatter),
+		ImportedFiles:       importsResult.ImportedFiles,
+		IncludedFiles:       allIncludedFiles,
+		Tools:               tools,
+		Runtimes:            runtimes,
+		MarkdownContent:     markdownContent,
+		AI:                  engineSetting,
+		EngineConfig:        engineConfig,
+		NetworkPermissions:  networkPermissions,
+		NeedsTextOutput:     needsTextOutput,
+		SafetyPrompt:        safetyPrompt,
+		ToolsTimeout:        toolsTimeout,
+		ToolsStartupTimeout: toolsStartupTimeout,
+		TrialMode:           c.trialMode,
+		TrialLogicalRepo:    c.trialLogicalRepoSlug,
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -1084,6 +1100,62 @@ func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
 
 	// Default to true (enabled)
 	return true
+}
+
+// extractToolsTimeout extracts the timeout setting from tools
+// Returns 0 if not set (engines will use their own defaults)
+func (c *Compiler) extractToolsTimeout(tools map[string]any) int {
+	if tools == nil {
+		return 0 // Use engine defaults
+	}
+
+	// Check if timeout is explicitly set in tools
+	if timeoutValue, exists := tools["timeout"]; exists {
+		// Handle different numeric types
+		switch v := timeoutValue.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case uint:
+			return int(v)
+		case uint64:
+			return int(v)
+		case float64:
+			return int(v)
+		}
+	}
+
+	// Default to 0 (use engine defaults)
+	return 0
+}
+
+// extractToolsStartupTimeout extracts the startup-timeout setting from tools
+// Returns 0 if not set (engines will use their own defaults)
+func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) int {
+	if tools == nil {
+		return 0 // Use engine defaults
+	}
+
+	// Check if startup-timeout is explicitly set in tools
+	if timeoutValue, exists := tools["startup-timeout"]; exists {
+		// Handle different numeric types
+		switch v := timeoutValue.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case uint:
+			return int(v)
+		case uint64:
+			return int(v)
+		case float64:
+			return int(v)
+		}
+	}
+
+	// Default to 0 (use engine defaults)
+	return 0
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might
