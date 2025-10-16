@@ -188,12 +188,12 @@ watch: build
 	./$(BINARY_NAME) compile --watch
 
 # Changeset management targets
-.PHONY: changeset-version
-changeset-version:
+.PHONY: version
+version:
 	@node scripts/changeset.js version
 
-.PHONY: changeset-release
-changeset-release: test
+.PHONY: release
+release: test
 	@node scripts/changeset.js release
 
 # Agent should run this task before finishing its turns
@@ -227,6 +227,6 @@ help:
 	@echo "  recompile        - Recompile all workflow files (runs init, depends on build)"
 
 	@echo "  agent-finish     - Complete validation sequence (build, test, recompile, fmt, lint)"
-	@echo "  changeset-version   - Preview next version from changesets"
-	@echo "  changeset-release   - Create release using changesets (depends on test)"
+	@echo "  version   - Preview next version from changesets"
+	@echo "  release   - Create release using changesets (depends on test)"
 	@echo "  help             - Show this help message"
