@@ -110,19 +110,24 @@ This workflow tests branch name normalization.
 
 	compiledStr := string(compiled)
 
-	// Verify that the JavaScript normalization function is present in upload_assets.cjs
-	// This ensures that even if github.workflow has spaces, they will be normalized
-	if !strings.Contains(compiledStr, "normalizeBranchName") {
-		t.Error("Expected compiled workflow to include normalizeBranchName function in upload_assets step")
+	// Verify that the bash normalization step is present
+	// The normalization is now done in Go (via bash step), not in JavaScript
+	if !strings.Contains(compiledStr, "Normalize branch name") {
+		t.Error("Expected compiled workflow to include 'Normalize branch name' step")
 	}
 
-	// Verify that the branch name is passed through environment variable
-	if !strings.Contains(compiledStr, "GITHUB_AW_ASSETS_BRANCH") {
-		t.Error("Expected compiled workflow to include GITHUB_AW_ASSETS_BRANCH environment variable")
+	// Verify that the normalization uses sed to remove special characters
+	if !strings.Contains(compiledStr, "sed 's/[^a-zA-Z0-9/_-]//g'") {
+		t.Error("Expected compiled workflow to include sed normalization command")
 	}
 
-	// Verify that the default branch name uses github.workflow
-	if !strings.Contains(compiledStr, "assets/${{ github.workflow }}") {
-		t.Error("Expected default branch name to use github.workflow expression")
+	// Verify that the branch name is passed through environment variable from the normalize step
+	if !strings.Contains(compiledStr, "GITHUB_AW_ASSETS_BRANCH: ${{ steps.normalize_branch.outputs.branch }}") {
+		t.Error("Expected compiled workflow to use normalized branch from step output")
+	}
+
+	// Verify that the default branch name uses github.workflow in the RAW_BRANCH
+	if !strings.Contains(compiledStr, "RAW_BRANCH=\"assets/${{ github.workflow }}\"") {
+		t.Error("Expected RAW_BRANCH to use github.workflow expression")
 	}
 }

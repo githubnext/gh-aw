@@ -4644,12 +4644,20 @@ jobs:
         run: |
           echo "Downloaded asset files:"
           ls -la /tmp/gh-aw/safe-outputs/assets/
+      - name: Normalize branch name
+        id: normalize_branch
+        run: |
+          RAW_BRANCH="assets/${{ github.workflow }}"
+          # Remove all characters that are not a-z, A-Z, 0-9, -, _, or /
+          NORMALIZED_BRANCH=$(echo "$RAW_BRANCH" | sed 's/[^a-zA-Z0-9/_-]//g' | sed 's#/\+#/#g' | sed 's/^[-\/]*//;s/[-\/]*$//')
+          echo "branch=$NORMALIZED_BRANCH" >> $GITHUB_OUTPUT
+          echo "Normalized branch name: $NORMALIZED_BRANCH"
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GITHUB_AW_ASSETS_BRANCH: ${{ steps.normalize_branch.outputs.branch }}
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
         with:
@@ -4657,26 +4665,12 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
-            function normalizeBranchName(branchName) {
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/]/g, "");
-              normalized = normalized.replace(/\/+/g, "/");
-              normalized = normalized.replace(/^[/-]+|[/-]+$/g, "");
-              return normalized;
-            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const rawBranchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-              if (!rawBranchName || typeof rawBranchName !== "string") {
+              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
                 core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
                 return;
-              }
-              const branchName = normalizeBranchName(rawBranchName);
-              if (!branchName) {
-                core.setFailed(`Branch name normalization resulted in empty string from: ${rawBranchName}`);
-                return;
-              }
-              if (branchName !== rawBranchName) {
-                core.info(`Normalized branch name from "${rawBranchName}" to "${branchName}"`);
               }
               core.info(`Using assets branch: ${branchName}`);
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;

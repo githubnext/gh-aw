@@ -102,6 +102,16 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	steps = append(steps, "          echo \"Downloaded asset files:\"\n")
 	steps = append(steps, "          ls -la /tmp/gh-aw/safe-outputs/assets/\n")
 
+	// Step: Normalize the branch name using bash (Go-defined normalization logic)
+	steps = append(steps, "      - name: Normalize branch name\n")
+	steps = append(steps, "        id: normalize_branch\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, fmt.Sprintf("          RAW_BRANCH=%q\n", data.SafeOutputs.UploadAssets.BranchName))
+	steps = append(steps, "          # Remove all characters that are not a-z, A-Z, 0-9, -, _, or /\n")
+	steps = append(steps, "          NORMALIZED_BRANCH=$(echo \"$RAW_BRANCH\" | sed 's/[^a-zA-Z0-9/_-]//g' | sed 's#/\\+#/#g' | sed 's/^[-\\/]*//;s/[-\\/]*$//')\n")
+	steps = append(steps, "          echo \"branch=$NORMALIZED_BRANCH\" >> $GITHUB_OUTPUT\n")
+	steps = append(steps, "          echo \"Normalized branch name: $NORMALIZED_BRANCH\"\n")
+
 	// Step 4: Upload assets to orphaned branch using custom script
 	steps = append(steps, "      - name: Upload Assets to Orphaned Branch\n")
 	steps = append(steps, "        id: upload_assets\n")
@@ -110,7 +120,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Add environment variables
 	steps = append(steps, "        env:\n")
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
+	// Use the normalized branch name from the previous step
+	steps = append(steps, "          GITHUB_AW_ASSETS_BRANCH: ${{ steps.normalize_branch.outputs.branch }}\n")
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB))
 	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))
 

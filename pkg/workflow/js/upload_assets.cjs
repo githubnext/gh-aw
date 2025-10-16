@@ -2,45 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
-/**
- * Normalizes a branch name by removing all characters that are not a-z, A-Z, 0-9, -, _, or /
- * This ensures the branch name is safe for git operations
- * @param {string} branchName - The branch name to normalize
- * @returns {string} The normalized branch name
- */
-function normalizeBranchName(branchName) {
-  // Remove all characters that are not alphanumeric, dash, underscore, or forward slash
-  let normalized = branchName.replace(/[^a-zA-Z0-9\-_/]/g, "");
-
-  // Clean up consecutive slashes
-  normalized = normalized.replace(/\/+/g, "/");
-
-  // Remove leading/trailing slashes and dashes
-  normalized = normalized.replace(/^[/-]+|[/-]+$/g, "");
-
-  return normalized;
-}
-
 async function main() {
   // Check if we're in staged mode
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Get the branch name from environment variable (required)
-  const rawBranchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-  if (!rawBranchName || typeof rawBranchName !== "string") {
+  const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+  if (!branchName || typeof branchName !== "string") {
     core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
     return;
-  }
-
-  // Normalize the branch name to remove spaces and special characters
-  const branchName = normalizeBranchName(rawBranchName);
-  if (!branchName) {
-    core.setFailed(`Branch name normalization resulted in empty string from: ${rawBranchName}`);
-    return;
-  }
-
-  if (branchName !== rawBranchName) {
-    core.info(`Normalized branch name from "${rawBranchName}" to "${branchName}"`);
   }
   core.info(`Using assets branch: ${branchName}`);
 
