@@ -4657,12 +4657,26 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/]/g, "");
+              normalized = normalized.replace(/\/+/g, "/");
+              normalized = normalized.replace(/^[/-]+|[/-]+$/g, "");
+              return normalized;
+            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-              if (!branchName || typeof branchName !== "string") {
+              const rawBranchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              if (!rawBranchName || typeof rawBranchName !== "string") {
                 core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
                 return;
+              }
+              const branchName = normalizeBranchName(rawBranchName);
+              if (!branchName) {
+                core.setFailed(`Branch name normalization resulted in empty string from: ${rawBranchName}`);
+                return;
+              }
+              if (branchName !== rawBranchName) {
+                core.info(`Normalized branch name from "${rawBranchName}" to "${branchName}"`);
               }
               core.info(`Using assets branch: ${branchName}`);
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
