@@ -1544,11 +1544,20 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	}
 
+	// Determine which default tools list to use based on mode
+	githubMode := getGitHubType(githubTool)
+	var defaultTools []string
+	if githubMode == "remote" {
+		defaultTools = constants.DefaultGitHubToolsRemote
+	} else {
+		defaultTools = constants.DefaultGitHubToolsLocal
+	}
+
 	// Add default GitHub tools that aren't already present
 	newAllowed := make([]any, len(existingAllowed))
 	copy(newAllowed, existingAllowed)
 
-	for _, defaultTool := range constants.DefaultGitHubTools {
+	for _, defaultTool := range defaultTools {
 		if !existingToolsSet[defaultTool] {
 			newAllowed = append(newAllowed, defaultTool)
 		}
