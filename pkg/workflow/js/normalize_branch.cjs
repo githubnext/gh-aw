@@ -9,7 +9,8 @@
  * 2. Removes leading and trailing dashes
  * 3. Truncates to 128 characters
  * 4. Removes trailing dashes after truncation
- * 5. Exports the normalized value to GITHUB_ENV
+ * 5. Converts to lowercase
+ * 6. Exports the normalized value to GITHUB_ENV
  */
 async function main() {
   const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
@@ -35,6 +36,9 @@ async function main() {
 
   // Ensure it doesn't end with a dash after truncation
   normalized = normalized.replace(/-+$/, "");
+
+  // Convert to lowercase
+  normalized = normalized.toLowerCase();
 
   // Export the normalized value to GITHUB_ENV
   core.exportVariable("GITHUB_AW_ASSETS_BRANCH", normalized);

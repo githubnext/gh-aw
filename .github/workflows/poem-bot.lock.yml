@@ -1897,6 +1897,7 @@ jobs:
                 normalized = normalized.substring(0, 128);
               }
               normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
               core.exportVariable("GITHUB_AW_ASSETS_BRANCH", normalized);
               core.info(`✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${normalized}`);
               core.setOutput("normalized_branch", normalized);
@@ -6348,6 +6349,7 @@ jobs:
                 normalized = normalized.substring(0, 128);
               }
               normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
               core.exportVariable("GITHUB_AW_ASSETS_BRANCH", normalized);
               core.info(`✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${normalized}`);
               core.setOutput("normalized_branch", normalized);

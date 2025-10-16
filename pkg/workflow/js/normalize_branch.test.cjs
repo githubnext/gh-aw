@@ -122,7 +122,7 @@ describe("normalize_branch.cjs", () => {
 
       await eval(`(async () => { ${normalizeBranchScript} })()`);
 
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "feature/ABC-123_test.v1");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "feature/abc-123_test.v1");
     });
   });
 
@@ -157,7 +157,7 @@ describe("normalize_branch.cjs", () => {
 
       await eval(`(async () => { ${normalizeBranchScript} })()`);
 
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "assets/Poem-Bot---A-Creative-Agentic-Workflow");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "assets/poem-bot---a-creative-agentic-workflow");
     });
   });
 
@@ -226,7 +226,7 @@ describe("normalize_branch.cjs", () => {
 
       await eval(`(async () => { ${normalizeBranchScript} })()`);
 
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "test/branch-123_ABC-xyz");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "test/branch-123_abc-xyz");
     });
   });
 });
