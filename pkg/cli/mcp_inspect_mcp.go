@@ -36,14 +36,14 @@ var (
 )
 
 // inspectMCPServer connects to an MCP server and queries its capabilities
-func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose bool) error {
+func inspectMCPServer(config parser.MCPServerConfig, toolFilter string, verbose bool, useActionsSecrets bool) error {
 	fmt.Printf("%s %s (%s)\n",
 		serverNameStyle.Render("📡 "+config.Name),
 		typeStyle.Render(config.Type),
 		typeStyle.Render(buildConnectionString(config)))
 
 	// Validate secrets/environment variables
-	if err := validateServerSecrets(config); err != nil {
+	if err := validateServerSecrets(config, verbose, useActionsSecrets); err != nil {
 		fmt.Print(errorBoxStyle.Render(fmt.Sprintf("❌ Secret validation failed: %s", err)))
 		return nil // Don't return error, just show validation failure
 	}
@@ -84,63 +84,109 @@ func buildConnectionString(config parser.MCPServerConfig) string {
 }
 
 // validateServerSecrets checks if required environment variables/secrets are available
-func validateServerSecrets(config parser.MCPServerConfig) error {
-	for key, value := range config.Env {
-		// Check if value contains variable references
-		if strings.Contains(value, "${") {
-			// Extract variable name (simplified parsing)
-			if strings.Contains(value, "secrets.") {
-				return fmt.Errorf("secret '%s' validation not implemented (requires GitHub Actions context)", key)
-			}
-			if strings.Contains(value, "GH_TOKEN") || strings.Contains(value, "GITHUB_TOKEN") || strings.Contains(value, "GITHUB_PERSONAL_ACCESS_TOKEN") {
-				if token, err := parser.GetGitHubToken(); err != nil {
-					return fmt.Errorf("GitHub token not found in environment (set GH_TOKEN or GITHUB_TOKEN)")
-				} else {
-					config.Env[key] = token
+func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActionsSecrets bool) error {
+	// Extract secrets from the config
+	requiredSecrets := extractSecretsFromConfig(config)
+
+	if len(requiredSecrets) == 0 {
+		// No secrets required, proceed with normal env var validation
+		for key, value := range config.Env {
+			// Check if value contains variable references
+			if strings.Contains(value, "${") {
+				// Extract variable name (simplified parsing)
+				if strings.Contains(value, "secrets.") {
+					// This should have been caught by extractSecretsFromConfig
+					continue
 				}
-			}
-			// Handle our placeholder for GitHub token requirement
-			if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
-				if token, err := parser.GetGitHubToken(); err != nil {
-					return fmt.Errorf("GitHub token required but not available: %w", err)
-				} else {
-					config.Env[key] = token
+				if strings.Contains(value, "GH_TOKEN") || strings.Contains(value, "GITHUB_TOKEN") || strings.Contains(value, "GITHUB_PERSONAL_ACCESS_TOKEN") {
+					if token, err := parser.GetGitHubToken(); err != nil {
+						return fmt.Errorf("GitHub token not found in environment (set GH_TOKEN or GITHUB_TOKEN)")
+					} else {
+						config.Env[key] = token
+					}
 				}
-			}
-		} else {
-			// For direct environment variable values (not containing ${}),
-			// check if they represent actual token values
-			if value == "" {
-				return fmt.Errorf("environment variable '%s' has empty value", key)
-			}
-			// If value contains "GITHUB_TOKEN_REQUIRED", treat it as needing validation
-			if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
-				if token, err := parser.GetGitHubToken(); err != nil {
-					return fmt.Errorf("GitHub token required but not available: %w", err)
-				} else {
-					config.Env[key] = token
+				// Handle our placeholder for GitHub token requirement
+				if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
+					if token, err := parser.GetGitHubToken(); err != nil {
+						return fmt.Errorf("GitHub token required but not available: %w", err)
+					} else {
+						config.Env[key] = token
+					}
 				}
 			} else {
-				// Automatically try to get GitHub token for GitHub-related environment variables
-				if key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "GITHUB_TOKEN" || key == "GH_TOKEN" {
-					if actualValue := os.Getenv(key); actualValue == "" {
-						// Try to automatically get the GitHub token
-						if token, err := parser.GetGitHubToken(); err == nil {
-							config.Env[key] = token
-						} else {
-							return fmt.Errorf("GitHub token required for '%s' but not available: %w", key, err)
-						}
+				// For direct environment variable values (not containing ${}),
+				// check if they represent actual token values
+				if value == "" {
+					return fmt.Errorf("environment variable '%s' has empty value", key)
+				}
+				// If value contains "GITHUB_TOKEN_REQUIRED", treat it as needing validation
+				if strings.Contains(value, "GITHUB_TOKEN_REQUIRED") {
+					if token, err := parser.GetGitHubToken(); err != nil {
+						return fmt.Errorf("GitHub token required but not available: %w", err)
+					} else {
+						config.Env[key] = token
 					}
 				} else {
-					// For backward compatibility: check if environment variable with this name exists
-					// This preserves the original behavior for existing tests
-					if actualValue := os.Getenv(key); actualValue == "" {
-						return fmt.Errorf("environment variable '%s' not set", key)
+					// Automatically try to get GitHub token for GitHub-related environment variables
+					if key == "GITHUB_PERSONAL_ACCESS_TOKEN" || key == "GITHUB_TOKEN" || key == "GH_TOKEN" {
+						if actualValue := os.Getenv(key); actualValue == "" {
+							// Try to automatically get the GitHub token
+							if token, err := parser.GetGitHubToken(); err == nil {
+								config.Env[key] = token
+							} else {
+								return fmt.Errorf("GitHub token required for '%s' but not available: %w", key, err)
+							}
+						}
+					} else {
+						// For backward compatibility: check if environment variable with this name exists
+						// This preserves the original behavior for existing tests
+						if actualValue := os.Getenv(key); actualValue == "" {
+							return fmt.Errorf("environment variable '%s' not set", key)
+						}
 					}
 				}
 			}
 		}
+		return nil
 	}
+
+	// Check availability of required secrets
+	secretsStatus := checkSecretsAvailability(requiredSecrets, useActionsSecrets)
+
+	// Separate secrets by availability
+	var availableSecrets []SecretInfo
+	var missingSecrets []SecretInfo
+
+	for _, secret := range secretsStatus {
+		if secret.Available {
+			availableSecrets = append(availableSecrets, secret)
+		} else {
+			missingSecrets = append(missingSecrets, secret)
+		}
+	}
+
+	// Display information about secrets
+	if verbose {
+		if len(availableSecrets) > 0 {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d available secret(s):", len(availableSecrets))))
+			for _, secret := range availableSecrets {
+				source := "environment"
+				if secret.Source == "actions" {
+					source = "GitHub Actions"
+				}
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("  ✓ %s (from %s)", secret.Name, source)))
+			}
+		}
+	}
+
+	// Warn about missing secrets
+	if len(missingSecrets) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  %d required secret(s) not found:", len(missingSecrets))))
+		for _, secret := range missingSecrets {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  ✗ %s", secret.Name)))
+		}
+	}
+
 	return nil
 }
 
