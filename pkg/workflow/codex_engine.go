@@ -514,7 +514,13 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
 	yaml.WriteString("          startup_timeout_sec = 120\n")
-	yaml.WriteString("          tool_timeout_sec = 120\n")
+	
+	// Use tools.timeout if specified, otherwise default to 120 seconds
+	toolTimeout := 120
+	if workflowData.ToolsTimeout > 0 {
+		toolTimeout = workflowData.ToolsTimeout
+	}
+	yaml.WriteString(fmt.Sprintf("          tool_timeout_sec = %d\n", toolTimeout))
 
 	// https://developers.openai.com/codex/mcp
 	// Check if remote mode is enabled

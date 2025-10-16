@@ -169,6 +169,7 @@ type WorkflowData struct {
 	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
 	SafetyPrompt       bool                // whether to include XPIA safety prompt (default true)
 	Runtimes           map[string]any      // runtime version overrides from frontmatter
+	ToolsTimeout       int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -694,8 +695,16 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
-	// Extract safety-prompt setting from tools (defaults to true)
-	safetyPrompt := c.extractSafetyPromptSetting(topTools)
+	// Extract safety-prompt setting from merged tools (defaults to true)
+	safetyPrompt := c.extractSafetyPromptSetting(tools)
+
+	// Extract timeout setting from merged tools (defaults to 0 which means use engine defaults)
+	toolsTimeout := c.extractToolsTimeout(tools)
+
+	// Remove meta fields (safety-prompt and timeout) from merged tools map
+	// These are configuration fields, not actual tools
+	delete(tools, "safety-prompt")
+	delete(tools, "timeout")
 
 	// Extract and merge runtimes from frontmatter and imports
 	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
@@ -806,6 +815,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		NetworkPermissions: networkPermissions,
 		NeedsTextOutput:    needsTextOutput,
 		SafetyPrompt:       safetyPrompt,
+		ToolsTimeout:       toolsTimeout,
 		TrialMode:          c.trialMode,
 		TrialLogicalRepo:   c.trialLogicalRepoSlug,
 	}
@@ -1084,6 +1094,34 @@ func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
 
 	// Default to true (enabled)
 	return true
+}
+
+// extractToolsTimeout extracts the timeout setting from tools
+// Returns 0 if not set (engines will use their own defaults)
+func (c *Compiler) extractToolsTimeout(tools map[string]any) int {
+	if tools == nil {
+		return 0 // Use engine defaults
+	}
+
+	// Check if timeout is explicitly set in tools
+	if timeoutValue, exists := tools["timeout"]; exists {
+		// Handle different numeric types
+		switch v := timeoutValue.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case uint:
+			return int(v)
+		case uint64:
+			return int(v)
+		case float64:
+			return int(v)
+		}
+	}
+
+	// Default to 0 (use engine defaults)
+	return 0
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might

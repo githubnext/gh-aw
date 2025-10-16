@@ -213,8 +213,13 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
-	// Set MCP_TIMEOUT to 60000ms for MCP server communication
-	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
+	// Set MCP_TIMEOUT for MCP server communication
+	// Use tools.timeout if specified, otherwise default to 60000ms (60 seconds)
+	mcpTimeout := 60000 // default in milliseconds
+	if workflowData.ToolsTimeout > 0 {
+		mcpTimeout = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
+	}
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", mcpTimeout))
 
 	applySafeOutputEnvToSlice(&stepLines, workflowData)
 
