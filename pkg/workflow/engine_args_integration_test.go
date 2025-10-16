@@ -168,3 +168,106 @@ This is a test workflow without engine args.
 		t.Error("Expected non-empty compiled YAML")
 	}
 }
+
+func TestEngineArgsIntegrationClaude(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test workflow with claude engine args
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: claude
+  args: ["--custom-flag", "value"]
+---
+
+# Test Workflow with Claude Args
+
+This is a test workflow to verify claude engine args injection.
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	result := string(content)
+
+	// Check that the compiled YAML contains the custom args
+	if !strings.Contains(result, "--custom-flag") {
+		t.Errorf("Expected compiled YAML to contain '--custom-flag'")
+	}
+	if !strings.Contains(result, "value") {
+		t.Errorf("Expected compiled YAML to contain 'value'")
+	}
+}
+
+func TestEngineArgsIntegrationCodex(t *testing.T) {
+	// Create a temporary directory for the test
+	tmpDir := t.TempDir()
+
+	// Create a test workflow with codex engine args
+	workflowContent := `---
+on: workflow_dispatch
+engine:
+  id: codex
+  args: ["--custom-flag", "value"]
+---
+
+# Test Workflow with Codex Args
+
+This is a test workflow to verify codex engine args injection.
+`
+
+	workflowPath := filepath.Join(tmpDir, "test-workflow.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	// Compile the workflow
+	compiler := NewCompiler(false, "", "test")
+	err = compiler.CompileWorkflow(workflowPath)
+	if err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := filepath.Join(tmpDir, "test-workflow.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	result := string(content)
+
+	// Check that the compiled YAML contains the custom args before INSTRUCTION
+	if !strings.Contains(result, "--custom-flag value") {
+		t.Errorf("Expected compiled YAML to contain '--custom-flag value'")
+	}
+
+	// Verify args come before "$INSTRUCTION"
+	customFlagIdx := strings.Index(result, "--custom-flag value")
+	instructionIdx := strings.Index(result, "\"$INSTRUCTION\"")
+	if customFlagIdx == -1 || instructionIdx == -1 {
+		t.Fatal("Could not find both --custom-flag and $INSTRUCTION in compiled YAML")
+	}
+	if customFlagIdx > instructionIdx {
+		t.Error("Expected --custom-flag to come before $INSTRUCTION in compiled YAML")
+	}
+}

@@ -237,3 +237,165 @@ func TestCopilotEngineArgsInjection(t *testing.T) {
 		}
 	})
 }
+
+func TestClaudeEngineArgsInjection(t *testing.T) {
+	engine := NewClaudeEngine()
+
+	t.Run("Claude engine injects args before prompt", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID:   "claude",
+				Args: []string{"--custom-flag", "value"},
+			},
+			Tools:       make(map[string]any),
+			SafeOutputs: nil,
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		// Find the execution step
+		var executionStep GitHubActionStep
+		for _, step := range steps {
+			stepStr := strings.Join(step, "\n")
+			if strings.Contains(stepStr, "Execute Claude Code CLI") {
+				executionStep = step
+				break
+			}
+		}
+
+		if executionStep == nil {
+			t.Fatal("Expected to find execution step")
+		}
+
+		stepStr := strings.Join(executionStep, "\n")
+
+		// Check that args appear in the command
+		if !strings.Contains(stepStr, "--custom-flag value") {
+			t.Errorf("Expected to find '--custom-flag value' in step, got:\n%s", stepStr)
+		}
+	})
+
+	t.Run("Claude engine without args", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID: "claude",
+			},
+			Tools:       make(map[string]any),
+			SafeOutputs: nil,
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		// Find the execution step
+		var executionStep GitHubActionStep
+		for _, step := range steps {
+			stepStr := strings.Join(step, "\n")
+			if strings.Contains(stepStr, "Execute Claude Code CLI") {
+				executionStep = step
+				break
+			}
+		}
+
+		if executionStep == nil {
+			t.Fatal("Expected to find execution step")
+		}
+
+		// Verify the workflow compiles successfully
+		stepStr := strings.Join(executionStep, "\n")
+		if stepStr == "" {
+			t.Error("Expected non-empty step")
+		}
+	})
+}
+
+func TestCodexEngineArgsInjection(t *testing.T) {
+	engine := NewCodexEngine()
+
+	t.Run("Codex engine injects args before instruction", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID:   "codex",
+				Args: []string{"--custom-flag", "value"},
+			},
+			Tools:       make(map[string]any),
+			SafeOutputs: nil,
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		// Find the execution step
+		var executionStep GitHubActionStep
+		for _, step := range steps {
+			stepStr := strings.Join(step, "\n")
+			if strings.Contains(stepStr, "Run Codex") {
+				executionStep = step
+				break
+			}
+		}
+
+		if executionStep == nil {
+			t.Fatal("Expected to find execution step")
+		}
+
+		stepStr := strings.Join(executionStep, "\n")
+
+		// Check that args appear in the command before INSTRUCTION
+		if !strings.Contains(stepStr, "--custom-flag value") {
+			t.Errorf("Expected to find '--custom-flag value' in step, got:\n%s", stepStr)
+		}
+
+		// Check that args come before "$INSTRUCTION"
+		customFlagIdx := strings.Index(stepStr, "--custom-flag value")
+		instructionIdx := strings.Index(stepStr, "\"$INSTRUCTION\"")
+		if customFlagIdx == -1 || instructionIdx == -1 {
+			t.Fatal("Could not find both --custom-flag and $INSTRUCTION in step")
+		}
+		if customFlagIdx > instructionIdx {
+			t.Error("Expected --custom-flag to come before $INSTRUCTION")
+		}
+	})
+
+	t.Run("Codex engine without args", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID: "codex",
+			},
+			Tools:       make(map[string]any),
+			SafeOutputs: nil,
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+		if len(steps) == 0 {
+			t.Fatal("Expected at least one step")
+		}
+
+		// Find the execution step
+		var executionStep GitHubActionStep
+		for _, step := range steps {
+			stepStr := strings.Join(step, "\n")
+			if strings.Contains(stepStr, "Run Codex") {
+				executionStep = step
+				break
+			}
+		}
+
+		if executionStep == nil {
+			t.Fatal("Expected to find execution step")
+		}
+
+		// Verify the workflow compiles successfully
+		stepStr := strings.Join(executionStep, "\n")
+		if stepStr == "" {
+			t.Error("Expected non-empty step")
+		}
+	})
+}

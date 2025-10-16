@@ -27,7 +27,7 @@ engine:
 **Copilot-specific fields:**
 - **`model`** (optional): AI model to use (`gpt-5` or defaults to `claude-sonnet-4`)
 - **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
-- **`args`** (optional): Array of custom command-line arguments to pass to the Copilot CLI
+- **`args`** (optional): Array of custom command-line arguments to pass to the Copilot CLI (supported by all engines)
 
 **Environment Variables:**
 - **`COPILOT_MODEL`**: Alternative way to set the model (e.g., `gpt-5`)
@@ -71,6 +71,7 @@ engine:
   version: beta
   model: claude-3-5-sonnet-20241022
   max-turns: 5
+  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
   env:
     AWS_REGION: us-west-2
     DEBUG_MODE: "true"
@@ -109,6 +110,7 @@ engine: codex
 engine:
   id: codex
   model: gpt-4
+  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
   user-agent: custom-workflow-name
   env:
     CODEX_API_KEY: ${{ secrets.CODEX_API_KEY_CI }}
@@ -125,6 +127,7 @@ engine:
 **Codex-specific fields:**
 - **`user-agent`** (optional): Custom user agent string for GitHub MCP server configuration
 - **`config`** (optional): Additional TOML configuration text appended to generated config.toml
+- **`args`** (optional): Array of custom command-line arguments to pass to the Codex CLI (supported by all engines)
 
 **Secrets:**
 
