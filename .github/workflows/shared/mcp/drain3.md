@@ -23,7 +23,7 @@ steps:
   - name: Start Drain3 MCP server
     run: |
       set -e
-      python /tmp/gh-aw/mcp-servers/drain3/drain3_server.py &
+      python /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-servers/drain3/server.log 2>&1 &
       MCP_PID=$!
       
       # Wait for server to start
@@ -32,21 +32,20 @@ steps:
       # Check if server is still running
       if ! kill -0 $MCP_PID 2>/dev/null; then
         echo "Drain3 MCP server failed to start"
+        echo "Server logs:"
+        cat /tmp/gh-aw/mcp-servers/drain3/server.log || true
         exit 1
       fi
       
-      # Verify server is responding
-      for i in {1..10}; do
-        if curl -s http://localhost:8766/mcp/health > /dev/null 2>&1 || \
-           curl -s http://localhost:8766/mcp > /dev/null 2>&1; then
-          echo "Drain3 MCP server started successfully with PID $MCP_PID"
-          exit 0
-        fi
-        sleep 1
-      done
+      # Check if server is listening on port 8766
+      if ! netstat -tln | grep -q ":8766 "; then
+        echo "Drain3 MCP server not listening on port 8766"
+        echo "Server logs:"
+        cat /tmp/gh-aw/mcp-servers/drain3/server.log || true
+        exit 1
+      fi
       
-      echo "Drain3 MCP server health check failed"
-      exit 1
+      echo "Drain3 MCP server started successfully with PID $MCP_PID"
     env:
       PORT: "8766"
       HOST: "0.0.0.0"

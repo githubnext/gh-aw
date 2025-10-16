@@ -574,7 +574,7 @@ jobs:
           PORT: "8766"
           STATE_DIR: ${{ github.workspace }}/.drain3
         name: Start Drain3 MCP server
-        run: "set -e\npython /tmp/gh-aw/mcp-servers/drain3/drain3_server.py &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Drain3 MCP server failed to start\"\n  exit 1\nfi\n\n# Verify server is responding\nfor i in {1..10}; do\n  if curl -s http://localhost:8766/mcp/health > /dev/null 2>&1 || \\\n     curl -s http://localhost:8766/mcp > /dev/null 2>&1; then\n    echo \"Drain3 MCP server started successfully with PID $MCP_PID\"\n    exit 0\n  fi\n  sleep 1\ndone\n\necho \"Drain3 MCP server health check failed\"\nexit 1\n"
+        run: "set -e\npython /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-servers/drain3/server.log 2>&1 &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Drain3 MCP server failed to start\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-servers/drain3/server.log || true\n  exit 1\nfi\n\n# Check if server is listening on port 8766\nif ! netstat -tln | grep -q \":8766 \"; then\n  echo \"Drain3 MCP server not listening on port 8766\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-servers/drain3/server.log || true\n  exit 1\nfi\n\necho \"Drain3 MCP server started successfully with PID $MCP_PID\"\n"
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
