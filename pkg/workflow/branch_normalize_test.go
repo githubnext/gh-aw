@@ -98,24 +98,3 @@ func TestNormalizeBranchNameLength(t *testing.T) {
 		}
 	}
 }
-
-func TestGenerateBranchNormalizationScript(t *testing.T) {
-	script := GenerateBranchNormalizationScript()
-
-	// Verify script contains key elements
-	if !strings.Contains(script, "GITHUB_AW_ASSETS_BRANCH") {
-		t.Error("Script should contain GITHUB_AW_ASSETS_BRANCH")
-	}
-
-	if !strings.Contains(script, "sed") {
-		t.Error("Script should use sed for string manipulation")
-	}
-
-	if !strings.Contains(script, "cut -c1-128") {
-		t.Error("Script should truncate to 128 characters")
-	}
-
-	if !strings.Contains(script, "GITHUB_ENV") {
-		t.Error("Script should export to GITHUB_ENV")
-	}
-}

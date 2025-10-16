@@ -45,9 +45,14 @@ func TestBranchNormalizationStepAdded(t *testing.T) {
 		t.Error("Expected normalization step to be present in agent job")
 	}
 
-	// Verify the script is present
-	if !strings.Contains(stepsContent, "NORMALIZED=$(echo \"${GITHUB_AW_ASSETS_BRANCH}\"") {
-		t.Error("Expected normalization script to be present in agent job")
+	// Verify it uses github-script
+	if !strings.Contains(stepsContent, "uses: actions/github-script@v8") {
+		t.Error("Expected normalization step to use actions/github-script@v8")
+	}
+
+	// Verify the script contains normalization logic
+	if !strings.Contains(stepsContent, "core.exportVariable") {
+		t.Error("Expected normalization script to use core.exportVariable")
 	}
 }
 
@@ -128,8 +133,13 @@ func TestUploadAssetsJobHasNormalizationStep(t *testing.T) {
 		t.Error("Expected normalization step to be present in upload_assets job")
 	}
 
-	// Verify the script is present
-	if !strings.Contains(stepsContent, "NORMALIZED=$(echo \"${GITHUB_AW_ASSETS_BRANCH}\"") {
-		t.Error("Expected normalization script to be present in upload_assets job")
+	// Verify it uses github-script
+	if !strings.Contains(stepsContent, "uses: actions/github-script@v8") {
+		t.Error("Expected normalization step to use actions/github-script@v8")
+	}
+
+	// Verify the script contains normalization logic
+	if !strings.Contains(stepsContent, "core.exportVariable") {
+		t.Error("Expected normalization script to use core.exportVariable")
 	}
 }

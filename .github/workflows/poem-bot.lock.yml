@@ -1881,26 +1881,27 @@ jobs:
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
       - name: Normalize GITHUB_AW_ASSETS_BRANCH
-        run: |
-          # Normalize GITHUB_AW_ASSETS_BRANCH to be a valid git branch name
-          # Valid characters: alphanumeric, -, _, /, .
-          # Max length: 128 characters
-          if [ -n "${GITHUB_AW_ASSETS_BRANCH}" ]; then
-            # Remove invalid characters (replace with dash)
-            NORMALIZED=$(echo "${GITHUB_AW_ASSETS_BRANCH}" | sed 's/[^a-zA-Z0-9\/_.,-]/-/g')
-            # Remove leading and trailing dashes
-            NORMALIZED=$(echo "${NORMALIZED}" | sed 's/^-*//;s/-*$//')
-            # Truncate to 128 characters
-            NORMALIZED=$(echo "${NORMALIZED}" | cut -c1-128)
-            # Remove trailing dashes after truncation
-            NORMALIZED=$(echo "${NORMALIZED}" | sed 's/-*$//')
-            # Export the normalized value
-            export GITHUB_AW_ASSETS_BRANCH="${NORMALIZED}"
-            echo "GITHUB_AW_ASSETS_BRANCH=${NORMALIZED}" >> $GITHUB_ENV
-            echo "✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${NORMALIZED}"
-          else
-            echo "⚠ GITHUB_AW_ASSETS_BRANCH not set, skipping normalization"
-          fi
+        uses: actions/github-script@v8
+        with:
+          script: |
+            async function main() {
+              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              if (!branchName || branchName.trim() === "") {
+                core.warning("⚠ GITHUB_AW_ASSETS_BRANCH not set, skipping normalization");
+                return;
+              }
+              core.info(`Normalizing branch name: ${branchName}`);
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              core.exportVariable("GITHUB_AW_ASSETS_BRANCH", normalized);
+              core.info(`✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${normalized}`);
+              core.setOutput("normalized_branch", normalized);
+            }
+            await main();
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -6331,26 +6332,27 @@ jobs:
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
       - name: Normalize GITHUB_AW_ASSETS_BRANCH
-        run: |
-          # Normalize GITHUB_AW_ASSETS_BRANCH to be a valid git branch name
-          # Valid characters: alphanumeric, -, _, /, .
-          # Max length: 128 characters
-          if [ -n "${GITHUB_AW_ASSETS_BRANCH}" ]; then
-            # Remove invalid characters (replace with dash)
-            NORMALIZED=$(echo "${GITHUB_AW_ASSETS_BRANCH}" | sed 's/[^a-zA-Z0-9\/_.,-]/-/g')
-            # Remove leading and trailing dashes
-            NORMALIZED=$(echo "${NORMALIZED}" | sed 's/^-*//;s/-*$//')
-            # Truncate to 128 characters
-            NORMALIZED=$(echo "${NORMALIZED}" | cut -c1-128)
-            # Remove trailing dashes after truncation
-            NORMALIZED=$(echo "${NORMALIZED}" | sed 's/-*$//')
-            # Export the normalized value
-            export GITHUB_AW_ASSETS_BRANCH="${NORMALIZED}"
-            echo "GITHUB_AW_ASSETS_BRANCH=${NORMALIZED}" >> $GITHUB_ENV
-            echo "✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${NORMALIZED}"
-          else
-            echo "⚠ GITHUB_AW_ASSETS_BRANCH not set, skipping normalization"
-          fi
+        uses: actions/github-script@v8
+        with:
+          script: |
+            async function main() {
+              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              if (!branchName || branchName.trim() === "") {
+                core.warning("⚠ GITHUB_AW_ASSETS_BRANCH not set, skipping normalization");
+                return;
+              }
+              core.info(`Normalizing branch name: ${branchName}`);
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              core.exportVariable("GITHUB_AW_ASSETS_BRANCH", normalized);
+              core.info(`✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${normalized}`);
+              core.setOutput("normalized_branch", normalized);
+            }
+            await main();
       - name: Download assets
         continue-on-error: true
         uses: actions/download-artifact@v5

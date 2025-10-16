@@ -2602,8 +2602,13 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 // generateBranchNormalizationStep generates a step that normalizes the GITHUB_AW_ASSETS_BRANCH env var
 func (c *Compiler) generateBranchNormalizationStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Normalize GITHUB_AW_ASSETS_BRANCH\n")
-	yaml.WriteString("        run: |\n")
-	WriteShellScriptToYAML(yaml, GenerateBranchNormalizationScript(), "          ")
+	yaml.WriteString("        uses: actions/github-script@v8\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          script: |\n")
+
+	// Add the formatted JavaScript script
+	formattedScript := FormatJavaScriptForYAML(normalizeBranchScript)
+	yaml.WriteString(strings.Join(formattedScript, ""))
 }
 
 func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[string]any) {

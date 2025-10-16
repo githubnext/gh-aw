@@ -89,11 +89,13 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 
 	// Step 4: Normalize GITHUB_AW_ASSETS_BRANCH to valid git branch name
 	steps = append(steps, "      - name: Normalize GITHUB_AW_ASSETS_BRANCH\n")
-	steps = append(steps, "        run: |\n")
-	scriptLines := strings.Split(GenerateBranchNormalizationScript(), "\n")
-	for _, line := range scriptLines {
-		steps = append(steps, "          "+line+"\n")
-	}
+	steps = append(steps, "        uses: actions/github-script@v8\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, "          script: |\n")
+
+	// Add the formatted JavaScript script
+	formattedScript := FormatJavaScriptForYAML(normalizeBranchScript)
+	steps = append(steps, formattedScript...)
 
 	// Add step to download assets artifact if it exists
 	steps = append(steps, "      - name: Download assets\n")
@@ -143,8 +145,8 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	steps = append(steps, "          script: |\n")
 
 	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(uploadAssetsScript)
-	steps = append(steps, formattedScript...)
+	uploadAssetsFormatted := FormatJavaScriptForYAML(uploadAssetsScript)
+	steps = append(steps, uploadAssetsFormatted...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
