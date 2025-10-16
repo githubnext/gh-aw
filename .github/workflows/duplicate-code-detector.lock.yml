@@ -932,7 +932,7 @@ jobs:
           [mcp_servers.github]
           user_agent = "duplicate-code-detector"
           startup_timeout_sec = 120
-          tool_timeout_sec = 120
+          tool_timeout_sec = 60
           command = "docker"
           args = [
             "run",
