@@ -86,19 +86,8 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	var steps []GitHubActionStep
-
 	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-	}
+	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
@@ -616,14 +605,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderClaudeMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
+			// Handle custom MCP tools using shared helper
+			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, e.renderClaudeMCPConfig)
 		}
 	}
 
