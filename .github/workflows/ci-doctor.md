@@ -2,7 +2,6 @@
 if: ${{ github.event.workflow_run.conclusion == 'failure' }}
 network: defaults
 on:
-  stop-after: +48h
   workflow_run:
     types:
     - completed

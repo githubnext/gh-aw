@@ -5,19 +5,15 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md
 #
-# Effective stop-time: 2025-10-18 03:59:42
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
 #   create_issue["create_issue"]
 #   add_comment["add_comment"]
 #   missing_tool["missing_tool"]
-#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> create_issue
@@ -89,8 +85,7 @@ jobs:
             await main();
 
   activation:
-    needs: pre_activation
-    if: (needs.pre_activation.outputs.activated == 'true') && (github.event.workflow_run.conclusion == 'failure')
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check workflow file timestamps
