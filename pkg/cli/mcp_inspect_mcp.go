@@ -88,6 +88,37 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 	// Extract secrets from the config
 	requiredSecrets := extractSecretsFromConfig(config)
 
+	// Special case: Check for GH_AW_GITHUB_TOKEN when GitHub tool is in remote mode
+	if config.Name == "github" && config.Type == "http" {
+		// GitHub remote mode requires GH_AW_GITHUB_TOKEN secret
+		// Check if a custom token is already specified in the env
+		hasCustomToken := false
+		for _, value := range config.Env {
+			if strings.Contains(value, "secrets.") && !strings.Contains(value, "GH_AW_GITHUB_TOKEN") {
+				// Custom token specified, no need to check GH_AW_GITHUB_TOKEN
+				hasCustomToken = true
+				break
+			}
+		}
+		
+		if !hasCustomToken {
+			// Add GH_AW_GITHUB_TOKEN to required secrets if not already present
+			alreadyPresent := false
+			for _, secret := range requiredSecrets {
+				if secret.Name == "GH_AW_GITHUB_TOKEN" {
+					alreadyPresent = true
+					break
+				}
+			}
+			if !alreadyPresent {
+				requiredSecrets = append(requiredSecrets, SecretInfo{
+					Name:   "GH_AW_GITHUB_TOKEN",
+					EnvKey: "GITHUB_TOKEN",
+				})
+			}
+		}
+	}
+
 	if len(requiredSecrets) == 0 {
 		// No secrets required, proceed with normal env var validation
 		for key, value := range config.Env {
