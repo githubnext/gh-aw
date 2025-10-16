@@ -1595,6 +1595,17 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	}
 
+	// Normalize boolean true to nil for simple enable/disable tools
+	// These tools don't have configuration options, so true and nil are equivalent
+	// Normalizing to nil keeps the internal representation consistent
+	for _, toolName := range []string{"edit", "web-fetch", "web-search", "playwright"} {
+		if toolValue, exists := tools[toolName]; exists {
+			if toolValue == true {
+				tools[toolName] = nil
+			}
+		}
+	}
+
 	return tools
 }
 
