@@ -327,10 +327,46 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
       return;
     } else if (eventName === "discussion_comment") {
-      // For discussion comments, we would need to update the comment via GraphQL
-      // However, GitHub's GraphQL API doesn't support updating discussion comments
-      // So we skip this for now
-      core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
+      // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
+      const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+
+      // Create a new comment on the discussion using GraphQL
+      const { repository } = await github.graphql(
+        `
+        query($owner: String!, $repo: String!, $num: Int!) {
+          repository(owner: $owner, name: $repo) {
+            discussion(number: $num) { 
+              id 
+            }
+          }
+        }`,
+        { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+      );
+
+      const discussionId = repository.discussion.id;
+
+      const result = await github.graphql(
+        `
+        mutation($dId: ID!, $body: String!) {
+          addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+            comment { 
+              id 
+              url
+            }
+          }
+        }`,
+        { dId: discussionId, body: workflowLinkText }
+      );
+
+      const comment = result.addDiscussionComment.comment;
+      core.info(`Successfully created discussion comment with workflow link`);
+      core.info(`Comment ID: ${comment.id}`);
+      core.info(`Comment URL: ${comment.url}`);
+      core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+      core.setOutput("comment-id", comment.id);
+      core.setOutput("comment-url", comment.url);
+      core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
       return;
     }
 

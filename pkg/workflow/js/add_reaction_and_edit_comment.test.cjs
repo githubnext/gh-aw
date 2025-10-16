@@ -516,9 +516,10 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
     });
 
-    it("should skip comment update for discussion_comment events", async () => {
+    it("should create new comment for discussion_comment events", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
       process.env.GITHUB_AW_COMMAND = "test-bot"; // Command workflow
+      process.env.GITHUB_AW_WORKFLOW_NAME = "Discussion Bot";
       global.context.eventName = "discussion_comment";
       global.context.payload = {
         discussion: { number: 10 },
@@ -530,20 +531,51 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       };
 
       // Mock GraphQL mutation to add reaction
-      mockGithub.graphql.mockResolvedValueOnce({
-        addReaction: {
-          reaction: {
-            id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=",
-            content: "EYES",
+      mockGithub.graphql
+        .mockResolvedValueOnce({
+          addReaction: {
+            reaction: {
+              id: "MDg6UmVhY3Rpb24xMjM0NTY3ODk=",
+              content: "EYES",
+            },
           },
-        },
-      });
+        })
+        // Mock GraphQL query to get discussion ID for comment creation
+        .mockResolvedValueOnce({
+          repository: {
+            discussion: {
+              id: "D_kwDOABcD1M4AaBbC",
+            },
+          },
+        })
+        // Mock GraphQL mutation to add comment
+        .mockResolvedValueOnce({
+          addDiscussionComment: {
+            comment: {
+              id: "DC_kwDOABcD1M4AaBbE",
+              url: "https://github.com/testowner/testrepo/discussions/10#discussioncomment-789",
+            },
+          },
+        });
 
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
 
-      // Verify that comment update was skipped with appropriate message
-      expect(mockCore.info).toHaveBeenCalledWith("Updating discussion comments is not supported by GitHub's GraphQL API");
+      // Verify comment was created
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("addDiscussionComment"),
+        expect.objectContaining({
+          dId: "D_kwDOABcD1M4AaBbC",
+          body: expect.stringContaining("Agentic [Discussion Bot]"),
+        })
+      );
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOABcD1M4AaBbE");
+      expect(mockCore.setOutput).toHaveBeenCalledWith(
+        "comment-url",
+        "https://github.com/testowner/testrepo/discussions/10#discussioncomment-789"
+      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
     });
   });
 
