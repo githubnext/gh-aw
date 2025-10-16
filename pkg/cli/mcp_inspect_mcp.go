@@ -100,7 +100,7 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 				break
 			}
 		}
-		
+
 		if !hasCustomToken {
 			// Add GH_AW_GITHUB_TOKEN to required secrets if not already present
 			alreadyPresent := false
