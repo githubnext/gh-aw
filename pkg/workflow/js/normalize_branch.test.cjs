@@ -157,7 +157,15 @@ describe("normalize_branch.cjs", () => {
 
       await eval(`(async () => { ${normalizeBranchScript} })()`);
 
-      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "assets/poem-bot---a-creative-agentic-workflow");
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "assets/poem-bot-a-creative-agentic-workflow");
+    });
+
+    it("should collapse multiple consecutive dashes to single dash", async () => {
+      process.env.GITHUB_AW_ASSETS_BRANCH = "assets/branch---with----many-----dashes";
+
+      await eval(`(async () => { ${normalizeBranchScript} })()`);
+
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GITHUB_AW_ASSETS_BRANCH", "assets/branch-with-many-dashes");
     });
   });
 

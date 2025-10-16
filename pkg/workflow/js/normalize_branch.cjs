@@ -6,11 +6,12 @@
  *
  * The normalization process:
  * 1. Replaces invalid characters with a single dash
- * 2. Removes leading and trailing dashes
- * 3. Truncates to 128 characters
- * 4. Removes trailing dashes after truncation
- * 5. Converts to lowercase
- * 6. Exports the normalized value to GITHUB_ENV
+ * 2. Collapses multiple consecutive dashes to a single dash
+ * 3. Removes leading and trailing dashes
+ * 4. Truncates to 128 characters
+ * 5. Removes trailing dashes after truncation
+ * 6. Converts to lowercase
+ * 7. Exports the normalized value to GITHUB_ENV
  */
 async function main() {
   const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
@@ -25,6 +26,9 @@ async function main() {
   // Replace any sequence of invalid characters with a single dash
   // Valid characters are: a-z, A-Z, 0-9, -, _, /, .
   let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+
+  // Collapse multiple consecutive dashes to a single dash
+  normalized = normalized.replace(/-+/g, "-");
 
   // Remove leading and trailing dashes
   normalized = normalized.replace(/^-+|-+$/g, "");

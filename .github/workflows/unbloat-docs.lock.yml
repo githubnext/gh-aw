@@ -1924,6 +1924,7 @@ jobs:
               }
               core.info(`Normalizing branch name: ${branchName}`);
               let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
               normalized = normalized.replace(/^-+|-+$/g, "");
               if (normalized.length > 128) {
                 normalized = normalized.substring(0, 128);
@@ -4688,6 +4689,7 @@ jobs:
               }
               core.info(`Normalizing branch name: ${branchName}`);
               let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
               normalized = normalized.replace(/^-+|-+$/g, "");
               if (normalized.length > 128) {
                 normalized = normalized.substring(0, 128);
