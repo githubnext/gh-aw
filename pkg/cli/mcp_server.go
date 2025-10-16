@@ -376,6 +376,9 @@ Note: Output can be filtered using the jq parameter.`,
 This tool starts each MCP server configured in the workflow, queries its capabilities,
 and displays the results. It supports stdio, Docker, and HTTP MCP servers.
 
+Secret checking is enabled by default to validate GitHub Actions secrets availability.
+If GitHub token is not available or has no permissions, secret checking is silently skipped.
+
 When called without workflow_file, lists all workflows that contain MCP server configurations.
 When called with workflow_file, inspects the MCP servers in that specific workflow.
 
@@ -385,6 +388,7 @@ Use the tool parameter (requires server) to show detailed information about a sp
 Returns formatted text output showing:
 - Available MCP servers in the workflow
 - Tools, resources, and roots exposed by each server
+- Secret availability status (if GitHub token is available)
 - Detailed tool information when tool parameter is specified`,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
 		// Build command arguments
@@ -401,6 +405,9 @@ Returns formatted text output showing:
 		if args.Tool != "" {
 			cmdArgs = append(cmdArgs, "--tool", args.Tool)
 		}
+
+		// Always enable secret checking (will be silently ignored if GitHub token is not available)
+		cmdArgs = append(cmdArgs, "--check-secrets")
 
 		// Execute the CLI command
 		cmd := execCmd(ctx, cmdArgs...)
