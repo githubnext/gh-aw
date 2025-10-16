@@ -649,11 +649,6 @@ jobs:
         run: |
           set -e
           docker pull ghcr.io/github/github-mcp-server:v0.18.0
-      - name: Install gh-aw extension
-        run: |
-          echo "Installing gh-aw extension..."
-          gh extension install githubnext/gh-aw || gh extension upgrade githubnext/gh-aw
-          gh aw --version
       - name: Setup Safe Outputs Collector MCP
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
@@ -1346,15 +1341,6 @@ jobs:
           cat > /home/runner/.copilot/mcp-config.json << EOF
           {
             "mcpServers": {
-              "agentic_workflows": {
-                "type": "local",
-                "command": "gh",
-                "args": ["aw", "mcp-server"],
-                "tools": ["*"],
-                "env": {
-                  "GITHUB_TOKEN": "\${GITHUB_TOKEN}"
-                }
-              },
               "drain3": {
                 "type": "http",
                 "url": "http://localhost:8766/mcp",

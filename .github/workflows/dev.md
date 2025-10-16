@@ -11,8 +11,6 @@ permissions:
 imports:
   - shared/mcp/drain3.md
   - shared/mcp/gh-aw.md
-tools:
-  agentic-workflows:
 safe-outputs:
   staged: true
   create-issue:
