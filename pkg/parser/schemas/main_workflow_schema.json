@@ -2969,6 +2969,13 @@
             "config": {
               "type": "string",
               "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
             }
           },
           "required": [

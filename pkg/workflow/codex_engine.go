@@ -124,10 +124,18 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// See https://github.com/githubnext/gh-aw/issues/892
 	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
 
+	// Build custom args parameter if specified in engineConfig
+	var customArgsParam string
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		for _, arg := range workflowData.EngineConfig.Args {
+			customArgsParam += arg + " "
+		}
+	}
+
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat $GITHUB_AW_PROMPT)
 mkdir -p $CODEX_HOME/logs
-codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
+codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 
 	env := map[string]string{
 		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",

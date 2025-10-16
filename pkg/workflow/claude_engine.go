@@ -144,6 +144,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/gh-aw/.claude/settings.json")
 	}
 
+	// Add custom args from engine configuration before the prompt
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
+	}
+
 	var stepLines []string
 
 	stepName := "Execute Claude Code CLI"
