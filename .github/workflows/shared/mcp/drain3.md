@@ -2,7 +2,7 @@
 mcp-servers:
   drain3:
     type: http
-    url: http://localhost:8000/mcp
+    url: http://localhost:8765/mcp
     allowed:
       - index_file
       - query_file
@@ -15,17 +15,16 @@ steps:
       cache: 'pip'
   - name: Install Drain3 dependencies
     run: |
-      python -m pip install --upgrade pip
       pip install "mcp[server]" drain3
   - name: Copy Drain3 MCP server script
     run: |
-      mkdir -p ${{ github.workspace }}/.mcp-servers
-      cp .github/workflows/shared/mcp/drain3_server.py ${{ github.workspace }}/.mcp-servers/
-      chmod +x ${{ github.workspace }}/.mcp-servers/drain3_server.py
+      mkdir -p /tmp/gh-aw/mcp-servers/drain3/
+      cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/mcp-servers/drain3/
+      chmod +x /tmp/gh-aw/mcp-servers/drain3/drain3_server.py
   - name: Start Drain3 MCP server
     run: |
       set -e
-      python ${{ github.workspace }}/.mcp-servers/drain3_server.py &
+      python /tmp/gh-aw/mcp-servers/drain3/drain3_server.py &
       MCP_PID=$!
       
       # Wait for server to start
@@ -39,8 +38,8 @@ steps:
       
       # Verify server is responding
       for i in {1..10}; do
-        if curl -s http://localhost:8000/mcp/health > /dev/null 2>&1 || \
-           curl -s http://localhost:8000/mcp > /dev/null 2>&1; then
+        if curl -s http://localhost:8765/mcp/health > /dev/null 2>&1 || \
+           curl -s http://localhost:8765/mcp > /dev/null 2>&1; then
           echo "Drain3 MCP server started successfully with PID $MCP_PID"
           exit 0
         fi
@@ -50,7 +49,7 @@ steps:
       echo "Drain3 MCP server health check failed"
       exit 1
     env:
-      PORT: "8000"
+      PORT: "8765"
       HOST: "0.0.0.0"
       MOUNT_PATH: "/mcp"
       STATE_DIR: "${{ github.workspace }}/.drain3"
@@ -105,7 +104,7 @@ Setup:
      imports:
        - shared/mcp/drain3.md
 
-  2. The server will be automatically installed and started on localhost:8000
+  2. The server will be automatically installed and started on localhost:8765
 
 Example Usage:
   Analyze GitHub Actions workflow logs to identify common error patterns
@@ -129,7 +128,7 @@ State Persistence:
 Troubleshooting:
   Server Failed to Start:
   - Verify Python 3.11+ is available
-  - Check that port 8000 is not in use
+  - Check that port 8765 is not in use
   - Review server logs for dependency installation issues
   
   Index/Query Errors:
