@@ -14,7 +14,9 @@ function main() {
     core.debug(`Log path: ${logPath}`);
 
     if (!fs.existsSync(logPath)) {
-      throw new Error(`Log path not found: ${logPath}`);
+      core.info(`Log path not found: ${logPath}`);
+      core.info("No logs to validate - skipping error validation");
+      return;
     }
 
     // Get error patterns from environment variables
