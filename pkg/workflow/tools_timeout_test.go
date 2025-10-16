@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -47,10 +48,36 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 				t.Fatal("Expected at least one execution step")
 			}
 
-			// Check the execution step for MCP_TIMEOUT
+			// Check the execution step for timeout environment variables
 			stepContent := strings.Join([]string(executionSteps[0]), "\n")
+			
+			// Determine expected timeout in milliseconds
+			timeoutMs := 60000 // default
+			if tt.toolsTimeout > 0 {
+				timeoutMs = tt.toolsTimeout * 1000
+			}
+			
+			// Check for MCP_TIMEOUT
 			if !strings.Contains(stepContent, tt.expectedTimeout) {
 				t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedTimeout, stepContent)
+			}
+			
+			// Check for MCP_TOOL_TIMEOUT
+			expectedMcpToolTimeout := fmt.Sprintf("MCP_TOOL_TIMEOUT: \"%d\"", timeoutMs)
+			if !strings.Contains(stepContent, expectedMcpToolTimeout) {
+				t.Errorf("Expected '%s' in execution step", expectedMcpToolTimeout)
+			}
+			
+			// Check for BASH_DEFAULT_TIMEOUT_MS
+			expectedBashDefault := fmt.Sprintf("BASH_DEFAULT_TIMEOUT_MS: \"%d\"", timeoutMs)
+			if !strings.Contains(stepContent, expectedBashDefault) {
+				t.Errorf("Expected '%s' in execution step", expectedBashDefault)
+			}
+			
+			// Check for BASH_MAX_TIMEOUT_MS
+			expectedBashMax := fmt.Sprintf("BASH_MAX_TIMEOUT_MS: \"%d\"", timeoutMs)
+			if !strings.Contains(stepContent, expectedBashMax) {
+				t.Errorf("Expected '%s' in execution step", expectedBashMax)
 			}
 
 			// Check for GH_AW_TOOL_TIMEOUT if expected

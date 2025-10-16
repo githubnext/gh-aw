@@ -1713,6 +1713,9 @@ jobs:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
           MCP_TIMEOUT: "60000"
+          MCP_TOOL_TIMEOUT: "60000"
+          BASH_DEFAULT_TIMEOUT_MS: "60000"
+          BASH_MAX_TIMEOUT_MS: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
       - name: Clean up network proxy hook files
         if: always()
@@ -3290,6 +3293,9 @@ jobs:
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           MCP_TIMEOUT: "60000"
+          MCP_TOOL_TIMEOUT: "60000"
+          BASH_DEFAULT_TIMEOUT_MS: "60000"
+          BASH_MAX_TIMEOUT_MS: "60000"
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:

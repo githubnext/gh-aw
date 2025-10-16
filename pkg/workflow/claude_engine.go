@@ -213,13 +213,24 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
-	// Set MCP_TIMEOUT for MCP server communication
+	// Set timeout environment variables for Claude Code
 	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
-	mcpTimeout := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
+	timeoutMs := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
 	if workflowData.ToolsTimeout > 0 {
-		mcpTimeout = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
+		timeoutMs = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
 	}
-	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", mcpTimeout))
+	
+	// MCP_TIMEOUT: Timeout for MCP server startup
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", timeoutMs))
+	
+	// MCP_TOOL_TIMEOUT: Timeout for MCP tool execution
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TOOL_TIMEOUT: \"%d\"", timeoutMs))
+	
+	// BASH_DEFAULT_TIMEOUT_MS: Default timeout for Bash commands
+	stepLines = append(stepLines, fmt.Sprintf("          BASH_DEFAULT_TIMEOUT_MS: \"%d\"", timeoutMs))
+	
+	// BASH_MAX_TIMEOUT_MS: Maximum timeout for Bash commands
+	stepLines = append(stepLines, fmt.Sprintf("          BASH_MAX_TIMEOUT_MS: \"%d\"", timeoutMs))
 
 	applySafeOutputEnvToSlice(&stepLines, workflowData)
 
