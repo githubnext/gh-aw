@@ -1092,20 +1092,43 @@ jobs:
              - If it exists, read and parse the previous tools list
              - This will be used for comparison to detect changes
           
-          2. **List All Available Tools**:
+          2. **Systematically Explore All Toolsets**:
              - You have access to the GitHub MCP server in remote mode with all toolsets enabled
-             - Systematically identify all available tools/functions
+             - **IMPORTANT**: Systematically explore EACH of the following toolsets individually:
+               - `context` - GitHub Actions context and environment
+               - `repos` - Repository operations
+               - `issues` - Issue management
+               - `pull_requests` - Pull request operations
+               - `actions` - GitHub Actions workflows
+               - `code_security` - Code scanning alerts
+               - `dependabot` - Dependabot alerts
+               - `discussions` - GitHub Discussions
+               - `experiments` - Experimental features
+               - `gists` - Gist operations
+               - `labels` - Label management
+               - `notifications` - Notification management
+               - `orgs` - Organization operations
+               - `projects` - GitHub Projects
+               - `secret_protection` - Secret scanning
+               - `security_advisories` - Security advisories
+               - `stargazers` - Repository stars
+               - `users` - User information
+             - For EACH toolset, identify all tools that belong to it
+             - Create a comprehensive mapping of tools to their respective toolsets
              - Note: The tools available to you ARE the tools from the GitHub MCP remote server
-             - Enumerate each tool by attempting to understand what tools you have access to
           
-          3. **Categorize Tools by Functionality**:
-             - Group tools by their primary purpose (e.g., repos, issues, pull requests, actions, etc.)
-             - Identify which toolset each tool belongs to based on its function
+          3. **Detect Inconsistencies Across Toolsets**:
+             - Check for duplicate tools across different toolsets
+             - Identify tools that might belong to multiple toolsets
+             - Note any tools that don't clearly fit into any specific toolset
+             - Flag any naming inconsistencies or patterns that deviate from expected conventions
+             - Validate that all discovered tools are properly categorized
           
           4. **Compare with Previous Tools** (if previous data exists):
              - Identify **new tools** that were added since the last run
              - Identify **removed tools** that existed before but are now missing
              - Identify tools that remain **unchanged**
+             - Identify tools that **moved between toolsets**
              - Calculate statistics on the changes
           
           ### Phase 2: Tool Documentation
@@ -1140,6 +1163,20 @@ jobs:
             - **Removed Tools**: [NUMBER]
             - **Unchanged Tools**: [NUMBER]
           
+          ## Inconsistency Detection
+          
+          ### Toolset Integrity Checks
+          
+          Report any inconsistencies discovered during the systematic exploration:
+          
+          - **Duplicate Tools**: List any tools that appear in multiple toolsets
+          - **Miscategorized Tools**: Tools that might belong to a different toolset based on their functionality
+          - **Naming Inconsistencies**: Tools that don't follow expected naming patterns
+          - **Orphaned Tools**: Tools that don't clearly fit into any specific toolset
+          - **Missing Expected Tools**: Common operations that might be missing from certain toolsets
+          
+          [If no inconsistencies found: "✅ All tools are properly categorized with no detected inconsistencies."]
+          
           ## Changes Since Last Report
           
           [Only include this section if previous data exists]
@@ -1160,7 +1197,15 @@ jobs:
           |---------|-----------|--------------------------------|
           | [toolset] | [tool] | [description] |
           
-          [If no changes: "No tools were added or removed since the last report."]
+          ### Tools Moved Between Toolsets 🔄
+          
+          List any tools that changed their toolset categorization:
+          
+          | Tool Name | Previous Toolset | Current Toolset | Notes |
+          |-----------|------------------|-----------------|-------|
+          | [tool] | [old toolset] | [new toolset] | [reason] |
+          
+          [If no changes: "No tools were added, removed, or moved since the last report."]
           
           ## Tools by Toolset
           
@@ -1240,17 +1285,21 @@ jobs:
           - **Useful Reference**: Make the report helpful for developers
           
           ### Tool Discovery
-          - **Systematic Approach**: Methodically enumerate all tools
-          - **Categorization**: Accurately assign tools to toolsets
+          - **Systematic Approach**: Methodically enumerate tools for EACH toolset individually
+          - **Complete Coverage**: Explore all 18 toolsets without skipping any
+          - **Categorization**: Accurately assign tools to toolsets based on functionality
           - **Description**: Provide clear, concise purpose statements
           - **Parameters**: Document key parameters when identifiable
+          - **Inconsistency Detection**: Actively look for duplicates, miscategorization, and naming issues
           
           ## Success Criteria
           
           A successful report:
           - ✅ Loads previous tools list from cache if available
+          - ✅ Systematically explores EACH of the 18 individual toolsets
           - ✅ Documents all tools available in the GitHub MCP remote server
-          - ✅ Compares with previous run and identifies changes (new/removed tools)
+          - ✅ Detects and reports any inconsistencies across toolsets (duplicates, miscategorization, naming issues)
+          - ✅ Compares with previous run and identifies changes (new/removed/moved tools)
           - ✅ Saves current tools list to cache for next run
           - ✅ Organizes tools by their appropriate toolset categories
           - ✅ Provides clear descriptions and usage information
@@ -1258,23 +1307,33 @@ jobs:
           - ✅ Is formatted as a well-structured markdown document
           - ✅ Is published as a GitHub discussion in the "audits" category for easy access and reference
           - ✅ Includes change tracking and diff information when previous data exists
+          - ✅ Validates toolset integrity and reports any detected issues
           
           ## Output Requirements
           
           Your output MUST:
           1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists
-          2. Discover all current tools from the GitHub MCP remote server
-          3. Compare current tools with previous tools (if available) and identify changes
-          4. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run
+          2. Systematically explore EACH of the 18 toolsets individually to discover all current tools
+          3. Detect and document any inconsistencies:
+             - Duplicate tools across toolsets
+             - Miscategorized tools
+             - Naming inconsistencies
+             - Orphaned tools
+          4. Compare current tools with previous tools (if available) and identify:
+             - New tools added
+             - Removed tools
+             - Tools that moved between toolsets
+          5. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run
              - Use a structured JSON format with tool names, toolsets, and descriptions
              - Include timestamp and metadata
-          5. Create a GitHub discussion with the complete tools report
-          6. Use the report template structure provided above
-          7. Include the changes summary section if previous data exists
-          8. Include ALL discovered tools organized by toolset
-          9. Provide accurate tool names, descriptions, and parameters
-          10. Include practical usage examples
-          11. Be formatted for readability with proper markdown tables
+          6. Create a GitHub discussion with the complete tools report
+          7. Use the report template structure provided above
+          8. Include the inconsistency detection section with findings
+          9. Include the changes summary section if previous data exists
+          10. Include ALL discovered tools organized by toolset
+          11. Provide accurate tool names, descriptions, and parameters
+          12. Include practical usage examples
+          13. Be formatted for readability with proper markdown tables
           
           **Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):
           ```json
@@ -1297,12 +1356,31 @@ jobs:
           Begin your tool discovery now. Follow these steps:
           
           1. **Load previous data**: Check for `/tmp/gh-aw/cache-memory/github-mcp-tools.json` and load it if it exists
-          2. **Discover current tools**: Systematically identify all available tools from the GitHub MCP remote server
-          3. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes
-          4. **Document**: Categorize tools appropriately and create comprehensive documentation
-          5. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
-          6. **Generate report**: Create the final markdown report including change tracking (if applicable)
-          7. **Publish**: Create a GitHub discussion with the complete tools report
+          2. **Systematically explore each toolset**: For EACH of the 18 toolsets, identify all tools that belong to it:
+             - context
+             - repos
+             - issues
+             - pull_requests
+             - actions
+             - code_security
+             - dependabot
+             - discussions
+             - experiments
+             - gists
+             - labels
+             - notifications
+             - orgs
+             - projects
+             - secret_protection
+             - security_advisories
+             - stargazers
+             - users
+          3. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools
+          4. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)
+          5. **Document**: Categorize tools appropriately and create comprehensive documentation
+          6. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
+          7. **Generate report**: Create the final markdown report including change tracking and inconsistency detection
+          8. **Publish**: Create a GitHub discussion with the complete tools report
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -3042,7 +3120,7 @@ jobs:
         env:
           WORKFLOW_NAME: "GitHub MCP Remote Server Tools Report Generator"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# GitHub MCP Remote Server Tools Report Generator\n\nYou are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.\n\n## Mission\n\nGenerate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Report Date**: Today's date\n- **MCP Server**: GitHub MCP Remote (mode: remote, toolset: all)\n\n## Report Generation Process\n\n### Phase 1: Tool Discovery and Comparison\n\n1. **Load Previous Tools List** (if available):\n   - Check if `/tmp/gh-aw/cache-memory/github-mcp-tools.json` exists from the previous run\n   - If it exists, read and parse the previous tools list\n   - This will be used for comparison to detect changes\n\n2. **List All Available Tools**:\n   - You have access to the GitHub MCP server in remote mode with all toolsets enabled\n   - Systematically identify all available tools/functions\n   - Note: The tools available to you ARE the tools from the GitHub MCP remote server\n   - Enumerate each tool by attempting to understand what tools you have access to\n\n3. **Categorize Tools by Functionality**:\n   - Group tools by their primary purpose (e.g., repos, issues, pull requests, actions, etc.)\n   - Identify which toolset each tool belongs to based on its function\n\n4. **Compare with Previous Tools** (if previous data exists):\n   - Identify **new tools** that were added since the last run\n   - Identify **removed tools** that existed before but are now missing\n   - Identify tools that remain **unchanged**\n   - Calculate statistics on the changes\n\n### Phase 2: Tool Documentation\n\nFor each discovered tool, document:\n\n1. **Tool Name**: The exact function name\n2. **Toolset**: Which toolset category it belongs to (context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users)\n3. **Purpose**: What the tool does (1-2 sentence description)\n4. **Parameters**: Key parameters it accepts (if you can determine them)\n5. **Example Use Case**: A brief example of when you would use this tool\n\n### Phase 3: Generate Comprehensive Report\n\nCreate a detailed markdown report with the following structure:\n\n```markdown\n# GitHub MCP Remote Server Tools Report\n\n**Generated**: [DATE]\n**MCP Mode**: Remote\n**Toolsets**: All\n**Previous Report**: [DATE or \"None\" if first run]\n\n## Executive Summary\n\n- **Total Tools Discovered**: [NUMBER]\n- **Toolset Categories**: [NUMBER]\n- **Report Date**: [DATE]\n- **Changes Since Last Report**: [If previous data exists, show changes summary]\n  - **New Tools**: [NUMBER]\n  - **Removed Tools**: [NUMBER]\n  - **Unchanged Tools**: [NUMBER]\n\n## Changes Since Last Report\n\n[Only include this section if previous data exists]\n\n### New Tools Added ✨\n\nList any tools that were added since the last report, organized by toolset:\n\n| Toolset | Tool Name | Purpose |\n|---------|-----------|---------|\n| [toolset] | [tool] | [description] |\n\n### Removed Tools 🗑️\n\nList any tools that were removed since the last report:\n\n| Toolset | Tool Name | Purpose (from previous report) |\n|---------|-----------|--------------------------------|\n| [toolset] | [tool] | [description] |\n\n[If no changes: \"No tools were added or removed since the last report.\"]\n\n## Tools by Toolset\n\nOrganize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.\n\n**Example format for each toolset:**\n\n### [Toolset Name] Toolset\nBrief description of the toolset.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n**All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users\n\n## Usage Examples\n\nProvide 1-2 brief examples showing how to use common tools.\n\n## Toolset Configuration Reference\n\nWhen configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:\n\n```yaml\ntools:\n  github:\n    mode: \"remote\"  # or \"local\"\n    toolset: [all]  # or specific toolsets like [repos, issues, pull_requests]\n```\n\n**Available toolset options**:\n- `context` - GitHub Actions context and environment\n- `repos` - Repository operations\n- `issues` - Issue management\n- `pull_requests` - Pull request operations\n- `actions` - GitHub Actions workflows\n- `code_security` - Code scanning alerts\n- `dependabot` - Dependabot alerts\n- `discussions` - GitHub Discussions\n- `experiments` - Experimental features\n- `gists` - Gist operations\n- `labels` - Label management\n- `notifications` - Notification management\n- `orgs` - Organization operations\n- `projects` - GitHub Projects\n- `secret_protection` - Secret scanning\n- `security_advisories` - Security advisories\n- `stargazers` - Repository stars\n- `users` - User information\n- `all` - Enable all toolsets\n\n## Notes and Observations\n\n[Include any interesting findings, patterns, or recommendations discovered during the tool enumeration]\n\n## Methodology\n\n- **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server\n- **MCP Configuration**: Remote mode with all toolsets enabled\n- **Categorization**: Based on GitHub API domains and functionality\n- **Documentation**: Derived from tool names, descriptions, and usage patterns\n```\n\n## Important Guidelines\n\n### Accuracy\n- **Be Thorough**: Discover and document ALL available tools\n- **Be Precise**: Use exact tool names and accurate descriptions\n- **Be Organized**: Group tools logically by toolset\n- **Be Helpful**: Provide clear, actionable documentation\n\n### Report Quality\n- **Clear Structure**: Use tables and sections for readability\n- **Practical Examples**: Include real-world usage examples\n- **Complete Coverage**: Don't miss any tools or toolsets\n- **Useful Reference**: Make the report helpful for developers\n\n### Tool Discovery\n- **Systematic Approach**: Methodically enumerate all tools\n- **Categorization**: Accurately assign tools to toolsets\n- **Description**: Provide clear, concise purpose statements\n- **Parameters**: Document key parameters when identifiable\n\n## Success Criteria\n\nA successful report:\n- ✅ Loads previous tools list from cache if available\n- ✅ Documents all tools available in the GitHub MCP remote server\n- ✅ Compares with previous run and identifies changes (new/removed tools)\n- ✅ Saves current tools list to cache for next run\n- ✅ Organizes tools by their appropriate toolset categories\n- ✅ Provides clear descriptions and usage information\n- ✅ Includes practical examples\n- ✅ Is formatted as a well-structured markdown document\n- ✅ Is published as a GitHub discussion in the \"audits\" category for easy access and reference\n- ✅ Includes change tracking and diff information when previous data exists\n\n## Output Requirements\n\nYour output MUST:\n1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists\n2. Discover all current tools from the GitHub MCP remote server\n3. Compare current tools with previous tools (if available) and identify changes\n4. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run\n   - Use a structured JSON format with tool names, toolsets, and descriptions\n   - Include timestamp and metadata\n5. Create a GitHub discussion with the complete tools report\n6. Use the report template structure provided above\n7. Include the changes summary section if previous data exists\n8. Include ALL discovered tools organized by toolset\n9. Provide accurate tool names, descriptions, and parameters\n10. Include practical usage examples\n11. Be formatted for readability with proper markdown tables\n\n**Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):\n```json\n{\n  \"timestamp\": \"2024-01-15T06:00:00Z\",\n  \"total_tools\": 42,\n  \"toolsets\": {\n    \"repos\": [\n      {\"name\": \"get_repository\", \"purpose\": \"Get repository details\"},\n      {\"name\": \"list_commits\", \"purpose\": \"List repository commits\"}\n    ],\n    \"issues\": [\n      {\"name\": \"get_issue\", \"purpose\": \"Get issue details\"},\n      {\"name\": \"list_issues\", \"purpose\": \"List repository issues\"}\n    ]\n  }\n}\n```\n\nBegin your tool discovery now. Follow these steps:\n\n1. **Load previous data**: Check for `/tmp/gh-aw/cache-memory/github-mcp-tools.json` and load it if it exists\n2. **Discover current tools**: Systematically identify all available tools from the GitHub MCP remote server\n3. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes\n4. **Document**: Categorize tools appropriately and create comprehensive documentation\n5. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`\n6. **Generate report**: Create the final markdown report including change tracking (if applicable)\n7. **Publish**: Create a GitHub discussion with the complete tools report\n"
+          WORKFLOW_MARKDOWN: "# GitHub MCP Remote Server Tools Report Generator\n\nYou are the GitHub MCP Remote Server Tools Report Generator - an agent that documents the available functions in the GitHub MCP remote server.\n\n## Mission\n\nGenerate a comprehensive report of all tools/functions available in the GitHub MCP remote server by self-inspecting the available tools and creating detailed documentation.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Report Date**: Today's date\n- **MCP Server**: GitHub MCP Remote (mode: remote, toolset: all)\n\n## Report Generation Process\n\n### Phase 1: Tool Discovery and Comparison\n\n1. **Load Previous Tools List** (if available):\n   - Check if `/tmp/gh-aw/cache-memory/github-mcp-tools.json` exists from the previous run\n   - If it exists, read and parse the previous tools list\n   - This will be used for comparison to detect changes\n\n2. **Systematically Explore All Toolsets**:\n   - You have access to the GitHub MCP server in remote mode with all toolsets enabled\n   - **IMPORTANT**: Systematically explore EACH of the following toolsets individually:\n     - `context` - GitHub Actions context and environment\n     - `repos` - Repository operations\n     - `issues` - Issue management\n     - `pull_requests` - Pull request operations\n     - `actions` - GitHub Actions workflows\n     - `code_security` - Code scanning alerts\n     - `dependabot` - Dependabot alerts\n     - `discussions` - GitHub Discussions\n     - `experiments` - Experimental features\n     - `gists` - Gist operations\n     - `labels` - Label management\n     - `notifications` - Notification management\n     - `orgs` - Organization operations\n     - `projects` - GitHub Projects\n     - `secret_protection` - Secret scanning\n     - `security_advisories` - Security advisories\n     - `stargazers` - Repository stars\n     - `users` - User information\n   - For EACH toolset, identify all tools that belong to it\n   - Create a comprehensive mapping of tools to their respective toolsets\n   - Note: The tools available to you ARE the tools from the GitHub MCP remote server\n\n3. **Detect Inconsistencies Across Toolsets**:\n   - Check for duplicate tools across different toolsets\n   - Identify tools that might belong to multiple toolsets\n   - Note any tools that don't clearly fit into any specific toolset\n   - Flag any naming inconsistencies or patterns that deviate from expected conventions\n   - Validate that all discovered tools are properly categorized\n\n4. **Compare with Previous Tools** (if previous data exists):\n   - Identify **new tools** that were added since the last run\n   - Identify **removed tools** that existed before but are now missing\n   - Identify tools that remain **unchanged**\n   - Identify tools that **moved between toolsets**\n   - Calculate statistics on the changes\n\n### Phase 2: Tool Documentation\n\nFor each discovered tool, document:\n\n1. **Tool Name**: The exact function name\n2. **Toolset**: Which toolset category it belongs to (context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users)\n3. **Purpose**: What the tool does (1-2 sentence description)\n4. **Parameters**: Key parameters it accepts (if you can determine them)\n5. **Example Use Case**: A brief example of when you would use this tool\n\n### Phase 3: Generate Comprehensive Report\n\nCreate a detailed markdown report with the following structure:\n\n```markdown\n# GitHub MCP Remote Server Tools Report\n\n**Generated**: [DATE]\n**MCP Mode**: Remote\n**Toolsets**: All\n**Previous Report**: [DATE or \"None\" if first run]\n\n## Executive Summary\n\n- **Total Tools Discovered**: [NUMBER]\n- **Toolset Categories**: [NUMBER]\n- **Report Date**: [DATE]\n- **Changes Since Last Report**: [If previous data exists, show changes summary]\n  - **New Tools**: [NUMBER]\n  - **Removed Tools**: [NUMBER]\n  - **Unchanged Tools**: [NUMBER]\n\n## Inconsistency Detection\n\n### Toolset Integrity Checks\n\nReport any inconsistencies discovered during the systematic exploration:\n\n- **Duplicate Tools**: List any tools that appear in multiple toolsets\n- **Miscategorized Tools**: Tools that might belong to a different toolset based on their functionality\n- **Naming Inconsistencies**: Tools that don't follow expected naming patterns\n- **Orphaned Tools**: Tools that don't clearly fit into any specific toolset\n- **Missing Expected Tools**: Common operations that might be missing from certain toolsets\n\n[If no inconsistencies found: \"✅ All tools are properly categorized with no detected inconsistencies.\"]\n\n## Changes Since Last Report\n\n[Only include this section if previous data exists]\n\n### New Tools Added ✨\n\nList any tools that were added since the last report, organized by toolset:\n\n| Toolset | Tool Name | Purpose |\n|---------|-----------|---------|\n| [toolset] | [tool] | [description] |\n\n### Removed Tools 🗑️\n\nList any tools that were removed since the last report:\n\n| Toolset | Tool Name | Purpose (from previous report) |\n|---------|-----------|--------------------------------|\n| [toolset] | [tool] | [description] |\n\n### Tools Moved Between Toolsets 🔄\n\nList any tools that changed their toolset categorization:\n\n| Tool Name | Previous Toolset | Current Toolset | Notes |\n|-----------|------------------|-----------------|-------|\n| [tool] | [old toolset] | [new toolset] | [reason] |\n\n[If no changes: \"No tools were added, removed, or moved since the last report.\"]\n\n## Tools by Toolset\n\nOrganize tools into their respective toolset categories. For each toolset that has tools, create a section with a table listing all tools.\n\n**Example format for each toolset:**\n\n### [Toolset Name] Toolset\nBrief description of the toolset.\n\n| Tool Name | Purpose | Key Parameters |\n|-----------|---------|----------------|\n| [tool]    | [description] | [params] |\n\n**All available toolsets**: context, repos, issues, pull_requests, actions, code_security, dependabot, discussions, experiments, gists, labels, notifications, orgs, projects, secret_protection, security_advisories, stargazers, users\n\n## Usage Examples\n\nProvide 1-2 brief examples showing how to use common tools.\n\n## Toolset Configuration Reference\n\nWhen configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:\n\n```yaml\ntools:\n  github:\n    mode: \"remote\"  # or \"local\"\n    toolset: [all]  # or specific toolsets like [repos, issues, pull_requests]\n```\n\n**Available toolset options**:\n- `context` - GitHub Actions context and environment\n- `repos` - Repository operations\n- `issues` - Issue management\n- `pull_requests` - Pull request operations\n- `actions` - GitHub Actions workflows\n- `code_security` - Code scanning alerts\n- `dependabot` - Dependabot alerts\n- `discussions` - GitHub Discussions\n- `experiments` - Experimental features\n- `gists` - Gist operations\n- `labels` - Label management\n- `notifications` - Notification management\n- `orgs` - Organization operations\n- `projects` - GitHub Projects\n- `secret_protection` - Secret scanning\n- `security_advisories` - Security advisories\n- `stargazers` - Repository stars\n- `users` - User information\n- `all` - Enable all toolsets\n\n## Notes and Observations\n\n[Include any interesting findings, patterns, or recommendations discovered during the tool enumeration]\n\n## Methodology\n\n- **Discovery Method**: Self-inspection of available tools in the GitHub MCP remote server\n- **MCP Configuration**: Remote mode with all toolsets enabled\n- **Categorization**: Based on GitHub API domains and functionality\n- **Documentation**: Derived from tool names, descriptions, and usage patterns\n```\n\n## Important Guidelines\n\n### Accuracy\n- **Be Thorough**: Discover and document ALL available tools\n- **Be Precise**: Use exact tool names and accurate descriptions\n- **Be Organized**: Group tools logically by toolset\n- **Be Helpful**: Provide clear, actionable documentation\n\n### Report Quality\n- **Clear Structure**: Use tables and sections for readability\n- **Practical Examples**: Include real-world usage examples\n- **Complete Coverage**: Don't miss any tools or toolsets\n- **Useful Reference**: Make the report helpful for developers\n\n### Tool Discovery\n- **Systematic Approach**: Methodically enumerate tools for EACH toolset individually\n- **Complete Coverage**: Explore all 18 toolsets without skipping any\n- **Categorization**: Accurately assign tools to toolsets based on functionality\n- **Description**: Provide clear, concise purpose statements\n- **Parameters**: Document key parameters when identifiable\n- **Inconsistency Detection**: Actively look for duplicates, miscategorization, and naming issues\n\n## Success Criteria\n\nA successful report:\n- ✅ Loads previous tools list from cache if available\n- ✅ Systematically explores EACH of the 18 individual toolsets\n- ✅ Documents all tools available in the GitHub MCP remote server\n- ✅ Detects and reports any inconsistencies across toolsets (duplicates, miscategorization, naming issues)\n- ✅ Compares with previous run and identifies changes (new/removed/moved tools)\n- ✅ Saves current tools list to cache for next run\n- ✅ Organizes tools by their appropriate toolset categories\n- ✅ Provides clear descriptions and usage information\n- ✅ Includes practical examples\n- ✅ Is formatted as a well-structured markdown document\n- ✅ Is published as a GitHub discussion in the \"audits\" category for easy access and reference\n- ✅ Includes change tracking and diff information when previous data exists\n- ✅ Validates toolset integrity and reports any detected issues\n\n## Output Requirements\n\nYour output MUST:\n1. Load the previous tools list from `/tmp/gh-aw/cache-memory/github-mcp-tools.json` if it exists\n2. Systematically explore EACH of the 18 toolsets individually to discover all current tools\n3. Detect and document any inconsistencies:\n   - Duplicate tools across toolsets\n   - Miscategorized tools\n   - Naming inconsistencies\n   - Orphaned tools\n4. Compare current tools with previous tools (if available) and identify:\n   - New tools added\n   - Removed tools\n   - Tools that moved between toolsets\n5. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run\n   - Use a structured JSON format with tool names, toolsets, and descriptions\n   - Include timestamp and metadata\n6. Create a GitHub discussion with the complete tools report\n7. Use the report template structure provided above\n8. Include the inconsistency detection section with findings\n9. Include the changes summary section if previous data exists\n10. Include ALL discovered tools organized by toolset\n11. Provide accurate tool names, descriptions, and parameters\n12. Include practical usage examples\n13. Be formatted for readability with proper markdown tables\n\n**Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):\n```json\n{\n  \"timestamp\": \"2024-01-15T06:00:00Z\",\n  \"total_tools\": 42,\n  \"toolsets\": {\n    \"repos\": [\n      {\"name\": \"get_repository\", \"purpose\": \"Get repository details\"},\n      {\"name\": \"list_commits\", \"purpose\": \"List repository commits\"}\n    ],\n    \"issues\": [\n      {\"name\": \"get_issue\", \"purpose\": \"Get issue details\"},\n      {\"name\": \"list_issues\", \"purpose\": \"List repository issues\"}\n    ]\n  }\n}\n```\n\nBegin your tool discovery now. Follow these steps:\n\n1. **Load previous data**: Check for `/tmp/gh-aw/cache-memory/github-mcp-tools.json` and load it if it exists\n2. **Systematically explore each toolset**: For EACH of the 18 toolsets, identify all tools that belong to it:\n   - context\n   - repos\n   - issues\n   - pull_requests\n   - actions\n   - code_security\n   - dependabot\n   - discussions\n   - experiments\n   - gists\n   - labels\n   - notifications\n   - orgs\n   - projects\n   - secret_protection\n   - security_advisories\n   - stargazers\n   - users\n3. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools\n4. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)\n5. **Document**: Categorize tools appropriately and create comprehensive documentation\n6. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`\n7. **Generate report**: Create the final markdown report including change tracking and inconsistency detection\n8. **Publish**: Create a GitHub discussion with the complete tools report\n"
         with:
           script: |
             const fs = require('fs');
