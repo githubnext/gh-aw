@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.3 - 2025-10-16
+
+### Bug Fixes
+
+#### Add mcp-inspect tool to mcp-server command with automatic secret validation
+
+#### Add yq to default bash tools
+
+#### Merge check_membership and stop-time jobs into unified pre-activation job
+
+#### Update CLI versions: Claude Code 2.0.15→2.0.19, GitHub Copilot CLI 0.0.340→0.0.342
+
+
 ## v0.22.2 - 2025-10-16
 
 ### Bug Fixes
