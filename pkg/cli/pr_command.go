@@ -143,6 +143,76 @@ func getCurrentRepo() (owner, repo string, err error) {
 	return repoInfo.Owner.Login, repoInfo.Name, nil
 }
 
+// checkRepositoryAccess checks if the current user has write access to the target repository
+func checkRepositoryAccess(owner, repo string) (bool, error) {
+	// Get current user
+	cmd := exec.Command("gh", "api", "/user", "--jq", ".login")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to get current user: %w", err)
+	}
+	username := strings.TrimSpace(string(output))
+
+	// Check user's permission level for the repository
+	cmd = exec.Command("gh", "api", fmt.Sprintf("/repos/%s/%s/collaborators/%s/permission", owner, repo, username))
+	output, err = cmd.Output()
+	if err != nil {
+		// If we get an error, it likely means we don't have access or the repo doesn't exist
+		return false, nil
+	}
+
+	var permissionInfo struct {
+		Permission string `json:"permission"`
+	}
+
+	if err := json.Unmarshal(output, &permissionInfo); err != nil {
+		return false, fmt.Errorf("failed to parse permission info: %w", err)
+	}
+
+	// Check if user has write, maintain, or admin access
+	permission := permissionInfo.Permission
+	hasWriteAccess := permission == "write" || permission == "maintain" || permission == "admin"
+	
+	return hasWriteAccess, nil
+}
+
+// createForkIfNeeded creates a fork of the target repository and returns the fork repo name
+func createForkIfNeeded(targetOwner, targetRepo string, verbose bool) (forkOwner, forkRepo string, err error) {
+	// Get current user
+	cmd := exec.Command("gh", "api", "/user", "--jq", ".login")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get current user: %w", err)
+	}
+	currentUser := strings.TrimSpace(string(output))
+
+	// Check if fork already exists
+	forkRepoSpec := fmt.Sprintf("%s/%s", currentUser, targetRepo)
+	checkCmd := exec.Command("gh", "repo", "view", forkRepoSpec, "--json", "name")
+	if checkCmd.Run() == nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fork already exists: %s", forkRepoSpec)))
+		}
+		return currentUser, targetRepo, nil
+	}
+
+	// Create fork
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating fork of %s/%s...", targetOwner, targetRepo)))
+	}
+
+	forkCmd := exec.Command("gh", "repo", "fork", fmt.Sprintf("%s/%s", targetOwner, targetRepo), "--clone=false")
+	if err := forkCmd.Run(); err != nil {
+		return "", "", fmt.Errorf("failed to create fork: %w", err)
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully created fork: %s", forkRepoSpec)))
+	}
+
+	return currentUser, targetRepo, nil
+}
+
 // fetchPRInfo fetches detailed information about a pull request
 func fetchPRInfo(owner, repo string, prNumber int) (*PRInfo, error) {
 	// Fetch PR details using gh API
@@ -386,13 +456,94 @@ func applyPatchToRepo(patchFile string, prInfo *PRInfo, targetOwner, targetRepo 
 
 // createTransferPR creates a new PR in the target repository
 func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName string, verbose bool) error {
-	// Push the branch
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing branch to remote..."))
+	// Check if user has write access to target repository
+	hasWriteAccess, err := checkRepositoryAccess(targetOwner, targetRepo)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not check repository access: %v", err)))
 	}
 
-	cmd := exec.Command("git", "push", "-u", "origin", branchName)
-	if err := cmd.Run(); err != nil {
+	var forkOwner, forkRepo string
+	var needsFork bool
+
+	if !hasWriteAccess {
+		needsFork = true
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No write access to target repository, using fork workflow..."))
+		}
+
+		forkOwner, forkRepo, err = createForkIfNeeded(targetOwner, targetRepo, verbose)
+		if err != nil {
+			return fmt.Errorf("failed to create fork: %w", err)
+		}
+
+		// Add fork as remote if not already present
+		remoteName := "fork"
+		forkRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", forkOwner, forkRepo)
+		
+		// Check if fork remote exists
+		checkRemoteCmd := exec.Command("git", "remote", "get-url", remoteName)
+		if checkRemoteCmd.Run() != nil {
+			// Remote doesn't exist, add it
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding fork remote: %s", forkRepoURL)))
+			}
+			addRemoteCmd := exec.Command("git", "remote", "add", remoteName, forkRepoURL)
+			if err := addRemoteCmd.Run(); err != nil {
+				return fmt.Errorf("failed to add fork remote: %w", err)
+			}
+		}
+
+		// Also ensure target repository is set as upstream remote if not already present
+		upstreamRemote := "upstream"
+		targetRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", targetOwner, targetRepo)
+		
+		// Check if upstream remote exists and points to the right repo
+		checkUpstreamCmd := exec.Command("git", "remote", "get-url", upstreamRemote)
+		upstreamOutput, err := checkUpstreamCmd.Output()
+		if err != nil || strings.TrimSpace(string(upstreamOutput)) != targetRepoURL {
+			// Upstream doesn't exist or points to wrong repo, add/update it
+			if err != nil {
+				// Remote doesn't exist, add it
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Adding upstream remote: %s", targetRepoURL)))
+				}
+				addUpstreamCmd := exec.Command("git", "remote", "add", upstreamRemote, targetRepoURL)
+				if err := addUpstreamCmd.Run(); err != nil {
+					return fmt.Errorf("failed to add upstream remote: %w", err)
+				}
+			} else {
+				// Remote exists but points to wrong repo, update it
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Updating upstream remote: %s", targetRepoURL)))
+				}
+				setUpstreamCmd := exec.Command("git", "remote", "set-url", upstreamRemote, targetRepoURL)
+				if err := setUpstreamCmd.Run(); err != nil {
+					return fmt.Errorf("failed to update upstream remote: %w", err)
+				}
+			}
+		}
+	}
+
+	// Push the branch
+	if verbose {
+		if needsFork {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing branch to fork..."))
+		} else {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Pushing branch to remote..."))
+		}
+	}
+
+	var pushCmd *exec.Cmd
+	if needsFork {
+		pushCmd = exec.Command("git", "push", "-u", "fork", branchName)
+	} else {
+		pushCmd = exec.Command("git", "push", "-u", "origin", branchName)
+	}
+
+	if err := pushCmd.Run(); err != nil {
+		if needsFork {
+			return fmt.Errorf("failed to push branch to fork: %w", err)
+		}
 		return fmt.Errorf("failed to push branch: %w", err)
 	}
 
@@ -410,11 +561,18 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 	}
 
 	repoFlag := fmt.Sprintf("%s/%s", targetOwner, targetRepo)
-	cmd = exec.Command("gh", "pr", "create",
+	var headRef string
+	if needsFork {
+		headRef = fmt.Sprintf("%s:%s", forkOwner, branchName)
+	} else {
+		headRef = branchName
+	}
+
+	cmd := exec.Command("gh", "pr", "create",
 		"--repo", repoFlag,
 		"--title", prInfo.Title,
 		"--body", prBody,
-		"--head", branchName)
+		"--head", headRef)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -422,6 +580,9 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR created successfully!"))
+	if needsFork {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("PR created from fork %s/%s to %s/%s", forkOwner, forkRepo, targetOwner, targetRepo)))
+	}
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("URL: %s", strings.TrimSpace(string(output)))))
 
 	return nil
