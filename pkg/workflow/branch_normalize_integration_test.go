@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestBranchNormalizationStepAdded(t *testing.T) {
-	// Test that the normalization step is added to the agent job when upload-assets is configured
+func TestBranchNormalizationInlinedInMainJob(t *testing.T) {
+	// Test that normalization logic is inlined in upload_assets.cjs when upload-assets is configured
 	compiler := NewCompiler(false, "", "")
 
 	// Create test workflow data with upload-assets configured
@@ -40,24 +40,14 @@ func TestBranchNormalizationStepAdded(t *testing.T) {
 	// Convert steps to string
 	stepsContent := strings.Join(job.Steps, "\n")
 
-	// Verify that the normalization step is present
-	if !strings.Contains(stepsContent, "Normalize GITHUB_AW_ASSETS_BRANCH") {
-		t.Error("Expected normalization step to be present in agent job")
-	}
-
-	// Verify it uses github-script
-	if !strings.Contains(stepsContent, "uses: actions/github-script@v8") {
-		t.Error("Expected normalization step to use actions/github-script@v8")
-	}
-
-	// Verify the script contains normalization logic
-	if !strings.Contains(stepsContent, "core.exportVariable") {
-		t.Error("Expected normalization script to use core.exportVariable")
+	// Verify that the separate normalization step is NOT present
+	if strings.Contains(stepsContent, "Normalize GITHUB_AW_ASSETS_BRANCH") {
+		t.Error("Expected separate normalization step to NOT be present (should be inlined)")
 	}
 }
 
 func TestBranchNormalizationStepNotAddedWhenNoUploadAssets(t *testing.T) {
-	// Test that the normalization step is NOT added when upload-assets is not configured
+	// Test that no normalization-related content appears when upload-assets is not configured
 	compiler := NewCompiler(false, "", "")
 
 	// Create test workflow data WITHOUT upload-assets
@@ -93,8 +83,8 @@ func TestBranchNormalizationStepNotAddedWhenNoUploadAssets(t *testing.T) {
 	}
 }
 
-func TestUploadAssetsJobHasNormalizationStep(t *testing.T) {
-	// Test that the normalization step is added to the upload_assets job
+func TestUploadAssetsJobHasInlinedNormalization(t *testing.T) {
+	// Test that upload_assets job has inlined normalization logic
 	compiler := NewCompiler(false, "", "")
 
 	// Create test workflow data with upload-assets configured
@@ -128,18 +118,18 @@ func TestUploadAssetsJobHasNormalizationStep(t *testing.T) {
 	// Convert steps to string
 	stepsContent := strings.Join(job.Steps, "\n")
 
-	// Verify that the normalization step is present
-	if !strings.Contains(stepsContent, "Normalize GITHUB_AW_ASSETS_BRANCH") {
-		t.Error("Expected normalization step to be present in upload_assets job")
+	// Verify that the separate normalization step is NOT present (it's now inlined in the script)
+	if strings.Contains(stepsContent, "- name: Normalize GITHUB_AW_ASSETS_BRANCH") {
+		t.Error("Expected separate normalization step to NOT be present (should be inlined in upload_assets.cjs)")
 	}
 
-	// Verify it uses github-script
-	if !strings.Contains(stepsContent, "uses: actions/github-script@v8") {
-		t.Error("Expected normalization step to use actions/github-script@v8")
+	// Verify that the upload assets step exists (which contains the inlined normalization)
+	if !strings.Contains(stepsContent, "Upload Assets to Orphaned Branch") {
+		t.Error("Expected upload assets step to be present")
 	}
 
-	// Verify the script contains normalization logic
-	if !strings.Contains(stepsContent, "core.exportVariable") {
-		t.Error("Expected normalization script to use core.exportVariable")
+	// Verify the script contains the normalizeBranchName function (inlined)
+	if !strings.Contains(stepsContent, "normalizeBranchName") {
+		t.Error("Expected upload_assets.cjs to contain inlined normalizeBranchName function")
 	}
 }

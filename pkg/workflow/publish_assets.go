@@ -87,16 +87,6 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Step 3: Configure Git credentials
 	steps = append(steps, c.generateGitConfigurationSteps()...)
 
-	// Step 4: Normalize GITHUB_AW_ASSETS_BRANCH to valid git branch name
-	steps = append(steps, "      - name: Normalize GITHUB_AW_ASSETS_BRANCH\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-	steps = append(steps, "        with:\n")
-	steps = append(steps, "          script: |\n")
-
-	// Add the formatted JavaScript script
-	formattedScript := FormatJavaScriptForYAML(normalizeBranchScript)
-	steps = append(steps, formattedScript...)
-
 	// Add step to download assets artifact if it exists
 	steps = append(steps, "      - name: Download assets\n")
 	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
