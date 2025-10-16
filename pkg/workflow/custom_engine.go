@@ -63,6 +63,12 @@ func (e *CustomEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 				envVars["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
 			}
 
+			// Add GITHUB_AW_ARGS if args are configured
+			if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+				// Join args with space separator for environment variable
+				envVars["GITHUB_AW_ARGS"] = strings.Join(workflowData.EngineConfig.Args, " ")
+			}
+
 			// Add custom environment variables from engine config
 			if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
 				for key, value := range workflowData.EngineConfig.Env {
