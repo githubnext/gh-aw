@@ -284,7 +284,7 @@ func NewMCPInspectCommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
-	var useActionsSecrets bool
+	var checkSecrets bool
 
 	cmd := &cobra.Command{
 		Use:   "mcp inspect [workflow-file]",
@@ -301,7 +301,7 @@ Examples:
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
-  gh aw mcp inspect weekly-research --actions-secrets  # Check GitHub Actions secrets
+  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -332,7 +332,7 @@ The command will:
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, useActionsSecrets)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
 		},
 	}
 
@@ -340,7 +340,7 @@ The command will:
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed connection information")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
-	cmd.Flags().BoolVar(&useActionsSecrets, "actions-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
+	cmd.Flags().BoolVar(&checkSecrets, "check-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
 
 	return cmd
 }
@@ -565,7 +565,7 @@ func NewMCPInspectSubcommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
-	var useActionsSecrets bool
+	var checkSecrets bool
 
 	cmd := &cobra.Command{
 		Use:   "inspect [workflow-file]",
@@ -581,7 +581,7 @@ Examples:
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
-  gh aw mcp inspect weekly-research --actions-secrets  # Check GitHub Actions secrets
+  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -619,14 +619,14 @@ The command will:
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, useActionsSecrets)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
 		},
 	}
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "Filter to inspect only the specified MCP server")
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
-	cmd.Flags().BoolVar(&useActionsSecrets, "actions-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
+	cmd.Flags().BoolVar(&checkSecrets, "check-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
 
 	return cmd
 }

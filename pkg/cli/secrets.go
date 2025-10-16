@@ -111,7 +111,7 @@ func checkSecretsAvailability(secrets []SecretInfo, useActionsSecrets bool) []Se
 			continue
 		}
 
-		// If --actions-secrets flag is enabled, try to fetch from GitHub Actions
+		// If --check-secrets flag is enabled, try to fetch from GitHub Actions
 		if useActionsSecrets {
 			exists, err := checkSecretExists(secrets[i].Name)
 			if err != nil {

@@ -188,14 +188,13 @@ func validateServerSecrets(config parser.MCPServerConfig, verbose bool, useActio
 
 		// Provide helpful instructions
 		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("To add missing secrets to your repository:"))
 		for _, secret := range missingSecrets {
 			fmt.Fprintln(os.Stderr, console.FormatCommandMessage(fmt.Sprintf("  gh secret set %s", secret.Name)))
 		}
 
 		if !useActionsSecrets {
 			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("💡 Tip: Use --actions-secrets flag to check GitHub Actions secrets"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("💡 Tip: Use --check-secrets flag to check GitHub Actions secrets"))
 		}
 	}
 
