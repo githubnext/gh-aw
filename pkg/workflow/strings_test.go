@@ -11,12 +11,12 @@ func TestNormalizeBranchName(t *testing.T) {
 		{
 			name:     "branch with spaces",
 			input:    "assets/Documentation Unbloat",
-			expected: "assets/DocumentationUnbloat",
+			expected: "assets/documentationunbloat",
 		},
 		{
 			name:     "branch with multiple spaces",
 			input:    "assets/My Test Branch Name",
-			expected: "assets/MyTestBranchName",
+			expected: "assets/mytestbranchname",
 		},
 		{
 			name:     "branch with special characters",
@@ -67,6 +67,16 @@ func TestNormalizeBranchName(t *testing.T) {
 			name:     "empty string",
 			input:    "",
 			expected: "",
+		},
+		{
+			name:     "uppercase letters should be lowercased",
+			input:    "assets/Test-Branch-Name",
+			expected: "assets/test-branch-name",
+		},
+		{
+			name:     "mixed case with spaces",
+			input:    "Assets/Documentation UNBLOAT",
+			expected: "assets/documentationunbloat",
 		},
 	}
 

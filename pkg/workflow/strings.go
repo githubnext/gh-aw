@@ -18,13 +18,16 @@ func SortStrings(s []string) {
 }
 
 // normalizeBranchName normalizes a branch name by removing all characters
-// that are not a-z, A-Z, 0-9, -, _, or /
+// that are not a-z, A-Z, 0-9, -, _, or / and converting to lowercase
 // This ensures the branch name is safe for git operations
 func normalizeBranchName(branchName string) string {
+	// Convert to lowercase
+	normalized := strings.ToLower(branchName)
+
 	// Remove all characters that are not alphanumeric, dash, underscore, or forward slash
-	// This matches: [^a-zA-Z0-9\-_/]
-	re := regexp.MustCompile(`[^a-zA-Z0-9\-_/]`)
-	normalized := re.ReplaceAllString(branchName, "")
+	// This matches: [^a-z0-9\-_/]
+	re := regexp.MustCompile(`[^a-z0-9\-_/]`)
+	normalized = re.ReplaceAllString(normalized, "")
 
 	// Clean up consecutive slashes
 	normalized = regexp.MustCompile(`/+`).ReplaceAllString(normalized, "/")

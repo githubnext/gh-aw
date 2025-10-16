@@ -116,9 +116,14 @@ This workflow tests branch name normalization.
 		t.Error("Expected compiled workflow to include 'Normalize branch name' step")
 	}
 
-	// Verify that the normalization uses sed to remove special characters
-	if !strings.Contains(compiledStr, "sed 's/[^a-zA-Z0-9/_-]//g'") {
-		t.Error("Expected compiled workflow to include sed normalization command")
+	// Verify that the normalization converts to lowercase
+	if !strings.Contains(compiledStr, "tr '[:upper:]' '[:lower:]'") {
+		t.Error("Expected compiled workflow to include lowercase conversion")
+	}
+
+	// Verify that the normalization uses sed to remove special characters (lowercase pattern)
+	if !strings.Contains(compiledStr, "sed 's/[^a-z0-9/_-]//g'") {
+		t.Error("Expected compiled workflow to include sed normalization command with lowercase pattern")
 	}
 
 	// Verify that the branch name is passed through environment variable from the normalize step

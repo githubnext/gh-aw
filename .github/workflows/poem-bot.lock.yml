@@ -6304,8 +6304,8 @@ jobs:
         id: normalize_branch
         run: |
           RAW_BRANCH="assets/${{ github.workflow }}"
-          # Remove all characters that are not a-z, A-Z, 0-9, -, _, or /
-          NORMALIZED_BRANCH=$(echo "$RAW_BRANCH" | sed 's/[^a-zA-Z0-9/_-]//g' | sed 's#/\+#/#g' | sed 's/^[-\/]*//;s/[-\/]*$//')
+          # Remove all characters that are not a-z, A-Z, 0-9, -, _, or / and convert to lowercase
+          NORMALIZED_BRANCH=$(echo "$RAW_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9/_-]//g' | sed 's#/\+#/#g' | sed 's/^[-\/]*//;s/[-\/]*$//')
           echo "branch=$NORMALIZED_BRANCH" >> $GITHUB_OUTPUT
           echo "Normalized branch name: $NORMALIZED_BRANCH"
       - name: Upload Assets to Orphaned Branch
