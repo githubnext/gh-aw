@@ -4880,18 +4880,15 @@ jobs:
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
                 } else {
-                  const response = await github.request(
-                    "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-                    {
-                      owner: repoOwner,
-                      repo: repoName,
-                      comment_id: parseInt(commentId, 10),
-                      body: errorMessage,
-                      headers: {
-                        Accept: "application/vnd.github+json",
-                      },
-                    }
-                  );
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: errorMessage,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
                   core.info(`Successfully updated comment`);
                   core.info(`Comment ID: ${response.data.id}`);
                   core.info(`Comment URL: ${response.data.html_url}`);
@@ -4900,7 +4897,7 @@ jobs:
                 core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
-            main().catch((error) => {
+            main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
 

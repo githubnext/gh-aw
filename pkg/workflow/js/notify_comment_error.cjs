@@ -33,7 +33,7 @@ async function main() {
   // Determine the error message based on agent conclusion
   let statusEmoji = "❌";
   let statusText = "failed";
-  
+
   if (agentConclusion === "cancelled") {
     statusEmoji = "🚫";
     statusText = "was cancelled";
@@ -72,18 +72,15 @@ async function main() {
       core.info(`Comment URL: ${comment.url}`);
     } else {
       // Update issue/PR comment using REST API
-      const response = await github.request(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        {
-          owner: repoOwner,
-          repo: repoName,
-          comment_id: parseInt(commentId, 10),
-          body: errorMessage,
-          headers: {
-            Accept: "application/vnd.github+json",
-          },
-        }
-      );
+      const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+        owner: repoOwner,
+        repo: repoName,
+        comment_id: parseInt(commentId, 10),
+        body: errorMessage,
+        headers: {
+          Accept: "application/vnd.github+json",
+        },
+      });
 
       core.info(`Successfully updated comment`);
       core.info(`Comment ID: ${response.data.id}`);
@@ -95,6 +92,6 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().catch(error => {
   core.setFailed(error instanceof Error ? error.message : String(error));
 });

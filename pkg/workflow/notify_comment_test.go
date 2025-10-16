@@ -9,18 +9,18 @@ import (
 
 func TestNotifyWithCommentJob(t *testing.T) {
 	tests := []struct {
-		name                  string
-		addCommentConfig      bool
+		name                   string
+		addCommentConfig       bool
 		threatDetectionEnabled bool
-		expectJob             bool
-		expectConditions      []string
-		expectNeeds           []string
+		expectJob              bool
+		expectConditions       []string
+		expectNeeds            []string
 	}{
 		{
-			name:                  "notify job created when add-comment is configured",
-			addCommentConfig:      true,
+			name:                   "notify job created when add-comment is configured",
+			addCommentConfig:       true,
 			threatDetectionEnabled: false,
-			expectJob:             true,
+			expectJob:              true,
 			expectConditions: []string{
 				"always()",
 				"needs.activation.outputs.comment_id",
@@ -30,10 +30,10 @@ func TestNotifyWithCommentJob(t *testing.T) {
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName},
 		},
 		{
-			name:                  "notify job includes detection dependency when threat detection is enabled",
-			addCommentConfig:      true,
+			name:                   "notify job includes detection dependency when threat detection is enabled",
+			addCommentConfig:       true,
 			threatDetectionEnabled: true,
-			expectJob:             true,
+			expectJob:              true,
 			expectConditions: []string{
 				"always()",
 				"needs.activation.outputs.comment_id",
@@ -43,10 +43,10 @@ func TestNotifyWithCommentJob(t *testing.T) {
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, constants.DetectionJobName},
 		},
 		{
-			name:                  "notify job not created when add-comment is not configured",
-			addCommentConfig:      false,
+			name:                   "notify job not created when add-comment is not configured",
+			addCommentConfig:       false,
 			threatDetectionEnabled: false,
-			expectJob:             false,
+			expectJob:              false,
 		},
 	}
 
