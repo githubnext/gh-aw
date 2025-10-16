@@ -21,6 +21,7 @@ imports:
   - shared/mcp/context7.md
   - shared/mcp/markitdown.md
 tools:
+  edit:
   cache-memory: true
 safe-outputs:
   add-comment:
