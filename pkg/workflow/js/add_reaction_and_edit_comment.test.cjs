@@ -330,7 +330,126 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     });
   });
 
-  describe("Comment creation for discussions", () => {
+  describe("Comment creation (always creates new comments)", () => {
+    it("should create new comment for issue event", async () => {
+      process.env.GITHUB_AW_REACTION = "eyes";
+      process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+      global.context.eventName = "issues";
+      global.context.payload = {
+        issue: { number: 123 },
+        repository: { html_url: "https://github.com/testowner/testrepo" },
+      };
+
+      // Mock reaction call
+      mockGithub.request
+        .mockResolvedValueOnce({
+          data: { id: 456 },
+        })
+        // Mock comment creation
+        .mockResolvedValueOnce({
+          data: { id: 789, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-789" },
+        });
+
+      // Execute the script
+      await eval(`(async () => { ${reactionScript} })()`);
+
+      // Verify comment was created (not edited)
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /repos/testowner/testrepo/issues/123/comments",
+        expect.objectContaining({
+          body: expect.stringContaining("Agentic [Test Workflow]"),
+        })
+      );
+
+      // Verify outputs
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "789");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/testowner/testrepo/issues/123#issuecomment-789");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
+    });
+
+    it("should create new comment for issue_comment event (not edit)", async () => {
+      process.env.GITHUB_AW_REACTION = "eyes";
+      process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
+      process.env.GITHUB_AW_COMMAND = "test-bot"; // Command workflow
+      global.context.eventName = "issue_comment";
+      global.context.payload = {
+        issue: { number: 123 },
+        comment: { id: 456 },
+        repository: { html_url: "https://github.com/testowner/testrepo" },
+      };
+
+      // Mock reaction call
+      mockGithub.request
+        .mockResolvedValueOnce({
+          data: { id: 111 },
+        })
+        // Mock comment creation (not GET for edit)
+        .mockResolvedValueOnce({
+          data: { id: 789, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-789" },
+        });
+
+      // Execute the script
+      await eval(`(async () => { ${reactionScript} })()`);
+
+      // Verify new comment was created, NOT edited
+      // Should be POST to comments endpoint, not GET then PATCH to specific comment
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /repos/testowner/testrepo/issues/comments/456",
+        expect.objectContaining({
+          body: expect.stringContaining("Agentic [Test Workflow]"),
+        })
+      );
+
+      // Verify GET (for editing) was NOT called
+      expect(mockGithub.request).not.toHaveBeenCalledWith("GET /repos/testowner/testrepo/issues/comments/456", expect.anything());
+
+      // Verify outputs
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "789");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/testowner/testrepo/issues/123#issuecomment-789");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
+    });
+
+    it("should create new comment for pull_request_review_comment event (not edit)", async () => {
+      process.env.GITHUB_AW_REACTION = "rocket";
+      process.env.GITHUB_AW_WORKFLOW_NAME = "PR Review Bot";
+      process.env.GITHUB_AW_COMMAND = "review-bot"; // Command workflow
+      global.context.eventName = "pull_request_review_comment";
+      global.context.payload = {
+        pull_request: { number: 456 },
+        comment: { id: 789 },
+        repository: { html_url: "https://github.com/testowner/testrepo" },
+      };
+
+      // Mock reaction call
+      mockGithub.request
+        .mockResolvedValueOnce({
+          data: { id: 222 },
+        })
+        // Mock comment creation
+        .mockResolvedValueOnce({
+          data: { id: 999, html_url: "https://github.com/testowner/testrepo/pull/456#discussion_r999" },
+        });
+
+      // Execute the script
+      await eval(`(async () => { ${reactionScript} })()`);
+
+      // Verify new comment was created
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /repos/testowner/testrepo/pulls/comments/789",
+        expect.objectContaining({
+          body: expect.stringContaining("Agentic [PR Review Bot]"),
+        })
+      );
+
+      // Verify GET (for editing) was NOT called
+      expect(mockGithub.request).not.toHaveBeenCalledWith("GET /repos/testowner/testrepo/pulls/comments/789", expect.anything());
+
+      // Verify outputs
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "999");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/testowner/testrepo/pull/456#discussion_r999");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
+    });
+
     it("should create comment on discussion when shouldEditComment is true", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
       process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
@@ -390,6 +509,11 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       );
 
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOABcD1M4AaBbD");
+      expect(mockCore.setOutput).toHaveBeenCalledWith(
+        "comment-url",
+        "https://github.com/testowner/testrepo/discussions/10#discussioncomment-456"
+      );
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
     });
 
     it("should skip comment update for discussion_comment events", async () => {

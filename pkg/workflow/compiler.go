@@ -2165,6 +2165,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
 		outputs["comment_id"] = "${{ steps.react.outputs.comment-id }}"
 		outputs["comment_url"] = "${{ steps.react.outputs.comment-url }}"
+		outputs["comment_repo"] = "${{ steps.react.outputs.comment-repo }}"
 	}
 
 	// If no steps have been added, add a dummy step to make the job valid
