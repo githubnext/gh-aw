@@ -126,7 +126,7 @@ function replyResult(id, result) {
   const res = { jsonrpc: "2.0", id, result };
   writeMessage(res);
 }
-function replyError(id, code, message, data) {
+function replyError(id, code, message) {
   // Don't send error responses for notifications (id is null/undefined)
   if (id === undefined || id === null) {
     debug(`Error for notification: ${message}`);
@@ -134,9 +134,6 @@ function replyError(id, code, message, data) {
   }
 
   const error = { code, message };
-  if (data !== undefined) {
-    error.data = data;
-  }
   const res = {
     jsonrpc: "2.0",
     id,
@@ -777,9 +774,7 @@ function handleMessage(req) {
       replyError(id, -32601, `Method not found: ${method}`);
     }
   } catch (e) {
-    replyError(id, -32603, "Internal error", {
-      message: e instanceof Error ? e.message : String(e),
-    });
+    replyError(id, -32603, e instanceof Error ? e.message : String(e));
   }
 }
 
