@@ -87,6 +87,8 @@ Configure GitHub API operations.
 ```yaml
 tools:
   github:                                      # Default read-only access
+
+  # OR with specific configuration:
   github:
     allowed: [create_issue, update_issue]      # Specific permissions
     mode: remote                               # "local" (Docker) or "remote" (hosted)
@@ -122,13 +124,13 @@ tools:
     allowed: [list_issues, create_issue]
 ```
 
-**Setup**: Create a Personal Access Token and set the `GITHUB_MCP_TOKEN` secret:
+**Setup**: Create a Personal Access Token and set the `GH_AW_GITHUB_TOKEN` secret:
 
 ```bash
-gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
+gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
-**Note**: Remote mode requires `GITHUB_MCP_TOKEN` (standard `GITHUB_TOKEN` is not supported).
+**Note**: Remote mode requires `GH_AW_GITHUB_TOKEN` (standard `GITHUB_TOKEN` is not supported).
 
 ### GitHub Read-Only Mode
 
