@@ -33,6 +33,7 @@ gh aw run daily-perf daily-plan             # Execute multiple workflows
 gh aw run daily-perf --repeat 10            # Execute workflow 10 times
 gh aw logs daily-perf                             # View execution logs
 gh aw audit 12345678                             # Audit a specific run
+gh aw pr transfer https://github.com/owner/repo/pull/123  # Transfer PR between repositories
 ```
 
 ## Global Flags
@@ -196,6 +197,38 @@ gh aw mcp add ci-doctor server-name --registry https://custom.registry.com/v1
 ```
 
 Features include server connection testing, tool capability analysis, multi-protocol support (stdio, Docker, HTTP), and automatic compilation.
+
+## 🔄 Repository Utilities
+
+### Pull Request Transfer
+
+Transfer pull requests between repositories, preserving code changes, title, and description:
+
+```bash
+# Transfer PR to current repository
+gh aw pr transfer https://github.com/source-owner/source-repo/pull/234
+
+# Transfer PR to specific repository
+gh aw pr transfer https://github.com/source-owner/source-repo/pull/234 --repo target-owner/target-repo
+
+# Verbose output for debugging
+gh aw pr transfer https://github.com/source-owner/source-repo/pull/234 --verbose
+```
+
+**How it works:**
+
+1. **Fetches PR details** - Title, body/description, author, and code changes
+2. **Creates patch** - Uses `gh pr diff` to generate a unified patch file
+3. **Applies changes** - Creates new branch in target repository with squashed commit
+4. **Creates PR** - New pull request with original title, description, and attribution
+
+**Requirements:**
+
+- GitHub CLI (`gh`) must be authenticated
+- Write access to target repository (for creating branches and PRs)
+- Read access to source repository (for fetching PR details)
+
+The transferred PR includes attribution showing the original PR URL and author in the description.
 
 ### MCP Server for gh aw
 
