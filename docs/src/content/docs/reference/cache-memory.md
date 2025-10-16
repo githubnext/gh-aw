@@ -66,6 +66,78 @@ tools:
 
 The `retention-days` option (1-90 days, defaults to repository setting) controls `actions/upload-artifact` retention and provides alternative access to cache data beyond the standard 7-day cache expiration.
 
+## Multiple Cache Configurations
+
+Configure multiple independent cache folders using array notation:
+
+```aw wrap
+---
+engine: claude
+tools:
+  cache-memory:
+    - id: default
+      key: memory-default
+    - id: session
+      key: memory-session-${{ github.run_id }}
+    - id: logs
+      retention-days: 7
+  github:
+    allowed: [get_repository]
+---
+```
+
+Each cache mounts at `/tmp/gh-aw/cache-memory/{id}/` with independent persistence. The `id` field is required for array notation and determines the subfolder path. If `key` is omitted, it defaults to `memory-{id}-${{ github.workflow }}-${{ github.run_id }}`.
+
+When multiple caches are configured, the AI agent receives information about all available cache folders and can organize data across different storage locations based on purpose (e.g., session data, logs, persistent configuration).
+
+## Cache Merging from Shared Workflows
+
+Cache-memory configurations can be imported and merged from shared workflow files using the `imports:` field:
+
+```aw wrap
+---
+engine: claude
+imports:
+  - shared/mcp/server-memory.md
+tools:
+  cache-memory: true
+---
+```
+
+When importing shared workflows that define cache-memory configurations, the caches are merged following these rules:
+
+**Single to Single**: The local configuration overrides the imported configuration.
+
+**Single to Multiple**: The local single cache is converted to an array and merged with imported caches.
+
+**Multiple to Multiple**: Cache arrays are merged by `id`. If the same `id` exists in both local and imported configs, the local configuration takes precedence.
+
+**Example Merge Scenario**:
+
+Import file (`shared/memory-setup.md`):
+```aw
+---
+tools:
+  cache-memory:
+    - id: shared-state
+      key: app-state
+---
+```
+
+Local workflow:
+```aw wrap
+---
+imports:
+  - shared/memory-setup.md
+tools:
+  cache-memory:
+    - id: local-logs
+      key: workflow-logs
+---
+```
+
+Result: Two cache folders at `/tmp/gh-aw/cache-memory/shared-state/` and `/tmp/gh-aw/cache-memory/local-logs/`.
+
 ## Cache Behavior and GitHub Actions Integration
 
 Cache Memory leverages GitHub Actions cache with 7-day retention, 10GB per repository limit, and LRU eviction. When `retention-days` is configured, cache data is also uploaded as artifacts (1-90 days retention) for long-term persistence.
@@ -140,6 +212,25 @@ tools:
 ---
 
 # Documentation Assistant maintaining context across runs
+```
+
+### Multiple Cache Folders
+
+```aw wrap
+---
+engine: claude
+on: workflow_dispatch
+tools:
+  cache-memory:
+    - id: context
+      key: agent-context
+    - id: artifacts
+      key: build-artifacts
+      retention-days: 14
+---
+
+# Store agent context in /tmp/gh-aw/cache-memory/context/
+# Store build artifacts in /tmp/gh-aw/cache-memory/artifacts/
 ```
 
 ## Related Documentation
