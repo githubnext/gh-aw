@@ -283,6 +283,22 @@ Using the provided URLs and documentation, research and identify:
   - What are sensible defaults for non-sensitive variables?
 - Does the server need volume mounts or special Docker configuration?
 
+**Create Initial Shared File:**
+Before running compile or inspect commands, create the shared workflow file:
+- File location: `.github/workflows/shared/<name>-mcp.md`
+- Naming convention: `<service>-mcp.md` (e.g., `notion-mcp.md`, `tavily-mcp.md`)
+- Initial content with basic MCP server configuration from research:
+  ```yaml
+  ---
+  mcp-servers:
+    <server-name>:
+      container: "<registry/image>"
+      version: "<tag>"
+      env:
+        SECRET_NAME: "${{ secrets.SECRET_NAME }}"
+  ---
+  ```
+
 **Validate Secrets Availability:**
 - List all required GitHub Actions secrets
 - Inform the user which secrets need to be configured
@@ -299,17 +315,16 @@ Using the provided URLs and documentation, research and identify:
 - Remind the user that secrets can also be checked with: `gh aw mcp inspect <workflow-name> --check-secrets`
 
 **Analyze Available Tools:**
-After configuring the MCP server in the frontmatter, use the `gh aw mcp inspect` command to:
-1. Save the workflow file first
-2. Run: `gh aw mcp inspect <workflow-name> --server <server-name> -v`
-3. Parse the output to identify all available tools
-4. Categorize tools into:
+Now that the workflow file exists, use the `gh aw mcp inspect` command to discover tools:
+1. Run: `gh aw mcp inspect <workflow-name> --server <server-name> -v`
+2. Parse the output to identify all available tools
+3. Categorize tools into:
    - Read-only operations (safe to include in `allowed:` list)
    - Write operations (should be excluded and listed as comments)
-5. Generate the `allowed:` list with read-only tools
-6. Add commented-out write operations below with explanations
+4. Update the workflow file with the `allowed:` list of read-only tools
+5. Add commented-out write operations below with explanations
 
-Example of using `gh aw mcp inspect` output:
+Example of updated configuration after tool analysis:
 ```yaml
 mcp-servers:
   notion:
@@ -342,18 +357,17 @@ Emphasize that MCP server configuration can be complex and error-prone:
   - Permission issues with Docker volume mounts
 
 **Configuration Validation Loop:**
-After initial configuration, guide the user through:
-1. Save the workflow file
-2. Compile: `gh aw compile <workflow-name> -v`
-3. Inspect: `gh aw mcp inspect <workflow-name> -v`
-4. Review errors and warnings
-5. Adjust configuration based on feedback
-6. Repeat until successful
+Guide the user through iterative refinement:
+1. Compile: `gh aw compile <workflow-name> -v`
+2. Inspect: `gh aw mcp inspect <workflow-name> -v`
+3. Review errors and warnings
+4. Update the workflow file based on feedback
+5. Repeat until successful
 
 ### Step 3: Design the Component
 
 Based on the MCP server information gathered (if configuring MCP):
-- Choose container vs HTTP transport based on availability
+- The file was created in Step 2 with basic configuration
 - Use the analyzed tools list to populate the `allowed:` array with read-only operations
 - Configure environment variables and secrets as identified in research
 - Add custom Docker args if needed (volume mounts, working directory)
@@ -361,18 +375,14 @@ Based on the MCP server information gathered (if configuring MCP):
 - Plan safe-outputs jobs for write operations (if needed)
 
 For basic shared components (non-MCP):
+- Create the shared file at `.github/workflows/shared/<name>.md`
 - Define reusable tool configurations
 - Set up imports structure
 - Document usage patterns
 
-### Step 4: Create the Shared File
+### Step 4: Add Documentation
 
-- File location: `.github/workflows/shared/<name>-mcp.md`
-- Naming convention: `<service>-mcp.md` (e.g., `tavily-mcp.md`, `deepwiki-mcp.md`)
-- Use frontmatter-only format (no markdown body)
-- Include clear comments for required secrets
-
-### Step 5: Document Usage
+Add comprehensive documentation to the shared file using XML comments:
 
 Create a comment header explaining:
 ```markdown
