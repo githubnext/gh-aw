@@ -2,7 +2,7 @@
 mcp-servers:
   drain3:
     type: http
-    url: http://localhost:8766/mcp
+    url: http://localhost:8766
     allowed:
       - index_file
       - query_file
@@ -49,7 +49,6 @@ steps:
     env:
       PORT: "8766"
       HOST: "0.0.0.0"
-      MOUNT_PATH: "/mcp"
       STATE_DIR: "${{ github.workspace }}/.drain3"
 ---
 

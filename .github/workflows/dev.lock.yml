@@ -570,7 +570,6 @@ jobs:
           chmod +x /tmp/gh-aw/mcp-servers/drain3/drain3_server.py
       - env:
           HOST: 0.0.0.0
-          MOUNT_PATH: /mcp
           PORT: "8766"
           STATE_DIR: ${{ github.workspace }}/.drain3
         name: Start Drain3 MCP server
@@ -1351,7 +1350,7 @@ jobs:
             "mcpServers": {
               "drain3": {
                 "type": "http",
-                "url": "http://localhost:8766/mcp",
+                "url": "http://localhost:8766",
                 "tools": [
                   "index_file",
                   "query_file",

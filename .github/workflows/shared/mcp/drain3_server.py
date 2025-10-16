@@ -190,4 +190,5 @@ def list_templates(path: str, limit: Optional[int] = None):
 if __name__ == "__main__":
     # Streamable HTTP enables SSE/chunked responses so clients can consume
     # each JSONL line as it is yielded.
-    mcp.run(transport="streamable-http", host=HOST, port=PORT, path=MOUNT_PATH)
+    # Note: FastMCP mounts at root by default; MOUNT_PATH is handled by reverse proxy or client
+    mcp.run(transport="streamable-http", host=HOST, port=PORT)
