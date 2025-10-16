@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -359,25 +358,19 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
-		workflowsDir := constants.GetWorkflowDir()
-
-		// Normalize the workflow file path
-		if !strings.HasSuffix(workflowFile, ".md") {
-			workflowFile += ".md"
+		// Resolve the workflow file path (supports shared workflows)
+		workflowPath, err := ResolveWorkflowPath(workflowFile)
+		if err != nil {
+			return err
 		}
 
-		workflowPath := filepath.Join(workflowsDir, workflowFile)
+		// Convert to absolute path if needed
 		if !filepath.IsAbs(workflowPath) {
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("failed to get current directory: %w", err)
 			}
 			workflowPath = filepath.Join(cwd, workflowPath)
-		}
-
-		// Check if file exists
-		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-			return fmt.Errorf("workflow file not found: %s", workflowPath)
 		}
 
 		// Parse the workflow file to extract MCP configurations
