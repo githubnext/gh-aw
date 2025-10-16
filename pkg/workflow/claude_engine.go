@@ -219,22 +219,22 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	if workflowData.ToolsStartupTimeout > 0 {
 		startupTimeoutMs = workflowData.ToolsStartupTimeout * 1000 // convert seconds to milliseconds
 	}
-	
+
 	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
 	timeoutMs := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
 	if workflowData.ToolsTimeout > 0 {
 		timeoutMs = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
 	}
-	
+
 	// MCP_TIMEOUT: Timeout for MCP server startup
 	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", startupTimeoutMs))
-	
+
 	// MCP_TOOL_TIMEOUT: Timeout for MCP tool execution
 	stepLines = append(stepLines, fmt.Sprintf("          MCP_TOOL_TIMEOUT: \"%d\"", timeoutMs))
-	
+
 	// BASH_DEFAULT_TIMEOUT_MS: Default timeout for Bash commands
 	stepLines = append(stepLines, fmt.Sprintf("          BASH_DEFAULT_TIMEOUT_MS: \"%d\"", timeoutMs))
-	
+
 	// BASH_MAX_TIMEOUT_MS: Maximum timeout for Bash commands
 	stepLines = append(stepLines, fmt.Sprintf("          BASH_MAX_TIMEOUT_MS: \"%d\"", timeoutMs))
 

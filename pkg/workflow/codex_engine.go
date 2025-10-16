@@ -523,7 +523,7 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
-	
+
 	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
 	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
 	if workflowData.ToolsStartupTimeout > 0 {
