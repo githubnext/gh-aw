@@ -1621,7 +1621,7 @@
                 },
                 "github-token": {
                   "type": "string",
-                  "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GITHUB_MCP_TOKEN if not specified."
+                  "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GH_AW_GITHUB_TOKEN if not specified."
                 },
                 "toolset": {
                   "type": "array",

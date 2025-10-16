@@ -38,12 +38,12 @@ engine:
 #### Required Secrets
 
 - **`COPILOT_CLI_TOKEN`**: [GitHub Personal Access Token with Copilot subscription](https://github.com/settings/tokens)
-- **`GITHUB_MCP_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
+- **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
 Set secrets using:
 ```bash
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-github-pat>"
-gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
+gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
 :::note
@@ -75,12 +75,12 @@ engine:
 #### Required Secrets
 
 - **`ANTHROPIC_API_KEY`**: Anthropic API key
-- **`GITHUB_MCP_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
+- **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
 Set secrets using:
 ```bash
 gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
-gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
+gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
 
 ### OpenAI Codex
