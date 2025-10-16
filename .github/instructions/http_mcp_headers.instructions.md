@@ -26,7 +26,7 @@ mcp-servers:
     url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
     headers:
       DD_API_KEY: "${{ secrets.DD_API_KEY }}"
-      DD_APP_KEY: "${{ secrets.DD_APP_KEY }}"
+      DD_APPLICATION_KEY: "${{ secrets.DD_APPLICATION_KEY }}"
       DD_SITE: "${{ secrets.DD_SITE || 'datadoghq.com' }}"
     allowed:
       - search_datadog_dashboards
@@ -52,7 +52,7 @@ Search for Datadog dashboards and provide a summary.
       "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
       "headers": {
         "DD_API_KEY": "${DD_API_KEY}",
-        "DD_APP_KEY": "${DD_APP_KEY}",
+        "DD_APPLICATION_KEY": "${DD_APPLICATION_KEY}",
         "DD_SITE": "${DD_SITE}"
       },
       "tools": [
@@ -63,7 +63,7 @@ Search for Datadog dashboards and provide a summary.
       ],
       "env": {
         "DD_API_KEY": "\\${DD_API_KEY}",
-        "DD_APP_KEY": "\\${DD_APP_KEY}",
+        "DD_APPLICATION_KEY": "\\${DD_APPLICATION_KEY}",
         "DD_SITE": "\\${DD_SITE}"
       }
     }
@@ -76,7 +76,7 @@ Search for Datadog dashboards and provide a summary.
 ```yaml
 env:
   DD_API_KEY: ${{ secrets.DD_API_KEY }}
-  DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
+  DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}
   DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}
   GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
   GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}

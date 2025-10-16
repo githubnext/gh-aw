@@ -52,7 +52,7 @@ func TestValidateServerSecrets(t *testing.T) {
 			errorMsg:    "environment variable 'MISSING_VAR' not set",
 		},
 		{
-			name: "secrets reference (not implemented)",
+			name: "secrets reference (handled gracefully)",
 			config: parser.MCPServerConfig{
 				Name: "secrets-tool",
 				Type: "stdio",
@@ -60,8 +60,7 @@ func TestValidateServerSecrets(t *testing.T) {
 					"API_KEY": "${secrets.API_KEY}",
 				},
 			},
-			expectError: true,
-			errorMsg:    "secret 'API_KEY' validation not implemented",
+			expectError: false,
 		},
 	}
 
@@ -97,7 +96,7 @@ func TestValidateServerSecrets(t *testing.T) {
 				}
 			}()
 
-			err := validateServerSecrets(tt.config)
+			err := validateServerSecrets(tt.config, false, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")

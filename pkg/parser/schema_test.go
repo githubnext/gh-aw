@@ -962,7 +962,7 @@ func TestValidateIncludedFileFrontmatterWithSchema(t *testing.T) {
 						"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 						"headers": map[string]any{
 							"DD_API_KEY": "test-key",
-							"DD_APP_KEY": "test-app",
+							"DD_APPLICATION_KEY": "test-app",
 							"DD_SITE":    "datadoghq.com",
 						},
 						"allowed": []string{"get-monitors", "get-monitor"},
