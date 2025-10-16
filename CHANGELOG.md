@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.2 - 2025-10-16
+
+### Bug Fixes
+
+#### Update add command to resolve agentic workflow file from .github/workflows folder
+
+#### Use HTML details/summary for threat detection prompt in step summary
+
+#### Fixed skipped tests in compiler_test.go for MCP format migration
+
+#### Add HTTP MCP header secret support for Copilot engine
+
+
 ## v0.22.1 - 2025-10-15
 
 ### Bug Fixes
