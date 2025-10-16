@@ -30,10 +30,11 @@ calls for each tool invocation. This design ensures that GitHub tokens and other
 secrets are not shared with the MCP server process itself.
 
 The server provides the following tools:
-  - status   - Show status of agentic workflow files
-  - compile  - Compile markdown workflow files to YAML
-  - logs     - Download and analyze workflow logs
-  - audit    - Investigate a workflow run and generate a report
+  - status      - Show status of agentic workflow files
+  - compile     - Compile markdown workflow files to YAML
+  - logs        - Download and analyze workflow logs
+  - audit       - Investigate a workflow run and generate a report
+  - mcp-inspect - Inspect MCP servers in workflows and list available tools
 
 By default, the server uses stdio transport. Use the --port flag to run
 an HTTP server with SSE (Server-Sent Events) transport instead.
@@ -357,6 +358,65 @@ Note: Output can be filtered using the jq parameter.`,
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
 				&mcp.TextContent{Text: outputStr},
+			},
+		}, nil, nil
+	})
+
+	// Add mcp-inspect tool
+	type mcpInspectArgs struct {
+		WorkflowFile string `json:"workflow_file,omitempty" jsonschema:"Workflow file to inspect MCP servers from (empty to list all workflows with MCP servers)"`
+		Server       string `json:"server,omitempty" jsonschema:"Filter to inspect only the specified MCP server"`
+		Tool         string `json:"tool,omitempty" jsonschema:"Show detailed information about a specific tool (requires server parameter)"`
+	}
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "mcp-inspect",
+		Description: `Inspect MCP servers used by a workflow and list available tools, resources, and roots.
+
+This tool starts each MCP server configured in the workflow, queries its capabilities,
+and displays the results. It supports stdio, Docker, and HTTP MCP servers.
+
+When called without workflow_file, lists all workflows that contain MCP server configurations.
+When called with workflow_file, inspects the MCP servers in that specific workflow.
+
+Use the server parameter to filter to a specific MCP server.
+Use the tool parameter (requires server) to show detailed information about a specific tool.
+
+Returns formatted text output showing:
+- Available MCP servers in the workflow
+- Tools, resources, and roots exposed by each server
+- Detailed tool information when tool parameter is specified`,
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args mcpInspectArgs) (*mcp.CallToolResult, any, error) {
+		// Build command arguments
+		cmdArgs := []string{"mcp", "inspect"}
+
+		if args.WorkflowFile != "" {
+			cmdArgs = append(cmdArgs, args.WorkflowFile)
+		}
+
+		if args.Server != "" {
+			cmdArgs = append(cmdArgs, "--server", args.Server)
+		}
+
+		if args.Tool != "" {
+			cmdArgs = append(cmdArgs, "--tool", args.Tool)
+		}
+
+		// Execute the CLI command
+		cmd := execCmd(ctx, cmdArgs...)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					&mcp.TextContent{Text: fmt.Sprintf("Error: %v\nOutput: %s", err, string(output))},
+				},
+			}, nil, nil
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: string(output)},
 			},
 		}, nil, nil
 	})
