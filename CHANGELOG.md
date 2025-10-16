@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.5 - 2025-10-16
+
+### Bug Fixes
+
+#### Update add_reaction job to always create new comments and add comment-repo output
+
+#### Fix version display in release binaries to show actual release tag instead of "dev"
+
+
 ## v0.22.4 - 2025-10-16
 
 ### Bug Fixes
