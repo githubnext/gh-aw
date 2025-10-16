@@ -48,9 +48,14 @@ Test workflow.
 		t.Fatalf("Failed to read lock file: %v", err)
 	}
 
-	// Check for MCP_TIMEOUT: "90000"
-	if !strings.Contains(string(lockContent), `MCP_TIMEOUT: "90000"`) {
-		t.Errorf("Expected MCP_TIMEOUT: \"90000\" in lock file, got:\n%s", string(lockContent))
+	// Check for MCP_TIMEOUT: "120000" (default startup timeout)
+	if !strings.Contains(string(lockContent), `MCP_TIMEOUT: "120000"`) {
+		t.Errorf("Expected MCP_TIMEOUT: \"120000\" in lock file (default startup timeout), got:\n%s", string(lockContent))
+	}
+
+	// Check for MCP_TOOL_TIMEOUT: "90000" (custom tool timeout)
+	if !strings.Contains(string(lockContent), `MCP_TOOL_TIMEOUT: "90000"`) {
+		t.Errorf("Expected MCP_TOOL_TIMEOUT: \"90000\" in lock file, got:\n%s", string(lockContent))
 	}
 
 	// Check for GH_AW_TOOL_TIMEOUT: "90"

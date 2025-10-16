@@ -214,6 +214,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 
 	// Set timeout environment variables for Claude Code
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeoutMs := constants.DefaultMCPStartupTimeoutSeconds * 1000 // convert seconds to milliseconds
+	if workflowData.ToolsStartupTimeout > 0 {
+		startupTimeoutMs = workflowData.ToolsStartupTimeout * 1000 // convert seconds to milliseconds
+	}
+	
 	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
 	timeoutMs := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
 	if workflowData.ToolsTimeout > 0 {
@@ -221,7 +227,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	}
 	
 	// MCP_TIMEOUT: Timeout for MCP server startup
-	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", timeoutMs))
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", startupTimeoutMs))
 	
 	// MCP_TOOL_TIMEOUT: Timeout for MCP tool execution
 	stepLines = append(stepLines, fmt.Sprintf("          MCP_TOOL_TIMEOUT: \"%d\"", timeoutMs))
@@ -233,6 +239,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	stepLines = append(stepLines, fmt.Sprintf("          BASH_MAX_TIMEOUT_MS: \"%d\"", timeoutMs))
 
 	applySafeOutputEnvToSlice(&stepLines, workflowData)
+
+	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
+	if workflowData.ToolsStartupTimeout > 0 {
+		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_STARTUP_TIMEOUT: \"%d\"", workflowData.ToolsStartupTimeout))
+	}
 
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {

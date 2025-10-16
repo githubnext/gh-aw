@@ -130,7 +130,7 @@ func TestClaudeEngine(t *testing.T) {
 		t.Errorf("Did not expect GITHUB_AW_MCP_CONFIG environment variable in step (no MCP servers): %s", stepContent)
 	}
 
-	if !strings.Contains(stepContent, "MCP_TIMEOUT: \"60000\"") {
+	if !strings.Contains(stepContent, "MCP_TIMEOUT: \"120000\"") {
 		t.Errorf("Expected MCP_TIMEOUT environment variable in step: %s", stepContent)
 	}
 

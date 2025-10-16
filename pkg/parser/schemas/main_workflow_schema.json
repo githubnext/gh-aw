@@ -1889,6 +1889,11 @@
           "type": "integer",
           "minimum": 1,
           "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s)."
+        },
+        "startup-timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout in seconds for MCP server startup. Applies to MCP server initialization if supported by the engine. Default: 120 seconds."
         }
       },
       "additionalProperties": {

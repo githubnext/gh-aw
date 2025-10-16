@@ -142,6 +142,11 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
+	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
+	if workflowData.ToolsStartupTimeout > 0 {
+		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+	}
+
 	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
 	if workflowData.ToolsTimeout > 0 {
 		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
@@ -518,7 +523,13 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
-	yaml.WriteString(fmt.Sprintf("          startup_timeout_sec = %d\n", constants.DefaultMCPStartupTimeoutSeconds))
+	
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
+	if workflowData.ToolsStartupTimeout > 0 {
+		startupTimeout = workflowData.ToolsStartupTimeout
+	}
+	yaml.WriteString(fmt.Sprintf("          startup_timeout_sec = %d\n", startupTimeout))
 
 	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
 	toolTimeout := constants.DefaultToolTimeoutSeconds

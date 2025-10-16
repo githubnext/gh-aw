@@ -12,26 +12,22 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 	tests := []struct {
 		name            string
 		toolsTimeout    int
-		expectedTimeout string
 		expectedEnvVar  string
 	}{
 		{
-			name:            "default timeout when not specified",
-			toolsTimeout:    0,
-			expectedTimeout: "MCP_TIMEOUT: \"60000\"", // 60 seconds default in milliseconds
-			expectedEnvVar:  "",                       // GH_AW_TOOL_TIMEOUT not set when 0
+			name:           "default timeout when not specified",
+			toolsTimeout:   0,
+			expectedEnvVar: "", // GH_AW_TOOL_TIMEOUT not set when 0
 		},
 		{
-			name:            "custom timeout of 30 seconds",
-			toolsTimeout:    30,
-			expectedTimeout: "MCP_TIMEOUT: \"30000\"",      // 30 seconds in milliseconds
-			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: \"30\"", // env var in seconds
+			name:           "custom timeout of 30 seconds",
+			toolsTimeout:   30,
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: \"30\"", // env var in seconds
 		},
 		{
-			name:            "custom timeout of 120 seconds",
-			toolsTimeout:    120,
-			expectedTimeout: "MCP_TIMEOUT: \"120000\"",     // 120 seconds in milliseconds
-			expectedEnvVar:  "GH_AW_TOOL_TIMEOUT: \"120\"", // env var in seconds
+			name:           "custom timeout of 120 seconds",
+			toolsTimeout:   120,
+			expectedEnvVar: "GH_AW_TOOL_TIMEOUT: \"120\"", // env var in seconds
 		},
 	}
 
@@ -51,31 +47,33 @@ func TestClaudeEngineWithToolsTimeout(t *testing.T) {
 			// Check the execution step for timeout environment variables
 			stepContent := strings.Join([]string(executionSteps[0]), "\n")
 			
-			// Determine expected timeout in milliseconds
-			timeoutMs := 60000 // default
+			// Determine expected timeouts in milliseconds
+			toolTimeoutMs := 60000      // default for tool operations
+			startupTimeoutMs := 120000  // default for startup
 			if tt.toolsTimeout > 0 {
-				timeoutMs = tt.toolsTimeout * 1000
+				toolTimeoutMs = tt.toolsTimeout * 1000
 			}
 			
-			// Check for MCP_TIMEOUT
-			if !strings.Contains(stepContent, tt.expectedTimeout) {
-				t.Errorf("Expected '%s' in execution step, got: %s", tt.expectedTimeout, stepContent)
+			// Check for MCP_TIMEOUT (uses startup timeout, defaults to 120s)
+			expectedMcpTimeout := fmt.Sprintf("MCP_TIMEOUT: \"%d\"", startupTimeoutMs)
+			if !strings.Contains(stepContent, expectedMcpTimeout) {
+				t.Errorf("Expected '%s' in execution step", expectedMcpTimeout)
 			}
 			
-			// Check for MCP_TOOL_TIMEOUT
-			expectedMcpToolTimeout := fmt.Sprintf("MCP_TOOL_TIMEOUT: \"%d\"", timeoutMs)
+			// Check for MCP_TOOL_TIMEOUT (uses tool timeout)
+			expectedMcpToolTimeout := fmt.Sprintf("MCP_TOOL_TIMEOUT: \"%d\"", toolTimeoutMs)
 			if !strings.Contains(stepContent, expectedMcpToolTimeout) {
 				t.Errorf("Expected '%s' in execution step", expectedMcpToolTimeout)
 			}
 			
-			// Check for BASH_DEFAULT_TIMEOUT_MS
-			expectedBashDefault := fmt.Sprintf("BASH_DEFAULT_TIMEOUT_MS: \"%d\"", timeoutMs)
+			// Check for BASH_DEFAULT_TIMEOUT_MS (uses tool timeout)
+			expectedBashDefault := fmt.Sprintf("BASH_DEFAULT_TIMEOUT_MS: \"%d\"", toolTimeoutMs)
 			if !strings.Contains(stepContent, expectedBashDefault) {
 				t.Errorf("Expected '%s' in execution step", expectedBashDefault)
 			}
 			
-			// Check for BASH_MAX_TIMEOUT_MS
-			expectedBashMax := fmt.Sprintf("BASH_MAX_TIMEOUT_MS: \"%d\"", timeoutMs)
+			// Check for BASH_MAX_TIMEOUT_MS (uses tool timeout)
+			expectedBashMax := fmt.Sprintf("BASH_MAX_TIMEOUT_MS: \"%d\"", toolTimeoutMs)
 			if !strings.Contains(stepContent, expectedBashMax) {
 				t.Errorf("Expected '%s' in execution step", expectedBashMax)
 			}
