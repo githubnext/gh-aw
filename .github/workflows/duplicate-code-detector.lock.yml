@@ -266,6 +266,20 @@ jobs:
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
@@ -404,6 +418,7 @@ jobs:
             const uploadAssetHandler = args => {
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
               if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+              const normalizedBranchName = normalizeBranchName(branchName);
               const { path: filePath } = args;
               const absolutePath = path.resolve(filePath);
               const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -450,7 +465,7 @@ jobs:
               const targetFileName = (sha + fileExt).toLowerCase();
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
+              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
               const entry = {
                 type: "upload_asset",
                 path: filePath,

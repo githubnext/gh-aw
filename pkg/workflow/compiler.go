@@ -2409,11 +2409,6 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	// Upload info to artifact
 	c.generateUploadAwInfo(yaml)
 
-	// Add branch name normalization step if upload-assets is configured
-	if data.SafeOutputs != nil && data.SafeOutputs.UploadAssets != nil {
-		c.generateBranchNormalizationStep(yaml)
-	}
-
 	// Add AI execution step using the agentic engine
 	c.generateEngineExecutionSteps(yaml, data, engine, logFileFull)
 
@@ -2597,18 +2592,6 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 	yaml.WriteString("          name: aw_info.json\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw_info.json\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
-}
-
-// generateBranchNormalizationStep generates a step that normalizes the GITHUB_AW_ASSETS_BRANCH env var
-func (c *Compiler) generateBranchNormalizationStep(yaml *strings.Builder) {
-	yaml.WriteString("      - name: Normalize GITHUB_AW_ASSETS_BRANCH\n")
-	yaml.WriteString("        uses: actions/github-script@v8\n")
-	yaml.WriteString("        with:\n")
-	yaml.WriteString("          script: |\n")
-
-	// Add the formatted JavaScript script
-	formattedScript := FormatJavaScriptForYAML(normalizeBranchScript)
-	yaml.WriteString(strings.Join(formattedScript, ""))
 }
 
 func (c *Compiler) generateExtractAccessLogs(yaml *strings.Builder, tools map[string]any) {

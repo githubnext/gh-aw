@@ -392,6 +392,20 @@ jobs:
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
@@ -530,6 +544,7 @@ jobs:
             const uploadAssetHandler = args => {
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
               if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+              const normalizedBranchName = normalizeBranchName(branchName);
               const { path: filePath } = args;
               const absolutePath = path.resolve(filePath);
               const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -576,7 +591,7 @@ jobs:
               const targetFileName = (sha + fileExt).toLowerCase();
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
+              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
               const entry = {
                 type: "upload_asset",
                 path: filePath,
@@ -1503,30 +1518,6 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Normalize GITHUB_AW_ASSETS_BRANCH
-        uses: actions/github-script@v8
-        with:
-          script: |
-            async function main() {
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-              if (!branchName || branchName.trim() === "") {
-                core.warning("⚠ GITHUB_AW_ASSETS_BRANCH not set, skipping normalization");
-                return;
-              }
-              core.info(`Normalizing branch name: ${branchName}`);
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-              normalized = normalized.replace(/-+/g, "-");
-              normalized = normalized.replace(/^-+|-+$/g, "");
-              if (normalized.length > 128) {
-                normalized = normalized.substring(0, 128);
-              }
-              normalized = normalized.replace(/-+$/, "");
-              normalized = normalized.toLowerCase();
-              core.exportVariable("GITHUB_AW_ASSETS_BRANCH", normalized);
-              core.info(`✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${normalized}`);
-              core.setOutput("normalized_branch", normalized);
-            }
-            await main();
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -4237,30 +4228,6 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
-      - name: Normalize GITHUB_AW_ASSETS_BRANCH
-        uses: actions/github-script@v8
-        with:
-          script: |
-            async function main() {
-              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
-              if (!branchName || branchName.trim() === "") {
-                core.warning("⚠ GITHUB_AW_ASSETS_BRANCH not set, skipping normalization");
-                return;
-              }
-              core.info(`Normalizing branch name: ${branchName}`);
-              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
-              normalized = normalized.replace(/-+/g, "-");
-              normalized = normalized.replace(/^-+|-+$/g, "");
-              if (normalized.length > 128) {
-                normalized = normalized.substring(0, 128);
-              }
-              normalized = normalized.replace(/-+$/, "");
-              normalized = normalized.toLowerCase();
-              core.exportVariable("GITHUB_AW_ASSETS_BRANCH", normalized);
-              core.info(`✓ Normalized GITHUB_AW_ASSETS_BRANCH: ${normalized}`);
-              core.setOutput("normalized_branch", normalized);
-            }
-            await main();
       - name: Download assets
         continue-on-error: true
         uses: actions/download-artifact@v5
@@ -4285,6 +4252,20 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
@@ -4292,18 +4273,19 @@ jobs:
                 core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
                 return;
               }
-              core.info(`Using assets branch: ${branchName}`);
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               core.info(`Agent output content length: ${outputContent.length}`);
@@ -4317,14 +4299,14 @@ jobs:
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
                 core.info("No valid items found in agent output");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
               if (uploadAssetItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
@@ -4332,12 +4314,12 @@ jobs:
               let hasChanges = false;
               try {
                 try {
-                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
-                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                  core.info(`Checked out existing branch from origin: ${branchName}`);
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
                 } catch (originError) {
-                  core.info(`Creating new orphaned branch: ${branchName}`);
-                  await exec.exec(`git checkout --orphan ${branchName}`);
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
                   await exec.exec(`git rm -rf .`);
                   await exec.exec(`git clean -fdx`);
                 }
@@ -4378,9 +4360,9 @@ jobs:
                   if (isStaged) {
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
-                    await exec.exec(`git push origin ${branchName}`);
-                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``).addRaw("");
-                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${branchName}`);
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``).addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {
                     if (asset.fileName && asset.sha && asset.size && asset.url) {
@@ -4396,7 +4378,7 @@ jobs:
                 return;
               }
               core.setOutput("upload_count", uploadCount.toString());
-              core.setOutput("branch_name", branchName);
+              core.setOutput("branch_name", normalizedBranchName);
             }
             await main();
 

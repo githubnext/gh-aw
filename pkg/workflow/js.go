@@ -78,9 +78,6 @@ var checkoutPRBranchScript string
 //go:embed js/redact_secrets.cjs
 var redactSecretsScript string
 
-//go:embed js/normalize_branch.cjs
-var normalizeBranchScript string
-
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals
 func removeJavaScriptComments(code string) string {
