@@ -362,6 +362,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+                    shouldCreateComment = true;
                     break;
                   case "issue_comment":
                     const commentId = context.payload?.comment?.id;
@@ -376,7 +377,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
-                    shouldCreateComment = command ? true : false;
+                    shouldCreateComment = true;
                     break;
                   case "pull_request":
                     const prNumber = context.payload?.pull_request?.number;
@@ -386,6 +387,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
+                    shouldCreateComment = true;
                     break;
                   case "pull_request_review_comment":
                     const reviewCommentId = context.payload?.comment?.id;
@@ -400,7 +402,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
-                    shouldCreateComment = command ? true : false;
+                    shouldCreateComment = true;
                     break;
                   case "discussion":
                     const discussionNumber = context.payload?.discussion?.number;
@@ -411,6 +413,7 @@ jobs:
                     const discussion = await getDiscussionId(owner, repo, discussionNumber);
                     reactionEndpoint = discussion.id; 
                     commentUpdateEndpoint = `discussion:${discussionNumber}`; 
+                    shouldCreateComment = true;
                     break;
                   case "discussion_comment":
                     const discussionCommentNumber = context.payload?.discussion?.number;
@@ -426,7 +429,7 @@ jobs:
                     }
                     reactionEndpoint = commentNodeId; 
                     commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
-                    shouldCreateComment = command ? true : false;
+                    shouldCreateComment = true;
                     break;
                   default:
                     core.setFailed(`Unsupported event type: ${eventName}`);
@@ -443,11 +446,7 @@ jobs:
                   core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
                   await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
                 } else {
-                  if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment creation - only available for command workflows");
-                  } else {
-                    core.info(`Skipping comment for event type: ${eventName}`);
-                  }
+                  core.info(`Skipping comment for event type: ${eventName}`);
                 }
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
