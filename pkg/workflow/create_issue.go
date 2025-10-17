@@ -11,6 +11,7 @@ type CreateIssuesConfig struct {
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository issues
+	AssignToBot          string   `yaml:"assign-to-bot,omitempty"` // Bot username to assign the created issue to (e.g., "copilot-swe-agent")
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -48,6 +49,13 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 						return nil // Invalid configuration, return nil to cause validation error
 					}
 					issuesConfig.TargetRepoSlug = targetRepoStr
+				}
+			}
+
+			// Parse assign-to-bot
+			if assignToBot, exists := configMap["assign-to-bot"]; exists {
+				if assignToBotStr, ok := assignToBot.(string); ok {
+					issuesConfig.AssignToBot = assignToBotStr
 				}
 			}
 
@@ -89,6 +97,9 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	if len(data.SafeOutputs.CreateIssues.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.CreateIssues.Labels, ",")
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_LABELS: %q\n", labelsStr))
+	}
+	if data.SafeOutputs.CreateIssues.AssignToBot != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_ASSIGN_TO_BOT: %q\n", data.SafeOutputs.CreateIssues.AssignToBot))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)

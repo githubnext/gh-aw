@@ -188,6 +188,76 @@ async function main() {
       });
       core.info("Created issue #" + issue.number + ": " + issue.html_url);
       createdIssues.push(issue);
+
+      // Assign issue to bot if configured
+      const assignToBot = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
+      if (assignToBot) {
+        try {
+          core.info(`Assigning issue to bot: ${assignToBot}`);
+
+          // Get the issue node ID
+          const issueNodeIdQuery = `
+            query($owner: String!, $repo: String!, $issueNumber: Int!) {
+              repository(owner: $owner, name: $repo) {
+                issue(number: $issueNumber) {
+                  id
+                }
+              }
+            }
+          `;
+
+          const issueResult = await github.graphql(issueNodeIdQuery, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issueNumber: issue.number,
+          });
+          const issueNodeId = issueResult.repository.issue.id;
+
+          // Get the bot user node ID
+          const botNodeIdQuery = `
+            query($login: String!) {
+              user(login: $login) {
+                id
+              }
+            }
+          `;
+
+          const botResult = await github.graphql(botNodeIdQuery, {
+            login: assignToBot,
+          });
+          const botNodeId = botResult.user.id;
+
+          // Assign the issue to the bot
+          const assignMutation = `
+            mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+              addAssigneesToAssignable(input: {
+                assignableId: $assignableId,
+                assigneeIds: $assigneeIds
+              }) {
+                assignable {
+                  ... on Issue {
+                    id
+                    number
+                  }
+                }
+              }
+            }
+          `;
+
+          await github.graphql(assignMutation, {
+            assignableId: issueNodeId,
+            assigneeIds: [botNodeId],
+          });
+
+          core.info(`Successfully assigned issue #${issue.number} to ${assignToBot}`);
+        } catch (error) {
+          core.warning(
+            `Failed to assign issue to ${assignToBot}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          // Continue even if assignment fails - the issue was still created
+        }
+      }
+
       if (effectiveParentIssueNumber) {
         try {
           // First, get the node IDs for both parent and child issues

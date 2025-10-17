@@ -2074,6 +2074,10 @@
                 "github-token": {
                   "type": "string",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "assign-to-bot": {
+                  "type": "string",
+                  "description": "Optional bot username to assign the created issue to (e.g., 'copilot-swe-agent'). Note: The default GITHUB_TOKEN may not have sufficient permissions; consider using a PAT via github-token."
                 }
               },
               "additionalProperties": false
