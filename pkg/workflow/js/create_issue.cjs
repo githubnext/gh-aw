@@ -203,7 +203,7 @@ async function main() {
           core.info(`Assigning issue #${issue.number} to bot: ${assignToBot}`);
 
           // Get the issue node ID
-          core.debug(`Fetching node ID for issue #${issue.number}`);
+          core.info(`Fetching node ID for issue #${issue.number}`);
           const issueNodeIdQuery = `
             query($owner: String!, $repo: String!, $issueNumber: Int!) {
               repository(owner: $owner, name: $repo) {
@@ -220,10 +220,10 @@ async function main() {
             issueNumber: issue.number,
           });
           const issueNodeId = issueResult.repository.issue.id;
-          core.debug(`Issue node ID: ${issueNodeId}`);
+          core.info(`Issue node ID: ${issueNodeId}`);
 
           // Get the bot user node ID
-          core.debug(`Fetching node ID for bot user: ${assignToBot}`);
+          core.info(`Fetching node ID for bot user: ${assignToBot}`);
           const botNodeIdQuery = `
             query($login: String!) {
               user(login: $login) {
@@ -236,10 +236,10 @@ async function main() {
             login: assignToBot,
           });
           const botNodeId = botResult.user.id;
-          core.debug(`Bot user node ID: ${botNodeId}`);
+          core.info(`Bot user node ID: ${botNodeId}`);
 
           // Assign the issue to the bot
-          core.debug(`Executing addAssigneesToAssignable mutation`);
+          core.info(`Executing addAssigneesToAssignable mutation`);
           const assignMutation = `
             mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
               addAssigneesToAssignable(input: {
@@ -260,7 +260,7 @@ async function main() {
             assignableId: issueNodeId,
             assigneeIds: [botNodeId],
           });
-          core.debug(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
+          core.info(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
 
           core.info(`Successfully assigned issue #${issue.number} to ${assignToBot}`);
         } catch (error) {
