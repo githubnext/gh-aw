@@ -47,7 +47,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: copilot_execution
         timeout-minutes: 5
-        run: copilot --add-dir /tmp/ --log-level all --log-dir /tmp/logs --prompt "If Tavily tools are not loaded, fail. Search for the latest trends in JavaScript frameworks."
+        run: copilot --add-dir /tmp/ --allow-all-tools --log-level all --log-dir /tmp/logs --prompt "If Tavily tools are not loaded, fail. Search for the latest trends in JavaScript frameworks."
         env:
           XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
