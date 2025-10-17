@@ -106,9 +106,9 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 	if includeCopilotFields {
 		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${GITHUB_AW_SAFE_OUTPUTS}\",\n")
 		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\",\n")
-		yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"\\${GITHUB_AW_ASSETS_BRANCH}\",\n")
-		yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"\\${GITHUB_AW_ASSETS_MAX_SIZE_KB}\",\n")
-		yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"\\${GITHUB_AW_ASSETS_ALLOWED_EXTS}\"\n")
+		yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"${GITHUB_AW_ASSETS_BRANCH}\",\n")
+		yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"${GITHUB_AW_ASSETS_MAX_SIZE_KB}\",\n")
+		yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"${GITHUB_AW_ASSETS_ALLOWED_EXTS}\"\n")
 	} else {
 		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\",\n")
 		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},\n")
