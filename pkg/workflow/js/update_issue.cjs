@@ -3,10 +3,25 @@ async function main() {
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Read the validated output content from environment variable
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputContent) {
+  const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+  if (!outputEnvValue) {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
+  }
+
+  // Read agent output from file path or parse as JSON directly
+  let outputContent;
+  if (outputEnvValue.startsWith("/")) {
+    // It's a file path, read the file
+    try {
+      outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
+    } catch (error) {
+      core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+  } else {
+    // It's direct JSON content (backward compatibility)
+    outputContent = outputEnvValue;
   }
 
   if (outputContent.trim() === "") {

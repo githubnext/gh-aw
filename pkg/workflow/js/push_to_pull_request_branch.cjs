@@ -6,10 +6,25 @@ async function main() {
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Environment validation - fail early if required variables are missing
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-  if (outputContent.trim() === "") {
+  const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  if (outputEnvValue.trim() === "") {
     core.info("Agent output content is empty");
     return;
+  }
+
+  // Read agent output from file path or parse as JSON directly
+  let outputContent;
+  if (outputEnvValue.startsWith("/")) {
+    // It's a file path, read the file
+    try {
+      outputContent = fs.readFileSync(outputEnvValue, "utf8");
+    } catch (error) {
+      core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+  } else {
+    // It's direct JSON content (backward compatibility)
+    outputContent = outputEnvValue;
   }
 
   const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";

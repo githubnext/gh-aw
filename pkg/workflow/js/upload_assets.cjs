@@ -66,13 +66,29 @@ async function main() {
   core.info(`Using assets branch: ${normalizedBranchName}`);
 
   // Read the validated output content from environment variable
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputContent) {
+  const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+  if (!outputEnvValue) {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     core.setOutput("upload_count", "0");
     core.setOutput("branch_name", normalizedBranchName);
     return;
   }
+
+  // Read agent output from file path or parse as JSON directly
+  let outputContent;
+  if (outputEnvValue.startsWith("/")) {
+    // It's a file path, read the file
+    try {
+      outputContent = fs.readFileSync(outputEnvValue, "utf8");
+    } catch (error) {
+      core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+  } else {
+    // It's direct JSON content (backward compatibility)
+    outputContent = outputEnvValue;
+  }
+
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     core.setOutput("upload_count", "0");
