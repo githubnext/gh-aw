@@ -2078,6 +2078,10 @@
                 "assign-to-bot": {
                   "type": "string",
                   "description": "Optional bot username to assign the created issue to. Accepts 'copilot' or 'copilot-swe-agent' (case-insensitive), which will be normalized to 'copilot-swe-agent'. Note: The default GITHUB_TOKEN may not have sufficient permissions; consider using a PAT via github-token."
+                },
+                "assign-to-bot-github-token": {
+                  "type": "string",
+                  "description": "GitHub token to use specifically for bot assignment. If specified, this token will be used for the assignment GraphQL operation instead of the general github-token. Useful when bot assignment requires different permissions than issue creation."
                 }
               },
               "additionalProperties": false

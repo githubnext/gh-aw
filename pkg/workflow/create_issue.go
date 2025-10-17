@@ -7,11 +7,12 @@ import (
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
 type CreateIssuesConfig struct {
-	BaseSafeOutputConfig `yaml:",inline"`
-	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
-	Labels               []string `yaml:"labels,omitempty"`
-	TargetRepoSlug       string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository issues
-	AssignToBot          string   `yaml:"assign-to-bot,omitempty"` // Bot username to assign the created issue to (e.g., "copilot-swe-agent")
+	BaseSafeOutputConfig  `yaml:",inline"`
+	TitlePrefix           string   `yaml:"title-prefix,omitempty"`
+	Labels                []string `yaml:"labels,omitempty"`
+	TargetRepoSlug        string   `yaml:"target-repo,omitempty"`            // Target repository in format "owner/repo" for cross-repository issues
+	AssignToBot           string   `yaml:"assign-to-bot,omitempty"`          // Bot username to assign the created issue to (e.g., "copilot-swe-agent")
+	AssignToBotGitHubToken string  `yaml:"assign-to-bot-github-token,omitempty"` // GitHub token specifically for bot assignment operations
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -59,6 +60,13 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 				}
 			}
 
+			// Parse assign-to-bot-github-token
+			if assignToBotToken, exists := configMap["assign-to-bot-github-token"]; exists {
+				if assignToBotTokenStr, ok := assignToBotToken.(string); ok {
+					issuesConfig.AssignToBotGitHubToken = assignToBotTokenStr
+				}
+			}
+
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig)
 		}
@@ -100,6 +108,9 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	}
 	if data.SafeOutputs.CreateIssues.AssignToBot != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_ASSIGN_TO_BOT: %q\n", data.SafeOutputs.CreateIssues.AssignToBot))
+	}
+	if data.SafeOutputs.CreateIssues.AssignToBotGitHubToken != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN: %q\n", data.SafeOutputs.CreateIssues.AssignToBotGitHubToken))
 	}
 
 	// Add common safe output job environment variables (staged/target repo)

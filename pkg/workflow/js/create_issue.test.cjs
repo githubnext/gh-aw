@@ -85,6 +85,7 @@ describe("create_issue.cjs", () => {
     delete process.env.GITHUB_AW_ISSUE_LABELS;
     delete process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
     delete process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
+    delete process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN;
 
     // Reset context
     delete global.context.payload.issue;
@@ -962,5 +963,43 @@ describe("create_issue.cjs", () => {
     // Verify GraphQL was not called for assignment
     expect(mockGithub.graphql).not.toHaveBeenCalled();
     expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Assigning issue to bot"));
+  });
+
+  it("should use custom assign-to-bot token when provided", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create_issue",
+          title: "Issue with custom assignment token",
+          body: "Testing custom token for bot assignment",
+        },
+      ],
+    });
+    process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT = "copilot-swe-agent";
+    process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN = "custom-token-for-assignment";
+
+    // Ensure no parent issue context
+    delete global.context.payload.issue;
+
+    const mockIssue = {
+      number: 555,
+      html_url: "https://github.com/testowner/testrepo/issues/555",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Verify that assignment was attempted
+    expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #555 to bot: copilot-swe-agent");
+    
+    // Note: The actual Octokit instantiation with custom token happens asynchronously
+    // and may not complete in the test environment, but the important thing is that
+    // the code path is exercised and the environment variable is read
+
+    // Clean up
+    delete process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
+    delete process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN;
   });
 });

@@ -3324,7 +3324,7 @@ jobs:
                         core.info(`Normalized bot name from "${originalBotName}" to "${assignToBot}"`);
                       }
                       core.info(`Assigning issue #${issue.number} to bot: ${assignToBot}`);
-                      core.debug(`Fetching node ID for issue #${issue.number}`);
+                      core.info(`Fetching node ID for issue #${issue.number}`);
                       const issueNodeIdQuery = `
                         query($owner: String!, $repo: String!, $issueNumber: Int!) {
                           repository(owner: $owner, name: $repo) {
@@ -3340,8 +3340,8 @@ jobs:
                         issueNumber: issue.number,
                       });
                       const issueNodeId = issueResult.repository.issue.id;
-                      core.debug(`Issue node ID: ${issueNodeId}`);
-                      core.debug(`Fetching node ID for bot user: ${assignToBot}`);
+                      core.info(`Issue node ID: ${issueNodeId}`);
+                      core.info(`Fetching node ID for bot user: ${assignToBot}`);
                       const botNodeIdQuery = `
                         query($login: String!) {
                           user(login: $login) {
@@ -3353,8 +3353,8 @@ jobs:
                         login: assignToBot,
                       });
                       const botNodeId = botResult.user.id;
-                      core.debug(`Bot user node ID: ${botNodeId}`);
-                      core.debug(`Executing addAssigneesToAssignable mutation`);
+                      core.info(`Bot user node ID: ${botNodeId}`);
+                      core.info(`Executing addAssigneesToAssignable mutation`);
                       const assignMutation = `
                         mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
                           addAssigneesToAssignable(input: {
@@ -3374,7 +3374,7 @@ jobs:
                         assignableId: issueNodeId,
                         assigneeIds: [botNodeId],
                       });
-                      core.debug(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
+                      core.info(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
                       core.info(`Successfully assigned issue #${issue.number} to ${assignToBot}`);
                     } catch (error) {
                       core.warning(

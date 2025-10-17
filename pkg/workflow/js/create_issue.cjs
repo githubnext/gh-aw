@@ -202,6 +202,19 @@ async function main() {
           
           core.info(`Assigning issue #${issue.number} to bot: ${assignToBot}`);
 
+          // Determine which token to use for assignment operations
+          // Priority: assign-to-bot-github-token > github-token (from script config) > default
+          const assignToken = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN;
+          
+          // Use the assign-to-bot token if provided, otherwise use the default github object
+          const githubForAssign = assignToken
+            ? (await (async () => {
+                const { Octokit } = await import("@octokit/core");
+                core.info("Using custom token for bot assignment");
+                return new Octokit({ auth: assignToken });
+              })())
+            : github;
+
           // Get the issue node ID
           core.info(`Fetching node ID for issue #${issue.number}`);
           const issueNodeIdQuery = `
@@ -214,7 +227,7 @@ async function main() {
             }
           `;
 
-          const issueResult = await github.graphql(issueNodeIdQuery, {
+          const issueResult = await githubForAssign.graphql(issueNodeIdQuery, {
             owner: context.repo.owner,
             repo: context.repo.repo,
             issueNumber: issue.number,
@@ -232,7 +245,7 @@ async function main() {
             }
           `;
 
-          const botResult = await github.graphql(botNodeIdQuery, {
+          const botResult = await githubForAssign.graphql(botNodeIdQuery, {
             login: assignToBot,
           });
           const botNodeId = botResult.user.id;
@@ -256,7 +269,7 @@ async function main() {
             }
           `;
 
-          const assignResult = await github.graphql(assignMutation, {
+          const assignResult = await githubForAssign.graphql(assignMutation, {
             assignableId: issueNodeId,
             assigneeIds: [botNodeId],
           });
