@@ -172,7 +172,7 @@ func checkRepositoryAccess(owner, repo string) (bool, error) {
 	// Check if user has write, maintain, or admin access
 	permission := permissionInfo.Permission
 	hasWriteAccess := permission == "write" || permission == "maintain" || permission == "admin"
-	
+
 	return hasWriteAccess, nil
 }
 
@@ -479,7 +479,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		// Add fork as remote if not already present
 		remoteName := "fork"
 		forkRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", forkOwner, forkRepo)
-		
+
 		// Check if fork remote exists
 		checkRemoteCmd := exec.Command("git", "remote", "get-url", remoteName)
 		if checkRemoteCmd.Run() != nil {
@@ -496,7 +496,7 @@ func createTransferPR(targetOwner, targetRepo string, prInfo *PRInfo, branchName
 		// Also ensure target repository is set as upstream remote if not already present
 		upstreamRemote := "upstream"
 		targetRepoURL := fmt.Sprintf("https://github.com/%s/%s.git", targetOwner, targetRepo)
-		
+
 		// Check if upstream remote exists and points to the right repo
 		checkUpstreamCmd := exec.Command("git", "remote", "get-url", upstreamRemote)
 		upstreamOutput, err := checkUpstreamCmd.Output()
