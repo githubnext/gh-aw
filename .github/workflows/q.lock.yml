@@ -19,6 +19,7 @@
 #   add_comment["add_comment"]
 #   create_pull_request["create_pull_request"]
 #   missing_tool["missing_tool"]
+#   update_reaction["update_reaction"]
 #   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
@@ -28,6 +29,11 @@
 #   detection --> create_pull_request
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> update_reaction
+#   activation --> update_reaction
+#   add_comment --> update_reaction
+#   create_pull_request --> update_reaction
+#   missing_tool --> update_reaction
 # ```
 
 name: "Q"
@@ -182,6 +188,7 @@ jobs:
       pull-requests: write
     outputs:
       comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
       text: ${{ steps.compute-text.outputs.text }}
@@ -392,7 +399,7 @@ jobs:
               }
               let reactionEndpoint;
               let commentUpdateEndpoint;
-              let shouldEditComment = false;
+              let shouldCreateComment = false;
               const eventName = context.eventName;
               const owner = context.repo.owner;
               const repo = context.repo.repo;
@@ -406,17 +413,22 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-                    shouldEditComment = true;
+                    shouldCreateComment = true;
                     break;
                   case "issue_comment":
                     const commentId = context.payload?.comment?.id;
+                    const issueNumberForComment = context.payload?.issue?.number;
                     if (!commentId) {
                       core.setFailed("Comment ID not found in event payload");
                       return;
                     }
+                    if (!issueNumberForComment) {
+                      core.setFailed("Issue number not found in event payload");
+                      return;
+                    }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    shouldEditComment = command ? true : false;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
+                    shouldCreateComment = true;
                     break;
                   case "pull_request":
                     const prNumber = context.payload?.pull_request?.number;
@@ -426,17 +438,22 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-                    shouldEditComment = true;
+                    shouldCreateComment = true;
                     break;
                   case "pull_request_review_comment":
                     const reviewCommentId = context.payload?.comment?.id;
+                    const prNumberForReviewComment = context.payload?.pull_request?.number;
                     if (!reviewCommentId) {
                       core.setFailed("Review comment ID not found in event payload");
                       return;
                     }
+                    if (!prNumberForReviewComment) {
+                      core.setFailed("Pull request number not found in event payload");
+                      return;
+                    }
                     reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    shouldEditComment = command ? true : false;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
+                    shouldCreateComment = true;
                     break;
                   case "discussion":
                     const discussionNumber = context.payload?.discussion?.number;
@@ -447,7 +464,7 @@ jobs:
                     const discussion = await getDiscussionId(owner, repo, discussionNumber);
                     reactionEndpoint = discussion.id; 
                     commentUpdateEndpoint = `discussion:${discussionNumber}`; 
-                    shouldEditComment = true;
+                    shouldCreateComment = true;
                     break;
                   case "discussion_comment":
                     const discussionCommentNumber = context.payload?.discussion?.number;
@@ -463,7 +480,7 @@ jobs:
                     }
                     reactionEndpoint = commentNodeId; 
                     commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
-                    shouldEditComment = command ? true : false;
+                    shouldCreateComment = true;
                     break;
                   default:
                     core.setFailed(`Unsupported event type: ${eventName}`);
@@ -476,20 +493,16 @@ jobs:
                 } else {
                   await addReaction(reactionEndpoint, reaction);
                 }
-                if (shouldEditComment && commentUpdateEndpoint) {
+                if (shouldCreateComment && commentUpdateEndpoint) {
                   core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-                  await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
+                  await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
                 } else {
-                  if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment edit - only available for command workflows");
-                  } else {
-                    core.info(`Skipping comment for event type: ${eventName}`);
-                  }
+                  core.info(`Skipping comment for event type: ${eventName}`);
                 }
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
+                core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
+                core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
               }
             }
             async function addReaction(endpoint, reaction) {
@@ -572,12 +585,12 @@ jobs:
               }
               throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
             }
-            async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
+            async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -606,54 +619,83 @@ jobs:
                   core.info(`Successfully created discussion comment with workflow link`);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
                   core.setOutput("comment-id", comment.id);
                   core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 } else if (eventName === "discussion_comment") {
-                  core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
+                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) { 
+                          id 
+                        }
+                      }
+                    }`,
+                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+                  );
+                  const discussionId = repository.discussion.id;
+                  const result = await github.graphql(
+                    `
+                    mutation($dId: ID!, $body: String!) {
+                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                        comment { 
+                          id 
+                          url
+                        }
+                      }
+                    }`,
+                    { dId: discussionId, body: workflowLinkText }
+                  );
+                  const comment = result.addDiscussionComment.comment;
+                  core.info(`Successfully created discussion comment with workflow link`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.setOutput("comment-id", comment.id);
+                  core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 }
-                const isCreateComment = eventName === "issues" || eventName === "pull_request";
-                if (isCreateComment) {
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
-                  const createResponse = await github.request("POST " + endpoint, {
-                    body: workflowLinkText,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully created comment with workflow link`);
-                  core.info(`Comment ID: ${createResponse.data.id}`);
-                  core.info(`Comment URL: ${createResponse.data.html_url}`);
-                  core.setOutput("comment-id", createResponse.data.id.toString());
-                  core.setOutput("comment-url", createResponse.data.html_url);
-                } else {
-                  const getResponse = await github.request("GET " + endpoint, {
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const originalBody = getResponse.data.body || "";
-                  const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
-                  const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
-                  if (duplicatePattern.test(originalBody)) {
-                    core.info("Comment already contains a workflow run link, skipping edit");
-                    return;
-                  }
-                  const updatedBody = originalBody + workflowLinkText;
-                  const updateResponse = await github.request("PATCH " + endpoint, {
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment with workflow link`);
-                  core.info(`Comment ID: ${updateResponse.data.id}`);
+                let eventTypeDescription;
+                switch (eventName) {
+                  case "issues":
+                    eventTypeDescription = "issue";
+                    break;
+                  case "pull_request":
+                    eventTypeDescription = "pull request";
+                    break;
+                  case "issue_comment":
+                    eventTypeDescription = "issue comment";
+                    break;
+                  case "pull_request_review_comment":
+                    eventTypeDescription = "pull request review comment";
+                    break;
+                  default:
+                    eventTypeDescription = "event";
                 }
+                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
+                const createResponse = await github.request("POST " + endpoint, {
+                  body: workflowLinkText,
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+                core.info(`Successfully created comment with workflow link`);
+                core.info(`Comment ID: ${createResponse.data.id}`);
+                core.info(`Comment URL: ${createResponse.data.html_url}`);
+                core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                core.setOutput("comment-id", createResponse.data.id.toString());
+                core.setOutput("comment-url", createResponse.data.html_url);
+                core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.warning(
-                  "Failed to add/edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
+                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
                 );
               }
             }
@@ -785,7 +827,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.342
+        run: npm install -g @github/copilot@0.0.343
       - name: Downloading container images
         run: |
           set -e
@@ -4419,7 +4461,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.342
+        run: npm install -g @github/copilot@0.0.343
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -5336,5 +5378,121 @@ jobs:
             main().catch(error => {
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
+            });
+
+  update_reaction:
+    needs:
+      - agent
+      - activation
+      - add_comment
+      - create_pull_request
+      - missing_tool
+    if: >
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
+      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      discussions: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Update reaction comment with error notification
+        id: update_reaction
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_AW_WORKFLOW_NAME: "Q"
+          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          script: |
+            async function main() {
+              const commentId = process.env.GITHUB_AW_COMMENT_ID;
+              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
+              const runUrl = process.env.GITHUB_AW_RUN_URL;
+              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (!commentId) {
+                core.info("No comment ID found, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+              }
+              const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: errorMessage }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: errorMessage,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
             });
 

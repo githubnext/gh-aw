@@ -1,5 +1,6 @@
 ---
 on: 
+  workflow_dispatch:
   command:
     name: dev
   workflow_dispatch:

@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.5 - 2025-10-16
+
+### Bug Fixes
+
+#### Update add_reaction job to always create new comments and add comment-repo output
+
+#### Fix version display in release binaries to show actual release tag instead of "dev"
+
+
+## v0.22.4 - 2025-10-16
+
+### Bug Fixes
+
+#### Add generic timeout field for tools configuration. Allows configuring operation timeouts (in seconds) for tool/MCP communications in agentic engines. Supports Claude, Codex, and Copilot engines with a unified 60-second default timeout.
+
+#### Add GH_AW_GITHUB_TOKEN secret check for GitHub remote mode in mcp inspect
+
+#### Add GITHUB_AW_ASSETS_BRANCH normalization for upload-assets safe output
+
+#### Reduced bloat in cache-memory documentation (56% reduction)
+
+#### Extract duplicate custom engine step handling into shared helper functions
+
+#### Refactor prompt-step generation to eliminate code duplication by introducing shared helper functions
+
+
 ## v0.22.3 - 2025-10-16
 
 ### Bug Fixes

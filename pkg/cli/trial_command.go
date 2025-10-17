@@ -567,51 +567,49 @@ func showTrialConfirmation(parsedSpecs []*WorkflowSpec, logicalRepoSlug, cloneRe
 // For clone-repo mode, reusing an existing host repository is not allowed
 // If forceDeleteHostRepo is true, deletes the repository if it exists before creating it
 func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHostRepo bool, verbose bool) error {
-	// repoSlug is always in user/repo format by the time it reaches this function
-	fullRepoName := repoSlug
 	parts := strings.Split(repoSlug, "/")
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid repository slug format: %s (expected user/repo)", repoSlug)
 	}
 
 	// Check if repository already exists
-	cmd := exec.Command("gh", "repo", "view", fullRepoName)
+	cmd := exec.Command("gh", "repo", "view", repoSlug)
 	if err := cmd.Run(); err == nil {
 		// Repository exists - determine what to do
 		if forceDeleteHostRepo {
 			// Force delete mode: delete the existing repository first
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Force deleting existing host repository: %s", fullRepoName)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Force deleting existing host repository: %s", repoSlug)))
 			}
 
-			deleteCmd := exec.Command("gh", "repo", "delete", fullRepoName, "--yes")
+			deleteCmd := exec.Command("gh", "repo", "delete", repoSlug, "--yes")
 			if deleteOutput, deleteErr := deleteCmd.CombinedOutput(); deleteErr != nil {
-				return fmt.Errorf("failed to force delete existing host repository %s: %w (output: %s)", fullRepoName, deleteErr, string(deleteOutput))
+				return fmt.Errorf("failed to force delete existing host repository %s: %w (output: %s)", repoSlug, deleteErr, string(deleteOutput))
 			}
 
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Force deleted existing host repository: %s", fullRepoName)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Force deleted existing host repository: %s", repoSlug)))
 
 			// Continue to create the repository below
 		} else if cloneRepoSlug != "" {
 			// Clone-repo mode: reusing existing repository is not allowed (unless force delete is used)
-			return fmt.Errorf("host repository %s already exists, but reusing existing repositories is not allowed in clone-repo mode. Please specify a different --host-repo, use --force-delete-host-repo, or delete the existing repository", fullRepoName)
+			return fmt.Errorf("host repository %s already exists, but reusing existing repositories is not allowed in clone-repo mode. Please specify a different --host-repo, use --force-delete-host-repo, or delete the existing repository", repoSlug)
 		} else {
 			// Logical-repo mode: reusing is allowed
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing host repository: %s", fullRepoName)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Reusing existing host repository: %s", repoSlug)))
 			}
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Using existing host repository: https://github.com/%s", fullRepoName)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Using existing host repository: https://github.com/%s", repoSlug)))
 			return nil
 		}
 	}
 
 	// Repository doesn't exist, create it
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating private host repository: %s", fullRepoName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Creating private host repository: %s", repoSlug)))
 	}
 
 	// Use gh CLI to create private repo with initial README using full OWNER/REPO format
-	cmd = exec.Command("gh", "repo", "create", fullRepoName, "--private", "--add-readme", "--description", "GitHub Agentic Workflows host repository")
+	cmd = exec.Command("gh", "repo", "create", repoSlug, "--private", "--add-readme", "--description", "GitHub Agentic Workflows host repository")
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -619,14 +617,28 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 	}
 
 	// Show host repository creation message with URL
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Created host repository: https://github.com/%s", fullRepoName)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("✓ Created host repository: https://github.com/%s", repoSlug)))
+
+	// Prompt user to enable GitHub Actions permissions
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("IMPORTANT: You must enable GitHub Actions permissions for the repository."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("1. Go to: https://github.com/%s/settings/actions", repoSlug)))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("2. Under 'Workflow permissions', select 'Allow GitHub Actions to create and approve pull requests'"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("3. Click 'Save'"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(""))
+
+	// Wait for user confirmation
+	fmt.Fprint(os.Stderr, console.FormatPromptMessage("Press Enter after you have enabled these permissions..."))
+	var userInput string
+	_, _ = fmt.Scanln(&userInput) // Ignore error (user pressed Enter without typing anything)
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("✓ Continuing with trial setup"))
 
 	// Enable discussions in the repository as most workflows use them
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Enabling discussions in repository: %s", fullRepoName)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Enabling discussions in repository: %s", repoSlug)))
 	}
 
-	discussionsCmd := exec.Command("gh", "repo", "edit", fullRepoName, "--enable-discussions")
+	discussionsCmd := exec.Command("gh", "repo", "edit", repoSlug, "--enable-discussions")
 	if discussionsOutput, discussionsErr := discussionsCmd.CombinedOutput(); discussionsErr != nil {
 		// Non-fatal error, just warn
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to enable discussions: %v (output: %s)", discussionsErr, string(discussionsOutput))))
@@ -645,11 +657,8 @@ func cleanupTrialRepository(repoSlug string, verbose bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cleaning up host repository: %s", repoSlug)))
 	}
 
-	// repoSlug is always in user/repo format by the time it reaches this function
-	fullRepoName := repoSlug
-
 	// Use gh CLI to delete the repository with proper username/repo format
-	cmd := exec.Command("gh", "repo", "delete", fullRepoName, "--yes")
+	cmd := exec.Command("gh", "repo", "delete", repoSlug, "--yes")
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -657,7 +666,7 @@ func cleanupTrialRepository(repoSlug string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Deleted host repository: %s", fullRepoName)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Deleted host repository: %s", repoSlug)))
 	}
 
 	return nil
@@ -830,11 +839,8 @@ func addGitHubTokenSecret(repoSlug string, tracker *TrialSecretTracker, verbose 
 		return fmt.Errorf("failed to get GitHub auth token: %w", err)
 	}
 
-	// Use the repository slug directly
-	fullRepoName := repoSlug
-
 	// Add the token as a repository secret
-	setCmd := exec.Command("gh", "secret", "set", secretName, "--repo", fullRepoName, "--body", token)
+	setCmd := exec.Command("gh", "secret", "set", secretName, "--repo", repoSlug, "--body", token)
 	output, err := setCmd.CombinedOutput()
 
 	if err != nil {
@@ -1025,12 +1031,12 @@ func addEngineSecret(secretName, hostRepoSlug string, tracker *TrialSecretTracke
 	}
 
 	// Use the repository slug directly (should already be in user/repo format)
-	fullRepoName := hostRepoSlug
+	repoSlug := hostRepoSlug
 
 	// Add the secret to the repository
-	addSecretCmd := exec.Command("gh", "secret", "set", secretName, "--repo", fullRepoName, "--body", secretValue)
+	addSecretCmd := exec.Command("gh", "secret", "set", secretName, "--repo", repoSlug, "--body", secretValue)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Running: gh secret set %s --repo %s --body <redacted>", secretName, fullRepoName)))
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Running: gh secret set %s --repo %s --body <redacted>", secretName, repoSlug)))
 	}
 
 	if output, err := addSecretCmd.CombinedOutput(); err != nil {
@@ -1169,13 +1175,10 @@ func cleanupTrialSecrets(repoSlug string, tracker *TrialSecretTracker, verbose b
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up API key secrets from host repository"))
 	}
 
-	// Use the repository slug directly
-	fullRepoName := repoSlug
-
 	secretsDeleted := 0
 	// Only delete secrets that were actually added by this trial command
 	for secretName := range tracker.AddedSecrets {
-		cmd := exec.Command("gh", "secret", "delete", secretName, "--repo", fullRepoName)
+		cmd := exec.Command("gh", "secret", "delete", secretName, "--repo", repoSlug)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			// It's okay if the secret doesn't exist, just log in verbose mode
 			if verbose && !strings.Contains(string(output), "Not Found") {
@@ -1211,7 +1214,7 @@ type TrialArtifacts struct {
 // downloadAllArtifacts downloads and parses all available artifacts from a workflow run
 func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtifacts, error) {
 	// Use the repository slug directly (should already be in user/repo format)
-	fullRepoName := hostRepoSlug
+	repoSlug := hostRepoSlug
 
 	// Create temp directory for artifact download
 	tempDir, err := os.MkdirTemp("", "trial-artifacts-*")
@@ -1221,7 +1224,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 	defer os.RemoveAll(tempDir)
 
 	// Download all artifacts for this run
-	cmd := exec.Command("gh", "run", "download", runID, "--repo", fullRepoName, "--dir", tempDir)
+	cmd := exec.Command("gh", "run", "download", runID, "--repo", repoSlug, "--dir", tempDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// If no artifacts exist, that's okay - some workflows don't generate artifacts

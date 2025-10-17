@@ -8,12 +8,12 @@ A minimalistic implementation for managing version releases, inspired by `@chang
 # Preview next version from changesets (always read-only)
 node scripts/changeset.js version
 # Or use make target
-make changeset-version
+make version
 
 # Create release and update CHANGELOG
 node scripts/changeset.js release
 # Or use make target (recommended - runs tests first)
-make changeset-release
+make release
 
 # Create specific release type
 node scripts/changeset.js release patch
@@ -21,7 +21,7 @@ node scripts/changeset.js release minor
 node scripts/changeset.js release major
 ```
 
-**Note:** Using `make changeset-release` is recommended as it automatically runs tests before creating the release, ensuring code quality.
+**Note:** Using `make release` is recommended as it automatically runs tests before creating the release, ensuring code quality.
 
 ## Commands
 
