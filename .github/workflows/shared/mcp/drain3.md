@@ -2,7 +2,7 @@
 mcp-servers:
   drain3:
     type: http
-    url: http://localhost:8766
+    url: http://localhost:8766/mcp
     allowed:
       - index_file
       - query_file
