@@ -72,6 +72,19 @@ describe("push_to_pull_request_branch.cjs", () => {
     process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
   };
 
+  // Helper function to mock patch file content while preserving agent output file reading
+  const mockPatchContent = patchContent => {
+    mockFs.readFileSync.mockImplementation((filepath, encoding) => {
+      // If reading the agent output file, always read the actual temp file
+      const agentOutputPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+      if (agentOutputPath && filepath === agentOutputPath) {
+        return fs.readFileSync(filepath, encoding || "utf8");
+      }
+      // For patch files, return the mocked content
+      return patchContent;
+    });
+  };
+
   // Helper function to execute the script with proper globals
   const executeScript = async () => {
     // Set globals just before execution
@@ -98,12 +111,14 @@ describe("push_to_pull_request_branch.cjs", () => {
     // Create fresh mock objects for each test
     mockFs = {
       existsSync: vi.fn(),
-      readFileSync: vi.fn().mockImplementation((filepath) => {
-        // If reading the agent output file, read the actual temp file
-        if (filepath === process.env.GITHUB_AW_AGENT_OUTPUT) {
-          return fs.readFileSync(filepath, "utf8");
+      readFileSync: vi.fn().mockImplementation((filepath, encoding) => {
+        // If reading the agent output file, always read the actual temp file
+        const agentOutputPath = process.env.GITHUB_AW_AGENT_OUTPUT;
+        if (agentOutputPath && filepath === agentOutputPath) {
+          return fs.readFileSync(filepath, encoding || "utf8");
         }
-        // Otherwise return the mock patch content (will be overridden by individual tests)
+        // For all other files (like patch files), return a default or let individual tests override
+        // Default return value for patch files
         return "diff --git a/file.txt b/file.txt\n+new content";
       }),
     };
@@ -252,7 +267,7 @@ const exec = global.exec;`
       });
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("Failed to generate patch: some error");
+      mockPatchContent("Failed to generate patch: some error");
 
       // Execute the script
       await executeScript();
@@ -267,7 +282,7 @@ const exec = global.exec;`
       });
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("");
+      mockPatchContent("");
 
       // Mock the git command to return a branch name
 
@@ -286,7 +301,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("   ");
+      mockPatchContent("   ");
 
       // Execute the script
       await executeScript();
@@ -307,7 +322,7 @@ const exec = global.exec;`
       setAgentOutput(validOutput);
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the git commands that will be called
 
@@ -321,15 +336,23 @@ const exec = global.exec;`
     });
 
     it("should handle invalid JSON in agent output", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json content";
+      // Create a temp file with invalid JSON
+      const invalidJsonPath = path.join("/tmp", `test_invalid_${Date.now()}.json`);
+      fs.writeFileSync(invalidJsonPath, "invalid json content");
+      process.env.GITHUB_AW_AGENT_OUTPUT = invalidJsonPath;
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("some patch content");
+      mockPatchContent("some patch content");
 
       // Execute the script
       await executeScript();
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/));
+
+      // Clean up
+      if (fs.existsSync(invalidJsonPath)) {
+        fs.unlinkSync(invalidJsonPath);
+      }
     });
 
     it("should handle agent output without valid items array", async () => {
@@ -338,7 +361,7 @@ const exec = global.exec;`
       });
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("some patch content");
+      mockPatchContent("some patch content");
 
       // Execute the script
       await executeScript();
@@ -354,7 +377,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_PUSH_TARGET = "custom-target";
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("some patch content");
+      mockPatchContent("some patch content");
 
       // Mock the git commands
 
@@ -401,7 +424,7 @@ const exec = global.exec;`
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
-      mockFs.readFileSync.mockReturnValue(patchContent);
+      mockPatchContent(patchContent);
 
       // Mock the git commands that will be called
 
@@ -429,7 +452,7 @@ const exec = global.exec;`
       mockFs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
-      mockFs.readFileSync.mockReturnValue(patchContent);
+      mockPatchContent(patchContent);
 
       // Execute the script
       await executeScript();
@@ -453,7 +476,7 @@ const exec = global.exec;`
 
       mockFs.existsSync.mockReturnValue(true);
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
-      mockFs.readFileSync.mockReturnValue(patchContent);
+      mockPatchContent(patchContent);
 
       // Mock the git commands that will be called
 
@@ -479,7 +502,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue(""); // Empty patch
+      mockPatchContent(""); // Empty patch
 
       // Mock the git commands that will be called
 
@@ -505,7 +528,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data with matching title prefix
       mockExec.getExecOutput.mockImplementation((command, args) => {
@@ -552,7 +575,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data without matching title prefix
       mockExec.getExecOutput.mockImplementation((command, args) => {
@@ -598,7 +621,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data with required labels
       mockExec.getExecOutput.mockImplementation((command, args) => {
@@ -645,7 +668,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data missing required labels
       mockExec.getExecOutput.mockImplementation((command, args) => {
@@ -694,7 +717,7 @@ const exec = global.exec;`
       process.env.GITHUB_AW_PR_LABELS = "bot,feature";
 
       mockFs.existsSync.mockReturnValue(true);
-      mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
+      mockPatchContent("diff --git a/file.txt b/file.txt\n+new content");
 
       // Mock the gh pr view command to return PR data with both valid title and labels
       mockExec.getExecOutput.mockImplementation((command, args) => {
