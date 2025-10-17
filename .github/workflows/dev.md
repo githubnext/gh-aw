@@ -4,10 +4,13 @@ on:
   command:
     name: dev
 name: Dev
-engine: copilot
+engine: claude
 permissions:
   contents: read
   actions: read
+imports:
+  - shared/mcp/drain3.md
+  - shared/mcp/gh-aw.md
 safe-outputs:
   create-issue:
 tools:
