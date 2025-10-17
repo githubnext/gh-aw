@@ -62,6 +62,7 @@ This workflow should generate add_reaction job with comment outputs.
 		"reaction_id:",
 		"comment_id:",
 		"comment_url:",
+		"comment_repo:",
 	}
 
 	for _, expected := range expectedOutputs {
@@ -79,6 +80,9 @@ This workflow should generate add_reaction job with comment outputs.
 	}
 	if !strings.Contains(yamlContent, "steps.react.outputs.comment-url") {
 		t.Error("Generated YAML should contain comment-url output reference")
+	}
+	if !strings.Contains(yamlContent, "steps.react.outputs.comment-repo") {
+		t.Error("Generated YAML should contain comment-repo output reference")
 	}
 
 	// Verify reaction step is in activation job, not a separate add_reaction job
@@ -144,10 +148,17 @@ This workflow should generate add_reaction job with GITHUB_AW_WORKFLOW_NAME envi
 	}
 
 	// Ensure it's in the activation job section (not a separate add_reaction job)
-	// Find the activation job section
-	activationJobStart := strings.Index(yamlContent, "activation:")
+	// Find the activation job section (must be exact match, not pre_activation)
+	activationJobStart := strings.Index(yamlContent, "\n  activation:")
 	if activationJobStart == -1 {
-		t.Fatal("Could not find activation job in generated YAML")
+		// Try from the beginning in case it's the first job
+		if strings.HasPrefix(yamlContent, "  activation:") {
+			activationJobStart = 0
+		} else {
+			t.Fatal("Could not find activation job in generated YAML")
+		}
+	} else {
+		activationJobStart++ // Skip the leading newline
 	}
 
 	// Find the next job or end of file

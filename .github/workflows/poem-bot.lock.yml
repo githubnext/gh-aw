@@ -6,7 +6,7 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   check_membership["check_membership"]
+#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
@@ -19,7 +19,8 @@
 #   push_to_pull_request_branch["push_to_pull_request_branch"]
 #   missing_tool["missing_tool"]
 #   upload_assets["upload_assets"]
-#   check_membership --> activation
+#   update_reaction["update_reaction"]
+#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> create_issue
@@ -40,6 +41,17 @@
 #   detection --> missing_tool
 #   agent --> upload_assets
 #   detection --> upload_assets
+#   agent --> update_reaction
+#   activation --> update_reaction
+#   create_issue --> update_reaction
+#   add_comment --> update_reaction
+#   create_pr_review_comment --> update_reaction
+#   create_pull_request --> update_reaction
+#   add_labels --> update_reaction
+#   update_issue --> update_reaction
+#   push_to_pull_request_branch --> update_reaction
+#   missing_tool --> update_reaction
+#   upload_assets --> update_reaction
 # ```
 
 name: "Poem Bot - A Creative Agentic Workflow"
@@ -64,16 +76,13 @@ concurrency:
 run-name: "Poem Bot - A Creative Agentic Workflow"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: >
       ((github.event_name == 'issues') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/poem-bot')))) ||
       (!(github.event_name == 'issues'))
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check_membership.outputs.error_message }}
-      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
-      result: ${{ steps.check_membership.outputs.result }}
-      user_permission: ${{ steps.check_membership.outputs.user_permission }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Check team membership for command workflow
         id: check_membership
@@ -157,9 +166,9 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues') && ((github.event_name == 'issues') &&
       (contains(github.event.issue.body, '/poem-bot')))) || (!(github.event_name == 'issues')))
     runs-on: ubuntu-latest
     permissions:
@@ -168,6 +177,7 @@ jobs:
       pull-requests: write
     outputs:
       comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
       text: ${{ steps.compute-text.outputs.text }}
@@ -563,7 +573,7 @@ jobs:
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -592,50 +602,79 @@ jobs:
                   core.info(`Successfully created discussion comment with workflow link`);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
                   core.setOutput("comment-id", comment.id);
                   core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 } else if (eventName === "discussion_comment") {
-                  core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
+                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) { 
+                          id 
+                        }
+                      }
+                    }`,
+                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+                  );
+                  const discussionId = repository.discussion.id;
+                  const result = await github.graphql(
+                    `
+                    mutation($dId: ID!, $body: String!) {
+                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                        comment { 
+                          id 
+                          url
+                        }
+                      }
+                    }`,
+                    { dId: discussionId, body: workflowLinkText }
+                  );
+                  const comment = result.addDiscussionComment.comment;
+                  core.info(`Successfully created discussion comment with workflow link`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.setOutput("comment-id", comment.id);
+                  core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 }
-                const isCreateComment = eventName === "issues" || eventName === "pull_request";
-                if (isCreateComment) {
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
-                  const createResponse = await github.request("POST " + endpoint, {
-                    body: workflowLinkText,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully created comment with workflow link`);
-                  core.info(`Comment ID: ${createResponse.data.id}`);
-                  core.info(`Comment URL: ${createResponse.data.html_url}`);
-                  core.setOutput("comment-id", createResponse.data.id.toString());
-                  core.setOutput("comment-url", createResponse.data.html_url);
-                } else {
-                  const getResponse = await github.request("GET " + endpoint, {
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const originalBody = getResponse.data.body || "";
-                  const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
-                  const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
-                  if (duplicatePattern.test(originalBody)) {
-                    core.info("Comment already contains a workflow run link, skipping edit");
-                    return;
-                  }
-                  const updatedBody = originalBody + workflowLinkText;
-                  const updateResponse = await github.request("PATCH " + endpoint, {
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment with workflow link`);
-                  core.info(`Comment ID: ${updateResponse.data.id}`);
+                let eventTypeDescription;
+                switch (eventName) {
+                  case "issues":
+                    eventTypeDescription = "issue";
+                    break;
+                  case "pull_request":
+                    eventTypeDescription = "pull request";
+                    break;
+                  case "issue_comment":
+                    eventTypeDescription = "issue comment";
+                    break;
+                  case "pull_request_review_comment":
+                    eventTypeDescription = "pull request review comment";
+                    break;
+                  default:
+                    eventTypeDescription = "event";
                 }
+                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
+                const createResponse = await github.request("POST " + endpoint, {
+                  body: workflowLinkText,
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+                core.info(`Successfully created comment with workflow link`);
+                core.info(`Comment ID: ${createResponse.data.id}`);
+                core.info(`Comment URL: ${createResponse.data.html_url}`);
+                core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                core.setOutput("comment-id", createResponse.data.id.toString());
+                core.setOutput("comment-url", createResponse.data.html_url);
+                core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.warning(
@@ -654,6 +693,9 @@ jobs:
     concurrency:
       group: "gh-aw-copilot"
     env:
+      GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":3,\"target\":\"*\"},\"add_labels\":{\"allowed\":[\"poetry\",\"creative\",\"automation\",\"ai-generated\",\"epic\",\"haiku\",\"sonnet\",\"limerick\"],\"max\":5},\"create_issue\":{\"max\":2},\"create_pull_request\":{},\"create_pull_request_review_comment\":{\"max\":2},\"missing_tool\":{},\"push_to_pull_request_branch\":{},\"update_issue\":{\"max\":2},\"upload_asset\":{}}"
     outputs:
@@ -747,7 +789,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.340
+        run: npm install -g @github/copilot@0.0.342
       - name: Downloading container images
         run: |
           set -e
@@ -766,6 +808,20 @@ jobs:
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
@@ -866,15 +922,12 @@ jobs:
               const res = { jsonrpc: "2.0", id, result };
               writeMessage(res);
             }
-            function replyError(id, code, message, data) {
+            function replyError(id, code, message) {
               if (id === undefined || id === null) {
                 debug(`Error for notification: ${message}`);
                 return;
               }
               const error = { code, message };
-              if (data !== undefined) {
-                error.data = data;
-              }
               const res = {
                 jsonrpc: "2.0",
                 id,
@@ -907,6 +960,7 @@ jobs:
             const uploadAssetHandler = args => {
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
               if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+              const normalizedBranchName = normalizeBranchName(branchName);
               const { path: filePath } = args;
               const absolutePath = path.resolve(filePath);
               const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -953,7 +1007,7 @@ jobs:
               const targetFileName = (sha + fileExt).toLowerCase();
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
+              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
               const entry = {
                 type: "upload_asset",
                 path: filePath,
@@ -1475,9 +1529,7 @@ jobs:
                   replyError(id, -32601, `Method not found: ${method}`);
                 }
               } catch (e) {
-                replyError(id, -32603, "Internal error", {
-                  message: e instanceof Error ? e.message : String(e),
-                });
+                replyError(id, -32603, e instanceof Error ? e.message : String(e));
               }
             }
             process.stdin.on("data", onData);
@@ -1575,7 +1627,10 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "\${GITHUB_AW_SAFE_OUTPUTS}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}",
+                  "GITHUB_AW_ASSETS_BRANCH": "\${GITHUB_AW_ASSETS_BRANCH}",
+                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "\${GITHUB_AW_ASSETS_MAX_SIZE_KB}",
+                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "\${GITHUB_AW_ASSETS_ALLOWED_EXTS}"
                 }
               }
             }
@@ -1685,6 +1740,25 @@ jobs:
           ## Temporary Files
           
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
+          
+          EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          
+          ---
+          
+          ## File Editing Access
+          
+          **IMPORTANT**: The edit tool provides file editing capabilities. You have write access to files in the following directories:
+          
+          - **Current workspace**: `$GITHUB_WORKSPACE` - The repository you're working on
+          - **Temporary directory**: `/tmp/gh-aw/` - For temporary files and agent work
+          
+          **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
           
           EOF
       - name: Append cache memory instructions to prompt
@@ -2001,12 +2075,13 @@ jobs:
         # --allow-tool shell(tail)
         # --allow-tool shell(uniq)
         # --allow-tool shell(wc)
+        # --allow-tool shell(yq)
         # --allow-tool write
         timeout-minutes: 10
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --model gpt-5 --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_repository)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --model gpt-5 --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_repository)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(git add:*)' --allow-tool 'shell(git branch:*)' --allow-tool 'shell(git checkout:*)' --allow-tool 'shell(git commit:*)' --allow-tool 'shell(git merge:*)' --allow-tool 'shell(git rm:*)' --allow-tool 'shell(git status)' --allow-tool 'shell(git switch:*)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --add-dir / --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
@@ -3724,7 +3799,9 @@ jobs:
                 }
                 core.debug(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
-                  throw new Error(`Log path not found: ${logPath}`);
+                  core.info(`Log path not found: ${logPath}`);
+                  core.info("No logs to validate - skipping error validation");
+                  return;
                 }
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
@@ -4053,7 +4130,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.340
+        run: npm install -g @github/copilot@0.0.342
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -6274,6 +6351,20 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
@@ -6281,18 +6372,19 @@ jobs:
                 core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
                 return;
               }
-              core.info(`Using assets branch: ${branchName}`);
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               core.info(`Agent output content length: ${outputContent.length}`);
@@ -6306,14 +6398,14 @@ jobs:
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
                 core.info("No valid items found in agent output");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
               if (uploadAssetItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
@@ -6321,12 +6413,12 @@ jobs:
               let hasChanges = false;
               try {
                 try {
-                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
-                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                  core.info(`Checked out existing branch from origin: ${branchName}`);
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
                 } catch (originError) {
-                  core.info(`Creating new orphaned branch: ${branchName}`);
-                  await exec.exec(`git checkout --orphan ${branchName}`);
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
                   await exec.exec(`git rm -rf .`);
                   await exec.exec(`git clean -fdx`);
                 }
@@ -6367,9 +6459,12 @@ jobs:
                   if (isStaged) {
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
-                    await exec.exec(`git push origin ${branchName}`);
-                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``).addRaw("");
-                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${branchName}`);
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary
+                      .addRaw("## Assets")
+                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+                      .addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {
                     if (asset.fileName && asset.sha && asset.size && asset.url) {
@@ -6385,7 +6480,129 @@ jobs:
                 return;
               }
               core.setOutput("upload_count", uploadCount.toString());
-              core.setOutput("branch_name", branchName);
+              core.setOutput("branch_name", normalizedBranchName);
             }
             await main();
+
+  update_reaction:
+    needs:
+      - agent
+      - activation
+      - create_issue
+      - add_comment
+      - create_pr_review_comment
+      - create_pull_request
+      - add_labels
+      - update_issue
+      - push_to_pull_request_branch
+      - missing_tool
+      - upload_assets
+    if: >
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
+      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      discussions: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Update reaction comment with error notification
+        id: update_reaction
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
+          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          script: |
+            async function main() {
+              const commentId = process.env.GITHUB_AW_COMMENT_ID;
+              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
+              const runUrl = process.env.GITHUB_AW_RUN_URL;
+              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (!commentId) {
+                core.info("No comment ID found, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+              }
+              const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: errorMessage }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: errorMessage,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 

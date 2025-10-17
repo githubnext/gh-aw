@@ -15,10 +15,10 @@ const ExpressionBreakThreshold = 100
 const DefaultMCPRegistryURL = "https://api.mcp.github.com/v0"
 
 // DefaultClaudeCodeVersion is the default version of the Claude Code CLI
-const DefaultClaudeCodeVersion = "2.0.15"
+const DefaultClaudeCodeVersion = "2.0.19"
 
 // DefaultCopilotVersion is the default version of the GitHub Copilot CLI
-const DefaultCopilotVersion = "0.0.340"
+const DefaultCopilotVersion = "0.0.342"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
 const DefaultCodexVersion = "0.46.0"
@@ -49,6 +49,12 @@ const DefaultHaskellVersion = "9.10"
 
 // DefaultAgenticWorkflowTimeoutMinutes is the default timeout for agentic workflow execution in minutes
 const DefaultAgenticWorkflowTimeoutMinutes = 20
+
+// DefaultToolTimeoutSeconds is the default timeout for tool/MCP server operations in seconds
+const DefaultToolTimeoutSeconds = 60
+
+// DefaultMCPStartupTimeoutSeconds is the default timeout for MCP server startup in seconds
+const DefaultMCPStartupTimeoutSeconds = 120
 
 // DefaultAllowedDomains defines the default localhost domains with port variations
 // that are always allowed for Playwright browser automation
@@ -123,15 +129,24 @@ var AllowedExpressions = []string{
 
 const AgentJobName = "agent"
 const ActivationJobName = "activation"
-const CheckMembershipJobName = "check_membership"
+const PreActivationJobName = "pre_activation"
 const DetectionJobName = "detection"
 const SafeOutputArtifactName = "safe_output.jsonl"
 const AgentOutputArtifactName = "agent_output.json"
 
+// Step IDs for pre-activation job
+const CheckMembershipStepID = "check_membership"
+const CheckStopTimeStepID = "check_stop_time"
+
+// Output names for pre-activation job steps
+const IsTeamMemberOutput = "is_team_member"
+const StopTimeOkOutput = "stop_time_ok"
+const ActivatedOutput = "activated"
+
 var AgenticEngines = []string{"claude", "codex", "copilot"}
 
-// DefaultGitHubTools defines the default read-only GitHub MCP tools
-var DefaultGitHubTools = []string{
+// DefaultGitHubToolsLocal defines the default read-only GitHub MCP tools for local (Docker) mode
+var DefaultGitHubToolsLocal = []string{
 	// actions
 	"download_workflow_run_artifact",
 	"get_job_logs",
@@ -202,6 +217,82 @@ var DefaultGitHubTools = []string{
 	"list_sub_issues",
 }
 
+// DefaultGitHubToolsRemote defines the default read-only GitHub MCP tools for remote (hosted) mode
+var DefaultGitHubToolsRemote = []string{
+	// actions
+	"download_workflow_run_artifact",
+	"get_job_logs",
+	"get_workflow_run",
+	"get_workflow_run_logs",
+	"get_workflow_run_usage",
+	"list_workflow_jobs",
+	"list_workflow_run_artifacts",
+	"list_workflow_runs",
+	"list_workflows",
+	// code security
+	"get_code_scanning_alert",
+	"list_code_scanning_alerts",
+	// context
+	"get_me",
+	// dependabot
+	"get_dependabot_alert",
+	"list_dependabot_alerts",
+	// discussions
+	"get_discussion",
+	"get_discussion_comments",
+	"list_discussion_categories",
+	"list_discussions",
+	// issues
+	"get_issue",
+	"get_issue_comments",
+	"list_issues",
+	"search_issues",
+	// notifications
+	"get_notification_details",
+	"list_notifications",
+	// organizations
+	"search_orgs",
+	// labels
+	"get_label",
+	"list_label",
+	// prs
+	"get_pull_request",
+	"get_pull_request_comments",
+	"get_pull_request_diff",
+	"get_pull_request_files",
+	"get_pull_request_reviews",
+	"get_pull_request_status",
+	"list_pull_requests",
+	"pull_request_read",
+	"search_pull_requests",
+	// repos
+	"get_commit",
+	"get_file_contents",
+	"get_tag",
+	"list_branches",
+	"list_commits",
+	"list_tags",
+	"search_code",
+	"search_repositories",
+	// secret protection
+	"get_secret_scanning_alert",
+	"list_secret_scanning_alerts",
+	// users
+	"search_users",
+	// additional unique tools (previously duplicated block extras)
+	"get_latest_release",
+	"get_pull_request_review_comments",
+	"get_release_by_tag",
+	"list_issue_types",
+	"list_releases",
+	"list_starred_repositories",
+	"list_sub_issues",
+}
+
+// DefaultGitHubTools is deprecated. Use DefaultGitHubToolsLocal or DefaultGitHubToolsRemote instead.
+// Kept for backward compatibility and defaults to local mode tools.
+var DefaultGitHubTools = DefaultGitHubToolsLocal
+
 // DefaultBashTools defines basic bash commands that should be available by default when bash is enabled
 var DefaultBashTools = []string{
 	"echo",
@@ -215,6 +306,7 @@ var DefaultBashTools = []string{
 	"sort",
 	"uniq",
 	"date",
+	"yq",
 }
 
 // PriorityStepFields defines the conventional field order for GitHub Actions workflow steps

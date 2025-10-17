@@ -1,6 +1,9 @@
 ---
 on: 
   workflow_dispatch:
+  command:
+    name: dev
+  stop-after: "2025-11-16 00:00:00"
 name: Dev
 engine: copilot
 permissions:

@@ -287,7 +287,7 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     if (eventName === "discussion") {
       // Parse discussion number from special format: "discussion:NUMBER"
       const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
+      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
 
       // Create a new comment on the discussion using GraphQL
       const { repository } = await github.graphql(
@@ -321,70 +321,90 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
       core.info(`Successfully created discussion comment with workflow link`);
       core.info(`Comment ID: ${comment.id}`);
       core.info(`Comment URL: ${comment.url}`);
+      core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
       core.setOutput("comment-id", comment.id);
       core.setOutput("comment-url", comment.url);
+      core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
       return;
     } else if (eventName === "discussion_comment") {
-      // For discussion comments, we would need to update the comment via GraphQL
-      // However, GitHub's GraphQL API doesn't support updating discussion comments
-      // So we skip this for now
-      core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
+      // Parse discussion number from special format: "discussion_comment:NUMBER:COMMENT_ID"
+      const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+
+      // Create a new comment on the discussion using GraphQL
+      const { repository } = await github.graphql(
+        `
+        query($owner: String!, $repo: String!, $num: Int!) {
+          repository(owner: $owner, name: $repo) {
+            discussion(number: $num) { 
+              id 
+            }
+          }
+        }`,
+        { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+      );
+
+      const discussionId = repository.discussion.id;
+
+      const result = await github.graphql(
+        `
+        mutation($dId: ID!, $body: String!) {
+          addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+            comment { 
+              id 
+              url
+            }
+          }
+        }`,
+        { dId: discussionId, body: workflowLinkText }
+      );
+
+      const comment = result.addDiscussionComment.comment;
+      core.info(`Successfully created discussion comment with workflow link`);
+      core.info(`Comment ID: ${comment.id}`);
+      core.info(`Comment URL: ${comment.url}`);
+      core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+      core.setOutput("comment-id", comment.id);
+      core.setOutput("comment-url", comment.url);
+      core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
       return;
     }
 
-    // For issues and pull_request events, create a new comment
-    // For comment events (issue_comment, pull_request_review_comment), edit the existing comment
-    const isCreateComment = eventName === "issues" || eventName === "pull_request";
-
-    if (isCreateComment) {
-      // Create a new comment
-      const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
-
-      const createResponse = await github.request("POST " + endpoint, {
-        body: workflowLinkText,
-        headers: {
-          Accept: "application/vnd.github+json",
-        },
-      });
-
-      core.info(`Successfully created comment with workflow link`);
-      core.info(`Comment ID: ${createResponse.data.id}`);
-      core.info(`Comment URL: ${createResponse.data.html_url}`);
-      core.setOutput("comment-id", createResponse.data.id.toString());
-      core.setOutput("comment-url", createResponse.data.html_url);
-    } else {
-      // Edit existing comment
-      // First, get the current comment content
-      const getResponse = await github.request("GET " + endpoint, {
-        headers: {
-          Accept: "application/vnd.github+json",
-        },
-      });
-
-      const originalBody = getResponse.data.body || "";
-      const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
-
-      // Check if we've already added a workflow link to avoid duplicates
-      // Look for the specific pattern "Agentic [<workflow-name>](<url>) triggered by this comment"
-      const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
-      if (duplicatePattern.test(originalBody)) {
-        core.info("Comment already contains a workflow run link, skipping edit");
-        return;
-      }
-
-      const updatedBody = originalBody + workflowLinkText;
-
-      // Update the comment
-      const updateResponse = await github.request("PATCH " + endpoint, {
-        body: updatedBody,
-        headers: {
-          Accept: "application/vnd.github+json",
-        },
-      });
-
-      core.info(`Successfully updated comment with workflow link`);
-      core.info(`Comment ID: ${updateResponse.data.id}`);
+    // Always create a new comment (never edit existing comments)
+    let eventTypeDescription;
+    switch (eventName) {
+      case "issues":
+        eventTypeDescription = "issue";
+        break;
+      case "pull_request":
+        eventTypeDescription = "pull request";
+        break;
+      case "issue_comment":
+        eventTypeDescription = "issue comment";
+        break;
+      case "pull_request_review_comment":
+        eventTypeDescription = "pull request review comment";
+        break;
+      default:
+        eventTypeDescription = "event";
     }
+
+    const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
+
+    const createResponse = await github.request("POST " + endpoint, {
+      body: workflowLinkText,
+      headers: {
+        Accept: "application/vnd.github+json",
+      },
+    });
+
+    core.info(`Successfully created comment with workflow link`);
+    core.info(`Comment ID: ${createResponse.data.id}`);
+    core.info(`Comment URL: ${createResponse.data.html_url}`);
+    core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+    core.setOutput("comment-id", createResponse.data.id.toString());
+    core.setOutput("comment-url", createResponse.data.html_url);
+    core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
   } catch (error) {
     // Don't fail the entire job if comment editing/creation fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);

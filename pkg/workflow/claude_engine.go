@@ -86,19 +86,8 @@ func (e *ClaudeEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Claude
 func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	var steps []GitHubActionStep
-
 	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-	}
+	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
 	// Build claude CLI arguments based on configuration
 	var claudeArgs []string
@@ -142,6 +131,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Add network settings if configured
 	if workflowData.EngineConfig != nil && ShouldEnforceNetworkPermissions(workflowData.NetworkPermissions) {
 		claudeArgs = append(claudeArgs, "--settings", "/tmp/gh-aw/.claude/settings.json")
+	}
+
+	// Add custom args from engine configuration before the prompt
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		claudeArgs = append(claudeArgs, workflowData.EngineConfig.Args...)
 	}
 
 	var stepLines []string
@@ -213,10 +207,42 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		stepLines = append(stepLines, "          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json")
 	}
 
-	// Set MCP_TIMEOUT to 60000ms for MCP server communication
-	stepLines = append(stepLines, "          MCP_TIMEOUT: \"60000\"")
+	// Set timeout environment variables for Claude Code
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeoutMs := constants.DefaultMCPStartupTimeoutSeconds * 1000 // convert seconds to milliseconds
+	if workflowData.ToolsStartupTimeout > 0 {
+		startupTimeoutMs = workflowData.ToolsStartupTimeout * 1000 // convert seconds to milliseconds
+	}
+
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
+	timeoutMs := constants.DefaultToolTimeoutSeconds * 1000 // convert seconds to milliseconds
+	if workflowData.ToolsTimeout > 0 {
+		timeoutMs = workflowData.ToolsTimeout * 1000 // convert seconds to milliseconds
+	}
+
+	// MCP_TIMEOUT: Timeout for MCP server startup
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TIMEOUT: \"%d\"", startupTimeoutMs))
+
+	// MCP_TOOL_TIMEOUT: Timeout for MCP tool execution
+	stepLines = append(stepLines, fmt.Sprintf("          MCP_TOOL_TIMEOUT: \"%d\"", timeoutMs))
+
+	// BASH_DEFAULT_TIMEOUT_MS: Default timeout for Bash commands
+	stepLines = append(stepLines, fmt.Sprintf("          BASH_DEFAULT_TIMEOUT_MS: \"%d\"", timeoutMs))
+
+	// BASH_MAX_TIMEOUT_MS: Maximum timeout for Bash commands
+	stepLines = append(stepLines, fmt.Sprintf("          BASH_MAX_TIMEOUT_MS: \"%d\"", timeoutMs))
 
 	applySafeOutputEnvToSlice(&stepLines, workflowData)
+
+	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
+	if workflowData.ToolsStartupTimeout > 0 {
+		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_STARTUP_TIMEOUT: \"%d\"", workflowData.ToolsStartupTimeout))
+	}
+
+	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
+	if workflowData.ToolsTimeout > 0 {
+		stepLines = append(stepLines, fmt.Sprintf("          GH_AW_TOOL_TIMEOUT: \"%d\"", workflowData.ToolsTimeout))
+	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		stepLines = append(stepLines, fmt.Sprintf("          GITHUB_AW_MAX_TURNS: %s", workflowData.EngineConfig.MaxTurns))
@@ -530,8 +556,15 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 							}
 						}
 					} else if toolName == "github" {
-						// For GitHub tools without explicit allowed list, use default GitHub tools
-						for _, defaultTool := range constants.DefaultGitHubTools {
+						// For GitHub tools without explicit allowed list, use appropriate default GitHub tools based on mode
+						githubMode := getGitHubType(mcpConfig)
+						var defaultTools []string
+						if githubMode == "remote" {
+							defaultTools = constants.DefaultGitHubToolsRemote
+						} else {
+							defaultTools = constants.DefaultGitHubToolsLocal
+						}
+						for _, defaultTool := range defaultTools {
 							allowedTools = append(allowedTools, fmt.Sprintf("mcp__github__%s", defaultTool))
 						}
 					}
@@ -611,14 +644,8 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, false)
 		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderClaudeMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
+			// Handle custom MCP tools using shared helper
+			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, e.renderClaudeMCPConfig)
 		}
 	}
 

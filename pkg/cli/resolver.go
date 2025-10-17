@@ -10,31 +10,29 @@ import (
 // ResolveWorkflowPath resolves a workflow file path from various formats:
 // - Absolute path to .md file
 // - Relative path to .md file
-// - Workflow name (adds .md extension and looks in .github/workflows)
-// - Workflow name with .md extension
+// - Workflow name or subpath (e.g., "a.md" -> ".github/workflows/a.md", "shared/b.md" -> ".github/workflows/shared/b.md")
 func ResolveWorkflowPath(workflowFile string) (string, error) {
 	workflowsDir := ".github/workflows"
-	var workflowPath string
 
-	if strings.HasSuffix(workflowFile, ".md") {
-		// If it's already a .md file, use it directly if it exists
-		if _, err := os.Stat(workflowFile); err == nil {
-			workflowPath = workflowFile
-		} else {
-			// Try in workflows directory
-			workflowPath = filepath.Join(workflowsDir, workflowFile)
-		}
-	} else {
-		// Add .md extension and look in workflows directory
-		workflowPath = filepath.Join(workflowsDir, workflowFile+".md")
+	// Add .md extension if not present
+	searchPath := workflowFile
+	if !strings.HasSuffix(searchPath, ".md") {
+		searchPath += ".md"
 	}
 
-	// Verify the workflow file exists
-	if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("workflow file not found: %s", workflowPath)
+	// 1. If it's a path that exists as-is (absolute or relative), use it
+	if _, err := os.Stat(searchPath); err == nil {
+		return searchPath, nil
 	}
 
-	return workflowPath, nil
+	// 2. Try exact relative path under .github/workflows
+	workflowPath := filepath.Join(workflowsDir, searchPath)
+	if _, err := os.Stat(workflowPath); err == nil {
+		return workflowPath, nil
+	}
+
+	// No matches found
+	return "", fmt.Errorf("workflow file not found: %s", workflowPath)
 }
 
 // NormalizeWorkflowFile normalizes a workflow file name by adding .md extension if missing

@@ -65,19 +65,8 @@ func (e *CopilotEngine) GetVersionCommand() string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
 func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	var steps []GitHubActionStep
-
 	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-	}
+	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
@@ -94,6 +83,17 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// if cache-memory tool is used, --add-dir
 	if workflowData.CacheMemoryConfig != nil {
 		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/gh-aw/cache-memory/")
+	}
+
+	// Add --add-dir / when edit tool is enabled to allow write on all paths
+	// Workaround for GitHub/copilot-cli issue 67: https://github.com/GitHub/copilot-cli/issues/67
+	if _, hasEdit := workflowData.Tools["edit"]; hasEdit {
+		copilotArgs = append(copilotArgs, "--add-dir", "/")
+	}
+
+	// Add custom args from engine configuration before the prompt
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		copilotArgs = append(copilotArgs, workflowData.EngineConfig.Args...)
 	}
 
 	copilotArgs = append(copilotArgs, "--prompt", "\"$COPILOT_CLI_INSTRUCTION\"")
@@ -128,6 +128,16 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
+
+	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
+	if workflowData.ToolsStartupTimeout > 0 {
+		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+	}
+
+	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
+	if workflowData.ToolsTimeout > 0 {
+		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+	}
 
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		env["GITHUB_AW_MAX_TURNS"] = workflowData.EngineConfig.MaxTurns
@@ -247,14 +257,8 @@ func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "json", "              ", isLast, true)
 		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := tools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderCopilotMCPConfig(yaml, toolName, toolConfig, isLast); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
+			// Handle custom MCP tools using shared helper
+			HandleCustomMCPToolInSwitch(yaml, toolName, tools, isLast, e.renderCopilotMCPConfig)
 		}
 	}
 
@@ -421,7 +425,10 @@ func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder,
 	yaml.WriteString("                \"tools\": [\"*\"],\n")
 	yaml.WriteString("                \"env\": {\n")
 	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"\\${GITHUB_AW_SAFE_OUTPUTS}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\"\n")
+	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"\\${GITHUB_AW_ASSETS_BRANCH}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"\\${GITHUB_AW_ASSETS_MAX_SIZE_KB}\",\n")
+	yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"\\${GITHUB_AW_ASSETS_ALLOWED_EXTS}\"\n")
 	yaml.WriteString("                }\n")
 
 	if isLast {

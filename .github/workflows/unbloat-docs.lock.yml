@@ -6,7 +6,7 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   check_membership["check_membership"]
+#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   detection["detection"]
@@ -14,7 +14,8 @@
 #   create_pull_request["create_pull_request"]
 #   missing_tool["missing_tool"]
 #   upload_assets["upload_assets"]
-#   check_membership --> activation
+#   update_reaction["update_reaction"]
+#   pre_activation --> activation
 #   activation --> agent
 #   agent --> detection
 #   agent --> add_comment
@@ -25,6 +26,12 @@
 #   detection --> missing_tool
 #   agent --> upload_assets
 #   detection --> upload_assets
+#   agent --> update_reaction
+#   activation --> update_reaction
+#   add_comment --> update_reaction
+#   create_pull_request --> update_reaction
+#   missing_tool --> update_reaction
+#   upload_assets --> update_reaction
 # ```
 
 name: "Documentation Unbloat"
@@ -45,16 +52,13 @@ concurrency:
 run-name: "Documentation Unbloat"
 
 jobs:
-  check_membership:
+  pre_activation:
     if: >
       ((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/unbloat')) &&
       (github.event.issue.pull_request != null)))) || (!(github.event_name == 'issue_comment'))
     runs-on: ubuntu-latest
     outputs:
-      error_message: ${{ steps.check_membership.outputs.error_message }}
-      is_team_member: ${{ steps.check_membership.outputs.is_team_member }}
-      result: ${{ steps.check_membership.outputs.result }}
-      user_permission: ${{ steps.check_membership.outputs.user_permission }}
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
       - name: Check team membership for command workflow
         id: check_membership
@@ -138,10 +142,10 @@ jobs:
             await main();
 
   activation:
-    needs: check_membership
+    needs: pre_activation
     if: >
-      (needs.check_membership.outputs.is_team_member == 'true') && (((github.event_name == 'issue_comment') &&
-      ((github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/unbloat')) && (github.event.issue.pull_request != null)))) ||
+      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issue_comment') && ((github.event_name == 'issue_comment') &&
+      ((contains(github.event.comment.body, '/unbloat')) && (github.event.issue.pull_request != null)))) ||
       (!(github.event_name == 'issue_comment')))
     runs-on: ubuntu-latest
     permissions:
@@ -150,6 +154,7 @@ jobs:
       pull-requests: write
     outputs:
       comment_id: ${{ steps.react.outputs.comment-id }}
+      comment_repo: ${{ steps.react.outputs.comment-repo }}
       comment_url: ${{ steps.react.outputs.comment-url }}
       reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
@@ -382,7 +387,7 @@ jobs:
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 if (eventName === "discussion") {
                   const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion`;
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
                   const { repository } = await github.graphql(
                     `
                     query($owner: String!, $repo: String!, $num: Int!) {
@@ -411,50 +416,79 @@ jobs:
                   core.info(`Successfully created discussion comment with workflow link`);
                   core.info(`Comment ID: ${comment.id}`);
                   core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
                   core.setOutput("comment-id", comment.id);
                   core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 } else if (eventName === "discussion_comment") {
-                  core.info("Updating discussion comments is not supported by GitHub's GraphQL API");
+                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
+                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
+                  const { repository } = await github.graphql(
+                    `
+                    query($owner: String!, $repo: String!, $num: Int!) {
+                      repository(owner: $owner, name: $repo) {
+                        discussion(number: $num) { 
+                          id 
+                        }
+                      }
+                    }`,
+                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
+                  );
+                  const discussionId = repository.discussion.id;
+                  const result = await github.graphql(
+                    `
+                    mutation($dId: ID!, $body: String!) {
+                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                        comment { 
+                          id 
+                          url
+                        }
+                      }
+                    }`,
+                    { dId: discussionId, body: workflowLinkText }
+                  );
+                  const comment = result.addDiscussionComment.comment;
+                  core.info(`Successfully created discussion comment with workflow link`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                  core.setOutput("comment-id", comment.id);
+                  core.setOutput("comment-url", comment.url);
+                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
                   return;
                 }
-                const isCreateComment = eventName === "issues" || eventName === "pull_request";
-                if (isCreateComment) {
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventName === "issues" ? "issue" : "pull request"}`;
-                  const createResponse = await github.request("POST " + endpoint, {
-                    body: workflowLinkText,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully created comment with workflow link`);
-                  core.info(`Comment ID: ${createResponse.data.id}`);
-                  core.info(`Comment URL: ${createResponse.data.html_url}`);
-                  core.setOutput("comment-id", createResponse.data.id.toString());
-                  core.setOutput("comment-url", createResponse.data.html_url);
-                } else {
-                  const getResponse = await github.request("GET " + endpoint, {
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  const originalBody = getResponse.data.body || "";
-                  const workflowLinkText = `\n\nAgentic [${workflowName}](${runUrl}) triggered by this comment`;
-                  const duplicatePattern = /Agentic \[.+?\]\(.+?\) triggered by this comment/;
-                  if (duplicatePattern.test(originalBody)) {
-                    core.info("Comment already contains a workflow run link, skipping edit");
-                    return;
-                  }
-                  const updatedBody = originalBody + workflowLinkText;
-                  const updateResponse = await github.request("PATCH " + endpoint, {
-                    body: updatedBody,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment with workflow link`);
-                  core.info(`Comment ID: ${updateResponse.data.id}`);
+                let eventTypeDescription;
+                switch (eventName) {
+                  case "issues":
+                    eventTypeDescription = "issue";
+                    break;
+                  case "pull_request":
+                    eventTypeDescription = "pull request";
+                    break;
+                  case "issue_comment":
+                    eventTypeDescription = "issue comment";
+                    break;
+                  case "pull_request_review_comment":
+                    eventTypeDescription = "pull request review comment";
+                    break;
+                  default:
+                    eventTypeDescription = "event";
                 }
+                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
+                const createResponse = await github.request("POST " + endpoint, {
+                  body: workflowLinkText,
+                  headers: {
+                    Accept: "application/vnd.github+json",
+                  },
+                });
+                core.info(`Successfully created comment with workflow link`);
+                core.info(`Comment ID: ${createResponse.data.id}`);
+                core.info(`Comment URL: ${createResponse.data.html_url}`);
+                core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
+                core.setOutput("comment-id", createResponse.data.id.toString());
+                core.setOutput("comment-url", createResponse.data.html_url);
+                core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.warning(
@@ -472,6 +506,9 @@ jobs:
       contents: read
       pull-requests: read
     env:
+      GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"add_comment\":{\"max\":1},\"create_pull_request\":{},\"missing_tool\":{},\"upload_asset\":{}}"
     outputs:
@@ -577,7 +614,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.15
+        run: npm install -g @anthropic-ai/claude-code@2.0.19
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -705,6 +742,20 @@ jobs:
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
@@ -805,15 +856,12 @@ jobs:
               const res = { jsonrpc: "2.0", id, result };
               writeMessage(res);
             }
-            function replyError(id, code, message, data) {
+            function replyError(id, code, message) {
               if (id === undefined || id === null) {
                 debug(`Error for notification: ${message}`);
                 return;
               }
               const error = { code, message };
-              if (data !== undefined) {
-                error.data = data;
-              }
               const res = {
                 jsonrpc: "2.0",
                 id,
@@ -846,6 +894,7 @@ jobs:
             const uploadAssetHandler = args => {
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
               if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+              const normalizedBranchName = normalizeBranchName(branchName);
               const { path: filePath } = args;
               const absolutePath = path.resolve(filePath);
               const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -892,7 +941,7 @@ jobs:
               const targetFileName = (sha + fileExt).toLowerCase();
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
+              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
               const entry = {
                 type: "upload_asset",
                 path: filePath,
@@ -1414,9 +1463,7 @@ jobs:
                   replyError(id, -32601, `Method not found: ${method}`);
                 }
               } catch (e) {
-                replyError(id, -32603, "Internal error", {
-                  message: e instanceof Error ? e.message : String(e),
-                });
+                replyError(id, -32603, e instanceof Error ? e.message : String(e));
               }
             }
             process.stdin.on("data", onData);
@@ -1767,6 +1814,25 @@ jobs:
           **IMPORTANT**: When using Playwright tools to take screenshots or generate files, **all output files are automatically saved to `/tmp/gh-aw/mcp-logs/playwright/`**. This is the Playwright `--output-dir` and you can find any screenshots, traces, or other files generated by Playwright in this directory.
           
           EOF
+      - name: Append edit tool accessibility instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          
+          ---
+          
+          ## File Editing Access
+          
+          **IMPORTANT**: The edit tool provides file editing capabilities. You have write access to files in the following directories:
+          
+          - **Current workspace**: `$GITHUB_WORKSPACE` - The repository you're working on
+          - **Temporary directory**: `/tmp/gh-aw/` - For temporary files and agent work
+          
+          **Do NOT** attempt to edit files outside these directories as you do not have the necessary permissions.
+          
+          EOF
       - name: Append cache memory instructions to prompt
         env:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -1995,6 +2061,7 @@ jobs:
         # - Bash(uniq)
         # - Bash(wc -l *)
         # - Bash(wc)
+        # - Bash(yq)
         # - BashOutput
         # - Edit
         # - Edit(/tmp/gh-aw/cache-memory/*)
@@ -2093,7 +2160,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(cd *),Bash(cp *),Bash(curl *),Bash(date),Bash(echo),Bash(find docs -name '*.md'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n *),Bash(grep),Bash(head *),Bash(head),Bash(kill *),Bash(ls),Bash(mkdir *),Bash(mv *),Bash(node *),Bash(ps *),Bash(pwd),Bash(sleep *),Bash(sort),Bash(tail *),Bash(tail),Bash(uniq),Bash(wc -l *),Bash(wc),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(cd *),Bash(cp *),Bash(curl *),Bash(date),Bash(echo),Bash(find docs -name '*.md'),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep -n *),Bash(grep),Bash(head *),Bash(head),Bash(kill *),Bash(ls),Bash(mkdir *),Bash(mv *),Bash(node *),Bash(ps *),Bash(pwd),Bash(sleep *),Bash(sort),Bash(tail *),Bash(tail),Bash(uniq),Bash(wc -l *),Bash(wc),Bash(yq),BashOutput,Edit,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookEdit,NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_repository,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users,mcp__playwright__browser_click,mcp__playwright__browser_close,mcp__playwright__browser_console_messages,mcp__playwright__browser_drag,mcp__playwright__browser_evaluate,mcp__playwright__browser_file_upload,mcp__playwright__browser_fill_form,mcp__playwright__browser_handle_dialog,mcp__playwright__browser_hover,mcp__playwright__browser_install,mcp__playwright__browser_navigate,mcp__playwright__browser_navigate_back,mcp__playwright__browser_network_requests,mcp__playwright__browser_press_key,mcp__playwright__browser_resize,mcp__playwright__browser_select_option,mcp__playwright__browser_snapshot,mcp__playwright__browser_tabs,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_type,mcp__playwright__browser_wait_for" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -2101,7 +2168,10 @@ jobs:
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
-          MCP_TIMEOUT: "60000"
+          MCP_TIMEOUT: "120000"
+          MCP_TOOL_TIMEOUT: "60000"
+          BASH_DEFAULT_TIMEOUT_MS: "60000"
+          BASH_MAX_TIMEOUT_MS: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
           GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
@@ -3345,7 +3415,9 @@ jobs:
                 }
                 core.debug(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
-                  throw new Error(`Log path not found: ${logPath}`);
+                  core.info(`Log path not found: ${logPath}`);
+                  core.info("No logs to validate - skipping error validation");
+                  return;
                 }
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
@@ -3672,7 +3744,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.15
+        run: npm install -g @anthropic-ai/claude-code@2.0.19
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -3704,7 +3776,10 @@ jobs:
           DISABLE_ERROR_REPORTING: "1"
           DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          MCP_TIMEOUT: "60000"
+          MCP_TIMEOUT: "120000"
+          MCP_TOOL_TIMEOUT: "60000"
+          BASH_DEFAULT_TIMEOUT_MS: "60000"
+          BASH_MAX_TIMEOUT_MS: "60000"
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:
@@ -4630,6 +4705,20 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
@@ -4637,18 +4726,19 @@ jobs:
                 core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
                 return;
               }
-              core.info(`Using assets branch: ${branchName}`);
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
               const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!outputContent) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               core.info(`Agent output content length: ${outputContent.length}`);
@@ -4662,14 +4752,14 @@ jobs:
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
                 core.info("No valid items found in agent output");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
               if (uploadAssetItems.length === 0) {
                 core.info("No upload-asset items found in agent output");
                 core.setOutput("upload_count", "0");
-                core.setOutput("branch_name", branchName);
+                core.setOutput("branch_name", normalizedBranchName);
                 return;
               }
               core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
@@ -4677,12 +4767,12 @@ jobs:
               let hasChanges = false;
               try {
                 try {
-                  await exec.exec(`git rev-parse --verify origin/${branchName}`);
-                  await exec.exec(`git checkout -B ${branchName} origin/${branchName}`);
-                  core.info(`Checked out existing branch from origin: ${branchName}`);
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
                 } catch (originError) {
-                  core.info(`Creating new orphaned branch: ${branchName}`);
-                  await exec.exec(`git checkout --orphan ${branchName}`);
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
                   await exec.exec(`git rm -rf .`);
                   await exec.exec(`git clean -fdx`);
                 }
@@ -4723,9 +4813,12 @@ jobs:
                   if (isStaged) {
                     core.summary.addRaw("## Staged Asset Publication");
                   } else {
-                    await exec.exec(`git push origin ${branchName}`);
-                    core.summary.addRaw("## Assets").addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${branchName}\``).addRaw("");
-                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${branchName}`);
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary
+                      .addRaw("## Assets")
+                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+                      .addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
                   }
                   for (const asset of uploadAssetItems) {
                     if (asset.fileName && asset.sha && asset.size && asset.url) {
@@ -4741,7 +4834,124 @@ jobs:
                 return;
               }
               core.setOutput("upload_count", uploadCount.toString());
-              core.setOutput("branch_name", branchName);
+              core.setOutput("branch_name", normalizedBranchName);
             }
             await main();
+
+  update_reaction:
+    needs:
+      - agent
+      - activation
+      - add_comment
+      - create_pull_request
+      - missing_tool
+      - upload_assets
+    if: >
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
+      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      discussions: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Update reaction comment with error notification
+        id: update_reaction
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_AW_WORKFLOW_NAME: "Documentation Unbloat"
+          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          script: |
+            async function main() {
+              const commentId = process.env.GITHUB_AW_COMMENT_ID;
+              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
+              const runUrl = process.env.GITHUB_AW_RUN_URL;
+              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (!commentId) {
+                core.info("No comment ID found, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+              }
+              const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: errorMessage }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: errorMessage,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
+            });
 

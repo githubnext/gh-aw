@@ -95,19 +95,8 @@ func (e *CodexEngine) GetDeclaredOutputFiles() []string {
 
 // GetExecutionSteps returns the GitHub Actions steps for executing Codex
 func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep {
-	var steps []GitHubActionStep
-
 	// Handle custom steps if they exist in engine config
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			stepYAML, err := e.convertStepToYAML(step)
-			if err != nil {
-				// Log error but continue with other steps
-				continue
-			}
-			steps = append(steps, GitHubActionStep{stepYAML})
-		}
-	}
+	steps := InjectCustomEngineSteps(workflowData, e.convertStepToYAML)
 
 	// Build model parameter only if specified in engineConfig
 	var modelParam string
@@ -124,10 +113,18 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// See https://github.com/githubnext/gh-aw/issues/892
 	fullAutoParam := " --full-auto --skip-git-repo-check " //"--dangerously-bypass-approvals-and-sandbox "
 
+	// Build custom args parameter if specified in engineConfig
+	var customArgsParam string
+	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
+		for _, arg := range workflowData.EngineConfig.Args {
+			customArgsParam += arg + " "
+		}
+	}
+
 	command := fmt.Sprintf(`set -o pipefail
 INSTRUCTION=$(cat $GITHUB_AW_PROMPT)
 mkdir -p $CODEX_HOME/logs
-codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, logFile)
+codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 
 	env := map[string]string{
 		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
@@ -141,6 +138,16 @@ codex %sexec%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullA
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
+
+	// Add GH_AW_STARTUP_TIMEOUT environment variable (in seconds) if startup-timeout is specified
+	if workflowData.ToolsStartupTimeout > 0 {
+		env["GH_AW_STARTUP_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsStartupTimeout)
+	}
+
+	// Add GH_AW_TOOL_TIMEOUT environment variable (in seconds) if timeout is specified
+	if workflowData.ToolsTimeout > 0 {
+		env["GH_AW_TOOL_TIMEOUT"] = fmt.Sprintf("%d", workflowData.ToolsTimeout)
+	}
 
 	// Add custom environment variables from engine config
 	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
@@ -245,14 +252,10 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 		case "web-fetch":
 			renderMCPFetchServerConfig(yaml, "toml", "          ", false, false)
 		default:
-			// Handle custom MCP tools (those with MCP-compatible type)
-			if toolConfig, ok := expandedTools[toolName].(map[string]any); ok {
-				if hasMcp, _ := hasMCPConfig(toolConfig); hasMcp {
-					if err := e.renderCodexMCPConfig(yaml, toolName, toolConfig); err != nil {
-						fmt.Printf("Error generating custom MCP configuration for %s: %v\n", toolName, err)
-					}
-				}
-			}
+			// Handle custom MCP tools using shared helper (with adapter for isLast parameter)
+			HandleCustomMCPToolInSwitch(yaml, toolName, expandedTools, false, func(yaml *strings.Builder, toolName string, toolConfig map[string]any, isLast bool) error {
+				return e.renderCodexMCPConfig(yaml, toolName, toolConfig)
+			})
 		}
 	}
 
@@ -513,8 +516,20 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		}
 	}
 	yaml.WriteString("          user_agent = \"" + userAgent + "\"\n")
-	yaml.WriteString("          startup_timeout_sec = 120\n")
-	yaml.WriteString("          tool_timeout_sec = 120\n")
+
+	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeoutSeconds
+	startupTimeout := constants.DefaultMCPStartupTimeoutSeconds
+	if workflowData.ToolsStartupTimeout > 0 {
+		startupTimeout = workflowData.ToolsStartupTimeout
+	}
+	yaml.WriteString(fmt.Sprintf("          startup_timeout_sec = %d\n", startupTimeout))
+
+	// Use tools.timeout if specified, otherwise default to DefaultToolTimeoutSeconds
+	toolTimeout := constants.DefaultToolTimeoutSeconds
+	if workflowData.ToolsTimeout > 0 {
+		toolTimeout = workflowData.ToolsTimeout
+	}
+	yaml.WriteString(fmt.Sprintf("          tool_timeout_sec = %d\n", toolTimeout))
 
 	// https://developers.openai.com/codex/mcp
 	// Check if remote mode is enabled

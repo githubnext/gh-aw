@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/githubnext/gh-aw/pkg/console"
-	"github.com/githubnext/gh-aw/pkg/constants"
 	"github.com/githubnext/gh-aw/pkg/parser"
 	"github.com/githubnext/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -91,7 +90,7 @@ func applyImportsToFrontmatter(frontmatter map[string]any, importsResult *parser
 }
 
 // InspectWorkflowMCP inspects MCP servers used by a workflow and lists available tools, resources, and roots
-func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool) error {
+func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter string, verbose bool, useActionsSecrets bool) error {
 	workflowsDir := getWorkflowsDir()
 
 	// If no workflow file specified, show available workflow files with MCP configs
@@ -200,7 +199,7 @@ func InspectWorkflowMCP(workflowFile string, serverFilter string, toolFilter str
 		if i > 0 {
 			fmt.Println()
 		}
-		if err := inspectMCPServer(config, toolFilter, verbose); err != nil {
+		if err := inspectMCPServer(config, toolFilter, verbose, useActionsSecrets); err != nil {
 			fmt.Println(console.FormatError(console.CompilerError{
 				Type:    "error",
 				Message: fmt.Sprintf("Failed to inspect MCP server '%s': %v", config.Name, err),
@@ -284,6 +283,7 @@ func NewMCPInspectCommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
+	var checkSecrets bool
 
 	cmd := &cobra.Command{
 		Use:   "mcp inspect [workflow-file]",
@@ -300,6 +300,7 @@ Examples:
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
+  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -330,7 +331,7 @@ The command will:
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
 		},
 	}
 
@@ -338,6 +339,7 @@ The command will:
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolP("verbose", "v", false, "Enable verbose output with detailed connection information")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
+	cmd.Flags().BoolVar(&checkSecrets, "check-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
 
 	return cmd
 }
@@ -356,25 +358,19 @@ func spawnMCPInspector(workflowFile string, serverFilter string, verbose bool) e
 
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
-		workflowsDir := constants.GetWorkflowDir()
-
-		// Normalize the workflow file path
-		if !strings.HasSuffix(workflowFile, ".md") {
-			workflowFile += ".md"
+		// Resolve the workflow file path (supports shared workflows)
+		workflowPath, err := ResolveWorkflowPath(workflowFile)
+		if err != nil {
+			return err
 		}
 
-		workflowPath := filepath.Join(workflowsDir, workflowFile)
+		// Convert to absolute path if needed
 		if !filepath.IsAbs(workflowPath) {
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("failed to get current directory: %w", err)
 			}
 			workflowPath = filepath.Join(cwd, workflowPath)
-		}
-
-		// Check if file exists
-		if _, err := os.Stat(workflowPath); os.IsNotExist(err) {
-			return fmt.Errorf("workflow file not found: %s", workflowPath)
 		}
 
 		// Parse the workflow file to extract MCP configurations
@@ -562,6 +558,7 @@ func NewMCPInspectSubcommand() *cobra.Command {
 	var serverFilter string
 	var toolFilter string
 	var spawnInspector bool
+	var checkSecrets bool
 
 	cmd := &cobra.Command{
 		Use:   "inspect [workflow-file]",
@@ -577,6 +574,7 @@ Examples:
   gh aw mcp inspect weekly-research --server github --tool create_issue  # Show details for a specific tool
   gh aw mcp inspect weekly-research -v # Verbose output with detailed connection info
   gh aw mcp inspect weekly-research --inspector  # Launch @modelcontextprotocol/inspector
+  gh aw mcp inspect weekly-research --check-secrets  # Check GitHub Actions secrets
 
 The command will:
 - Parse the workflow file to extract MCP server configurations
@@ -614,13 +612,14 @@ The command will:
 				return spawnMCPInspector(workflowFile, serverFilter, verbose)
 			}
 
-			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose)
+			return InspectWorkflowMCP(workflowFile, serverFilter, toolFilter, verbose, checkSecrets)
 		},
 	}
 
 	cmd.Flags().StringVar(&serverFilter, "server", "", "Filter to inspect only the specified MCP server")
 	cmd.Flags().StringVar(&toolFilter, "tool", "", "Show detailed information about a specific tool (requires --server)")
 	cmd.Flags().BoolVar(&spawnInspector, "inspector", false, "Launch the official @modelcontextprotocol/inspector tool")
+	cmd.Flags().BoolVar(&checkSecrets, "check-secrets", false, "Check GitHub Actions repository secrets for missing secrets")
 
 	return cmd
 }

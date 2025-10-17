@@ -129,46 +129,48 @@ func NewCompilerWithCustomOutput(verbose bool, engineOverride string, customOutp
 
 // WorkflowData holds all the data needed to generate a GitHub Actions workflow
 type WorkflowData struct {
-	Name               string
-	TrialMode          bool     // whether the workflow is running in trial mode
-	TrialLogicalRepo   string   // target repository slug for trial mode (owner/repo)
-	FrontmatterName    string   // name field from frontmatter (for code scanning alert driver default)
-	Description        string   // optional description rendered as comment in lock file
-	Source             string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
-	ImportedFiles      []string // list of files imported via imports field (rendered as comment in lock file)
-	IncludedFiles      []string // list of files included via @include directives (rendered as comment in lock file)
-	On                 string
-	Permissions        string
-	Network            string // top-level network permissions configuration
-	Concurrency        string // workflow-level concurrency configuration
-	RunName            string
-	Env                string
-	If                 string
-	TimeoutMinutes     string
-	CustomSteps        string
-	PostSteps          string // steps to run after AI execution
-	RunsOn             string
-	Environment        string // environment setting for the main job
-	Container          string // container setting for the main job
-	Services           string // services setting for the main job
-	Tools              map[string]any
-	MarkdownContent    string
-	AI                 string        // "claude" or "codex" (for backwards compatibility)
-	EngineConfig       *EngineConfig // Extended engine configuration
-	StopTime           string
-	Command            string              // for /command trigger support
-	CommandEvents      []string            // events where command should be active (nil = all events)
-	CommandOtherEvents map[string]any      // for merging command with other events
-	AIReaction         string              // AI reaction type like "eyes", "heart", etc.
-	Jobs               map[string]any      // custom job configurations with dependencies
-	Cache              string              // cache configuration
-	NeedsTextOutput    bool                // whether the workflow uses ${{ needs.task.outputs.text }}
-	NetworkPermissions *NetworkPermissions // parsed network permissions
-	SafeOutputs        *SafeOutputsConfig  // output configuration for automatic output routes
-	Roles              []string            // permission levels required to trigger workflow
-	CacheMemoryConfig  *CacheMemoryConfig  // parsed cache-memory configuration
-	SafetyPrompt       bool                // whether to include XPIA safety prompt (default true)
-	Runtimes           map[string]any      // runtime version overrides from frontmatter
+	Name                string
+	TrialMode           bool     // whether the workflow is running in trial mode
+	TrialLogicalRepo    string   // target repository slug for trial mode (owner/repo)
+	FrontmatterName     string   // name field from frontmatter (for code scanning alert driver default)
+	Description         string   // optional description rendered as comment in lock file
+	Source              string   // optional source field (owner/repo@ref/path) rendered as comment in lock file
+	ImportedFiles       []string // list of files imported via imports field (rendered as comment in lock file)
+	IncludedFiles       []string // list of files included via @include directives (rendered as comment in lock file)
+	On                  string
+	Permissions         string
+	Network             string // top-level network permissions configuration
+	Concurrency         string // workflow-level concurrency configuration
+	RunName             string
+	Env                 string
+	If                  string
+	TimeoutMinutes      string
+	CustomSteps         string
+	PostSteps           string // steps to run after AI execution
+	RunsOn              string
+	Environment         string // environment setting for the main job
+	Container           string // container setting for the main job
+	Services            string // services setting for the main job
+	Tools               map[string]any
+	MarkdownContent     string
+	AI                  string        // "claude" or "codex" (for backwards compatibility)
+	EngineConfig        *EngineConfig // Extended engine configuration
+	StopTime            string
+	Command             string              // for /command trigger support
+	CommandEvents       []string            // events where command should be active (nil = all events)
+	CommandOtherEvents  map[string]any      // for merging command with other events
+	AIReaction          string              // AI reaction type like "eyes", "heart", etc.
+	Jobs                map[string]any      // custom job configurations with dependencies
+	Cache               string              // cache configuration
+	NeedsTextOutput     bool                // whether the workflow uses ${{ needs.task.outputs.text }}
+	NetworkPermissions  *NetworkPermissions // parsed network permissions
+	SafeOutputs         *SafeOutputsConfig  // output configuration for automatic output routes
+	Roles               []string            // permission levels required to trigger workflow
+	CacheMemoryConfig   *CacheMemoryConfig  // parsed cache-memory configuration
+	SafetyPrompt        bool                // whether to include XPIA safety prompt (default true)
+	Runtimes            map[string]any      // runtime version overrides from frontmatter
+	ToolsTimeout        int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
+	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
 }
 
 // BaseSafeOutputConfig holds common configuration fields for all safe output types
@@ -694,8 +696,20 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		return nil, fmt.Errorf("failed to merge tools: %w", err)
 	}
 
-	// Extract safety-prompt setting from tools (defaults to true)
-	safetyPrompt := c.extractSafetyPromptSetting(topTools)
+	// Extract safety-prompt setting from merged tools (defaults to true)
+	safetyPrompt := c.extractSafetyPromptSetting(tools)
+
+	// Extract timeout setting from merged tools (defaults to 0 which means use engine defaults)
+	toolsTimeout := c.extractToolsTimeout(tools)
+
+	// Extract startup-timeout setting from merged tools (defaults to 0 which means use engine defaults)
+	toolsStartupTimeout := c.extractToolsStartupTimeout(tools)
+
+	// Remove meta fields (safety-prompt, timeout, startup-timeout) from merged tools map
+	// These are configuration fields, not actual tools
+	delete(tools, "safety-prompt")
+	delete(tools, "timeout")
+	delete(tools, "startup-timeout")
 
 	// Extract and merge runtimes from frontmatter and imports
 	topRuntimes := extractRuntimesFromFrontmatter(result.Frontmatter)
@@ -792,22 +806,24 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 
 	// Build workflow data
 	workflowData := &WorkflowData{
-		Name:               workflowName,
-		FrontmatterName:    frontmatterName,
-		Description:        c.extractDescription(result.Frontmatter),
-		Source:             c.extractSource(result.Frontmatter),
-		ImportedFiles:      importsResult.ImportedFiles,
-		IncludedFiles:      allIncludedFiles,
-		Tools:              tools,
-		Runtimes:           runtimes,
-		MarkdownContent:    markdownContent,
-		AI:                 engineSetting,
-		EngineConfig:       engineConfig,
-		NetworkPermissions: networkPermissions,
-		NeedsTextOutput:    needsTextOutput,
-		SafetyPrompt:       safetyPrompt,
-		TrialMode:          c.trialMode,
-		TrialLogicalRepo:   c.trialLogicalRepoSlug,
+		Name:                workflowName,
+		FrontmatterName:     frontmatterName,
+		Description:         c.extractDescription(result.Frontmatter),
+		Source:              c.extractSource(result.Frontmatter),
+		ImportedFiles:       importsResult.ImportedFiles,
+		IncludedFiles:       allIncludedFiles,
+		Tools:               tools,
+		Runtimes:            runtimes,
+		MarkdownContent:     markdownContent,
+		AI:                  engineSetting,
+		EngineConfig:        engineConfig,
+		NetworkPermissions:  networkPermissions,
+		NeedsTextOutput:     needsTextOutput,
+		SafetyPrompt:        safetyPrompt,
+		ToolsTimeout:        toolsTimeout,
+		ToolsStartupTimeout: toolsStartupTimeout,
+		TrialMode:           c.trialMode,
+		TrialLogicalRepo:    c.trialLogicalRepoSlug,
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -1084,6 +1100,62 @@ func (c *Compiler) extractSafetyPromptSetting(tools map[string]any) bool {
 
 	// Default to true (enabled)
 	return true
+}
+
+// extractToolsTimeout extracts the timeout setting from tools
+// Returns 0 if not set (engines will use their own defaults)
+func (c *Compiler) extractToolsTimeout(tools map[string]any) int {
+	if tools == nil {
+		return 0 // Use engine defaults
+	}
+
+	// Check if timeout is explicitly set in tools
+	if timeoutValue, exists := tools["timeout"]; exists {
+		// Handle different numeric types
+		switch v := timeoutValue.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case uint:
+			return int(v)
+		case uint64:
+			return int(v)
+		case float64:
+			return int(v)
+		}
+	}
+
+	// Default to 0 (use engine defaults)
+	return 0
+}
+
+// extractToolsStartupTimeout extracts the startup-timeout setting from tools
+// Returns 0 if not set (engines will use their own defaults)
+func (c *Compiler) extractToolsStartupTimeout(tools map[string]any) int {
+	if tools == nil {
+		return 0 // Use engine defaults
+	}
+
+	// Check if startup-timeout is explicitly set in tools
+	if timeoutValue, exists := tools["startup-timeout"]; exists {
+		// Handle different numeric types
+		switch v := timeoutValue.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case uint:
+			return int(v)
+		case uint64:
+			return int(v)
+		case float64:
+			return int(v)
+		}
+	}
+
+	// Default to 0 (use engine defaults)
+	return 0
 }
 
 // extractExpressionFromIfString extracts the expression part from a string that might
@@ -1472,11 +1544,20 @@ func (c *Compiler) applyDefaultTools(tools map[string]any, safeOutputs *SafeOutp
 		}
 	}
 
+	// Determine which default tools list to use based on mode
+	githubMode := getGitHubType(githubTool)
+	var defaultTools []string
+	if githubMode == "remote" {
+		defaultTools = constants.DefaultGitHubToolsRemote
+	} else {
+		defaultTools = constants.DefaultGitHubToolsLocal
+	}
+
 	// Add default GitHub tools that aren't already present
 	newAllowed := make([]any, len(existingAllowed))
 	copy(newAllowed, existingAllowed)
 
-	for _, defaultTool := range constants.DefaultGitHubTools {
+	for _, defaultTool := range defaultTools {
 		if !existingToolsSet[defaultTool] {
 			newAllowed = append(newAllowed, defaultTool)
 		}
@@ -1754,27 +1835,29 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Main job ID is always constants.AgentJobName
 
-	// Build check_membership job if needed (validates team membership levels)
-	// Team membership checks are specifically for command workflows
-	// Non-command workflows use general role checks instead
+	// Determine if permission checks or stop-time checks are needed
 	needsPermissionCheck := c.needsRoleCheck(data, frontmatter)
+	hasStopTime := data.StopTime != ""
 
-	if needsPermissionCheck {
-		checkMembershipJob, err := c.buildCheckMembershipJob(data)
+	// Build pre-activation job if needed (combines membership checks and stop-time validation)
+	var preActivationJobCreated bool
+	if needsPermissionCheck || hasStopTime {
+		preActivationJob, err := c.buildPreActivationJob(data, needsPermissionCheck)
 		if err != nil {
-			return fmt.Errorf("failed to build %s job: %w", constants.CheckMembershipJobName, err)
+			return fmt.Errorf("failed to build %s job: %w", constants.PreActivationJobName, err)
 		}
-		if err := c.jobManager.AddJob(checkMembershipJob); err != nil {
-			return fmt.Errorf("failed to add %s job: %w", constants.CheckMembershipJobName, err)
+		if err := c.jobManager.AddJob(preActivationJob); err != nil {
+			return fmt.Errorf("failed to add %s job: %w", constants.PreActivationJobName, err)
 		}
+		preActivationJobCreated = true
 	}
 
 	// Build activation job if needed (preamble job that handles runtime conditions)
-	// If check_membership job exists, activation job is ALWAYS created and depends on it
+	// If pre-activation job exists, activation job depends on it and checks the "activated" output
 	var activationJobCreated bool
 
 	if c.isActivationJobNeeded() {
-		activationJob, err := c.buildActivationJob(data, needsPermissionCheck)
+		activationJob, err := c.buildActivationJob(data, preActivationJobCreated)
 		if err != nil {
 			return fmt.Errorf("failed to build activation job: %w", err)
 		}
@@ -1782,17 +1865,6 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 			return fmt.Errorf("failed to add activation job: %w", err)
 		}
 		activationJobCreated = true
-	}
-
-	// Build stop-time check job if stop-time is configured
-	if data.StopTime != "" {
-		stopTimeCheckJob, err := c.buildStopTimeCheckJob(data, activationJobCreated)
-		if err != nil {
-			return fmt.Errorf("failed to build stop_time_check job: %w", err)
-		}
-		if err := c.jobManager.AddJob(stopTimeCheckJob); err != nil {
-			return fmt.Errorf("failed to add stop_time_check job: %w", err)
-		}
 	}
 
 	// Build main workflow job
@@ -1845,6 +1917,9 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		threatDetectionEnabled = true
 	}
 
+	// Track safe output job names to establish dependencies for update_reaction job
+	var safeOutputJobNames []string
+
 	// Build create_issue job if output.create_issue is configured
 	if data.SafeOutputs.CreateIssues != nil {
 		createIssueJob, err := c.buildCreateOutputIssueJob(data, jobName)
@@ -1858,6 +1933,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createIssueJob); err != nil {
 			return fmt.Errorf("failed to add create_issue job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createIssueJob.Name)
 	}
 
 	// Build create_discussion job if output.create_discussion is configured
@@ -1873,6 +1949,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createDiscussionJob); err != nil {
 			return fmt.Errorf("failed to add create_discussion job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createDiscussionJob.Name)
 	}
 
 	// Build add_comment job if output.add-comment is configured
@@ -1888,6 +1965,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createCommentJob); err != nil {
 			return fmt.Errorf("failed to add add_comment job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createCommentJob.Name)
 	}
 
 	// Build create_pr_review_comment job if output.create-pull-request-review-comment is configured
@@ -1903,6 +1981,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createPRReviewCommentJob); err != nil {
 			return fmt.Errorf("failed to add create_pr_review_comment job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createPRReviewCommentJob.Name)
 	}
 
 	// Build create_code_scanning_alert job if output.create-code-scanning-alert is configured
@@ -1920,6 +1999,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createCodeScanningAlertJob); err != nil {
 			return fmt.Errorf("failed to add create_code_scanning_alert job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createCodeScanningAlertJob.Name)
 	}
 
 	// Build create_pull_request job if output.create-pull-request is configured
@@ -1935,6 +2015,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(createPullRequestJob); err != nil {
 			return fmt.Errorf("failed to add create_pull_request job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, createPullRequestJob.Name)
 	}
 
 	// Build add_labels job if output.add-labels is configured (including null/empty)
@@ -1950,6 +2031,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(addLabelsJob); err != nil {
 			return fmt.Errorf("failed to add add_labels job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, addLabelsJob.Name)
 	}
 
 	// Build update_issue job if output.update-issue is configured
@@ -1965,6 +2047,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(updateIssueJob); err != nil {
 			return fmt.Errorf("failed to add update_issue job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, updateIssueJob.Name)
 	}
 
 	// Build push_to_pull_request_branch job if output.push-to-pull-request-branch is configured
@@ -1980,6 +2063,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(pushToBranchJob); err != nil {
 			return fmt.Errorf("failed to add push_to_pull_request_branch job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, pushToBranchJob.Name)
 	}
 
 	// Build missing_tool job (always enabled when SafeOutputs exists)
@@ -1995,6 +2079,7 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(missingToolJob); err != nil {
 			return fmt.Errorf("failed to add missing_tool job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, missingToolJob.Name)
 	}
 
 	// Build upload_assets job if output.upload-asset is configured
@@ -2010,29 +2095,110 @@ func (c *Compiler) buildSafeOutputsJobs(data *WorkflowData, jobName, markdownPat
 		if err := c.jobManager.AddJob(uploadAssetsJob); err != nil {
 			return fmt.Errorf("failed to add upload_assets job: %w", err)
 		}
+		safeOutputJobNames = append(safeOutputJobNames, uploadAssetsJob.Name)
+	}
+
+	// Build update_reaction job if add-comment is configured
+	// This job runs last, after all safe output jobs, to update the activation comment on failure
+	if data.SafeOutputs.AddComments != nil {
+		updateReactionJob, err := c.buildUpdateReactionJob(data, jobName, safeOutputJobNames)
+		if err != nil {
+			return fmt.Errorf("failed to build update_reaction job: %w", err)
+		}
+		if updateReactionJob != nil {
+			if err := c.jobManager.AddJob(updateReactionJob); err != nil {
+				return fmt.Errorf("failed to add update_reaction job: %w", err)
+			}
+		}
 	}
 
 	return nil
 }
 
-// buildCheckMembershipJob creates the check_membership job that validates team membership levels
-func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
-	outputs := map[string]string{
-		"is_team_member":  fmt.Sprintf("${{ steps.%s.outputs.is_team_member }}", constants.CheckMembershipJobName),
-		"result":          fmt.Sprintf("${{ steps.%s.outputs.result }}", constants.CheckMembershipJobName),
-		"user_permission": fmt.Sprintf("${{ steps.%s.outputs.user_permission }}", constants.CheckMembershipJobName),
-		"error_message":   fmt.Sprintf("${{ steps.%s.outputs.error_message }}", constants.CheckMembershipJobName),
-	}
+// buildPreActivationJob creates a unified pre-activation job that combines membership checks and stop-time validation
+// This job exposes a single "activated" output that indicates whether the workflow should proceed
+func (c *Compiler) buildPreActivationJob(data *WorkflowData, needsPermissionCheck bool) (*Job, error) {
 	var steps []string
+	var permissions string
 
-	// Add team member check that only sets outputs
-	steps = c.generateMembershipCheck(data, steps)
+	// Add team member check if permission checks are needed
+	if needsPermissionCheck {
+		steps = c.generateMembershipCheck(data, steps)
+	}
+
+	// Add stop-time check if configured
+	if data.StopTime != "" {
+		// Extract workflow name for the stop-time check
+		workflowName := data.Name
+
+		steps = append(steps, "      - name: Check stop-time limit\n")
+		steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckStopTimeStepID))
+		steps = append(steps, "        uses: actions/github-script@v8\n")
+		steps = append(steps, "        env:\n")
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_STOP_TIME: %s\n", data.StopTime))
+		steps = append(steps, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", workflowName))
+		steps = append(steps, "        with:\n")
+		steps = append(steps, "          script: |\n")
+
+		// Add the JavaScript script with proper indentation
+		formattedScript := FormatJavaScriptForYAML(checkStopTimeScript)
+		steps = append(steps, formattedScript...)
+	}
+
+	// Generate the activated output expression using expression builders
+	var activatedNode ConditionNode
+
+	// Build condition nodes for each check
+	var conditions []ConditionNode
+
+	if needsPermissionCheck {
+		// Add membership check condition
+		membershipCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckMembershipStepID, constants.IsTeamMemberOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, membershipCheck)
+	}
+
+	if data.StopTime != "" {
+		// Add stop-time check condition
+		stopTimeCheck := BuildComparison(
+			BuildPropertyAccess(fmt.Sprintf("steps.%s.outputs.%s", constants.CheckStopTimeStepID, constants.StopTimeOkOutput)),
+			"==",
+			BuildStringLiteral("true"),
+		)
+		conditions = append(conditions, stopTimeCheck)
+	}
+
+	// Build the final expression
+	if len(conditions) == 0 {
+		// This should never happen - it means pre-activation job was created without any checks
+		// If we reach this point, it's a developer error in the compiler logic
+		return nil, fmt.Errorf("developer error: pre-activation job created without permission check or stop-time configuration")
+	} else if len(conditions) == 1 {
+		// Single condition
+		activatedNode = conditions[0]
+	} else {
+		// Multiple conditions - combine with AND
+		activatedNode = conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			activatedNode = buildAnd(activatedNode, conditions[i])
+		}
+	}
+
+	// Render the expression with ${{ }} wrapper
+	activatedExpression := fmt.Sprintf("${{ %s }}", activatedNode.Render())
+
+	outputs := map[string]string{
+		"activated": activatedExpression,
+	}
 
 	job := &Job{
-		Name:        constants.CheckMembershipJobName,
+		Name:        constants.PreActivationJobName,
 		If:          data.If, // Use the existing condition (which may include alias checks)
 		RunsOn:      c.formatSafeOutputsRunsOn(data.SafeOutputs),
-		Permissions: "", // No special permissions needed - just reading repo permissions
+		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
 	}
@@ -2041,7 +2207,7 @@ func (c *Compiler) buildCheckMembershipJob(data *WorkflowData) (*Job, error) {
 }
 
 // buildActivationJob creates the preamble activation job that acts as a barrier for runtime conditions
-func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCreated bool) (*Job, error) {
+func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreated bool) (*Job, error) {
 	outputs := map[string]string{}
 	var steps []string
 
@@ -2108,6 +2274,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		outputs["reaction_id"] = "${{ steps.react.outputs.reaction-id }}"
 		outputs["comment_id"] = "${{ steps.react.outputs.comment-id }}"
 		outputs["comment_url"] = "${{ steps.react.outputs.comment-url }}"
+		outputs["comment_repo"] = "${{ steps.react.outputs.comment-repo }}"
 	}
 
 	// If no steps have been added, add a dummy step to make the job valid
@@ -2116,26 +2283,28 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		steps = append(steps, "      - run: echo \"Activation success\"\n")
 	}
 
-	// Build the conditional expression that validates membership and other conditions
+	// Build the conditional expression that validates activation status and other conditions
 	var activationNeeds []string
 	var activationCondition string
 
-	if checkMembershipJobCreated {
-		// Activation job is the only job that can rely on check_membership
-		activationNeeds = []string{constants.CheckMembershipJobName}
-		membershipExpr := BuildEquals(
-			BuildPropertyAccess("needs."+constants.CheckMembershipJobName+".outputs.is_team_member"),
+	if preActivationJobCreated {
+		// Activation job depends on pre-activation job and checks the "activated" output
+		activationNeeds = []string{constants.PreActivationJobName}
+		activatedExpr := BuildEquals(
+			BuildPropertyAccess(fmt.Sprintf("needs.%s.outputs.%s", constants.PreActivationJobName, constants.ActivatedOutput)),
 			BuildStringLiteral("true"),
 		)
 		if data.If != "" {
-			ifExpr := &ExpressionNode{Expression: data.If}
-			combinedExpr := &AndNode{Left: membershipExpr, Right: ifExpr}
+			// Strip ${{ }} wrapper from data.If before combining
+			unwrappedIf := stripExpressionWrapper(data.If)
+			ifExpr := &ExpressionNode{Expression: unwrappedIf}
+			combinedExpr := buildAnd(activatedExpr, ifExpr)
 			activationCondition = combinedExpr.Render()
 		} else {
-			activationCondition = membershipExpr.Render()
+			activationCondition = activatedExpr.Render()
 		}
 	} else {
-		// No membership check needed
+		// No pre-activation check needed
 		activationCondition = data.If
 	}
 
@@ -2152,7 +2321,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, checkMembershipJobCrea
 		Permissions: permissions,
 		Steps:       steps,
 		Outputs:     outputs,
-		Needs:       activationNeeds, // Depend on check_membership job if it exists
+		Needs:       activationNeeds, // Depend on pre-activation job if it exists
 	}
 
 	return job, nil
@@ -2208,6 +2377,13 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		if safeOutputConfig != "" {
 			// The JSON string needs to be properly quoted for YAML
 			env["GITHUB_AW_SAFE_OUTPUTS_CONFIG"] = fmt.Sprintf("%q", safeOutputConfig)
+		}
+
+		// Add asset-related environment variables if upload-assets is configured
+		if data.SafeOutputs.UploadAssets != nil {
+			env["GITHUB_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
+			env["GITHUB_AW_ASSETS_MAX_SIZE_KB"] = fmt.Sprintf("%d", data.SafeOutputs.UploadAssets.MaxSizeKB)
+			env["GITHUB_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 		}
 	}
 
@@ -2685,6 +2861,9 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData) {
 	// Add playwright output directory instructions if playwright tool is enabled
 	c.generatePlaywrightPromptStep(yaml, data)
 
+	// Add edit tool accessibility instructions if edit tool is enabled
+	c.generateEditToolPromptStep(yaml, data)
+
 	// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
 	// if len(trialTargetRepoName) == 2 {
 	// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
@@ -2730,13 +2909,11 @@ func (c *Compiler) generateCacheMemoryPromptStep(yaml *strings.Builder, config *
 		return
 	}
 
-	yaml.WriteString("      - name: Append cache memory instructions to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
-	generateCacheMemoryPromptSection(yaml, config)
-	yaml.WriteString("          EOF\n")
+	appendPromptStepWithHeredoc(yaml,
+		"Append cache memory instructions to prompt",
+		func(y *strings.Builder) {
+			generateCacheMemoryPromptSection(y, config)
+		})
 }
 
 // generateSafeOutputsPromptStep generates a separate step for safe outputs prompt section
@@ -2745,13 +2922,11 @@ func (c *Compiler) generateSafeOutputsPromptStep(yaml *strings.Builder, safeOutp
 		return
 	}
 
-	yaml.WriteString("      - name: Append safe outputs instructions to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          cat >> $GITHUB_AW_PROMPT << 'EOF'\n")
-	generateSafeOutputsPromptSection(yaml, safeOutputs)
-	yaml.WriteString("          EOF\n")
+	appendPromptStepWithHeredoc(yaml,
+		"Append safe outputs instructions to prompt",
+		func(y *strings.Builder) {
+			generateSafeOutputsPromptSection(y, safeOutputs)
+		})
 }
 
 // generatePostSteps generates the post-steps section that runs after AI execution

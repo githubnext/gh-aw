@@ -14,9 +14,9 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 				"type": "http",
 				"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 				"headers": map[string]any{
-					"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
-					"DD_APP_KEY": "${{ secrets.DD_APP_KEY }}",
-					"DD_SITE":    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+					"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
+					"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
+					"DD_SITE":            "${{ secrets.DD_SITE || 'datadoghq.com' }}",
 				},
 				"allowed": []string{
 					"search_datadog_dashboards",
@@ -47,13 +47,13 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 		`"url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"`,
 		`"headers": {`,
 		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APP_KEY": "\${DD_APP_KEY}"`,
+		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
 		`"DD_SITE": "\${DD_SITE}"`,
 		`"tools": [`,
 		`"search_datadog_dashboards"`,
 		`"env": {`,
 		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APP_KEY": "\${DD_APP_KEY}"`,
+		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
 		`"DD_SITE": "\${DD_SITE}"`,
 	}
 
@@ -66,7 +66,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	// Verify secret expressions are NOT in MCP config
 	unexpectedMCPChecks := []string{
 		`${{ secrets.DD_API_KEY }}`,
-		`${{ secrets.DD_APP_KEY }}`,
+		`${{ secrets.DD_APPLICATION_KEY }}`,
 		`${{ secrets.DD_SITE || 'datadoghq.com' }}`,
 	}
 
@@ -96,7 +96,7 @@ func TestCopilotEngine_HTTPMCPWithHeaderSecrets_Integration(t *testing.T) {
 	// Verify env variables are declared with secret expressions
 	expectedEnvChecks := []string{
 		`DD_API_KEY: ${{ secrets.DD_API_KEY }}`,
-		`DD_APP_KEY: ${{ secrets.DD_APP_KEY }}`,
+		`DD_APPLICATION_KEY: ${{ secrets.DD_APPLICATION_KEY }}`,
 		`DD_SITE: ${{ secrets.DD_SITE || 'datadoghq.com' }}`,
 	}
 

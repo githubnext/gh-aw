@@ -52,7 +52,7 @@ func TestValidateServerSecrets(t *testing.T) {
 			errorMsg:    "environment variable 'MISSING_VAR' not set",
 		},
 		{
-			name: "secrets reference (not implemented)",
+			name: "secrets reference (handled gracefully)",
 			config: parser.MCPServerConfig{
 				Name: "secrets-tool",
 				Type: "stdio",
@@ -60,8 +60,41 @@ func TestValidateServerSecrets(t *testing.T) {
 					"API_KEY": "${secrets.API_KEY}",
 				},
 			},
-			expectError: true,
-			errorMsg:    "secret 'API_KEY' validation not implemented",
+			expectError: false,
+		},
+		{
+			name: "github remote mode requires GH_AW_GITHUB_TOKEN",
+			config: parser.MCPServerConfig{
+				Name: "github",
+				Type: "http",
+				URL:  "https://api.githubcopilot.com/mcp/",
+				Env:  map[string]string{},
+			},
+			envVars: map[string]string{
+				"GH_AW_GITHUB_TOKEN": "test_token",
+			},
+			expectError: false,
+		},
+		{
+			name: "github remote mode with custom token",
+			config: parser.MCPServerConfig{
+				Name: "github",
+				Type: "http",
+				URL:  "https://api.githubcopilot.com/mcp/",
+				Env: map[string]string{
+					"GITHUB_TOKEN": "${{ secrets.CUSTOM_PAT }}",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "github local mode does not require GH_AW_GITHUB_TOKEN",
+			config: parser.MCPServerConfig{
+				Name: "github",
+				Type: "docker",
+				Env:  map[string]string{},
+			},
+			expectError: false,
 		},
 	}
 
@@ -97,7 +130,7 @@ func TestValidateServerSecrets(t *testing.T) {
 				}
 			}()
 
-			err := validateServerSecrets(tt.config)
+			err := validateServerSecrets(tt.config, false, false)
 
 			if tt.expectError && err == nil {
 				t.Errorf("Expected error but got none")

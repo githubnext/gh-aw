@@ -66,18 +66,18 @@ func TestExtractSecretsFromValue(t *testing.T) {
 
 func TestExtractSecretsFromHeaders(t *testing.T) {
 	headers := map[string]string{
-		"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
-		"DD_APP_KEY": "${{ secrets.DD_APP_KEY }}",
-		"DD_SITE":    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
-		"Static":     "no-secrets-here",
+		"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
+		"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
+		"DD_SITE":            "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+		"Static":             "no-secrets-here",
 	}
 
 	result := extractSecretsFromHeaders(headers)
 
 	expected := map[string]string{
-		"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
-		"DD_APP_KEY": "${{ secrets.DD_APP_KEY }}",
-		"DD_SITE":    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+		"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
+		"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
+		"DD_SITE":            "${{ secrets.DD_SITE || 'datadoghq.com' }}",
 	}
 
 	if len(result) != len(expected) {
@@ -147,9 +147,9 @@ func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 		"type": "http",
 		"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 		"headers": map[string]any{
-			"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
-			"DD_APP_KEY": "${{ secrets.DD_APP_KEY }}",
-			"DD_SITE":    "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+			"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
+			"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
+			"DD_SITE":            "${{ secrets.DD_SITE || 'datadoghq.com' }}",
 		},
 		"allowed": []string{"search_datadog_dashboards", "search_datadog_slos"},
 	}
@@ -172,7 +172,7 @@ func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 	expectedHeaderChecks := []string{
 		`"headers": {`,
 		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APP_KEY": "\${DD_APP_KEY}"`,
+		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
 		`"DD_SITE": "\${DD_SITE}"`,
 	}
 
@@ -186,7 +186,7 @@ func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 	expectedEnvChecks := []string{
 		`"env": {`,
 		`"DD_API_KEY": "\${DD_API_KEY}"`,
-		`"DD_APP_KEY": "\${DD_APP_KEY}"`,
+		`"DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}"`,
 		`"DD_SITE": "\${DD_SITE}"`,
 	}
 
@@ -204,7 +204,7 @@ func TestRenderSharedMCPConfig_HTTPWithHeaderSecrets(t *testing.T) {
 	// Verify original secret expressions are NOT in the output (they should be replaced)
 	unexpectedChecks := []string{
 		`${{ secrets.DD_API_KEY }}`,
-		`${{ secrets.DD_APP_KEY }}`,
+		`${{ secrets.DD_APPLICATION_KEY }}`,
 		`${{ secrets.DD_SITE || 'datadoghq.com' }}`,
 	}
 
@@ -255,8 +255,8 @@ func TestCollectHTTPMCPHeaderSecrets(t *testing.T) {
 			"type": "http",
 			"url":  "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
 			"headers": map[string]any{
-				"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
-				"DD_APP_KEY": "${{ secrets.DD_APP_KEY }}",
+				"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
+				"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
 			},
 		},
 		"github": map[string]any{
@@ -279,9 +279,9 @@ func TestCollectHTTPMCPHeaderSecrets(t *testing.T) {
 	result := collectHTTPMCPHeaderSecrets(tools)
 
 	expected := map[string]string{
-		"DD_API_KEY":       "${{ secrets.DD_API_KEY }}",
-		"DD_APP_KEY":       "${{ secrets.DD_APP_KEY }}",
-		"CUSTOM_API_TOKEN": "${{ secrets.CUSTOM_API_TOKEN }}",
+		"DD_API_KEY":         "${{ secrets.DD_API_KEY }}",
+		"DD_APPLICATION_KEY": "${{ secrets.DD_APPLICATION_KEY }}",
+		"CUSTOM_API_TOKEN":   "${{ secrets.CUSTOM_API_TOKEN }}",
 	}
 
 	if len(result) != len(expected) {

@@ -5,19 +5,16 @@
 #
 # Source: githubnext/agentics/workflows/ci-doctor.md
 #
-# Effective stop-time: 2025-10-11 17:51:44
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
-#   stop_time_check["stop_time_check"]
 #   agent["agent"]
 #   detection["detection"]
 #   create_issue["create_issue"]
 #   add_comment["add_comment"]
 #   missing_tool["missing_tool"]
-#   activation --> stop_time_check
+#   update_reaction["update_reaction"]
 #   activation --> agent
 #   agent --> detection
 #   agent --> create_issue
@@ -26,6 +23,11 @@
 #   detection --> add_comment
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> update_reaction
+#   activation --> update_reaction
+#   create_issue --> update_reaction
+#   add_comment --> update_reaction
+#   missing_tool --> update_reaction
 # ```
 
 name: "CI Failure Doctor"
@@ -64,42 +66,6 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-
-  stop_time_check:
-    needs: activation
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write  # Required for gh workflow disable
-    steps:
-      - name: Safety checks
-        run: |
-          set -e
-          echo "Performing safety checks before executing agentic tools..."
-          WORKFLOW_NAME="CI Failure Doctor"
-          
-          # Check stop-time limit
-          STOP_TIME="2025-10-11 17:51:44"
-          echo "Checking stop-time limit: $STOP_TIME"
-          
-          # Convert stop time to epoch seconds
-          STOP_EPOCH=$(date -d "$STOP_TIME" +%s 2>/dev/null || echo "invalid")
-          if [ "$STOP_EPOCH" = "invalid" ]; then
-            echo "Warning: Invalid stop-time format: $STOP_TIME. Expected format: YYYY-MM-DD HH:MM:SS"
-          else
-            CURRENT_EPOCH=$(date +%s)
-            echo "Current time: $(date)"
-            echo "Stop time: $STOP_TIME"
-            
-            if [ "$CURRENT_EPOCH" -ge "$STOP_EPOCH" ]; then
-              echo "Stop time reached. Attempting to disable workflow to prevent cost overrun, then exiting."
-              gh workflow disable "$WORKFLOW_NAME"
-              echo "Workflow disabled. No future runs will be triggered."
-              exit 1
-            fi
-          fi
-          echo "All safety checks passed. Proceeding with agentic tool execution."
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   agent:
     needs: activation
@@ -199,7 +165,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.340
+        run: npm install -g @github/copilot@0.0.342
       - name: Downloading container images
         run: |
           set -e
@@ -219,6 +185,20 @@ jobs:
             const encoder = new TextEncoder();
             const SERVER_INFO = { name: "safe-outputs-mcp-server", version: "1.0.0" };
             const debug = msg => process.stderr.write(`[${SERVER_INFO.name}] ${msg}\n`);
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
             const configEnv = process.env.GITHUB_AW_SAFE_OUTPUTS_CONFIG;
             let safeOutputsConfigRaw;
             if (!configEnv) {
@@ -319,15 +299,12 @@ jobs:
               const res = { jsonrpc: "2.0", id, result };
               writeMessage(res);
             }
-            function replyError(id, code, message, data) {
+            function replyError(id, code, message) {
               if (id === undefined || id === null) {
                 debug(`Error for notification: ${message}`);
                 return;
               }
               const error = { code, message };
-              if (data !== undefined) {
-                error.data = data;
-              }
               const res = {
                 jsonrpc: "2.0",
                 id,
@@ -360,6 +337,7 @@ jobs:
             const uploadAssetHandler = args => {
               const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
               if (!branchName) throw new Error("GITHUB_AW_ASSETS_BRANCH not set");
+              const normalizedBranchName = normalizeBranchName(branchName);
               const { path: filePath } = args;
               const absolutePath = path.resolve(filePath);
               const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
@@ -406,7 +384,7 @@ jobs:
               const targetFileName = (sha + fileExt).toLowerCase();
               const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
               const repo = process.env.GITHUB_REPOSITORY || "owner/repo";
-              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${branchName}/${targetFileName}`;
+              const url = `${githubServer.replace("github.com", "raw.githubusercontent.com")}/${repo}/${normalizedBranchName}/${targetFileName}`;
               const entry = {
                 type: "upload_asset",
                 path: filePath,
@@ -928,9 +906,7 @@ jobs:
                   replyError(id, -32601, `Method not found: ${method}`);
                 }
               } catch (e) {
-                replyError(id, -32603, "Internal error", {
-                  message: e instanceof Error ? e.message : String(e),
-                });
+                replyError(id, -32603, e instanceof Error ? e.message : String(e));
               }
             }
             process.stdin.on("data", onData);
@@ -1027,7 +1003,10 @@ jobs:
                 "tools": ["*"],
                 "env": {
                   "GITHUB_AW_SAFE_OUTPUTS": "\${GITHUB_AW_SAFE_OUTPUTS}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}"
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}",
+                  "GITHUB_AW_ASSETS_BRANCH": "\${GITHUB_AW_ASSETS_BRANCH}",
+                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "\${GITHUB_AW_ASSETS_MAX_SIZE_KB}",
+                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "\${GITHUB_AW_ASSETS_ALLOWED_EXTS}"
                 }
               },
               "web-fetch": {
@@ -3205,7 +3184,9 @@ jobs:
                 }
                 core.debug(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
-                  throw new Error(`Log path not found: ${logPath}`);
+                  core.info(`Log path not found: ${logPath}`);
+                  core.info("No logs to validate - skipping error validation");
+                  return;
                 }
                 const patterns = getErrorPatternsFromEnv();
                 if (patterns.length === 0) {
@@ -3527,7 +3508,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.340
+        run: npm install -g @github/copilot@0.0.342
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
@@ -4285,5 +4266,121 @@ jobs:
             main().catch(error => {
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
+            });
+
+  update_reaction:
+    needs:
+      - agent
+      - activation
+      - create_issue
+      - add_comment
+      - missing_tool
+    if: >
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
+      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      discussions: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Update reaction comment with error notification
+        id: update_reaction
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_AW_WORKFLOW_NAME: "CI Failure Doctor"
+          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          script: |
+            async function main() {
+              const commentId = process.env.GITHUB_AW_COMMENT_ID;
+              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
+              const runUrl = process.env.GITHUB_AW_RUN_URL;
+              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (!commentId) {
+                core.info("No comment ID found, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+              }
+              const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: errorMessage }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: errorMessage,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
             });
 

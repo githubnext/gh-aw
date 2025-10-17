@@ -48,6 +48,9 @@ var addReactionAndEditCommentScript string
 //go:embed js/check_membership.cjs
 var checkMembershipScript string
 
+//go:embed js/check_stop_time.cjs
+var checkStopTimeScript string
+
 //go:embed js/parse_claude_log.cjs
 var parseClaudeLogScript string
 
@@ -74,6 +77,9 @@ var checkoutPRBranchScript string
 
 //go:embed js/redact_secrets.cjs
 var redactSecretsScript string
+
+//go:embed js/notify_comment_error.cjs
+var notifyCommentErrorScript string
 
 // removeJavaScriptComments removes JavaScript comments (// and /* */) from code
 // while preserving comments that appear within string literals

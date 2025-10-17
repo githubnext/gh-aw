@@ -11,9 +11,11 @@ func (c *Compiler) generateGitHubContextPromptStep(yaml *strings.Builder, data *
 		return // No GitHub tool, skip context injection
 	}
 
-	yaml.WriteString("      - name: Append GitHub context to prompt\n")
-	yaml.WriteString("        env:\n")
-	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
-	yaml.WriteString("        run: |\n")
-	WritePromptTextToYAML(yaml, githubContextPromptText, "          ")
+	appendPromptStep(yaml,
+		"Append GitHub context to prompt",
+		func(y *strings.Builder, indent string) {
+			WritePromptTextToYAML(y, githubContextPromptText, indent)
+		},
+		"", // no condition
+		"          ")
 }

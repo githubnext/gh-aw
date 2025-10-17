@@ -22,36 +22,7 @@ tools:
 
 ## Frontmatter Elements
 
-The frontmatter is a combination of standard GitHub Actions properties with some additional elements and options specific to GitHub Agentic Workflows.
-
-**Standard GitHub Actions Elements:**
-- `on`: Trigger events for the workflow
-- `permissions`: Required permissions for the workflow
-- `run-name`: Name of the workflow run
-- `runs-on`: Runner environment for the workflow
-- `timeout_minutes`: Workflow timeout
-- `concurrency`: Concurrency settings for the workflow
-- `env`: Environment variables for the workflow
-- `environment`: Environment that the job references (for protected environments and deployments)
-- `container`: Container to run the job steps in
-- `services`: Service containers for the job (databases, caches, etc.)
-- `if`: Conditional execution of the workflow
-- `steps`: Custom steps for the job
-- `cache`: Cache configuration for workflow dependencies
-
-**Elements specific to GitHub Agentic Workflows:**
-- `description`: Human-readable description rendered as a comment in the lock file
-- `source`: Source reference tracking where the workflow was added from (format: `owner/repo/path@ref`)
-- `imports`: List of files to import (see [Packaging and Updating](/gh-aw/guides/packaging-imports/))
-- `engine`: AI engine configuration (copilot/claude/codex) with optional max-turns setting
-- `strict`: Enable strict mode validation (boolean, defaults to false)
-- `roles`: Permission restrictions based on repository access levels
-- `safe-outputs`: [Safe Output Processing](/gh-aw/reference/safe-outputs/)
-- `network`: Network access control for AI engines
-- `tools`: Available tools and MCP servers for the AI engine
-- `cache-memory`: [Persistent memory configuration](/gh-aw/reference/cache-memory/)
-
-The sections below describe each frontmatter element in detail.
+The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `imports`, `engine`, `strict`, `roles`, `safe-outputs`, `network`, `tools`, `cache-memory`).
 
 ### Trigger Events (`on:`)
 
@@ -81,38 +52,13 @@ name: "PR Analyzer"
 
 ### Source Tracking (`source:`)
 
-The `source:` field tracks the origin of workflows added using the `gh aw add` command. This field is automatically populated when installing workflows from external repositories and provides traceability for workflow provenance.
-
-**Format:** `owner/repo/path@ref`
+The `source:` field tracks workflow origin (format: `owner/repo/path@ref`). This field is automatically populated when using `gh aw add` to install workflows from external repositories, enabling traceability, update tracking, and auditing.
 
 ```yaml
 source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 ```
 
-**Examples:**
-- `githubnext/agentics/workflows/ci-doctor.md@v1.0.0` - Workflow from a specific version tag
-- `githubnext/agentics/workflows/daily-plan.md@main` - Workflow from the main branch
-- `githubnext/agentics/workflows/helper-bot.md` - Workflow without version specification
-
-**Automatic Population:**
-
-When you use the `gh aw add` command, the source field is automatically added to the workflow frontmatter:
-
-```bash
-# Command
-gh aw add githubnext/agentics/ci-doctor@v1.0.0
-
-# Generated frontmatter includes:
-source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
-```
-
-**Benefits:**
-- **Traceability**: Know exactly where a workflow came from and which version
-- **Updates**: Easy identification of the source repository for checking updates
-- **Documentation**: Automatic documentation of workflow provenance
-- **Auditing**: Track workflow origins for security and compliance purposes
-
-**Note:** The `source` field is optional. Workflows created manually or without using `gh aw add` don't need to include it.
+When you run `gh aw add githubnext/agentics/ci-doctor@v1.0.0`, the source field is automatically added to the workflow frontmatter. This field is optional for manually created workflows.
 
 ### Permissions (`permissions:`)
 
@@ -137,88 +83,29 @@ If you specify any permission, unspecified ones are set to `none`.
 
 ### Repository Access Roles (`roles:`)
 
-The `roles:` section controls who can trigger agentic workflows based on their repository permission level. By default, workflows are restricted to users with `admin` or `maintainer` permissions for security reasons.
+Controls who can trigger agentic workflows based on repository permission level. Defaults to `[admin, maintainer]` for security.
 
 ```yaml
-# Default behavior (admin or maintainer required)
-roles: [admin, maintainer]
-
-# Allow additional permission levels
-roles: [admin, maintainer, write]
-
-# Allow any authenticated user (use with caution)
-roles: all
-
-# Single role as a string
-roles: admin
+roles: [admin, maintainer]        # Default
+roles: [admin, maintainer, write] # Allow write access
+roles: all                         # Allow any user (⚠️ use with caution)
 ```
 
-**Available repository roles:**
-- **`admin`**: Full administrative access to the repository
-- **`maintainer`**: Can manage the repository and its settings (renamed from `maintain` in GitHub)  
-- **`write`**: Can push to the repository and manage issues and pull requests
-- **`read`**: Can read and clone the repository
-- **`all`**: Disables permission checking entirely (⚠️ security consideration)
+Available roles: `admin` (full access), `maintainer` (manage repository), `write` (push and manage issues/PRs), `read` (read/clone only), `all` (no permission checking).
 
-**Behavior:**
-- Workflows with potentially unsafe triggers (like `push`, `issues`, `pull_request`) automatically include permission checks
-- "Safe" triggers like `schedule` and `workflow_run` skip permission checks by default
-- `workflow_dispatch` is treated as safe only when `write` is in the allowed roles (since workflow_dispatch can be triggered by users with write access)
-- When permission checks fail, the workflow is automatically cancelled with a warning message
-- Users without sufficient permissions will see the workflow start but then immediately stop
+Workflows with potentially unsafe triggers (`push`, `issues`, `pull_request`) automatically enforce permission checks. Safe triggers (`schedule`, `workflow_run`) skip checks by default. Failed permission checks cancel the workflow with a warning.
 
 ### Strict Mode (`strict:`)
 
-The `strict:` field enables enhanced validation for production workflows, enforcing security and reliability constraints. When enabled, the compiler will reject workflows that don't meet strict mode requirements.
+Enables enhanced validation for production workflows, enforcing security constraints. When enabled, the compiler rejects workflows that don't meet strict mode requirements.
 
 ```yaml
-# Enable strict mode for this workflow
-strict: true
-
-# Explicitly disable strict mode (default)
-strict: false
+strict: true  # Enable (default: false)
 ```
 
-**Strict Mode Requirements:**
+Strict mode enforces: (1) no write permissions for `contents`, `issues`, or `pull-requests` (use `safe-outputs` instead), (2) explicit network configuration required, (3) no wildcard `*` in `network.allowed`, (4) network configuration for custom MCP servers with containers.
 
-When `strict: true`, the workflow must satisfy these requirements:
-
-1. **Write Permissions Blocked**: Cannot use `contents: write`, `issues: write`, or `pull-requests: write` permissions (use `safe-outputs` instead for controlled GitHub API interactions)
-2. **Network Configuration Required**: Must explicitly configure network access (cannot rely on default behavior)
-3. **No Network Wildcards**: Cannot use wildcard `*` in `network.allowed` domains
-4. **MCP Network Configuration**: Custom MCP servers with containers must have network configuration
-
-**Example Strict Mode Workflow:**
-
-```yaml
----
-on: push
-strict: true
-permissions:
-  contents: read
-engine: claude
-network:
-  allowed:
-    - "api.example.com"
-    - "*.trusted.com"
----
-
-# Strict Mode Workflow
-This workflow follows all strict mode requirements.
-```
-
-**Enabling Strict Mode:**
-
-Strict mode can be enabled in two ways:
-- **Frontmatter**: Add `strict: true` to the workflow frontmatter (per-workflow control)
-- **CLI flag**: Use `gh aw compile --strict` (applies to all workflows being compiled)
-
-The CLI `--strict` flag takes precedence over frontmatter settings. If the CLI flag is used, workflows with `strict: false` will still be validated in strict mode.
-
-**Use Cases:**
-- Production workflows that require enhanced security validation
-- Workflows with elevated permissions that need extra scrutiny
-- Workflows that need to comply with security policies
+Enable with `strict: true` in frontmatter or `gh aw compile --strict` (CLI flag applies to all workflows and takes precedence). Use for production workflows requiring enhanced security validation or security policy compliance.
 
 ### AI Engine (`engine:`)
 
@@ -347,12 +234,4 @@ cache:
 
 ## Related Documentation
 
-- [Trigger Events](/gh-aw/reference/triggers/) - Complete guide to workflow triggers and event configuration
-- [AI Engines](/gh-aw/reference/engines/) - Complete guide to Claude, Copilot, Codex, and custom engines
-- [CLI Commands](/gh-aw/tools/cli/) - CLI commands for workflow management
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory layout and organization
-- [Network Permissions](/gh-aw/reference/network/) - Network access control configuration
-- [Command Triggers](/gh-aw/reference/command-triggers/) - Special @mention triggers and context text
-- [MCPs](/gh-aw/guides/mcps/) - Model Context Protocol setup and configuration
-- [Tools](/gh-aw/reference/tools/) - GitHub and other tools setup
-- [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
+See also: [Trigger Events](/gh-aw/reference/triggers/), [AI Engines](/gh-aw/reference/engines/), [CLI Commands](/gh-aw/tools/cli/), [Workflow Structure](/gh-aw/reference/workflow-structure/), [Network Permissions](/gh-aw/reference/network/), [Command Triggers](/gh-aw/reference/command-triggers/), [MCPs](/gh-aw/guides/mcps/), [Tools](/gh-aw/reference/tools/), [Imports](/gh-aw/reference/imports/)

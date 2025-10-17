@@ -9,46 +9,42 @@ GitHub Agentic Workflows support multiple AI engines (coding agents) to interpre
 
 ### GitHub Copilot (Default)
 
-GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows with access to GitHub repositories and development tools.
+GitHub Copilot is the default and recommended AI engine for most workflows. The [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/use-copilot-cli) provides MCP server support and is designed for conversational AI workflows.
 
 ```yaml
 engine: copilot
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: copilot
-  version: latest
-  model: gpt-5                          # Optional: uses claude-sonnet-4 by default
+  version: latest                       # Optional: defaults to latest
+  model: gpt-5                          # Optional: defaults to claude-sonnet-4
+  args: ["--add-dir", "/workspace"]     # Optional: custom CLI arguments
 ```
 
-**Copilot-specific fields:**
-- **`model`** (optional): AI model to use (`gpt-5` or defaults to `claude-sonnet-4`)
-- **`version`** (optional): Version of the GitHub Copilot CLI to install (defaults to `latest`)
+#### Configuration Options
 
-**Environment Variables:**
-- **`COPILOT_MODEL`**: Alternative way to set the model (e.g., `gpt-5`)
+- **`model`**: AI model (`gpt-5` or `claude-sonnet-4`)
+- **`version`**: CLI version to install
+- **`args`**: Custom command-line arguments (supported by all engines)
 
-**Secrets:**
+#### Environment Variables
 
-- **`COPILOT_CLI_TOKEN`** secret is required for authentication.
+- **`COPILOT_MODEL`**: Alternative way to set the model
 
-Please [create a GitHub Personal Access Token (PAT) for an account with a GitHub Copilot subscription](https://github.com/settings/tokens) and add this as a repository secret:
+#### Required Secrets
 
+- **`COPILOT_CLI_TOKEN`**: [GitHub Personal Access Token with Copilot subscription](https://github.com/settings/tokens)
+- **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
+
+Set secrets using:
 ```bash
 gh secret set COPILOT_CLI_TOKEN -a actions --body "<your-github-pat>"
+gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
-
-- **`GITHUB_MCP_TOKEN`** secret (optional) is required when using remote mode for GitHub tools.
-
-If you use `mode: remote` for GitHub tools (for faster startup without Docker), you'll need a separate GitHub Personal Access Token:
-
-```bash
-gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
-```
-
-See [GitHub Tools - Remote Mode](/gh-aw/reference/tools/#github-remote-mode) for more details.
 
 :::note
 The Copilot engine does not have built-in `web-search` support. You can add web search capabilities using third-party MCP servers. See the [Using Web Search](/gh-aw/guides/web-search/) for available options and setup instructions.
@@ -56,95 +52,87 @@ The Copilot engine does not have built-in `web-search` support. You can add web 
 
 ### Anthropic Claude Code
 
-Claude Code excels at reasoning, code analysis, and understanding complex contexts. It provides robust capabilities for agentic workflows.
+Claude Code excels at reasoning, code analysis, and understanding complex contexts.
 
 ```yaml
 engine: claude
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: claude
   version: beta
   model: claude-3-5-sonnet-20241022
   max-turns: 5
+  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
   env:
     AWS_REGION: us-west-2
     DEBUG_MODE: "true"
 ```
 
-**Secrets:**
+#### Required Secrets
 
-- **`ANTHROPIC_API_KEY`** secret is required for authentication.
+- **`ANTHROPIC_API_KEY`**: Anthropic API key
+- **`GH_AW_GITHUB_TOKEN`** (optional): Required for [GitHub Tools Remote Mode](/gh-aw/reference/tools/#github-remote-mode)
 
-Use this to set the secret for your repo:
-
+Set secrets using:
 ```bash
 gh secret set ANTHROPIC_API_KEY -a actions --body "<your-anthropic-api-key>"
+gh secret set GH_AW_GITHUB_TOKEN -a actions --body "<your-github-pat>"
 ```
-
-- **`GITHUB_MCP_TOKEN`** secret (optional) is required when using remote mode for GitHub tools.
-
-If you use `mode: remote` for GitHub tools (for faster startup without Docker), you'll need a GitHub Personal Access Token:
-
-```bash
-gh secret set GITHUB_MCP_TOKEN -a actions --body "<your-github-pat>"
-```
-
-See [GitHub Tools - Remote Mode](/gh-aw/reference/tools/#github-remote-mode) for more details.
 
 ### OpenAI Codex
 
-OpenAI Codex CLI with MCP server support. Designed for code-focused tasks and integration scenarios.
+OpenAI Codex CLI with MCP server support. Designed for code-focused tasks.
 
 ```yaml
 engine: codex
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: codex
   model: gpt-4
-  user-agent: custom-workflow-name
+  args: ["--custom-flag", "value"]      # Optional: custom CLI arguments
+  user-agent: custom-workflow-name      # Optional: custom user agent for GitHub MCP
   env:
     CODEX_API_KEY: ${{ secrets.CODEX_API_KEY_CI }}
   config: |
     [custom_section]
     key1 = "value1"
-    key2 = "value2"
-    
     [server_settings]
     timeout = 60
-    retries = 3
 ```
 
-**Codex-specific fields:**
-- **`user-agent`** (optional): Custom user agent string for GitHub MCP server configuration
-- **`config`** (optional): Additional TOML configuration text appended to generated config.toml
+#### Codex-Specific Fields
 
-**Secrets:**
+- **`user-agent`**: Custom user agent string for GitHub MCP server
+- **`config`**: Additional TOML configuration appended to generated config.toml
+- **`args`**: Custom command-line arguments (supported by all engines)
 
-- **`OPENAI_API_KEY`** secret is required for authentication.
+#### Required Secrets
 
-Use this to set the secret for your repo:
+- **`OPENAI_API_KEY`**: OpenAI API key
 
+Set secrets using:
 ```bash
 gh secret set OPENAI_API_KEY -a actions --body "<your-openai-api-key>"
 ```
 
-The Codex engine supports additional customization through the `config` field, which allows you to append raw TOML configuration to the generated `config.toml` file.
-
 ### Custom Engine
 
-For advanced users who want to define completely custom GitHub Actions steps instead of using AI interpretation.
+Define custom GitHub Actions steps without AI interpretation for deterministic workflows.
 
 ```yaml
 engine: custom
 ```
 
-**Extended configuration:**
+#### Extended Configuration
+
 ```yaml
 engine:
   id: custom
@@ -152,11 +140,6 @@ engine:
     - name: Install dependencies
       run: npm ci
 ```
-
-**Features:**
-- Execute user-defined GitHub Actions steps
-- No AI interpretation - direct step execution
-- Useful for deterministic workflows or hybrid approaches
 
 ## Engine Environment Variables
 
@@ -170,6 +153,18 @@ engine:
     AWS_REGION: us-west-2
     CUSTOM_API_ENDPOINT: https://api.example.com
 ```
+
+## Engine Command-Line Arguments
+
+All engines support custom command-line arguments through the `args` field, injected before the prompt:
+
+```yaml
+engine:
+  id: copilot
+  args: ["--add-dir", "/workspace", "--verbose"]
+```
+
+Arguments are added in order and placed before the `--prompt` flag. Common uses include adding directories (`--add-dir`), enabling verbose logging (`--verbose`, `--debug`), and passing engine-specific flags. Consult the specific engine's CLI documentation for available flags.
 
 ## Engine Error Patterns
 
@@ -187,25 +182,20 @@ engine:
 
 ## Migration Between Engines
 
-Switching between engines is straightforward - just change the `engine` field in your frontmatter:
+Switch engines by changing the `engine` field in your frontmatter:
 
 ```yaml
-# From Claude to Copilot
-engine: claude  # Old
-engine: copilot # New
+# Simple switch
+engine: copilot
 
-# From Codex to Copilot
-engine: codex   # Old  
-engine: copilot # New
-
-# With configuration preservation
+# With configuration
 engine:
-  id: copilot   # Changed from claude/codex
-  model: gpt-5  # Add copilot-specific options (optional; defaults to claude-sonnet-4)
+  id: copilot
+  model: gpt-5              # Optional; defaults to claude-sonnet-4
   version: latest
 ```
 
-Note that engine-specific features may not be available when switching engines.
+Engine-specific features may not be available when switching engines.
 
 ## Related Documentation
 

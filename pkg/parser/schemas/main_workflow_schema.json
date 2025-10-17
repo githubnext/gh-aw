@@ -1621,7 +1621,7 @@
                 },
                 "github-token": {
                   "type": "string",
-                  "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GITHUB_MCP_TOKEN if not specified."
+                  "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GH_AW_GITHUB_TOKEN if not specified."
                 },
                 "toolset": {
                   "type": "array",
@@ -1884,6 +1884,16 @@
         "safety-prompt": {
           "type": "boolean",
           "description": "Enable or disable XPIA (Cross-Prompt Injection Attack) security warnings in the prompt. Defaults to true (enabled). Set to false to disable security warnings."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout in seconds for tool/MCP server operations. Applies to all tools and MCP servers if supported by the engine. Default varies by engine (Claude: 60s, Codex: 120s)."
+        },
+        "startup-timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Timeout in seconds for MCP server startup. Applies to MCP server initialization if supported by the engine. Default: 120 seconds."
         }
       },
       "additionalProperties": {
@@ -2969,6 +2979,13 @@
             "config": {
               "type": "string",
               "description": "Additional TOML configuration text that will be appended to the generated config.toml in the action (codex engine only)"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional array of command-line arguments to pass to the AI engine CLI. These arguments are injected after all other args but before the prompt."
             }
           },
           "required": [

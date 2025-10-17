@@ -23,12 +23,13 @@ func (c *Compiler) generatePRContextPromptStep(yaml *strings.Builder, data *Work
 		return // No contents read access, cannot checkout
 	}
 
-	yaml.WriteString("      - name: Append PR context instructions to prompt\n")
-
-	// Use the helper function to render the condition
+	// Build the condition string
 	condition := BuildPRCommentCondition()
-	RenderConditionAsIf(yaml, condition, "          ")
 
+	// Use shared helper but we need to render condition manually since it requires RenderConditionAsIf
+	// which is more complex than a simple if: string
+	yaml.WriteString("      - name: Append PR context instructions to prompt\n")
+	RenderConditionAsIf(yaml, condition, "          ")
 	yaml.WriteString("        env:\n")
 	yaml.WriteString("          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("        run: |\n")
