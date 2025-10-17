@@ -7,12 +7,11 @@ import (
 
 // CreateIssuesConfig holds configuration for creating GitHub issues from agent output
 type CreateIssuesConfig struct {
-	BaseSafeOutputConfig   `yaml:",inline"`
-	TitlePrefix            string   `yaml:"title-prefix,omitempty"`
-	Labels                 []string `yaml:"labels,omitempty"`
-	TargetRepoSlug         string   `yaml:"target-repo,omitempty"`                // Target repository in format "owner/repo" for cross-repository issues
-	AssignToBot            string   `yaml:"assign-to-bot,omitempty"`              // Bot username to assign the created issue to (e.g., "copilot-swe-agent")
-	AssignToBotGitHubToken string   `yaml:"assign-to-bot-github-token,omitempty"` // GitHub token specifically for bot assignment operations
+	BaseSafeOutputConfig `yaml:",inline"`
+	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
+	Labels               []string `yaml:"labels,omitempty"`
+	TargetRepoSlug       string   `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository issues
+	AssignToBot          string   `yaml:"assign-to-bot,omitempty"` // Bot username to assign the created issue to (e.g., "copilot-swe-agent")
 }
 
 // parseIssuesConfig handles create-issue configuration
@@ -60,13 +59,6 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 				}
 			}
 
-			// Parse assign-to-bot-github-token
-			if assignToBotToken, exists := configMap["assign-to-bot-github-token"]; exists {
-				if assignToBotTokenStr, ok := assignToBotToken.(string); ok {
-					issuesConfig.AssignToBotGitHubToken = assignToBotTokenStr
-				}
-			}
-
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig)
 		}
@@ -109,8 +101,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	if data.SafeOutputs.CreateIssues.AssignToBot != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_ASSIGN_TO_BOT: %q\n", data.SafeOutputs.CreateIssues.AssignToBot))
 	}
-	// Note: assign-to-bot-github-token is handled via the github-script action's 'github-token' parameter
-	// See token selection logic above where AssignToBotGitHubToken takes precedence
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
@@ -120,18 +110,6 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		data.SafeOutputs.CreateIssues.TargetRepoSlug,
 	)...)
 
-	// Get token from config
-	// If assign-to-bot-github-token is specified, use that for the github-script action
-	// This allows bot assignment operations to use a different token with appropriate permissions
-	var token string
-	if data.SafeOutputs.CreateIssues != nil {
-		if data.SafeOutputs.CreateIssues.AssignToBotGitHubToken != "" {
-			token = data.SafeOutputs.CreateIssues.AssignToBotGitHubToken
-		} else {
-			token = data.SafeOutputs.CreateIssues.GitHubToken
-		}
-	}
-
 	// Build the GitHub Script step using the common helper and append to existing steps
 	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
 		StepName:      "Create Output Issue",
@@ -139,7 +117,7 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		MainJobName:   mainJobName,
 		CustomEnvVars: customEnvVars,
 		Script:        createIssueScript,
-		Token:         token,
+		Token:         data.SafeOutputs.CreateIssues.GitHubToken,
 	})
 	steps = append(steps, scriptSteps...)
 
