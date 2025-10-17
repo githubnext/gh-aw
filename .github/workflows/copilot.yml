@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/workflows/copilot.yml'
 permissions: {}
-concurrent:
+concurrency:
   group: copilot-only
   cancel-in-progress: true
 jobs:
