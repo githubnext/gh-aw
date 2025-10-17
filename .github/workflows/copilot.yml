@@ -1,5 +1,8 @@
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/copilot.yml'
 permissions: {}
 jobs:
   copilot:
@@ -14,8 +17,6 @@ jobs:
       - name: Install GitHub Copilot CLI
         run: npm install -g @github/copilot    
       - name: Setup MCP Configuration
-        env:
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: |
           mkdir -p /home/runner/.copilot
           cat > /home/runner/.copilot/mcp-config.json << 'EOF'
@@ -25,7 +26,7 @@ jobs:
                 "type": "http",
                 "url": "https://mcp.tavily.com/mcp/",
                 "headers": {
-                  "Authorization": "Bearer ${TAVILY_API_KEY}"
+                  "Authorization": "Bearer \${TAVILY_API_KEY}"
                 },
                 "tools": [
                   "*"
@@ -47,7 +48,7 @@ jobs:
         timeout-minutes: 5
         run: |
           set -o pipefail          
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --prompt "Search for the latest trends in JavaScript frameworks. Provide a summary of your findings including popular frameworks, new developments, and emerging trends." 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --prompt "If Tavily tools are not loaded, fail. Search for the latest trends in JavaScript frameworks. Provide a summary of your findings including popular frameworks, new developments, and emerging trends." 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
