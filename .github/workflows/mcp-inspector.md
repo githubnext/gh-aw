@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
   actions: read
-engine: claude
+engine: copilot
 tools:
   cache-memory: true
 safe-outputs:
