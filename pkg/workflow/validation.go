@@ -242,12 +242,18 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 	_, err := exec.LookPath("uv")
 	if err != nil {
 		// uv not available, but we can still validate using pip index
+		pipCmd := "pip"
 		_, pipErr := exec.LookPath("pip")
 		if pipErr != nil {
-			return fmt.Errorf("uv and pip commands not found - cannot validate uv packages. Install uv/pip or disable validation")
+			// Try pip3 as fallback
+			_, pip3Err := exec.LookPath("pip3")
+			if pip3Err != nil {
+				return fmt.Errorf("uv and pip commands not found - cannot validate uv packages. Install uv/pip or disable validation")
+			}
+			pipCmd = "pip3"
 		}
 
-		return c.validateUvPackagesWithPip(packages)
+		return c.validateUvPackagesWithPip(packages, pipCmd)
 	}
 
 	// Validate with uv
@@ -279,8 +285,8 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 }
 
 // validateUvPackagesWithPip validates uv packages using pip index
-func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
-	c.validatePythonPackagesWithPip(packages, "uv", "pip")
+func (c *Compiler) validateUvPackagesWithPip(packages []string, pipCmd string) error {
+	c.validatePythonPackagesWithPip(packages, "uv", pipCmd)
 	return nil
 }
 
