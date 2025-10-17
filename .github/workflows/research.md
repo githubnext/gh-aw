@@ -17,9 +17,8 @@ imports:
   - shared/mcp/tavily.md
 
 safe-outputs:
-  create-issue:
-    title-prefix: "[research] "
-    labels: [research, automation]
+  create-discussion:
+    category: "research"
     max: 1
 
 timeout_minutes: 10
@@ -46,7 +45,7 @@ Research the topic provided above and create a brief summary:
 
 ## Output
 
-Create a GitHub issue with your research summary including:
+Create a GitHub discussion with your research summary including:
 - Brief overview of the topic
 - Key findings from your research
 - Relevant sources and links
