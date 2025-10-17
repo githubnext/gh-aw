@@ -17,6 +17,10 @@ safe-outputs:
   create-discussion:
     category: "audits"
     max: 1
+  create-pull-request:
+    title-prefix: "[mcp-tools] "
+    labels: [documentation, automation]
+    draft: false
 timeout_minutes: 15
 ---
 
