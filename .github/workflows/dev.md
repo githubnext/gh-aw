@@ -4,17 +4,12 @@ on:
   command:
     name: dev
 name: Dev
-engine: claude
+engine: copilot
 permissions:
   contents: read
   actions: read
 imports:
-  - shared/mcp/drain3.md
-  - shared/mcp/gh-aw.md
-safe-outputs:
-  create-issue:
-tools:
-  github:
+  - shared/mcp/tavily.md
 ---
 
-Write a poem in 3 emojis about the last pull request and publish an issue.
+Search about the latest javascript framework trends.
