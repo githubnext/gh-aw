@@ -127,3 +127,95 @@ func TestReadWorkflowFileNonExistent(t *testing.T) {
 		t.Error("Expected error for non-existent file, got nil")
 	}
 }
+
+// TestWorkflowResolutionWindowsCompatibility tests the complete workflow resolution flow
+// This test specifically addresses the issue reported in GitHub where Windows users
+// experienced "workflow not found" errors due to path separator mismatches
+func TestWorkflowResolutionWindowsCompatibility(t *testing.T) {
+	// Create a temporary directory structure that mimics the user's setup
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("Failed to create workflows directory: %v", err)
+	}
+
+	// Create workflow files similar to the user's scenario
+	mdFile := filepath.Join(workflowsDir, "update-docs.md")
+	lockFile := filepath.Join(workflowsDir, "update-docs.lock.yaml")
+
+	mdContent := []byte(`---
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+---
+# Update Documentation
+Test workflow for Windows path handling
+`)
+	if err := os.WriteFile(mdFile, mdContent, 0644); err != nil {
+		t.Fatalf("Failed to write markdown file: %v", err)
+	}
+
+	lockContent := []byte("name: update-docs\non:\n  workflow_dispatch:\n")
+	if err := os.WriteFile(lockFile, lockContent, 0644); err != nil {
+		t.Fatalf("Failed to write lock file: %v", err)
+	}
+
+	// Change to the temp directory to simulate the user's working directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Test 1: Read workflow file using relative path with getWorkflowsDir()
+	// This simulates the exact path used in resolveWorkflowFile
+	content, path, err := readWorkflowFile("update-docs.md", getWorkflowsDir())
+	if err != nil {
+		t.Errorf("Failed to read workflow file with getWorkflowsDir(): %v", err)
+	}
+
+	if string(content) != string(mdContent) {
+		t.Errorf("Content mismatch when reading with getWorkflowsDir()")
+	}
+
+	// Verify the returned path exists
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("Returned path does not exist: %s (error: %v)", path, err)
+	}
+
+	// Test 2: Verify lock file can be found using the same approach
+	lockPath := filepath.Join(getWorkflowsDir(), "update-docs.lock.yaml")
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Errorf("Lock file not found at expected path: %s (error: %v)", lockPath, err)
+	}
+
+	// Test 3: Test with subdirectories (edge case)
+	subDir := filepath.Join(workflowsDir, "subfolder")
+	if err := os.MkdirAll(subDir, 0755); err != nil {
+		t.Fatalf("Failed to create subdirectory: %v", err)
+	}
+
+	subFile := filepath.Join(subDir, "nested-workflow.md")
+	if err := os.WriteFile(subFile, mdContent, 0644); err != nil {
+		t.Fatalf("Failed to write nested workflow file: %v", err)
+	}
+
+	nestedPath := filepath.Join("subfolder", "nested-workflow.md")
+	content2, path2, err := readWorkflowFile(nestedPath, getWorkflowsDir())
+	if err != nil {
+		t.Errorf("Failed to read nested workflow file: %v", err)
+	}
+
+	if string(content2) != string(mdContent) {
+		t.Errorf("Content mismatch when reading nested workflow")
+	}
+
+	if _, err := os.Stat(path2); err != nil {
+		t.Errorf("Returned nested path does not exist: %s (error: %v)", path2, err)
+	}
+}
