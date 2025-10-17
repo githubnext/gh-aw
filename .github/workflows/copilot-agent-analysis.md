@@ -36,8 +36,8 @@ tools:
       - get_commit
   bash:
     - "find .github -name '*.md'"
-    - "cat .github/agents/*"
-    - "ls -la .github/agents"
+    - "find .github -type f -exec cat {} +"
+    - "ls -la .github"
     - "git log --oneline"
     - "git diff"
 
@@ -106,8 +106,9 @@ For each PR created by copilot-swe-agent in the last 24 hours:
 
 #### 2.2 Count Human Comments
 Count comments from human users (exclude bot comments):
-- Use `pull_request_read` method `get_review_comments` to get review comments
-- Filter out comments from bots
+- Use `pull_request_read` with method `get` to get PR details including comments
+- Use `pull_request_read` with method `get_review_comments` to get review comments
+- Filter out comments from bots (check comment author)
 - Count unique human comments
 
 #### 2.3 Calculate Timing Metrics
@@ -234,7 +235,7 @@ Check if there have been changes to copilot-swe-agent instruction files that mig
 
 Look for instruction or prompt files in the repository:
 ```bash
-find .github -name '*copilot*' -o -name '*swe*' -o -name '*agent*' -o -name '*instruction*' -o -name '*prompt*'
+find .github -name '*copilot*' -o -name '*swe*' -o -name '*agent*' -o -name '*instruction*' -o -name '*prompt*' 2>/dev/null || echo "No matching files found"
 ```
 
 Common locations:
