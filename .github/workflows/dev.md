@@ -12,6 +12,8 @@ permissions:
 safe-outputs:
   staged: true
   create-issue:
+    assign-to-bot: copilot
+    github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
 ---
 
 Write a poem about the last 3 pull requests and publish an issue.
