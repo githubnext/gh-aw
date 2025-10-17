@@ -23,7 +23,7 @@ async function main() {
   // Determine the API endpoint based on the event type
   let reactionEndpoint;
   let commentUpdateEndpoint;
-  let shouldEditComment = false;
+  let shouldCreateComment = false;
   const eventName = context.eventName;
   const owner = context.repo.owner;
   const repo = context.repo.repo;
@@ -38,20 +38,24 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-        // Create a comment for issue events
-        shouldEditComment = true;
         break;
 
       case "issue_comment":
         const commentId = context.payload?.comment?.id;
+        const issueNumberForComment = context.payload?.issue?.number;
         if (!commentId) {
           core.setFailed("Comment ID not found in event payload");
           return;
         }
+        if (!issueNumberForComment) {
+          core.setFailed("Issue number not found in event payload");
+          return;
+        }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-        commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-        // Only edit comments for command workflows
-        shouldEditComment = command ? true : false;
+        // Create new comment on the issue itself, not on the comment
+        commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
+        // Only create comments for command workflows
+        shouldCreateComment = command ? true : false;
         break;
 
       case "pull_request":
@@ -63,20 +67,24 @@ async function main() {
         // PRs are "issues" for the reactions endpoint
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-        // Create a comment for pull request events
-        shouldEditComment = true;
         break;
 
       case "pull_request_review_comment":
         const reviewCommentId = context.payload?.comment?.id;
+        const prNumberForReviewComment = context.payload?.pull_request?.number;
         if (!reviewCommentId) {
           core.setFailed("Review comment ID not found in event payload");
           return;
         }
+        if (!prNumberForReviewComment) {
+          core.setFailed("Pull request number not found in event payload");
+          return;
+        }
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-        commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-        // Only edit comments for command workflows
-        shouldEditComment = command ? true : false;
+        // Create new comment on the PR itself (using issues endpoint since PRs are issues)
+        commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
+        // Only create comments for command workflows
+        shouldCreateComment = command ? true : false;
         break;
 
       case "discussion":
@@ -89,8 +97,6 @@ async function main() {
         const discussion = await getDiscussionId(owner, repo, discussionNumber);
         reactionEndpoint = discussion.id; // Store node ID for GraphQL
         commentUpdateEndpoint = `discussion:${discussionNumber}`; // Special format to indicate discussion
-        // Create a comment for discussion events
-        shouldEditComment = true;
         break;
 
       case "discussion_comment":
@@ -108,8 +114,8 @@ async function main() {
         }
         reactionEndpoint = commentNodeId; // Store node ID for GraphQL
         commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; // Special format
-        // Only edit comments for command workflows
-        shouldEditComment = command ? true : false;
+        // Only create comments for command workflows
+        shouldCreateComment = command ? true : false;
         break;
 
       default:
@@ -128,21 +134,21 @@ async function main() {
       await addReaction(reactionEndpoint, reaction);
     }
 
-    // Then add or edit comment if applicable
-    if (shouldEditComment && commentUpdateEndpoint) {
+    // Then add comment if applicable
+    if (shouldCreateComment && commentUpdateEndpoint) {
       core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-      await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
+      await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
     } else {
       if (!command && commentUpdateEndpoint) {
-        core.info("Skipping comment edit - only available for command workflows");
+        core.info("Skipping comment creation - only available for command workflows");
       } else {
         core.info(`Skipping comment for event type: ${eventName}`);
       }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-    core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
+    core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
+    core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
   }
 }
 
@@ -273,12 +279,12 @@ async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) 
 }
 
 /**
- * Add or edit a comment to add a workflow run link
- * @param {string} endpoint - The GitHub API endpoint to update or create the comment (or special format for discussions)
+ * Add a comment with a workflow run link
+ * @param {string} endpoint - The GitHub API endpoint to create the comment (or special format for discussions)
  * @param {string} runUrl - The URL of the workflow run
- * @param {string} eventName - The event type (to determine if we create or edit)
+ * @param {string} eventName - The event type (to determine the comment text)
  */
-async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
+async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
   try {
     // Get workflow name from environment variable
     const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
@@ -406,10 +412,10 @@ async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
     core.setOutput("comment-url", createResponse.data.html_url);
     core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
   } catch (error) {
-    // Don't fail the entire job if comment editing/creation fails - just log it
+    // Don't fail the entire job if comment creation fails - just log it
     const errorMessage = error instanceof Error ? error.message : String(error);
     core.warning(
-      "Failed to add/edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
+      "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
     );
   }
 }
