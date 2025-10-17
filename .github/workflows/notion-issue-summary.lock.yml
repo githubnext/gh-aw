@@ -10,10 +10,10 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
 #   notion_add_comment["notion_add_comment"]
+#   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   activation --> agent
 #   agent --> notion_add_comment

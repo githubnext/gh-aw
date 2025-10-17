@@ -342,8 +342,13 @@ func (jm *JobManager) GenerateMermaidGraph() string {
 	mermaid.WriteString("```mermaid\n")
 	mermaid.WriteString("graph LR\n")
 
-	// Add nodes for each job in the order they were added
-	for _, jobName := range jm.jobOrder {
+	// Sort job names alphabetically for stable output
+	sortedJobNames := make([]string, len(jm.jobOrder))
+	copy(sortedJobNames, jm.jobOrder)
+	sort.Strings(sortedJobNames)
+
+	// Add nodes for each job in alphabetical order
+	for _, jobName := range sortedJobNames {
 		job := jm.jobs[jobName]
 		displayName := job.DisplayName
 		if displayName == "" {
@@ -354,8 +359,8 @@ func (jm *JobManager) GenerateMermaidGraph() string {
 		mermaid.WriteString(fmt.Sprintf("  %s[\"%s\"]\n", jobName, displayName))
 	}
 
-	// Add edges for dependencies
-	for _, jobName := range jm.jobOrder {
+	// Add edges for dependencies in alphabetical order of job names
+	for _, jobName := range sortedJobNames {
 		job := jm.jobs[jobName]
 		for _, dep := range job.Needs {
 			mermaid.WriteString(fmt.Sprintf("  %s --> %s\n", dep, jobName))
