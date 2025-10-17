@@ -38,15 +38,11 @@ jobs:
             }
           }
           EOF
-          echo "-------START MCP CONFIG-----------"
           cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"      
       - name: Execute GitHub Copilot CLI
         id: copilot_execution
         timeout-minutes: 5
-        run: copilot --add-dir /tmp/ --log-level all --log-dir /home/runner/.copilot --prompt "If Tavily tools are not loaded, fail. Search for the latest trends in JavaScript frameworks. Provide a summary of your findings including popular frameworks, new developments, and emerging trends."
+        run: copilot --add-dir /tmp/ --log-level all --log-dir /home/runner/.copilot --prompt "If Tavily tools are not loaded, fail. Search for the latest trends in JavaScript frameworks."
         env:
           XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
