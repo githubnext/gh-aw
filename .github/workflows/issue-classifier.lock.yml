@@ -39,92 +39,6 @@ concurrency:
 run-name: "Issue Classifier"
 
 jobs:
-  pre_activation:
-    runs-on: ubuntu-latest
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
-        with:
-          script: |
-            async function main() {
-              const { eventName } = context;
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-              // For workflow_dispatch, only skip check if "write" is in the allowed roles
-              // since workflow_dispatch can be triggered by users with write access
-              if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                // If write is not allowed, continue with permission check
-                core.info(`Event ${eventName} requires validation (write role not allowed)`);
-              }
-              // skip check for other safe events
-              const safeEvents = ["workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              // Check if the actor has the required repository permissions
-              try {
-                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.info(`Repository permission level: ${permission}`);
-                // Check if user has one of the required permission levels
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
-                    core.setOutput("result", "authorized");
-                    core.setOutput("user_permission", permission);
-                    return;
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
-                return;
-              }
-            }
-            await main();
-
   activation:
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
@@ -643,6 +557,250 @@ jobs:
                 core.warning(
                   "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
                 );
+              }
+            }
+            await main();
+
+  add_labels:
+    needs:
+      - agent
+      - detection
+    if: >
+      ((always()) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
+      (github.event.pull_request.number))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      labels_added: ${{ steps.add_labels.outputs.labels_added }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+      - name: Add Labels
+        id: add_labels
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GITHUB_AW_LABELS_ALLOWED: "bug,feature,enhancement,documentation"
+          GITHUB_AW_LABELS_MAX_COUNT: 1
+        with:
+          script: |
+            function sanitizeLabelContent(content) {
+              if (!content || typeof content !== "string") {
+                return "";
+              }
+              let sanitized = content.trim();
+              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
+              sanitized = sanitized.replace(
+                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
+                (_m, p1, p2) => `${p1}\`@${p2}\``
+              );
+              sanitized = sanitized.replace(/[<>&'"]/g, "");
+              return sanitized.trim();
+            }
+            async function main() {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputEnvValue) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
+              if (!labelsItem) {
+                core.warning("No add-labels item found in agent output");
+                return;
+              }
+              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
+              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
+                summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
+                if (labelsItem.item_number) {
+                  summaryContent += `**Target Issue:** #${labelsItem.item_number}\n\n`;
+                } else {
+                  summaryContent += `**Target:** Current issue/PR\n\n`;
+                }
+                if (labelsItem.labels && labelsItem.labels.length > 0) {
+                  summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Label addition preview written to step summary");
+                return;
+              }
+              const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
+              const allowedLabels = allowedLabelsEnv
+                ? allowedLabelsEnv
+                    .split(",")
+                    .map(label => label.trim())
+                    .filter(label => label)
+                : undefined;
+              if (allowedLabels) {
+                core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
+              } else {
+                core.info("No label restrictions - any labels are allowed");
+              }
+              const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
+              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
+              if (isNaN(maxCount) || maxCount < 1) {
+                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
+                return;
+              }
+              core.info(`Max count: ${maxCount}`);
+              const labelsTarget = process.env.GITHUB_AW_LABELS_TARGET || "triggering";
+              core.info(`Labels target configuration: ${labelsTarget}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              if (labelsTarget === "triggering" && !isIssueContext && !isPRContext) {
+                core.info('Target is "triggering" but not running in issue or pull request context, skipping label addition');
+                return;
+              }
+              let itemNumber;
+              let contextType;
+              if (labelsTarget === "*") {
+                if (labelsItem.item_number) {
+                  itemNumber = typeof labelsItem.item_number === "number" ? labelsItem.item_number : parseInt(String(labelsItem.item_number), 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    core.setFailed(`Invalid item_number specified: ${labelsItem.item_number}`);
+                    return;
+                  }
+                  contextType = "issue";
+                } else {
+                  core.setFailed('Target is "*" but no item_number specified in labels item');
+                  return;
+                }
+              } else if (labelsTarget && labelsTarget !== "triggering") {
+                itemNumber = parseInt(labelsTarget, 10);
+                if (isNaN(itemNumber) || itemNumber <= 0) {
+                  core.setFailed(`Invalid issue number in target configuration: ${labelsTarget}`);
+                  return;
+                }
+                contextType = "issue";
+              } else {
+                if (isIssueContext) {
+                  if (context.payload.issue) {
+                    itemNumber = context.payload.issue.number;
+                    contextType = "issue";
+                  } else {
+                    core.setFailed("Issue context detected but no issue found in payload");
+                    return;
+                  }
+                } else if (isPRContext) {
+                  if (context.payload.pull_request) {
+                    itemNumber = context.payload.pull_request.number;
+                    contextType = "pull request";
+                  } else {
+                    core.setFailed("Pull request context detected but no pull request found in payload");
+                    return;
+                  }
+                }
+              }
+              if (!itemNumber) {
+                core.setFailed("Could not determine issue or pull request number");
+                return;
+              }
+              const requestedLabels = labelsItem.labels || [];
+              core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+              for (const label of requestedLabels) {
+                if (label && typeof label === "string" && label.startsWith("-")) {
+                  core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
+                  return;
+                }
+              }
+              let validLabels;
+              if (allowedLabels) {
+                validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
+              } else {
+                validLabels = requestedLabels;
+              }
+              let uniqueLabels = validLabels
+                .filter(label => label != null && label !== false && label !== 0)
+                .map(label => String(label).trim())
+                .filter(label => label)
+                .map(label => sanitizeLabelContent(label))
+                .filter(label => label)
+                .map(label => (label.length > 64 ? label.substring(0, 64) : label))
+                .filter((label, index, arr) => arr.indexOf(label) === index);
+              if (uniqueLabels.length > maxCount) {
+                core.info(`too many labels, keep ${maxCount}`);
+                uniqueLabels = uniqueLabels.slice(0, maxCount);
+              }
+              if (uniqueLabels.length === 0) {
+                core.info("No labels to add");
+                core.setOutput("labels_added", "");
+                await core.summary
+                  .addRaw(
+                    `
+            ## Label Addition
+            No labels were added (no valid labels found in agent output).
+            `
+                  )
+                  .write();
+                return;
+              }
+              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: itemNumber,
+                  labels: uniqueLabels,
+                });
+                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
+                core.setOutput("labels_added", uniqueLabels.join("\n"));
+                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
+                await core.summary
+                  .addRaw(
+                    `
+            ## Label Addition
+            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
+            ${labelsListMarkdown}
+            `
+                  )
+                  .write();
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to add labels: ${errorMessage}`);
+                core.setFailed(`Failed to add labels: ${errorMessage}`);
               }
             }
             await main();
@@ -2644,250 +2802,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  add_labels:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add_labels'))) && ((github.event.issue.number) ||
-      (github.event.pull_request.number))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      labels_added: ${{ steps.add_labels.outputs.labels_added }}
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: agent_output.json
-          path: /tmp/gh-aw/safe-outputs/
-      - name: Setup agent output environment variable
-        run: |
-          find /tmp/gh-aw/safe-outputs/ -type f -print
-          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
-      - name: Add Labels
-        id: add_labels
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_LABELS_ALLOWED: "bug,feature,enhancement,documentation"
-          GITHUB_AW_LABELS_MAX_COUNT: 1
-        with:
-          script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
-            async function main() {
-              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputEnvValue) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              let outputContent;
-              if (outputEnvValue.startsWith("/")) {
-                try {
-                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              } else {
-                outputContent = outputEnvValue;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const labelsItem = validatedOutput.items.find(item => item.type === "add_labels");
-              if (!labelsItem) {
-                core.warning("No add-labels item found in agent output");
-                return;
-              }
-              core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
-                summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
-                if (labelsItem.item_number) {
-                  summaryContent += `**Target Issue:** #${labelsItem.item_number}\n\n`;
-                } else {
-                  summaryContent += `**Target:** Current issue/PR\n\n`;
-                }
-                if (labelsItem.labels && labelsItem.labels.length > 0) {
-                  summaryContent += `**Labels to add:** ${labelsItem.labels.join(", ")}\n\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Label addition preview written to step summary");
-                return;
-              }
-              const allowedLabelsEnv = process.env.GITHUB_AW_LABELS_ALLOWED?.trim();
-              const allowedLabels = allowedLabelsEnv
-                ? allowedLabelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : undefined;
-              if (allowedLabels) {
-                core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
-              } else {
-                core.info("No label restrictions - any labels are allowed");
-              }
-              const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
-              const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
-              if (isNaN(maxCount) || maxCount < 1) {
-                core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
-                return;
-              }
-              core.info(`Max count: ${maxCount}`);
-              const labelsTarget = process.env.GITHUB_AW_LABELS_TARGET || "triggering";
-              core.info(`Labels target configuration: ${labelsTarget}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              if (labelsTarget === "triggering" && !isIssueContext && !isPRContext) {
-                core.info('Target is "triggering" but not running in issue or pull request context, skipping label addition');
-                return;
-              }
-              let itemNumber;
-              let contextType;
-              if (labelsTarget === "*") {
-                if (labelsItem.item_number) {
-                  itemNumber = typeof labelsItem.item_number === "number" ? labelsItem.item_number : parseInt(String(labelsItem.item_number), 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.setFailed(`Invalid item_number specified: ${labelsItem.item_number}`);
-                    return;
-                  }
-                  contextType = "issue";
-                } else {
-                  core.setFailed('Target is "*" but no item_number specified in labels item');
-                  return;
-                }
-              } else if (labelsTarget && labelsTarget !== "triggering") {
-                itemNumber = parseInt(labelsTarget, 10);
-                if (isNaN(itemNumber) || itemNumber <= 0) {
-                  core.setFailed(`Invalid issue number in target configuration: ${labelsTarget}`);
-                  return;
-                }
-                contextType = "issue";
-              } else {
-                if (isIssueContext) {
-                  if (context.payload.issue) {
-                    itemNumber = context.payload.issue.number;
-                    contextType = "issue";
-                  } else {
-                    core.setFailed("Issue context detected but no issue found in payload");
-                    return;
-                  }
-                } else if (isPRContext) {
-                  if (context.payload.pull_request) {
-                    itemNumber = context.payload.pull_request.number;
-                    contextType = "pull request";
-                  } else {
-                    core.setFailed("Pull request context detected but no pull request found in payload");
-                    return;
-                  }
-                }
-              }
-              if (!itemNumber) {
-                core.setFailed("Could not determine issue or pull request number");
-                return;
-              }
-              const requestedLabels = labelsItem.labels || [];
-              core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
-              for (const label of requestedLabels) {
-                if (label && typeof label === "string" && label.startsWith("-")) {
-                  core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
-                  return;
-                }
-              }
-              let validLabels;
-              if (allowedLabels) {
-                validLabels = requestedLabels.filter(label => allowedLabels.includes(label));
-              } else {
-                validLabels = requestedLabels;
-              }
-              let uniqueLabels = validLabels
-                .filter(label => label != null && label !== false && label !== 0)
-                .map(label => String(label).trim())
-                .filter(label => label)
-                .map(label => sanitizeLabelContent(label))
-                .filter(label => label)
-                .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                .filter((label, index, arr) => arr.indexOf(label) === index);
-              if (uniqueLabels.length > maxCount) {
-                core.info(`too many labels, keep ${maxCount}`);
-                uniqueLabels = uniqueLabels.slice(0, maxCount);
-              }
-              if (uniqueLabels.length === 0) {
-                core.info("No labels to add");
-                core.setOutput("labels_added", "");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            No labels were added (no valid labels found in agent output).
-            `
-                  )
-                  .write();
-                return;
-              }
-              core.info(`Adding ${uniqueLabels.length} labels to ${contextType} #${itemNumber}: ${JSON.stringify(uniqueLabels)}`);
-              try {
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: itemNumber,
-                  labels: uniqueLabels,
-                });
-                core.info(`Successfully added ${uniqueLabels.length} labels to ${contextType} #${itemNumber}`);
-                core.setOutput("labels_added", uniqueLabels.join("\n"));
-                const labelsListMarkdown = uniqueLabels.map(label => `- \`${label}\``).join("\n");
-                await core.summary
-                  .addRaw(
-                    `
-            ## Label Addition
-            Successfully added ${uniqueLabels.length} label(s) to ${contextType} #${itemNumber}:
-            ${labelsListMarkdown}
-            `
-                  )
-                  .write();
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to add labels: ${errorMessage}`);
-                core.setFailed(`Failed to add labels: ${errorMessage}`);
-              }
-            }
-            await main();
-
   missing_tool:
     needs:
       - agent
@@ -3015,4 +2929,90 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  pre_activation:
+    runs-on: ubuntu-latest
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              // For workflow_dispatch, only skip check if "write" is in the allowed roles
+              // since workflow_dispatch can be triggered by users with write access
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                // If write is not allowed, continue with permission check
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              // skip check for other safe events
+              const safeEvents = ["workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
 
