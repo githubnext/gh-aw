@@ -3709,13 +3709,24 @@ jobs:
                       }
                       core.info(`Assigning issue #${issue.number} to bot: ${assignToBot}`);
                       const assignToken = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN;
-                      const githubForAssign = assignToken
-                        ? (await (async () => {
-                            const { Octokit } = await import("@octokit/core");
+                      const graphqlForAssign = assignToken
+                        ? async (query, variables) => {
                             core.info("Using custom token for bot assignment");
-                            return new Octokit({ auth: assignToken });
-                          })())
-                        : github;
+                            const response = await fetch("https://api.github.com/graphql", {
+                              method: "POST",
+                              headers: {
+                                "Authorization": `Bearer ${assignToken}`,
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ query, variables }),
+                            });
+                            const result = await response.json();
+                            if (result && typeof result === "object" && "errors" in result && result.errors) {
+                              throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+                            }
+                            return result && typeof result === "object" && "data" in result ? result.data : result;
+                          }
+                        : github.graphql.bind(github);
                       core.info(`Fetching node ID for issue #${issue.number}`);
                       const issueNodeIdQuery = `
                         query($owner: String!, $repo: String!, $issueNumber: Int!) {
@@ -3726,7 +3737,7 @@ jobs:
                           }
                         }
                       `;
-                      const issueResult = await githubForAssign.graphql(issueNodeIdQuery, {
+                      const issueResult = await graphqlForAssign(issueNodeIdQuery, {
                         owner: context.repo.owner,
                         repo: context.repo.repo,
                         issueNumber: issue.number,
@@ -3741,7 +3752,7 @@ jobs:
                           }
                         }
                       `;
-                      const botResult = await githubForAssign.graphql(botNodeIdQuery, {
+                      const botResult = await graphqlForAssign(botNodeIdQuery, {
                         login: assignToBot,
                       });
                       const botNodeId = botResult.user.id;
@@ -3767,7 +3778,7 @@ jobs:
                           }
                         }
                       `;
-                      const assignResult = await githubForAssign.graphql(assignMutation, {
+                      const assignResult = await graphqlForAssign(assignMutation, {
                         assignableId: issueNodeId,
                         actorIds: [botNodeId],
                       });

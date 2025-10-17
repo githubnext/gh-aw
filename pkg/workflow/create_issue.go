@@ -109,9 +109,8 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	if data.SafeOutputs.CreateIssues.AssignToBot != "" {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_ASSIGN_TO_BOT: %q\n", data.SafeOutputs.CreateIssues.AssignToBot))
 	}
-	if data.SafeOutputs.CreateIssues.AssignToBotGitHubToken != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN: %q\n", data.SafeOutputs.CreateIssues.AssignToBotGitHubToken))
-	}
+	// Note: assign-to-bot-github-token is handled via the github-script action's 'github-token' parameter
+	// See token selection logic above where AssignToBotGitHubToken takes precedence
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
@@ -122,9 +121,15 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 	)...)
 
 	// Get token from config
+	// If assign-to-bot-github-token is specified, use that for the github-script action
+	// This allows bot assignment operations to use a different token with appropriate permissions
 	var token string
 	if data.SafeOutputs.CreateIssues != nil {
-		token = data.SafeOutputs.CreateIssues.GitHubToken
+		if data.SafeOutputs.CreateIssues.AssignToBotGitHubToken != "" {
+			token = data.SafeOutputs.CreateIssues.AssignToBotGitHubToken
+		} else {
+			token = data.SafeOutputs.CreateIssues.GitHubToken
+		}
 	}
 
 	// Build the GitHub Script step using the common helper and append to existing steps

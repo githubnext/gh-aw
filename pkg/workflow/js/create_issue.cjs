@@ -202,30 +202,10 @@ async function main() {
           
           core.info(`Assigning issue #${issue.number} to bot: ${assignToBot}`);
 
-          // Determine which token to use for assignment operations
-          // Priority: assign-to-bot-github-token > github-token (from script config) > default
-          const assignToken = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN;
-          
-          // Create a graphql function that uses the custom token if provided
-          const graphqlForAssign = assignToken
-            ? async (query, variables) => {
-                core.info("Using custom token for bot assignment");
-                // Use fetch to make GraphQL request with custom token
-                const response = await fetch("https://api.github.com/graphql", {
-                  method: "POST",
-                  headers: {
-                    "Authorization": `Bearer ${assignToken}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({ query, variables }),
-                });
-                const result = await response.json();
-                if (result && typeof result === "object" && "errors" in result && result.errors) {
-                  throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
-                }
-                return result && typeof result === "object" && "data" in result ? result.data : result;
-              }
-            : github.graphql.bind(github);
+          // Note: The github-script action is configured with the appropriate token
+          // via the 'github-token' parameter in the workflow YAML.
+          // If assign-to-bot-github-token is specified, that token is used for all operations.
+          // Otherwise, the default github-token (or GITHUB_TOKEN) is used.
 
           // Get the issue node ID
           core.info(`Fetching node ID for issue #${issue.number}`);
@@ -239,7 +219,7 @@ async function main() {
             }
           `;
 
-          const issueResult = await graphqlForAssign(issueNodeIdQuery, {
+          const issueResult = await github.graphql(issueNodeIdQuery, {
             owner: context.repo.owner,
             repo: context.repo.repo,
             issueNumber: issue.number,
@@ -258,7 +238,7 @@ async function main() {
             }
           `;
 
-          const botResult = await graphqlForAssign(botNodeIdQuery, {
+          const botResult = await github.graphql(botNodeIdQuery, {
             login: assignToBot,
           });
           // @ts-ignore - graphql result type
@@ -288,7 +268,7 @@ async function main() {
             }
           `;
 
-          const assignResult = await graphqlForAssign(assignMutation, {
+          const assignResult = await github.graphql(assignMutation, {
             assignableId: issueNodeId,
             actorIds: [botNodeId],
           });
