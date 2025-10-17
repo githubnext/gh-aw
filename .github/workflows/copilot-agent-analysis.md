@@ -52,12 +52,12 @@ You are an AI analytics agent that monitors and analyzes the performance of the 
 
 ## Mission
 
-Daily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends.
+Daily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends. Provides daily, weekly, and monthly performance summaries.
 
 ## Current Context
 
 - **Repository**: ${{ github.repository }}
-- **Analysis Period**: Last 24 hours
+- **Analysis Period**: Last 24 hours (with weekly and monthly summaries)
 
 ## Task Overview
 
@@ -190,6 +190,32 @@ The history file should contain daily metrics in this format:
 }
 ```
 
+**If Historical Data is Missing or Incomplete:**
+
+If the history file doesn't exist or has gaps in the data, rebuild it by querying historical PRs:
+
+1. **Determine Missing Date Range**: Identify which dates need data (up to last 30 days for meaningful trends)
+
+2. **Query PRs One Day at a Time**: To avoid context explosion, query PRs for each missing day separately:
+   ```
+   repo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD
+   ```
+   
+3. **Process Each Day**: For each day with missing data:
+   - Query PRs created on that specific date
+   - Calculate the same metrics as for today (total PRs, merged, closed, success rate, etc.)
+   - Store in the history file
+   - Limit processing to avoid timeout - prioritize most recent days first
+
+4. **Incremental Approach**: 
+   - Process one day at a time in chronological order (oldest to newest)
+   - Save after each day to preserve progress
+   - If you have 5+ days of data, that's sufficient for basic trend analysis
+   - Aim for 7+ days for week-over-week trends
+   - Aim for 30 days for monthly trends
+
+5. **Rate Limiting**: Be mindful of API rate limits - if approaching limits, save what you have and continue next run
+
 #### 4.2 Store Today's Metrics
 
 Calculate today's metrics:
@@ -208,24 +234,74 @@ mkdir -p /tmp/gh-aw/cache-memory/copilot-agent-metrics/
 
 Store the data in JSON format with proper structure.
 
-#### 4.3 Analyze Trends
+#### 4.2.1 Rebuild Historical Data (if needed)
+
+**When to Rebuild:**
+- History file doesn't exist
+- History file has gaps (missing dates in the last 30 days)
+- Insufficient data for trend analysis (< 7 days)
+
+**Rebuilding Strategy:**
+1. **Assess Current State**: Check how many days of data you have
+2. **Target Collection**: Aim for at least 7 days (for weekly trends) or 30 days (for monthly trends)
+3. **One Day at a Time**: Query PRs for each missing date separately to avoid context explosion
+
+**For Each Missing Day:**
+```
+# Query PRs for specific date
+repo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD
+```
+
+**Process:**
+- Start with the oldest missing date in your target range (e.g., 30 days ago)
+- For each date:
+  1. Search for PRs created on that date
+  2. Analyze each PR (same as Phase 2)
+  3. Calculate daily metrics (same as Phase 4.2)
+  4. Add to history.json
+  5. Save immediately to preserve progress
+- Continue until you have sufficient data or reach time limits
+
+**Important Constraints:**
+- Process dates in chronological order (oldest first)
+- Save after processing each day
+- If time is running short (> 10 minutes elapsed), stop and save what you have
+- Next run will continue from where you left off
+- Prioritize data quality over quantity - better to have accurate data for fewer days
+
+#### 4.3 Store Today's Metrics
+
+After ensuring historical data is available (either from existing cache or rebuilt), add today's metrics:
+- Total PRs created today
+- Number merged/closed/open
+- Average comments per PR
+- Average agent duration
+- Average total duration
+- Success rate (merged / total completed)
+
+Append to history.json in the cache memory.
+
+#### 4.4 Analyze Trends
 
 If historical data exists (at least 7 days), analyze trends:
 
-**Week-over-Week Comparison**:
+**Week-over-Week Comparison** (last 7 days vs previous 7 days):
 - Success rate trend (improving/declining/stable)
 - Average duration trend (faster/slower/stable)
 - Comment count trend (more engagement/less engagement)
+- Volume trend (more/fewer PRs)
 
-**30-Day Moving Averages** (if 30+ days of data):
+**Monthly Summary** (if 30+ days of data):
 - 30-day average success rate
 - 30-day average duration
 - 30-day average comments
+- Total PRs in last 30 days
+- Weekly breakdown of the month
 
 **Trend Indicators**:
-- 📈 Improving: Metric is better than 7-day average
-- 📉 Declining: Metric is worse than 7-day average
-- ➡️ Stable: Metric is within 5% of 7-day average
+- 📈 Improving: Metric is better than comparison period
+- 📉 Declining: Metric is worse than comparison period
+- ➡️ Stable: Metric is within 5% of comparison period
 
 ### Phase 5: Check for Instruction Changes
 
@@ -306,21 +382,59 @@ Create a comprehensive discussion with your findings using the safe-outputs crea
 - **Average Agent Duration**: [time]
 - **Average Total Duration**: [time]
 
+### Weekly Summary (Last 7 Days)
+
+[If at least 7 days of historical data available]
+
+**Performance Metrics:**
+- **Total PRs**: [count] ([trend indicator] vs previous week)
+- **Success Rate**: [percentage]% ([trend indicator] vs previous week)
+- **Average Duration**: [time] ([trend indicator] vs previous week)
+- **Average Comments**: [number] ([trend indicator] vs previous week)
+
+**Week-over-Week Change:**
+- PRs Created: [change] ([percentage]% change)
+- Success Rate: [change] ([percentage point] change)
+- Duration: [change] ([percentage]% change)
+- Comments: [change] ([percentage]% change)
+
+**Daily Breakdown (Last 7 Days):**
+| Date | PRs | Merged | Success Rate | Avg Duration |
+|------|-----|--------|--------------|--------------|
+| [date] | [count] | [count] | [%] | [time] |
+| ... | ... | ... | ... | ... |
+
+### Monthly Summary (Last 30 Days)
+
+[If at least 30 days of historical data available]
+
+**Performance Metrics:**
+- **Total PRs**: [count]
+- **Average Success Rate**: [percentage]%
+- **Average Duration**: [time]
+- **Average Comments per PR**: [number]
+
+**Weekly Trends (4 weeks):**
+| Week | PRs | Success Rate | Avg Duration | Avg Comments |
+|------|-----|--------------|--------------|--------------|
+| Week 1 (most recent) | [count] | [%] | [time] | [number] |
+| Week 2 | [count] | [%] | [time] | [number] |
+| Week 3 | [count] | [%] | [time] | [number] |
+| Week 4 (oldest) | [count] | [%] | [time] | [number] |
+
+**Monthly Trends:**
+- Success Rate Trend: [trend indicator with explanation]
+- Duration Trend: [trend indicator with explanation]
+- Volume Trend: [trend indicator with explanation]
+- Engagement Trend: [trend indicator with explanation]
+
 ### Historical Comparison (7-day trend)
 
-[If historical data available]
+[If historical data available but less than 30 days]
 
 - **Success Rate**: [current]% vs [7-day avg]% [trend indicator]
 - **Agent Duration**: [current] vs [7-day avg] [trend indicator]
 - **Human Engagement**: [current comments] vs [7-day avg] [trend indicator]
-
-### 30-Day Trends
-
-[If 30+ days of data available]
-
-- **30-Day Average Success Rate**: [percentage]%
-- **30-Day Average Duration**: [time]
-- **30-Day Average Comments**: [number]
 
 ## Instruction File Changes
 
@@ -410,6 +524,11 @@ _This analysis was generated automatically by the Copilot Agent Analysis workflo
 - **Limit retention**: Consider keeping only last 90 days of daily data
 - **Handle errors**: If cache is corrupted, reinitialize gracefully
 - **Backup important data**: Store critical metrics redundantly
+- **Progressive data collection**: If historical data is missing, rebuild incrementally
+  - Prioritize most recent days first (they're more relevant for trends)
+  - Process one day at a time to avoid overwhelming the context
+  - Save progress after each day to ensure data persistence
+  - Aim for at least 7 days for weekly trends, 30 days for monthly trends
 
 ### Trend Analysis
 - **Require sufficient data**: Don't report trends with less than 7 days of data
@@ -444,7 +563,10 @@ A successful analysis:
 - ✅ Calculates accurate metrics for each PR
 - ✅ Generates a clear, formatted summary table
 - ✅ Updates cache memory with today's metrics
-- ✅ Analyzes trends if historical data exists
+- ✅ Rebuilds missing historical data if needed (one day at a time)
+- ✅ Analyzes trends with available historical data
+- ✅ Provides weekly summary (if 7+ days of data available)
+- ✅ Provides monthly summary (if 30+ days of data available)
 - ✅ Checks for instruction file changes
 - ✅ Creates a comprehensive discussion with findings
 - ✅ Provides actionable insights and recommendations
