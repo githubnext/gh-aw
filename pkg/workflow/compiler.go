@@ -26,6 +26,14 @@ const (
 	// This includes environment variable values, if conditions, and other expression contexts
 	// See: https://docs.github.com/en/actions/learn-github-actions/usage-limits-billing-and-administration
 	MaxExpressionSize = 21000 // 21KB in bytes
+
+	// MaxPromptChunkSize is the maximum size for each chunk when splitting prompt text (20KB)
+	// This limit ensures each heredoc block stays under GitHub Actions step size limits (21KB)
+	MaxPromptChunkSize = 20000 // 20KB limit for each chunk
+
+	// MaxPromptChunks is the maximum number of chunks allowed when splitting prompt text
+	// This prevents excessive step generation for extremely large prompt texts
+	MaxPromptChunks = 5 // Maximum number of chunks
 )
 
 //go:embed schemas/github-workflow.json
