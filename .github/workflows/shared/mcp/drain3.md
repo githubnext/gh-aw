@@ -46,7 +46,22 @@ steps:
         exit 1
       fi
       
+      # Test HTTP endpoint with curl
+      echo "Testing HTTP endpoint with curl..."
+      if curl -v -X GET http://localhost:8766/ 2>&1 | tee /tmp/gh-aw/mcp-logs/drain3/curl-test.log; then
+        echo "✓ HTTP endpoint responded"
+      else
+        echo "✗ HTTP endpoint did not respond"
+        echo "Server logs:"
+        cat /tmp/gh-aw/mcp-logs/drain3/server.log || true
+        echo "Curl test logs:"
+        cat /tmp/gh-aw/mcp-logs/drain3/curl-test.log || true
+        exit 1
+      fi
+      
       echo "Drain3 MCP server started successfully with PID $MCP_PID"
+      echo "Server logs (first 50 lines):"
+      head -n 50 /tmp/gh-aw/mcp-logs/drain3/server.log || true
     env:
       PORT: "8766"
       HOST: "0.0.0.0"
