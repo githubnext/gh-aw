@@ -12,6 +12,7 @@ tools:
     mode: "remote"
     toolset: [all]
   cache-memory: true
+  edit:
 safe-outputs:
   create-discussion:
     category: "audits"
@@ -176,6 +177,20 @@ Brief description of the toolset.
 
 Provide 1-2 brief examples showing how to use common tools.
 
+## Recommended Default Toolsets
+
+Based on the analysis of available tools and their usage patterns, the following toolsets are recommended as defaults when no toolset is specified:
+
+**Recommended Defaults**: [List recommended toolsets here, e.g., `context`, `repos`, `issues`, `pull_requests`, `users`]
+
+**Rationale**:
+- [Explain why each toolset should be included in defaults]
+- [Consider frequency of use, fundamental functionality, minimal security exposure]
+- [Note any changes from current defaults and why]
+
+**Specialized Toolsets** (enable explicitly when needed):
+- List toolsets that should not be in defaults and when to use them
+
 ## Toolset Configuration Reference
 
 When configuring the GitHub MCP server in agentic workflows, you can enable specific toolsets:
@@ -251,6 +266,9 @@ A successful report:
 - ✅ Detects and reports any inconsistencies across toolsets (duplicates, miscategorization, naming issues)
 - ✅ Compares with previous run and identifies changes (new/removed/moved tools)
 - ✅ Saves current tools list to cache for next run
+- ✅ **Creates/updates `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation
+- ✅ **Identifies and documents recommended default toolsets** with rationale
+- ✅ **Updates default toolsets** in documentation files (github-agentic-workflows.instructions.md and templates/instructions.md)
 - ✅ Organizes tools by their appropriate toolset categories
 - ✅ Provides clear descriptions and usage information
 - ✅ Includes practical examples
@@ -276,14 +294,32 @@ Your output MUST:
 5. Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json` for the next run
    - Use a structured JSON format with tool names, toolsets, and descriptions
    - Include timestamp and metadata
-6. Create a GitHub discussion with the complete tools report
-7. Use the report template structure provided above
-8. Include the inconsistency detection section with findings
-9. Include the changes summary section if previous data exists
-10. Include ALL discovered tools organized by toolset
-11. Provide accurate tool names, descriptions, and parameters
-12. Include practical usage examples
-13. Be formatted for readability with proper markdown tables
+6. **Update `.github/instructions/github-mcp-server.instructions.md`** with comprehensive documentation:
+   - Document all available tools organized by toolset
+   - Include tool descriptions, parameters, and usage examples
+   - Provide configuration reference for remote vs local mode
+   - Include header authentication details (Bearer token)
+   - Document X-MCP-Readonly header for read-only mode
+   - **Include recommended default toolsets** based on analysis:
+     - Identify the most commonly needed toolsets for typical workflows
+     - Consider toolsets that provide core functionality (context, repos, issues, pull_requests, users)
+     - Document the rationale for these defaults
+     - Note which toolsets are specialized and should be enabled explicitly
+   - Include best practices for toolset selection
+   - Format the documentation according to the repository's documentation standards
+7. **Update default toolsets documentation** in:
+   - `.github/instructions/github-agentic-workflows.instructions.md` (line 126)
+   - `pkg/cli/templates/instructions.md` (line 126)
+   - Use the recommended default toolsets identified in step 6
+   - Ensure consistency across all documentation files
+8. Create a GitHub discussion with the complete tools report
+9. Use the report template structure provided above
+10. Include the inconsistency detection section with findings
+11. Include the changes summary section if previous data exists
+12. Include ALL discovered tools organized by toolset
+13. Provide accurate tool names, descriptions, and parameters
+14. Include practical usage examples
+15. Be formatted for readability with proper markdown tables
 
 **Cache File Format** (`/tmp/gh-aw/cache-memory/github-mcp-tools.json`):
 ```json
@@ -327,7 +363,28 @@ Begin your tool discovery now. Follow these steps:
    - users
 3. **Detect inconsistencies**: Check for duplicates, miscategorization, naming issues, and orphaned tools
 4. **Compare and analyze**: If previous data exists, compare current tools with previous tools to identify changes (new/removed/moved)
-5. **Document**: Categorize tools appropriately and create comprehensive documentation
-6. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
-7. **Generate report**: Create the final markdown report including change tracking and inconsistency detection
-8. **Publish**: Create a GitHub discussion with the complete tools report
+5. **Analyze and recommend default toolsets**: 
+   - Analyze which toolsets provide the most fundamental functionality
+   - Consider which tools are most commonly needed across different workflow types
+   - Evaluate the current defaults: `context`, `repos`, `issues`, `pull_requests`, `users`
+   - Determine if these defaults should be updated based on actual tool availability and usage patterns
+   - Document your rationale for the recommended defaults
+6. **Create comprehensive documentation file**: Create/update `.github/instructions/github-mcp-server.instructions.md` with:
+   - Overview of GitHub MCP server (remote vs local mode)
+   - Complete list of available tools organized by toolset
+   - Tool descriptions, parameters, and return values
+   - Configuration examples for both modes
+   - Authentication details (Bearer token, X-MCP-Readonly header)
+   - **Recommended default toolsets section** with:
+     - List of recommended defaults
+     - Rationale for each toolset included in defaults
+     - Explanation of when to enable other toolsets
+   - Best practices for toolset selection
+   - Usage examples for common scenarios
+7. **Update documentation references**: Update the default toolsets list in:
+   - `.github/instructions/github-agentic-workflows.instructions.md` (search for "Default toolsets (if not specified)")
+   - `pkg/cli/templates/instructions.md` (search for "Default toolsets (if not specified)")
+8. **Document**: Categorize tools appropriately and create comprehensive documentation
+9. **Save for next run**: Save the current tools list to `/tmp/gh-aw/cache-memory/github-mcp-tools.json`
+10. **Generate report**: Create the final markdown report including change tracking and inconsistency detection
+11. **Publish**: Create a GitHub discussion with the complete tools report
