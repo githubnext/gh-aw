@@ -147,7 +147,7 @@ function validateErrors(logContent, patterns) {
   const MAX_LINE_LENGTH = 10000; // Skip lines longer than this (likely JSON payloads)
 
   core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
-  
+
   const validationStartTime = Date.now();
   let totalMatches = 0;
   let patternStats = [];
@@ -156,7 +156,7 @@ function validateErrors(logContent, patterns) {
     const pattern = patterns[patternIndex];
     const patternStartTime = Date.now();
     let patternMatches = 0;
-    
+
     let regex;
     try {
       regex = new RegExp(pattern.pattern, "g");
@@ -174,13 +174,13 @@ function validateErrors(logContent, patterns) {
       if (shouldSkipLine(line)) {
         continue;
       }
-      
+
       // Skip very long lines that are likely JSON payloads or dumps
       // These rarely contain actionable error messages and are expensive to process
       if (line.length > MAX_LINE_LENGTH) {
         continue;
       }
-      
+
       // Early termination if we've found too many errors
       if (totalMatches >= MAX_TOTAL_ERRORS) {
         core.warning(`Stopping error validation after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
@@ -229,7 +229,7 @@ function validateErrors(logContent, patterns) {
         } else {
           core.warning(errorMessage);
         }
-        
+
         patternMatches++;
         totalMatches++;
       }
@@ -239,32 +239,32 @@ function validateErrors(logContent, patterns) {
         core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
       }
     }
-    
+
     // Track pattern performance
     const patternElapsed = Date.now() - patternStartTime;
     patternStats.push({
       description: pattern.description || "Unknown",
       pattern: pattern.pattern.substring(0, 50) + (pattern.pattern.length > 50 ? "..." : ""),
       matches: patternMatches,
-      timeMs: patternElapsed
+      timeMs: patternElapsed,
     });
-    
+
     // Log slow patterns (> 5 seconds)
     if (patternElapsed > 5000) {
       core.warning(`Pattern "${pattern.description}" took ${patternElapsed}ms to process (${patternMatches} matches)`);
     }
-    
+
     // Early termination if we've found enough errors
     if (totalMatches >= MAX_TOTAL_ERRORS) {
       core.warning(`Stopping pattern processing after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
       break;
     }
   }
-  
+
   // Log performance summary
   const validationElapsed = Date.now() - validationStartTime;
   core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);
-  
+
   // Log top 5 slowest patterns
   patternStats.sort((a, b) => b.timeMs - a.timeMs);
   const topSlow = patternStats.slice(0, 5);

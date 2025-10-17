@@ -3879,9 +3879,16 @@ jobs:
               let hasErrors = false;
               const MAX_ITERATIONS_PER_LINE = 10000; 
               const ITERATION_WARNING_THRESHOLD = 1000; 
+              const MAX_TOTAL_ERRORS = 100; 
+              const MAX_LINE_LENGTH = 10000; 
               core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              const validationStartTime = Date.now();
+              let totalMatches = 0;
+              let patternStats = [];
               for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
                 const pattern = patterns[patternIndex];
+                const patternStartTime = Date.now();
+                let patternMatches = 0;
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");
@@ -3894,6 +3901,13 @@ jobs:
                   const line = lines[lineIndex];
                   if (shouldSkipLine(line)) {
                     continue;
+                  }
+                  if (line.length > MAX_LINE_LENGTH) {
+                    continue;
+                  }
+                  if (totalMatches >= MAX_TOTAL_ERRORS) {
+                    core.warning(`Stopping error validation after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                    break;
                   }
                   let match;
                   let iterationCount = 0;
@@ -3927,11 +3941,37 @@ jobs:
                     } else {
                       core.warning(errorMessage);
                     }
+                    patternMatches++;
+                    totalMatches++;
                   }
                   if (iterationCount > 100) {
                     core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
                   }
                 }
+                const patternElapsed = Date.now() - patternStartTime;
+                patternStats.push({
+                  description: pattern.description || "Unknown",
+                  pattern: pattern.pattern.substring(0, 50) + (pattern.pattern.length > 50 ? "..." : ""),
+                  matches: patternMatches,
+                  timeMs: patternElapsed,
+                });
+                if (patternElapsed > 5000) {
+                  core.warning(`Pattern "${pattern.description}" took ${patternElapsed}ms to process (${patternMatches} matches)`);
+                }
+                if (totalMatches >= MAX_TOTAL_ERRORS) {
+                  core.warning(`Stopping pattern processing after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                  break;
+                }
+              }
+              const validationElapsed = Date.now() - validationStartTime;
+              core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);
+              patternStats.sort((a, b) => b.timeMs - a.timeMs);
+              const topSlow = patternStats.slice(0, 5);
+              if (topSlow.length > 0 && topSlow[0].timeMs > 1000) {
+                core.info("Top 5 slowest patterns:");
+                topSlow.forEach((stat, idx) => {
+                  core.info(`  ${idx + 1}. "${stat.description}" - ${stat.timeMs}ms (${stat.matches} matches)`);
+                });
               }
               core.debug(`Error validation completed. Errors found: ${hasErrors}`);
               return hasErrors;

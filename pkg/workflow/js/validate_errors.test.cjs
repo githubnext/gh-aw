@@ -392,7 +392,7 @@ describe("infinite loop detection", () => {
   test("should enforce maximum iteration limit or max error limit", () => {
     // Create a line with an extreme number of potential matches but within MAX_LINE_LENGTH
     // Use 9000 chars to stay under the 10KB limit but still exceed MAX_ITERATIONS_PER_LINE
-    const massivePattern = "X".repeat(9000); 
+    const massivePattern = "X".repeat(9000);
     const logContent = massivePattern;
 
     const patterns = [
@@ -409,7 +409,7 @@ describe("infinite loop detection", () => {
     // Should have logged either an error about maximum iteration limit OR stopping due to max errors
     const errorCalls = global.core.error.mock.calls.map(call => call[0]);
     const warningCalls = global.core.warning.mock.calls.map(call => call[0]);
-    
+
     const hasMaxIterationError = errorCalls.some(msg => msg.includes("Maximum iteration limit") || msg.includes("10000"));
     const hasMaxErrorsWarning = warningCalls.some(msg => msg.includes("Stopping") && (msg.includes("100") || msg.includes("max")));
 
