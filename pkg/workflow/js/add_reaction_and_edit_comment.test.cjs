@@ -139,8 +139,9 @@ describe("add_reaction_and_edit_comment.cjs", () => {
   });
 
   describe("Pull request reactions", () => {
-    it("should add reaction to pull request successfully (no comment)", async () => {
+    it("should add reaction to pull request and create comment", async () => {
       process.env.GITHUB_AW_REACTION = "heart";
+      process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
       // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
       global.context.eventName = "pull_request";
       global.context.payload = {
@@ -148,9 +149,15 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         repository: { html_url: "https://github.com/testowner/testrepo" },
       };
 
-      mockGithub.request.mockResolvedValue({
-        data: { id: 789 },
-      });
+      // Mock reaction call
+      mockGithub.request
+        .mockResolvedValueOnce({
+          data: { id: 789 },
+        })
+        // Mock comment creation
+        .mockResolvedValueOnce({
+          data: { id: 999, html_url: "https://github.com/testowner/testrepo/pull/456#issuecomment-999" },
+        });
 
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
@@ -163,11 +170,18 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         })
       );
 
-      // Verify only 1 call was made (reaction, no comment)
-      expect(mockGithub.request).toHaveBeenCalledTimes(1);
+      // Verify comment was created
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /repos/testowner/testrepo/issues/456/comments",
+        expect.objectContaining({
+          body: expect.stringContaining("Agentic [Test Workflow]"),
+        })
+      );
 
+      // Verify outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "789");
-      expect(mockCore.setOutput).not.toHaveBeenCalledWith("comment-id", expect.anything());
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "999");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/testowner/testrepo/pull/456#issuecomment-999");
     });
   });
 
@@ -336,7 +350,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
   });
 
   describe("Comment creation (always creates new comments)", () => {
-    it("should NOT create comment for issue event (no comment endpoint for issues)", async () => {
+    it("should create comment for issue event", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
       process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
       // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
@@ -346,10 +360,15 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         repository: { html_url: "https://github.com/testowner/testrepo" },
       };
 
-      // Mock reaction call only (no comment creation for issue events)
-      mockGithub.request.mockResolvedValueOnce({
-        data: { id: 456 },
-      });
+      // Mock reaction call
+      mockGithub.request
+        .mockResolvedValueOnce({
+          data: { id: 456 },
+        })
+        // Mock comment creation
+        .mockResolvedValueOnce({
+          data: { id: 789, html_url: "https://github.com/testowner/testrepo/issues/123#issuecomment-789" },
+        });
 
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
@@ -362,13 +381,18 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         })
       );
 
-      // Verify comment was NOT created (only 1 call for reaction)
-      // Note: Issue events don't have commentUpdateEndpoint set, so no comment is created
-      expect(mockGithub.request).toHaveBeenCalledTimes(1);
+      // Verify comment was created
+      expect(mockGithub.request).toHaveBeenCalledWith(
+        "POST /repos/testowner/testrepo/issues/123/comments",
+        expect.objectContaining({
+          body: expect.stringContaining("Agentic [Test Workflow]"),
+        })
+      );
 
-      // Verify only reaction output was set, not comment outputs
+      // Verify outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "456");
-      expect(mockCore.setOutput).not.toHaveBeenCalledWith("comment-id", expect.anything());
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "789");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-url", "https://github.com/testowner/testrepo/issues/123#issuecomment-789");
     });
 
     it("should create new comment for issue_comment event (not edit)", async () => {
@@ -455,7 +479,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
     });
 
-    it("should NOT create comment on discussion (no comment endpoint for discussions)", async () => {
+    it("should create comment on discussion", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
       process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
       // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
@@ -483,22 +507,48 @@ describe("add_reaction_and_edit_comment.cjs", () => {
               content: "EYES",
             },
           },
+        })
+        // Mock GraphQL query to get discussion ID for comment creation
+        .mockResolvedValueOnce({
+          repository: {
+            discussion: {
+              id: "D_kwDOABcD1M4AaBbC",
+            },
+          },
+        })
+        // Mock GraphQL mutation to add comment
+        .mockResolvedValueOnce({
+          addDiscussionComment: {
+            comment: {
+              id: "DC_kwDOABcD1M4AaBbE",
+              url: "https://github.com/testowner/testrepo/discussions/10#discussioncomment-999",
+            },
+          },
         });
 
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
 
       // Verify reaction was added (2 GraphQL calls: get discussion ID + add reaction)
-      expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
+      // Plus 2 more GraphQL calls for comment creation (get discussion ID + add comment)
+      expect(mockGithub.graphql).toHaveBeenCalledTimes(4);
 
-      // Verify comment was NOT created (no addDiscussionComment mutation)
-      // Note: Discussion body events (not comments on discussions) don't set shouldCreateComment,
-      // so no comment is created. Only discussion_comment events create comments.
-      expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("addDiscussionComment"), expect.anything());
+      // Verify comment was created
+      expect(mockGithub.graphql).toHaveBeenCalledWith(
+        expect.stringContaining("addDiscussionComment"),
+        expect.objectContaining({
+          dId: "D_kwDOABcD1M4AaBbC",
+          body: expect.stringContaining("Agentic [Test Workflow]"),
+        })
+      );
 
-      // Verify only reaction output was set
+      // Verify outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("reaction-id", "MDg6UmVhY3Rpb24xMjM0NTY3ODk=");
-      expect(mockCore.setOutput).not.toHaveBeenCalledWith("comment-id", expect.anything());
+      expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "DC_kwDOABcD1M4AaBbE");
+      expect(mockCore.setOutput).toHaveBeenCalledWith(
+        "comment-url",
+        "https://github.com/testowner/testrepo/discussions/10#discussioncomment-999"
+      );
     });
 
     it("should create new comment for discussion_comment events", async () => {

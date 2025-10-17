@@ -38,6 +38,8 @@ async function main() {
         }
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+        // Create comments for all workflows using reactions
+        shouldCreateComment = true;
         break;
 
       case "issue_comment":
@@ -67,6 +69,8 @@ async function main() {
         // PRs are "issues" for the reactions endpoint
         reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
+        // Create comments for all workflows using reactions
+        shouldCreateComment = true;
         break;
 
       case "pull_request_review_comment":
@@ -97,6 +101,8 @@ async function main() {
         const discussion = await getDiscussionId(owner, repo, discussionNumber);
         reactionEndpoint = discussion.id; // Store node ID for GraphQL
         commentUpdateEndpoint = `discussion:${discussionNumber}`; // Special format to indicate discussion
+        // Create comments for all workflows using reactions
+        shouldCreateComment = true;
         break;
 
       case "discussion_comment":

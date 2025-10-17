@@ -359,6 +359,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+                    shouldCreateComment = true;
                     break;
                   case "issue_comment":
                     const commentId = context.payload?.comment?.id;
@@ -383,6 +384,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
+                    shouldCreateComment = true;
                     break;
                   case "pull_request_review_comment":
                     const reviewCommentId = context.payload?.comment?.id;
@@ -408,6 +410,7 @@ jobs:
                     const discussion = await getDiscussionId(owner, repo, discussionNumber);
                     reactionEndpoint = discussion.id; 
                     commentUpdateEndpoint = `discussion:${discussionNumber}`; 
+                    shouldCreateComment = true;
                     break;
                   case "discussion_comment":
                     const discussionCommentNumber = context.payload?.discussion?.number;
