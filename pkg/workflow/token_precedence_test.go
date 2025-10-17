@@ -254,7 +254,7 @@ Test push to PR branch token.
 				}
 
 				// Check for env var references that should use the pattern
-				if (strings.Contains(line, "GITHUB_PERSONAL_ACCESS_TOKEN") || 
+				if (strings.Contains(line, "GITHUB_PERSONAL_ACCESS_TOKEN") ||
 					(strings.Contains(line, "GITHUB_TOKEN") && !strings.Contains(line, "SECRET_GITHUB_TOKEN"))) &&
 					strings.Contains(line, "${{") {
 					// This should include GH_AW_GITHUB_TOKEN
