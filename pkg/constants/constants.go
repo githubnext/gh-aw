@@ -21,7 +21,7 @@ const DefaultClaudeCodeVersion = "2.0.21"
 const DefaultCopilotVersion = "0.0.343"
 
 // DefaultCodexVersion is the default version of the OpenAI Codex CLI
-const DefaultCodexVersion = "0.46.0"
+const DefaultCodexVersion = "0.47.0"
 
 // DefaultGitHubMCPServerVersion is the default version of the GitHub MCP server Docker image
 const DefaultGitHubMCPServerVersion = "v0.18.0"
