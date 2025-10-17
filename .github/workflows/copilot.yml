@@ -51,8 +51,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-      - name: List files in /home/runner/.copilot
-        run: ls -la /home/runner/.copilot
+      - name: List files in /tmp/logs
+        run: ls -la /tmp/logs
       - name: Upload execution logs
         if: always()
         uses: actions/upload-artifact@v4
