@@ -81,13 +81,13 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	// Permission checks are now handled by the separate check_membership job
 	// which is always created when needed (when activation job is created)
 
-	// Step 2: Checkout repository
+	// Step 1: Checkout repository
 	steps = buildCheckoutRepository(steps, c)
 
-	// Step 3: Configure Git credentials
+	// Step 2: Configure Git credentials
 	steps = append(steps, c.generateGitConfigurationSteps()...)
 
-	// Add step to download assets artifact if it exists
+	// Step 3: Download assets artifact if it exists
 	steps = append(steps, "      - name: Download assets\n")
 	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	steps = append(steps, "        uses: actions/download-artifact@v5\n")
@@ -95,48 +95,43 @@ func (c *Compiler) buildUploadAssetsJob(data *WorkflowData, mainJobName string) 
 	steps = append(steps, "          name: safe-outputs-assets\n")
 	steps = append(steps, "          path: /tmp/gh-aw/safe-outputs/assets/\n")
 
-	// list files
+	// Step 4: List files
 	steps = append(steps, "      - name: List downloaded asset files\n")
 	steps = append(steps, "        continue-on-error: true\n") // Continue if no assets were uploaded
 	steps = append(steps, "        run: |\n")
 	steps = append(steps, "          echo \"Downloaded asset files:\"\n")
 	steps = append(steps, "          ls -la /tmp/gh-aw/safe-outputs/assets/\n")
 
-	// Step 4: Upload assets to orphaned branch using custom script
-	steps = append(steps, "      - name: Upload Assets to Orphaned Branch\n")
-	steps = append(steps, "        id: upload_assets\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
+	// Build custom environment variables specific to upload-assets
+	var customEnvVars []string
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))
 
-	// Add environment variables
-	steps = append(steps, "        env:\n")
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_BRANCH: %q\n", data.SafeOutputs.UploadAssets.BranchName))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_MAX_SIZE_KB: %d\n", data.SafeOutputs.UploadAssets.MaxSizeKB))
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_ASSETS_ALLOWED_EXTS: %q\n", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ",")))
+	// Add common safe output job environment variables (staged/target repo)
+	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
+		c.trialMode,
+		c.trialLogicalRepoSlug,
+		data.SafeOutputs.Staged,
+		"", // No target repo for upload assets
+	)...)
 
-	// Pass the staged flag if it's set to true
-	if c.trialMode || data.SafeOutputs.Staged {
-		steps = append(steps, "          GITHUB_AW_SAFE_OUTPUTS_STAGED: \"true\"\n")
-	}
-	if c.trialMode && c.trialLogicalRepoSlug != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_TARGET_REPO_SLUG: %q\n", c.trialLogicalRepoSlug))
-	}
-
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
+	// Get token from config
 	var token string
 	if data.SafeOutputs.UploadAssets != nil {
 		token = data.SafeOutputs.UploadAssets.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
 
-	// Add each line of the script with proper indentation
-	uploadAssetsFormatted := FormatJavaScriptForYAML(uploadAssetsScript)
-	steps = append(steps, uploadAssetsFormatted...)
+	// Build the GitHub Script step using the common helper
+	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Upload Assets to Orphaned Branch",
+		StepID:        "upload_assets",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        uploadAssetsScript,
+		Token:         token,
+	})
+	steps = append(steps, scriptSteps...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
