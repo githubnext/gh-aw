@@ -3,11 +3,6 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Resolved workflow manifest:
-#   Imports:
-#     - shared/mcp/drain3.md
-#     - shared/mcp/gh-aw.md
-#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -26,69 +21,24 @@
 #   detection --> missing_tool
 # ```
 
-name: "Dev"
+name: "Copilot Agent PR Analysis"
 "on":
-  discussion:
-    types:
-    - created
-    - edited
-  discussion_comment:
-    types:
-    - created
-    - edited
-  issue_comment:
-    types:
-    - created
-    - edited
-  issues:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request:
-    types:
-    - opened
-    - edited
-    - reopened
-  pull_request_review_comment:
-    types:
-    - created
-    - edited
+  schedule:
+  - cron: 0 10 * * *
   workflow_dispatch: null
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Dev"
+run-name: "Copilot Agent PR Analysis"
 
 jobs:
   activation:
     needs: pre_activation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true') && (((github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
-      github.event_name == 'discussion_comment') && ((github.event_name == 'issues') && (contains(github.event.issue.body, '/dev')) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') && ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request_review_comment') && (contains(github.event.comment.body, '/dev')) ||
-      (github.event_name == 'pull_request') && (contains(github.event.pull_request.body, '/dev')) ||
-      (github.event_name == 'discussion') &&
-      (contains(github.event.discussion.body, '/dev')) || (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/dev')))) ||
-      (!(github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment')))
+    if: needs.pre_activation.outputs.activated == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      discussions: write
-      issues: write
-      pull-requests: write
-    outputs:
-      comment_id: ${{ steps.react.outputs.comment-id }}
-      comment_repo: ${{ steps.react.outputs.comment-repo }}
-      comment_url: ${{ steps.react.outputs.comment-url }}
-      reaction_id: ${{ steps.react.outputs.reaction-id }}
     steps:
       - name: Check workflow file timestamps
         run: |
@@ -105,336 +55,6 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
-      - name: Add eyes reaction to the triggering item
-        id: react
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.repository)
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REACTION: eyes
-          GITHUB_AW_COMMAND: dev
-          GITHUB_AW_WORKFLOW_NAME: "Dev"
-        with:
-          script: |
-            async function main() {
-              const reaction = process.env.GITHUB_AW_REACTION || "eyes";
-              const command = process.env.GITHUB_AW_COMMAND; 
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              core.info(`Reaction type: ${reaction}`);
-              core.info(`Command name: ${command || "none"}`);
-              core.info(`Run ID: ${runId}`);
-              core.info(`Run URL: ${runUrl}`);
-              const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
-              if (!validReactions.includes(reaction)) {
-                core.setFailed(`Invalid reaction type: ${reaction}. Valid reactions are: ${validReactions.join(", ")}`);
-                return;
-              }
-              let reactionEndpoint;
-              let commentUpdateEndpoint;
-              let shouldCreateComment = false;
-              const eventName = context.eventName;
-              const owner = context.repo.owner;
-              const repo = context.repo.repo;
-              try {
-                switch (eventName) {
-                  case "issues":
-                    const issueNumber = context.payload?.issue?.number;
-                    if (!issueNumber) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "issue_comment":
-                    const commentId = context.payload?.comment?.id;
-                    const issueNumberForComment = context.payload?.issue?.number;
-                    if (!commentId) {
-                      core.setFailed("Comment ID not found in event payload");
-                      return;
-                    }
-                    if (!issueNumberForComment) {
-                      core.setFailed("Issue number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "pull_request":
-                    const prNumber = context.payload?.pull_request?.number;
-                    if (!prNumber) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "pull_request_review_comment":
-                    const reviewCommentId = context.payload?.comment?.id;
-                    const prNumberForReviewComment = context.payload?.pull_request?.number;
-                    if (!reviewCommentId) {
-                      core.setFailed("Review comment ID not found in event payload");
-                      return;
-                    }
-                    if (!prNumberForReviewComment) {
-                      core.setFailed("Pull request number not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
-                    shouldCreateComment = true;
-                    break;
-                  case "discussion":
-                    const discussionNumber = context.payload?.discussion?.number;
-                    if (!discussionNumber) {
-                      core.setFailed("Discussion number not found in event payload");
-                      return;
-                    }
-                    const discussion = await getDiscussionId(owner, repo, discussionNumber);
-                    reactionEndpoint = discussion.id; 
-                    commentUpdateEndpoint = `discussion:${discussionNumber}`; 
-                    shouldCreateComment = true;
-                    break;
-                  case "discussion_comment":
-                    const discussionCommentNumber = context.payload?.discussion?.number;
-                    const discussionCommentId = context.payload?.comment?.id;
-                    if (!discussionCommentNumber || !discussionCommentId) {
-                      core.setFailed("Discussion or comment information not found in event payload");
-                      return;
-                    }
-                    const commentNodeId = context.payload?.comment?.node_id;
-                    if (!commentNodeId) {
-                      core.setFailed("Discussion comment node ID not found in event payload");
-                      return;
-                    }
-                    reactionEndpoint = commentNodeId; 
-                    commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
-                    shouldCreateComment = true;
-                    break;
-                  default:
-                    core.setFailed(`Unsupported event type: ${eventName}`);
-                    return;
-                }
-                core.info(`Reaction API endpoint: ${reactionEndpoint}`);
-                const isDiscussionEvent = eventName === "discussion" || eventName === "discussion_comment";
-                if (isDiscussionEvent) {
-                  await addDiscussionReaction(reactionEndpoint, reaction);
-                } else {
-                  await addReaction(reactionEndpoint, reaction);
-                }
-                if (shouldCreateComment && commentUpdateEndpoint) {
-                  core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-                  await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
-                } else {
-                  core.info(`Skipping comment for event type: ${eventName}`);
-                }
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
-              }
-            }
-            async function addReaction(endpoint, reaction) {
-              const response = await github.request("POST " + endpoint, {
-                content: reaction,
-                headers: {
-                  Accept: "application/vnd.github+json",
-                },
-              });
-              const reactionId = response.data?.id;
-              if (reactionId) {
-                core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-                core.setOutput("reaction-id", reactionId.toString());
-              } else {
-                core.info(`Successfully added reaction: ${reaction}`);
-                core.setOutput("reaction-id", "");
-              }
-            }
-            async function addDiscussionReaction(subjectId, reaction) {
-              const reactionMap = {
-                "+1": "THUMBS_UP",
-                "-1": "THUMBS_DOWN",
-                laugh: "LAUGH",
-                confused: "CONFUSED",
-                heart: "HEART",
-                hooray: "HOORAY",
-                rocket: "ROCKET",
-                eyes: "EYES",
-              };
-              const reactionContent = reactionMap[reaction];
-              if (!reactionContent) {
-                throw new Error(`Invalid reaction type for GraphQL: ${reaction}`);
-              }
-              const result = await github.graphql(
-                `
-                mutation($subjectId: ID!, $content: ReactionContent!) {
-                  addReaction(input: { subjectId: $subjectId, content: $content }) {
-                    reaction {
-                      id
-                      content
-                    }
-                  }
-                }`,
-                { subjectId, content: reactionContent }
-              );
-              const reactionId = result.addReaction.reaction.id;
-              core.info(`Successfully added reaction: ${reaction} (id: ${reactionId})`);
-              core.setOutput("reaction-id", reactionId);
-            }
-            async function getDiscussionId(owner, repo, discussionNumber) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              return {
-                id: repository.discussion.id,
-                url: repository.discussion.url,
-              };
-            }
-            async function getDiscussionCommentId(owner, repo, discussionNumber, commentId) {
-              const discussion = await getDiscussionId(owner, repo, discussionNumber);
-              if (!discussion) throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              const nodeId = context.payload?.comment?.node_id;
-              if (nodeId) {
-                return {
-                  id: nodeId,
-                  url: context.payload.comment?.html_url || discussion?.url,
-                };
-              }
-              throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
-            }
-            async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
-              try {
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                if (eventName === "discussion") {
-                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion.`;
-                  const { repository } = await github.graphql(
-                    `
-                    query($owner: String!, $repo: String!, $num: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        discussion(number: $num) { 
-                          id 
-                        }
-                      }
-                    }`,
-                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
-                  );
-                  const discussionId = repository.discussion.id;
-                  const result = await github.graphql(
-                    `
-                    mutation($dId: ID!, $body: String!) {
-                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                        comment { 
-                          id 
-                          url
-                        }
-                      }
-                    }`,
-                    { dId: discussionId, body: workflowLinkText }
-                  );
-                  const comment = result.addDiscussionComment.comment;
-                  core.info(`Successfully created discussion comment with workflow link`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-                  core.setOutput("comment-id", comment.id);
-                  core.setOutput("comment-url", comment.url);
-                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
-                  return;
-                } else if (eventName === "discussion_comment") {
-                  const discussionNumber = parseInt(endpoint.split(":")[1], 10);
-                  const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this discussion comment.`;
-                  const { repository } = await github.graphql(
-                    `
-                    query($owner: String!, $repo: String!, $num: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        discussion(number: $num) { 
-                          id 
-                        }
-                      }
-                    }`,
-                    { owner: context.repo.owner, repo: context.repo.repo, num: discussionNumber }
-                  );
-                  const discussionId = repository.discussion.id;
-                  const result = await github.graphql(
-                    `
-                    mutation($dId: ID!, $body: String!) {
-                      addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                        comment { 
-                          id 
-                          url
-                        }
-                      }
-                    }`,
-                    { dId: discussionId, body: workflowLinkText }
-                  );
-                  const comment = result.addDiscussionComment.comment;
-                  core.info(`Successfully created discussion comment with workflow link`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                  core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-                  core.setOutput("comment-id", comment.id);
-                  core.setOutput("comment-url", comment.url);
-                  core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
-                  return;
-                }
-                let eventTypeDescription;
-                switch (eventName) {
-                  case "issues":
-                    eventTypeDescription = "issue";
-                    break;
-                  case "pull_request":
-                    eventTypeDescription = "pull request";
-                    break;
-                  case "issue_comment":
-                    eventTypeDescription = "issue comment";
-                    break;
-                  case "pull_request_review_comment":
-                    eventTypeDescription = "pull request review comment";
-                    break;
-                  default:
-                    eventTypeDescription = "event";
-                }
-                const workflowLinkText = `Agentic [${workflowName}](${runUrl}) triggered by this ${eventTypeDescription}.`;
-                const createResponse = await github.request("POST " + endpoint, {
-                  body: workflowLinkText,
-                  headers: {
-                    Accept: "application/vnd.github+json",
-                  },
-                });
-                core.info(`Successfully created comment with workflow link`);
-                core.info(`Comment ID: ${createResponse.data.id}`);
-                core.info(`Comment URL: ${createResponse.data.html_url}`);
-                core.info(`Comment Repo: ${context.repo.owner}/${context.repo.repo}`);
-                core.setOutput("comment-id", createResponse.data.id.toString());
-                core.setOutput("comment-url", createResponse.data.html_url);
-                core.setOutput("comment-repo", `${context.repo.owner}/${context.repo.repo}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                core.warning(
-                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
-                );
-              }
-            }
-            await main();
 
   agent:
     needs: activation
@@ -442,6 +62,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      pull-requests: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
@@ -451,38 +72,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install Drain3 dependencies
-        run: |
-          pip install fastmcp drain3
-      - name: Copy Drain3 MCP server script
-        run: |
-          mkdir -p /tmp/gh-aw/mcp-servers/drain3/
-          cp .github/workflows/shared/mcp/drain3_server.py /tmp/gh-aw/mcp-servers/drain3/
-          chmod +x /tmp/gh-aw/mcp-servers/drain3/drain3_server.py
-      - env:
-          HOST: 0.0.0.0
-          PORT: "8766"
-          STATE_DIR: /tmp/gh-aw/cache-memory
-        name: Start Drain3 MCP server
-        run: "set -e\nmkdir -p /tmp/gh-aw/mcp-logs/drain3/\npython /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-logs/drain3/server.log 2>&1 &\nMCP_PID=$!\n\n# Wait for server to start\nsleep 3\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"Drain3 MCP server failed to start\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Check if server is listening on port 8766\nif ! netstat -tln | grep -q \":8766 \"; then\n  echo \"Drain3 MCP server not listening on port 8766\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  exit 1\nfi\n\n# Test HTTP endpoint with curl\necho \"Testing HTTP endpoint with curl...\"\nif curl -v -X GET http://localhost:8766/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/drain3/curl-test.log; then\n  echo \"✓ HTTP endpoint responded\"\nelse\n  echo \"✗ HTTP endpoint did not respond\"\n  echo \"Server logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/server.log || true\n  echo \"Curl test logs:\"\n  cat /tmp/gh-aw/mcp-logs/drain3/curl-test.log || true\n  exit 1\nfi\n\necho \"Drain3 MCP server started successfully with PID $MCP_PID\"\necho \"Server logs (first 50 lines):\"\nhead -n 50 /tmp/gh-aw/mcp-logs/drain3/server.log || true\n"
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          cache: true
-          go-version-file: go.mod
-      - name: Install dependencies
-        run: make deps-dev
-      - name: Install binary as 'gh-aw'
-        run: make build
-      - env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        name: Start MCP server
-        run: "set -e\n./gh-aw mcp-server --cmd ./gh-aw --port 8765 &\nMCP_PID=$!\n\n# Wait a moment for server to start\nsleep 2\n\n# Check if server is still running\nif ! kill -0 $MCP_PID 2>/dev/null; then\n  echo \"MCP server failed to start\"\n  exit 1\nfi\n\necho \"MCP server started successfully with PID $MCP_PID\"\n"
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -604,7 +193,7 @@ jobs:
           
           # Domain allow-list (populated during generation)
           # JSON array safely embedded as Python list literal
-          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com"]
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","*.githubusercontent.com","raw.githubusercontent.com","objects.githubusercontent.com","lfs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","codeload.github.com"]
           
           def extract_domain(url_or_query):
               """Extract domain from URL or search query."""
@@ -1371,14 +960,6 @@ jobs:
           cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
-              "drain3": {
-                "type": "http",
-                "url": "http://localhost:8766/mcp"
-              },
-              "gh-aw": {
-                "type": "http",
-                "url": "http://localhost:8765"
-              },
               "github": {
                 "command": "docker",
                 "args": [
@@ -1416,11 +997,410 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          # Copilot Agent PR Analysis
           
+          You are an AI analytics agent that monitors and analyzes the performance of the copilot-swe-agent (also known as copilot agent) in this repository.
           
+          ## Mission
           
+          Daily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends.
           
-          Write a poem in 3 emojis about the last pull request and publish an issue.
+          ## Current Context
+          
+          - **Repository**: ${{ github.repository }}
+          - **Analysis Period**: Last 24 hours
+          
+          ## Task Overview
+          
+          ### Phase 1: Collect PR Data
+          
+          Search for pull requests created by copilot-swe-agent in the last 24 hours.
+          
+          **Important**: The copilot-swe-agent may appear under various usernames:
+          - `copilot-swe-agent`
+          - `github-actions[bot]` (with specific patterns)
+          - Other bot accounts
+          
+          Use the GitHub `search_pull_requests` tool to find PRs:
+          
+          1. **Search Query**: Use a query like:
+             ```
+             repo:${{ github.repository }} is:pr author:copilot-swe-agent created:>=YYYY-MM-DD
+             ```
+             Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).
+          
+          2. **Alternative Search**: If the bot uses a different username, adjust the query:
+             ```
+             repo:${{ github.repository }} is:pr created:>=YYYY-MM-DD
+             ```
+             Then filter by PR author or labels that indicate copilot-swe-agent involvement.
+          
+          3. **Get PR Details**: For each found PR, use `pull_request_read` to get:
+             - PR number
+             - Title and description
+             - Creation timestamp
+             - Merge/close timestamp
+             - Current state (open, merged, closed)
+             - Number of comments
+             - Number of commits
+             - Files changed
+             - Review status
+          
+          ### Phase 2: Analyze Each PR
+          
+          For each PR created by copilot-swe-agent in the last 24 hours:
+          
+          #### 2.1 Determine Outcome
+          - **Merged**: PR was successfully merged
+          - **Closed without merge**: PR was closed but not merged
+          - **Still Open**: PR is still open (pending)
+          
+          #### 2.2 Count Human Comments
+          Count comments from human users (exclude bot comments):
+          - Use `pull_request_read` with method `get` to get PR details including comments
+          - Use `pull_request_read` with method `get_review_comments` to get review comments
+          - Filter out comments from bots (check comment author)
+          - Count unique human comments
+          
+          #### 2.3 Calculate Timing Metrics
+          
+          Extract timing information:
+          - **Time to First Activity**: When did the agent start working? (PR creation time)
+          - **Time to Completion**: When did the agent finish? (last commit time or PR close/merge time)
+          - **Total Duration**: Time from PR creation to merge/close
+          - **Time to First Human Response**: When did a human first interact?
+          
+          Calculate these metrics using the PR timestamps from the GitHub API.
+          
+          #### 2.4 Analyze PR Quality
+          
+          For each PR, assess:
+          - Number of files changed
+          - Lines of code added/removed
+          - Number of commits made by the agent
+          - Whether tests were added/modified
+          - Whether documentation was updated
+          
+          ### Phase 3: Generate Summary Table
+          
+          Create a summary table with the following columns:
+          
+          | PR # | Title | Outcome | Comments | Agent Duration | Total Duration | Files Changed | Status |
+          |------|-------|---------|----------|----------------|----------------|---------------|--------|
+          | #123 | Fix bug | Merged | 5 | 15m | 2h 30m | 3 | ✅ |
+          | #124 | Add feature | Closed | 2 | 8m | 45m | 5 | ❌ |
+          | #125 | Update docs | Open | 1 | 5m | - | 2 | ⏳ |
+          
+          **Table Columns Explained**:
+          - **PR #**: Pull request number
+          - **Title**: PR title (truncated if needed)
+          - **Outcome**: Merged ✅ / Closed ❌ / Open ⏳
+          - **Comments**: Number of human comments
+          - **Agent Duration**: Time from PR creation to last commit by agent
+          - **Total Duration**: Time from PR creation to merge/close (or current time if still open)
+          - **Files Changed**: Number of files modified
+          - **Status**: Visual indicator of outcome
+          
+          **Summary Statistics**:
+          - Total PRs analyzed: [count]
+          - Merged: [count] ([percentage]%)
+          - Closed without merge: [count] ([percentage]%)
+          - Still open: [count]
+          - Average human comments per PR: [number]
+          - Average agent duration: [time]
+          - Average total duration (for completed PRs): [time]
+          
+          ### Phase 4: Historical Trending Analysis
+          
+          Use the cache memory folder `/tmp/gh-aw/cache-memory/` to maintain historical data:
+          
+          #### 4.1 Load Historical Data
+          
+          Check for existing historical data:
+          ```bash
+          ls -la /tmp/gh-aw/cache-memory/copilot-agent-metrics/
+          cat /tmp/gh-aw/cache-memory/copilot-agent-metrics/history.json
+          ```
+          
+          The history file should contain daily metrics in this format:
+          ```json
+          {
+            "daily_metrics": [
+              {
+                "date": "2024-10-16",
+                "total_prs": 3,
+                "merged_prs": 2,
+                "closed_prs": 1,
+                "open_prs": 0,
+                "avg_comments": 3.5,
+                "avg_agent_duration_minutes": 12,
+                "avg_total_duration_minutes": 95,
+                "success_rate": 0.67
+              }
+            ]
+          }
+          ```
+          
+          #### 4.2 Store Today's Metrics
+          
+          Calculate today's metrics:
+          - Total PRs created today
+          - Number merged/closed/open
+          - Average comments per PR
+          - Average agent duration
+          - Average total duration
+          - Success rate (merged / total completed)
+          
+          Save to cache memory:
+          ```bash
+          mkdir -p /tmp/gh-aw/cache-memory/copilot-agent-metrics/
+          # Append today's metrics to history.json
+          ```
+          
+          Store the data in JSON format with proper structure.
+          
+          #### 4.3 Analyze Trends
+          
+          If historical data exists (at least 7 days), analyze trends:
+          
+          **Week-over-Week Comparison**:
+          - Success rate trend (improving/declining/stable)
+          - Average duration trend (faster/slower/stable)
+          - Comment count trend (more engagement/less engagement)
+          
+          **30-Day Moving Averages** (if 30+ days of data):
+          - 30-day average success rate
+          - 30-day average duration
+          - 30-day average comments
+          
+          **Trend Indicators**:
+          - 📈 Improving: Metric is better than 7-day average
+          - 📉 Declining: Metric is worse than 7-day average
+          - ➡️ Stable: Metric is within 5% of 7-day average
+          
+          ### Phase 5: Check for Instruction Changes
+          
+          Check if there have been changes to copilot-swe-agent instruction files that might correlate with performance changes:
+          
+          #### 5.1 Find Instruction Files
+          
+          Look for instruction or prompt files in the repository:
+          ```bash
+          find .github -name '*copilot*' -o -name '*swe*' -o -name '*agent*' -o -name '*instruction*' -o -name '*prompt*' 2>/dev/null || echo "No matching files found"
+          ```
+          
+          Common locations:
+          - `.github/agents/`
+          - `.github/instructions/`
+          - `.github/prompts/`
+          
+          #### 5.2 Check Recent Changes
+          
+          For each instruction file found, check if it was modified in the last 7 days:
+          ```bash
+          git log --oneline --since="7 days ago" -- .github/agents/
+          git log --oneline --since="7 days ago" -- .github/instructions/
+          ```
+          
+          Use `get_commit` to get details of any recent changes to instruction files.
+          
+          #### 5.3 Correlate with Performance
+          
+          If instruction files were modified recently:
+          - Note the date of the change
+          - Compare performance metrics before and after the change
+          - Identify if there's a correlation (improved/degraded performance)
+          
+          **Example Correlation Analysis**:
+          ```
+          Instruction file `.github/agents/copilot-swe.md` was updated on 2024-10-14.
+          
+          Performance before change (Oct 11-13):
+          - Success rate: 65%
+          - Avg duration: 15m
+          
+          Performance after change (Oct 15-17):
+          - Success rate: 75% 📈 (+10%)
+          - Avg duration: 12m 📈 (20% faster)
+          
+          **Conclusion**: Performance improved after instruction update.
+          ```
+          
+          ### Phase 6: Create Analysis Issue
+          
+          Create a comprehensive issue with your findings using the safe-outputs create-issue functionality.
+          
+          **Issue Title**: `Daily Copilot Agent Analysis - [DATE]`
+          
+          **Issue Template**:
+          ```markdown
+          # 🤖 Copilot Agent PR Analysis - [DATE]
+          
+          ## Summary
+          
+          **Analysis Period**: Last 24 hours  
+          **Total PRs Analyzed**: [count]  
+          **Success Rate**: [percentage]%
+          
+          ## PR Summary Table
+          
+          [Include the detailed table from Phase 3]
+          
+          ## Metrics
+          
+          ### Today's Performance
+          - **PRs Created**: [count]
+          - **PRs Merged**: [count] ([percentage]%)
+          - **PRs Closed (not merged)**: [count] ([percentage]%)
+          - **PRs Still Open**: [count]
+          - **Average Human Comments**: [number]
+          - **Average Agent Duration**: [time]
+          - **Average Total Duration**: [time]
+          
+          ### Historical Comparison (7-day trend)
+          
+          [If historical data available]
+          
+          - **Success Rate**: [current]% vs [7-day avg]% [trend indicator]
+          - **Agent Duration**: [current] vs [7-day avg] [trend indicator]
+          - **Human Engagement**: [current comments] vs [7-day avg] [trend indicator]
+          
+          ### 30-Day Trends
+          
+          [If 30+ days of data available]
+          
+          - **30-Day Average Success Rate**: [percentage]%
+          - **30-Day Average Duration**: [time]
+          - **30-Day Average Comments**: [number]
+          
+          ## Instruction File Changes
+          
+          [If any instruction files were modified in the last 7 days]
+          
+          Recent changes detected:
+          - **File**: `.github/[path]/[filename]`
+          - **Date**: [date]
+          - **Commit**: [commit hash]
+          
+          **Performance Correlation**:
+          [Analysis of whether performance changed after instruction update]
+          
+          [If no changes]
+          No instruction file changes detected in the last 7 days.
+          
+          ## Detailed PR Analysis
+          
+          ### Merged PRs ✅
+          
+          [For each merged PR]
+          - **PR #[number]**: [title]
+            - Human comments: [count]
+            - Agent duration: [time]
+            - Total duration: [time]
+            - Files changed: [count]
+          
+          ### Closed PRs ❌
+          
+          [For each closed PR]
+          - **PR #[number]**: [title]
+            - Reason for closure: [if apparent from comments]
+            - Human comments: [count]
+            - Agent duration: [time]
+          
+          ### Open PRs ⏳
+          
+          [For each open PR]
+          - **PR #[number]**: [title]
+            - Age: [time since creation]
+            - Human comments: [count]
+            - Current status: [if reviews pending, etc.]
+          
+          ## Recommendations
+          
+          [Based on trends and analysis, provide actionable recommendations]
+          
+          **If success rate is declining**:
+          - Review recent instruction changes
+          - Investigate common failure patterns
+          - Consider adjusting agent prompts
+          
+          **If duration is increasing**:
+          - Check for increased complexity in tasks
+          - Review if agent is making efficient tool calls
+          - Consider optimization opportunities
+          
+          **If human engagement is low**:
+          - Agent may be working well independently
+          - Consider if reviews are being bypassed
+          
+          ## Notes
+          
+          [Any additional observations or context]
+          
+          ---
+          
+          _This analysis was generated automatically by the Copilot Agent Analysis workflow._
+          ```
+          
+          ## Important Guidelines
+          
+          ### Security and Data Handling
+          - **Use sanitized context**: Always use GitHub API data, not raw user input
+          - **Validate dates**: Ensure date calculations are correct (handle timezone differences)
+          - **Handle missing data**: Some PRs may not have complete metadata
+          - **Respect privacy**: Don't expose sensitive information in issues
+          
+          ### Analysis Quality
+          - **Be accurate**: Double-check all calculations and metrics
+          - **Be consistent**: Use the same metrics each day for valid comparisons
+          - **Be thorough**: Don't skip PRs or data points
+          - **Be objective**: Report facts without bias
+          
+          ### Cache Memory Management
+          - **Organize data**: Keep historical data well-structured in JSON format
+          - **Limit retention**: Consider keeping only last 90 days of daily data
+          - **Handle errors**: If cache is corrupted, reinitialize gracefully
+          - **Backup important data**: Store critical metrics redundantly
+          
+          ### Trend Analysis
+          - **Require sufficient data**: Don't report trends with less than 7 days of data
+          - **Use appropriate metrics**: Choose statistical measures that make sense
+          - **Indicate confidence**: Note when sample sizes are small
+          - **Avoid overreaction**: Small fluctuations are normal
+          
+          ## Edge Cases
+          
+          ### No PRs in Last 24 Hours
+          If no PRs were created by copilot-swe-agent in the last 24 hours:
+          - Create a brief issue noting "No activity"
+          - Still update cache memory with zero counts
+          - Don't skip the analysis entirely
+          
+          ### Bot Username Changes
+          If copilot-swe-agent appears under different usernames:
+          - Document the username variance
+          - Adjust search queries accordingly
+          - Note this in the issue for future reference
+          
+          ### Incomplete PR Data
+          If some PRs have missing metadata:
+          - Note which PRs have incomplete data
+          - Calculate metrics only from complete data
+          - Document data quality in the issue
+          
+          ## Success Criteria
+          
+          A successful analysis:
+          - ✅ Finds all copilot-swe-agent PRs from last 24 hours
+          - ✅ Calculates accurate metrics for each PR
+          - ✅ Generates a clear, formatted summary table
+          - ✅ Updates cache memory with today's metrics
+          - ✅ Analyzes trends if historical data exists
+          - ✅ Checks for instruction file changes
+          - ✅ Creates a comprehensive issue with findings
+          - ✅ Provides actionable insights and recommendations
+          
+          Begin your analysis now. Gather PR data, calculate metrics, analyze trends, and create a detailed report.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1548,28 +1528,6 @@ jobs:
           Use this context information to understand the scope of your work.
           
           EOF
-      - name: Append PR context instructions to prompt
-        if: |
-          (github.event_name == 'issue_comment') && (github.event.issue.pull_request != null) || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review'
-        env:
-          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-        run: |
-          cat >> $GITHUB_AW_PROMPT << 'EOF'
-          
-          ---
-          
-          ## Current Branch Context
-          
-          **IMPORTANT**: This workflow was triggered by a comment on a pull request. The repository has been automatically checked out to the PR's branch, not the default branch.
-          
-          ### What This Means
-          
-          - The current working directory contains the code from the pull request branch
-          - Any file operations you perform will be on the PR branch code
-          - You can inspect, analyze, and work with the PR changes directly
-          - The PR branch has been checked out using `gh pr checkout`
-          
-          EOF
       - name: Render template conditionals
         uses: actions/github-script@v8
         env:
@@ -1636,7 +1594,7 @@ jobs:
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Dev",
+              workflow_name: "Copilot Agent PR Analysis",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1667,10 +1625,29 @@ jobs:
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(date)
+        # - Bash(echo)
+        # - Bash(find .github -name '*.md')
+        # - Bash(find .github -type f -exec cat {} +)
+        # - Bash(git diff)
+        # - Bash(git log --oneline)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(ls -la .github)
+        # - Bash(ls)
+        # - Bash(pwd)
+        # - Bash(sort)
+        # - Bash(tail)
+        # - Bash(uniq)
+        # - Bash(wc)
+        # - Bash(yq)
+        # - BashOutput
         # - Edit(/tmp/gh-aw/cache-memory/*)
         # - ExitPlanMode
         # - Glob
         # - Grep
+        # - KillBash
         # - LS
         # - MultiEdit(/tmp/gh-aw/cache-memory/*)
         # - NotebookRead
@@ -1680,9 +1657,6 @@ jobs:
         # - TodoWrite
         # - Write
         # - Write(/tmp/gh-aw/cache-memory/*)
-        # - mcp__drain3__index_file
-        # - mcp__drain3__list_templates
-        # - mcp__drain3__query_file
         # - mcp__github__download_workflow_run_artifact
         # - mcp__github__get_code_scanning_alert
         # - mcp__github__get_commit
@@ -1737,11 +1711,11 @@ jobs:
         # - mcp__github__search_pull_requests
         # - mcp__github__search_repositories
         # - mcp__github__search_users
-        timeout-minutes: 20
+        timeout-minutes: 15
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__drain3__index_file,mcp__drain3__list_templates,mcp__drain3__query_file,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(find .github -name '*.md'),Bash(find .github -type f -exec cat {} +),Bash(git diff),Bash(git log --oneline),Bash(grep),Bash(head),Bash(ls -la .github),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -3232,7 +3206,9 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_NAME: "Dev"
+          GITHUB_AW_WORKFLOW_NAME: "Copilot Agent PR Analysis"
+          GITHUB_AW_ISSUE_TITLE_PREFIX: "[copilot-agent-analysis] "
+          GITHUB_AW_ISSUE_LABELS: "automation,metrics,copilot-swe-agent"
         with:
           script: |
             function sanitizeLabelContent(content) {
@@ -3523,9 +3499,9 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          WORKFLOW_NAME: "Dev"
+          WORKFLOW_NAME: "Copilot Agent PR Analysis"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "<!--\n\nDrain3 MCP Server\nLog template mining and pattern extraction tool\n\nDrain3 is an online log template miner that extracts structured patterns from \nunstructured log files. This MCP server provides tools for indexing log files, \nquerying patterns, and listing extracted templates.\n\nDocumentation: https://github.com/logpai/Drain3\n\nThis shared configuration provides a local HTTP MCP server that runs Drain3\nfor log analysis and template extraction. The server uses streaming JSONL\nresponses for progressive results.\n\nAvailable tools:\n  - index_file: Stream-mine templates from a log file and persist snapshot\n    Parameters:\n      - path: Path to the log file to analyze\n      - encoding: File encoding (default: utf-8)\n      - max_lines: Maximum lines to process (optional)\n    Returns: Streaming JSONL events (start, progress, template, summary)\n\n  - query_file: Match a log line against previously indexed templates\n    Parameters:\n      - path: Path to the indexed log file\n      - text: Log line text to match\n    Returns: Matching cluster information (cluster_id, size, template)\n\n  - list_templates: List all extracted templates from an indexed file\n    Parameters:\n      - path: Path to the indexed log file\n      - limit: Maximum number of templates to return (optional)\n    Returns: Streaming JSONL events for each template\n\nConfiguration:\n  The server can be configured via environment variables in the workflow:\n  - DRAIN3_SIM_TH: Similarity threshold (default: 0.4)\n  - DRAIN3_DEPTH: Tree depth (default: 4)\n  - DRAIN3_MAX_CHILDREN: Maximum children per node (default: 100)\n  - DRAIN3_MAX_CLUSTERS: Maximum clusters (default: 0 = unlimited)\n  - STREAM_FLUSH_EVERY: Progress event frequency (default: 500 lines)\n  - STREAM_SLEEP: Throttle between flushes in seconds (default: 0)\n\nSetup:\n  1. Include in Your Workflow:\n     imports:\n       - shared/mcp/drain3.md\n\n  2. The server will be automatically installed and started on localhost:8766\n\nExample Usage:\n  Analyze GitHub Actions workflow logs to identify common error patterns\n  and failure templates. Index a log file, then query specific error messages\n  to find which cluster they belong to.\n\n  ```\n  Use the drain3 tool to index the workflow log file at /tmp/workflow.log\n  and extract error patterns. Then query a specific error message to find\n  its template cluster.\n  ```\n\nConnection Type:\n  This configuration uses a local HTTP MCP server running Python with FastMCP 2.0.\n  The server runs with `transport=\"http\"` which must be started by executing the\n  Python script directly (not via `fastmcp run` which defaults to stdio transport).\n  Responses stream as JSONL (JSON Lines) for progressive results.\n\nState Persistence:\n  Drain3 snapshots are stored in ${{ github.workspace }}/.drain3/ directory.\n  Each indexed file gets its own snapshot file for quick reloading.\n\nTroubleshooting:\n  Server Failed to Start:\n  - Verify Python 3.11+ is available\n  - Check that port 8766 is not in use\n  - Review server logs for dependency installation issues\n  \n  Index/Query Errors:\n  - Ensure file paths are absolute or relative to workspace\n  - Check that the file was indexed before querying\n  - Verify file permissions are readable\n\nUsage:\n  imports:\n    - shared/mcp/drain3.md\n\n-->\n\n\n\nWrite a poem in 3 emojis about the last pull request and publish an issue.\n"
+          WORKFLOW_MARKDOWN: "# Copilot Agent PR Analysis\n\nYou are an AI analytics agent that monitors and analyzes the performance of the copilot-swe-agent (also known as copilot agent) in this repository.\n\n## Mission\n\nDaily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Analysis Period**: Last 24 hours\n\n## Task Overview\n\n### Phase 1: Collect PR Data\n\nSearch for pull requests created by copilot-swe-agent in the last 24 hours.\n\n**Important**: The copilot-swe-agent may appear under various usernames:\n- `copilot-swe-agent`\n- `github-actions[bot]` (with specific patterns)\n- Other bot accounts\n\nUse the GitHub `search_pull_requests` tool to find PRs:\n\n1. **Search Query**: Use a query like:\n   ```\n   repo:${{ github.repository }} is:pr author:copilot-swe-agent created:>=YYYY-MM-DD\n   ```\n   Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).\n\n2. **Alternative Search**: If the bot uses a different username, adjust the query:\n   ```\n   repo:${{ github.repository }} is:pr created:>=YYYY-MM-DD\n   ```\n   Then filter by PR author or labels that indicate copilot-swe-agent involvement.\n\n3. **Get PR Details**: For each found PR, use `pull_request_read` to get:\n   - PR number\n   - Title and description\n   - Creation timestamp\n   - Merge/close timestamp\n   - Current state (open, merged, closed)\n   - Number of comments\n   - Number of commits\n   - Files changed\n   - Review status\n\n### Phase 2: Analyze Each PR\n\nFor each PR created by copilot-swe-agent in the last 24 hours:\n\n#### 2.1 Determine Outcome\n- **Merged**: PR was successfully merged\n- **Closed without merge**: PR was closed but not merged\n- **Still Open**: PR is still open (pending)\n\n#### 2.2 Count Human Comments\nCount comments from human users (exclude bot comments):\n- Use `pull_request_read` with method `get` to get PR details including comments\n- Use `pull_request_read` with method `get_review_comments` to get review comments\n- Filter out comments from bots (check comment author)\n- Count unique human comments\n\n#### 2.3 Calculate Timing Metrics\n\nExtract timing information:\n- **Time to First Activity**: When did the agent start working? (PR creation time)\n- **Time to Completion**: When did the agent finish? (last commit time or PR close/merge time)\n- **Total Duration**: Time from PR creation to merge/close\n- **Time to First Human Response**: When did a human first interact?\n\nCalculate these metrics using the PR timestamps from the GitHub API.\n\n#### 2.4 Analyze PR Quality\n\nFor each PR, assess:\n- Number of files changed\n- Lines of code added/removed\n- Number of commits made by the agent\n- Whether tests were added/modified\n- Whether documentation was updated\n\n### Phase 3: Generate Summary Table\n\nCreate a summary table with the following columns:\n\n| PR # | Title | Outcome | Comments | Agent Duration | Total Duration | Files Changed | Status |\n|------|-------|---------|----------|----------------|----------------|---------------|--------|\n| #123 | Fix bug | Merged | 5 | 15m | 2h 30m | 3 | ✅ |\n| #124 | Add feature | Closed | 2 | 8m | 45m | 5 | ❌ |\n| #125 | Update docs | Open | 1 | 5m | - | 2 | ⏳ |\n\n**Table Columns Explained**:\n- **PR #**: Pull request number\n- **Title**: PR title (truncated if needed)\n- **Outcome**: Merged ✅ / Closed ❌ / Open ⏳\n- **Comments**: Number of human comments\n- **Agent Duration**: Time from PR creation to last commit by agent\n- **Total Duration**: Time from PR creation to merge/close (or current time if still open)\n- **Files Changed**: Number of files modified\n- **Status**: Visual indicator of outcome\n\n**Summary Statistics**:\n- Total PRs analyzed: [count]\n- Merged: [count] ([percentage]%)\n- Closed without merge: [count] ([percentage]%)\n- Still open: [count]\n- Average human comments per PR: [number]\n- Average agent duration: [time]\n- Average total duration (for completed PRs): [time]\n\n### Phase 4: Historical Trending Analysis\n\nUse the cache memory folder `/tmp/gh-aw/cache-memory/` to maintain historical data:\n\n#### 4.1 Load Historical Data\n\nCheck for existing historical data:\n```bash\nls -la /tmp/gh-aw/cache-memory/copilot-agent-metrics/\ncat /tmp/gh-aw/cache-memory/copilot-agent-metrics/history.json\n```\n\nThe history file should contain daily metrics in this format:\n```json\n{\n  \"daily_metrics\": [\n    {\n      \"date\": \"2024-10-16\",\n      \"total_prs\": 3,\n      \"merged_prs\": 2,\n      \"closed_prs\": 1,\n      \"open_prs\": 0,\n      \"avg_comments\": 3.5,\n      \"avg_agent_duration_minutes\": 12,\n      \"avg_total_duration_minutes\": 95,\n      \"success_rate\": 0.67\n    }\n  ]\n}\n```\n\n#### 4.2 Store Today's Metrics\n\nCalculate today's metrics:\n- Total PRs created today\n- Number merged/closed/open\n- Average comments per PR\n- Average agent duration\n- Average total duration\n- Success rate (merged / total completed)\n\nSave to cache memory:\n```bash\nmkdir -p /tmp/gh-aw/cache-memory/copilot-agent-metrics/\n# Append today's metrics to history.json\n```\n\nStore the data in JSON format with proper structure.\n\n#### 4.3 Analyze Trends\n\nIf historical data exists (at least 7 days), analyze trends:\n\n**Week-over-Week Comparison**:\n- Success rate trend (improving/declining/stable)\n- Average duration trend (faster/slower/stable)\n- Comment count trend (more engagement/less engagement)\n\n**30-Day Moving Averages** (if 30+ days of data):\n- 30-day average success rate\n- 30-day average duration\n- 30-day average comments\n\n**Trend Indicators**:\n- 📈 Improving: Metric is better than 7-day average\n- 📉 Declining: Metric is worse than 7-day average\n- ➡️ Stable: Metric is within 5% of 7-day average\n\n### Phase 5: Check for Instruction Changes\n\nCheck if there have been changes to copilot-swe-agent instruction files that might correlate with performance changes:\n\n#### 5.1 Find Instruction Files\n\nLook for instruction or prompt files in the repository:\n```bash\nfind .github -name '*copilot*' -o -name '*swe*' -o -name '*agent*' -o -name '*instruction*' -o -name '*prompt*' 2>/dev/null || echo \"No matching files found\"\n```\n\nCommon locations:\n- `.github/agents/`\n- `.github/instructions/`\n- `.github/prompts/`\n\n#### 5.2 Check Recent Changes\n\nFor each instruction file found, check if it was modified in the last 7 days:\n```bash\ngit log --oneline --since=\"7 days ago\" -- .github/agents/\ngit log --oneline --since=\"7 days ago\" -- .github/instructions/\n```\n\nUse `get_commit` to get details of any recent changes to instruction files.\n\n#### 5.3 Correlate with Performance\n\nIf instruction files were modified recently:\n- Note the date of the change\n- Compare performance metrics before and after the change\n- Identify if there's a correlation (improved/degraded performance)\n\n**Example Correlation Analysis**:\n```\nInstruction file `.github/agents/copilot-swe.md` was updated on 2024-10-14.\n\nPerformance before change (Oct 11-13):\n- Success rate: 65%\n- Avg duration: 15m\n\nPerformance after change (Oct 15-17):\n- Success rate: 75% 📈 (+10%)\n- Avg duration: 12m 📈 (20% faster)\n\n**Conclusion**: Performance improved after instruction update.\n```\n\n### Phase 6: Create Analysis Issue\n\nCreate a comprehensive issue with your findings using the safe-outputs create-issue functionality.\n\n**Issue Title**: `Daily Copilot Agent Analysis - [DATE]`\n\n**Issue Template**:\n```markdown\n# 🤖 Copilot Agent PR Analysis - [DATE]\n\n## Summary\n\n**Analysis Period**: Last 24 hours  \n**Total PRs Analyzed**: [count]  \n**Success Rate**: [percentage]%\n\n## PR Summary Table\n\n[Include the detailed table from Phase 3]\n\n## Metrics\n\n### Today's Performance\n- **PRs Created**: [count]\n- **PRs Merged**: [count] ([percentage]%)\n- **PRs Closed (not merged)**: [count] ([percentage]%)\n- **PRs Still Open**: [count]\n- **Average Human Comments**: [number]\n- **Average Agent Duration**: [time]\n- **Average Total Duration**: [time]\n\n### Historical Comparison (7-day trend)\n\n[If historical data available]\n\n- **Success Rate**: [current]% vs [7-day avg]% [trend indicator]\n- **Agent Duration**: [current] vs [7-day avg] [trend indicator]\n- **Human Engagement**: [current comments] vs [7-day avg] [trend indicator]\n\n### 30-Day Trends\n\n[If 30+ days of data available]\n\n- **30-Day Average Success Rate**: [percentage]%\n- **30-Day Average Duration**: [time]\n- **30-Day Average Comments**: [number]\n\n## Instruction File Changes\n\n[If any instruction files were modified in the last 7 days]\n\nRecent changes detected:\n- **File**: `.github/[path]/[filename]`\n- **Date**: [date]\n- **Commit**: [commit hash]\n\n**Performance Correlation**:\n[Analysis of whether performance changed after instruction update]\n\n[If no changes]\nNo instruction file changes detected in the last 7 days.\n\n## Detailed PR Analysis\n\n### Merged PRs ✅\n\n[For each merged PR]\n- **PR #[number]**: [title]\n  - Human comments: [count]\n  - Agent duration: [time]\n  - Total duration: [time]\n  - Files changed: [count]\n\n### Closed PRs ❌\n\n[For each closed PR]\n- **PR #[number]**: [title]\n  - Reason for closure: [if apparent from comments]\n  - Human comments: [count]\n  - Agent duration: [time]\n\n### Open PRs ⏳\n\n[For each open PR]\n- **PR #[number]**: [title]\n  - Age: [time since creation]\n  - Human comments: [count]\n  - Current status: [if reviews pending, etc.]\n\n## Recommendations\n\n[Based on trends and analysis, provide actionable recommendations]\n\n**If success rate is declining**:\n- Review recent instruction changes\n- Investigate common failure patterns\n- Consider adjusting agent prompts\n\n**If duration is increasing**:\n- Check for increased complexity in tasks\n- Review if agent is making efficient tool calls\n- Consider optimization opportunities\n\n**If human engagement is low**:\n- Agent may be working well independently\n- Consider if reviews are being bypassed\n\n## Notes\n\n[Any additional observations or context]\n\n---\n\n_This analysis was generated automatically by the Copilot Agent Analysis workflow._\n```\n\n## Important Guidelines\n\n### Security and Data Handling\n- **Use sanitized context**: Always use GitHub API data, not raw user input\n- **Validate dates**: Ensure date calculations are correct (handle timezone differences)\n- **Handle missing data**: Some PRs may not have complete metadata\n- **Respect privacy**: Don't expose sensitive information in issues\n\n### Analysis Quality\n- **Be accurate**: Double-check all calculations and metrics\n- **Be consistent**: Use the same metrics each day for valid comparisons\n- **Be thorough**: Don't skip PRs or data points\n- **Be objective**: Report facts without bias\n\n### Cache Memory Management\n- **Organize data**: Keep historical data well-structured in JSON format\n- **Limit retention**: Consider keeping only last 90 days of daily data\n- **Handle errors**: If cache is corrupted, reinitialize gracefully\n- **Backup important data**: Store critical metrics redundantly\n\n### Trend Analysis\n- **Require sufficient data**: Don't report trends with less than 7 days of data\n- **Use appropriate metrics**: Choose statistical measures that make sense\n- **Indicate confidence**: Note when sample sizes are small\n- **Avoid overreaction**: Small fluctuations are normal\n\n## Edge Cases\n\n### No PRs in Last 24 Hours\nIf no PRs were created by copilot-swe-agent in the last 24 hours:\n- Create a brief issue noting \"No activity\"\n- Still update cache memory with zero counts\n- Don't skip the analysis entirely\n\n### Bot Username Changes\nIf copilot-swe-agent appears under different usernames:\n- Document the username variance\n- Adjust search queries accordingly\n- Note this in the issue for future reference\n\n### Incomplete PR Data\nIf some PRs have missing metadata:\n- Note which PRs have incomplete data\n- Calculate metrics only from complete data\n- Document data quality in the issue\n\n## Success Criteria\n\nA successful analysis:\n- ✅ Finds all copilot-swe-agent PRs from last 24 hours\n- ✅ Calculates accurate metrics for each PR\n- ✅ Generates a clear, formatted summary table\n- ✅ Updates cache memory with today's metrics\n- ✅ Analyzes trends if historical data exists\n- ✅ Checks for instruction file changes\n- ✅ Creates a comprehensive issue with findings\n- ✅ Provides actionable insights and recommendations\n\nBegin your analysis now. Gather PR data, calculate metrics, analyze trends, and create a detailed report.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3768,12 +3744,6 @@ jobs:
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
-              if (agentOutput.trim() === "") {
-                core.info("No agent output to process");
-                core.setOutput("tools_reported", JSON.stringify(missingTools));
-                core.setOutput("total_count", missingTools.length.toString());
-                return;
-              }
               core.info(`Agent output length: ${agentOutput.length}`);
               let validatedOutput;
               try {
@@ -3847,26 +3817,11 @@ jobs:
             });
 
   pre_activation:
-    if: >
-      ((github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' ||
-      github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment') &&
-      ((github.event_name == 'issues') && (contains(github.event.issue.body, '/dev')) || (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request == null)) ||
-      (github.event_name == 'issue_comment') &&
-      ((contains(github.event.comment.body, '/dev')) && (github.event.issue.pull_request != null)) ||
-      (github.event_name == 'pull_request_review_comment') &&
-      (contains(github.event.comment.body, '/dev')) || (github.event_name == 'pull_request') &&
-      (contains(github.event.pull_request.body, '/dev')) ||
-      (github.event_name == 'discussion') && (contains(github.event.discussion.body, '/dev')) ||
-      (github.event_name == 'discussion_comment') &&
-      (contains(github.event.comment.body, '/dev')))) || (!(github.event_name == 'issues' || github.event_name == 'issue_comment' ||
-      github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' ||
-      github.event_name == 'discussion_comment'))
     runs-on: ubuntu-latest
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
     steps:
-      - name: Check team membership for command workflow
+      - name: Check team membership for workflow
         id: check_membership
         uses: actions/github-script@v8
         env:
