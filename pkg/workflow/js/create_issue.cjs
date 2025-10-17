@@ -280,7 +280,23 @@ async function main() {
           });
           core.info(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
 
-          core.info(`Successfully assigned issue #${issue.number} to ${assignToBot}`);
+          // Parse and validate the assignment result
+          const assignable = assignResult?.replaceActorsForAssignable?.assignable;
+          if (assignable && assignable.assignees && assignable.assignees.nodes) {
+            const assignees = assignable.assignees.nodes;
+            const assignedLogins = assignees.map(a => a.login).join(", ");
+            core.info(`Issue #${issue.number} assignees: ${assignedLogins}`);
+            
+            // Verify the bot was actually assigned
+            const botAssigned = assignees.some(a => a.login === assignToBot);
+            if (botAssigned) {
+              core.info(`✓ Successfully assigned issue #${issue.number} to ${assignToBot}`);
+            } else {
+              core.warning(`Assignment mutation completed but ${assignToBot} not found in assignees list. Current assignees: ${assignedLogins}`);
+            }
+          } else {
+            core.warning(`Assignment mutation completed but response structure unexpected: ${JSON.stringify(assignResult)}`);
+          }
         } catch (error) {
           core.warning(
             `Failed to assign issue to ${assignToBot}: ${error instanceof Error ? error.message : String(error)}`
