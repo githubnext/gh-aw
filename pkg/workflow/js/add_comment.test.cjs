@@ -134,7 +134,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should skip when not in issue or PR context", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -154,7 +154,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should create comment on issue successfully", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -190,7 +190,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should create comment on pull request successfully", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -223,7 +223,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should include run information in comment body", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -256,7 +256,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should include workflow source in footer when GITHUB_AW_WORKFLOW_SOURCE is provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -294,7 +294,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should not include workflow source footer when GITHUB_AW_WORKFLOW_SOURCE is not provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -330,7 +330,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should use GITHUB_SERVER_URL when repository context is not available", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -369,7 +369,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should fallback to https://github.com when GITHUB_SERVER_URL is not set and repository context is missing", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -404,7 +404,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should include triggering issue number in footer when in issue context", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",
@@ -437,7 +437,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should include triggering PR number in footer when in PR context", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "add_comment",

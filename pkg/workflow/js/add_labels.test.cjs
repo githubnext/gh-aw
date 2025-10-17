@@ -135,7 +135,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should work when allowed labels are not provided (any labels allowed)", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -160,7 +160,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should work when allowed labels list is empty (any labels allowed)", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -185,7 +185,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should enforce allowed labels when restrictions are set", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -210,7 +210,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when max count is invalid", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -229,7 +229,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when max count is zero", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -248,7 +248,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should use default max count when not specified", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -274,7 +274,7 @@ describe("add_labels.cjs", () => {
 
   describe("Context validation", () => {
     it("should skip when not in issue or PR context (with default target)", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -295,7 +295,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should work with issue_comment event", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -313,7 +313,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should work with pull_request event", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -338,7 +338,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should work with pull_request_review event", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -363,7 +363,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when issue context detected but no issue in payload", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -383,7 +383,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when PR context detected but no PR in payload", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -406,7 +406,7 @@ describe("add_labels.cjs", () => {
 
   describe("Label parsing and validation", () => {
     it("should parse labels from agent output and add valid ones", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -432,7 +432,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should skip empty lines in agent output", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -454,7 +454,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when line starts with dash (removal indication)", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -472,7 +472,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should remove duplicate labels", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -494,7 +494,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should enforce max count limit", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -518,7 +518,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should skip when no valid labels found", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -540,7 +540,7 @@ describe("add_labels.cjs", () => {
 
   describe("GitHub API integration", () => {
     it("should successfully add labels to issue", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -572,7 +572,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should successfully add labels to pull request", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -599,7 +599,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should handle GitHub API errors", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -622,7 +622,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should handle non-Error objects in catch block", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -647,7 +647,7 @@ describe("add_labels.cjs", () => {
 
   describe("Output and logging", () => {
     it("should log agent output content length", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -664,7 +664,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should log allowed labels and max count", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -683,7 +683,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should log requested labels", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -700,7 +700,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should log final labels being added", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -719,7 +719,7 @@ describe("add_labels.cjs", () => {
 
   describe("Edge cases", () => {
     it("should handle whitespace in allowed labels", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -742,7 +742,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should handle empty entries in allowed labels", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -759,7 +759,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should handle single label output", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -785,7 +785,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should handle duplicate labels by removing duplicates", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -808,7 +808,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should sanitize labels by removing problematic characters", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -834,7 +834,7 @@ describe("add_labels.cjs", () => {
 
     it("should limit label length to 64 characters", async () => {
       const longLabel = "a".repeat(100);
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -855,7 +855,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should remove empty and whitespace-only labels", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -885,7 +885,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should use triggering issue when target is not specified (default behavior)", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -912,7 +912,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should use triggering issue when target is explicitly set to 'triggering'", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -940,7 +940,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should skip when target is 'triggering' but not in issue context", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -965,7 +965,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should use explicit issue number from target configuration", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -994,7 +994,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should use item_number from labels item when target is '*'", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -1024,7 +1024,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when target is '*' but no item_number in labels item", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -1042,7 +1042,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when target has invalid issue number", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",
@@ -1060,7 +1060,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should fail when target is '*' and issue_number in item is invalid", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [
           {
             type: "add_labels",

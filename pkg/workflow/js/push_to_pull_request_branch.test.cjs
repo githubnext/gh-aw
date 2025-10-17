@@ -98,7 +98,14 @@ describe("push_to_pull_request_branch.cjs", () => {
     // Create fresh mock objects for each test
     mockFs = {
       existsSync: vi.fn(),
-      readFileSync: vi.fn(),
+      readFileSync: vi.fn().mockImplementation((filepath) => {
+        // If reading the agent output file, read the actual temp file
+        if (filepath === process.env.GITHUB_AW_AGENT_OUTPUT) {
+          return fs.readFileSync(filepath, "utf8");
+        }
+        // Otherwise return the mock patch content (will be overridden by individual tests)
+        return "diff --git a/file.txt b/file.txt\n+new content";
+      }),
     };
 
     // Create fresh mock for exec
@@ -197,7 +204,7 @@ const exec = global.exec;`
     });
 
     it("should handle missing patch file with default 'warn' behavior", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
 
@@ -211,7 +218,7 @@ const exec = global.exec;`
     });
 
     it("should fail when patch file missing and if-no-changes is 'error'", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
@@ -225,7 +232,7 @@ const exec = global.exec;`
     });
 
     it("should silently succeed when patch file missing and if-no-changes is 'ignore'", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "ignore";
@@ -240,7 +247,7 @@ const exec = global.exec;`
     });
 
     it("should handle patch file with error content", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
 
@@ -255,7 +262,7 @@ const exec = global.exec;`
     });
 
     it("should handle empty patch file with default 'warn' behavior", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
 
@@ -273,7 +280,7 @@ const exec = global.exec;`
     });
 
     it("should fail when empty patch and if-no-changes is 'error'", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_IF_NO_CHANGES = "error";
@@ -326,7 +333,7 @@ const exec = global.exec;`
     });
 
     it("should handle agent output without valid items array", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: "not an array",
       });
 
@@ -341,7 +348,7 @@ const exec = global.exec;`
     });
 
     it("should use custom target configuration", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "push_to_pull_request_branch", content: "test" }],
       });
       process.env.GITHUB_AW_PUSH_TARGET = "custom-target";

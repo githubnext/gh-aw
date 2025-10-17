@@ -126,7 +126,7 @@ describe("create_pr_review_comment.cjs", () => {
     });
 
     // Set up environment
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -167,7 +167,7 @@ describe("create_pr_review_comment.cjs", () => {
     });
 
     // Set up environment with multi-line comment
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -215,7 +215,7 @@ describe("create_pr_review_comment.cjs", () => {
       });
 
     // Set up environment with multiple comments
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -253,7 +253,7 @@ describe("create_pr_review_comment.cjs", () => {
     });
 
     // Set up environment with custom side
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -287,7 +287,7 @@ describe("create_pr_review_comment.cjs", () => {
       },
     };
 
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -307,7 +307,7 @@ describe("create_pr_review_comment.cjs", () => {
   });
 
   it("should validate required fields and skip invalid items", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -345,7 +345,7 @@ describe("create_pr_review_comment.cjs", () => {
   });
 
   it("should validate start_line is not greater than line", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -365,7 +365,7 @@ describe("create_pr_review_comment.cjs", () => {
   });
 
   it("should validate side values", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -392,7 +392,7 @@ describe("create_pr_review_comment.cjs", () => {
       },
     });
 
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -434,7 +434,7 @@ describe("create_pr_review_comment.cjs", () => {
       },
     });
 
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -486,7 +486,7 @@ describe("create_pr_review_comment.cjs", () => {
       },
     });
 
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -523,7 +523,7 @@ describe("create_pr_review_comment.cjs", () => {
     // Set target to "*"
     process.env.GITHUB_AW_PR_REVIEW_COMMENT_TARGET = "*";
 
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -563,7 +563,7 @@ describe("create_pr_review_comment.cjs", () => {
       },
     };
 
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -582,7 +582,7 @@ describe("create_pr_review_comment.cjs", () => {
   });
 
   it("should include workflow source in footer when GITHUB_AW_WORKFLOW_SOURCE is provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -641,7 +641,7 @@ describe("create_pr_review_comment.cjs", () => {
   });
 
   it("should not include workflow source footer when GITHUB_AW_WORKFLOW_SOURCE is not provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",
@@ -698,7 +698,7 @@ describe("create_pr_review_comment.cjs", () => {
   });
 
   it("should include triggering PR number in footer when in PR context", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_pull_request_review_comment",

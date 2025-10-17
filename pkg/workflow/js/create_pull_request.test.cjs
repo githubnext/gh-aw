@@ -58,7 +58,15 @@ describe("create_pull_request.cjs", () => {
     mockDependencies = {
       fs: {
         existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi.fn().mockReturnValue("diff --git a/file.txt b/file.txt\n+new content"),
+        readFileSync: vi.fn().mockImplementation((filepath) => {
+          // If reading the agent output file, return the JSON content from the env var
+          // (in this test setup, the env var contains JSON directly, not a file path)
+          if (filepath === mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT) {
+            return mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT;
+          }
+          // Otherwise return the patch content
+          return "diff --git a/file.txt b/file.txt\n+new content";
+        }),
       },
       crypto: {
         randomBytes: vi.fn().mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
