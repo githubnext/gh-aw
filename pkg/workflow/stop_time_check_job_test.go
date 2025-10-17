@@ -75,7 +75,7 @@ This workflow has a stop-after configuration.
 		if safetyChecksPos < preActivationStart {
 			t.Error("Stop-time check should be in pre_activation job, not before it")
 		}
-		
+
 		// Safety checks should not be in agent job
 		// Agent job comes before pre_activation in alphabetical order
 		if safetyChecksPos > agentStart && safetyChecksPos < preActivationStart {
