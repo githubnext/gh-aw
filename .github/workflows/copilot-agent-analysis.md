@@ -19,9 +19,9 @@ network:
     - github
 
 safe-outputs:
-  create-issue:
+  create-discussion:
     title-prefix: "[copilot-agent-analysis] "
-    labels: [automation, metrics, copilot-swe-agent]
+    category: "audits"
     max: 1
 
 tools:
@@ -275,13 +275,13 @@ Performance after change (Oct 15-17):
 **Conclusion**: Performance improved after instruction update.
 ```
 
-### Phase 6: Create Analysis Issue
+### Phase 6: Create Analysis Discussion
 
-Create a comprehensive issue with your findings using the safe-outputs create-issue functionality.
+Create a comprehensive discussion with your findings using the safe-outputs create-discussion functionality.
 
-**Issue Title**: `Daily Copilot Agent Analysis - [DATE]`
+**Discussion Title**: `Daily Copilot Agent Analysis - [DATE]`
 
-**Issue Template**:
+**Discussion Template**:
 ```markdown
 # 🤖 Copilot Agent PR Analysis - [DATE]
 
@@ -397,7 +397,7 @@ _This analysis was generated automatically by the Copilot Agent Analysis workflo
 - **Use sanitized context**: Always use GitHub API data, not raw user input
 - **Validate dates**: Ensure date calculations are correct (handle timezone differences)
 - **Handle missing data**: Some PRs may not have complete metadata
-- **Respect privacy**: Don't expose sensitive information in issues
+- **Respect privacy**: Don't expose sensitive information in discussions
 
 ### Analysis Quality
 - **Be accurate**: Double-check all calculations and metrics
@@ -421,7 +421,7 @@ _This analysis was generated automatically by the Copilot Agent Analysis workflo
 
 ### No PRs in Last 24 Hours
 If no PRs were created by copilot-swe-agent in the last 24 hours:
-- Create a brief issue noting "No activity"
+- Create a brief discussion noting "No activity"
 - Still update cache memory with zero counts
 - Don't skip the analysis entirely
 
@@ -429,13 +429,13 @@ If no PRs were created by copilot-swe-agent in the last 24 hours:
 If copilot-swe-agent appears under different usernames:
 - Document the username variance
 - Adjust search queries accordingly
-- Note this in the issue for future reference
+- Note this in the discussion for future reference
 
 ### Incomplete PR Data
 If some PRs have missing metadata:
 - Note which PRs have incomplete data
 - Calculate metrics only from complete data
-- Document data quality in the issue
+- Document data quality in the discussion
 
 ## Success Criteria
 
@@ -446,7 +446,7 @@ A successful analysis:
 - ✅ Updates cache memory with today's metrics
 - ✅ Analyzes trends if historical data exists
 - ✅ Checks for instruction file changes
-- ✅ Creates a comprehensive issue with findings
+- ✅ Creates a comprehensive discussion with findings
 - ✅ Provides actionable insights and recommendations
 
 Begin your analysis now. Gather PR data, calculate metrics, analyze trends, and create a detailed report.
