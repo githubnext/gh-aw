@@ -29,7 +29,7 @@ type Job struct {
 // JobManager manages a collection of jobs and handles dependency validation
 type JobManager struct {
 	jobs     map[string]*Job
-	jobOrder []string // Preserves the order jobs were added
+	jobOrder []string // Job names in sorted alphabetical order
 }
 
 // NewJobManager creates a new JobManager instance
@@ -52,6 +52,8 @@ func (jm *JobManager) AddJob(job *Job) error {
 
 	jm.jobs[job.Name] = job
 	jm.jobOrder = append(jm.jobOrder, job.Name)
+	// Keep jobOrder sorted alphabetically after each addition
+	sort.Strings(jm.jobOrder)
 	return nil
 }
 
@@ -138,7 +140,7 @@ func (jm *JobManager) RenderToYAML() string {
 	var yaml strings.Builder
 	yaml.WriteString("jobs:\n")
 
-	// Use the insertion order instead of alphabetical sorting
+	// jobOrder is kept sorted alphabetically by AddJob
 	for _, jobName := range jm.jobOrder {
 		job := jm.jobs[jobName]
 		yaml.WriteString(jm.renderJob(job))
