@@ -145,6 +145,7 @@ function validateErrors(logContent, patterns) {
   const ITERATION_WARNING_THRESHOLD = 1000; // Warn if iterations exceed this
   const MAX_TOTAL_ERRORS = 100; // Stop after finding this many errors (prevents excessive processing)
   const MAX_LINE_LENGTH = 10000; // Skip lines longer than this (likely JSON payloads)
+  const TOP_SLOW_PATTERNS_COUNT = 5; // Number of slowest patterns to report
 
   core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
 
@@ -265,11 +266,11 @@ function validateErrors(logContent, patterns) {
   const validationElapsed = Date.now() - validationStartTime;
   core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);
 
-  // Log top 5 slowest patterns
+  // Log top slowest patterns
   patternStats.sort((a, b) => b.timeMs - a.timeMs);
-  const topSlow = patternStats.slice(0, 5);
+  const topSlow = patternStats.slice(0, TOP_SLOW_PATTERNS_COUNT);
   if (topSlow.length > 0 && topSlow[0].timeMs > 1000) {
-    core.info("Top 5 slowest patterns:");
+    core.info(`Top ${TOP_SLOW_PATTERNS_COUNT} slowest patterns:`);
     topSlow.forEach((stat, idx) => {
       core.info(`  ${idx + 1}. "${stat.description}" - ${stat.timeMs}ms (${stat.matches} matches)`);
     });
