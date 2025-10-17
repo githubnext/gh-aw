@@ -535,6 +535,23 @@ func TestJobManager_GenerateMermaidGraph(t *testing.T) {
 				"```",
 			},
 		},
+		{
+			name: "nodes sorted alphabetically regardless of insertion order",
+			jobs: []*Job{
+				{Name: "zebra", DisplayName: "Zebra Job", RunsOn: "ubuntu-latest"},
+				{Name: "apple", DisplayName: "Apple Job", RunsOn: "ubuntu-latest"},
+				{Name: "banana", DisplayName: "Banana Job", RunsOn: "ubuntu-latest", Needs: []string{"apple"}},
+			},
+			expected: []string{
+				"```mermaid",
+				"graph LR",
+				"  apple[\"Apple Job\"]",
+				"  banana[\"Banana Job\"]",
+				"  zebra[\"Zebra Job\"]",
+				"  apple --> banana",
+				"```",
+			},
+		},
 	}
 
 	for _, tt := range tests {
