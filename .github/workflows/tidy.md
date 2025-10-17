@@ -30,7 +30,7 @@ tools:
   github:
     allowed: [list_pull_requests, pull_request_read]
   edit:
-  bash: ["make:*"]
+  bash: ["make:*", "git restore:*", "git status"]
 
 safe-outputs:
   create-pull-request:
@@ -99,8 +99,14 @@ Run `make test` to ensure your changes don't break anything. If tests fail:
 - Only fix test failures that are clearly related to your formatting/linting changes
 - Do not attempt to fix unrelated test failures
 
-### 7. Create or Update Pull Request
-If any changes were made during the above steps:
+### 7. Exclude Workflow Files
+Before creating or updating a pull request, exclude any changes to files in `.github/workflows/`:
+- Run `git restore .github/workflows/` to discard any changes to workflow files
+- This ensures that only code changes (not workflow compilation artifacts) are included in the PR
+- The tidy workflow should focus on code quality, not workflow updates
+
+### 8. Create or Update Pull Request
+If any changes were made during the above steps (after excluding workflow files):
 - **If an existing tidy PR was found in step 0**: Use the `push_to_pull_request_branch` tool to push changes to that existing PR branch
 - **If no existing tidy PR was found**: Use the `create_pull_request` tool to create a new pull request
 - Provide a clear title describing what was tidied (e.g., "Fix linting issues and update formatting")
@@ -110,6 +116,7 @@ If any changes were made during the above steps:
 
 ## Important Guidelines
 
+- **Exclude Workflow Files**: NEVER commit changes to files under `.github/workflows/` - always run `git restore .github/workflows/` before creating/updating PRs
 - **Reuse Existing PRs**: Always prefer updating an existing tidy PR over creating a new one
 - **Safety First**: Only make changes that are clearly needed for formatting, linting, or compilation
 - **Test Validation**: Always run tests after making changes  

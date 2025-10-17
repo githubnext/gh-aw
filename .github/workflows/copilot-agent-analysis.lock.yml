@@ -8,21 +8,23 @@
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   create_issue["create_issue"]
+#   create_discussion["create_discussion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   activation --> agent
-#   agent --> create_issue
-#   detection --> create_issue
+#   agent --> create_discussion
+#   detection --> create_discussion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
 # ```
 
-name: "Smoke Copilot"
+name: "Copilot Agent PR Analysis"
 "on":
+  schedule:
+  - cron: 0 10 * * *
   workflow_dispatch: null
 
 permissions: {}
@@ -30,7 +32,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}"
 
-run-name: "Smoke Copilot"
+run-name: "Copilot Agent PR Analysis"
 
 jobs:
   activation:
@@ -57,12 +59,13 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions: read-all
-    concurrency:
-      group: "gh-aw-copilot"
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -73,6 +76,26 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/agent
           echo "Created /tmp/gh-aw/agent directory for agentic workflow temporary files"
+      # Cache memory file share configuration from frontmatter processed below
+      - name: Create cache-memory directory
+        run: |
+          mkdir -p /tmp/gh-aw/cache-memory
+          echo "Cache memory directory created at /tmp/gh-aw/cache-memory"
+          echo "This folder provides persistent file storage across workflow runs"
+          echo "LLMs and agentic tools can freely read and write files in this directory"
+      - name: Cache memory file share data
+        uses: actions/cache@v4
+        with:
+          key: memory-${{ github.workflow }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
+          restore-keys: |
+            memory-${{ github.workflow }}-
+            memory-
+      - name: Upload cache-memory data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -115,24 +138,133 @@ jobs:
             main().catch(error => {
               core.setFailed(error instanceof Error ? error.message : String(error));
             });
-      - name: Validate COPILOT_CLI_TOKEN secret
+      - name: Validate ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$COPILOT_CLI_TOKEN" ]; then
-            echo "Error: COPILOT_CLI_TOKEN secret is not set"
-            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: ANTHROPIC_API_KEY secret is not set"
+            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
             echo "Please configure this secret in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          echo "COPILOT_CLI_TOKEN secret is configured"
+          echo "ANTHROPIC_API_KEY secret is configured"
         env:
-          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.343
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.0.21
+      - name: Generate Claude Settings
+        run: |
+          mkdir -p /tmp/gh-aw/.claude
+          cat > /tmp/gh-aw/.claude/settings.json << 'EOF'
+          {
+            "hooks": {
+              "PreToolUse": [
+                {
+                  "matcher": "WebFetch|WebSearch",
+                  "hooks": [
+                    {
+                      "type": "command",
+                      "command": ".claude/hooks/network_permissions.py"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          EOF
+      - name: Generate Network Permissions Hook
+        run: |
+          mkdir -p .claude/hooks
+          cat > .claude/hooks/network_permissions.py << 'EOF'
+          #!/usr/bin/env python3
+          """
+          Network permissions validator for Claude Code engine.
+          Generated by gh-aw from engine network permissions configuration.
+          """
+          
+          import json
+          import sys
+          import urllib.parse
+          import re
+          
+          # Domain allow-list (populated during generation)
+          # JSON array safely embedded as Python list literal
+          ALLOWED_DOMAINS = ["crl3.digicert.com","crl4.digicert.com","ocsp.digicert.com","ts-crl.ws.symantec.com","ts-ocsp.ws.symantec.com","crl.geotrust.com","ocsp.geotrust.com","crl.thawte.com","ocsp.thawte.com","crl.verisign.com","ocsp.verisign.com","crl.globalsign.com","ocsp.globalsign.com","crls.ssl.com","ocsp.ssl.com","crl.identrust.com","ocsp.identrust.com","crl.sectigo.com","ocsp.sectigo.com","crl.usertrust.com","ocsp.usertrust.com","s.symcb.com","s.symcd.com","json-schema.org","json.schemastore.org","archive.ubuntu.com","security.ubuntu.com","ppa.launchpad.net","keyserver.ubuntu.com","azure.archive.ubuntu.com","api.snapcraft.io","packagecloud.io","packages.cloud.google.com","packages.microsoft.com","*.githubusercontent.com","raw.githubusercontent.com","objects.githubusercontent.com","lfs.github.com","github-cloud.githubusercontent.com","github-cloud.s3.amazonaws.com","codeload.github.com"]
+          
+          def extract_domain(url_or_query):
+              """Extract domain from URL or search query."""
+              if not url_or_query:
+                  return None
+              
+              if url_or_query.startswith(('http://', 'https://')):
+                  return urllib.parse.urlparse(url_or_query).netloc.lower()
+              
+              # Check for domain patterns in search queries
+              match = re.search(r'site:([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', url_or_query)
+              if match:
+                  return match.group(1).lower()
+              
+              return None
+          
+          def is_domain_allowed(domain):
+              """Check if domain is allowed."""
+              if not domain:
+                  # If no domain detected, allow only if not under deny-all policy
+                  return bool(ALLOWED_DOMAINS)  # False if empty list (deny-all), True if has domains
+              
+              # Empty allowed domains means deny all
+              if not ALLOWED_DOMAINS:
+                  return False
+              
+              for pattern in ALLOWED_DOMAINS:
+                  regex = pattern.replace('.', r'\.').replace('*', '.*')
+                  if re.match(f'^{regex}$', domain):
+                      return True
+              return False
+          
+          # Main logic
+          try:
+              data = json.load(sys.stdin)
+              tool_name = data.get('tool_name', '')
+              tool_input = data.get('tool_input', {})
+              
+              if tool_name not in ['WebFetch', 'WebSearch']:
+                  sys.exit(0)  # Allow other tools
+              
+              target = tool_input.get('url') or tool_input.get('query', '')
+              domain = extract_domain(target)
+              
+              # For WebSearch, apply domain restrictions consistently
+              # If no domain detected in search query, check if restrictions are in place
+              if tool_name == 'WebSearch' and not domain:
+                  # Since this hook is only generated when network permissions are configured,
+                  # empty ALLOWED_DOMAINS means deny-all policy
+                  if not ALLOWED_DOMAINS:  # Empty list means deny all
+                      print(f"Network access blocked: deny-all policy in effect", file=sys.stderr)
+                      print(f"No domains are allowed for WebSearch", file=sys.stderr)
+                      sys.exit(2)  # Block under deny-all policy
+                  else:
+                      print(f"Network access blocked for web-search: no specific domain detected", file=sys.stderr)
+                      print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
+                      sys.exit(2)  # Block general searches when domain allowlist is configured
+              
+              if not is_domain_allowed(domain):
+                  print(f"Network access blocked for domain: {domain}", file=sys.stderr)
+                  print(f"Allowed domains: {', '.join(ALLOWED_DOMAINS)}", file=sys.stderr)
+                  sys.exit(2)  # Block with feedback to Claude
+              
+              sys.exit(0)  # Allow
+              
+          except Exception as e:
+              print(f"Network validation error: {e}", file=sys.stderr)
+              sys.exit(2)  # Block on errors
+          
+          EOF
+          chmod +x .claude/hooks/network_permissions.py
       - name: Downloading container images
         run: |
           set -e
@@ -141,7 +273,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_issue":{"max":1,"min":1},"missing_tool":{}}
+          {"create_discussion":{"max":1},"missing_tool":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -825,12 +957,10 @@ jobs:
       - name: Setup MCPs
         run: |
           mkdir -p /tmp/gh-aw/mcp-config
-          mkdir -p /home/runner/.copilot
-          cat > /home/runner/.copilot/mcp-config.json << EOF
+          cat > /tmp/gh-aw/mcp-config/mcp-servers.json << EOF
           {
             "mcpServers": {
               "github": {
-                "type": "local",
                 "command": "docker",
                 "args": [
                   "run",
@@ -842,89 +972,24 @@ jobs:
                   "GITHUB_TOOLSETS=all",
                   "ghcr.io/github/github-mcp-server:v0.18.0"
                 ],
-                "tools": [
-                  "download_workflow_run_artifact",
-                  "get_job_logs",
-                  "get_workflow_run",
-                  "get_workflow_run_logs",
-                  "get_workflow_run_usage",
-                  "list_workflow_jobs",
-                  "list_workflow_run_artifacts",
-                  "list_workflow_runs",
-                  "list_workflows",
-                  "get_code_scanning_alert",
-                  "list_code_scanning_alerts",
-                  "get_me",
-                  "get_dependabot_alert",
-                  "list_dependabot_alerts",
-                  "get_discussion",
-                  "get_discussion_comments",
-                  "list_discussion_categories",
-                  "list_discussions",
-                  "get_issue",
-                  "get_issue_comments",
-                  "list_issues",
-                  "search_issues",
-                  "get_notification_details",
-                  "list_notifications",
-                  "search_orgs",
-                  "get_label",
-                  "list_label",
-                  "get_pull_request",
-                  "get_pull_request_comments",
-                  "get_pull_request_diff",
-                  "get_pull_request_files",
-                  "get_pull_request_reviews",
-                  "get_pull_request_status",
-                  "list_pull_requests",
-                  "pull_request_read",
-                  "search_pull_requests",
-                  "get_commit",
-                  "get_file_contents",
-                  "get_tag",
-                  "list_branches",
-                  "list_commits",
-                  "list_tags",
-                  "search_code",
-                  "search_repositories",
-                  "get_secret_scanning_alert",
-                  "list_secret_scanning_alerts",
-                  "search_users",
-                  "get_latest_release",
-                  "get_pull_request_review_comments",
-                  "get_release_by_tag",
-                  "list_issue_types",
-                  "list_releases",
-                  "list_starred_repositories",
-                  "list_sub_issues"
-                ],
                 "env": {
-                  "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
                 }
               },
               "safe_outputs": {
-                "type": "local",
                 "command": "node",
                 "args": ["/tmp/gh-aw/safe-outputs/mcp-server.cjs"],
-                "tools": ["*"],
                 "env": {
-                  "GITHUB_AW_SAFE_OUTPUTS": "\${GITHUB_AW_SAFE_OUTPUTS}",
-                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": "\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}",
-                  "GITHUB_AW_ASSETS_BRANCH": "\${GITHUB_AW_ASSETS_BRANCH}",
-                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "\${GITHUB_AW_ASSETS_MAX_SIZE_KB}",
-                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "\${GITHUB_AW_ASSETS_ALLOWED_EXTS}"
+                  "GITHUB_AW_SAFE_OUTPUTS": "${{ env.GITHUB_AW_SAFE_OUTPUTS }}",
+                  "GITHUB_AW_SAFE_OUTPUTS_CONFIG": ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }},
+                  "GITHUB_AW_ASSETS_BRANCH": "${{ env.GITHUB_AW_ASSETS_BRANCH }}",
+                  "GITHUB_AW_ASSETS_MAX_SIZE_KB": "${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}",
+                  "GITHUB_AW_ASSETS_ALLOWED_EXTS": "${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}"
                 }
               }
             }
           }
           EOF
-          echo "-------START MCP CONFIG-----------"
-          cat /home/runner/.copilot/mcp-config.json
-          echo "-------END MCP CONFIG-----------"
-          echo "-------/home/runner/.copilot-----------"
-          find /home/runner/.copilot
-          echo "HOME: $HOME"
-          echo "GITHUB_COPILOT_CLI_MODE: $GITHUB_COPILOT_CLI_MODE"
       - name: Create prompt
         env:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -932,7 +997,538 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          Review the last 5 merged pull requests in this repository and post summary in an issue.
+          # Copilot Agent PR Analysis
+          
+          You are an AI analytics agent that monitors and analyzes the performance of the copilot-swe-agent (also known as copilot agent) in this repository.
+          
+          ## Mission
+          
+          Daily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends. Provides daily, weekly, and monthly performance summaries.
+          
+          ## Current Context
+          
+          - **Repository**: ${{ github.repository }}
+          - **Analysis Period**: Last 24 hours (with weekly and monthly summaries)
+          
+          ## Task Overview
+          
+          ### Phase 1: Collect PR Data
+          
+          Search for pull requests created by copilot-swe-agent in the last 24 hours.
+          
+          **Important**: The copilot-swe-agent may appear under various usernames:
+          - `copilot-swe-agent`
+          - `github-actions[bot]` (with specific patterns)
+          - Other bot accounts
+          
+          Use the GitHub `search_pull_requests` tool to find PRs:
+          
+          1. **Search Query**: Use a query like:
+             ```
+             repo:${{ github.repository }} is:pr author:copilot-swe-agent created:>=YYYY-MM-DD
+             ```
+             Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).
+          
+          2. **Alternative Search**: If the bot uses a different username, adjust the query:
+             ```
+             repo:${{ github.repository }} is:pr created:>=YYYY-MM-DD
+             ```
+             Then filter by PR author or labels that indicate copilot-swe-agent involvement.
+          
+          3. **Get PR Details**: For each found PR, use `pull_request_read` to get:
+             - PR number
+             - Title and description
+             - Creation timestamp
+             - Merge/close timestamp
+             - Current state (open, merged, closed)
+             - Number of comments
+             - Number of commits
+             - Files changed
+             - Review status
+          
+          ### Phase 2: Analyze Each PR
+          
+          For each PR created by copilot-swe-agent in the last 24 hours:
+          
+          #### 2.1 Determine Outcome
+          - **Merged**: PR was successfully merged
+          - **Closed without merge**: PR was closed but not merged
+          - **Still Open**: PR is still open (pending)
+          
+          #### 2.2 Count Human Comments
+          Count comments from human users (exclude bot comments):
+          - Use `pull_request_read` with method `get` to get PR details including comments
+          - Use `pull_request_read` with method `get_review_comments` to get review comments
+          - Filter out comments from bots (check comment author)
+          - Count unique human comments
+          
+          #### 2.3 Calculate Timing Metrics
+          
+          Extract timing information:
+          - **Time to First Activity**: When did the agent start working? (PR creation time)
+          - **Time to Completion**: When did the agent finish? (last commit time or PR close/merge time)
+          - **Total Duration**: Time from PR creation to merge/close
+          - **Time to First Human Response**: When did a human first interact?
+          
+          Calculate these metrics using the PR timestamps from the GitHub API.
+          
+          #### 2.4 Analyze PR Quality
+          
+          For each PR, assess:
+          - Number of files changed
+          - Lines of code added/removed
+          - Number of commits made by the agent
+          - Whether tests were added/modified
+          - Whether documentation was updated
+          
+          ### Phase 3: Generate Summary Table
+          
+          Create a summary table with the following columns:
+          
+          | PR # | Title | Outcome | Comments | Agent Duration | Total Duration | Files Changed | Status |
+          |------|-------|---------|----------|----------------|----------------|---------------|--------|
+          | #123 | Fix bug | Merged | 5 | 15m | 2h 30m | 3 | ✅ |
+          | #124 | Add feature | Closed | 2 | 8m | 45m | 5 | ❌ |
+          | #125 | Update docs | Open | 1 | 5m | - | 2 | ⏳ |
+          
+          **Table Columns Explained**:
+          - **PR #**: Pull request number
+          - **Title**: PR title (truncated if needed)
+          - **Outcome**: Merged ✅ / Closed ❌ / Open ⏳
+          - **Comments**: Number of human comments
+          - **Agent Duration**: Time from PR creation to last commit by agent
+          - **Total Duration**: Time from PR creation to merge/close (or current time if still open)
+          - **Files Changed**: Number of files modified
+          - **Status**: Visual indicator of outcome
+          
+          **Summary Statistics**:
+          - Total PRs analyzed: [count]
+          - Merged: [count] ([percentage]%)
+          - Closed without merge: [count] ([percentage]%)
+          - Still open: [count]
+          - Average human comments per PR: [number]
+          - Average agent duration: [time]
+          - Average total duration (for completed PRs): [time]
+          
+          ### Phase 4: Historical Trending Analysis
+          
+          Use the cache memory folder `/tmp/gh-aw/cache-memory/` to maintain historical data:
+          
+          #### 4.1 Load Historical Data
+          
+          Check for existing historical data:
+          ```bash
+          ls -la /tmp/gh-aw/cache-memory/copilot-agent-metrics/
+          cat /tmp/gh-aw/cache-memory/copilot-agent-metrics/history.json
+          ```
+          
+          The history file should contain daily metrics in this format:
+          ```json
+          {
+            "daily_metrics": [
+              {
+                "date": "2024-10-16",
+                "total_prs": 3,
+                "merged_prs": 2,
+                "closed_prs": 1,
+                "open_prs": 0,
+                "avg_comments": 3.5,
+                "avg_agent_duration_minutes": 12,
+                "avg_total_duration_minutes": 95,
+                "success_rate": 0.67
+              }
+            ]
+          }
+          ```
+          
+          **If Historical Data is Missing or Incomplete:**
+          
+          If the history file doesn't exist or has gaps in the data, rebuild it by querying historical PRs:
+          
+          1. **Determine Missing Date Range**: Identify which dates need data (up to last 30 days for meaningful trends)
+          
+          2. **Query PRs One Day at a Time**: To avoid context explosion, query PRs for each missing day separately:
+             ```
+             repo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD
+             ```
+             
+          3. **Process Each Day**: For each day with missing data:
+             - Query PRs created on that specific date
+             - Calculate the same metrics as for today (total PRs, merged, closed, success rate, etc.)
+             - Store in the history file
+             - Limit processing to avoid timeout - prioritize most recent days first
+          
+          4. **Incremental Approach**: 
+             - Process one day at a time in chronological order (oldest to newest)
+             - Save after each day to preserve progress
+             - If you have 5+ days of data, that's sufficient for basic trend analysis
+             - Aim for 7+ days for week-over-week trends
+             - Aim for 30 days for monthly trends
+          
+          5. **Rate Limiting**: Be mindful of API rate limits - if approaching limits, save what you have and continue next run
+          
+          #### 4.2 Store Today's Metrics
+          
+          Calculate today's metrics:
+          - Total PRs created today
+          - Number merged/closed/open
+          - Average comments per PR
+          - Average agent duration
+          - Average total duration
+          - Success rate (merged / total completed)
+          
+          Save to cache memory:
+          ```bash
+          mkdir -p /tmp/gh-aw/cache-memory/copilot-agent-metrics/
+          # Append today's metrics to history.json
+          ```
+          
+          Store the data in JSON format with proper structure.
+          
+          #### 4.2.1 Rebuild Historical Data (if needed)
+          
+          **When to Rebuild:**
+          - History file doesn't exist
+          - History file has gaps (missing dates in the last 30 days)
+          - Insufficient data for trend analysis (< 7 days)
+          
+          **Rebuilding Strategy:**
+          1. **Assess Current State**: Check how many days of data you have
+          2. **Target Collection**: Aim for at least 7 days (for weekly trends) or 30 days (for monthly trends)
+          3. **One Day at a Time**: Query PRs for each missing date separately to avoid context explosion
+          
+          **For Each Missing Day:**
+          ```
+          # Query PRs for specific date
+          repo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD
+          ```
+          
+          **Process:**
+          - Start with the oldest missing date in your target range (e.g., 30 days ago)
+          - For each date:
+            1. Search for PRs created on that date
+            2. Analyze each PR (same as Phase 2)
+            3. Calculate daily metrics (same as Phase 4.2)
+            4. Add to history.json
+            5. Save immediately to preserve progress
+          - Continue until you have sufficient data or reach time limits
+          
+          **Important Constraints:**
+          - Process dates in chronological order (oldest first)
+          - Save after processing each day
+          - If time is running short (> 10 minutes elapsed), stop and save what you have
+          - Next run will continue from where you left off
+          - Prioritize data quality over quantity - better to have accurate data for fewer days
+          
+          #### 4.3 Store Today's Metrics
+          
+          After ensuring historical data is available (either from existing cache or rebuilt), add today's metrics:
+          - Total PRs created today
+          - Number merged/closed/open
+          - Average comments per PR
+          - Average agent duration
+          - Average total duration
+          - Success rate (merged / total completed)
+          
+          Append to history.json in the cache memory.
+          
+          #### 4.4 Analyze Trends
+          
+          If historical data exists (at least 7 days), analyze trends:
+          
+          **Week-over-Week Comparison** (last 7 days vs previous 7 days):
+          - Success rate trend (improving/declining/stable)
+          - Average duration trend (faster/slower/stable)
+          - Comment count trend (more engagement/less engagement)
+          - Volume trend (more/fewer PRs)
+          
+          **Monthly Summary** (if 30+ days of data):
+          - 30-day average success rate
+          - 30-day average duration
+          - 30-day average comments
+          - Total PRs in last 30 days
+          - Weekly breakdown of the month
+          
+          **Trend Indicators**:
+          - 📈 Improving: Metric is better than comparison period
+          - 📉 Declining: Metric is worse than comparison period
+          - ➡️ Stable: Metric is within 5% of comparison period
+          
+          ### Phase 5: Check for Instruction Changes
+          
+          Check if there have been changes to copilot-swe-agent instruction files that might correlate with performance changes:
+          
+          #### 5.1 Find Instruction Files
+          
+          Look for instruction or prompt files in the repository:
+          ```bash
+          find .github -name '*copilot*' -o -name '*swe*' -o -name '*agent*' -o -name '*instruction*' -o -name '*prompt*' 2>/dev/null || echo "No matching files found"
+          ```
+          
+          Common locations:
+          - `.github/agents/`
+          - `.github/instructions/`
+          - `.github/prompts/`
+          
+          #### 5.2 Check Recent Changes
+          
+          For each instruction file found, check if it was modified in the last 7 days:
+          ```bash
+          git log --oneline --since="7 days ago" -- .github/agents/
+          git log --oneline --since="7 days ago" -- .github/instructions/
+          ```
+          
+          Use `get_commit` to get details of any recent changes to instruction files.
+          
+          #### 5.3 Correlate with Performance
+          
+          If instruction files were modified recently:
+          - Note the date of the change
+          - Compare performance metrics before and after the change
+          - Identify if there's a correlation (improved/degraded performance)
+          
+          **Example Correlation Analysis**:
+          ```
+          Instruction file `.github/agents/copilot-swe.md` was updated on 2024-10-14.
+          
+          Performance before change (Oct 11-13):
+          - Success rate: 65%
+          - Avg duration: 15m
+          
+          Performance after change (Oct 15-17):
+          - Success rate: 75% 📈 (+10%)
+          - Avg duration: 12m 📈 (20% faster)
+          
+          **Conclusion**: Performance improved after instruction update.
+          ```
+          
+          ### Phase 6: Create Analysis Discussion
+          
+          Create a comprehensive discussion with your findings using the safe-outputs create-discussion functionality.
+          
+          **Discussion Title**: `Daily Copilot Agent Analysis - [DATE]`
+          
+          **Discussion Template**:
+          ```markdown
+          # 🤖 Copilot Agent PR Analysis - [DATE]
+          
+          ## Summary
+          
+          **Analysis Period**: Last 24 hours  
+          **Total PRs Analyzed**: [count]  
+          **Success Rate**: [percentage]%
+          
+          ## PR Summary Table
+          
+          [Include the detailed table from Phase 3]
+          
+          ## Metrics
+          
+          ### Today's Performance
+          - **PRs Created**: [count]
+          - **PRs Merged**: [count] ([percentage]%)
+          - **PRs Closed (not merged)**: [count] ([percentage]%)
+          - **PRs Still Open**: [count]
+          - **Average Human Comments**: [number]
+          - **Average Agent Duration**: [time]
+          - **Average Total Duration**: [time]
+          
+          ### Weekly Summary (Last 7 Days)
+          
+          [If at least 7 days of historical data available]
+          
+          **Performance Metrics:**
+          - **Total PRs**: [count] ([trend indicator] vs previous week)
+          - **Success Rate**: [percentage]% ([trend indicator] vs previous week)
+          - **Average Duration**: [time] ([trend indicator] vs previous week)
+          - **Average Comments**: [number] ([trend indicator] vs previous week)
+          
+          **Week-over-Week Change:**
+          - PRs Created: [change] ([percentage]% change)
+          - Success Rate: [change] ([percentage point] change)
+          - Duration: [change] ([percentage]% change)
+          - Comments: [change] ([percentage]% change)
+          
+          **Daily Breakdown (Last 7 Days):**
+          | Date | PRs | Merged | Success Rate | Avg Duration |
+          |------|-----|--------|--------------|--------------|
+          | [date] | [count] | [count] | [%] | [time] |
+          | ... | ... | ... | ... | ... |
+          
+          ### Monthly Summary (Last 30 Days)
+          
+          [If at least 30 days of historical data available]
+          
+          **Performance Metrics:**
+          - **Total PRs**: [count]
+          - **Average Success Rate**: [percentage]%
+          - **Average Duration**: [time]
+          - **Average Comments per PR**: [number]
+          
+          **Weekly Trends (4 weeks):**
+          | Week | PRs | Success Rate | Avg Duration | Avg Comments |
+          |------|-----|--------------|--------------|--------------|
+          | Week 1 (most recent) | [count] | [%] | [time] | [number] |
+          | Week 2 | [count] | [%] | [time] | [number] |
+          | Week 3 | [count] | [%] | [time] | [number] |
+          | Week 4 (oldest) | [count] | [%] | [time] | [number] |
+          
+          **Monthly Trends:**
+          - Success Rate Trend: [trend indicator with explanation]
+          - Duration Trend: [trend indicator with explanation]
+          - Volume Trend: [trend indicator with explanation]
+          - Engagement Trend: [trend indicator with explanation]
+          
+          ### Historical Comparison (7-day trend)
+          
+          [If historical data available but less than 30 days]
+          
+          - **Success Rate**: [current]% vs [7-day avg]% [trend indicator]
+          - **Agent Duration**: [current] vs [7-day avg] [trend indicator]
+          - **Human Engagement**: [current comments] vs [7-day avg] [trend indicator]
+          
+          ## Instruction File Changes
+          
+          [If any instruction files were modified in the last 7 days]
+          
+          Recent changes detected:
+          - **File**: `.github/[path]/[filename]`
+          - **Date**: [date]
+          - **Commit**: [commit hash]
+          
+          **Performance Correlation**:
+          [Analysis of whether performance changed after instruction update]
+          
+          [If no changes]
+          No instruction file changes detected in the last 7 days.
+          
+          ## Detailed PR Analysis
+          
+          ### Merged PRs ✅
+          
+          [For each merged PR]
+          - **PR #[number]**: [title]
+            - Human comments: [count]
+            - Agent duration: [time]
+            - Total duration: [time]
+            - Files changed: [count]
+          
+          ### Closed PRs ❌
+          
+          [For each closed PR]
+          - **PR #[number]**: [title]
+            - Reason for closure: [if apparent from comments]
+            - Human comments: [count]
+            - Agent duration: [time]
+          
+          ### Open PRs ⏳
+          
+          [For each open PR]
+          - **PR #[number]**: [title]
+            - Age: [time since creation]
+            - Human comments: [count]
+            - Current status: [if reviews pending, etc.]
+          
+          ## Recommendations
+          
+          [Based on trends and analysis, provide actionable recommendations]
+          
+          **If success rate is declining**:
+          - Review recent instruction changes
+          - Investigate common failure patterns
+          - Consider adjusting agent prompts
+          
+          **If duration is increasing**:
+          - Check for increased complexity in tasks
+          - Review if agent is making efficient tool calls
+          - Consider optimization opportunities
+          
+          **If human engagement is low**:
+          - Agent may be working well independently
+          - Consider if reviews are being bypassed
+          
+          ## Notes
+          
+          [Any additional observations or context]
+          
+          ---
+          
+          _This analysis was generated automatically by the Copilot Agent Analysis workflow._
+          ```
+          
+          ## Important Guidelines
+          
+          ### Security and Data Handling
+          - **Use sanitized context**: Always use GitHub API data, not raw user input
+          - **Validate dates**: Ensure date calculations are correct (handle timezone differences)
+          - **Handle missing data**: Some PRs may not have complete metadata
+          - **Respect privacy**: Don't expose sensitive information in discussions
+          
+          ### Analysis Quality
+          - **Be accurate**: Double-check all calculations and metrics
+          - **Be consistent**: Use the same metrics each day for valid comparisons
+          - **Be thorough**: Don't skip PRs or data points
+          - **Be objective**: Report facts without bias
+          
+          ### Cache Memory Management
+          - **Organize data**: Keep historical data well-structured in JSON format
+          - **Limit retention**: Consider keeping only last 90 days of daily data
+          - **Handle errors**: If cache is corrupted, reinitialize gracefully
+          - **Backup important data**: Store critical metrics redundantly
+          - **Progressive data collection**: If historical data is missing, rebuild incrementally
+            - Prioritize most recent days first (they're more relevant for trends)
+            - Process one day at a time to avoid overwhelming the context
+            - Save progress after each day to ensure data persistence
+            - Aim for at least 7 days for weekly trends, 30 days for monthly trends
+          
+          ### Trend Analysis
+          - **Require sufficient data**: Don't report trends with less than 7 days of data
+          EOF
+      - name: Append prompt (part 2)
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          - **Use appropriate metrics**: Choose statistical measures that make sense
+          - **Indicate confidence**: Note when sample sizes are small
+          - **Avoid overreaction**: Small fluctuations are normal
+          
+          ## Edge Cases
+          
+          ### No PRs in Last 24 Hours
+          If no PRs were created by copilot-swe-agent in the last 24 hours:
+          - Create a brief discussion noting "No activity"
+          - Still update cache memory with zero counts
+          - Don't skip the analysis entirely
+          
+          ### Bot Username Changes
+          If copilot-swe-agent appears under different usernames:
+          - Document the username variance
+          - Adjust search queries accordingly
+          - Note this in the discussion for future reference
+          
+          ### Incomplete PR Data
+          If some PRs have missing metadata:
+          - Note which PRs have incomplete data
+          - Calculate metrics only from complete data
+          - Document data quality in the discussion
+          
+          ## Success Criteria
+          
+          A successful analysis:
+          - ✅ Finds all copilot-swe-agent PRs from last 24 hours
+          - ✅ Calculates accurate metrics for each PR
+          - ✅ Generates a clear, formatted summary table
+          - ✅ Updates cache memory with today's metrics
+          - ✅ Rebuilds missing historical data if needed (one day at a time)
+          - ✅ Analyzes trends with available historical data
+          - ✅ Provides weekly summary (if 7+ days of data available)
+          - ✅ Provides monthly summary (if 30+ days of data available)
+          - ✅ Checks for instruction file changes
+          - ✅ Creates a comprehensive discussion with findings
+          - ✅ Provides actionable insights and recommendations
+          
+          Begin your analysis now. Gather PR data, calculate metrics, analyze trends, and create a detailed report.
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -980,6 +1576,31 @@ jobs:
           **IMPORTANT**: When you need to create temporary files or directories during your work, **always use the `/tmp/gh-aw/agent/` directory** that has been pre-created for you. Do NOT use the root `/tmp/` directory directly.
           
           EOF
+      - name: Append cache memory instructions to prompt
+        env:
+          GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+        run: |
+          cat >> $GITHUB_AW_PROMPT << 'EOF'
+          
+          ---
+          
+          ## Cache Folder Available
+          
+          You have access to a persistent cache folder at `/tmp/gh-aw/cache-memory/` where you can read and write files to create memories and store information.
+          
+          - **Read/Write Access**: You can freely read from and write to any files in this folder
+          - **Persistence**: Files in this folder persist across workflow runs via GitHub Actions cache
+          - **Last Write Wins**: If multiple processes write to the same file, the last write will be preserved
+          - **File Share**: Use this as a simple file share - organize files as you see fit
+          
+          Examples of what you can store:
+          - `/tmp/gh-aw/cache-memory/notes.txt` - general notes and observations
+          - `/tmp/gh-aw/cache-memory/preferences.json` - user preferences and settings
+          - `/tmp/gh-aw/cache-memory/history.log` - activity history and logs
+          - `/tmp/gh-aw/cache-memory/state/` - organized state files in subdirectories
+          
+          Feel free to create, read, update, and organize files in this folder as needed for your tasks.
+          EOF
       - name: Append safe outputs instructions to prompt
         env:
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -988,13 +1609,9 @@ jobs:
           
           ---
           
-          ## Creating an IssueReporting Missing Tools or Functionality
+          ## Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
-          
-          **Creating an Issue**
-          
-          To create an issue, use the create-issue tool from the safe-outputs MCP
           
           **Reporting Missing Tools or Functionality**
           
@@ -1084,7 +1701,7 @@ jobs:
           echo "</details>" >> $GITHUB_STEP_SUMMARY
       - name: Capture agent version
         run: |
-          VERSION_OUTPUT=$(copilot --version 2>&1 || echo "unknown")
+          VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
           # Extract semantic version pattern (e.g., 1.2.3, v1.2.3-beta)
           CLEAN_VERSION=$(echo "$VERSION_OUTPUT" | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?' | head -n1 || echo "unknown")
           echo "AGENT_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
@@ -1096,12 +1713,12 @@ jobs:
             const fs = require('fs');
             
             const awInfo = {
-              engine_id: "copilot",
-              engine_name: "GitHub Copilot CLI",
+              engine_id: "claude",
+              engine_name: "Claude Code",
               model: "",
               version: "",
               agent_version: process.env.AGENT_VERSION || "",
-              workflow_name: "Smoke Copilot",
+              workflow_name: "Copilot Agent PR Analysis",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -1113,7 +1730,7 @@ jobs:
               sha: context.sha,
               actor: context.actor,
               event_name: context.eventName,
-              staged: true,
+              staged: false,
               created_at: new Date().toISOString()
             };
             
@@ -1129,80 +1746,118 @@ jobs:
           name: aw_info.json
           path: /tmp/gh-aw/aw_info.json
           if-no-files-found: warn
-      - name: Execute GitHub Copilot CLI
+      - name: Execute Claude Code CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool github(download_workflow_run_artifact)
-        # --allow-tool github(get_code_scanning_alert)
-        # --allow-tool github(get_commit)
-        # --allow-tool github(get_dependabot_alert)
-        # --allow-tool github(get_discussion)
-        # --allow-tool github(get_discussion_comments)
-        # --allow-tool github(get_file_contents)
-        # --allow-tool github(get_issue)
-        # --allow-tool github(get_issue_comments)
-        # --allow-tool github(get_job_logs)
-        # --allow-tool github(get_label)
-        # --allow-tool github(get_latest_release)
-        # --allow-tool github(get_me)
-        # --allow-tool github(get_notification_details)
-        # --allow-tool github(get_pull_request)
-        # --allow-tool github(get_pull_request_comments)
-        # --allow-tool github(get_pull_request_diff)
-        # --allow-tool github(get_pull_request_files)
-        # --allow-tool github(get_pull_request_review_comments)
-        # --allow-tool github(get_pull_request_reviews)
-        # --allow-tool github(get_pull_request_status)
-        # --allow-tool github(get_release_by_tag)
-        # --allow-tool github(get_secret_scanning_alert)
-        # --allow-tool github(get_tag)
-        # --allow-tool github(get_workflow_run)
-        # --allow-tool github(get_workflow_run_logs)
-        # --allow-tool github(get_workflow_run_usage)
-        # --allow-tool github(list_branches)
-        # --allow-tool github(list_code_scanning_alerts)
-        # --allow-tool github(list_commits)
-        # --allow-tool github(list_dependabot_alerts)
-        # --allow-tool github(list_discussion_categories)
-        # --allow-tool github(list_discussions)
-        # --allow-tool github(list_issue_types)
-        # --allow-tool github(list_issues)
-        # --allow-tool github(list_label)
-        # --allow-tool github(list_notifications)
-        # --allow-tool github(list_pull_requests)
-        # --allow-tool github(list_releases)
-        # --allow-tool github(list_secret_scanning_alerts)
-        # --allow-tool github(list_starred_repositories)
-        # --allow-tool github(list_sub_issues)
-        # --allow-tool github(list_tags)
-        # --allow-tool github(list_workflow_jobs)
-        # --allow-tool github(list_workflow_run_artifacts)
-        # --allow-tool github(list_workflow_runs)
-        # --allow-tool github(list_workflows)
-        # --allow-tool github(pull_request_read)
-        # --allow-tool github(search_code)
-        # --allow-tool github(search_issues)
-        # --allow-tool github(search_orgs)
-        # --allow-tool github(search_pull_requests)
-        # --allow-tool github(search_repositories)
-        # --allow-tool github(search_users)
-        # --allow-tool safe_outputs
-        timeout-minutes: 10
+        # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(date)
+        # - Bash(echo)
+        # - Bash(find .github -name '*.md')
+        # - Bash(find .github -type f -exec cat {} +)
+        # - Bash(git diff)
+        # - Bash(git log --oneline)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(ls -la .github)
+        # - Bash(ls)
+        # - Bash(pwd)
+        # - Bash(sort)
+        # - Bash(tail)
+        # - Bash(uniq)
+        # - Bash(wc)
+        # - Bash(yq)
+        # - BashOutput
+        # - Edit(/tmp/gh-aw/cache-memory/*)
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - KillBash
+        # - LS
+        # - MultiEdit(/tmp/gh-aw/cache-memory/*)
+        # - NotebookRead
+        # - Read
+        # - Read(/tmp/gh-aw/cache-memory/*)
+        # - Task
+        # - TodoWrite
+        # - Write
+        # - Write(/tmp/gh-aw/cache-memory/*)
+        # - mcp__github__download_workflow_run_artifact
+        # - mcp__github__get_code_scanning_alert
+        # - mcp__github__get_commit
+        # - mcp__github__get_dependabot_alert
+        # - mcp__github__get_discussion
+        # - mcp__github__get_discussion_comments
+        # - mcp__github__get_file_contents
+        # - mcp__github__get_issue
+        # - mcp__github__get_issue_comments
+        # - mcp__github__get_job_logs
+        # - mcp__github__get_label
+        # - mcp__github__get_latest_release
+        # - mcp__github__get_me
+        # - mcp__github__get_notification_details
+        # - mcp__github__get_pull_request
+        # - mcp__github__get_pull_request_comments
+        # - mcp__github__get_pull_request_diff
+        # - mcp__github__get_pull_request_files
+        # - mcp__github__get_pull_request_review_comments
+        # - mcp__github__get_pull_request_reviews
+        # - mcp__github__get_pull_request_status
+        # - mcp__github__get_release_by_tag
+        # - mcp__github__get_secret_scanning_alert
+        # - mcp__github__get_tag
+        # - mcp__github__get_workflow_run
+        # - mcp__github__get_workflow_run_logs
+        # - mcp__github__get_workflow_run_usage
+        # - mcp__github__list_branches
+        # - mcp__github__list_code_scanning_alerts
+        # - mcp__github__list_commits
+        # - mcp__github__list_dependabot_alerts
+        # - mcp__github__list_discussion_categories
+        # - mcp__github__list_discussions
+        # - mcp__github__list_issue_types
+        # - mcp__github__list_issues
+        # - mcp__github__list_label
+        # - mcp__github__list_notifications
+        # - mcp__github__list_pull_requests
+        # - mcp__github__list_releases
+        # - mcp__github__list_secret_scanning_alerts
+        # - mcp__github__list_starred_repositories
+        # - mcp__github__list_sub_issues
+        # - mcp__github__list_tags
+        # - mcp__github__list_workflow_jobs
+        # - mcp__github__list_workflow_run_artifacts
+        # - mcp__github__list_workflow_runs
+        # - mcp__github__list_workflows
+        # - mcp__github__pull_request_read
+        # - mcp__github__search_code
+        # - mcp__github__search_issues
+        # - mcp__github__search_orgs
+        # - mcp__github__search_pull_requests
+        # - mcp__github__search_repositories
+        # - mcp__github__search_users
+        timeout-minutes: 15
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          # Execute Claude Code CLI with prompt from file
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat),Bash(date),Bash(echo),Bash(find .github -name '*.md'),Bash(find .github -type f -exec cat {} +),Bash(git diff),Bash(git log --oneline),Bash(grep),Bash(head),Bash(ls -la .github),Bash(ls),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit(/tmp/gh-aw/cache-memory/*),ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit(/tmp/gh-aw/cache-memory/*),NotebookRead,Read,Read(/tmp/gh-aw/cache-memory/*),Task,TodoWrite,Write,Write(/tmp/gh-aw/cache-memory/*),mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
-          GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DISABLE_TELEMETRY: "1"
+          DISABLE_ERROR_REPORTING: "1"
+          DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
+          GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/mcp-servers.json
+          MCP_TIMEOUT: "120000"
+          MCP_TOOL_TIMEOUT: "60000"
+          BASH_DEFAULT_TIMEOUT_MS: "60000"
+          BASH_MAX_TIMEOUT_MS: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: true
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /home/runner
+      - name: Clean up network proxy hook files
+        if: always()
+        run: |
+          rm -rf .claude/hooks/network_permissions.py || true
+          rm -rf .claude/hooks || true
+          rm -rf .claude || true
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -1215,7 +1870,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{}}"
         with:
           script: |
             async function main() {
@@ -1969,172 +2624,6 @@ jobs:
           name: agent_output.json
           path: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           if-no-files-found: warn
-      - name: Redact secrets in logs
-        if: always()
-        uses: actions/github-script@v8
-        with:
-          script: |
-            /**
-             * Redacts secrets from files in /tmp/gh-aw directory before uploading artifacts
-             * This script processes all .txt, .json, .log files under /tmp/gh-aw and redacts
-             * any strings matching the actual secret values provided via environment variables.
-             */
-            const fs = require("fs");
-            const path = require("path");
-            /**
-             * Recursively finds all files matching the specified extensions
-             * @param {string} dir - Directory to search
-             * @param {string[]} extensions - File extensions to match (e.g., ['.txt', '.json', '.log'])
-             * @returns {string[]} Array of file paths
-             */
-            function findFiles(dir, extensions) {
-              const results = [];
-              try {
-                if (!fs.existsSync(dir)) {
-                  return results;
-                }
-                const entries = fs.readdirSync(dir, { withFileTypes: true });
-                for (const entry of entries) {
-                  const fullPath = path.join(dir, entry.name);
-                  if (entry.isDirectory()) {
-                    // Recursively search subdirectories
-                    results.push(...findFiles(fullPath, extensions));
-                  } else if (entry.isFile()) {
-                    // Check if file has one of the target extensions
-                    const ext = path.extname(entry.name).toLowerCase();
-                    if (extensions.includes(ext)) {
-                      results.push(fullPath);
-                    }
-                  }
-                }
-              } catch (error) {
-                core.warning(`Failed to scan directory ${dir}: ${error instanceof Error ? error.message : String(error)}`);
-              }
-              return results;
-            }
-
-            /**
-             * Redacts secrets from file content using exact string matching
-             * @param {string} content - File content to process
-             * @param {string[]} secretValues - Array of secret values to redact
-             * @returns {{content: string, redactionCount: number}} Redacted content and count of redactions
-             */
-            function redactSecrets(content, secretValues) {
-              let redactionCount = 0;
-              let redacted = content;
-              // Sort secret values by length (longest first) to handle overlapping secrets
-              const sortedSecrets = secretValues.slice().sort((a, b) => b.length - a.length);
-              for (const secretValue of sortedSecrets) {
-                // Skip empty or very short values (likely not actual secrets)
-                if (!secretValue || secretValue.length < 8) {
-                  continue;
-                }
-                // Count occurrences before replacement
-                // Use split and join for exact string matching (not regex)
-                // This is safer than regex as it doesn't interpret special characters
-                // Show first 3 letters followed by asterisks for the remaining length
-                const prefix = secretValue.substring(0, 3);
-                const asterisks = "*".repeat(Math.max(0, secretValue.length - 3));
-                const replacement = prefix + asterisks;
-                const parts = redacted.split(secretValue);
-                const occurrences = parts.length - 1;
-                if (occurrences > 0) {
-                  redacted = parts.join(replacement);
-                  redactionCount += occurrences;
-                  core.info(`Redacted ${occurrences} occurrence(s) of a secret`);
-                }
-              }
-              return { content: redacted, redactionCount };
-            }
-
-            /**
-             * Process a single file for secret redaction
-             * @param {string} filePath - Path to the file
-             * @param {string[]} secretValues - Array of secret values to redact
-             * @returns {number} Number of redactions made
-             */
-            function processFile(filePath, secretValues) {
-              try {
-                const content = fs.readFileSync(filePath, "utf8");
-                const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
-                if (redactionCount > 0) {
-                  fs.writeFileSync(filePath, redactedContent, "utf8");
-                  core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
-                }
-                return redactionCount;
-              } catch (error) {
-                core.warning(`Failed to process file ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
-                return 0;
-              }
-            }
-
-            /**
-             * Main function
-             */
-            async function main() {
-              // Get the list of secret names from environment variable
-              const secretNames = process.env.GITHUB_AW_SECRET_NAMES;
-              if (!secretNames) {
-                core.info("GITHUB_AW_SECRET_NAMES not set, no redaction performed");
-                return;
-              }
-              core.info("Starting secret redaction in /tmp/gh-aw directory");
-              try {
-                // Parse the comma-separated list of secret names
-                const secretNameList = secretNames.split(",").filter(name => name.trim());
-                // Collect the actual secret values from environment variables
-                const secretValues = [];
-                for (const secretName of secretNameList) {
-                  const envVarName = `SECRET_${secretName}`;
-                  const secretValue = process.env[envVarName];
-                  // Skip empty or undefined secrets
-                  if (!secretValue || secretValue.trim() === "") {
-                    continue;
-                  }
-                  secretValues.push(secretValue.trim());
-                }
-                if (secretValues.length === 0) {
-                  core.info("No secret values found to redact");
-                  return;
-                }
-                core.info(`Found ${secretValues.length} secret(s) to redact`);
-                // Find all target files in /tmp/gh-aw directory
-                const targetExtensions = [".txt", ".json", ".log"];
-                const files = findFiles("/tmp/gh-aw", targetExtensions);
-                core.info(`Found ${files.length} file(s) to scan for secrets`);
-                let totalRedactions = 0;
-                let filesWithRedactions = 0;
-                // Process each file
-                for (const file of files) {
-                  const redactionCount = processFile(file, secretValues);
-                  if (redactionCount > 0) {
-                    filesWithRedactions++;
-                    totalRedactions += redactionCount;
-                  }
-                }
-                if (totalRedactions > 0) {
-                  core.info(`Secret redaction complete: ${totalRedactions} redaction(s) in ${filesWithRedactions} file(s)`);
-                } else {
-                  core.info("Secret redaction complete: no secrets found");
-                }
-              } catch (error) {
-                core.setFailed(`Secret redaction failed: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            await main();
-
-        env:
-          GITHUB_AW_SECRET_NAMES: 'COPILOT_CLI_TOKEN,GH_AW_GITHUB_TOKEN,GITHUB_TOKEN'
-          SECRET_COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
-          SECRET_GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
-          SECRET_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload engine output files
-        uses: actions/upload-artifact@v4
-        with:
-          name: agent_outputs
-          path: |
-            /tmp/gh-aw/.copilot/logs/
-          if-no-files-found: ignore
       - name: Upload MCP logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -2146,73 +2635,35 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
         with:
           script: |
             function main() {
               const fs = require("fs");
-              const path = require("path");
               try {
-                const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
-                if (!logPath) {
+                const logFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+                if (!logFile) {
                   core.info("No agent log file specified");
                   return;
                 }
-                if (!fs.existsSync(logPath)) {
-                  core.info(`Log path not found: ${logPath}`);
+                if (!fs.existsSync(logFile)) {
+                  core.info(`Log file not found: ${logFile}`);
                   return;
                 }
-                let content = "";
-                const stat = fs.statSync(logPath);
-                if (stat.isDirectory()) {
-                  const files = fs.readdirSync(logPath);
-                  const logFiles = files.filter(file => file.endsWith(".log") || file.endsWith(".txt"));
-                  if (logFiles.length === 0) {
-                    core.info(`No log files found in directory: ${logPath}`);
-                    return;
-                  }
-                  logFiles.sort();
-                  for (const file of logFiles) {
-                    const filePath = path.join(logPath, file);
-                    const fileContent = fs.readFileSync(filePath, "utf8");
-                    content += fileContent;
-                    if (content.length > 0 && !content.endsWith("\n")) {
-                      content += "\n";
-                    }
-                  }
-                } else {
-                  content = fs.readFileSync(logPath, "utf8");
-                }
-                const parsedLog = parseCopilotLog(content);
-                if (parsedLog) {
-                  core.info(parsedLog);
-                  core.summary.addRaw(parsedLog).write();
-                  core.info("Copilot log parsed successfully");
-                } else {
-                  core.error("Failed to parse Copilot log");
+                const logContent = fs.readFileSync(logFile, "utf8");
+                const result = parseClaudeLog(logContent);
+                core.info(result.markdown);
+                core.summary.addRaw(result.markdown).write();
+                if (result.mcpFailures && result.mcpFailures.length > 0) {
+                  const failedServers = result.mcpFailures.join(", ");
+                  core.setFailed(`MCP server(s) failed to launch: ${failedServers}`);
                 }
               } catch (error) {
-                core.setFailed(error instanceof Error ? error : String(error));
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                core.setFailed(errorMessage);
               }
             }
-            function extractPremiumRequestCount(logContent) {
-              const patterns = [
-                /premium\s+requests?\s+consumed:?\s*(\d+)/i,
-                /(\d+)\s+premium\s+requests?\s+consumed/i,
-                /consumed\s+(\d+)\s+premium\s+requests?/i,
-              ];
-              for (const pattern of patterns) {
-                const match = logContent.match(pattern);
-                if (match && match[1]) {
-                  const count = parseInt(match[1], 10);
-                  if (!isNaN(count) && count > 0) {
-                    return count;
-                  }
-                }
-              }
-              return 1;
-            }
-            function parseCopilotLog(logContent) {
+            function parseClaudeLog(logContent) {
               try {
                 let logEntries;
                 try {
@@ -2221,42 +2672,40 @@ jobs:
                     throw new Error("Not a JSON array");
                   }
                 } catch (jsonArrayError) {
-                  const debugLogEntries = parseDebugLogFormat(logContent);
-                  if (debugLogEntries && debugLogEntries.length > 0) {
-                    logEntries = debugLogEntries;
-                  } else {
-                    logEntries = [];
-                    const lines = logContent.split("\n");
-                    for (const line of lines) {
-                      const trimmedLine = line.trim();
-                      if (trimmedLine === "") {
-                        continue; 
-                      }
-                      if (trimmedLine.startsWith("[{")) {
-                        try {
-                          const arrayEntries = JSON.parse(trimmedLine);
-                          if (Array.isArray(arrayEntries)) {
-                            logEntries.push(...arrayEntries);
-                            continue;
-                          }
-                        } catch (arrayParseError) {
+                  logEntries = [];
+                  const lines = logContent.split("\n");
+                  for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === "") {
+                      continue; 
+                    }
+                    if (trimmedLine.startsWith("[{")) {
+                      try {
+                        const arrayEntries = JSON.parse(trimmedLine);
+                        if (Array.isArray(arrayEntries)) {
+                          logEntries.push(...arrayEntries);
                           continue;
                         }
-                      }
-                      if (!trimmedLine.startsWith("{")) {
+                      } catch (arrayParseError) {
                         continue;
                       }
-                      try {
-                        const jsonEntry = JSON.parse(trimmedLine);
-                        logEntries.push(jsonEntry);
-                      } catch (jsonLineError) {
-                        continue;
-                      }
+                    }
+                    if (!trimmedLine.startsWith("{")) {
+                      continue;
+                    }
+                    try {
+                      const jsonEntry = JSON.parse(trimmedLine);
+                      logEntries.push(jsonEntry);
+                    } catch (jsonLineError) {
+                      continue;
                     }
                   }
                 }
                 if (!Array.isArray(logEntries) || logEntries.length === 0) {
-                  return "## Agent Log Summary\n\nLog format not recognized as Copilot JSON array or JSONL.\n";
+                  return {
+                    markdown: "## Agent Log Summary\n\nLog format not recognized as Claude JSON array or JSONL.\n",
+                    mcpFailures: [],
+                  };
                 }
                 const toolUsePairs = new Map(); 
                 for (const entry of logEntries) {
@@ -2269,10 +2718,13 @@ jobs:
                   }
                 }
                 let markdown = "";
+                const mcpFailures = [];
                 const initEntry = logEntries.find(entry => entry.type === "system" && entry.subtype === "init");
                 if (initEntry) {
                   markdown += "## 🚀 Initialization\n\n";
-                  markdown += formatInitializationSummary(initEntry);
+                  const initResult = formatInitializationSummary(initEntry);
+                  markdown += initResult.markdown;
+                  mcpFailures.push(...initResult.mcpFailures);
                   markdown += "\n";
                 }
                 markdown += "\n## 🤖 Reasoning\n\n";
@@ -2286,7 +2738,7 @@ jobs:
                         }
                       } else if (content.type === "tool_use") {
                         const toolResult = toolUsePairs.get(content.id);
-                        const toolMarkdown = formatToolUseWithDetails(content, toolResult);
+                        const toolMarkdown = formatToolUse(content, toolResult);
                         if (toolMarkdown) {
                           markdown += toolMarkdown;
                         }
@@ -2303,7 +2755,7 @@ jobs:
                         const toolName = content.name;
                         const input = content.input || {};
                         if (["Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite"].includes(toolName)) {
-                          continue;
+                          continue; 
                         }
                         const toolResult = toolUsePairs.get(content.id);
                         let statusIcon = "❓";
@@ -2345,12 +2797,6 @@ jobs:
                   if (lastEntry.total_cost_usd) {
                     markdown += `**Total Cost:** $${lastEntry.total_cost_usd.toFixed(4)}\n\n`;
                   }
-                  const isPremiumModel =
-                    initEntry && initEntry.model_info && initEntry.model_info.billing && initEntry.model_info.billing.is_premium === true;
-                  if (isPremiumModel) {
-                    const premiumRequestCount = extractPremiumRequestCount(logContent);
-                    markdown += `**Premium Requests Consumed:** ${premiumRequestCount}\n\n`;
-                  }
                   if (lastEntry.usage) {
                     const usage = lastEntry.usage;
                     if (usage.input_tokens || usage.output_tokens) {
@@ -2362,290 +2808,24 @@ jobs:
                       markdown += "\n";
                     }
                   }
+                  if (lastEntry.permission_denials && lastEntry.permission_denials.length > 0) {
+                    markdown += `**Permission Denials:** ${lastEntry.permission_denials.length}\n\n`;
+                  }
                 }
-                return markdown;
+                return { markdown, mcpFailures };
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                return `## Agent Log Summary\n\nError parsing Copilot log (tried both JSON array and JSONL formats): ${errorMessage}\n`;
-              }
-            }
-            function parseDebugLogFormat(logContent) {
-              const entries = [];
-              const lines = logContent.split("\n");
-              let model = "unknown";
-              let sessionId = null;
-              let modelInfo = null;
-              const modelMatch = logContent.match(/Starting Copilot CLI: ([\d.]+)/);
-              if (modelMatch) {
-                sessionId = `copilot-${modelMatch[1]}-${Date.now()}`;
-              }
-              const gotModelInfoIndex = logContent.indexOf("[DEBUG] Got model info: {");
-              if (gotModelInfoIndex !== -1) {
-                const jsonStart = logContent.indexOf("{", gotModelInfoIndex);
-                if (jsonStart !== -1) {
-                  let braceCount = 0;
-                  let inString = false;
-                  let escapeNext = false;
-                  let jsonEnd = -1;
-                  for (let i = jsonStart; i < logContent.length; i++) {
-                    const char = logContent[i];
-                    if (escapeNext) {
-                      escapeNext = false;
-                      continue;
-                    }
-                    if (char === "\\") {
-                      escapeNext = true;
-                      continue;
-                    }
-                    if (char === '"' && !escapeNext) {
-                      inString = !inString;
-                      continue;
-                    }
-                    if (inString) continue;
-                    if (char === "{") {
-                      braceCount++;
-                    } else if (char === "}") {
-                      braceCount--;
-                      if (braceCount === 0) {
-                        jsonEnd = i + 1;
-                        break;
-                      }
-                    }
-                  }
-                  if (jsonEnd !== -1) {
-                    const modelInfoJson = logContent.substring(jsonStart, jsonEnd);
-                    try {
-                      modelInfo = JSON.parse(modelInfoJson);
-                    } catch (e) {
-                    }
-                  }
-                }
-              }
-              let inDataBlock = false;
-              let currentJsonLines = [];
-              let turnCount = 0;
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                if (line.includes("[DEBUG] data:")) {
-                  inDataBlock = true;
-                  currentJsonLines = [];
-                  continue;
-                }
-                if (inDataBlock) {
-                  const hasTimestamp = line.match(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z /);
-                  const hasDebug = line.includes("[DEBUG]");
-                  if (hasTimestamp && !hasDebug) {
-                    if (currentJsonLines.length > 0) {
-                      try {
-                        const jsonStr = currentJsonLines.join("\n");
-                        const jsonData = JSON.parse(jsonStr);
-                        if (jsonData.model) {
-                          model = jsonData.model;
-                        }
-                        if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                          for (const choice of jsonData.choices) {
-                            if (choice.message) {
-                              const message = choice.message;
-                              const content = [];
-                              const toolResults = []; 
-                              if (message.content && message.content.trim()) {
-                                content.push({
-                                  type: "text",
-                                  text: message.content,
-                                });
-                              }
-                              if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                                for (const toolCall of message.tool_calls) {
-                                  if (toolCall.function) {
-                                    let toolName = toolCall.function.name;
-                                    let args = {};
-                                    if (toolName.startsWith("github-")) {
-                                      toolName = "mcp__github__" + toolName.substring(7);
-                                    } else if (toolName === "bash") {
-                                      toolName = "Bash";
-                                    }
-                                    try {
-                                      args = JSON.parse(toolCall.function.arguments);
-                                    } catch (e) {
-                                      args = {};
-                                    }
-                                    const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                                    content.push({
-                                      type: "tool_use",
-                                      id: toolId,
-                                      name: toolName,
-                                      input: args,
-                                    });
-                                    toolResults.push({
-                                      type: "tool_result",
-                                      tool_use_id: toolId,
-                                      content: "", 
-                                      is_error: false, 
-                                    });
-                                  }
-                                }
-                              }
-                              if (content.length > 0) {
-                                entries.push({
-                                  type: "assistant",
-                                  message: { content },
-                                });
-                                turnCount++;
-                                if (toolResults.length > 0) {
-                                  entries.push({
-                                    type: "user",
-                                    message: { content: toolResults },
-                                  });
-                                }
-                              }
-                            }
-                          }
-                          if (jsonData.usage) {
-                            const resultEntry = {
-                              type: "result",
-                              num_turns: turnCount,
-                              usage: jsonData.usage,
-                            };
-                            entries._lastResult = resultEntry;
-                          }
-                        }
-                      } catch (e) {
-                      }
-                    }
-                    inDataBlock = false;
-                    currentJsonLines = [];
-                  } else {
-                    const cleanLine = line.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z \[DEBUG\] /, "");
-                    currentJsonLines.push(cleanLine);
-                  }
-                }
-              }
-              if (inDataBlock && currentJsonLines.length > 0) {
-                try {
-                  const jsonStr = currentJsonLines.join("\n");
-                  const jsonData = JSON.parse(jsonStr);
-                  if (jsonData.model) {
-                    model = jsonData.model;
-                  }
-                  if (jsonData.choices && Array.isArray(jsonData.choices)) {
-                    for (const choice of jsonData.choices) {
-                      if (choice.message) {
-                        const message = choice.message;
-                        const content = [];
-                        const toolResults = []; 
-                        if (message.content && message.content.trim()) {
-                          content.push({
-                            type: "text",
-                            text: message.content,
-                          });
-                        }
-                        if (message.tool_calls && Array.isArray(message.tool_calls)) {
-                          for (const toolCall of message.tool_calls) {
-                            if (toolCall.function) {
-                              let toolName = toolCall.function.name;
-                              let args = {};
-                              if (toolName.startsWith("github-")) {
-                                toolName = "mcp__github__" + toolName.substring(7);
-                              } else if (toolName === "bash") {
-                                toolName = "Bash";
-                              }
-                              try {
-                                args = JSON.parse(toolCall.function.arguments);
-                              } catch (e) {
-                                args = {};
-                              }
-                              const toolId = toolCall.id || `tool_${Date.now()}_${Math.random()}`;
-                              content.push({
-                                type: "tool_use",
-                                id: toolId,
-                                name: toolName,
-                                input: args,
-                              });
-                              toolResults.push({
-                                type: "tool_result",
-                                tool_use_id: toolId,
-                                content: "", 
-                                is_error: false, 
-                              });
-                            }
-                          }
-                        }
-                        if (content.length > 0) {
-                          entries.push({
-                            type: "assistant",
-                            message: { content },
-                          });
-                          turnCount++;
-                          if (toolResults.length > 0) {
-                            entries.push({
-                              type: "user",
-                              message: { content: toolResults },
-                            });
-                          }
-                        }
-                      }
-                    }
-                    if (jsonData.usage) {
-                      const resultEntry = {
-                        type: "result",
-                        num_turns: turnCount,
-                        usage: jsonData.usage,
-                      };
-                      entries._lastResult = resultEntry;
-                    }
-                  }
-                } catch (e) {
-                }
-              }
-              if (entries.length > 0) {
-                const initEntry = {
-                  type: "system",
-                  subtype: "init",
-                  session_id: sessionId,
-                  model: model,
-                  tools: [], 
+                return {
+                  markdown: `## Agent Log Summary\n\nError parsing Claude log (tried both JSON array and JSONL formats): ${errorMessage}\n`,
+                  mcpFailures: [],
                 };
-                if (modelInfo) {
-                  initEntry.model_info = modelInfo;
-                }
-                entries.unshift(initEntry);
-                if (entries._lastResult) {
-                  entries.push(entries._lastResult);
-                  delete entries._lastResult;
-                }
               }
-              return entries;
             }
             function formatInitializationSummary(initEntry) {
               let markdown = "";
+              const mcpFailures = [];
               if (initEntry.model) {
                 markdown += `**Model:** ${initEntry.model}\n\n`;
-              }
-              if (initEntry.model_info) {
-                const modelInfo = initEntry.model_info;
-                if (modelInfo.name) {
-                  markdown += `**Model Name:** ${modelInfo.name}`;
-                  if (modelInfo.vendor) {
-                    markdown += ` (${modelInfo.vendor})`;
-                  }
-                  markdown += "\n\n";
-                }
-                if (modelInfo.billing) {
-                  const billing = modelInfo.billing;
-                  if (billing.is_premium === true) {
-                    markdown += `**Premium Model:** Yes`;
-                    if (billing.multiplier && billing.multiplier !== 1) {
-                      markdown += ` (${billing.multiplier}x cost multiplier)`;
-                    }
-                    markdown += "\n";
-                    if (billing.restricted_to && Array.isArray(billing.restricted_to) && billing.restricted_to.length > 0) {
-                      markdown += `**Required Plans:** ${billing.restricted_to.join(", ")}\n`;
-                    }
-                    markdown += "\n";
-                  } else if (billing.is_premium === false) {
-                    markdown += `**Premium Model:** No\n\n`;
-                  }
-                }
               }
               if (initEntry.session_id) {
                 markdown += `**Session ID:** ${initEntry.session_id}\n\n`;
@@ -2659,6 +2839,9 @@ jobs:
                 for (const server of initEntry.mcp_servers) {
                   const statusIcon = server.status === "connected" ? "✅" : server.status === "failed" ? "❌" : "❓";
                   markdown += `- ${statusIcon} ${server.name} (${server.status})\n`;
+                  if (server.status === "failed") {
+                    mcpFailures.push(server.name);
+                  }
                 }
                 markdown += "\n";
               }
@@ -2696,7 +2879,17 @@ jobs:
                 }
                 markdown += "\n";
               }
-              return markdown;
+              if (initEntry.slash_commands && Array.isArray(initEntry.slash_commands)) {
+                const commandCount = initEntry.slash_commands.length;
+                markdown += `**Slash Commands:** ${commandCount} available\n`;
+                if (commandCount <= 10) {
+                  markdown += `- ${initEntry.slash_commands.join(", ")}\n`;
+                } else {
+                  markdown += `- ${initEntry.slash_commands.slice(0, 5).join(", ")}, and ${commandCount - 5} more\n`;
+                }
+                markdown += "\n";
+              }
+              return { markdown, mcpFailures };
             }
             function estimateTokens(text) {
               if (!text) return 0;
@@ -2715,11 +2908,11 @@ jobs:
               }
               return `${minutes}m ${remainingSeconds}s`;
             }
-            function formatToolUseWithDetails(toolUse, toolResult) {
+            function formatToolUse(toolUse, toolResult) {
               const toolName = toolUse.name;
               const input = toolUse.input || {};
               if (toolName === "TodoWrite") {
-                return "";
+                return ""; 
               }
               function getStatusIcon() {
                 if (toolResult) {
@@ -2760,7 +2953,7 @@ jobs:
                   break;
                 case "Read":
                   const filePath = input.file_path || input.path || "";
-                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, "");
+                  const relativePath = filePath.replace(/^\/[^\/]*\/[^\/]*\/[^\/]*\/[^\/]*\//, ""); 
                   summary = `${statusIcon} Read <code>${relativePath}</code>${metadata}`;
                   break;
                 case "Write":
@@ -2801,19 +2994,9 @@ jobs:
                   }
               }
               if (details && details.trim()) {
-                let detailsContent = "";
-                const inputKeys = Object.keys(input);
-                if (inputKeys.length > 0) {
-                  detailsContent += "**Parameters:**\n\n";
-                  detailsContent += "``````json\n";
-                  detailsContent += JSON.stringify(input, null, 2);
-                  detailsContent += "\n``````\n\n";
-                }
-                detailsContent += "**Response:**\n\n";
-                detailsContent += "``````\n";
-                detailsContent += details;
-                detailsContent += "\n``````";
-                return `<details>\n<summary>${summary}</summary>\n\n${detailsContent}\n</details>\n\n`;
+                const maxDetailsLength = 500;
+                const truncatedDetails = details.length > maxDetailsLength ? details.substring(0, maxDetailsLength) + "..." : details;
+                return `<details>\n<summary>${summary}</summary>\n\n\`\`\`\`\`\n${truncatedDetails}\n\`\`\`\`\`\n</details>\n\n`;
               } else {
                 return `${summary}\n\n`;
               }
@@ -2822,8 +3005,8 @@ jobs:
               if (toolName.startsWith("mcp__")) {
                 const parts = toolName.split("__");
                 if (parts.length >= 3) {
-                  const provider = parts[1];
-                  const method = parts.slice(2).join("_");
+                  const provider = parts[1]; 
+                  const method = parts.slice(2).join("_"); 
                   return `${provider}::${method}`;
                 }
               }
@@ -2844,7 +3027,12 @@ jobs:
             }
             function formatBashCommand(command) {
               if (!command) return "";
-              let formatted = command.replace(/\n/g, " ").replace(/\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
+              let formatted = command
+                .replace(/\n/g, " ") 
+                .replace(/\r/g, " ") 
+                .replace(/\t/g, " ") 
+                .replace(/\s+/g, " ") 
+                .trim(); 
               formatted = formatted.replace(/`/g, "\\`");
               const maxLength = 80;
               if (formatted.length > maxLength) {
@@ -2859,14 +3047,11 @@ jobs:
             }
             if (typeof module !== "undefined" && module.exports) {
               module.exports = {
-                parseCopilotLog,
-                extractPremiumRequestCount,
+                parseClaudeLog,
+                formatToolUse,
                 formatInitializationSummary,
-                formatToolUseWithDetails,
                 formatBashCommand,
                 truncateString,
-                formatMcpName,
-                formatMcpParameters,
                 estimateTokens,
                 formatDuration,
               };
@@ -2883,8 +3068,8 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/.copilot/logs/
-          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(ERROR)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped ERROR messages\"},{\"pattern\":\"(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\s+\\\\[(WARN|WARNING)\\\\]\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI timestamped WARNING messages\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(CRITICAL|ERROR):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed critical/error messages with timestamp\"},{\"pattern\":\"\\\\[(\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}\\\\.\\\\d{3}Z)\\\\]\\\\s+(WARNING):\\\\s+(.+)\",\"level_group\":2,\"message_group\":3,\"description\":\"Copilot CLI bracketed warning messages with timestamp\"},{\"pattern\":\"(Error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic error messages from Copilot CLI or Node.js\"},{\"pattern\":\"npm ERR!\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"NPM error messages during Copilot CLI installation or execution\"},{\"pattern\":\"(Warning):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Generic warning messages from Copilot CLI\"},{\"pattern\":\"(Fatal error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Fatal error messages from Copilot CLI\"},{\"pattern\":\"copilot:\\\\s+(error):\\\\s+(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"Copilot CLI command-level error messages\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"},{\"pattern\":\"authentication failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Authentication failure with Copilot CLI\"},{\"pattern\":\"\\\\berror\\\\b.*token.*invalid\",\"level_group\":0,\"message_group\":0,\"description\":\"Invalid token error with Copilot CLI (requires error context)\"},{\"pattern\":\"not authorized.*copilot\",\"level_group\":0,\"message_group\":0,\"description\":\"Not authorized for Copilot CLI access\"},{\"pattern\":\"command not found:\\\\s*(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error\"},{\"pattern\":\"(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (alternate format)\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell command not found error (sh format)\"},{\"pattern\":\"bash:\\\\s*(.+):\\\\s*command not found\",\"level_group\":0,\"message_group\":1,\"description\":\"Bash command not found error\"},{\"pattern\":\"permission denied and could not request permission from user\",\"level_group\":0,\"message_group\":0,\"description\":\"Copilot CLI permission denied warning (user interaction required)\"},{\"pattern\":\"✗\\\\s+(.+)\",\"level_group\":0,\"message_group\":1,\"description\":\"Copilot CLI failed command indicator\"},{\"pattern\":\"Error:\\\\s*Cannot find module\\\\s*'(.+)'\",\"level_group\":0,\"message_group\":1,\"description\":\"Node.js module not found error\"},{\"pattern\":\"sh:\\\\s*\\\\d+:\\\\s*(.+):\\\\s*Permission denied\",\"level_group\":0,\"message_group\":1,\"description\":\"Shell permission denied error\"},{\"pattern\":\"(rate limit|too many requests)\",\"level_group\":0,\"message_group\":0,\"description\":\"Rate limit exceeded error\"},{\"pattern\":\"(429|HTTP.*429)\",\"level_group\":0,\"message_group\":0,\"description\":\"HTTP 429 Too Many Requests status code\"},{\"pattern\":\"error.*quota.*exceeded\",\"level_group\":0,\"message_group\":0,\"description\":\"Quota exceeded error\"},{\"pattern\":\"error.*(timeout|timed out|deadline exceeded)\",\"level_group\":0,\"message_group\":0,\"description\":\"Timeout or deadline exceeded error\"},{\"pattern\":\"(connection refused|connection failed|ECONNREFUSED)\",\"level_group\":0,\"message_group\":0,\"description\":\"Network connection error\"},{\"pattern\":\"(ETIMEDOUT|ENOTFOUND)\",\"level_group\":0,\"message_group\":0,\"description\":\"Network timeout or DNS resolution error\"},{\"pattern\":\"error.*token.*expired\",\"level_group\":0,\"message_group\":0,\"description\":\"Token expired error\"},{\"pattern\":\"(maximum call stack size exceeded|heap out of memory|spawn ENOMEM)\",\"level_group\":0,\"message_group\":0,\"description\":\"Memory or resource exhaustion error\"}]"
+          GITHUB_AW_AGENT_OUTPUT: /tmp/gh-aw/agent-stdio.log
+          GITHUB_AW_ERROR_PATTERNS: "[{\"pattern\":\"::(error)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - error\"},{\"pattern\":\"::(warning)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - warning\"},{\"pattern\":\"::(notice)(?:\\\\s+[^:]*)?::(.+)\",\"level_group\":1,\"message_group\":2,\"description\":\"GitHub Actions workflow command - notice\"},{\"pattern\":\"access denied.*only authorized.*can trigger.*workflow\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - workflow access restriction\"},{\"pattern\":\"access denied.*user.*not authorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied - user not authorized\"},{\"pattern\":\"repository permission check failed\",\"level_group\":0,\"message_group\":0,\"description\":\"Repository permission check failure\"},{\"pattern\":\"configuration error.*required permissions not specified\",\"level_group\":0,\"message_group\":0,\"description\":\"Configuration error - missing permissions\"},{\"pattern\":\"\\\\berror\\\\b.*permission.*denied\",\"level_group\":0,\"message_group\":0,\"description\":\"Permission denied error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*unauthorized\",\"level_group\":0,\"message_group\":0,\"description\":\"Unauthorized error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*forbidden\",\"level_group\":0,\"message_group\":0,\"description\":\"Forbidden error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*access.*restricted\",\"level_group\":0,\"message_group\":0,\"description\":\"Access restricted error (requires error context)\"},{\"pattern\":\"\\\\berror\\\\b.*insufficient.*permission\",\"level_group\":0,\"message_group\":0,\"description\":\"Insufficient permissions error (requires error context)\"}]"
         with:
           script: |
             function main() {
@@ -3115,19 +3300,19 @@ jobs:
               main();
             }
 
-  create_issue:
+  create_discussion:
     needs:
       - agent
       - detection
-    if: always()
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
+      discussions: write
     timeout-minutes: 10
     outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
+      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -3140,54 +3325,17 @@ jobs:
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
-      - name: Create Output Issue
-        id: create_issue
+      - name: Create Output Discussion
+        id: create_discussion
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
-          GITHUB_AW_WORKFLOW_NAME: "Smoke Copilot"
-          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+          GITHUB_AW_WORKFLOW_NAME: "Copilot Agent PR Analysis"
+          GITHUB_AW_DISCUSSION_TITLE_PREFIX: "[copilot-agent-analysis] "
+          GITHUB_AW_DISCUSSION_CATEGORY: "audits"
         with:
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
@@ -3213,321 +3361,195 @@ jobs:
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
+                core.warning("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
+              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              if (createDiscussionItems.length === 0) {
+                core.warning("No create-discussion items found in agent output");
                 return;
               }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createDiscussionItems.length; i++) {
+                  const item = createDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
                   summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
                   if (item.body) {
                     summaryContent += `**Body:**\n${item.body}\n\n`;
                   }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
                   }
                   summaryContent += "---\n\n";
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
+                core.info("📝 Discussion creation preview written to step summary");
                 return;
               }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
+              let discussionCategories = [];
+              let repositoryId = undefined;
+              try {
+                const repositoryQuery = `
+                  query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                      id
+                      discussionCategories(first: 20) {
+                        nodes {
+                          id
+                          name
+                          slug
+                          description
+                        }
+                      }
+                    }
+                  }
+                `;
+                const queryResult = await github.graphql(repositoryQuery, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+                if (!queryResult || !queryResult.repository) throw new Error("Failed to fetch repository information via GraphQL");
+                repositoryId = queryResult.repository.id;
+                discussionCategories = queryResult.repository.discussionCategories.nodes || [];
+                core.info(`Available categories: ${JSON.stringify(discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (
+                  errorMessage.includes("Not Found") ||
+                  errorMessage.includes("not found") ||
+                  errorMessage.includes("Could not resolve to a Repository")
+                ) {
+                  core.info("⚠ Cannot create discussions: Discussions are not enabled for this repository");
+                  core.info("Consider enabling discussions in repository settings if you want to create discussions automatically");
+                  return;
+                }
+                core.error(`Failed to get discussion categories: ${errorMessage}`);
+                throw error;
+              }
+              let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY;
+              if (categoryId) {
+                const categoryById = discussionCategories.find(cat => cat.id === categoryId);
+                if (categoryById) {
+                  core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
+                } else {
+                  const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
+                  if (categoryByName) {
+                    categoryId = categoryByName.id;
+                    core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
+                  } else {
+                    const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
+                    if (categoryBySlug) {
+                      categoryId = categoryBySlug.id;
+                      core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
+                    } else {
+                      core.warning(
+                        `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
+                      );
+                      if (discussionCategories.length > 0) {
+                        categoryId = discussionCategories[0].id;
+                        core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+                      } else {
+                        categoryId = undefined;
+                      }
+                    }
+                  }
+                }
+              } else if (discussionCategories.length > 0) {
+                categoryId = discussionCategories[0].id;
+                core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
+              }
+              if (!categoryId) {
+                core.error("No discussion category available and none specified in configuration");
+                throw new Error("Discussion category is required but not available");
+              }
+              if (!repositoryId) {
+                core.error("Repository ID is required for creating discussions");
+                throw new Error("Repository ID is required but not available");
+              }
+              const createdDiscussions = [];
+              for (let i = 0; i < createDiscussionItems.length; i++) {
+                const createDiscussionItem = createDiscussionItems[i];
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
                 );
-                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
-                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
-                }
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels];
-                }
-                labels = labels
-                  .filter(label => !!label)
-                  .map(label => String(label).trim())
-                  .filter(label => label)
-                  .map(label => sanitizeLabelContent(label))
-                  .filter(label => label)
-                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                  .filter((label, index, arr) => arr.indexOf(label) === index);
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
+                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
+                let bodyLines = createDiscussionItem.body.split("\n");
                 if (!title) {
-                  title = createIssueItem.body || "Agent Output";
+                  title = createDiscussionItem.body || "Agent Output";
                 }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                const titlePrefix = process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;
                 }
-                if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
-                }
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                bodyLines.push(
-                  ``,
-                  ``,
-                  generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    triggeringIssueNumber,
-                    triggeringPRNumber,
-                    triggeringDiscussionNumber
-                  ).trimEnd(),
-                  ""
-                );
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
                 const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
+                core.info(`Creating discussion with title: ${title}`);
+                core.info(`Category ID: ${categoryId}`);
                 core.info(`Body length: ${body.length}`);
                 try {
-                  let assignToBot = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
-                  let issue;
-                  if (assignToBot) {
-                    const originalBotName = assignToBot;
-                    if (assignToBot.toLowerCase() === "copilot") {
-                      assignToBot = "copilot-swe-agent";
-                      core.info(`Normalized bot name from "${originalBotName}" to "${assignToBot}"`);
-                    }
-                    try {
-                      core.info(`Fetching repository node ID`);
-                      const repoNodeIdQuery = `
-                        query($owner: String!, $repo: String!) {
-                          repository(owner: $owner, name: $repo) {
-                            id
-                          }
-                        }
-                      `;
-                      const repoResult = await github.graphql(repoNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                      });
-                      const repositoryId = repoResult.repository.id;
-                      core.info(`Repository node ID: ${repositoryId}`);
-                      core.info(`Fetching node ID for bot user: ${assignToBot}`);
-                      const botNodeIdQuery = `
-                        query($login: String!) {
-                          user(login: $login) {
-                            id
-                          }
-                        }
-                      `;
-                      const botResult = await github.graphql(botNodeIdQuery, {
-                        login: assignToBot,
-                      });
-                      const botNodeId = botResult.user.id;
-                      core.info(`Bot user node ID: ${botNodeId}`);
-                      core.info(`Creating issue and assigning to ${assignToBot} in one operation`);
-                      const createIssueMutation = `
-                        mutation($repositoryId: ID!, $title: String!, $body: String, $assigneeIds: [ID!]) {
-                          createIssue(input: {
-                            repositoryId: $repositoryId,
-                            title: $title,
-                            body: $body,
-                            assigneeIds: $assigneeIds
-                          }) {
-                            issue {
-                              id
-                              number
-                              title
-                              url
-                              assignees(first: 10) {
-                                nodes {
-                                  login
-                                }
-                              }
-                            }
-                          }
-                        }
-                      `;
-                      const createResult = await github.graphql(createIssueMutation, {
-                        repositoryId: repositoryId,
-                        title: title,
-                        body: body,
-                        assigneeIds: [botNodeId],
-                      });
-                      const createdIssue = createResult.createIssue.issue;
-                      issue = {
-                        number: createdIssue.number,
-                        title: createdIssue.title,
-                        html_url: createdIssue.url,
-                        id: createdIssue.id,
-                      };
-                      core.info(`Created issue #${issue.number}: ${issue.html_url}`);
-                      if (createdIssue.assignees && createdIssue.assignees.nodes) {
-                        const assignees = createdIssue.assignees.nodes;
-                        const assignedLogins = assignees.map(a => a.login).join(", ");
-                        core.info(`Issue #${issue.number} assignees: ${assignedLogins}`);
-                        const botAssigned = assignees.some(a => a.login === assignToBot);
-                        if (botAssigned) {
-                          core.info(`✓ Successfully created and assigned issue #${issue.number} to ${assignToBot}`);
-                        } else {
-                          core.warning(`Issue created but ${assignToBot} not found in assignees list. Current assignees: ${assignedLogins}`);
+                  const createDiscussionMutation = `
+                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                      createDiscussion(input: {
+                        repositoryId: $repositoryId,
+                        categoryId: $categoryId,
+                        title: $title,
+                        body: $body
+                      }) {
+                        discussion {
+                          id
+                          number
+                          title
+                          url
                         }
                       }
-                      if (labels && labels.length > 0) {
-                        await github.rest.issues.addLabels({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: issue.number,
-                          labels: labels,
-                        });
-                        core.info(`Added labels to issue #${issue.number}: ${labels.join(", ")}`);
-                      }
-                    } catch (error) {
-                      core.warning(
-                        `Failed to create issue with bot assignment: ${error instanceof Error ? error.message : String(error)}`
-                      );
-                      core.info(`Falling back to REST API issue creation`);
-                      const { data: fallbackIssue } = await github.rest.issues.create({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        title: title,
-                        body: body,
-                        labels: labels,
-                      });
-                      issue = fallbackIssue;
-                      core.info("Created issue (without assignment) #" + issue.number + ": " + issue.html_url);
                     }
-                  } else {
-                    const { data: restIssue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: body,
-                      labels: labels,
-                    });
-                    issue = restIssue;
-                    core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  }
-                  createdIssues.push(issue);
-                  if (effectiveParentIssueNumber) {
-                    try {
-                      const getIssueNodeIdQuery = `
-                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                          repository(owner: $owner, name: $repo) {
-                            issue(number: $issueNumber) {
-                              id
-                            }
-                          }
-                        }
-                      `;
-                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: effectiveParentIssueNumber,
-                      });
-                      const parentNodeId = parentResult.repository.issue.id;
-                      const childResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: issue.number,
-                      });
-                      const childNodeId = childResult.repository.issue.id;
-                      const addSubIssueMutation = `
-                        mutation($parentId: ID!, $subIssueId: ID!) {
-                          addSubIssue(input: {
-                            parentId: $parentId,
-                            subIssueId: $subIssueId
-                          }) {
-                            subIssue {
-                              id
-                              number
-                            }
-                          }
-                        }
-                      `;
-                      await github.graphql(addSubIssueMutation, {
-                        parentId: parentNodeId,
-                        subIssueId: childNodeId,
-                      });
-                      core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-                      try {
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: effectiveParentIssueNumber,
-                          body: `Created related issue: #${issue.number}`,
-                        });
-                        core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
-                      } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
-                      }
-                    }
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                  `;
+                  const mutationResult = await github.graphql(createDiscussionMutation, {
+                    repositoryId: repositoryId,
+                    categoryId: categoryId,
+                    title: title,
+                    body: body,
+                  });
+                  const discussion = mutationResult.createDiscussion.discussion;
+                  if (!discussion) {
+                    core.error("Failed to create discussion: No discussion data returned");
                     continue;
                   }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  core.info("Created discussion #" + discussion.number + ": " + discussion.url);
+                  createdDiscussions.push(discussion);
+                  if (i === createDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussion.number);
+                    core.setOutput("discussion_url", discussion.url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
                 }
               }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+              if (createdDiscussions.length > 0) {
+                let summaryContent = "\n\n## GitHub Discussions\n";
+                for (const discussion of createdDiscussions) {
+                  summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
             }
-            (async () => {
-              await main();
-            })();
+            await main();
 
   detection:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
-    concurrency:
-      group: "gh-aw-copilot"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact
@@ -3550,9 +3572,9 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@v8
         env:
-          WORKFLOW_NAME: "Smoke Copilot"
+          WORKFLOW_NAME: "Copilot Agent PR Analysis"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Review the last 5 merged pull requests in this repository and post summary in an issue.\n"
+          WORKFLOW_MARKDOWN: "# Copilot Agent PR Analysis\n\nYou are an AI analytics agent that monitors and analyzes the performance of the copilot-swe-agent (also known as copilot agent) in this repository.\n\n## Mission\n\nDaily analysis of pull requests created by copilot-swe-agent in the last 24 hours, tracking performance metrics and identifying trends. Provides daily, weekly, and monthly performance summaries.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Analysis Period**: Last 24 hours (with weekly and monthly summaries)\n\n## Task Overview\n\n### Phase 1: Collect PR Data\n\nSearch for pull requests created by copilot-swe-agent in the last 24 hours.\n\n**Important**: The copilot-swe-agent may appear under various usernames:\n- `copilot-swe-agent`\n- `github-actions[bot]` (with specific patterns)\n- Other bot accounts\n\nUse the GitHub `search_pull_requests` tool to find PRs:\n\n1. **Search Query**: Use a query like:\n   ```\n   repo:${{ github.repository }} is:pr author:copilot-swe-agent created:>=YYYY-MM-DD\n   ```\n   Replace `YYYY-MM-DD` with yesterday's date (24 hours ago).\n\n2. **Alternative Search**: If the bot uses a different username, adjust the query:\n   ```\n   repo:${{ github.repository }} is:pr created:>=YYYY-MM-DD\n   ```\n   Then filter by PR author or labels that indicate copilot-swe-agent involvement.\n\n3. **Get PR Details**: For each found PR, use `pull_request_read` to get:\n   - PR number\n   - Title and description\n   - Creation timestamp\n   - Merge/close timestamp\n   - Current state (open, merged, closed)\n   - Number of comments\n   - Number of commits\n   - Files changed\n   - Review status\n\n### Phase 2: Analyze Each PR\n\nFor each PR created by copilot-swe-agent in the last 24 hours:\n\n#### 2.1 Determine Outcome\n- **Merged**: PR was successfully merged\n- **Closed without merge**: PR was closed but not merged\n- **Still Open**: PR is still open (pending)\n\n#### 2.2 Count Human Comments\nCount comments from human users (exclude bot comments):\n- Use `pull_request_read` with method `get` to get PR details including comments\n- Use `pull_request_read` with method `get_review_comments` to get review comments\n- Filter out comments from bots (check comment author)\n- Count unique human comments\n\n#### 2.3 Calculate Timing Metrics\n\nExtract timing information:\n- **Time to First Activity**: When did the agent start working? (PR creation time)\n- **Time to Completion**: When did the agent finish? (last commit time or PR close/merge time)\n- **Total Duration**: Time from PR creation to merge/close\n- **Time to First Human Response**: When did a human first interact?\n\nCalculate these metrics using the PR timestamps from the GitHub API.\n\n#### 2.4 Analyze PR Quality\n\nFor each PR, assess:\n- Number of files changed\n- Lines of code added/removed\n- Number of commits made by the agent\n- Whether tests were added/modified\n- Whether documentation was updated\n\n### Phase 3: Generate Summary Table\n\nCreate a summary table with the following columns:\n\n| PR # | Title | Outcome | Comments | Agent Duration | Total Duration | Files Changed | Status |\n|------|-------|---------|----------|----------------|----------------|---------------|--------|\n| #123 | Fix bug | Merged | 5 | 15m | 2h 30m | 3 | ✅ |\n| #124 | Add feature | Closed | 2 | 8m | 45m | 5 | ❌ |\n| #125 | Update docs | Open | 1 | 5m | - | 2 | ⏳ |\n\n**Table Columns Explained**:\n- **PR #**: Pull request number\n- **Title**: PR title (truncated if needed)\n- **Outcome**: Merged ✅ / Closed ❌ / Open ⏳\n- **Comments**: Number of human comments\n- **Agent Duration**: Time from PR creation to last commit by agent\n- **Total Duration**: Time from PR creation to merge/close (or current time if still open)\n- **Files Changed**: Number of files modified\n- **Status**: Visual indicator of outcome\n\n**Summary Statistics**:\n- Total PRs analyzed: [count]\n- Merged: [count] ([percentage]%)\n- Closed without merge: [count] ([percentage]%)\n- Still open: [count]\n- Average human comments per PR: [number]\n- Average agent duration: [time]\n- Average total duration (for completed PRs): [time]\n\n### Phase 4: Historical Trending Analysis\n\nUse the cache memory folder `/tmp/gh-aw/cache-memory/` to maintain historical data:\n\n#### 4.1 Load Historical Data\n\nCheck for existing historical data:\n```bash\nls -la /tmp/gh-aw/cache-memory/copilot-agent-metrics/\ncat /tmp/gh-aw/cache-memory/copilot-agent-metrics/history.json\n```\n\nThe history file should contain daily metrics in this format:\n```json\n{\n  \"daily_metrics\": [\n    {\n      \"date\": \"2024-10-16\",\n      \"total_prs\": 3,\n      \"merged_prs\": 2,\n      \"closed_prs\": 1,\n      \"open_prs\": 0,\n      \"avg_comments\": 3.5,\n      \"avg_agent_duration_minutes\": 12,\n      \"avg_total_duration_minutes\": 95,\n      \"success_rate\": 0.67\n    }\n  ]\n}\n```\n\n**If Historical Data is Missing or Incomplete:**\n\nIf the history file doesn't exist or has gaps in the data, rebuild it by querying historical PRs:\n\n1. **Determine Missing Date Range**: Identify which dates need data (up to last 30 days for meaningful trends)\n\n2. **Query PRs One Day at a Time**: To avoid context explosion, query PRs for each missing day separately:\n   ```\n   repo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD\n   ```\n   \n3. **Process Each Day**: For each day with missing data:\n   - Query PRs created on that specific date\n   - Calculate the same metrics as for today (total PRs, merged, closed, success rate, etc.)\n   - Store in the history file\n   - Limit processing to avoid timeout - prioritize most recent days first\n\n4. **Incremental Approach**: \n   - Process one day at a time in chronological order (oldest to newest)\n   - Save after each day to preserve progress\n   - If you have 5+ days of data, that's sufficient for basic trend analysis\n   - Aim for 7+ days for week-over-week trends\n   - Aim for 30 days for monthly trends\n\n5. **Rate Limiting**: Be mindful of API rate limits - if approaching limits, save what you have and continue next run\n\n#### 4.2 Store Today's Metrics\n\nCalculate today's metrics:\n- Total PRs created today\n- Number merged/closed/open\n- Average comments per PR\n- Average agent duration\n- Average total duration\n- Success rate (merged / total completed)\n\nSave to cache memory:\n```bash\nmkdir -p /tmp/gh-aw/cache-memory/copilot-agent-metrics/\n# Append today's metrics to history.json\n```\n\nStore the data in JSON format with proper structure.\n\n#### 4.2.1 Rebuild Historical Data (if needed)\n\n**When to Rebuild:**\n- History file doesn't exist\n- History file has gaps (missing dates in the last 30 days)\n- Insufficient data for trend analysis (< 7 days)\n\n**Rebuilding Strategy:**\n1. **Assess Current State**: Check how many days of data you have\n2. **Target Collection**: Aim for at least 7 days (for weekly trends) or 30 days (for monthly trends)\n3. **One Day at a Time**: Query PRs for each missing date separately to avoid context explosion\n\n**For Each Missing Day:**\n```\n# Query PRs for specific date\nrepo:${{ github.repository }} is:pr author:copilot-swe-agent created:YYYY-MM-DD..YYYY-MM-DD\n```\n\n**Process:**\n- Start with the oldest missing date in your target range (e.g., 30 days ago)\n- For each date:\n  1. Search for PRs created on that date\n  2. Analyze each PR (same as Phase 2)\n  3. Calculate daily metrics (same as Phase 4.2)\n  4. Add to history.json\n  5. Save immediately to preserve progress\n- Continue until you have sufficient data or reach time limits\n\n**Important Constraints:**\n- Process dates in chronological order (oldest first)\n- Save after processing each day\n- If time is running short (> 10 minutes elapsed), stop and save what you have\n- Next run will continue from where you left off\n- Prioritize data quality over quantity - better to have accurate data for fewer days\n\n#### 4.3 Store Today's Metrics\n\nAfter ensuring historical data is available (either from existing cache or rebuilt), add today's metrics:\n- Total PRs created today\n- Number merged/closed/open\n- Average comments per PR\n- Average agent duration\n- Average total duration\n- Success rate (merged / total completed)\n\nAppend to history.json in the cache memory.\n\n#### 4.4 Analyze Trends\n\nIf historical data exists (at least 7 days), analyze trends:\n\n**Week-over-Week Comparison** (last 7 days vs previous 7 days):\n- Success rate trend (improving/declining/stable)\n- Average duration trend (faster/slower/stable)\n- Comment count trend (more engagement/less engagement)\n- Volume trend (more/fewer PRs)\n\n**Monthly Summary** (if 30+ days of data):\n- 30-day average success rate\n- 30-day average duration\n- 30-day average comments\n- Total PRs in last 30 days\n- Weekly breakdown of the month\n\n**Trend Indicators**:\n- 📈 Improving: Metric is better than comparison period\n- 📉 Declining: Metric is worse than comparison period\n- ➡️ Stable: Metric is within 5% of comparison period\n\n### Phase 5: Check for Instruction Changes\n\nCheck if there have been changes to copilot-swe-agent instruction files that might correlate with performance changes:\n\n#### 5.1 Find Instruction Files\n\nLook for instruction or prompt files in the repository:\n```bash\nfind .github -name '*copilot*' -o -name '*swe*' -o -name '*agent*' -o -name '*instruction*' -o -name '*prompt*' 2>/dev/null || echo \"No matching files found\"\n```\n\nCommon locations:\n- `.github/agents/`\n- `.github/instructions/`\n- `.github/prompts/`\n\n#### 5.2 Check Recent Changes\n\nFor each instruction file found, check if it was modified in the last 7 days:\n```bash\ngit log --oneline --since=\"7 days ago\" -- .github/agents/\ngit log --oneline --since=\"7 days ago\" -- .github/instructions/\n```\n\nUse `get_commit` to get details of any recent changes to instruction files.\n\n#### 5.3 Correlate with Performance\n\nIf instruction files were modified recently:\n- Note the date of the change\n- Compare performance metrics before and after the change\n- Identify if there's a correlation (improved/degraded performance)\n\n**Example Correlation Analysis**:\n```\nInstruction file `.github/agents/copilot-swe.md` was updated on 2024-10-14.\n\nPerformance before change (Oct 11-13):\n- Success rate: 65%\n- Avg duration: 15m\n\nPerformance after change (Oct 15-17):\n- Success rate: 75% 📈 (+10%)\n- Avg duration: 12m 📈 (20% faster)\n\n**Conclusion**: Performance improved after instruction update.\n```\n\n### Phase 6: Create Analysis Discussion\n\nCreate a comprehensive discussion with your findings using the safe-outputs create-discussion functionality.\n\n**Discussion Title**: `Daily Copilot Agent Analysis - [DATE]`\n\n**Discussion Template**:\n```markdown\n# 🤖 Copilot Agent PR Analysis - [DATE]\n\n## Summary\n\n**Analysis Period**: Last 24 hours  \n**Total PRs Analyzed**: [count]  \n**Success Rate**: [percentage]%\n\n## PR Summary Table\n\n[Include the detailed table from Phase 3]\n\n## Metrics\n\n### Today's Performance\n- **PRs Created**: [count]\n- **PRs Merged**: [count] ([percentage]%)\n- **PRs Closed (not merged)**: [count] ([percentage]%)\n- **PRs Still Open**: [count]\n- **Average Human Comments**: [number]\n- **Average Agent Duration**: [time]\n- **Average Total Duration**: [time]\n\n### Weekly Summary (Last 7 Days)\n\n[If at least 7 days of historical data available]\n\n**Performance Metrics:**\n- **Total PRs**: [count] ([trend indicator] vs previous week)\n- **Success Rate**: [percentage]% ([trend indicator] vs previous week)\n- **Average Duration**: [time] ([trend indicator] vs previous week)\n- **Average Comments**: [number] ([trend indicator] vs previous week)\n\n**Week-over-Week Change:**\n- PRs Created: [change] ([percentage]% change)\n- Success Rate: [change] ([percentage point] change)\n- Duration: [change] ([percentage]% change)\n- Comments: [change] ([percentage]% change)\n\n**Daily Breakdown (Last 7 Days):**\n| Date | PRs | Merged | Success Rate | Avg Duration |\n|------|-----|--------|--------------|--------------|\n| [date] | [count] | [count] | [%] | [time] |\n| ... | ... | ... | ... | ... |\n\n### Monthly Summary (Last 30 Days)\n\n[If at least 30 days of historical data available]\n\n**Performance Metrics:**\n- **Total PRs**: [count]\n- **Average Success Rate**: [percentage]%\n- **Average Duration**: [time]\n- **Average Comments per PR**: [number]\n\n**Weekly Trends (4 weeks):**\n| Week | PRs | Success Rate | Avg Duration | Avg Comments |\n|------|-----|--------------|--------------|--------------|\n| Week 1 (most recent) | [count] | [%] | [time] | [number] |\n| Week 2 | [count] | [%] | [time] | [number] |\n| Week 3 | [count] | [%] | [time] | [number] |\n| Week 4 (oldest) | [count] | [%] | [time] | [number] |\n\n**Monthly Trends:**\n- Success Rate Trend: [trend indicator with explanation]\n- Duration Trend: [trend indicator with explanation]\n- Volume Trend: [trend indicator with explanation]\n- Engagement Trend: [trend indicator with explanation]\n\n### Historical Comparison (7-day trend)\n\n[If historical data available but less than 30 days]\n\n- **Success Rate**: [current]% vs [7-day avg]% [trend indicator]\n- **Agent Duration**: [current] vs [7-day avg] [trend indicator]\n- **Human Engagement**: [current comments] vs [7-day avg] [trend indicator]\n\n## Instruction File Changes\n\n[If any instruction files were modified in the last 7 days]\n\nRecent changes detected:\n- **File**: `.github/[path]/[filename]`\n- **Date**: [date]\n- **Commit**: [commit hash]\n\n**Performance Correlation**:\n[Analysis of whether performance changed after instruction update]\n\n[If no changes]\nNo instruction file changes detected in the last 7 days.\n\n## Detailed PR Analysis\n\n### Merged PRs ✅\n\n[For each merged PR]\n- **PR #[number]**: [title]\n  - Human comments: [count]\n  - Agent duration: [time]\n  - Total duration: [time]\n  - Files changed: [count]\n\n### Closed PRs ❌\n\n[For each closed PR]\n- **PR #[number]**: [title]\n  - Reason for closure: [if apparent from comments]\n  - Human comments: [count]\n  - Agent duration: [time]\n\n### Open PRs ⏳\n\n[For each open PR]\n- **PR #[number]**: [title]\n  - Age: [time since creation]\n  - Human comments: [count]\n  - Current status: [if reviews pending, etc.]\n\n## Recommendations\n\n[Based on trends and analysis, provide actionable recommendations]\n\n**If success rate is declining**:\n- Review recent instruction changes\n- Investigate common failure patterns\n- Consider adjusting agent prompts\n\n**If duration is increasing**:\n- Check for increased complexity in tasks\n- Review if agent is making efficient tool calls\n- Consider optimization opportunities\n\n**If human engagement is low**:\n- Agent may be working well independently\n- Consider if reviews are being bypassed\n\n## Notes\n\n[Any additional observations or context]\n\n---\n\n_This analysis was generated automatically by the Copilot Agent Analysis workflow._\n```\n\n## Important Guidelines\n\n### Security and Data Handling\n- **Use sanitized context**: Always use GitHub API data, not raw user input\n- **Validate dates**: Ensure date calculations are correct (handle timezone differences)\n- **Handle missing data**: Some PRs may not have complete metadata\n- **Respect privacy**: Don't expose sensitive information in discussions\n\n### Analysis Quality\n- **Be accurate**: Double-check all calculations and metrics\n- **Be consistent**: Use the same metrics each day for valid comparisons\n- **Be thorough**: Don't skip PRs or data points\n- **Be objective**: Report facts without bias\n\n### Cache Memory Management\n- **Organize data**: Keep historical data well-structured in JSON format\n- **Limit retention**: Consider keeping only last 90 days of daily data\n- **Handle errors**: If cache is corrupted, reinitialize gracefully\n- **Backup important data**: Store critical metrics redundantly\n- **Progressive data collection**: If historical data is missing, rebuild incrementally\n  - Prioritize most recent days first (they're more relevant for trends)\n  - Process one day at a time to avoid overwhelming the context\n  - Save progress after each day to ensure data persistence\n  - Aim for at least 7 days for weekly trends, 30 days for monthly trends\n\n### Trend Analysis\n- **Require sufficient data**: Don't report trends with less than 7 days of data\n- **Use appropriate metrics**: Choose statistical measures that make sense\n- **Indicate confidence**: Note when sample sizes are small\n- **Avoid overreaction**: Small fluctuations are normal\n\n## Edge Cases\n\n### No PRs in Last 24 Hours\nIf no PRs were created by copilot-swe-agent in the last 24 hours:\n- Create a brief discussion noting \"No activity\"\n- Still update cache memory with zero counts\n- Don't skip the analysis entirely\n\n### Bot Username Changes\nIf copilot-swe-agent appears under different usernames:\n- Document the username variance\n- Adjust search queries accordingly\n- Note this in the discussion for future reference\n\n### Incomplete PR Data\nIf some PRs have missing metadata:\n- Note which PRs have incomplete data\n- Calculate metrics only from complete data\n- Document data quality in the discussion\n\n## Success Criteria\n\nA successful analysis:\n- ✅ Finds all copilot-swe-agent PRs from last 24 hours\n- ✅ Calculates accurate metrics for each PR\n- ✅ Generates a clear, formatted summary table\n- ✅ Updates cache memory with today's metrics\n- ✅ Rebuilds missing historical data if needed (one day at a time)\n- ✅ Analyzes trends with available historical data\n- ✅ Provides weekly summary (if 7+ days of data available)\n- ✅ Provides monthly summary (if 30+ days of data available)\n- ✅ Checks for instruction file changes\n- ✅ Creates a comprehensive discussion with findings\n- ✅ Provides actionable insights and recommendations\n\nBegin your analysis now. Gather PR data, calculate metrics, analyze trends, and create a detailed report.\n"
         with:
           script: |
             const fs = require('fs');
@@ -3645,45 +3667,59 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/threat-detection
           touch /tmp/gh-aw/threat-detection/detection.log
-      - name: Validate COPILOT_CLI_TOKEN secret
+      - name: Validate ANTHROPIC_API_KEY secret
         run: |
-          if [ -z "$COPILOT_CLI_TOKEN" ]; then
-            echo "Error: COPILOT_CLI_TOKEN secret is not set"
-            echo "The GitHub Copilot CLI engine requires the COPILOT_CLI_TOKEN secret to be configured."
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "Error: ANTHROPIC_API_KEY secret is not set"
+            echo "The Claude Code engine requires the ANTHROPIC_API_KEY secret to be configured."
             echo "Please configure this secret in your repository settings."
-            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#github-copilot-default"
+            echo "Documentation: https://githubnext.github.io/gh-aw/reference/engines/#anthropic-claude-code"
             exit 1
           fi
-          echo "COPILOT_CLI_TOKEN secret is configured"
+          echo "ANTHROPIC_API_KEY secret is configured"
         env:
-          COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Install GitHub Copilot CLI
-        run: npm install -g @github/copilot@0.0.343
-      - name: Execute GitHub Copilot CLI
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.0.21
+      - name: Execute Claude Code CLI
         id: agentic_execution
-        # Copilot CLI tool arguments (sorted):
-        # --allow-tool shell(cat)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(jq)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(wc)
+        # Allowed tools (sorted):
+        # - Bash(cat)
+        # - Bash(grep)
+        # - Bash(head)
+        # - Bash(jq)
+        # - Bash(ls)
+        # - Bash(tail)
+        # - Bash(wc)
+        # - BashOutput
+        # - ExitPlanMode
+        # - Glob
+        # - Grep
+        # - KillBash
+        # - LS
+        # - NotebookRead
+        # - Read
+        # - Task
+        # - TodoWrite
         timeout-minutes: 20
         run: |
           set -o pipefail
-          COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --allow-tool 'shell(cat)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(jq)' --allow-tool 'shell(ls)' --allow-tool 'shell(tail)' --allow-tool 'shell(wc)' --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
+          # Execute Claude Code CLI with prompt from file
+          claude --print --allowed-tools "Bash(cat),Bash(grep),Bash(head),Bash(jq),Bash(ls),Bash(tail),Bash(wc),BashOutput,ExitPlanMode,Glob,Grep,KillBash,LS,NotebookRead,Read,Task,TodoWrite" --debug --verbose --permission-mode bypassPermissions --output-format stream-json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/threat-detection/detection.log
         env:
-          COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DISABLE_TELEMETRY: "1"
+          DISABLE_ERROR_REPORTING: "1"
+          DISABLE_BUG_COMMAND: "1"
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /home/runner
+          MCP_TIMEOUT: "120000"
+          MCP_TOOL_TIMEOUT: "60000"
+          BASH_DEFAULT_TIMEOUT_MS: "60000"
+          BASH_MAX_TIMEOUT_MS: "60000"
       - name: Parse threat detection results
         uses: actions/github-script@v8
         with:

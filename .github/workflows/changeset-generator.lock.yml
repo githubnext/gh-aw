@@ -3666,6 +3666,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
@@ -3695,6 +3696,12 @@ jobs:
                 agentOutput = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (agentOutput.trim() === "") {
+                core.info("No agent output to process");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
                 return;
               }
               core.info(`Agent output length: ${agentOutput.length}`);
@@ -3890,12 +3897,23 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Push to Branch
         id: push_to_pull_request_branch
         uses: actions/github-script@v8
         env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GH_TOKEN: ${{ github.token }}
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
@@ -3913,6 +3931,10 @@ jobs:
                 outputContent = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
                 return;
               }
               const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";

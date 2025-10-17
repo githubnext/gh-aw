@@ -30,6 +30,13 @@ async function main() {
     return;
   }
 
+  if (agentOutput.trim() === "") {
+    core.info("No agent output to process");
+    core.setOutput("tools_reported", JSON.stringify(missingTools));
+    core.setOutput("total_count", missingTools.length.toString());
+    return;
+  }
+
   core.info(`Agent output length: ${agentOutput.length}`);
 
   // Parse the validated output JSON

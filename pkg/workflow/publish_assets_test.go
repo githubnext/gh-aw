@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -113,5 +114,63 @@ func TestHasSafeOutputsEnabledWithUploadAsset(t *testing.T) {
 	emptyConfig := &SafeOutputsConfig{}
 	if HasSafeOutputsEnabled(emptyConfig) {
 		t.Error("Expected empty config to return false")
+	}
+}
+
+func TestUploadAssetsJobUsesFileInput(t *testing.T) {
+	// Test that the upload_assets job reads from file (via env var) not JSON payload
+	c := NewCompiler(false, "", "")
+	data := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			UploadAssets: &UploadAssetsConfig{
+				BranchName:  "assets/test",
+				MaxSizeKB:   10240,
+				AllowedExts: []string{".png", ".jpg"},
+			},
+		},
+	}
+
+	job, err := c.buildUploadAssetsJob(data, "agent")
+	if err != nil {
+		t.Fatalf("Failed to build upload assets job: %v", err)
+	}
+
+	// Convert steps to string to check for expected patterns
+	stepsStr := ""
+	for _, step := range job.Steps {
+		stepsStr += step
+	}
+
+	// Verify artifact download steps are present
+	if !strings.Contains(stepsStr, "Download agent output artifact") {
+		t.Error("Expected artifact download step to be present")
+	}
+
+	if !strings.Contains(stepsStr, "Setup agent output environment variable") {
+		t.Error("Expected environment variable setup step to be present")
+	}
+
+	// Verify the correct environment variable is used (file path, not JSON payload)
+	if !strings.Contains(stepsStr, "GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}") {
+		t.Error("Expected GITHUB_AW_AGENT_OUTPUT to use env.GITHUB_AW_AGENT_OUTPUT (file path)")
+	}
+
+	// Verify it does NOT use the old pattern (JSON payload)
+	if strings.Contains(stepsStr, "${{ needs.agent.outputs.output }}") {
+		t.Error("Should not use needs.*.outputs.output (JSON payload) - should use file path instead")
+	}
+
+	// Verify custom environment variables are present
+	if !strings.Contains(stepsStr, "GITHUB_AW_ASSETS_BRANCH") {
+		t.Error("Expected GITHUB_AW_ASSETS_BRANCH environment variable")
+	}
+
+	if !strings.Contains(stepsStr, "GITHUB_AW_ASSETS_MAX_SIZE_KB") {
+		t.Error("Expected GITHUB_AW_ASSETS_MAX_SIZE_KB environment variable")
+	}
+
+	if !strings.Contains(stepsStr, "GITHUB_AW_ASSETS_ALLOWED_EXTS") {
+		t.Error("Expected GITHUB_AW_ASSETS_ALLOWED_EXTS environment variable")
 	}
 }

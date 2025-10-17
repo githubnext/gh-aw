@@ -591,29 +591,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 }
 
 // renderPlaywrightCodexMCPConfig generates Playwright MCP server configuration for codex config.toml
-// Uses npx to launch Playwright MCP instead of Docker for better performance and simplicity
+// Uses the shared helper for TOML format
 func (e *CodexEngine) renderPlaywrightCodexMCPConfig(yaml *strings.Builder, playwrightTool any) {
-	args := generatePlaywrightDockerArgs(playwrightTool)
-	customArgs := getPlaywrightCustomArgs(playwrightTool)
-
-	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers.playwright]\n")
-	yaml.WriteString("          command = \"npx\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"@playwright/mcp@latest\",\n")
-	yaml.WriteString("            \"--output-dir\",\n")
-	yaml.WriteString("            \"/tmp/gh-aw/mcp-logs/playwright\"")
-	if len(args.AllowedDomains) > 0 {
-		yaml.WriteString(",\n")
-		yaml.WriteString("            \"--allowed-origins\",\n")
-		yaml.WriteString("            \"" + strings.Join(args.AllowedDomains, ";") + "\"")
-	}
-
-	// Append custom args if present
-	writeArgsToYAML(yaml, customArgs, "            ")
-
-	yaml.WriteString("\n")
-	yaml.WriteString("          ]\n")
+	renderPlaywrightMCPConfigTOML(yaml, playwrightTool)
 }
 
 // renderCodexMCPConfig generates custom MCP server configuration for a single tool in codex workflow config.toml
@@ -636,30 +616,19 @@ func (e *CodexEngine) renderCodexMCPConfig(yaml *strings.Builder, toolName strin
 }
 
 // renderSafeOutputsCodexMCPConfig generates the Safe Outputs MCP server configuration for codex config.toml
+// Uses the shared helper for TOML format
 func (e *CodexEngine) renderSafeOutputsCodexMCPConfig(yaml *strings.Builder, workflowData *WorkflowData) {
 	// Add safe-outputs MCP server if safe-outputs are configured
 	hasSafeOutputs := workflowData != nil && workflowData.SafeOutputs != nil && HasSafeOutputsEnabled(workflowData.SafeOutputs)
 	if hasSafeOutputs {
-		yaml.WriteString("          \n")
-		yaml.WriteString("          [mcp_servers.safe_outputs]\n")
-		yaml.WriteString("          command = \"node\"\n")
-		yaml.WriteString("          args = [\n")
-		yaml.WriteString("            \"/tmp/gh-aw/safe-outputs/mcp-server.cjs\",\n")
-		yaml.WriteString("          ]\n")
-		yaml.WriteString("          env = { \"GITHUB_AW_SAFE_OUTPUTS\" = \"${{ env.GITHUB_AW_SAFE_OUTPUTS }}\", \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\" = ${{ toJSON(env.GITHUB_AW_SAFE_OUTPUTS_CONFIG) }}, \"GITHUB_AW_ASSETS_BRANCH\" = \"${{ env.GITHUB_AW_ASSETS_BRANCH }}\", \"GITHUB_AW_ASSETS_MAX_SIZE_KB\" = \"${{ env.GITHUB_AW_ASSETS_MAX_SIZE_KB }}\", \"GITHUB_AW_ASSETS_ALLOWED_EXTS\" = \"${{ env.GITHUB_AW_ASSETS_ALLOWED_EXTS }}\" }\n")
+		renderSafeOutputsMCPConfigTOML(yaml)
 	}
 }
 
 // renderAgenticWorkflowsCodexMCPConfig generates the Agentic Workflows MCP server configuration for codex config.toml
+// Uses the shared helper for TOML format
 func (e *CodexEngine) renderAgenticWorkflowsCodexMCPConfig(yaml *strings.Builder) {
-	yaml.WriteString("          \n")
-	yaml.WriteString("          [mcp_servers.agentic_workflows]\n")
-	yaml.WriteString("          command = \"gh\"\n")
-	yaml.WriteString("          args = [\n")
-	yaml.WriteString("            \"aw\",\n")
-	yaml.WriteString("            \"mcp-server\",\n")
-	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GITHUB_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
+	renderAgenticWorkflowsMCPConfigTOML(yaml)
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Codex logs

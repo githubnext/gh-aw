@@ -387,73 +387,21 @@ func (e *CopilotEngine) renderGitHubCopilotMCPConfig(yaml *strings.Builder, gith
 }
 
 // renderPlaywrightCopilotMCPConfig generates the Playwright MCP server configuration for Copilot CLI
+// Uses the shared helper with Copilot-specific options
 func (e *CopilotEngine) renderPlaywrightCopilotMCPConfig(yaml *strings.Builder, playwrightTool any, isLast bool) {
-	args := generatePlaywrightDockerArgs(playwrightTool)
-	customArgs := getPlaywrightCustomArgs(playwrightTool)
-
-	// Use the version from docker args (which handles version configuration)
-	playwrightPackage := "@playwright/mcp@" + args.ImageVersion
-
-	yaml.WriteString("              \"playwright\": {\n")
-	yaml.WriteString("                \"type\": \"local\",\n")
-	yaml.WriteString("                \"command\": \"npx\",\n")
-	yaml.WriteString("                \"args\": [\"" + playwrightPackage + "\", \"--output-dir\", \"/tmp/gh-aw/mcp-logs/playwright\"")
-
-	if len(args.AllowedDomains) > 0 {
-		yaml.WriteString(", \"--allowed-origins\", \"" + strings.Join(args.AllowedDomains, ";") + "\"")
-	}
-
-	// Append custom args if present
-	writeArgsToYAMLInline(yaml, customArgs)
-
-	yaml.WriteString("],\n")
-	yaml.WriteString("                \"tools\": [\"*\"]\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	renderPlaywrightMCPConfigWithOptions(yaml, playwrightTool, isLast, true, true)
 }
 
 // renderSafeOutputsCopilotMCPConfig generates the Safe Outputs MCP server configuration for Copilot CLI
+// Uses the shared helper with Copilot-specific options
 func (e *CopilotEngine) renderSafeOutputsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	yaml.WriteString("              \"safe_outputs\": {\n")
-	yaml.WriteString("                \"type\": \"local\",\n")
-	yaml.WriteString("                \"command\": \"node\",\n")
-	yaml.WriteString("                \"args\": [\"/tmp/gh-aw/safe-outputs/mcp-server.cjs\"],\n")
-	yaml.WriteString("                \"tools\": [\"*\"],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"\\${GITHUB_AW_SAFE_OUTPUTS}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"\\${GITHUB_AW_ASSETS_BRANCH}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"\\${GITHUB_AW_ASSETS_MAX_SIZE_KB}\",\n")
-	yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"\\${GITHUB_AW_ASSETS_ALLOWED_EXTS}\"\n")
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	renderSafeOutputsMCPConfigWithOptions(yaml, isLast, true)
 }
 
 // renderAgenticWorkflowsCopilotMCPConfig generates the Agentic Workflows MCP server configuration for Copilot CLI
+// Uses the shared helper with Copilot-specific options
 func (e *CopilotEngine) renderAgenticWorkflowsCopilotMCPConfig(yaml *strings.Builder, isLast bool) {
-	yaml.WriteString("              \"agentic_workflows\": {\n")
-	yaml.WriteString("                \"type\": \"local\",\n")
-	yaml.WriteString("                \"command\": \"gh\",\n")
-	yaml.WriteString("                \"args\": [\"aw\", \"mcp-server\"],\n")
-	yaml.WriteString("                \"tools\": [\"*\"],\n")
-	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_TOKEN}\"\n")
-	yaml.WriteString("                }\n")
-
-	if isLast {
-		yaml.WriteString("              }\n")
-	} else {
-		yaml.WriteString("              },\n")
-	}
+	renderAgenticWorkflowsMCPConfigWithOptions(yaml, isLast, true)
 }
 
 // renderCopilotMCPConfig generates custom MCP server configuration for Copilot CLI

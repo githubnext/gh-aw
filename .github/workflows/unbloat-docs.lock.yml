@@ -448,6 +448,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Issue Comment
@@ -3942,6 +3943,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Pull Request
@@ -4599,6 +4601,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
@@ -4628,6 +4631,12 @@ jobs:
                 agentOutput = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (agentOutput.trim() === "") {
+                core.info("No agent output to process");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
                 return;
               }
               core.info(`Agent output length: ${agentOutput.length}`);
@@ -4828,6 +4837,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Update reaction comment with error notification
@@ -4951,11 +4961,22 @@ jobs:
         run: |
           echo "Downloaded asset files:"
           ls -la /tmp/gh-aw/safe-outputs/assets/
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Upload Assets to Orphaned Branch
         id: upload_assets
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
