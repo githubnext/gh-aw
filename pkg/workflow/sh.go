@@ -60,14 +60,11 @@ func WriteShellScriptToYAML(yaml *strings.Builder, script string, indent string)
 }
 
 // WritePromptTextToYAML writes prompt text to a YAML heredoc with proper indentation.
-// It chunks the text into groups of lines of less than 20000 characters, with a maximum of 5 chunks.
+// It chunks the text into groups of lines of less than MaxPromptChunkSize characters, with a maximum of MaxPromptChunks chunks.
 // Each chunk is written as a separate heredoc to avoid GitHub Actions step size limits (21KB).
 func WritePromptTextToYAML(yaml *strings.Builder, text string, indent string) {
-	const maxChunkSize = 20000 // 20KB limit for each chunk
-	const maxChunks = 5        // Maximum number of chunks
-
 	textLines := strings.Split(text, "\n")
-	chunks := chunkLines(textLines, indent, maxChunkSize, maxChunks)
+	chunks := chunkLines(textLines, indent, MaxPromptChunkSize, MaxPromptChunks)
 
 	// Write each chunk as a separate heredoc
 	for _, chunk := range chunks {
