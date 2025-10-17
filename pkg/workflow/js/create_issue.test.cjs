@@ -768,7 +768,7 @@ describe("create_issue.cjs", () => {
     });
 
     // Verify assignment logic was triggered
-    expect(mockCore.info).toHaveBeenCalledWith("Assigning issue to bot: copilot-swe-agent");
+    expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #123 to bot: copilot-swe-agent");
 
     // Note: The assignment GraphQL calls happen asynchronously and may not complete before test ends
     // This is a test environment limitation. The functionality works correctly in production
@@ -829,6 +829,107 @@ describe("create_issue.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("issue_number", 456);
       expect(mockCore.setOutput).toHaveBeenCalledWith("issue_url", mockIssue.html_url);
     }
+
+    // Clean up
+    delete process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
+  });
+
+  it("should normalize 'copilot' to 'copilot-swe-agent'", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create_issue",
+          title: "Issue with normalized bot name",
+          body: "Testing bot name normalization",
+        },
+      ],
+    });
+    process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT = "copilot";
+
+    // Ensure no parent issue context
+    delete global.context.payload.issue;
+
+    const mockIssue = {
+      number: 999,
+      html_url: "https://github.com/testowner/testrepo/issues/999",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Mock GraphQL calls using counter
+    let graphqlCallCount = 0;
+    mockGithub.graphql.mockImplementation(() => {
+      graphqlCallCount++;
+      if (graphqlCallCount === 1) {
+        // Get issue node ID
+        return Promise.resolve({ repository: { issue: { id: "issue-node-id-999" } } });
+      }
+      if (graphqlCallCount === 2) {
+        // Get bot user node ID - should be called with "copilot-swe-agent" not "copilot"
+        return Promise.resolve({ user: { id: "bot-node-id-copilot-swe-agent" } });
+      }
+      if (graphqlCallCount === 3) {
+        // Assign mutation
+        return Promise.resolve({ addAssigneesToAssignable: { assignable: { id: "issue-node-id-999", number: 999 } } });
+      }
+      return Promise.reject(new Error("Unexpected graphql call"));
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Verify normalization happened
+    expect(mockCore.info).toHaveBeenCalledWith('Normalized bot name from "copilot" to "copilot-swe-agent"');
+    expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #999 to bot: copilot-swe-agent");
+
+    // Clean up
+    delete process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
+  });
+
+  it("should normalize 'Copilot' (capitalized) to 'copilot-swe-agent'", async () => {
+    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      items: [
+        {
+          type: "create_issue",
+          title: "Issue with capitalized bot name",
+          body: "Testing capitalized bot name normalization",
+        },
+      ],
+    });
+    process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT = "Copilot";
+
+    // Ensure no parent issue context
+    delete global.context.payload.issue;
+
+    const mockIssue = {
+      number: 888,
+      html_url: "https://github.com/testowner/testrepo/issues/888",
+    };
+
+    mockGithub.rest.issues.create.mockResolvedValue({ data: mockIssue });
+
+    // Mock GraphQL calls using counter
+    let graphqlCallCount = 0;
+    mockGithub.graphql.mockImplementation(() => {
+      graphqlCallCount++;
+      if (graphqlCallCount === 1) {
+        return Promise.resolve({ repository: { issue: { id: "issue-node-id-888" } } });
+      }
+      if (graphqlCallCount === 2) {
+        return Promise.resolve({ user: { id: "bot-node-id-copilot-swe-agent" } });
+      }
+      if (graphqlCallCount === 3) {
+        return Promise.resolve({ addAssigneesToAssignable: { assignable: { id: "issue-node-id-888", number: 888 } } });
+      }
+      return Promise.reject(new Error("Unexpected graphql call"));
+    });
+
+    // Execute the script
+    await eval(`(async () => { ${createIssueScript} })()`);
+
+    // Verify normalization happened with capitalized name
+    expect(mockCore.info).toHaveBeenCalledWith('Normalized bot name from "Copilot" to "copilot-swe-agent"');
+    expect(mockCore.info).toHaveBeenCalledWith("Assigning issue #888 to bot: copilot-swe-agent");
 
     // Clean up
     delete process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
