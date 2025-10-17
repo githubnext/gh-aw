@@ -4230,11 +4230,21 @@ jobs:
       issue_number: ${{ steps.create_issue.outputs.issue_number }}
       issue_url: ${{ steps.create_issue.outputs.issue_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Output Issue
         id: create_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[🎭 POEM-BOT] "
           GITHUB_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
@@ -4519,11 +4529,21 @@ jobs:
         run: |
           echo "Output: $AGENT_OUTPUT"
           echo "Output types: $AGENT_OUTPUT_TYPES"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Issue Comment
         id: add_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_COMMENT_TARGET: "*"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -4817,11 +4837,21 @@ jobs:
       review_comment_id: ${{ steps.create_pr_review_comment.outputs.review_comment_id }}
       review_comment_url: ${{ steps.create_pr_review_comment.outputs.review_comment_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create PR Review Comment
         id: create_pr_review_comment
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -5123,11 +5153,21 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "${{ github.workflow }}"
           echo "Git configured with standard GitHub Actions identity"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Pull Request
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_ID: "agent"
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
@@ -5547,11 +5587,21 @@ jobs:
     outputs:
       labels_added: ${{ steps.add_labels.outputs.labels_added }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Labels
         id: add_labels
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_LABELS_ALLOWED: "poetry,creative,automation,ai-generated,epic,haiku,sonnet,limerick"
           GITHUB_AW_LABELS_MAX_COUNT: 5
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
@@ -5769,11 +5819,21 @@ jobs:
       issue_number: ${{ steps.update_issue.outputs.issue_number }}
       issue_url: ${{ steps.update_issue.outputs.issue_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Update Issue
         id: update_issue
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_UPDATE_STATUS: true
           GITHUB_AW_UPDATE_TITLE: true
           GITHUB_AW_UPDATE_BODY: true
@@ -6258,11 +6318,21 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
           script: |
             async function main() {
@@ -6566,11 +6636,21 @@ jobs:
           echo "Comment Repo: $COMMENT_REPO"
           echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
           echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Update reaction comment with error notification
         id: update_reaction
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
