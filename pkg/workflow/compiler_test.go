@@ -2591,7 +2591,7 @@ Test workflow without explicit reaction (should not create reaction action).
 	}
 }
 
-// TestAIReactionWithCommentEditFunctionality tests that the enhanced reaction script includes comment editing
+// TestAIReactionWithCommentEditFunctionality tests that the enhanced reaction script includes comment creation
 func TestAIReactionWithCommentEditFunctionality(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "reaction-edit-test")
@@ -2615,9 +2615,9 @@ tools:
     allowed: [get_issue]
 ---
 
-# AI Reaction with Comment Edit Test
+# AI Reaction with Comment Creation Test
 
-Test workflow with reaction and comment editing.
+Test workflow with reaction and comment creation.
 `
 
 	testFile := filepath.Join(tmpDir, "test-reaction-edit.md")
@@ -2648,9 +2648,9 @@ Test workflow with reaction and comment editing.
 	expectedStrings := []string{
 		"GITHUB_AW_REACTION: eyes",
 		"uses: actions/github-script@v8",
-		"addOrEditCommentWithWorkflowLink", // This should be in the new script
-		"runUrl =",                         // This should be in the new script for workflow run URL
-		"Comment endpoint",                 // This should be logged in the new script
+		"addCommentWithWorkflowLink", // This should be in the new script
+		"runUrl =",                   // This should be in the new script for workflow run URL
+		"Comment endpoint",           // This should be logged in the new script
 	}
 
 	for _, expected := range expectedStrings {
@@ -2659,9 +2659,9 @@ Test workflow with reaction and comment editing.
 		}
 	}
 
-	// Verify that the script includes comment editing logic but doesn't fail for non-comment events
-	if !strings.Contains(yamlContent, "shouldEditComment") {
-		t.Error("Generated YAML should contain shouldEditComment logic")
+	// Verify that the script includes comment creation logic for all workflows (not just command workflows)
+	if !strings.Contains(yamlContent, "shouldCreateComment") {
+		t.Error("Generated YAML should contain shouldCreateComment logic")
 	}
 
 	// Verify the script handles different event types appropriately
@@ -2749,9 +2749,9 @@ Test command workflow with reaction and comment editing.
 		}
 	}
 
-	// Verify the script contains alias-aware comment editing logic
-	if !strings.Contains(yamlContent, "shouldEditComment = command") {
-		t.Error("Generated YAML should contain alias-aware comment editing logic")
+	// Verify the script contains comment creation logic (now always enabled, not just for command workflows)
+	if !strings.Contains(yamlContent, "shouldCreateComment = true") {
+		t.Error("Generated YAML should contain comment creation logic")
 	}
 }
 
