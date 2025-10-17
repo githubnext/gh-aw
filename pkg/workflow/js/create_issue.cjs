@@ -59,7 +59,7 @@ async function main() {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
-  
+
   // Read agent output from file path or parse as JSON directly
   let outputContent;
   if (outputEnvValue.startsWith("/")) {
@@ -74,7 +74,7 @@ async function main() {
     // It's direct JSON content (backward compatibility)
     outputContent = outputEnvValue;
   }
-  
+
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     return;

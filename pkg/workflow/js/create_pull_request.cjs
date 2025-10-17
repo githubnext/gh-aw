@@ -51,7 +51,7 @@ async function main() {
   }
 
   const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-  
+
   // Read agent output from file path or parse as JSON directly
   let outputContent = "";
   if (outputEnvValue.trim() !== "") {
@@ -68,7 +68,7 @@ async function main() {
       outputContent = outputEnvValue;
     }
   }
-  
+
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
   }
