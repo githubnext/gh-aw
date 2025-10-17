@@ -187,6 +187,7 @@ def list_templates(path: str, limit: Optional[int] = None):
 # Entry point
 # -----------------------
 if __name__ == "__main__":
-    # HTTP transport for remote MCP server
-    # For FastMCP 2.0, use: fastmcp run drain3_server.py
+    # HTTP transport for self-hosted MCP server
+    # Note: Do NOT use 'fastmcp run' which defaults to stdio transport
+    # For HTTP, run this script directly with Python
     mcp.run(transport="http", host=HOST, port=PORT)
