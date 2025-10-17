@@ -4022,6 +4022,14 @@ jobs:
                         core.info(`Normalized bot name from "${originalBotName}" to "${assignToBot}"`);
                       }
                       core.info(`Assigning issue #${issue.number} to bot: ${assignToBot}`);
+                      const assignToken = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN;
+                      const githubForAssign = assignToken
+                        ? (await (async () => {
+                            const { Octokit } = await import("@octokit/core");
+                            core.info("Using custom token for bot assignment");
+                            return new Octokit({ auth: assignToken });
+                          })())
+                        : github;
                       core.info(`Fetching node ID for issue #${issue.number}`);
                       const issueNodeIdQuery = `
                         query($owner: String!, $repo: String!, $issueNumber: Int!) {
@@ -4032,7 +4040,7 @@ jobs:
                           }
                         }
                       `;
-                      const issueResult = await github.graphql(issueNodeIdQuery, {
+                      const issueResult = await githubForAssign.graphql(issueNodeIdQuery, {
                         owner: context.repo.owner,
                         repo: context.repo.repo,
                         issueNumber: issue.number,
@@ -4047,30 +4055,35 @@ jobs:
                           }
                         }
                       `;
-                      const botResult = await github.graphql(botNodeIdQuery, {
+                      const botResult = await githubForAssign.graphql(botNodeIdQuery, {
                         login: assignToBot,
                       });
                       const botNodeId = botResult.user.id;
                       core.info(`Bot user node ID: ${botNodeId}`);
-                      core.info(`Executing addAssigneesToAssignable mutation`);
+                      core.info(`Executing replaceActorsForAssignable mutation`);
                       const assignMutation = `
-                        mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
-                          addAssigneesToAssignable(input: {
+                        mutation($assignableId: ID!, $actorIds: [ID!]!) {
+                          replaceActorsForAssignable(input: {
                             assignableId: $assignableId,
-                            assigneeIds: $assigneeIds
+                            actorIds: $actorIds
                           }) {
                             assignable {
                               ... on Issue {
                                 id
                                 number
+                                assignees(first: 10) {
+                                  nodes {
+                                    login
+                                  }
+                                }
                               }
                             }
                           }
                         }
                       `;
-                      const assignResult = await github.graphql(assignMutation, {
+                      const assignResult = await githubForAssign.graphql(assignMutation, {
                         assignableId: issueNodeId,
-                        assigneeIds: [botNodeId],
+                        actorIds: [botNodeId],
                       });
                       core.info(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
                       core.info(`Successfully assigned issue #${issue.number} to ${assignToBot}`);
