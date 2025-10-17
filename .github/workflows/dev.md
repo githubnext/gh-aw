@@ -1,20 +1,22 @@
 ---
 on: 
   workflow_dispatch:
-  command:
-    name: dev
+  push:
+    paths:
+      - '.github/workflows/dev.md'
+concurrency:
+  group: dev-workflow-${{ github.ref }}
+  cancel-in-progress: true
 name: Dev
-engine: claude
+engine: copilot
 permissions:
   contents: read
   actions: read
-imports:
-  - shared/mcp/drain3.md
-  - shared/mcp/gh-aw.md
-safe-outputs:
-  create-issue:
 tools:
+  edit:
   github:
+imports:
+  - shared/mcp/tavily.md
 ---
 
-Write a poem in 3 emojis about the last pull request and publish an issue.
+Search the latest trends about javascript frameworks using tavily tools, and the last 3 pull requests using github tools and print a summary.
