@@ -982,13 +982,19 @@ func downloadWorkflowRunLogs(runID int64, outputDir string, verbose bool) error 
 		return fmt.Errorf("failed to write logs zip file: %w", err)
 	}
 
-	// Unzip the logs into the output directory
-	if err := unzipFile(tmpZip, outputDir, verbose); err != nil {
+	// Create a subdirectory for workflow logs to keep the run directory organized
+	workflowLogsDir := filepath.Join(outputDir, "workflow-logs")
+	if err := os.MkdirAll(workflowLogsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create workflow-logs directory: %w", err)
+	}
+
+	// Unzip the logs into the workflow-logs subdirectory
+	if err := unzipFile(tmpZip, workflowLogsDir, verbose); err != nil {
 		return fmt.Errorf("failed to unzip workflow logs: %w", err)
 	}
 
 	if verbose {
-		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", outputDir)))
+		fmt.Println(console.FormatSuccessMessage(fmt.Sprintf("Downloaded and extracted workflow run logs to %s", workflowLogsDir)))
 	}
 
 	return nil

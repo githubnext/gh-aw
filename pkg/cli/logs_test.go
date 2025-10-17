@@ -1477,6 +1477,121 @@ func TestUnzipFileZipSlipPrevention(t *testing.T) {
 	}
 }
 
+func TestDownloadWorkflowRunLogsStructure(t *testing.T) {
+	// This test verifies that workflow logs are extracted into a workflow-logs subdirectory
+	// Note: This test cannot fully test downloadWorkflowRunLogs without GitHub CLI authentication
+	// So we test the directory creation and unzipFile behavior that mimics the workflow
+
+	tmpDir := t.TempDir()
+
+	// Create a mock workflow logs zip file similar to what GitHub API returns
+	zipPath := filepath.Join(tmpDir, "workflow-logs.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("Failed to create test zip file: %v", err)
+	}
+
+	zipWriter := zip.NewWriter(zipFile)
+
+	// Add files that simulate GitHub Actions workflow logs structure
+	logFiles := map[string]string{
+		"1_job1.txt":        "Job 1 execution logs",
+		"2_job2.txt":        "Job 2 execution logs",
+		"3_build/build.txt": "Build step logs",
+		"4_test/test-1.txt": "Test step 1 logs",
+		"4_test/test-2.txt": "Test step 2 logs",
+	}
+
+	for filename, content := range logFiles {
+		writer, err := zipWriter.Create(filename)
+		if err != nil {
+			zipFile.Close()
+			t.Fatalf("Failed to create file %s in zip: %v", filename, err)
+		}
+		_, err = writer.Write([]byte(content))
+		if err != nil {
+			zipFile.Close()
+			t.Fatalf("Failed to write content to %s: %v", filename, err)
+		}
+	}
+
+	err = zipWriter.Close()
+	if err != nil {
+		zipFile.Close()
+		t.Fatalf("Failed to close zip writer: %v", err)
+	}
+	zipFile.Close()
+
+	// Create a run directory (simulating logs/run-12345)
+	runDir := filepath.Join(tmpDir, "run-12345")
+	err = os.MkdirAll(runDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create run directory: %v", err)
+	}
+
+	// Create some other artifacts in the run directory (to verify they don't get mixed with logs)
+	err = os.WriteFile(filepath.Join(runDir, "aw_info.json"), []byte(`{"engine_id": "claude"}`), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create aw_info.json: %v", err)
+	}
+
+	// Create the workflow-logs subdirectory and extract logs there
+	workflowLogsDir := filepath.Join(runDir, "workflow-logs")
+	err = os.MkdirAll(workflowLogsDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create workflow-logs directory: %v", err)
+	}
+
+	// Extract logs into the workflow-logs subdirectory (mimics downloadWorkflowRunLogs behavior)
+	err = unzipFile(zipPath, workflowLogsDir, false)
+	if err != nil {
+		t.Fatalf("Failed to extract logs: %v", err)
+	}
+
+	// Verify that workflow-logs directory exists
+	if !dirExists(workflowLogsDir) {
+		t.Error("workflow-logs directory should exist")
+	}
+
+	// Verify that log files are in the workflow-logs subdirectory, not in run root
+	for filename := range logFiles {
+		expectedPath := filepath.Join(workflowLogsDir, filename)
+		if !fileExists(expectedPath) {
+			t.Errorf("Expected log file %s to be in workflow-logs subdirectory", filename)
+		}
+
+		// Verify the file is NOT in the run directory root
+		wrongPath := filepath.Join(runDir, filename)
+		if fileExists(wrongPath) {
+			t.Errorf("Log file %s should not be in run directory root", filename)
+		}
+	}
+
+	// Verify that other artifacts remain in the run directory root
+	awInfoPath := filepath.Join(runDir, "aw_info.json")
+	if !fileExists(awInfoPath) {
+		t.Error("aw_info.json should remain in run directory root")
+	}
+
+	// Verify the content of one of the extracted log files
+	testLogPath := filepath.Join(workflowLogsDir, "1_job1.txt")
+	content, err := os.ReadFile(testLogPath)
+	if err != nil {
+		t.Fatalf("Failed to read extracted log file: %v", err)
+	}
+
+	expectedContent := "Job 1 execution logs"
+	if string(content) != expectedContent {
+		t.Errorf("Log file content mismatch: got %q, want %q", string(content), expectedContent)
+	}
+
+	// Verify nested directory structure is preserved
+	nestedLogPath := filepath.Join(workflowLogsDir, "3_build", "build.txt")
+	if !fileExists(nestedLogPath) {
+		t.Error("Nested log directory structure should be preserved")
+	}
+}
+
 // TestCountParameterBehavior verifies that the count parameter limits matching results
 // not the number of runs fetched when date filters are specified
 func TestCountParameterBehavior(t *testing.T) {
