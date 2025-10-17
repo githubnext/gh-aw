@@ -285,12 +285,17 @@ jobs:
                     break;
                   case "issue_comment":
                     const commentId = context.payload?.comment?.id;
+                    const issueNumberForComment = context.payload?.issue?.number;
                     if (!commentId) {
                       core.setFailed("Comment ID not found in event payload");
                       return;
                     }
+                    if (!issueNumberForComment) {
+                      core.setFailed("Issue number not found in event payload");
+                      return;
+                    }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
                     shouldCreateComment = command ? true : false;
                     break;
                   case "pull_request":
@@ -304,12 +309,17 @@ jobs:
                     break;
                   case "pull_request_review_comment":
                     const reviewCommentId = context.payload?.comment?.id;
+                    const prNumberForReviewComment = context.payload?.pull_request?.number;
                     if (!reviewCommentId) {
                       core.setFailed("Review comment ID not found in event payload");
                       return;
                     }
+                    if (!prNumberForReviewComment) {
+                      core.setFailed("Pull request number not found in event payload");
+                      return;
+                    }
                     reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
-                    commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
+                    commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
                     shouldCreateComment = command ? true : false;
                     break;
                   case "discussion":
