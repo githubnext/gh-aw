@@ -180,8 +180,8 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 }
 
 // validatePythonPackagesWithPip is a generic helper that validates Python packages using pip index.
-// It accepts a package list and a package type name for consistent error messaging.
-func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType string) {
+// It accepts a package list, package type name for error messaging, and pip command to use.
+func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType string, pipCmd string) {
 	for _, pkg := range packages {
 		// Extract package name without version specifier
 		pkgName := pkg
@@ -190,7 +190,7 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 		}
 
 		// Use pip index to check if package exists on PyPI
-		cmd := exec.Command("pip", "index", "versions", pkgName)
+		cmd := exec.Command(pipCmd, "index", "versions", pkgName)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
@@ -215,6 +215,7 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 	}
 
 	// Check if pip is available
+	pipCmd := "pip"
 	_, err := exec.LookPath("pip")
 	if err != nil {
 		// Try pip3 as fallback
@@ -223,9 +224,10 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("pip command not found - skipping pip package validation. Install Python/pip for full validation"))
 			return nil
 		}
+		pipCmd = "pip3"
 	}
 
-	c.validatePythonPackagesWithPip(packages, "pip")
+	c.validatePythonPackagesWithPip(packages, "pip", pipCmd)
 	return nil
 }
 
@@ -278,7 +280,7 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 
 // validateUvPackagesWithPip validates uv packages using pip index
 func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
-	c.validatePythonPackagesWithPip(packages, "uv")
+	c.validatePythonPackagesWithPip(packages, "uv", "pip")
 	return nil
 }
 
