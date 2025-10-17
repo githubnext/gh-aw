@@ -10,7 +10,6 @@ permissions:
   contents: read
   actions: read
 safe-outputs:
-  staged: true
   create-issue:
     assign-to-bot: copilot
     github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
