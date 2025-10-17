@@ -6,17 +6,17 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
-#   detection["detection"]
 #   create_pull_request["create_pull_request"]
+#   detection["detection"]
 #   missing_tool["missing_tool"]
+#   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   activation --> agent
-#   agent --> detection
 #   agent --> create_pull_request
 #   detection --> create_pull_request
+#   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
 # ```
@@ -241,7 +241,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.19
+        run: npm install -g @anthropic-ai/claude-code@2.0.21
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -3239,7 +3239,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.19
+        run: npm install -g @anthropic-ai/claude-code@2.0.21
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
