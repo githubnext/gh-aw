@@ -177,6 +177,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 	var logicalRepoSlug string
 	var cloneRepoSlug string
+	var cloneRepoVersion string
 
 	if cloneRepoSpec != "" {
 		// Use clone-repo mode: clone the specified repo contents into host repo
@@ -186,6 +187,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		}
 
 		cloneRepoSlug = cloneRepo.RepoSlug
+		cloneRepoVersion = cloneRepo.Version
 		logicalRepoSlug = "" // Empty string means skip logical repo simulation
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Clone mode: Will clone contents from %s into host repository", cloneRepoSlug)))
 	} else if logicalRepoSpec != "" {
@@ -261,7 +263,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 	// Step 2.7: Clone source repository contents if in clone-repo mode
 	if cloneRepoSlug != "" {
-		if err := cloneRepoContentsIntoHost(cloneRepoSlug, hostRepoSlug, verbose); err != nil {
+		if err := cloneRepoContentsIntoHost(cloneRepoSlug, cloneRepoVersion, hostRepoSlug, verbose); err != nil {
 			return fmt.Errorf("failed to clone repository contents: %w", err)
 		}
 	}
@@ -1499,7 +1501,7 @@ func copyFile(src, dst string) error {
 
 // cloneRepoContentsIntoHost clones the contents of the source repo into the host repo
 // Uses a simplified approach with force push since host repo is freshly created
-func cloneRepoContentsIntoHost(cloneRepoSlug string, hostRepoSlug string, verbose bool) error {
+func cloneRepoContentsIntoHost(cloneRepoSlug string, cloneRepoVersion string, hostRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning contents from %s into host repository %s", cloneRepoSlug, hostRepoSlug)))
 	}
@@ -1525,6 +1527,14 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, hostRepoSlug string, verbos
 	// Change to the cloned repository directory
 	if err := os.Chdir(tempCloneDir); err != nil {
 		return fmt.Errorf("failed to change to clone directory: %w", err)
+	}
+
+	// If a version/tag/SHA is specified, checkout that ref
+	if cloneRepoVersion != "" {
+		cmd = exec.Command("git", "checkout", cloneRepoVersion)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to checkout ref '%s': %w (output: %s)", cloneRepoVersion, err, string(output))
+		}
 	}
 
 	// Add the host repository as a new remote
