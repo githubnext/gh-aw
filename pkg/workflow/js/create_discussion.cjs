@@ -1,9 +1,19 @@
 async function main() {
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputContent) {
+  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  if (!agentOutputFile) {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
+
+  // Read agent output from file
+  let outputContent;
+  try {
+    outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
   if (outputContent.trim() === "") {
     core.info("Agent output content is empty");
     return;

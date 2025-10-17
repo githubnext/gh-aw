@@ -125,15 +125,26 @@ Test workflows safely in a temporary private repository without affecting your t
 gh aw trial githubnext/agentics/ci-doctor  # Test from source repo
 gh aw trial ./my-local-workflow.md         # Test local file
 gh aw trial workflow1 workflow2            # Compare multiple workflows
-gh aw trial ./workflow.md --logical-repo myorg/myrepo --timeout 60
-gh aw trial ./workflow.md --host-repo . --delete-host-repo --yes
+gh aw trial ./workflow.md --logical-repo myorg/myrepo --host-repo myorg/host-repo # Act as if in a different logical repo. Uses PAT to see issues/PRs
+gh aw trial ./workflow.md --clone-repo myorg/myrepo --host-repo myorg/host-repo # Copy the code of the clone repo for into host repo. Agentic will see the codebase of clone repo but not the issues/PRs.
 
 # Test issue-triggered workflows with context
 gh aw trial ./issue-workflow.md --trigger-context https://github.com/owner/repo/issues/123
 gh aw trial githubnext/agentics/issue-triage --trigger-context "#456"
+
+Other flags:
+ --engine ENGINE               # Override engine (default: from frontmatter)
+ --auto-merge-prs            # Auto-merge PRs created during trial
+ --repeat N                  # Repeat N times
+ --force-delete-host-repo-before  # Force delete existing host repo BEFORE start
+ --delete-host-repo-after         # Delete host repo AFTER trial
 ```
 
 Trial results are saved to `trials/` directory and captured in the trial repository for inspection. Set `GH_AW_GITHUB_TOKEN` to override authentication. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management).
+
+When using `gh aw trial --logical-repo`, the agentic workflow operates as if it is running in the specified logical repository, allowing it to read issues, pull requests, and other repository data from that context. This is useful for testing workflows that interact with repository data without needing to run them in the actual target repository. In this mode, to recompile workflows in the trial repository, use `gh aw compile --trial --logical-repo owner/repo`.
+
+When using `gh aw trial --clone-repo`, the agentic workflow uses the codebase from the specified clone repository while still interacting with issues and pull requests from the host repository. This allows for testing how the workflow would behave with a different codebase while maintaining access to the relevant repository data.
 
 ### Workflow State Management
 
