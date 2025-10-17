@@ -11,6 +11,7 @@ permissions:
 imports:
   - shared/mcp/gh-aw.md
 safe-outputs:
+  threat-detection: false
   create-issue:
     assign-to-bot: copilot
     github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
