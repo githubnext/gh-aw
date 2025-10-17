@@ -195,7 +195,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"command": "gh"`,
 				`"args": ["aw", "mcp-server"]`,
 				`"tools": ["*"]`,
-				`"GITHUB_TOKEN": "\${GITHUB_TOKEN}"`,
+				`"GITHUB_TOKEN": "\${GITHUB_AW_GITHUB_TOKEN}"`,
 				`              },`,
 			},
 			unexpectedContent: []string{

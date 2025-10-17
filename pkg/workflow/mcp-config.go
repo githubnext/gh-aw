@@ -153,7 +153,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 
 	// Use escaped env vars for Copilot, regular for Claude/Custom
 	if includeCopilotFields {
-		yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_TOKEN}\"\n")
+		yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_AW_GITHUB_TOKEN}\"\n")
 	} else {
 		yaml.WriteString("                  \"GITHUB_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
 	}

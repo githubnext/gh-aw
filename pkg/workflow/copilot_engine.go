@@ -126,6 +126,11 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 		}
 	}
 
+	// Add GITHUB_AW_GITHUB_TOKEN for agentic workflows MCP server if it's configured
+	if hasAgenticWorkflowsTool(workflowData.Tools) {
+		env["GITHUB_AW_GITHUB_TOKEN"] = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+	}
+
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
 	applySafeOutputEnvToMap(env, workflowData)
 
