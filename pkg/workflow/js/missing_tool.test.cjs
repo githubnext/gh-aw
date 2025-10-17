@@ -6,6 +6,15 @@ describe("missing_tool.cjs", () => {
   let mockCore;
   let missingToolScript;
   let originalConsole;
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === 'string' ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
 
   beforeEach(() => {
     // Save original console before mocking
@@ -78,6 +87,12 @@ describe("missing_tool.cjs", () => {
   });
 
   afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
+
     // Clean up environment variables
     delete process.env.GITHUB_AW_AGENT_OUTPUT;
     delete process.env.GITHUB_AW_MISSING_TOOL_MAX;
@@ -114,7 +129,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
 
       await runScript();
 
@@ -153,7 +168,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
 
       await runScript();
 
@@ -183,7 +198,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
 
       await runScript();
 
@@ -207,7 +222,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
 
       await runScript();
 
@@ -228,7 +243,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
       process.env.GITHUB_AW_MISSING_TOOL_MAX = "2";
 
       await runScript();
@@ -253,7 +268,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
       // No GITHUB_AW_MISSING_TOOL_MAX set
 
       await runScript();
@@ -264,7 +279,7 @@ describe("missing_tool.cjs", () => {
 
   describe("Edge Cases", () => {
     it("should handle empty agent output", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = "";
+      setAgentOutput("");
 
       await runScript();
 
@@ -278,7 +293,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
 
       await runScript();
 
@@ -306,7 +321,7 @@ describe("missing_tool.cjs", () => {
         errors: [],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(testData);
+      setAgentOutput(testData);
 
       const beforeTime = new Date();
       await runScript();

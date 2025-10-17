@@ -50,22 +50,16 @@ async function main() {
     throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
   }
 
-  const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
 
-  // Read agent output from file path or parse as JSON directly
+  // Read agent output from file
   let outputContent = "";
-  if (outputEnvValue.trim() !== "") {
-    if (outputEnvValue.startsWith("/")) {
-      // It's a file path, read the file
-      try {
-        outputContent = fs.readFileSync(outputEnvValue, "utf8");
-      } catch (error) {
-        core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-    } else {
-      // It's direct JSON content (backward compatibility)
-      outputContent = outputEnvValue;
+  if (agentOutputFile.trim() !== "") {
+    try {
+      outputContent = fs.readFileSync(agentOutputFile, "utf8");
+    } catch (error) {
+      core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+      return;
     }
   }
 

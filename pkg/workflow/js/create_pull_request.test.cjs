@@ -127,6 +127,12 @@ describe("create_pull_request.cjs", () => {
   });
 
   afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
+
     // Clean up global exec mock
     if (typeof global !== "undefined") {
       delete global.exec;

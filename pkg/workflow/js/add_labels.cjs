@@ -13,25 +13,19 @@ function sanitizeLabelContent(content) {
   return sanitized.trim();
 }
 async function main() {
-  const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
-  if (!outputEnvValue) {
+  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+  if (!agentOutputFile) {
     core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
     return;
   }
 
-  // Read agent output from file path or parse as JSON directly
+  // Read agent output from file
   let outputContent;
-  if (outputEnvValue.startsWith("/")) {
-    // It's a file path, read the file
-    try {
-      outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
-    } catch (error) {
-      core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-      return;
-    }
-  } else {
-    // It's direct JSON content (backward compatibility)
-    outputContent = outputEnvValue;
+  try {
+    outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+    return;
   }
 
   if (outputContent.trim() === "") {

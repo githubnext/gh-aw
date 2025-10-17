@@ -2,7 +2,7 @@ async function main() {
   const fs = require("fs");
 
   // Get environment variables
-  const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
 
   core.info("Processing missing-tool reports...");
@@ -14,26 +14,20 @@ async function main() {
   const missingTools = [];
 
   // Return early if no agent output
-  if (!outputEnvValue.trim()) {
+  if (!agentOutputFile.trim()) {
     core.info("No agent output to process");
     core.setOutput("tools_reported", JSON.stringify(missingTools));
     core.setOutput("total_count", missingTools.length.toString());
     return;
   }
 
-  // Read agent output from file path or parse as JSON directly
+  // Read agent output from file
   let agentOutput;
-  if (outputEnvValue.startsWith("/")) {
-    // It's a file path, read the file
-    try {
-      agentOutput = fs.readFileSync(outputEnvValue, "utf8");
-    } catch (error) {
-      core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-      return;
-    }
-  } else {
-    // It's direct JSON content (backward compatibility)
-    agentOutput = outputEnvValue;
+  try {
+    agentOutput = fs.readFileSync(agentOutputFile, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+    return;
   }
 
   core.info(`Agent output length: ${agentOutput.length}`);

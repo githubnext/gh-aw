@@ -105,7 +105,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should skip when agent output is empty", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
+    setAgentOutput("");
 
     // Execute the script
     await eval(`(async () => { ${createIssueScript} })()`);

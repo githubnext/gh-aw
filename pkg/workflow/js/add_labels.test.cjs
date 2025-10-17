@@ -106,7 +106,7 @@ describe("add_labels.cjs", () => {
     });
 
     it("should skip when agent output is empty", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
+      setAgentOutput("");
       process.env.GITHUB_AW_LABELS_ALLOWED = "bug,enhancement";
 
       // Execute the script

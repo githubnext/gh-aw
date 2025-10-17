@@ -76,6 +76,15 @@ global.context = mockContext;
 
 describe("create_discussion.cjs", () => {
   let createDiscussionScript;
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === 'string' ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
 
   beforeEach(() => {
     // Reset all mocks
@@ -92,6 +101,14 @@ describe("create_discussion.cjs", () => {
     createDiscussionScript = createDiscussionScript.replace("export {};", "");
   });
 
+  afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
+  });
+
   it("should handle missing GITHUB_AW_AGENT_OUTPUT environment variable", async () => {
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -100,7 +117,7 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should handle empty agent output", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = "   "; // Use spaces instead of empty string
+    setAgentOutput(""); // Use spaces instead of empty string
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
@@ -108,7 +125,7 @@ describe("create_discussion.cjs", () => {
   });
 
   it("should handle invalid JSON in agent output", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
+    setAgentOutput("invalid json");
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
@@ -121,7 +138,7 @@ describe("create_discussion.cjs", () => {
     const validOutput = {
       items: [{ type: "create_issue", title: "Test Issue", body: "Test body" }],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
@@ -161,7 +178,7 @@ describe("create_discussion.cjs", () => {
         },
       ],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
 
     // Execute the script
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -226,7 +243,7 @@ describe("create_discussion.cjs", () => {
         },
       ],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
     process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX = "[ai] ";
 
     // Execute the script
@@ -275,7 +292,7 @@ describe("create_discussion.cjs", () => {
         },
       ],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
     process.env.GITHUB_AW_DISCUSSION_CATEGORY = "DIC_custom789";
 
     // Execute the script
@@ -304,7 +321,7 @@ describe("create_discussion.cjs", () => {
         },
       ],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
 
     // Execute the script - should exit gracefully without throwing
     await eval(`(async () => { ${createDiscussionScript} })()`);
@@ -353,7 +370,7 @@ describe("create_discussion.cjs", () => {
         },
       ],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
     process.env.GITHUB_AW_DISCUSSION_CATEGORY = "Custom"; // Use category name instead of ID
 
     // Execute the script
@@ -403,7 +420,7 @@ describe("create_discussion.cjs", () => {
         },
       ],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
     process.env.GITHUB_AW_DISCUSSION_CATEGORY = "custom-category"; // Use category slug instead of ID or name
 
     // Execute the script
@@ -450,7 +467,7 @@ describe("create_discussion.cjs", () => {
         },
       ],
     };
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+    setAgentOutput(validOutput);
     process.env.GITHUB_AW_DISCUSSION_CATEGORY = "NonExistent"; // Category that doesn't exist
 
     // Execute the script
