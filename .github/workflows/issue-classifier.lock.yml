@@ -345,7 +345,7 @@ jobs:
               }
               let reactionEndpoint;
               let commentUpdateEndpoint;
-              let shouldEditComment = false;
+              let shouldCreateComment = false;
               const eventName = context.eventName;
               const owner = context.repo.owner;
               const repo = context.repo.repo;
@@ -359,7 +359,6 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
-                    shouldEditComment = true;
                     break;
                   case "issue_comment":
                     const commentId = context.payload?.comment?.id;
@@ -369,7 +368,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}`;
-                    shouldEditComment = command ? true : false;
+                    shouldCreateComment = command ? true : false;
                     break;
                   case "pull_request":
                     const prNumber = context.payload?.pull_request?.number;
@@ -379,7 +378,6 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-                    shouldEditComment = true;
                     break;
                   case "pull_request_review_comment":
                     const reviewCommentId = context.payload?.comment?.id;
@@ -389,7 +387,7 @@ jobs:
                     }
                     reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
                     commentUpdateEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}`;
-                    shouldEditComment = command ? true : false;
+                    shouldCreateComment = command ? true : false;
                     break;
                   case "discussion":
                     const discussionNumber = context.payload?.discussion?.number;
@@ -400,7 +398,6 @@ jobs:
                     const discussion = await getDiscussionId(owner, repo, discussionNumber);
                     reactionEndpoint = discussion.id; 
                     commentUpdateEndpoint = `discussion:${discussionNumber}`; 
-                    shouldEditComment = true;
                     break;
                   case "discussion_comment":
                     const discussionCommentNumber = context.payload?.discussion?.number;
@@ -416,7 +413,7 @@ jobs:
                     }
                     reactionEndpoint = commentNodeId; 
                     commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; 
-                    shouldEditComment = command ? true : false;
+                    shouldCreateComment = command ? true : false;
                     break;
                   default:
                     core.setFailed(`Unsupported event type: ${eventName}`);
@@ -429,20 +426,20 @@ jobs:
                 } else {
                   await addReaction(reactionEndpoint, reaction);
                 }
-                if (shouldEditComment && commentUpdateEndpoint) {
+                if (shouldCreateComment && commentUpdateEndpoint) {
                   core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
-                  await addOrEditCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
+                  await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
                 } else {
                   if (!command && commentUpdateEndpoint) {
-                    core.info("Skipping comment edit - only available for command workflows");
+                    core.info("Skipping comment creation - only available for command workflows");
                   } else {
                     core.info(`Skipping comment for event type: ${eventName}`);
                   }
                 }
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to process reaction and comment edit: ${errorMessage}`);
-                core.setFailed(`Failed to process reaction and comment edit: ${errorMessage}`);
+                core.error(`Failed to process reaction and comment creation: ${errorMessage}`);
+                core.setFailed(`Failed to process reaction and comment creation: ${errorMessage}`);
               }
             }
             async function addReaction(endpoint, reaction) {
@@ -525,7 +522,7 @@ jobs:
               }
               throw new Error(`Discussion comment node ID not found in event payload for comment ${commentId}`);
             }
-            async function addOrEditCommentWithWorkflowLink(endpoint, runUrl, eventName) {
+            async function addCommentWithWorkflowLink(endpoint, runUrl, eventName) {
               try {
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
                 if (eventName === "discussion") {
@@ -635,7 +632,7 @@ jobs:
               } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.warning(
-                  "Failed to add/edit comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
+                  "Failed to create comment with workflow link (This is not critical - the reaction was still added successfully): " + errorMessage
                 );
               }
             }

@@ -394,17 +394,17 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
 
-      // Verify new comment was created, NOT edited
-      // Should be POST to comments endpoint, not GET then PATCH to specific comment
+      // Verify new comment was created on the issue, NOT on the comment
+      // Should be POST to issue comments endpoint, not to the specific comment
       expect(mockGithub.request).toHaveBeenCalledWith(
-        "POST /repos/testowner/testrepo/issues/comments/456",
+        "POST /repos/testowner/testrepo/issues/123/comments",
         expect.objectContaining({
           body: expect.stringContaining("Agentic [Test Workflow]"),
         })
       );
 
-      // Verify GET (for editing) was NOT called
-      expect(mockGithub.request).not.toHaveBeenCalledWith("GET /repos/testowner/testrepo/issues/comments/456", expect.anything());
+      // Verify we're not posting to the comment endpoint (which would be wrong)
+      expect(mockGithub.request).not.toHaveBeenCalledWith("POST /repos/testowner/testrepo/issues/comments/456", expect.anything());
 
       // Verify outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "789");
@@ -436,16 +436,17 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       // Execute the script
       await eval(`(async () => { ${reactionScript} })()`);
 
-      // Verify new comment was created
+      // Verify new comment was created on the PR, NOT on the review comment
+      // Should be POST to PR (issues) comments endpoint, not to the specific review comment
       expect(mockGithub.request).toHaveBeenCalledWith(
-        "POST /repos/testowner/testrepo/pulls/comments/789",
+        "POST /repos/testowner/testrepo/issues/456/comments",
         expect.objectContaining({
           body: expect.stringContaining("Agentic [PR Review Bot]"),
         })
       );
 
-      // Verify GET (for editing) was NOT called
-      expect(mockGithub.request).not.toHaveBeenCalledWith("GET /repos/testowner/testrepo/pulls/comments/789", expect.anything());
+      // Verify we're not posting to the review comment endpoint (which would be wrong)
+      expect(mockGithub.request).not.toHaveBeenCalledWith("POST /repos/testowner/testrepo/pulls/comments/789", expect.anything());
 
       // Verify outputs
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-id", "999");
