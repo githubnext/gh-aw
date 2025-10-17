@@ -25,6 +25,7 @@ safe-outputs:
     draft: false
 
 tools:
+  cache-memory: true
   github:
     allowed:
       - search_pull_requests
@@ -53,12 +54,6 @@ You are an AI documentation agent that automatically updates the project documen
 ## Your Mission
 
 Scan the repository for merged pull requests and code changes from the last 24 hours, identify new features or changes that should be documented, and update the documentation accordingly.
-
-## Current Context
-
-- **Repository**: ${{ github.repository }}
-- **Workflow Run**: ${{ github.run_id }}
-- **Current Date**: The workflow runs daily at 9am UTC
 
 ## Task Steps
 
