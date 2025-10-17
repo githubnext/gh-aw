@@ -74,6 +74,16 @@ global.context = mockContext;
 describe("update_issue.cjs", () => {
   let updateIssueScript;
 
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
+
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
@@ -93,6 +103,14 @@ describe("update_issue.cjs", () => {
     // Read the script
     const scriptPath = path.join(__dirname, "update_issue.cjs");
     updateIssueScript = fs.readFileSync(scriptPath, "utf8");
+  });
+
+  afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
   });
 
   it("should skip when no agent output is provided", async () => {

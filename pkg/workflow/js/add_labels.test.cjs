@@ -74,6 +74,16 @@ global.context = mockContext;
 describe("add_labels.cjs", () => {
   let addLabelsScript;
 
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
+
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
@@ -91,6 +101,14 @@ describe("add_labels.cjs", () => {
     // Read the script content
     const scriptPath = path.join(process.cwd(), "add_labels.cjs");
     addLabelsScript = fs.readFileSync(scriptPath, "utf8");
+  });
+
+  afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
   });
 
   describe("Environment variable validation", () => {

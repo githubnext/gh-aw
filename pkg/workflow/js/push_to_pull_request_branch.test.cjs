@@ -67,7 +67,7 @@ describe("push_to_pull_request_branch.cjs", () => {
   // Helper function to set agent output via file
   const setAgentOutput = data => {
     tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
-    const content = typeof data === 'string' ? data : JSON.stringify(data);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
     fs.writeFileSync(tempFilePath, content);
     process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
   };
