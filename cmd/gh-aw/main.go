@@ -130,7 +130,8 @@ Examples:
   ` + constants.CLIExtensionPrefix + ` compile ci-doctor daily-plan  # Compile multiple workflows
   ` + constants.CLIExtensionPrefix + ` compile workflow.md        # Compile by file path
   ` + constants.CLIExtensionPrefix + ` compile --workflows-dir custom/workflows  # Compile from custom directory
-  ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile`,
+  ` + constants.CLIExtensionPrefix + ` compile --watch ci-doctor     # Watch and auto-compile
+  ` + constants.CLIExtensionPrefix + ` compile --trial --logical-repo owner/repo  # Compile for trial mode`,
 	Run: func(cmd *cobra.Command, args []string) {
 		engineOverride, _ := cmd.Flags().GetString("engine")
 		validate, _ := cmd.Flags().GetBool("validate")
@@ -139,6 +140,8 @@ Examples:
 		noEmit, _ := cmd.Flags().GetBool("no-emit")
 		purge, _ := cmd.Flags().GetBool("purge")
 		strict, _ := cmd.Flags().GetBool("strict")
+		trial, _ := cmd.Flags().GetBool("trial")
+		logicalRepo, _ := cmd.Flags().GetString("logical-repo")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		if err := validateEngine(engineOverride); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
@@ -154,8 +157,8 @@ Examples:
 			SkipInstructions:     false, // Deprecated field, kept for backward compatibility
 			NoEmit:               noEmit,
 			Purge:                purge,
-			TrialMode:            false,
-			TrialLogicalRepoSlug: "",
+			TrialMode:            trial,
+			TrialLogicalRepoSlug: logicalRepo,
 			Strict:               strict,
 		}
 		if _, err := cli.CompileWorkflows(config); err != nil {
@@ -260,6 +263,8 @@ func init() {
 	compileCmd.Flags().Bool("no-emit", false, "Validate workflow without generating lock files")
 	compileCmd.Flags().Bool("purge", false, "Delete .lock.yml files that were not regenerated during compilation (only when no specific files are specified)")
 	compileCmd.Flags().Bool("strict", false, "Enable strict mode: require timeout, refuse write permissions, require network configuration")
+	compileCmd.Flags().Bool("trial", false, "Enable trial mode compilation (modifies workflows for trial execution)")
+	compileCmd.Flags().String("logical-repo", "", "Repository to simulate workflow execution against (for trial mode)")
 
 	// Add flags to remove command
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
