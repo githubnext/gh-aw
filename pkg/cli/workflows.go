@@ -30,11 +30,16 @@ func getWorkflowsDir() string {
 // readWorkflowFile reads a workflow file from either filesystem
 func readWorkflowFile(filePath string, workflowsDir string) ([]byte, string, error) {
 	// Using local filesystem
-	fullPath := filepath.Join(workflowsDir, filePath)
-	if !strings.HasPrefix(fullPath, workflowsDir) {
-		// If filePath is already absolute
+	var fullPath string
+
+	// Check if filePath is already an absolute path
+	if filepath.IsAbs(filePath) {
 		fullPath = filePath
+	} else {
+		// Join relative path with workflowsDir
+		fullPath = filepath.Join(workflowsDir, filePath)
 	}
+
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read workflow file %s: %w", fullPath, err)
