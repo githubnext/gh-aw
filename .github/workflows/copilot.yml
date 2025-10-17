@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/copilot.yml'
 permissions: {}
+concurrent:
+  group: copilot-only
+  cancel-in-progress: true
 jobs:
   copilot:
     runs-on: ubuntu-latest
@@ -53,6 +56,13 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       - name: List files in /tmp/logs
         run: ls -la /tmp/logs
+      - name: Print logs
+        run: # file all .log files in /tmp/logs and echo their contents
+          for file in /tmp/logs/*.log; do
+            echo "$file:"
+            cat "$file"
+            echo "-------------------------"
+          done
       - name: Upload execution logs
         if: always()
         uses: actions/upload-artifact@v4
