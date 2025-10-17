@@ -2,11 +2,10 @@ async function main() {
   const fs = require("fs");
 
   // Get environment variables
-  const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
   const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
 
   core.info("Processing missing-tool reports...");
-  core.info(`Agent output length: ${agentOutput.length}`);
   if (maxReports) {
     core.info(`Maximum reports allowed: ${maxReports}`);
   }
@@ -15,12 +14,23 @@ async function main() {
   const missingTools = [];
 
   // Return early if no agent output
-  if (!agentOutput.trim()) {
+  if (!agentOutputFile.trim()) {
     core.info("No agent output to process");
     core.setOutput("tools_reported", JSON.stringify(missingTools));
     core.setOutput("total_count", missingTools.length.toString());
     return;
   }
+
+  // Read agent output from file
+  let agentOutput;
+  try {
+    agentOutput = fs.readFileSync(agentOutputFile, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  core.info(`Agent output length: ${agentOutput.length}`);
 
   // Parse the validated output JSON
   let validatedOutput;

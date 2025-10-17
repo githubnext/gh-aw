@@ -6,9 +6,18 @@ async function main() {
   const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
 
   // Environment validation - fail early if required variables are missing
-  const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-  if (outputContent.trim() === "") {
+  const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+  if (agentOutputFile.trim() === "") {
     core.info("Agent output content is empty");
+    return;
+  }
+
+  // Read agent output from file
+  let outputContent;
+  try {
+    outputContent = fs.readFileSync(agentOutputFile, "utf8");
+  } catch (error) {
+    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
     return;
   }
 

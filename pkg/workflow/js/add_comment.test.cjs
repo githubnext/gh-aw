@@ -78,6 +78,16 @@ global.context = mockContext;
 describe("add_comment.cjs", () => {
   let createCommentScript;
 
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
+
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
@@ -94,6 +104,14 @@ describe("add_comment.cjs", () => {
     createCommentScript = fs.readFileSync(scriptPath, "utf8");
   });
 
+  afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
+  });
+
   it("should skip when no agent output is provided", async () => {
     // Remove the output content environment variable
     delete process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -106,7 +124,7 @@ describe("add_comment.cjs", () => {
   });
 
   it("should skip when agent output is empty", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
+    setAgentOutput("");
 
     // Execute the script
     await eval(`(async () => { ${createCommentScript} })()`);

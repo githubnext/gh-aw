@@ -709,10 +709,21 @@ jobs:
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputEnvValue) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
@@ -967,10 +978,21 @@ jobs:
               return sanitized.trim();
             }
             async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputEnvValue) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
@@ -4585,10 +4607,21 @@ jobs:
             }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputEnvValue) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
@@ -4874,10 +4907,21 @@ jobs:
                   return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
                 }
               }
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputEnvValue) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
@@ -5190,7 +5234,20 @@ jobs:
               if (!baseBranch) {
                 throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
               }
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              let outputContent = "";
+              if (outputEnvValue.trim() !== "") {
+                if (outputEnvValue.startsWith("/")) {
+                  try {
+                    outputContent = fs.readFileSync(outputEnvValue, "utf8");
+                  } catch (error) {
+                    core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                    return;
+                  }
+                } else {
+                  outputContent = outputEnvValue;
+                }
+              }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
               }
@@ -5789,20 +5846,31 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
               core.info("Processing missing-tool reports...");
-              core.info(`Agent output length: ${agentOutput.length}`);
               if (maxReports) {
                 core.info(`Maximum reports allowed: ${maxReports}`);
               }
               const missingTools = [];
-              if (!agentOutput.trim()) {
+              if (!outputEnvValue.trim()) {
                 core.info("No agent output to process");
                 core.setOutput("tools_reported", JSON.stringify(missingTools));
                 core.setOutput("total_count", missingTools.length.toString());
                 return;
               }
+              let agentOutput;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  agentOutput = fs.readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                agentOutput = outputEnvValue;
+              }
+              core.info(`Agent output length: ${agentOutput.length}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(agentOutput);
@@ -6010,10 +6078,21 @@ jobs:
             const fs = require("fs");
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              if (outputContent.trim() === "") {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              if (outputEnvValue.trim() === "") {
                 core.info("Agent output content is empty");
                 return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = fs.readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
               }
               const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
               const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
@@ -6296,10 +6375,21 @@ jobs:
           script: |
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputEnvValue) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
@@ -6665,12 +6755,23 @@ jobs:
               }
               const normalizedBranchName = normalizeBranchName(branchName);
               core.info(`Using assets branch: ${normalizedBranchName}`);
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
+              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputEnvValue) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 core.setOutput("upload_count", "0");
                 core.setOutput("branch_name", normalizedBranchName);
                 return;
+              }
+              let outputContent;
+              if (outputEnvValue.startsWith("/")) {
+                try {
+                  outputContent = fs.readFileSync(outputEnvValue, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              } else {
+                outputContent = outputEnvValue;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
