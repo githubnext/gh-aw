@@ -550,3 +550,125 @@ func TestIsTimeoutError(t *testing.T) {
 		})
 	}
 }
+
+func TestCollectPackagesFromWorkflow(t *testing.T) {
+	// Mock extractor function that returns packages from commands
+	mockExtractor := func(commands string) []string {
+		if commands == "command1" {
+			return []string{"pkg1", "pkg2"}
+		}
+		if commands == "command2" {
+			return []string{"pkg2", "pkg3"}
+		}
+		return []string{}
+	}
+
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		toolCommand  string
+		expected     []string
+	}{
+		{
+			name: "extract from custom steps only",
+			workflowData: &WorkflowData{
+				CustomSteps: "command1",
+			},
+			toolCommand: "",
+			expected:    []string{"pkg1", "pkg2"},
+		},
+		{
+			name: "extract from engine steps only",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					Steps: []map[string]any{
+						{"run": "command1"},
+					},
+				},
+			},
+			toolCommand: "",
+			expected:    []string{"pkg1", "pkg2"},
+		},
+		{
+			name: "deduplicate across custom and engine steps",
+			workflowData: &WorkflowData{
+				CustomSteps: "command1",
+				EngineConfig: &EngineConfig{
+					Steps: []map[string]any{
+						{"run": "command2"},
+					},
+				},
+			},
+			toolCommand: "",
+			expected:    []string{"pkg1", "pkg2", "pkg3"},
+		},
+		{
+			name: "extract from MCP tools when toolCommand provided",
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"test-tool": map[string]any{
+						"command": "test-cmd",
+						"args":    []any{"pkg4"},
+					},
+				},
+			},
+			toolCommand: "test-cmd",
+			expected:    []string{"pkg4"},
+		},
+		{
+			name: "skip MCP tools when toolCommand is empty",
+			workflowData: &WorkflowData{
+				Tools: map[string]any{
+					"test-tool": map[string]any{
+						"command": "test-cmd",
+						"args":    []any{"pkg4"},
+					},
+				},
+			},
+			toolCommand: "",
+			expected:    []string{},
+		},
+		{
+			name: "deduplicate across all sources",
+			workflowData: &WorkflowData{
+				CustomSteps: "command1",
+				EngineConfig: &EngineConfig{
+					Steps: []map[string]any{
+						{"run": "command1"}, // Same packages as custom steps
+					},
+				},
+				Tools: map[string]any{
+					"test-tool": map[string]any{
+						"command": "test-cmd",
+						"args":    []any{"pkg1"}, // Duplicate from custom steps
+					},
+				},
+			},
+			toolCommand: "test-cmd",
+			expected:    []string{"pkg1", "pkg2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			packages := collectPackagesFromWorkflow(tt.workflowData, mockExtractor, tt.toolCommand)
+
+			if len(packages) != len(tt.expected) {
+				t.Errorf("expected %d packages, got %d: %v", len(tt.expected), len(packages), packages)
+				return
+			}
+
+			// Check that all expected packages are present (order doesn't matter)
+			expectedMap := make(map[string]bool)
+			for _, pkg := range tt.expected {
+				expectedMap[pkg] = true
+			}
+
+			for _, pkg := range packages {
+				if !expectedMap[pkg] {
+					t.Errorf("unexpected package: %s", pkg)
+				}
+			}
+		})
+	}
+}
