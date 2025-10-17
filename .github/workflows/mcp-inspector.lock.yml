@@ -25,19 +25,19 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
-#   detection["detection"]
 #   create_discussion["create_discussion"]
+#   detection["detection"]
 #   missing_tool["missing_tool"]
 #   notion_add_comment["notion_add_comment"]
 #   post_to_slack_channel["post_to_slack_channel"]
+#   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   activation --> agent
-#   agent --> detection
 #   agent --> create_discussion
 #   detection --> create_discussion
+#   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
 #   agent --> notion_add_comment
