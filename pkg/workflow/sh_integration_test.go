@@ -119,7 +119,11 @@ func TestWritePromptTextToYAML_RealWorldSizeSimulation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create text of approximately the desired size
-			lineSize := tt.textSize / tt.linesCount
+			// Account for newlines: total size = linesCount * (lineSize + 1) - 1 (no trailing newline)
+			lineSize := (tt.textSize + 1) / tt.linesCount // Adjust for newlines
+			if lineSize < 1 {
+				lineSize = 1
+			}
 			line := strings.Repeat("x", lineSize)
 			lines := make([]string, tt.linesCount)
 			for i := range lines {
