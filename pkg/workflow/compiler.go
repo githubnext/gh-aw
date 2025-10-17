@@ -2936,11 +2936,19 @@ func (c *Compiler) generatePostSteps(yaml *strings.Builder, data *WorkflowData) 
 		lines := strings.Split(data.PostSteps, "\n")
 		if len(lines) > 1 {
 			for _, line := range lines[1:] {
-				// Remove 2 existing spaces, add 6
+				// Trim trailing whitespace
+				trimmed := strings.TrimRight(line, " ")
+				// Skip empty lines
+				if strings.TrimSpace(trimmed) == "" {
+					yaml.WriteString("\n")
+					continue
+				}
+				// Steps need 6-space indentation (      - name:)
+				// Nested properties need 8-space indentation (        run:)
 				if strings.HasPrefix(line, "  ") {
-					yaml.WriteString("    " + line[2:] + "\n")
+					yaml.WriteString("        " + line[2:] + "\n")
 				} else {
-					yaml.WriteString("    " + line + "\n")
+					yaml.WriteString("      " + line + "\n")
 				}
 			}
 		}
