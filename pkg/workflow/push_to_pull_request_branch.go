@@ -36,54 +36,48 @@ func (c *Compiler) buildCreateOutputPushToPullRequestBranchJob(data *WorkflowDat
 	// Step 3: Configure Git credentials
 	steps = append(steps, c.generateGitConfigurationSteps()...)
 
-	// Step 4: Push to Branch
-	steps = append(steps, "      - name: Push to Branch\n")
-	steps = append(steps, "        id: push_to_pull_request_branch\n")
-	steps = append(steps, "        uses: actions/github-script@v8\n")
-
-	// Add environment variables
-	steps = append(steps, "        env:\n")
+	// Build custom environment variables specific to push-to-pull-request-branch
+	var customEnvVars []string
 	// Add GH_TOKEN for authentication, because we shell out to 'gh' commands
-	steps = append(steps, "          GH_TOKEN: ${{ github.token }}\n")
-	// Pass the agent output content from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", mainJobName))
+	customEnvVars = append(customEnvVars, "          GH_TOKEN: ${{ github.token }}\n")
 	// Pass the target configuration
 	if data.SafeOutputs.PushToPullRequestBranch.Target != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PUSH_TARGET: %q\n", data.SafeOutputs.PushToPullRequestBranch.Target))
 	}
 	// Pass the if-no-changes configuration
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PUSH_IF_NO_CHANGES: %q\n", data.SafeOutputs.PushToPullRequestBranch.IfNoChanges))
 	// Pass the title prefix configuration
 	if data.SafeOutputs.PushToPullRequestBranch.TitlePrefix != "" {
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_TITLE_PREFIX: %q\n", data.SafeOutputs.PushToPullRequestBranch.TitlePrefix))
 	}
 	// Pass the labels configuration
 	if len(data.SafeOutputs.PushToPullRequestBranch.Labels) > 0 {
 		labelsStr := strings.Join(data.SafeOutputs.PushToPullRequestBranch.Labels, ",")
-		steps = append(steps, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_PR_LABELS: %q\n", labelsStr))
 	}
 	// Pass the maximum patch size configuration
 	maxPatchSize := 1024 // Default value
 	if data.SafeOutputs != nil && data.SafeOutputs.MaximumPatchSize > 0 {
 		maxPatchSize = data.SafeOutputs.MaximumPatchSize
 	}
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
+	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_MAX_PATCH_SIZE: %d\n", maxPatchSize))
 
-	// Add custom environment variables from safe-outputs.env
-	c.addCustomSafeOutputEnvVars(&steps, data)
-
-	steps = append(steps, "        with:\n")
-	// Add github-token if specified
+	// Get token from config
 	var token string
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		token = data.SafeOutputs.PushToPullRequestBranch.GitHubToken
 	}
-	c.addSafeOutputGitHubTokenForConfig(&steps, data, token)
-	steps = append(steps, "          script: |\n")
 
-	// Add each line of the script with proper indentation
-	formattedScript := FormatJavaScriptForYAML(pushToBranchScript)
-	steps = append(steps, formattedScript...)
+	// Step 4: Push to Branch using buildGitHubScriptStep
+	scriptSteps := c.buildGitHubScriptStep(data, GitHubScriptStepConfig{
+		StepName:      "Push to Branch",
+		StepID:        "push_to_pull_request_branch",
+		MainJobName:   mainJobName,
+		CustomEnvVars: customEnvVars,
+		Script:        pushToBranchScript,
+		Token:         token,
+	})
+	steps = append(steps, scriptSteps...)
 
 	// Create outputs for the job
 	outputs := map[string]string{
