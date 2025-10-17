@@ -66,27 +66,13 @@ Please do the following tasks:
 
 	lockContent := string(content)
 
-	// Verify git patch generation step exists
-	if !strings.Contains(lockContent, "- name: Generate git patch") {
-		t.Error("Expected 'Generate git patch' step to be in generated workflow")
-	}
+	// Note: "Generate git patch" step has been removed since patch generation
+	// now happens in the MCP server when create-pull-request or push-to-pull-request-branch
+	// tools are called. We only verify the upload step exists.
 
-	// Verify the git patch step contains the expected commands
-	if !strings.Contains(lockContent, "git status") {
-		t.Error("Expected 'git status' command in git patch step")
-	}
-
-	if !strings.Contains(lockContent, "git format-patch") {
-		t.Error("Expected 'git format-patch' command in git patch step")
-	}
-
-	if !strings.Contains(lockContent, "/tmp/gh-aw/aw.patch") {
-		t.Error("Expected '/tmp/gh-aw/aw.patch' path in git patch step")
-	}
-
-	// Verify git patch upload step exists
-	if !strings.Contains(lockContent, "- name: Upload git patch") {
-		t.Error("Expected 'Upload git patch' step to be in generated workflow")
+	// Verify git patch upload step exists (now named "Upload git patches")
+	if !strings.Contains(lockContent, "- name: Upload git patches") {
+		t.Error("Expected 'Upload git patches' step to be in generated workflow")
 	}
 
 	// Verify the upload step uses actions/upload-artifact@v4
@@ -94,45 +80,27 @@ Please do the following tasks:
 		t.Error("Expected upload-artifact action to be used for git patch upload step")
 	}
 
-	// Verify the artifact upload configuration
-	if !strings.Contains(lockContent, "name: aw.patch") {
-		t.Error("Expected artifact name 'aw.patch' in upload step")
+	// Verify the artifact upload configuration (now uses "patches" name)
+	if !strings.Contains(lockContent, "name: patches") {
+		t.Error("Expected artifact name 'patches' in upload step")
 	}
 
-	if !strings.Contains(lockContent, "path: /tmp/gh-aw/aw.patch") {
-		t.Error("Expected artifact path '/tmp/gh-aw/aw.patch' in upload step")
+	if !strings.Contains(lockContent, "path: /tmp/gh-aw/patches/") {
+		t.Error("Expected artifact path '/tmp/gh-aw/patches/' in upload step")
 	}
 
 	if !strings.Contains(lockContent, "if-no-files-found: ignore") {
 		t.Error("Expected 'if-no-files-found: ignore' in upload step")
 	}
 
-	// Verify the git patch step runs with 'if: always()'
-	gitPatchIndex := strings.Index(lockContent, "- name: Generate git patch")
-	if gitPatchIndex == -1 {
-		t.Fatal("Git patch step not found")
-	}
-
-	// Find the next step after git patch step
-	nextStepStart := gitPatchIndex + len("- name: Generate git patch")
-	stepEnd := strings.Index(lockContent[nextStepStart:], "- name:")
-	if stepEnd == -1 {
-		stepEnd = len(lockContent) - nextStepStart
-	}
-	gitPatchStep := lockContent[gitPatchIndex : nextStepStart+stepEnd]
-
-	if !strings.Contains(gitPatchStep, "if: always()") {
-		t.Error("Expected git patch step to have 'if: always()' condition")
-	}
-
-	// Verify the upload step runs with conditional logic for file existence
-	uploadPatchIndex := strings.Index(lockContent, "- name: Upload git patch")
+	// Verify the upload step runs with 'if: always()'
+	uploadPatchIndex := strings.Index(lockContent, "- name: Upload git patches")
 	if uploadPatchIndex == -1 {
-		t.Fatal("Upload git patch step not found")
+		t.Fatal("Upload git patches step not found")
 	}
 
 	// Find the next step after upload patch step
-	nextUploadStart := uploadPatchIndex + len("- name: Upload git patch")
+	nextUploadStart := uploadPatchIndex + len("- name: Upload git patches")
 	uploadStepEnd := strings.Index(lockContent[nextUploadStart:], "- name:")
 	if uploadStepEnd == -1 {
 		uploadStepEnd = len(lockContent) - nextUploadStart
@@ -140,10 +108,10 @@ Please do the following tasks:
 	uploadPatchStep := lockContent[uploadPatchIndex : nextUploadStart+uploadStepEnd]
 
 	if !strings.Contains(uploadPatchStep, "if: always()") {
-		t.Error("Expected upload git patch step to have 'if: always()' condition")
+		t.Error("Expected upload git patches step to have 'if: always()' condition")
 	}
 
-	// Verify step ordering: git patch steps should be after agentic execution but before other uploads
+	// Verify step ordering: upload patches step should be after agentic execution but before other uploads
 	agenticIndex := strings.Index(lockContent, "Execute Claude Code")
 	if agenticIndex == -1 {
 		// Try alternative agentic step names
@@ -155,13 +123,13 @@ Please do the following tasks:
 
 	uploadEngineLogsIndex := strings.Index(lockContent, "Upload agentic engine logs")
 
-	if agenticIndex != -1 && gitPatchIndex != -1 && uploadEngineLogsIndex != -1 {
-		if gitPatchIndex <= agenticIndex {
-			t.Error("Git patch step should appear after agentic execution step")
+	if agenticIndex != -1 && uploadPatchIndex != -1 && uploadEngineLogsIndex != -1 {
+		if uploadPatchIndex <= agenticIndex {
+			t.Error("Upload git patches step should appear after agentic execution step")
 		}
 
-		if gitPatchIndex >= uploadEngineLogsIndex {
-			t.Error("Git patch step should appear before engine logs upload step")
+		if uploadPatchIndex >= uploadEngineLogsIndex {
+			t.Error("Upload git patches step should appear before engine logs upload step")
 		}
 	}
 }

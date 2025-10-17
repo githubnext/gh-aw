@@ -71,20 +71,20 @@ func TestLogsCommandHelp(t *testing.T) {
 	cmd := NewLogsCommand()
 	helpText := cmd.Long
 
-	// Verify that the help text mentions the git patch
-	if !strings.Contains(helpText, "aw.patch") {
-		t.Error("Expected logs command help to mention 'aw.patch' artifact")
+	// Verify that the help text mentions the git patches directory
+	if !strings.Contains(helpText, "patches/") {
+		t.Error("Expected logs command help to mention 'patches/' artifact")
 	}
 
-	if !strings.Contains(helpText, "Git patch of changes made during execution") {
-		t.Error("Expected logs command help to describe the git patch artifact")
+	if !strings.Contains(helpText, "Git patches of changes made during execution") {
+		t.Error("Expected logs command help to describe the git patches artifact")
 	}
 
 	// Verify the help text mentions all expected artifacts
 	expectedArtifacts := []string{
 		"aw_info.json",
 		"safe_output.jsonl",
-		"aw.patch",
+		"patches/",
 	}
 
 	for _, artifact := range expectedArtifacts {

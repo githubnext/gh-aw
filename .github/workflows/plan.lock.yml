@@ -976,11 +976,66 @@ jobs:
                 throw new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
+            function generatePatchFilename() {
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              return `${randomHex}.patch`;
+            }
+            function generateGitPatch(branch) {
+              const patchesDir = "/tmp/gh-aw/patches";
+              if (!fs.existsSync(patchesDir)) {
+                debug(`Creating patches directory: ${patchesDir}`);
+                fs.mkdirSync(patchesDir, { recursive: true });
+              }
+              const patchFilename = generatePatchFilename();
+              const patchPath = path.join(patchesDir, patchFilename);
+              debug(`Generating patch for branch: ${branch} -> ${patchPath}`);
+              try {
+                try {
+                  execSync(`git show-ref --verify --quiet refs/heads/${branch}`, { stdio: "ignore" });
+                } catch (error) {
+                  debug(`Branch ${branch} does not exist, no patch generated`);
+                  return null;
+                }
+                let baseRef;
+                try {
+                  execSync(`git show-ref --verify --quiet refs/remotes/origin/${branch}`, { stdio: "ignore" });
+                  baseRef = `origin/${branch}`;
+                  debug(`Using origin/${branch} as base for patch generation`);
+                } catch (error) {
+                  const defaultBranch = process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
+                  debug(`origin/${branch} does not exist, using merge-base with ${defaultBranch}`);
+                  try {
+                    execSync(`git fetch origin ${defaultBranch}`, { stdio: "ignore" });
+                  } catch (fetchError) {
+                    debug(`Failed to fetch default branch: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+                  }
+                  baseRef = execSync(`git merge-base origin/${defaultBranch} ${branch}`, { encoding: "utf8" }).trim();
+                  debug(`Using merge-base as base: ${baseRef}`);
+                }
+                const patchCmd = `git format-patch "${baseRef}..${branch}" --stdout`;
+                const patchData = execSync(patchCmd, { encoding: "utf8" });
+                if (!patchData || patchData.trim().length === 0) {
+                  debug(`No changes in branch ${branch}, no patch generated`);
+                  return null;
+                }
+                fs.writeFileSync(patchPath, patchData);
+                debug(`Patch file created: ${patchFilename}`);
+                return patchFilename;
+              } catch (error) {
+                debug(`Error generating patch: ${error instanceof Error ? error.message : String(error)}`);
+                return null;
+              }
+            }
             const createPullRequestHandler = args => {
               const entry = { ...args, type: "create_pull_request" };
               if (!entry.branch || entry.branch.trim() === "") {
                 entry.branch = getCurrentBranch();
                 debug(`Using current branch for create_pull_request: ${entry.branch}`);
+              }
+              const patchFilename = generateGitPatch(entry.branch);
+              if (patchFilename) {
+                entry.patch = patchFilename;
+                debug(`Patch generated for create_pull_request: ${patchFilename}`);
               }
               appendSafeOutput(entry);
               return {
@@ -997,6 +1052,11 @@ jobs:
               if (!entry.branch || entry.branch.trim() === "") {
                 entry.branch = getCurrentBranch();
                 debug(`Using current branch for push_to_pull_request_branch: ${entry.branch}`);
+              }
+              const patchFilename = generateGitPatch(entry.branch);
+              if (patchFilename) {
+                entry.patch = patchFilename;
+                debug(`Patch generated for push_to_pull_request_branch: ${patchFilename}`);
               }
               appendSafeOutput(entry);
               return {
@@ -3821,8 +3881,8 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v5
         with:
-          name: aw.patch
-          path: /tmp/gh-aw/threat-detection/
+          name: patches
+          path: /tmp/gh-aw/threat-detection/patches/
       - name: Echo agent output types
         env:
           AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
@@ -3850,18 +3910,27 @@ jobs:
             } else {
               core.info('No agent output file found at: ' + agentOutputPath);
             }
-            const patchPath = '/tmp/gh-aw/threat-detection/aw.patch';
-            let patchFileInfo = 'No patch file found';
-            if (fs.existsSync(patchPath)) {
+            const patchesDir = '/tmp/gh-aw/threat-detection/patches';
+            let patchFileInfo = 'No patch files found';
+            if (fs.existsSync(patchesDir)) {
               try {
-                const stats = fs.statSync(patchPath);
-                patchFileInfo = patchPath + ' (' + stats.size + ' bytes)';
-                core.info('Patch file found: ' + patchFileInfo);
+                const patchFiles = fs.readdirSync(patchesDir).filter(f => f.endsWith('.patch'));
+                if (patchFiles.length > 0) {
+                  let totalSize = 0;
+                  patchFiles.forEach(file => {
+                    const stats = fs.statSync(patchesDir + '/' + file);
+                    totalSize += stats.size;
+                  });
+                  patchFileInfo = patchFiles.length + ' patch file(s) (' + totalSize + ' bytes total)';
+                  core.info('Found ' + patchFiles.length + ' patch file(s): ' + patchFileInfo);
+                } else {
+                  core.info('No patch files found in patches directory');
+                }
               } catch (error) {
-                core.warning('Failed to stat patch file: ' + error.message);
+                core.warning('Failed to read patches directory: ' + error.message);
               }
             } else {
-              core.info('No patch file found at: ' + patchPath);
+              core.info('No patches directory found at: ' + patchesDir);
             }
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
