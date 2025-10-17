@@ -67,6 +67,17 @@ global.context = mockContext;
 const securityReportScript = fs.readFileSync(path.join(import.meta.dirname, "create_code_scanning_alert.cjs"), "utf8");
 
 describe("create_code_scanning_alert.cjs", () => {
+  let securityReportScript;
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
+
   beforeEach(() => {
     // Reset mocks
     mockCore.setOutput.mockClear();
@@ -74,13 +85,19 @@ describe("create_code_scanning_alert.cjs", () => {
     mockCore.summary.write.mockClear();
 
     // Set up basic environment
-    process.env.GITHUB_AW_AGENT_OUTPUT = "";
+    setAgentOutput("");
     delete process.env.GITHUB_AW_SECURITY_REPORT_MAX;
     delete process.env.GITHUB_AW_SECURITY_REPORT_DRIVER;
     delete process.env.GITHUB_AW_WORKFLOW_FILENAME;
   });
 
   afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
+
     // Clean up any created files
     try {
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -100,14 +117,14 @@ describe("create_code_scanning_alert.cjs", () => {
     });
 
     it("should handle empty agent output", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
+      setAgentOutput("");
       await eval(`(async () => { ${securityReportScript} })()`);
 
       expect(mockCore.info).toHaveBeenCalledWith("Agent output content is empty");
     });
 
     it("should handle invalid JSON", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = "invalid json";
+      setAgentOutput("invalid json");
       await eval(`(async () => { ${securityReportScript} })()`);
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:/));
@@ -151,7 +168,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
+      setAgentOutput(securityFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created
@@ -209,7 +226,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
+      setAgentOutput(securityFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only 1 finding
@@ -265,7 +282,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(mixedFindings);
+      setAgentOutput(mixedFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Check that SARIF file was created with only the 1 valid finding
@@ -296,7 +313,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
+      setAgentOutput(securityFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -322,7 +339,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
+      setAgentOutput(securityFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -357,7 +374,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
+      setAgentOutput(securityFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -408,7 +425,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(invalidFindings);
+      setAgentOutput(invalidFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed
@@ -451,7 +468,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(securityFindings);
+      setAgentOutput(securityFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       const sarifFile = path.join(process.cwd(), "code-scanning-alert.sarif");
@@ -513,7 +530,7 @@ describe("create_code_scanning_alert.cjs", () => {
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(invalidFindings);
+      setAgentOutput(invalidFindings);
       await eval(`(async () => { ${securityReportScript} })()`);
 
       // Only the first valid finding should be processed

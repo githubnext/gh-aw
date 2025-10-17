@@ -81,6 +81,16 @@ global.context = mockContext;
 describe("create_pr_review_comment.cjs", () => {
   let createPRReviewCommentScript;
 
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
+
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
@@ -96,6 +106,14 @@ describe("create_pr_review_comment.cjs", () => {
 
     // Reset global context to default PR context
     global.context = mockContext;
+  });
+
+  afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
   });
 
   it("should create a single PR review comment with basic configuration", async () => {

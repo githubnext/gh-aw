@@ -712,9 +712,16 @@ jobs:
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
+              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              let outputContent;
+              try {
+                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
               if (outputContent.trim() === "") {
@@ -4670,7 +4677,16 @@ jobs:
               if (!baseBranch) {
                 throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
               }
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              let outputContent = "";
+              if (agentOutputFile.trim() !== "") {
+                try {
+                  outputContent = fs.readFileSync(agentOutputFile, "utf8");
+                } catch (error) {
+                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                  return;
+                }
+              }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
               }
@@ -5269,20 +5285,27 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-              const agentOutput = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
               core.info("Processing missing-tool reports...");
-              core.info(`Agent output length: ${agentOutput.length}`);
               if (maxReports) {
                 core.info(`Maximum reports allowed: ${maxReports}`);
               }
               const missingTools = [];
-              if (!agentOutput.trim()) {
+              if (!agentOutputFile.trim()) {
                 core.info("No agent output to process");
                 core.setOutput("tools_reported", JSON.stringify(missingTools));
                 core.setOutput("total_count", missingTools.length.toString());
                 return;
               }
+              let agentOutput;
+              try {
+                agentOutput = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.info(`Agent output length: ${agentOutput.length}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(agentOutput);

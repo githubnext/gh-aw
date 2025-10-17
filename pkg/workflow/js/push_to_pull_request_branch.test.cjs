@@ -62,6 +62,15 @@ describe("push_to_pull_request_branch.cjs", () => {
   let pushToPrBranchScript;
   let mockFs;
   let mockExec;
+  let tempFilePath;
+
+  // Helper function to set agent output via file
+  const setAgentOutput = data => {
+    tempFilePath = path.join("/tmp", `test_agent_output_${Date.now()}_${Math.random().toString(36).slice(2)}.json`);
+    const content = typeof data === "string" ? data : JSON.stringify(data);
+    fs.writeFileSync(tempFilePath, content);
+    process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
+  };
 
   // Helper function to execute the script with proper globals
   const executeScript = async () => {
@@ -150,6 +159,12 @@ const exec = global.exec;`
   });
 
   afterEach(() => {
+    // Clean up temporary file
+    if (tempFilePath && require("fs").existsSync(tempFilePath)) {
+      require("fs").unlinkSync(tempFilePath);
+      tempFilePath = undefined;
+    }
+
     // Clean up globals safely
     if (typeof global !== "undefined") {
       delete global.core;
@@ -172,7 +187,7 @@ const exec = global.exec;`
     });
 
     it("should skip when agent output is empty", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = "   ";
+      setAgentOutput("");
 
       // Execute the script
       await executeScript();
@@ -282,7 +297,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
 
       mockFs.existsSync.mockReturnValue(true);
       mockFs.readFileSync.mockReturnValue("diff --git a/file.txt b/file.txt\n+new content");
@@ -373,7 +388,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_MAX_PATCH_SIZE = "10"; // 10 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
@@ -401,7 +416,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
@@ -426,7 +441,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       delete process.env.GITHUB_AW_MAX_PATCH_SIZE; // No limit set
 
       mockFs.existsSync.mockReturnValue(true);
@@ -453,7 +468,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockFs.existsSync.mockReturnValue(true);
@@ -479,7 +494,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
 
       mockFs.existsSync.mockReturnValue(true);
@@ -526,7 +541,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_PR_TITLE_PREFIX = "[bot] ";
 
       mockFs.existsSync.mockReturnValue(true);
@@ -572,7 +587,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
 
       mockFs.existsSync.mockReturnValue(true);
@@ -619,7 +634,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_PR_LABELS = "automation,enhancement";
 
       mockFs.existsSync.mockReturnValue(true);
@@ -667,7 +682,7 @@ const exec = global.exec;`
         ],
       };
 
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify(validOutput);
+      setAgentOutput(validOutput);
       process.env.GITHUB_AW_PR_TITLE_PREFIX = "[automated] ";
       process.env.GITHUB_AW_PR_LABELS = "bot,feature";
 

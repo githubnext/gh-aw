@@ -11,6 +11,8 @@ safe-outputs:
     max: 1
 
 tools:
+  cache-memory:
+  edit:
   web-fetch:
 
 imports:
