@@ -948,7 +948,7 @@ jobs:
                 "command": "gh",
                 "args": ["aw", "mcp-server"],
                 "env": {
-                  "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"
+                  "GITHUB_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
                 }
               },
               "github": {

@@ -210,7 +210,7 @@ func TestRenderAgenticWorkflowsMCPConfigWithOptions(t *testing.T) {
 				`"agentic_workflows": {`,
 				`"command": "gh"`,
 				`"args": ["aw", "mcp-server"]`,
-				`"GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}"`,
+				`"GITHUB_TOKEN": "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"`,
 				`              }`,
 			},
 			unexpectedContent: []string{
@@ -338,7 +338,7 @@ func TestRenderAgenticWorkflowsMCPConfigTOML(t *testing.T) {
 		`args = [`,
 		`"aw"`,
 		`"mcp-server"`,
-		`env = { "GITHUB_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" }`,
+		`env = { "GITHUB_TOKEN" = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}" }`,
 	}
 
 	for _, expected := range expectedContent {

@@ -155,7 +155,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 	if includeCopilotFields {
 		yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_TOKEN}\"\n")
 	} else {
-		yaml.WriteString("                  \"GITHUB_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
+		yaml.WriteString("                  \"GITHUB_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
 	}
 
 	yaml.WriteString("                }\n")
@@ -212,7 +212,7 @@ func renderAgenticWorkflowsMCPConfigTOML(yaml *strings.Builder) {
 	yaml.WriteString("            \"aw\",\n")
 	yaml.WriteString("            \"mcp-server\",\n")
 	yaml.WriteString("          ]\n")
-	yaml.WriteString("          env = { \"GITHUB_TOKEN\" = \"${{ secrets.GITHUB_TOKEN }}\" }\n")
+	yaml.WriteString("          env = { \"GITHUB_TOKEN\" = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\" }\n")
 }
 
 // renderCustomMCPConfigWrapper generates custom MCP server configuration wrapper
