@@ -105,6 +105,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Add Issue Comment
@@ -3469,6 +3470,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Pull Request
@@ -4126,6 +4128,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
@@ -4352,6 +4355,7 @@ jobs:
           path: /tmp/gh-aw/safe-outputs/
       - name: Setup agent output environment variable
         run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Update reaction comment with error notification

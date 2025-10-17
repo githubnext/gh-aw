@@ -86,6 +86,7 @@ func buildAgentOutputDownloadSteps() []string {
 	// Add environment variables step to set GITHUB_AW_AGENT_OUTPUT
 	steps = append(steps, "      - name: Setup agent output environment variable\n")
 	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          mkdir -p /tmp/gh-aw/safe-outputs/\n")
 	steps = append(steps, "          find /tmp/gh-aw/safe-outputs/ -type f -print\n")
 	// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
 	steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/%s\" >> $GITHUB_ENV\n", "agent_output.json"))

@@ -527,3 +527,43 @@ func TestEnginesUseSameHelperLogic(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildAgentOutputDownloadSteps verifies the agent output download steps
+// include directory creation to handle cases where artifact doesn't exist
+func TestBuildAgentOutputDownloadSteps(t *testing.T) {
+	steps := buildAgentOutputDownloadSteps()
+	stepsStr := strings.Join(steps, "")
+
+	// Verify expected steps are present
+	expectedComponents := []string{
+		"- name: Download agent output artifact",
+		"continue-on-error: true",
+		"uses: actions/download-artifact@v5",
+		"name: agent_output.json",
+		"path: /tmp/gh-aw/safe-outputs/",
+		"- name: Setup agent output environment variable",
+		"mkdir -p /tmp/gh-aw/safe-outputs/",
+		"find /tmp/gh-aw/safe-outputs/ -type f -print",
+		"GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json",
+	}
+
+	for _, expected := range expectedComponents {
+		if !strings.Contains(stepsStr, expected) {
+			t.Errorf("Expected step to contain %q, but it was not found.\nGenerated steps:\n%s", expected, stepsStr)
+		}
+	}
+
+	// Verify mkdir comes before find to ensure directory exists
+	mkdirIdx := strings.Index(stepsStr, "mkdir -p /tmp/gh-aw/safe-outputs/")
+	findIdx := strings.Index(stepsStr, "find /tmp/gh-aw/safe-outputs/")
+
+	if mkdirIdx == -1 {
+		t.Fatal("mkdir command not found in steps")
+	}
+	if findIdx == -1 {
+		t.Fatal("find command not found in steps")
+	}
+	if mkdirIdx > findIdx {
+		t.Error("mkdir should come before find to ensure directory exists")
+	}
+}
