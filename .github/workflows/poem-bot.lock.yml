@@ -5846,6 +5846,12 @@ jobs:
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
                 return;
               }
+              if (agentOutput.trim() === "") {
+                core.info("No agent output to process");
+                core.setOutput("tools_reported", JSON.stringify(missingTools));
+                core.setOutput("total_count", missingTools.length.toString());
+                return;
+              }
               core.info(`Agent output length: ${agentOutput.length}`);
               let validatedOutput;
               try {
@@ -6064,6 +6070,10 @@ jobs:
                 outputContent = fs.readFileSync(agentOutputFile, "utf8");
               } catch (error) {
                 core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
                 return;
               }
               const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
