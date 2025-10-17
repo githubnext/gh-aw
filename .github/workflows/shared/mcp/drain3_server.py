@@ -16,7 +16,7 @@ from drain3.template_miner_config import TemplateMinerConfig
 # Configuration
 # -----------------------
 HOST = os.getenv("HOST", "0.0.0.0")
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "8766"))
 
 STATE_DIR = Path(os.getenv("STATE_DIR", ".drain3")).resolve()
 STATE_DIR.mkdir(parents=True, exist_ok=True)
