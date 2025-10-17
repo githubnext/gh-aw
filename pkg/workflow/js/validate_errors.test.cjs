@@ -539,11 +539,11 @@ describe("infinite loop detection", () => {
 
     validateErrors(logContent, patterns);
 
-    // Should have logged debug information
-    const debugCalls = global.core.debug.mock.calls.map(call => call[0]);
+    // Should have logged info information
+    const infoCalls = global.core.info.mock.calls.map(call => call[0]);
 
     // Should log pattern count and line count
-    const hasPatternInfo = debugCalls.some(msg => msg.includes("patterns") && msg.includes("lines"));
+    const hasPatternInfo = infoCalls.some(msg => msg.includes("patterns") && msg.includes("lines"));
     expect(hasPatternInfo).toBe(true);
   });
 });

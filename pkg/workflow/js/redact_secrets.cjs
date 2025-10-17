@@ -65,7 +65,7 @@ function redactSecrets(content, secretValues) {
     if (occurrences > 0) {
       redacted = parts.join(replacement);
       redactionCount += occurrences;
-      core.debug(`Redacted ${occurrences} occurrence(s) of a secret`);
+      core.info(`Redacted ${occurrences} occurrence(s) of a secret`);
     }
   }
   return { content: redacted, redactionCount };
@@ -83,7 +83,7 @@ function processFile(filePath, secretValues) {
     const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
     if (redactionCount > 0) {
       fs.writeFileSync(filePath, redactedContent, "utf8");
-      core.debug(`Processed ${filePath}: ${redactionCount} redaction(s)`);
+      core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
     }
     return redactionCount;
   } catch (error) {
