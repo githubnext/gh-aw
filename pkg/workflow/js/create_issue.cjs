@@ -189,54 +189,35 @@ async function main() {
     core.info(`Labels: ${labels}`);
     core.info(`Body length: ${body.length}`);
     try {
-      const { data: issue } = await github.rest.issues.create({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
-        title: title,
-        body: body,
-        labels: labels,
-      });
-      core.info("Created issue #" + issue.number + ": " + issue.html_url);
-      createdIssues.push(issue);
-
-      // Assign issue to bot if configured
+      // Check if we need to assign to a bot
       let assignToBot = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT;
+      let issue;
+
       if (assignToBot) {
+        // Normalize copilot name: "copilot" or "Copilot" -> "copilot-swe-agent"
+        const originalBotName = assignToBot;
+        if (assignToBot.toLowerCase() === "copilot") {
+          assignToBot = "copilot-swe-agent";
+          core.info(`Normalized bot name from "${originalBotName}" to "${assignToBot}"`);
+        }
+
         try {
-          // Normalize copilot name: "copilot" or "Copilot" -> "copilot-swe-agent"
-          const originalBotName = assignToBot;
-          if (assignToBot.toLowerCase() === "copilot") {
-            assignToBot = "copilot-swe-agent";
-            core.info(`Normalized bot name from "${originalBotName}" to "${assignToBot}"`);
-          }
-          
-          core.info(`Assigning issue #${issue.number} to bot: ${assignToBot}`);
-
-          // Note: The github-script action is configured with the appropriate token
-          // via the 'github-token' parameter in the workflow YAML.
-          // If assign-to-bot-github-token is specified, that token is used for all operations.
-          // Otherwise, the default github-token (or GITHUB_TOKEN) is used.
-
-          // Get the issue node ID
-          core.info(`Fetching node ID for issue #${issue.number}`);
-          const issueNodeIdQuery = `
-            query($owner: String!, $repo: String!, $issueNumber: Int!) {
+          // Get repository node ID
+          core.info(`Fetching repository node ID`);
+          const repoNodeIdQuery = `
+            query($owner: String!, $repo: String!) {
               repository(owner: $owner, name: $repo) {
-                issue(number: $issueNumber) {
-                  id
-                }
+                id
               }
             }
           `;
-
-          const issueResult = await github.graphql(issueNodeIdQuery, {
+          const repoResult = await github.graphql(repoNodeIdQuery, {
             owner: context.repo.owner,
             repo: context.repo.repo,
-            issueNumber: issue.number,
           });
           // @ts-ignore - graphql result type
-          const issueNodeId = issueResult.repository.issue.id;
-          core.info(`Issue node ID: ${issueNodeId}`);
+          const repositoryId = repoResult.repository.id;
+          core.info(`Repository node ID: ${repositoryId}`);
 
           // Get the bot user node ID
           core.info(`Fetching node ID for bot user: ${assignToBot}`);
@@ -247,7 +228,6 @@ async function main() {
               }
             }
           `;
-
           const botResult = await github.graphql(botNodeIdQuery, {
             login: assignToBot,
           });
@@ -255,22 +235,24 @@ async function main() {
           const botNodeId = botResult.user.id;
           core.info(`Bot user node ID: ${botNodeId}`);
 
-          // Assign the issue to the bot
-          core.info(`Executing replaceActorsForAssignable mutation`);
-          const assignMutation = `
-            mutation($assignableId: ID!, $actorIds: [ID!]!) {
-              replaceActorsForAssignable(input: {
-                assignableId: $assignableId,
-                actorIds: $actorIds
+          // Create issue with bot assigned in one mutation
+          core.info(`Creating issue and assigning to ${assignToBot} in one operation`);
+          const createIssueMutation = `
+            mutation($repositoryId: ID!, $title: String!, $body: String, $assigneeIds: [ID!]) {
+              createIssue(input: {
+                repositoryId: $repositoryId,
+                title: $title,
+                body: $body,
+                assigneeIds: $assigneeIds
               }) {
-                assignable {
-                  ... on Issue {
-                    id
-                    number
-                    assignees(first: 10) {
-                      nodes {
-                        login
-                      }
+                issue {
+                  id
+                  number
+                  title
+                  url
+                  assignees(first: 10) {
+                    nodes {
+                      login
                     }
                   }
                 }
@@ -278,39 +260,83 @@ async function main() {
             }
           `;
 
-          const assignResult = await github.graphql(assignMutation, {
-            assignableId: issueNodeId,
-            actorIds: [botNodeId],
+          const createResult = await github.graphql(createIssueMutation, {
+            repositoryId: repositoryId,
+            title: title,
+            body: body,
+            assigneeIds: [botNodeId],
           });
-          core.info(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
-
-          // Parse and validate the assignment result
+          
           // @ts-ignore - graphql result type
-          const assignable = assignResult?.replaceActorsForAssignable?.assignable;
-          if (assignable && assignable.assignees && assignable.assignees.nodes) {
-            const assignees = assignable.assignees.nodes;
+          const createdIssue = createResult.createIssue.issue;
+          
+          // Convert GraphQL result to REST API format for consistency
+          issue = {
+            number: createdIssue.number,
+            title: createdIssue.title,
+            html_url: createdIssue.url,
+            id: createdIssue.id,
+          };
+
+          core.info(`Created issue #${issue.number}: ${issue.html_url}`);
+
+          // Validate assignment
+          if (createdIssue.assignees && createdIssue.assignees.nodes) {
+            const assignees = createdIssue.assignees.nodes;
             // @ts-ignore - assignee type
             const assignedLogins = assignees.map(a => a.login).join(", ");
             core.info(`Issue #${issue.number} assignees: ${assignedLogins}`);
             
-            // Verify the bot was actually assigned
             // @ts-ignore - assignee type
             const botAssigned = assignees.some(a => a.login === assignToBot);
             if (botAssigned) {
-              core.info(`✓ Successfully assigned issue #${issue.number} to ${assignToBot}`);
+              core.info(`✓ Successfully created and assigned issue #${issue.number} to ${assignToBot}`);
             } else {
-              core.warning(`Assignment mutation completed but ${assignToBot} not found in assignees list. Current assignees: ${assignedLogins}`);
+              core.warning(`Issue created but ${assignToBot} not found in assignees list. Current assignees: ${assignedLogins}`);
             }
-          } else {
-            core.warning(`Assignment mutation completed but response structure unexpected: ${JSON.stringify(assignResult)}`);
+          }
+
+          // Add labels if specified (done separately as GraphQL createIssue doesn't support labels)
+          if (labels && labels.length > 0) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: labels,
+            });
+            core.info(`Added labels to issue #${issue.number}: ${labels.join(", ")}`);
           }
         } catch (error) {
           core.warning(
-            `Failed to assign issue to ${assignToBot}: ${error instanceof Error ? error.message : String(error)}`
+            `Failed to create issue with bot assignment: ${error instanceof Error ? error.message : String(error)}`
           );
-          // Continue even if assignment fails - the issue was still created
+          core.info(`Falling back to REST API issue creation`);
+          
+          // Fallback to REST API if GraphQL fails
+          const { data: fallbackIssue } = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: labels,
+          });
+          issue = fallbackIssue;
+          core.info("Created issue (without assignment) #" + issue.number + ": " + issue.html_url);
         }
+      } else {
+        // No bot assignment requested, use REST API
+        const { data: restIssue } = await github.rest.issues.create({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          title: title,
+          body: body,
+          labels: labels,
+        });
+        issue = restIssue;
+        core.info("Created issue #" + issue.number + ": " + issue.html_url);
       }
+
+      createdIssues.push(issue);
 
       if (effectiveParentIssueNumber) {
         try {
