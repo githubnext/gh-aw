@@ -4,24 +4,20 @@ import (
 	"strings"
 )
 
+// hasPlaywrightTool checks if the playwright tool is enabled in the tools configuration
+func hasPlaywrightTool(tools map[string]any) bool {
+	if tools == nil {
+		return false
+	}
+	_, exists := tools["playwright"]
+	return exists
+}
+
 // generatePlaywrightPromptStep generates a separate step for playwright output directory instructions
 // Only generates the step if playwright tool is enabled in the workflow
 func (c *Compiler) generatePlaywrightPromptStep(yaml *strings.Builder, data *WorkflowData) {
-	// Check if playwright tool is enabled
-	if data.Tools == nil {
-		return
-	}
-
-	_, hasPlaywright := data.Tools["playwright"]
-	if !hasPlaywright {
-		return
-	}
-
-	appendPromptStep(yaml,
+	generateStaticPromptStep(yaml,
 		"Append playwright output directory instructions to prompt",
-		func(y *strings.Builder, indent string) {
-			WritePromptTextToYAML(y, playwrightPromptText, indent)
-		},
-		"", // no condition
-		"          ")
+		playwrightPromptText,
+		hasPlaywrightTool(data.Tools))
 }
