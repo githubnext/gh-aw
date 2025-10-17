@@ -38,6 +38,19 @@ describe("create_pull_request.cjs", () => {
     fs.writeFileSync(tempFilePath, content);
     process.env.GITHUB_AW_AGENT_OUTPUT = tempFilePath;
   };
+
+  // Helper to mock patch file content while preserving agent output reading
+  const mockPatchContent = (mockDeps, patchContent) => {
+    mockDeps.fs.readFileSync.mockImplementation(filepath => {
+      // If reading the agent output file, return the JSON content from env var
+      if (filepath === mockDeps.process.env.GITHUB_AW_AGENT_OUTPUT) {
+        return mockDeps.process.env.GITHUB_AW_AGENT_OUTPUT;
+      }
+      // Otherwise return the patch content
+      return patchContent;
+    });
+  };
+
   let mockDependencies;
 
   beforeEach(() => {
@@ -58,7 +71,15 @@ describe("create_pull_request.cjs", () => {
     mockDependencies = {
       fs: {
         existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi.fn().mockReturnValue("diff --git a/file.txt b/file.txt\n+new content"),
+        readFileSync: vi.fn().mockImplementation(filepath => {
+          // If reading the agent output file, return the JSON content from the env var
+          // (in this test setup, the env var contains JSON directly, not a file path)
+          if (filepath === mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT) {
+            return mockDependencies.process.env.GITHUB_AW_AGENT_OUTPUT;
+          }
+          // Otherwise return the patch content
+          return "diff --git a/file.txt b/file.txt\n+new content";
+        }),
       },
       crypto: {
         randomBytes: vi.fn().mockReturnValue(Buffer.from("1234567890abcdef", "hex")),
@@ -185,7 +206,7 @@ describe("create_pull_request.cjs", () => {
   it("should handle empty patch with default warn behavior when patch file is empty", async () => {
     mockDependencies.process.env.GITHUB_AW_WORKFLOW_ID = "test-workflow";
     mockDependencies.process.env.GITHUB_AW_BASE_BRANCH = "main";
-    mockDependencies.fs.readFileSync.mockReturnValue("   ");
+    mockPatchContent(mockDependencies, "   ");
 
     const mainFunction = createMainFunction(mockDependencies);
 
@@ -579,7 +600,7 @@ describe("create_pull_request.cjs", () => {
       patchLines.push(`+Line ${i}`);
     }
     const largePatch = patchLines.join("\n");
-    mockDependencies.fs.readFileSync.mockReturnValue(largePatch);
+    mockPatchContent(mockDependencies, largePatch);
 
     // Mock PR creation to fail
     const prError = new Error("Pull request creation is disabled");
@@ -633,7 +654,7 @@ describe("create_pull_request.cjs", () => {
       patchLines.push(`+This is a longer line ${i} with more content to trigger character limit truncation`);
     }
     const largePatch = patchLines.join("\n");
-    mockDependencies.fs.readFileSync.mockReturnValue(largePatch);
+    mockPatchContent(mockDependencies, largePatch);
 
     // Mock PR creation to fail
     const prError = new Error("Pull request creation is disabled");
@@ -684,7 +705,7 @@ describe("create_pull_request.cjs", () => {
 
     // Create a small patch (under 500 lines)
     const smallPatch = "diff --git a/file.txt b/file.txt\n--- a/file.txt\n+++ b/file.txt\n@@ -1,1 +1,1 @@\n+Small change";
-    mockDependencies.fs.readFileSync.mockReturnValue(smallPatch);
+    mockPatchContent(mockDependencies, smallPatch);
 
     // Mock PR creation to fail
     const prError = new Error("Pull request creation is disabled");
@@ -866,7 +887,7 @@ describe("create_pull_request.cjs", () => {
       patchLines.push(`+Test line ${i}`);
     }
     const testPatch = patchLines.join("\n");
-    mockDependencies.fs.readFileSync.mockReturnValue(testPatch);
+    mockPatchContent(mockDependencies, testPatch);
 
     // Mock git push to fail
     global.exec.exec = vi.fn().mockImplementation(async (cmd, args, options) => {
@@ -1064,7 +1085,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should handle empty patch with warn (default) behavior", async () => {
-      mockDependencies.fs.readFileSync.mockReturnValue("");
+      mockPatchContent(mockDependencies, "");
       mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "warn";
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1076,7 +1097,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should handle empty patch with ignore behavior", async () => {
-      mockDependencies.fs.readFileSync.mockReturnValue("");
+      mockPatchContent(mockDependencies, "");
       mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "ignore";
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1088,7 +1109,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should handle empty patch with error behavior", async () => {
-      mockDependencies.fs.readFileSync.mockReturnValue("");
+      mockPatchContent(mockDependencies, "");
       mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "error";
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1132,7 +1153,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should handle patch with error message with warn behavior", async () => {
-      mockDependencies.fs.readFileSync.mockReturnValue("Failed to generate patch: some error");
+      mockPatchContent(mockDependencies, "Failed to generate patch: some error");
       mockDependencies.process.env.GITHUB_AW_PR_IF_NO_CHANGES = "warn";
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1146,7 +1167,7 @@ describe("create_pull_request.cjs", () => {
     });
 
     it("should default to warn when if-no-changes is not specified", async () => {
-      mockDependencies.fs.readFileSync.mockReturnValue("");
+      mockPatchContent(mockDependencies, "");
       // Don't set GITHUB_AW_PR_IF_NO_CHANGES env var
 
       const mainFunction = createMainFunction(mockDependencies);
@@ -1197,7 +1218,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should include patch information in staged mode summary", async () => {
       mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.fs.readFileSync.mockReturnValue("diff --git a/test.txt b/test.txt\n+added line\n-removed line");
+      mockPatchContent(mockDependencies, "diff --git a/test.txt b/test.txt\n+added line\n-removed line");
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1216,7 +1237,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle empty patch in staged mode", async () => {
       mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.fs.readFileSync.mockReturnValue("");
+      mockPatchContent(mockDependencies, "");
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1287,7 +1308,7 @@ describe("create_pull_request.cjs", () => {
 
     it("should handle patch error in staged mode", async () => {
       mockDependencies.process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED = "true";
-      mockDependencies.fs.readFileSync.mockReturnValue("Failed to generate patch: some error occurred");
+      mockPatchContent(mockDependencies, "Failed to generate patch: some error occurred");
 
       const mainFunction = createMainFunction(mockDependencies);
 
@@ -1319,7 +1340,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content under 10 KB (approximately 5 KB)
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
-      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+      mockPatchContent(mockDependencies, patchContent);
 
       const mockPullRequest = {
         number: 123,
@@ -1354,7 +1375,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
-      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+      mockPatchContent(mockDependencies, patchContent);
 
       const main = createMainFunction(mockDependencies);
 
@@ -1380,7 +1401,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.fs.existsSync.mockReturnValue(true);
       // Create patch content over 1 KB (approximately 5 KB)
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n".repeat(100);
-      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+      mockPatchContent(mockDependencies, patchContent);
 
       const main = createMainFunction(mockDependencies);
       await main();
@@ -1412,7 +1433,7 @@ describe("create_pull_request.cjs", () => {
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
       const patchContent = "diff --git a/file.txt b/file.txt\n+new content\n";
-      mockDependencies.fs.readFileSync.mockReturnValue(patchContent);
+      mockPatchContent(mockDependencies, patchContent);
 
       const mockPullRequest = {
         number: 123,
@@ -1444,7 +1465,7 @@ describe("create_pull_request.cjs", () => {
       mockDependencies.process.env.GITHUB_AW_MAX_PATCH_SIZE = "1"; // 1 KB limit
 
       mockDependencies.fs.existsSync.mockReturnValue(true);
-      mockDependencies.fs.readFileSync.mockReturnValue(""); // Empty patch
+      mockPatchContent(mockDependencies, ""); // Empty patch
 
       const main = createMainFunction(mockDependencies);
       await main();

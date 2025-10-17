@@ -132,7 +132,7 @@ describe("update_issue.cjs", () => {
   });
 
   it("should skip when not in issue context for triggering target", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "update_issue",
@@ -151,7 +151,7 @@ describe("update_issue.cjs", () => {
   });
 
   it("should update issue title successfully", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "update_issue",
@@ -187,7 +187,7 @@ describe("update_issue.cjs", () => {
   });
 
   it("should update issue status successfully", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "update_issue",
@@ -217,7 +217,7 @@ describe("update_issue.cjs", () => {
   });
 
   it("should update multiple fields successfully", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "update_issue",
@@ -253,7 +253,7 @@ describe("update_issue.cjs", () => {
   });
 
   it('should handle explicit issue number with target "*"', async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "update_issue",
@@ -285,7 +285,7 @@ describe("update_issue.cjs", () => {
   });
 
   it("should skip when no valid updates are provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "update_issue",
@@ -307,7 +307,7 @@ describe("update_issue.cjs", () => {
   });
 
   it("should validate status values", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "update_issue",

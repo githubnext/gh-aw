@@ -133,7 +133,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should create issue with default title when only body content provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -165,7 +165,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should extract title from markdown heading", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -192,7 +192,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should handle labels from environment variable", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -218,7 +218,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should apply title prefix when provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -244,7 +244,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should not duplicate title prefix when already present", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -270,7 +270,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should handle parent issue context and create comment", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -317,7 +317,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should handle empty labels gracefully", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -343,7 +343,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should include run information in issue body", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -369,7 +369,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should handle disabled issues repository gracefully", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -407,7 +407,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should continue processing other issues when one fails due to disabled repository", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -442,7 +442,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should handle duplicate labels by removing duplicates", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -471,7 +471,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should sanitize labels by removing problematic characters", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -499,7 +499,7 @@ describe("create_issue.cjs", () => {
 
   it("should limit label length to 64 characters", async () => {
     const longLabel = "a".repeat(100); // 100 character label
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -528,7 +528,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should remove empty and whitespace-only labels", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -555,7 +555,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should include workflow source in footer when GITHUB_AW_WORKFLOW_SOURCE is provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -590,7 +590,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should not include workflow source footer when GITHUB_AW_WORKFLOW_SOURCE is not provided", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -623,7 +623,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should include triggering issue number in footer when in issue context", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -661,7 +661,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should include triggering PR number in footer when in PR context", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",
@@ -697,7 +697,7 @@ describe("create_issue.cjs", () => {
   });
 
   it("should not include triggering reference when no context available", async () => {
-    process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+    setAgentOutput({
       items: [
         {
           type: "create_issue",

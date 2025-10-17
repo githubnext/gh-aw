@@ -67,7 +67,6 @@ global.context = mockContext;
 const securityReportScript = fs.readFileSync(path.join(import.meta.dirname, "create_code_scanning_alert.cjs"), "utf8");
 
 describe("create_code_scanning_alert.cjs", () => {
-  let securityReportScript;
   let tempFilePath;
 
   // Helper function to set agent output via file
@@ -111,6 +110,7 @@ describe("create_code_scanning_alert.cjs", () => {
 
   describe("main function", () => {
     it("should handle missing environment variable", async () => {
+      delete process.env.GITHUB_AW_AGENT_OUTPUT;
       await eval(`(async () => { ${securityReportScript} })()`);
 
       expect(mockCore.info).toHaveBeenCalledWith("No GITHUB_AW_AGENT_OUTPUT environment variable found");
@@ -131,7 +131,7 @@ describe("create_code_scanning_alert.cjs", () => {
     });
 
     it("should handle missing items array", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         status: "success",
       });
       await eval(`(async () => { ${securityReportScript} })()`);
@@ -140,7 +140,7 @@ describe("create_code_scanning_alert.cjs", () => {
     });
 
     it("should handle no code scanning alert items", async () => {
-      process.env.GITHUB_AW_AGENT_OUTPUT = JSON.stringify({
+      setAgentOutput({
         items: [{ type: "create_issue", title: "Test Issue" }],
       });
       await eval(`(async () => { ${securityReportScript} })()`);

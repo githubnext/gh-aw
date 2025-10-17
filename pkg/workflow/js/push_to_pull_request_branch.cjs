@@ -21,6 +21,11 @@ async function main() {
     return;
   }
 
+  if (outputContent.trim() === "") {
+    core.info("Agent output content is empty");
+    return;
+  }
+
   const target = process.env.GITHUB_AW_PUSH_TARGET || "triggering";
   const ifNoChanges = process.env.GITHUB_AW_PUSH_IF_NO_CHANGES || "warn";
 
