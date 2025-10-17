@@ -1,3 +1,4 @@
+name: "copilot only"
 on:
   workflow_dispatch:
   push:
@@ -18,6 +19,7 @@ jobs:
         run: npm install -g @github/copilot    
       - name: Setup MCP Configuration
         run: |
+          mkdir -p /tmp/logs
           mkdir -p /home/runner/.copilot
           cat > /home/runner/.copilot/mcp-config.json << 'EOF'
           {
@@ -42,7 +44,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: copilot_execution
         timeout-minutes: 5
-        run: copilot --add-dir /tmp/ --log-level all --log-dir /home/runner/.copilot --prompt "If Tavily tools are not loaded, fail. Search for the latest trends in JavaScript frameworks."
+        run: copilot --add-dir /tmp/ --log-level all --log-dir /tmp/logs --prompt "If Tavily tools are not loaded, fail. Search for the latest trends in JavaScript frameworks."
         env:
           XDG_CONFIG_HOME: /home/runner
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
@@ -56,5 +58,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: copilot-logs
-          path: /home/runner/.copilot/
+          path: /tmp/logs/
           if-no-files-found: ignore
