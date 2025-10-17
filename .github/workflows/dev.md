@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
   command:
     name: dev
-  workflow_dispatch:
 name: Dev
 engine: claude
 permissions:
