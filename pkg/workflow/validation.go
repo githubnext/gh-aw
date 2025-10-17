@@ -179,6 +179,34 @@ func (c *Compiler) validateNpxPackages(workflowData *WorkflowData) error {
 	return nil
 }
 
+// validatePythonPackagesWithPip is a generic helper that validates Python packages using pip index.
+// It accepts a package list and a package type name for consistent error messaging.
+func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType string) {
+	for _, pkg := range packages {
+		// Extract package name without version specifier
+		pkgName := pkg
+		if eqIndex := strings.Index(pkg, "=="); eqIndex > 0 {
+			pkgName = pkg[:eqIndex]
+		}
+
+		// Use pip index to check if package exists on PyPI
+		cmd := exec.Command("pip", "index", "versions", pkgName)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			outputStr := strings.TrimSpace(string(output))
+			// Treat all pip validation errors as warnings, not compilation failures
+			// The package may be experimental, not yet published, or will be installed at runtime
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", packageType, pkg)))
+			if c.verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
+			}
+		} else if c.verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ %s package validated: %s", packageType, pkg)))
+		}
+	}
+}
+
 // validatePipPackages validates that pip packages are available on PyPI
 func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 	packages := extractPipPackages(workflowData)
@@ -197,29 +225,7 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 		}
 	}
 
-	pipCmd := "pip"
-	if _, err := exec.LookPath("pip"); err != nil {
-		pipCmd = "pip3"
-	}
-
-	for _, pkg := range packages {
-		// Use pip index to check if package exists on PyPI
-		cmd := exec.Command(pipCmd, "index", "versions", pkg)
-		output, err := cmd.CombinedOutput()
-
-		if err != nil {
-			outputStr := strings.TrimSpace(string(output))
-			// Treat all pip validation errors as warnings, not compilation failures
-			// The package may be experimental, not yet published, or will be installed at runtime
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("pip package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", pkg)))
-			if c.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
-			}
-		} else if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ pip package validated: %s", pkg)))
-		}
-	}
-
+	c.validatePythonPackagesWithPip(packages, "pip")
 	return nil
 }
 
@@ -272,41 +278,24 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 
 // validateUvPackagesWithPip validates uv packages using pip index
 func (c *Compiler) validateUvPackagesWithPip(packages []string) error {
-	for _, pkg := range packages {
-		// Extract package name without version specifier
-		pkgName := pkg
-		if eqIndex := strings.Index(pkg, "=="); eqIndex > 0 {
-			pkgName = pkg[:eqIndex]
-		}
-
-		// Use pip index to check if package exists on PyPI
-		cmd := exec.Command("pip", "index", "versions", pkgName)
-		output, err := cmd.CombinedOutput()
-
-		if err != nil {
-			outputStr := strings.TrimSpace(string(output))
-			// Treat all uv/pip validation errors as warnings, not compilation failures
-			// The package may be experimental, not yet published, or will be installed at runtime
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("uv package '%s' validation failed - skipping verification. Package may or may not exist on PyPI.", pkg)))
-			if c.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("  Details: %s", outputStr)))
-			}
-		} else if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("✓ uv package validated: %s", pkg)))
-		}
-	}
-
+	c.validatePythonPackagesWithPip(packages, "uv")
 	return nil
 }
 
-// extractNpxPackages extracts npx package names from workflow data
-func extractNpxPackages(workflowData *WorkflowData) []string {
+// collectPackagesFromWorkflow is a generic helper that collects packages from workflow data
+// using the provided extractor function. It deduplicates packages and optionally extracts
+// from MCP tool configurations when toolCommand is provided.
+func collectPackagesFromWorkflow(
+	workflowData *WorkflowData,
+	extractor func(string) []string,
+	toolCommand string,
+) []string {
 	var packages []string
 	seen := make(map[string]bool)
 
 	// Extract from custom steps
 	if workflowData.CustomSteps != "" {
-		pkgs := extractNpxFromCommands(workflowData.CustomSteps)
+		pkgs := extractor(workflowData.CustomSteps)
 		for _, pkg := range pkgs {
 			if !seen[pkg] {
 				packages = append(packages, pkg)
@@ -320,7 +309,7 @@ func extractNpxPackages(workflowData *WorkflowData) []string {
 		for _, step := range workflowData.EngineConfig.Steps {
 			if run, hasRun := step["run"]; hasRun {
 				if runStr, ok := run.(string); ok {
-					pkgs := extractNpxFromCommands(runStr)
+					pkgs := extractor(runStr)
 					for _, pkg := range pkgs {
 						if !seen[pkg] {
 							packages = append(packages, pkg)
@@ -332,12 +321,12 @@ func extractNpxPackages(workflowData *WorkflowData) []string {
 		}
 	}
 
-	// Extract from MCP server configurations
-	if workflowData.Tools != nil {
+	// Extract from MCP server configurations (if toolCommand is provided)
+	if toolCommand != "" && workflowData.Tools != nil {
 		for _, toolConfig := range workflowData.Tools {
 			if config, ok := toolConfig.(map[string]any); ok {
 				if command, hasCommand := config["command"]; hasCommand {
-					if cmdStr, ok := command.(string); ok && cmdStr == "npx" {
+					if cmdStr, ok := command.(string); ok && cmdStr == toolCommand {
 						// Extract package from args
 						if args, hasArgs := config["args"]; hasArgs {
 							if argsSlice, ok := args.([]any); ok && len(argsSlice) > 0 {
@@ -354,6 +343,11 @@ func extractNpxPackages(workflowData *WorkflowData) []string {
 	}
 
 	return packages
+}
+
+// extractNpxPackages extracts npx package names from workflow data
+func extractNpxPackages(workflowData *WorkflowData) []string {
+	return collectPackagesFromWorkflow(workflowData, extractNpxFromCommands, "npx")
 }
 
 // extractNpxFromCommands extracts npx package names from command strings
@@ -379,38 +373,7 @@ func extractNpxFromCommands(commands string) []string {
 
 // extractPipPackages extracts pip package names from workflow data
 func extractPipPackages(workflowData *WorkflowData) []string {
-	var packages []string
-	seen := make(map[string]bool)
-
-	// Extract from custom steps
-	if workflowData.CustomSteps != "" {
-		pkgs := extractPipFromCommands(workflowData.CustomSteps)
-		for _, pkg := range pkgs {
-			if !seen[pkg] {
-				packages = append(packages, pkg)
-				seen[pkg] = true
-			}
-		}
-	}
-
-	// Extract from engine steps
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			if run, hasRun := step["run"]; hasRun {
-				if runStr, ok := run.(string); ok {
-					pkgs := extractPipFromCommands(runStr)
-					for _, pkg := range pkgs {
-						if !seen[pkg] {
-							packages = append(packages, pkg)
-							seen[pkg] = true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return packages
+	return collectPackagesFromWorkflow(workflowData, extractPipFromCommands, "")
 }
 
 // extractPipFromCommands extracts pip package names from command strings
@@ -448,38 +411,7 @@ func extractPipFromCommands(commands string) []string {
 
 // extractUvPackages extracts uv package names from workflow data
 func extractUvPackages(workflowData *WorkflowData) []string {
-	var packages []string
-	seen := make(map[string]bool)
-
-	// Extract from custom steps
-	if workflowData.CustomSteps != "" {
-		pkgs := extractUvFromCommands(workflowData.CustomSteps)
-		for _, pkg := range pkgs {
-			if !seen[pkg] {
-				packages = append(packages, pkg)
-				seen[pkg] = true
-			}
-		}
-	}
-
-	// Extract from engine steps
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Steps) > 0 {
-		for _, step := range workflowData.EngineConfig.Steps {
-			if run, hasRun := step["run"]; hasRun {
-				if runStr, ok := run.(string); ok {
-					pkgs := extractUvFromCommands(runStr)
-					for _, pkg := range pkgs {
-						if !seen[pkg] {
-							packages = append(packages, pkg)
-							seen[pkg] = true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return packages
+	return collectPackagesFromWorkflow(workflowData, extractUvFromCommands, "")
 }
 
 // extractUvFromCommands extracts uv package names from command strings
