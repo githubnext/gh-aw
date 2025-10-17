@@ -13,6 +13,7 @@ safe-outputs:
   create-issue:
     assign-to-bot: copilot
     github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+    assign-to-bot-github-token: ${{ secrets.GH_AW_GITHUB_ASSIGN_COPILOT_TOKEN }}
 ---
 
 Write a poem about the last 3 pull requests and publish an issue.

@@ -3840,6 +3840,7 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
           GITHUB_AW_WORKFLOW_NAME: "Dev"
           GITHUB_AW_ISSUE_ASSIGN_TO_BOT: "copilot"
+          GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN: "${{ secrets.GH_AW_GITHUB_ASSIGN_COPILOT_TOKEN }}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
           script: |
