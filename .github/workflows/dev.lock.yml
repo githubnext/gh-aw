@@ -3,6 +3,11 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/mcp/drain3.md
+#     - shared/mcp/gh-aw.md
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -1411,6 +1416,10 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          
+          
+          
+          
           Write a poem in 3 emojis about the last pull request and publish an issue.
           
           EOF
@@ -1745,11 +1754,12 @@ jobs:
           BASH_DEFAULT_TIMEOUT_MS: "60000"
           BASH_MAX_TIMEOUT_MS: "60000"
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
-          GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
-          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN  }}
-          XDG_CONFIG_HOME: /home/runner
+      - name: Clean up network proxy hook files
+        if: always()
+        run: |
+          rm -rf .claude/hooks/network_permissions.py || true
+          rm -rf .claude/hooks || true
+          rm -rf .claude || true
       - name: Upload Safe Outputs
         if: always()
         uses: actions/upload-artifact@v4
@@ -3515,7 +3525,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "Write a poem in 3 emojis about the last pull request and publish an issue.\n"
+          WORKFLOW_MARKDOWN: "<!--\n\nDrain3 MCP Server\nLog template mining and pattern extraction tool\n\nDrain3 is an online log template miner that extracts structured patterns from \nunstructured log files. This MCP server provides tools for indexing log files, \nquerying patterns, and listing extracted templates.\n\nDocumentation: https://github.com/logpai/Drain3\n\nThis shared configuration provides a local HTTP MCP server that runs Drain3\nfor log analysis and template extraction. The server uses streaming JSONL\nresponses for progressive results.\n\nAvailable tools:\n  - index_file: Stream-mine templates from a log file and persist snapshot\n    Parameters:\n      - path: Path to the log file to analyze\n      - encoding: File encoding (default: utf-8)\n      - max_lines: Maximum lines to process (optional)\n    Returns: Streaming JSONL events (start, progress, template, summary)\n\n  - query_file: Match a log line against previously indexed templates\n    Parameters:\n      - path: Path to the indexed log file\n      - text: Log line text to match\n    Returns: Matching cluster information (cluster_id, size, template)\n\n  - list_templates: List all extracted templates from an indexed file\n    Parameters:\n      - path: Path to the indexed log file\n      - limit: Maximum number of templates to return (optional)\n    Returns: Streaming JSONL events for each template\n\nConfiguration:\n  The server can be configured via environment variables in the workflow:\n  - DRAIN3_SIM_TH: Similarity threshold (default: 0.4)\n  - DRAIN3_DEPTH: Tree depth (default: 4)\n  - DRAIN3_MAX_CHILDREN: Maximum children per node (default: 100)\n  - DRAIN3_MAX_CLUSTERS: Maximum clusters (default: 0 = unlimited)\n  - STREAM_FLUSH_EVERY: Progress event frequency (default: 500 lines)\n  - STREAM_SLEEP: Throttle between flushes in seconds (default: 0)\n\nSetup:\n  1. Include in Your Workflow:\n     imports:\n       - shared/mcp/drain3.md\n\n  2. The server will be automatically installed and started on localhost:8766\n\nExample Usage:\n  Analyze GitHub Actions workflow logs to identify common error patterns\n  and failure templates. Index a log file, then query specific error messages\n  to find which cluster they belong to.\n\n  ```\n  Use the drain3 tool to index the workflow log file at /tmp/workflow.log\n  and extract error patterns. Then query a specific error message to find\n  its template cluster.\n  ```\n\nConnection Type:\n  This configuration uses a local HTTP MCP server running Python with FastMCP 2.0.\n  The server runs with `transport=\"http\"` which must be started by executing the\n  Python script directly (not via `fastmcp run` which defaults to stdio transport).\n  Responses stream as JSONL (JSON Lines) for progressive results.\n\nState Persistence:\n  Drain3 snapshots are stored in ${{ github.workspace }}/.drain3/ directory.\n  Each indexed file gets its own snapshot file for quick reloading.\n\nTroubleshooting:\n  Server Failed to Start:\n  - Verify Python 3.11+ is available\n  - Check that port 8766 is not in use\n  - Review server logs for dependency installation issues\n  \n  Index/Query Errors:\n  - Ensure file paths are absolute or relative to workspace\n  - Check that the file was indexed before querying\n  - Verify file permissions are readable\n\nUsage:\n  imports:\n    - shared/mcp/drain3.md\n\n-->\n\n\n\nWrite a poem in 3 emojis about the last pull request and publish an issue.\n"
         with:
           script: |
             const fs = require('fs');
