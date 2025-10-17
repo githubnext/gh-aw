@@ -54,8 +54,8 @@ async function main() {
         reactionEndpoint = `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
         // Create new comment on the issue itself, not on the comment
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${issueNumberForComment}/comments`;
-        // Only create comments for command workflows
-        shouldCreateComment = command ? true : false;
+        // Create comments for all workflows using reactions
+        shouldCreateComment = true;
         break;
 
       case "pull_request":
@@ -83,8 +83,8 @@ async function main() {
         reactionEndpoint = `/repos/${owner}/${repo}/pulls/comments/${reviewCommentId}/reactions`;
         // Create new comment on the PR itself (using issues endpoint since PRs are issues)
         commentUpdateEndpoint = `/repos/${owner}/${repo}/issues/${prNumberForReviewComment}/comments`;
-        // Only create comments for command workflows
-        shouldCreateComment = command ? true : false;
+        // Create comments for all workflows using reactions
+        shouldCreateComment = true;
         break;
 
       case "discussion":
@@ -114,8 +114,8 @@ async function main() {
         }
         reactionEndpoint = commentNodeId; // Store node ID for GraphQL
         commentUpdateEndpoint = `discussion_comment:${discussionCommentNumber}:${discussionCommentId}`; // Special format
-        // Only create comments for command workflows
-        shouldCreateComment = command ? true : false;
+        // Create comments for all workflows using reactions
+        shouldCreateComment = true;
         break;
 
       default:
@@ -139,11 +139,7 @@ async function main() {
       core.info(`Comment endpoint: ${commentUpdateEndpoint}`);
       await addCommentWithWorkflowLink(commentUpdateEndpoint, runUrl, eventName);
     } else {
-      if (!command && commentUpdateEndpoint) {
-        core.info("Skipping comment creation - only available for command workflows");
-      } else {
-        core.info(`Skipping comment for event type: ${eventName}`);
-      }
+      core.info(`Skipping comment for event type: ${eventName}`);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

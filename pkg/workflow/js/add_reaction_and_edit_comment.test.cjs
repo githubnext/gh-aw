@@ -336,7 +336,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
   });
 
   describe("Comment creation (always creates new comments)", () => {
-    it("should NOT create comment for issue event (non-command workflow)", async () => {
+    it("should NOT create comment for issue event (no comment endpoint for issues)", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
       process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
       // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
@@ -346,7 +346,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
         repository: { html_url: "https://github.com/testowner/testrepo" },
       };
 
-      // Mock reaction call only (no comment creation)
+      // Mock reaction call only (no comment creation for issue events)
       mockGithub.request.mockResolvedValueOnce({
         data: { id: 456 },
       });
@@ -363,6 +363,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       );
 
       // Verify comment was NOT created (only 1 call for reaction)
+      // Note: Issue events don't have commentUpdateEndpoint set, so no comment is created
       expect(mockGithub.request).toHaveBeenCalledTimes(1);
 
       // Verify only reaction output was set, not comment outputs
@@ -373,7 +374,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     it("should create new comment for issue_comment event (not edit)", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
       process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
-      process.env.GITHUB_AW_COMMAND = "test-bot"; // Command workflow
+      // NO GITHUB_AW_COMMAND needed - all workflows with reactions create comments
       global.context.eventName = "issue_comment";
       global.context.payload = {
         issue: { number: 123 },
@@ -415,7 +416,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
     it("should create new comment for pull_request_review_comment event (not edit)", async () => {
       process.env.GITHUB_AW_REACTION = "rocket";
       process.env.GITHUB_AW_WORKFLOW_NAME = "PR Review Bot";
-      process.env.GITHUB_AW_COMMAND = "review-bot"; // Command workflow
+      // NO GITHUB_AW_COMMAND needed - all workflows with reactions create comments
       global.context.eventName = "pull_request_review_comment";
       global.context.payload = {
         pull_request: { number: 456 },
@@ -454,7 +455,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockCore.setOutput).toHaveBeenCalledWith("comment-repo", "testowner/testrepo");
     });
 
-    it("should NOT create comment on discussion (non-command workflow)", async () => {
+    it("should NOT create comment on discussion (no comment endpoint for discussions)", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
       process.env.GITHUB_AW_WORKFLOW_NAME = "Test Workflow";
       // NO GITHUB_AW_COMMAND set - this is NOT a command workflow
@@ -491,6 +492,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
 
       // Verify comment was NOT created (no addDiscussionComment mutation)
+      // Note: Discussion events don't set shouldCreateComment, so no comment is created
       expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("addDiscussionComment"), expect.anything());
 
       // Verify only reaction output was set
@@ -500,7 +502,7 @@ describe("add_reaction_and_edit_comment.cjs", () => {
 
     it("should create new comment for discussion_comment events", async () => {
       process.env.GITHUB_AW_REACTION = "eyes";
-      process.env.GITHUB_AW_COMMAND = "test-bot"; // Command workflow
+      // NO GITHUB_AW_COMMAND needed - all workflows with reactions create comments
       process.env.GITHUB_AW_WORKFLOW_NAME = "Discussion Bot";
       global.context.eventName = "discussion_comment";
       global.context.payload = {
