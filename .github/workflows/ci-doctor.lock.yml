@@ -9,18 +9,18 @@
 # ```mermaid
 # graph LR
 #   activation["activation"]
-#   agent["agent"]
-#   detection["detection"]
-#   create_issue["create_issue"]
 #   add_comment["add_comment"]
+#   agent["agent"]
+#   create_issue["create_issue"]
+#   detection["detection"]
 #   missing_tool["missing_tool"]
 #   update_reaction["update_reaction"]
-#   activation --> agent
-#   agent --> detection
-#   agent --> create_issue
-#   detection --> create_issue
 #   agent --> add_comment
 #   detection --> add_comment
+#   activation --> agent
+#   agent --> create_issue
+#   detection --> create_issue
+#   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
 #   agent --> update_reaction

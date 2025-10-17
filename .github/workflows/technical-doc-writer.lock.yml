@@ -6,32 +6,32 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
-#   agent["agent"]
-#   detection["detection"]
 #   add_comment["add_comment"]
+#   agent["agent"]
 #   create_pull_request["create_pull_request"]
+#   detection["detection"]
 #   missing_tool["missing_tool"]
-#   upload_assets["upload_assets"]
+#   pre_activation["pre_activation"]
 #   update_reaction["update_reaction"]
+#   upload_assets["upload_assets"]
 #   pre_activation --> activation
-#   activation --> agent
-#   agent --> detection
 #   agent --> add_comment
 #   detection --> add_comment
+#   activation --> agent
 #   agent --> create_pull_request
 #   detection --> create_pull_request
+#   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> upload_assets
-#   detection --> upload_assets
 #   agent --> update_reaction
 #   activation --> update_reaction
 #   add_comment --> update_reaction
 #   create_pull_request --> update_reaction
 #   missing_tool --> update_reaction
 #   upload_assets --> update_reaction
+#   agent --> upload_assets
+#   detection --> upload_assets
 # ```
 
 name: "Technical Documentation Writer for GitHub Actions"

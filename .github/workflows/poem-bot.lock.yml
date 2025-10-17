@@ -6,41 +6,39 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
-#   agent["agent"]
-#   detection["detection"]
-#   create_issue["create_issue"]
 #   add_comment["add_comment"]
+#   add_labels["add_labels"]
+#   agent["agent"]
+#   create_issue["create_issue"]
 #   create_pr_review_comment["create_pr_review_comment"]
 #   create_pull_request["create_pull_request"]
-#   add_labels["add_labels"]
-#   update_issue["update_issue"]
-#   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   detection["detection"]
 #   missing_tool["missing_tool"]
-#   upload_assets["upload_assets"]
+#   pre_activation["pre_activation"]
+#   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   update_issue["update_issue"]
 #   update_reaction["update_reaction"]
+#   upload_assets["upload_assets"]
 #   pre_activation --> activation
-#   activation --> agent
-#   agent --> detection
-#   agent --> create_issue
-#   detection --> create_issue
 #   agent --> add_comment
 #   detection --> add_comment
+#   agent --> add_labels
+#   detection --> add_labels
+#   activation --> agent
+#   agent --> create_issue
+#   detection --> create_issue
 #   agent --> create_pr_review_comment
 #   detection --> create_pr_review_comment
 #   agent --> create_pull_request
 #   detection --> create_pull_request
-#   agent --> add_labels
-#   detection --> add_labels
-#   agent --> update_issue
-#   detection --> update_issue
-#   agent --> push_to_pull_request_branch
-#   detection --> push_to_pull_request_branch
+#   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
-#   agent --> upload_assets
-#   detection --> upload_assets
+#   agent --> push_to_pull_request_branch
+#   detection --> push_to_pull_request_branch
+#   agent --> update_issue
+#   detection --> update_issue
 #   agent --> update_reaction
 #   activation --> update_reaction
 #   create_issue --> update_reaction
@@ -52,6 +50,8 @@
 #   push_to_pull_request_branch --> update_reaction
 #   missing_tool --> update_reaction
 #   upload_assets --> update_reaction
+#   agent --> upload_assets
+#   detection --> upload_assets
 # ```
 
 name: "Poem Bot - A Creative Agentic Workflow"
