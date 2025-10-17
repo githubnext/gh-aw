@@ -104,8 +104,8 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 
 	// Use escaped env vars for Copilot, regular for Claude/Custom
 	if includeCopilotFields {
-		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"\\${GITHUB_AW_SAFE_OUTPUTS}\",\n")
-		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"\\${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\",\n")
+		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS\": \"${GITHUB_AW_SAFE_OUTPUTS}\",\n")
+		yaml.WriteString("                  \"GITHUB_AW_SAFE_OUTPUTS_CONFIG\": \"${GITHUB_AW_SAFE_OUTPUTS_CONFIG}\",\n")
 		yaml.WriteString("                  \"GITHUB_AW_ASSETS_BRANCH\": \"\\${GITHUB_AW_ASSETS_BRANCH}\",\n")
 		yaml.WriteString("                  \"GITHUB_AW_ASSETS_MAX_SIZE_KB\": \"\\${GITHUB_AW_ASSETS_MAX_SIZE_KB}\",\n")
 		yaml.WriteString("                  \"GITHUB_AW_ASSETS_ALLOWED_EXTS\": \"\\${GITHUB_AW_ASSETS_ALLOWED_EXTS}\"\n")
@@ -153,7 +153,7 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 
 	// Use escaped env vars for Copilot, regular for Claude/Custom
 	if includeCopilotFields {
-		yaml.WriteString("                  \"GITHUB_TOKEN\": \"\\${GITHUB_TOKEN}\"\n")
+		yaml.WriteString("                  \"GITHUB_TOKEN\": \"${GITHUB_TOKEN}\"\n")
 	} else {
 		yaml.WriteString("                  \"GITHUB_TOKEN\": \"${{ secrets.GITHUB_TOKEN }}\"\n")
 	}
@@ -472,8 +472,8 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 
 					// Check if this is a header secret (needs passthrough)
 					if _, isHeaderSecret := headerSecrets[envKey]; isHeaderSecret && renderer.RequiresCopilotFields {
-						// Use passthrough syntax: "VAR_NAME": "\\${VAR_NAME}"
-						fmt.Fprintf(yaml, "%s  \"%s\": \"\\${%s}\"%s\n", renderer.IndentLevel, envKey, envKey, envComma)
+						// Use passthrough syntax: "VAR_NAME": "${VAR_NAME}"
+						fmt.Fprintf(yaml, "%s  \"%s\": \"${%s}\"%s\n", renderer.IndentLevel, envKey, envKey, envComma)
 					} else {
 						// Use existing env value
 						fmt.Fprintf(yaml, "%s  \"%s\": \"%s\"%s\n", renderer.IndentLevel, envKey, mcpConfig.Env[envKey], envComma)

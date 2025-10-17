@@ -1366,9 +1366,9 @@ jobs:
                   "get_datadog_metric"
                 ],
                 "env": {
-                  "DD_API_KEY": "\${DD_API_KEY}",
-                  "DD_APPLICATION_KEY": "\${DD_APPLICATION_KEY}",
-                  "DD_SITE": "\${DD_SITE}"
+                  "DD_API_KEY": "${DD_API_KEY}",
+                  "DD_APPLICATION_KEY": "${DD_APPLICATION_KEY}",
+                  "DD_SITE": "${DD_SITE}"
                 }
               },
               "deepwiki": {
@@ -1608,7 +1608,7 @@ jobs:
                   "*"
                 ],
                 "env": {
-                  "TAVILY_API_KEY": "\${TAVILY_API_KEY}"
+                  "TAVILY_API_KEY": "${TAVILY_API_KEY}"
                 }
               }
             }
