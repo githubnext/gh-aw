@@ -425,14 +425,13 @@ func TestCopilotEngineExecutionStepsWithToolArguments(t *testing.T) {
 		t.Errorf("Expected step to contain comment for write:\n%s", stepContent)
 	}
 
-	// Should contain --add-dir / for edit tool (workaround for GitHub/copilot-cli#67)
-	// Check specifically for "--add-dir / " or "--add-dir /'" to avoid matching "--add-dir /tmp/gh-aw/"
-	if !strings.Contains(stepContent, "--add-dir / ") && !strings.Contains(stepContent, "--add-dir /'") {
-		t.Errorf("Expected step to contain '--add-dir /' for edit tool workaround:\n%s", stepContent)
+	// Should contain --allow-all-paths for edit tool
+	if !strings.Contains(stepContent, "--allow-all-paths") {
+		t.Errorf("Expected step to contain '--allow-all-paths' for edit tool:\n%s", stepContent)
 	}
 }
 
-func TestCopilotEngineEditToolAddsRootDir(t *testing.T) {
+func TestCopilotEngineEditToolAddsAllowAllPaths(t *testing.T) {
 	engine := NewCopilotEngine()
 
 	tests := []struct {
@@ -483,17 +482,15 @@ func TestCopilotEngineEditToolAddsRootDir(t *testing.T) {
 
 			stepContent := strings.Join([]string(steps[0]), "\n")
 
-			// Check specifically for "--add-dir / " (with space) or "--add-dir /" at end
-			// to avoid matching "--add-dir /tmp/gh-aw/"
-			hasAddDirRoot := strings.Contains(stepContent, "--add-dir / ") ||
-				strings.Contains(stepContent, "--add-dir /'")
+			// Check for --allow-all-paths flag
+			hasAllowAllPaths := strings.Contains(stepContent, "--allow-all-paths")
 
-			if tt.shouldHave && !hasAddDirRoot {
-				t.Errorf("Expected step to contain '--add-dir /' when edit tool is present, but it was missing:\n%s", stepContent)
+			if tt.shouldHave && !hasAllowAllPaths {
+				t.Errorf("Expected step to contain '--allow-all-paths' when edit tool is present, but it was missing:\n%s", stepContent)
 			}
 
-			if !tt.shouldHave && hasAddDirRoot {
-				t.Errorf("Expected step to NOT contain '--add-dir /' when edit tool is absent, but it was present:\n%s", stepContent)
+			if !tt.shouldHave && hasAllowAllPaths {
+				t.Errorf("Expected step to NOT contain '--allow-all-paths' when edit tool is absent, but it was present:\n%s", stepContent)
 			}
 
 			// When edit tool is present, verify it's in the command line
@@ -501,13 +498,13 @@ func TestCopilotEngineEditToolAddsRootDir(t *testing.T) {
 				lines := strings.Split(stepContent, "\n")
 				foundInCommand := false
 				for _, line := range lines {
-					if strings.Contains(line, "copilot ") && (strings.Contains(line, "--add-dir / ") || strings.Contains(line, "--add-dir /'")) {
+					if strings.Contains(line, "copilot ") && strings.Contains(line, "--allow-all-paths") {
 						foundInCommand = true
 						break
 					}
 				}
 				if !foundInCommand {
-					t.Errorf("Expected '--add-dir /' in copilot command line:\n%s", stepContent)
+					t.Errorf("Expected '--allow-all-paths' in copilot command line:\n%s", stepContent)
 				}
 			}
 		})
