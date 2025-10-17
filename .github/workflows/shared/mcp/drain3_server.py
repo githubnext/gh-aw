@@ -83,7 +83,7 @@ def _jsonl(obj: Any) -> str:
 # -----------------------
 # MCP tools (streaming)
 # -----------------------
-@mcp.tool
+@mcp.tool()
 def index_file(path: str, encoding: str = "utf-8", max_lines: Optional[int] = None):
     """
     Stream-mines templates from a log file and persists a Drain3 snapshot.
@@ -135,7 +135,7 @@ def index_file(path: str, encoding: str = "utf-8", max_lines: Optional[int] = No
         "cluster_count": len(clusters),
     })
 
-@mcp.tool
+@mcp.tool()
 def query_file(path: str, text: str):
     """
     Streams a single JSONL event with the match result:
@@ -164,7 +164,7 @@ def query_file(path: str, text: str):
         "template": " ".join(getattr(cluster, "log_template_tokens", []) or []),
     })
 
-@mcp.tool
+@mcp.tool()
 def list_templates(path: str, limit: Optional[int] = None):
     """
     Streams templates from an existing snapshot:

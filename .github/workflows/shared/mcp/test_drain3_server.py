@@ -50,8 +50,10 @@ def test_structure():
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
             for decorator in node.decorator_list:
-                if isinstance(decorator, ast.Attribute) and decorator.attr == "tool":
-                    tool_functions.append(node.name)
+                # Check for @mcp.tool() (Call node)
+                if isinstance(decorator, ast.Call):
+                    if isinstance(decorator.func, ast.Attribute) and decorator.func.attr == "tool":
+                        tool_functions.append(node.name)
     
     expected_tools = ["index_file", "query_file", "list_templates"]
     missing_tools = [tool for tool in expected_tools if tool not in tool_functions]
@@ -79,12 +81,21 @@ def test_structure():
 
 
 def test_no_invalid_params():
-    """Test that mcp.run() doesn't have invalid parameters."""
+    """Test that mcp.run() doesn't have invalid parameters and decorators are called correctly."""
     script_path = Path(__file__).parent / "drain3_server.py"
     with open(script_path, "r") as f:
         code = f.read()
     
     tree = ast.parse(code)
+    
+    # Check decorators are called (with parentheses)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            for decorator in node.decorator_list:
+                if isinstance(decorator, ast.Attribute) and decorator.attr == "tool":
+                    # This should be a Call node (mcp.tool()), not just an Attribute (mcp.tool)
+                    print(f"✗ @mcp.tool decorator on '{node.name}' should be called with parentheses: @mcp.tool()")
+                    return False
     
     # Find mcp.run() calls
     for node in ast.walk(tree):
@@ -98,9 +109,8 @@ def test_no_invalid_params():
                     print("✗ mcp.run() should not have 'path' parameter for streamable-http transport")
                     return False
                 print(f"✓ mcp.run() parameters look correct: {', '.join(keywords)}")
-                return True
-    
-    print("⚠ Could not find mcp.run() call")
+                
+    print("✓ All decorators are called correctly with parentheses")
     return True
 
 
