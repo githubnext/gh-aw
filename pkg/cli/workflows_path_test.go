@@ -141,7 +141,7 @@ func TestWorkflowResolutionWindowsCompatibility(t *testing.T) {
 
 	// Create workflow files similar to the user's scenario
 	mdFile := filepath.Join(workflowsDir, "update-docs.md")
-	lockFile := filepath.Join(workflowsDir, "update-docs.lock.yaml")
+	lockFile := filepath.Join(workflowsDir, "update-docs.lock.yml")
 
 	mdContent := []byte(`---
 on:
@@ -189,7 +189,7 @@ Test workflow for Windows path handling
 	}
 
 	// Test 2: Verify lock file can be found using the same approach
-	lockPath := filepath.Join(getWorkflowsDir(), "update-docs.lock.yaml")
+	lockPath := filepath.Join(getWorkflowsDir(), "update-docs.lock.yml")
 	if _, err := os.Stat(lockPath); err != nil {
 		t.Errorf("Lock file not found at expected path: %s (error: %v)", lockPath, err)
 	}
