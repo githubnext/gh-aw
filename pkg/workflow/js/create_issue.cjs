@@ -251,7 +251,9 @@ async function main() {
 
           core.info(`Successfully assigned issue #${issue.number} to ${assignToBot}`);
         } catch (error) {
-          core.warning(`Failed to assign issue to ${assignToBot}: ${error instanceof Error ? error.message : String(error)}`);
+          core.warning(
+            `Failed to assign issue to ${assignToBot}: ${error instanceof Error ? error.message : String(error)}`
+          );
           // Continue even if assignment fails - the issue was still created
         }
       }
