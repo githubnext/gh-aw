@@ -206,14 +206,26 @@ async function main() {
           // Priority: assign-to-bot-github-token > github-token (from script config) > default
           const assignToken = process.env.GITHUB_AW_ISSUE_ASSIGN_TO_BOT_TOKEN;
           
-          // Use the assign-to-bot token if provided, otherwise use the default github object
-          const githubForAssign = assignToken
-            ? (await (async () => {
-                const { Octokit } = await import("@octokit/core");
+          // Create a graphql function that uses the custom token if provided
+          const graphqlForAssign = assignToken
+            ? async (query, variables) => {
                 core.info("Using custom token for bot assignment");
-                return new Octokit({ auth: assignToken });
-              })())
-            : github;
+                // Use fetch to make GraphQL request with custom token
+                const response = await fetch("https://api.github.com/graphql", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${assignToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ query, variables }),
+                });
+                const result = await response.json();
+                if (result && typeof result === "object" && "errors" in result && result.errors) {
+                  throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+                }
+                return result && typeof result === "object" && "data" in result ? result.data : result;
+              }
+            : github.graphql.bind(github);
 
           // Get the issue node ID
           core.info(`Fetching node ID for issue #${issue.number}`);
@@ -227,11 +239,12 @@ async function main() {
             }
           `;
 
-          const issueResult = await githubForAssign.graphql(issueNodeIdQuery, {
+          const issueResult = await graphqlForAssign(issueNodeIdQuery, {
             owner: context.repo.owner,
             repo: context.repo.repo,
             issueNumber: issue.number,
           });
+          // @ts-ignore - graphql result type
           const issueNodeId = issueResult.repository.issue.id;
           core.info(`Issue node ID: ${issueNodeId}`);
 
@@ -245,9 +258,10 @@ async function main() {
             }
           `;
 
-          const botResult = await githubForAssign.graphql(botNodeIdQuery, {
+          const botResult = await graphqlForAssign(botNodeIdQuery, {
             login: assignToBot,
           });
+          // @ts-ignore - graphql result type
           const botNodeId = botResult.user.id;
           core.info(`Bot user node ID: ${botNodeId}`);
 
@@ -274,20 +288,23 @@ async function main() {
             }
           `;
 
-          const assignResult = await githubForAssign.graphql(assignMutation, {
+          const assignResult = await graphqlForAssign(assignMutation, {
             assignableId: issueNodeId,
             actorIds: [botNodeId],
           });
           core.info(`Assignment mutation result: ${JSON.stringify(assignResult)}`);
 
           // Parse and validate the assignment result
+          // @ts-ignore - graphql result type
           const assignable = assignResult?.replaceActorsForAssignable?.assignable;
           if (assignable && assignable.assignees && assignable.assignees.nodes) {
             const assignees = assignable.assignees.nodes;
+            // @ts-ignore - assignee type
             const assignedLogins = assignees.map(a => a.login).join(", ");
             core.info(`Issue #${issue.number} assignees: ${assignedLogins}`);
             
             // Verify the bot was actually assigned
+            // @ts-ignore - assignee type
             const botAssigned = assignees.some(a => a.login === assignToBot);
             if (botAssigned) {
               core.info(`✓ Successfully assigned issue #${issue.number} to ${assignToBot}`);
