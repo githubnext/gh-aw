@@ -1,4 +1,6 @@
 ---
+tools:
+  cache-memory:
 mcp-servers:
   drain3:
     type: http
@@ -48,7 +50,7 @@ steps:
       
       # Test HTTP endpoint with curl
       echo "Testing HTTP endpoint with curl..."
-      if curl -v -X GET http://localhost:8766/ 2>&1 | tee /tmp/gh-aw/mcp-logs/drain3/curl-test.log; then
+      if curl -v -X GET http://localhost:8766/mcp 2>&1 | tee /tmp/gh-aw/mcp-logs/drain3/curl-test.log; then
         echo "✓ HTTP endpoint responded"
       else
         echo "✗ HTTP endpoint did not respond"
@@ -65,7 +67,7 @@ steps:
     env:
       PORT: "8766"
       HOST: "0.0.0.0"
-      STATE_DIR: "${{ github.workspace }}/.drain3"
+      STATE_DIR: "/tmp/gh-aw/cache-memory"
 ---
 
 <!--

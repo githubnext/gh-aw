@@ -1456,7 +1456,7 @@ jobs:
             "mcpServers": {
               "drain3": {
                 "type": "http",
-                "url": "http://localhost:8766"
+                "url": "http://localhost:8766/mcp"
               },
               "gh-aw": {
                 "type": "http",

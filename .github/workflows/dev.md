@@ -3,7 +3,6 @@ on:
   command:
     name: dev
   workflow_dispatch:
-  stop-after: "2025-11-16 00:00:00"
 name: Dev
 engine: claude
 permissions:
