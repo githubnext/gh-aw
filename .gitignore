@@ -62,3 +62,9 @@ pkg/cli/workflows/*.yml
 pkg/workflow/js/test-data/*.log
 sample-logs/
 *.invalid.yml
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
