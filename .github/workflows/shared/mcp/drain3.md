@@ -14,7 +14,7 @@ steps:
       python-version: '3.11'
   - name: Install Drain3 dependencies
     run: |
-      pip install "mcp[server]" drain3
+      pip install fastmcp drain3
   - name: Copy Drain3 MCP server script
     run: |
       mkdir -p /tmp/gh-aw/mcp-servers/drain3/
@@ -23,7 +23,7 @@ steps:
   - name: Start Drain3 MCP server
     run: |
       set -e
-      python /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-servers/drain3/server.log 2>&1 &
+      fastmcp run /tmp/gh-aw/mcp-servers/drain3/drain3_server.py > /tmp/gh-aw/mcp-servers/drain3/server.log 2>&1 &
       MCP_PID=$!
       
       # Wait for server to start
@@ -115,8 +115,9 @@ Example Usage:
   ```
 
 Connection Type:
-  This configuration uses a local HTTP MCP server running Python with FastMCP.
-  The server streams responses as JSONL (JSON Lines) for progressive results.
+  This configuration uses a local HTTP MCP server running Python with FastMCP 2.0.
+  The server is launched using the `fastmcp run` command which handles HTTP 
+  transport automatically. Responses stream as JSONL (JSON Lines) for progressive results.
 
 State Persistence:
   Drain3 snapshots are stored in ${{ github.workspace }}/.drain3/ directory.

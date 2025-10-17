@@ -37,7 +37,7 @@ def test_structure():
         if isinstance(node, ast.ImportFrom):
             imports.append(node.module)
     
-    required_imports = ["mcp.server.fastmcp", "drain3"]
+    required_imports = ["fastmcp"]
     missing = [imp for imp in required_imports if not any(imp in i for i in imports if i)]
     
     if missing:

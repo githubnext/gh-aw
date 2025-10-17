@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # Drain3 MCP HTTP server — live streaming JSONL
 # Tools: index_file, query_file, list_templates
-# Deps: pip install "mcp[server]" drain3
+# Deps: pip install fastmcp drain3
 from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional
 import os, json, time
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from drain3 import TemplateMiner
 from drain3.file_persistence import FilePersistence
 from drain3.template_miner_config import TemplateMinerConfig
@@ -17,7 +17,6 @@ from drain3.template_miner_config import TemplateMinerConfig
 # -----------------------
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
-MOUNT_PATH = os.getenv("MOUNT_PATH", "/mcp")
 
 STATE_DIR = Path(os.getenv("STATE_DIR", ".drain3")).resolve()
 STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -188,6 +187,6 @@ def list_templates(path: str, limit: Optional[int] = None):
 # Entry point
 # -----------------------
 if __name__ == "__main__":
-    # SSE (Server-Sent Events) transport enables streaming responses for HTTP
-    # Note: FastMCP mounts at root by default
-    mcp.run(transport="sse", host=HOST, port=PORT)
+    # HTTP transport for remote MCP server
+    # For FastMCP 2.0, use: fastmcp run drain3_server.py
+    mcp.run(transport="http", host=HOST, port=PORT)
