@@ -52,7 +52,9 @@ This workflow has a stop-after configuration.
 			t.Error("Expected pre_activation job to be created")
 		}
 
-		// Verify safety checks are in pre_activation job, not main job
+		// Verify safety checks are in pre_activation job, not agent job
+		// Note: With alphabetical job sorting, the order in the file is:
+		// activation, agent, pre_activation
 		preActivationStart := strings.Index(lockContentStr, "pre_activation:")
 		agentStart := strings.Index(lockContentStr, "agent:")
 		safetyChecksPos := strings.Index(lockContentStr, "Check stop-time limit")
@@ -61,14 +63,23 @@ This workflow has a stop-after configuration.
 			t.Error("Expected stop-time check to be present")
 		}
 
-		// Safety checks should be in pre_activation job (before agent job)
-		if safetyChecksPos > agentStart {
-			t.Error("Stop-time check should be in pre_activation job, not in agent job")
+		if preActivationStart == -1 {
+			t.Error("Expected pre_activation job to exist")
 		}
 
-		// Safety checks should be after pre_activation job start
+		if agentStart == -1 {
+			t.Error("Expected agent job to exist")
+		}
+
+		// Safety checks should be in pre_activation job (after pre_activation start)
 		if safetyChecksPos < preActivationStart {
-			t.Error("Stop-time check should be in pre_activation job")
+			t.Error("Stop-time check should be in pre_activation job, not before it")
+		}
+		
+		// Safety checks should not be in agent job
+		// Agent job comes before pre_activation in alphabetical order
+		if safetyChecksPos > agentStart && safetyChecksPos < preActivationStart {
+			t.Error("Stop-time check should not be in agent job")
 		}
 
 		// Verify pre_activation job outputs "activated" as a direct expression combining both checks

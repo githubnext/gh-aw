@@ -138,8 +138,12 @@ func (jm *JobManager) RenderToYAML() string {
 	var yaml strings.Builder
 	yaml.WriteString("jobs:\n")
 
-	// Use the insertion order instead of alphabetical sorting
-	for _, jobName := range jm.jobOrder {
+	// Sort jobOrder alphabetically by job name before rendering
+	sortedJobOrder := make([]string, len(jm.jobOrder))
+	copy(sortedJobOrder, jm.jobOrder)
+	sort.Strings(sortedJobOrder)
+
+	for _, jobName := range sortedJobOrder {
 		job := jm.jobs[jobName]
 		yaml.WriteString(jm.renderJob(job))
 	}
