@@ -64,7 +64,7 @@ jobs:
                   return;
                 }
                 // If write is not allowed, continue with permission check
-                core.debug(`Event ${eventName} requires validation (write role not allowed)`);
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
               }
               // skip check for other safe events
               const safeEvents = ["workflow_run", "schedule"];
@@ -83,15 +83,15 @@ jobs:
               }
               // Check if the actor has the required repository permissions
               try {
-                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
                 const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
                   owner: owner,
                   repo: repo,
                   username: actor,
                 });
                 const permission = repoPermission.data.permission;
-                core.debug(`Repository permission level: ${permission}`);
+                core.info(`Repository permission level: ${permission}`);
                 // Check if user has one of the required permission levels
                 for (const requiredPerm of requiredPermissions) {
                   if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
@@ -2603,14 +2603,14 @@ jobs:
             function main() {
               const fs = require("fs");
               const path = require("path");
-              core.debug("Starting validate_errors.cjs script");
+              core.info("Starting validate_errors.cjs script");
               const startTime = Date.now();
               try {
                 const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logPath) {
                   throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
-                core.debug(`Log path: ${logPath}`);
+                core.info(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
                   core.info(`Log path not found: ${logPath}`);
                   core.info("No logs to validate - skipping error validation");
@@ -2621,7 +2621,7 @@ jobs:
                   throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 core.info(`Loaded ${patterns.length} error patterns`);
-                core.debug(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
+                core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
@@ -2636,7 +2636,7 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    core.debug(`Reading log file: ${file} (${fileContent.length} bytes)`);
+                    core.info(`Reading log file: ${file} (${fileContent.length} bytes)`);
                     content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
@@ -2693,13 +2693,13 @@ jobs:
               let hasErrors = false;
               const MAX_ITERATIONS_PER_LINE = 10000; 
               const ITERATION_WARNING_THRESHOLD = 1000; 
-              core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
               for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
                 const pattern = patterns[patternIndex];
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");
-                  core.debug(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
+                  core.info(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
                 } catch (e) {
                   core.error(`invalid error regex pattern: ${pattern.pattern}`);
                   continue;
@@ -2743,11 +2743,11 @@ jobs:
                     }
                   }
                   if (iterationCount > 100) {
-                    core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+                    core.info(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
                   }
                 }
               }
-              core.debug(`Error validation completed. Errors found: ${hasErrors}`);
+              core.info(`Error validation completed. Errors found: ${hasErrors}`);
               return hasErrors;
             }
             function extractLevel(match, pattern) {

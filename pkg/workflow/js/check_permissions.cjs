@@ -21,8 +21,8 @@ async function main() {
 
   // Check if the actor has the required repository permissions
   try {
-    core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-    core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
+    core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+    core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
 
     const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
       owner: owner,
@@ -31,7 +31,7 @@ async function main() {
     });
 
     const permission = repoPermission.data.permission;
-    core.debug(`Repository permission level: ${permission}`);
+    core.info(`Repository permission level: ${permission}`);
 
     // Check if user has one of the required permission levels
     for (const requiredPerm of requiredPermissions) {
