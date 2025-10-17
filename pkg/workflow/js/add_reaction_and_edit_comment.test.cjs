@@ -492,7 +492,8 @@ describe("add_reaction_and_edit_comment.cjs", () => {
       expect(mockGithub.graphql).toHaveBeenCalledTimes(2);
 
       // Verify comment was NOT created (no addDiscussionComment mutation)
-      // Note: Discussion events don't set shouldCreateComment, so no comment is created
+      // Note: Discussion body events (not comments on discussions) don't set shouldCreateComment,
+      // so no comment is created. Only discussion_comment events create comments.
       expect(mockGithub.graphql).not.toHaveBeenCalledWith(expect.stringContaining("addDiscussionComment"), expect.anything());
 
       // Verify only reaction output was set
