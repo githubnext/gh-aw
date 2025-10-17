@@ -57,7 +57,8 @@ jobs:
       - name: List files in /tmp/logs
         run: ls -la /tmp/logs
       - name: Print logs
-        run: # file all .log files in /tmp/logs and echo their contents
+        run: |
+          # file all .log files in /tmp/logs and echo their contents
           for file in /tmp/logs/*.log; do
             echo "$file:"
             cat "$file"
