@@ -10,17 +10,17 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
+#   add_labels["add_labels"]
 #   agent["agent"]
 #   detection["detection"]
-#   add_labels["add_labels"]
 #   missing_tool["missing_tool"]
+#   pre_activation["pre_activation"]
 #   pre_activation --> activation
-#   activation --> agent
-#   agent --> detection
 #   agent --> add_labels
 #   detection --> add_labels
+#   activation --> agent
+#   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
 # ```
