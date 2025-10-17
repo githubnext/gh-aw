@@ -769,7 +769,7 @@ describe("create_issue.cjs", () => {
 
     // Verify assignment logic was triggered
     expect(mockCore.info).toHaveBeenCalledWith("Assigning issue to bot: copilot-swe-agent");
-    
+
     // Note: The assignment GraphQL calls happen asynchronously and may not complete before test ends
     // This is a test environment limitation. The functionality works correctly in production
     // as demonstrated by manual testing
@@ -822,7 +822,7 @@ describe("create_issue.cjs", () => {
 
     // Verify issue was still created
     expect(mockGithub.rest.issues.create).toHaveBeenCalled();
-    
+
     // Note: setOutput may not be called if the script encounters async errors in test environment
     // The important thing is that the issue was created successfully
     if (mockCore.setOutput.mock.calls.length > 0) {
