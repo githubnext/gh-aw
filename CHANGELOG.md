@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.7 - 2025-10-17
+
+### Bug Fixes
+
+#### Fixed GITHUB_AW_AGENT_OUTPUT file path handling in safe output scripts
+
+
 ## v0.22.6 - 2025-10-17
 
 ### Bug Fixes
