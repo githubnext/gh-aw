@@ -38,8 +38,8 @@ tools:
   bash:
     - "find docs -name '*.md' -o -name '*.mdx'"
     - "ls -la docs"
-    - "cat docs/**/*.md"
-    - "grep -r*"
+    - "find docs -name '*.md' -exec cat {} +"
+    - "grep -r '*' docs"
 
 timeout_minutes: 15
 strict: true
@@ -64,15 +64,10 @@ Scan the repository for merged pull requests and code changes from the last 24 h
 
 ### 1. Scan Recent Activity (Last 24 Hours)
 
-First, search for merged pull requests from the last 24 hours:
-
-```bash
-# Use GitHub tools to search for recently merged PRs
-# Search for PRs merged in the last 24 hours
-```
+First, search for merged pull requests from the last 24 hours.
 
 Use the GitHub tools to:
-- Search for pull requests merged in the last 24 hours using `search_pull_requests` with query: `repo:${{ github.repository }} is:pr is:merged merged:>=$(date -d '24 hours ago' -I)`
+- Search for pull requests merged in the last 24 hours using `search_pull_requests` with a query like: `repo:${{ github.repository }} is:pr is:merged merged:>=YYYY-MM-DD` (replace YYYY-MM-DD with yesterday's date)
 - Get details of each merged PR using `pull_request_read`
 - Review commits from the last 24 hours using `list_commits`
 - Get detailed commit information using `get_commit` for significant changes
