@@ -6,22 +6,22 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
-#   detection["detection"]
 #   create_pull_request["create_pull_request"]
-#   push_to_pull_request_branch["push_to_pull_request_branch"]
+#   detection["detection"]
 #   missing_tool["missing_tool"]
+#   pre_activation["pre_activation"]
+#   push_to_pull_request_branch["push_to_pull_request_branch"]
 #   pre_activation --> activation
 #   activation --> agent
-#   agent --> detection
 #   agent --> create_pull_request
 #   detection --> create_pull_request
-#   agent --> push_to_pull_request_branch
-#   detection --> push_to_pull_request_branch
+#   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> push_to_pull_request_branch
+#   detection --> push_to_pull_request_branch
 # ```
 
 name: "Tidy"
