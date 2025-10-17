@@ -6,9 +6,9 @@
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
-#   pre_activation["pre_activation"]
 #   activation["activation"]
 #   agent["agent"]
+#   pre_activation["pre_activation"]
 #   pre_activation --> activation
 #   activation --> agent
 # ```
