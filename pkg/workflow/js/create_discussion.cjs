@@ -8,7 +8,7 @@ async function main() {
     core.info("Agent output content is empty");
     return;
   }
-  core.debug(`Agent output content length: ${outputContent.length}`);
+  core.info(`Agent output content length: ${outputContent.length}`);
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
@@ -25,7 +25,7 @@ async function main() {
     core.warning("No create-discussion items found in agent output");
     return;
   }
-  core.debug(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+  core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
     summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";

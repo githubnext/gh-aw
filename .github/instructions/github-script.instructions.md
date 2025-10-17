@@ -13,7 +13,6 @@ This JavaScript file will be run using the GitHub Action `actions/github-script@
 ## Best practices
 
 - use `core.info`, `core.warning`, `core.error` for logging, not `console.log` or `console.error`
-- use `core.debug` for verbose debug logging, which can be enabled in action settings
 - use `core.setOutput` to set action outputs
 - use `core.exportVariable` to set environment variables for subsequent steps
 - use `core.getInput` to get action inputs, with `required: true` for mandatory inputs

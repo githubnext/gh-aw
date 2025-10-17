@@ -22,7 +22,7 @@ async function main() {
     core.info("Agent output content is empty");
     return;
   }
-  core.debug(`Agent output content length: ${outputContent.length}`);
+  core.info(`Agent output content length: ${outputContent.length}`);
   let validatedOutput;
   try {
     validatedOutput = JSON.parse(outputContent);
@@ -39,7 +39,7 @@ async function main() {
     core.warning("No add-labels item found in agent output");
     return;
   }
-  core.debug(`Found add-labels item with ${labelsItem.labels.length} labels`);
+  core.info(`Found add-labels item with ${labelsItem.labels.length} labels`);
   if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
     let summaryContent = "## 🎭 Staged Mode: Add Labels Preview\n\n";
     summaryContent += "The following labels would be added if staged mode was disabled:\n\n";
@@ -63,9 +63,9 @@ async function main() {
         .filter(label => label)
     : undefined;
   if (allowedLabels) {
-    core.debug(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
+    core.info(`Allowed labels: ${JSON.stringify(allowedLabels)}`);
   } else {
-    core.debug("No label restrictions - any labels are allowed");
+    core.info("No label restrictions - any labels are allowed");
   }
   const maxCountEnv = process.env.GITHUB_AW_LABELS_MAX_COUNT;
   const maxCount = maxCountEnv ? parseInt(maxCountEnv, 10) : 3;
@@ -73,7 +73,7 @@ async function main() {
     core.setFailed(`Invalid max value: ${maxCountEnv}. Must be a positive integer`);
     return;
   }
-  core.debug(`Max count: ${maxCount}`);
+  core.info(`Max count: ${maxCount}`);
   const labelsTarget = process.env.GITHUB_AW_LABELS_TARGET || "triggering";
   core.info(`Labels target configuration: ${labelsTarget}`);
   const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
@@ -130,7 +130,7 @@ async function main() {
     return;
   }
   const requestedLabels = labelsItem.labels || [];
-  core.debug(`Requested labels: ${JSON.stringify(requestedLabels)}`);
+  core.info(`Requested labels: ${JSON.stringify(requestedLabels)}`);
   for (const label of requestedLabels) {
     if (label && typeof label === "string" && label.startsWith("-")) {
       core.setFailed(`Label removal is not permitted. Found line starting with '-': ${label}`);
@@ -152,7 +152,7 @@ async function main() {
     .map(label => (label.length > 64 ? label.substring(0, 64) : label))
     .filter((label, index, arr) => arr.indexOf(label) === index);
   if (uniqueLabels.length > maxCount) {
-    core.debug(`too many labels, keep ${maxCount}`);
+    core.info(`too many labels, keep ${maxCount}`);
     uniqueLabels = uniqueLabels.slice(0, maxCount);
   }
   if (uniqueLabels.length === 0) {
