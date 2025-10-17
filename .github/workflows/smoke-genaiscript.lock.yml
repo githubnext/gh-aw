@@ -1911,21 +1911,17 @@ jobs:
             }
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputEnvValue) {
+              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
                 return;
               }
               let outputContent;
-              if (outputEnvValue.startsWith("/")) {
-                try {
-                  outputContent = require("fs").readFileSync(outputEnvValue, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              } else {
-                outputContent = outputEnvValue;
+              try {
+                outputContent = require("fs").readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
               }
               if (outputContent.trim() === "") {
                 core.info("Agent output content is empty");
@@ -2380,29 +2376,25 @@ jobs:
           script: |
             async function main() {
               const fs = require("fs");
-              const outputEnvValue = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT || "";
               const maxReports = process.env.GITHUB_AW_MISSING_TOOL_MAX ? parseInt(process.env.GITHUB_AW_MISSING_TOOL_MAX) : null;
               core.info("Processing missing-tool reports...");
               if (maxReports) {
                 core.info(`Maximum reports allowed: ${maxReports}`);
               }
               const missingTools = [];
-              if (!outputEnvValue.trim()) {
+              if (!agentOutputFile.trim()) {
                 core.info("No agent output to process");
                 core.setOutput("tools_reported", JSON.stringify(missingTools));
                 core.setOutput("total_count", missingTools.length.toString());
                 return;
               }
               let agentOutput;
-              if (outputEnvValue.startsWith("/")) {
-                try {
-                  agentOutput = fs.readFileSync(outputEnvValue, "utf8");
-                } catch (error) {
-                  core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
-                  return;
-                }
-              } else {
-                agentOutput = outputEnvValue;
+              try {
+                agentOutput = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
               }
               core.info(`Agent output length: ${agentOutput.length}`);
               let validatedOutput;
