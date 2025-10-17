@@ -133,7 +133,7 @@ describe("redact_secrets.cjs", () => {
       expect(fs.readFileSync(path.join(tempDir, "test3.log"), "utf8")).toBe("Log: api********");
     });
 
-    it("should use core.debug for logging hits", async () => {
+    it("should use core.info for logging hits", async () => {
       const testFile = path.join(tempDir, "test.txt");
       const secretValue = "sk-1234567890";
       fs.writeFileSync(testFile, `Secret: ${secretValue} and ${secretValue}`);
@@ -148,9 +148,9 @@ describe("redact_secrets.cjs", () => {
 
       await eval(`(async () => { ${modifiedScript} })()`);
 
-      // Verify core.debug was called for redaction
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret"));
-      expect(mockCore.debug).toHaveBeenCalledWith(expect.stringContaining("Processed"));
+      // Verify core.info was called for redaction
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("occurrence(s) of a secret"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Processed"));
     });
 
     it("should not log actual secret values", async () => {

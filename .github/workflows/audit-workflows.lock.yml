@@ -68,7 +68,7 @@ jobs:
                   return;
                 }
                 // If write is not allowed, continue with permission check
-                core.debug(`Event ${eventName} requires validation (write role not allowed)`);
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
               }
               // skip check for other safe events
               const safeEvents = ["workflow_run", "schedule"];
@@ -87,15 +87,15 @@ jobs:
               }
               // Check if the actor has the required repository permissions
               try {
-                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
                 const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
                   owner: owner,
                   repo: repo,
                   username: actor,
                 });
                 const permission = repoPermission.data.permission;
-                core.debug(`Repository permission level: ${permission}`);
+                core.info(`Repository permission level: ${permission}`);
                 // Check if user has one of the required permission levels
                 for (const requiredPerm of requiredPermissions) {
                   if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
@@ -2892,14 +2892,14 @@ jobs:
             function main() {
               const fs = require("fs");
               const path = require("path");
-              core.debug("Starting validate_errors.cjs script");
+              core.info("Starting validate_errors.cjs script");
               const startTime = Date.now();
               try {
                 const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logPath) {
                   throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
-                core.debug(`Log path: ${logPath}`);
+                core.info(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
                   core.info(`Log path not found: ${logPath}`);
                   core.info("No logs to validate - skipping error validation");
@@ -2910,7 +2910,7 @@ jobs:
                   throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 core.info(`Loaded ${patterns.length} error patterns`);
-                core.debug(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
+                core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
@@ -2925,7 +2925,7 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    core.debug(`Reading log file: ${file} (${fileContent.length} bytes)`);
+                    core.info(`Reading log file: ${file} (${fileContent.length} bytes)`);
                     content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
@@ -2984,7 +2984,8 @@ jobs:
               const ITERATION_WARNING_THRESHOLD = 1000; 
               const MAX_TOTAL_ERRORS = 100; 
               const MAX_LINE_LENGTH = 10000; 
-              core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              const TOP_SLOW_PATTERNS_COUNT = 5; 
+              core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
               const validationStartTime = Date.now();
               let totalMatches = 0;
               let patternStats = [];
@@ -2995,7 +2996,7 @@ jobs:
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");
-                  core.debug(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
+                  core.info(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
                 } catch (e) {
                   core.error(`invalid error regex pattern: ${pattern.pattern}`);
                   continue;
@@ -3048,7 +3049,7 @@ jobs:
                     totalMatches++;
                   }
                   if (iterationCount > 100) {
-                    core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+                    core.info(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
                   }
                 }
                 const patternElapsed = Date.now() - patternStartTime;
@@ -3069,14 +3070,14 @@ jobs:
               const validationElapsed = Date.now() - validationStartTime;
               core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);
               patternStats.sort((a, b) => b.timeMs - a.timeMs);
-              const topSlow = patternStats.slice(0, 5);
+              const topSlow = patternStats.slice(0, TOP_SLOW_PATTERNS_COUNT);
               if (topSlow.length > 0 && topSlow[0].timeMs > 1000) {
-                core.info("Top 5 slowest patterns:");
+                core.info(`Top ${TOP_SLOW_PATTERNS_COUNT} slowest patterns:`);
                 topSlow.forEach((stat, idx) => {
                   core.info(`  ${idx + 1}. "${stat.description}" - ${stat.timeMs}ms (${stat.matches} matches)`);
                 });
               }
-              core.debug(`Error validation completed. Errors found: ${hasErrors}`);
+              core.info(`Error validation completed. Errors found: ${hasErrors}`);
               return hasErrors;
             }
             function extractLevel(match, pattern) {
@@ -3348,11 +3349,21 @@ jobs:
       discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
       discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Create Output Discussion
         id: create_discussion
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Agentic Workflow Audit Agent"
           GITHUB_AW_DISCUSSION_CATEGORY: "audits"
         with:
@@ -3367,7 +3378,7 @@ jobs:
                 core.info("Agent output content is empty");
                 return;
               }
-              core.debug(`Agent output content length: ${outputContent.length}`);
+              core.info(`Agent output content length: ${outputContent.length}`);
               let validatedOutput;
               try {
                 validatedOutput = JSON.parse(outputContent);
@@ -3384,7 +3395,7 @@ jobs:
                 core.warning("No create-discussion items found in agent output");
                 return;
               }
-              core.debug(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
               if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
                 let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
                 summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
@@ -3574,11 +3585,21 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
           script: |
             async function main() {

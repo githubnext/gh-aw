@@ -113,7 +113,7 @@ describe("create_discussion.cjs", () => {
     await eval(`(async () => { ${createDiscussionScript} })()`);
 
     // Check that it logs the content length first, then the error
-    expect(mockCore.debug).toHaveBeenCalledWith("Agent output content length: 12");
+    expect(mockCore.info).toHaveBeenCalledWith("Agent output content length: 12");
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Error parsing agent output JSON:.*Unexpected token/));
   });
 

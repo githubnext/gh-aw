@@ -176,7 +176,7 @@ async function main() {
   });
 
   const permission = repoPermission.data.permission;
-  core.debug(`Repository permission level: ${permission}`);
+  core.info(`Repository permission level: ${permission}`);
 
   if (permission !== "admin" && permission !== "maintain") {
     core.setOutput("text", "");
@@ -259,7 +259,7 @@ async function main() {
   const sanitizedText = sanitizeContent(text);
 
   // Display sanitized text in logs
-  core.debug(`text: ${sanitizedText}`);
+  core.info(`text: ${sanitizedText}`);
 
   // Set the sanitized text as output
   core.setOutput("text", sanitizedText);

@@ -85,10 +85,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 		copilotArgs = append(copilotArgs, "--add-dir", "/tmp/gh-aw/cache-memory/")
 	}
 
-	// Add --add-dir / when edit tool is enabled to allow write on all paths
-	// Workaround for GitHub/copilot-cli issue 67: https://github.com/GitHub/copilot-cli/issues/67
+	// Add --allow-all-paths when edit tool is enabled to allow write on all paths
+	// See: https://github.com/github/copilot-cli/issues/67#issuecomment-3411256174
 	if _, hasEdit := workflowData.Tools["edit"]; hasEdit {
-		copilotArgs = append(copilotArgs, "--add-dir", "/")
+		copilotArgs = append(copilotArgs, "--allow-all-paths")
 	}
 
 	// Add custom args from engine configuration before the prompt

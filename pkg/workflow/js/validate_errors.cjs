@@ -2,7 +2,7 @@ function main() {
   const fs = require("fs");
   const path = require("path");
 
-  core.debug("Starting validate_errors.cjs script");
+  core.info("Starting validate_errors.cjs script");
   const startTime = Date.now();
 
   try {
@@ -11,7 +11,7 @@ function main() {
       throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
     }
 
-    core.debug(`Log path: ${logPath}`);
+    core.info(`Log path: ${logPath}`);
 
     if (!fs.existsSync(logPath)) {
       core.info(`Log path not found: ${logPath}`);
@@ -26,7 +26,7 @@ function main() {
     }
 
     core.info(`Loaded ${patterns.length} error patterns`);
-    core.debug(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
+    core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
 
     let content = "";
 
@@ -51,7 +51,7 @@ function main() {
       for (const file of logFiles) {
         const filePath = path.join(logPath, file);
         const fileContent = fs.readFileSync(filePath, "utf8");
-        core.debug(`Reading log file: ${file} (${fileContent.length} bytes)`);
+        core.info(`Reading log file: ${file} (${fileContent.length} bytes)`);
         content += fileContent;
         // Add a newline between files if the previous file doesn't end with one
         if (content.length > 0 && !content.endsWith("\n")) {
@@ -147,7 +147,7 @@ function validateErrors(logContent, patterns) {
   const MAX_LINE_LENGTH = 10000; // Skip lines longer than this (likely JSON payloads)
   const TOP_SLOW_PATTERNS_COUNT = 5; // Number of slowest patterns to report
 
-  core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+  core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
 
   const validationStartTime = Date.now();
   let totalMatches = 0;
@@ -161,7 +161,7 @@ function validateErrors(logContent, patterns) {
     let regex;
     try {
       regex = new RegExp(pattern.pattern, "g");
-      core.debug(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
+      core.info(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
     } catch (e) {
       core.error(`invalid error regex pattern: ${pattern.pattern}`);
       continue;
@@ -237,7 +237,7 @@ function validateErrors(logContent, patterns) {
 
       // Log if we had a significant number of matches on a line
       if (iterationCount > 100) {
-        core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+        core.info(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
       }
     }
 
@@ -276,7 +276,7 @@ function validateErrors(logContent, patterns) {
     });
   }
 
-  core.debug(`Error validation completed. Errors found: ${hasErrors}`);
+  core.info(`Error validation completed. Errors found: ${hasErrors}`);
   return hasErrors;
 }
 

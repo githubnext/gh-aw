@@ -5674,3 +5674,113 @@ func extractJobSection(yamlContent, jobName string) string {
 
 	return strings.Join(jobLines, "\n")
 }
+
+func TestPostStepsIndentationFix(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir, err := os.MkdirTemp("", "post-steps-indentation-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test case with various post-steps configurations
+	testContent := `---
+on: push
+permissions:
+  contents: read
+tools:
+  github:
+    allowed: [list_issues]
+post-steps:
+  - name: First Post Step
+    run: echo "first"
+  - name: Second Post Step
+    uses: actions/upload-artifact@v4
+    with:
+      name: test-artifact
+      path: test-file.txt
+      retention-days: 7
+  - name: Third Post Step
+    if: success()
+    run: |
+      echo "multiline"
+      echo "script"
+engine: claude
+---
+
+# Test Post Steps Indentation
+
+Test post-steps indentation fix.
+`
+
+	testFile := filepath.Join(tmpDir, "test-post-steps-indentation.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler(false, "", "test")
+
+	// Compile the workflow
+	err = compiler.CompileWorkflow(testFile)
+	if err != nil {
+		t.Fatalf("Unexpected error compiling workflow: %v", err)
+	}
+
+	// Read the generated lock file
+	lockFile := filepath.Join(tmpDir, "test-post-steps-indentation.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read generated lock file: %v", err)
+	}
+
+	lockContent := string(content)
+
+	// Verify all post-steps are present
+	if !strings.Contains(lockContent, "- name: First Post Step") {
+		t.Error("Expected post-step 'First Post Step' to be in generated workflow")
+	}
+	if !strings.Contains(lockContent, "- name: Second Post Step") {
+		t.Error("Expected post-step 'Second Post Step' to be in generated workflow")
+	}
+	// Note: "Third Post Step" has an 'if' condition, so it appears as "name: Third Post Step" not "- name:"
+	if !strings.Contains(lockContent, "name: Third Post Step") {
+		t.Error("Expected post-step 'Third Post Step' to be in generated workflow")
+	}
+
+	// Verify indentation is correct (6 spaces for list items, 8 for properties)
+	lines := strings.Split(lockContent, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, "- name: First Post Step") {
+			// Check that this line has exactly 6 leading spaces
+			if !strings.HasPrefix(line, "      - name: First Post Step") {
+				t.Errorf("Line %d: Expected 6 spaces before '- name: First Post Step', got: %q", i+1, line)
+			}
+			// Check the next line (run:) has 8 spaces
+			if i+1 < len(lines) {
+				nextLine := lines[i+1]
+				if strings.Contains(nextLine, "run:") && !strings.HasPrefix(nextLine, "        run:") {
+					t.Errorf("Line %d: Expected 8 spaces before 'run:', got: %q", i+2, nextLine)
+				}
+			}
+		}
+		if strings.Contains(line, "- name: Second Post Step") {
+			// Check that this line has exactly 6 leading spaces
+			if !strings.HasPrefix(line, "      - name: Second Post Step") {
+				t.Errorf("Line %d: Expected 6 spaces before '- name: Second Post Step', got: %q", i+1, line)
+			}
+			// Check subsequent lines have correct indentation
+			if i+1 < len(lines) && strings.Contains(lines[i+1], "uses:") {
+				if !strings.HasPrefix(lines[i+1], "        uses:") {
+					t.Errorf("Line %d: Expected 8 spaces before 'uses:', got: %q", i+2, lines[i+1])
+				}
+			}
+			if i+2 < len(lines) && strings.Contains(lines[i+2], "with:") {
+				if !strings.HasPrefix(lines[i+2], "        with:") {
+					t.Errorf("Line %d: Expected 8 spaces before 'with:', got: %q", i+3, lines[i+2])
+				}
+			}
+		}
+	}
+
+	t.Log("Post-steps indentation verified successfully")
+}
