@@ -67,6 +67,86 @@ func TestHostRepoSlugProcessing(t *testing.T) {
 	}
 }
 
+// TestCloneRepoWithVersion tests that parseRepoSpec correctly handles version specifications
+// and that the version is properly passed to cloneRepoContentsIntoHost
+func TestCloneRepoWithVersion(t *testing.T) {
+	tests := []struct {
+		name            string
+		cloneRepoSpec   string
+		expectedSlug    string
+		expectedVersion string
+		shouldError     bool
+		description     string
+	}{
+		{
+			name:            "repo with tag",
+			cloneRepoSpec:   "owner/repo@v1.0.0",
+			expectedSlug:    "owner/repo",
+			expectedVersion: "v1.0.0",
+			shouldError:     false,
+			description:     "Should parse tag version correctly",
+		},
+		{
+			name:            "repo with branch",
+			cloneRepoSpec:   "owner/repo@main",
+			expectedSlug:    "owner/repo",
+			expectedVersion: "main",
+			shouldError:     false,
+			description:     "Should parse branch name correctly",
+		},
+		{
+			name:            "repo with commit SHA",
+			cloneRepoSpec:   "owner/repo@abc123def456",
+			expectedSlug:    "owner/repo",
+			expectedVersion: "abc123def456",
+			shouldError:     false,
+			description:     "Should parse commit SHA correctly",
+		},
+		{
+			name:            "repo without version",
+			cloneRepoSpec:   "owner/repo",
+			expectedSlug:    "owner/repo",
+			expectedVersion: "",
+			shouldError:     false,
+			description:     "Should handle repo without version",
+		},
+		{
+			name:            "GitHub URL with tag",
+			cloneRepoSpec:   "https://github.com/owner/repo@v2.1.0",
+			expectedSlug:    "owner/repo",
+			expectedVersion: "v2.1.0",
+			shouldError:     false,
+			description:     "Should parse GitHub URL with tag",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repoSpec, err := parseRepoSpec(tt.cloneRepoSpec)
+
+			if tt.shouldError {
+				if err == nil {
+					t.Errorf("Expected error for spec %q, but got none", tt.cloneRepoSpec)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error for spec %q: %v", tt.cloneRepoSpec, err)
+				return
+			}
+
+			if repoSpec.RepoSlug != tt.expectedSlug {
+				t.Errorf("Expected slug %q, got %q", tt.expectedSlug, repoSpec.RepoSlug)
+			}
+
+			if repoSpec.Version != tt.expectedVersion {
+				t.Errorf("Expected version %q, got %q", tt.expectedVersion, repoSpec.Version)
+			}
+		})
+	}
+}
+
 func TestModifyWorkflowForTrialMode(t *testing.T) {
 	tests := []struct {
 		name            string

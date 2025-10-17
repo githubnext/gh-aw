@@ -37,6 +37,9 @@ type GitHubScriptStepConfig struct {
 func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScriptStepConfig) []string {
 	var steps []string
 
+	// Add artifact download steps before the GitHub Script step
+	steps = append(steps, buildAgentOutputDownloadSteps()...)
+
 	// Step name and metadata
 	steps = append(steps, fmt.Sprintf("      - name: %s\n", config.StepName))
 	steps = append(steps, fmt.Sprintf("        id: %s\n", config.StepID))
@@ -45,8 +48,9 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	// Environment variables section
 	steps = append(steps, "        env:\n")
 
-	// Always add the agent output from the main job
-	steps = append(steps, fmt.Sprintf("          GITHUB_AW_AGENT_OUTPUT: ${{ needs.%s.outputs.output }}\n", config.MainJobName))
+	// Read GITHUB_AW_AGENT_OUTPUT from environment (set by artifact download step)
+	// instead of directly from job outputs which may be masked by GitHub Actions
+	steps = append(steps, "          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}\n")
 
 	// Add custom environment variables specific to this safe output type
 	steps = append(steps, config.CustomEnvVars...)
@@ -62,6 +66,29 @@ func (c *Compiler) buildGitHubScriptStep(data *WorkflowData, config GitHubScript
 	// Add the formatted JavaScript script
 	formattedScript := FormatJavaScriptForYAML(config.Script)
 	steps = append(steps, formattedScript...)
+
+	return steps
+}
+
+// buildAgentOutputDownloadSteps creates steps to download the agent output artifact
+// and set the GITHUB_AW_AGENT_OUTPUT environment variable
+func buildAgentOutputDownloadSteps() []string {
+	var steps []string
+
+	// Add step to download agent output artifact
+	steps = append(steps, "      - name: Download agent output artifact\n")
+	steps = append(steps, "        continue-on-error: true\n")
+	steps = append(steps, "        uses: actions/download-artifact@v5\n")
+	steps = append(steps, "        with:\n")
+	steps = append(steps, fmt.Sprintf("          name: %s\n", "agent_output.json")) // Use constant value directly to avoid import cycle
+	steps = append(steps, "          path: /tmp/gh-aw/safe-outputs/\n")
+
+	// Add environment variables step to set GITHUB_AW_AGENT_OUTPUT
+	steps = append(steps, "      - name: Setup agent output environment variable\n")
+	steps = append(steps, "        run: |\n")
+	steps = append(steps, "          find /tmp/gh-aw/safe-outputs/ -type f -print\n")
+	// Configure GITHUB_AW_AGENT_OUTPUT to point to downloaded artifact file
+	steps = append(steps, fmt.Sprintf("          echo \"GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/%s\" >> $GITHUB_ENV\n", "agent_output.json"))
 
 	return steps
 }

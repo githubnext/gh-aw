@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.6 - 2025-10-17
+
+### Bug Fixes
+
+#### Updated copilot engine to use --allow-all-paths flag instead of --add-dir / for edit tool support
+
+#### Enable reaction comments for all workflows, not just command-triggered ones
+
+#### Fixed post-steps indentation in generated YAML workflows to match GitHub Actions schema requirements
+
+#### Fixed empty GITHUB_AW_AGENT_OUTPUT in safe output jobs by downloading agent_output.json artifact instead of relying on job outputs
+
+#### Fix Windows path separator issue in workflow resolution
+
+#### Refactored prompt-step generator methods to eliminate duplicate code by introducing shared helper functions, reducing code by 33% while maintaining identical functionality
+
+#### Refactor: Eliminate duplicate code and organize validation into npm.go and pip.go
+
+#### Separate default list of GitHub tools for local and remote servers
+
+#### Sort mermaid graph nodes alphabetically for stable code generation
+
+#### Remove bloat from packaging-imports.md guide (56% reduction)
+
+#### Add update_reaction job to update activation comments when agent fails without producing output
+
+#### Update Claude Code to 2.0.21 and GitHub Copilot CLI to 0.0.343
+
+
 ## v0.22.5 - 2025-10-16
 
 ### Bug Fixes

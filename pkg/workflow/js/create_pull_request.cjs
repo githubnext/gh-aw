@@ -166,7 +166,7 @@ async function main() {
     }
   }
 
-  core.debug(`Agent output content length: ${outputContent.length}`);
+  core.info(`Agent output content length: ${outputContent.length}`);
   if (!isEmpty) {
     core.info("Patch content validation passed");
   } else {
@@ -194,7 +194,7 @@ async function main() {
     return;
   }
 
-  core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+  core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
 
   // If in staged mode, emit step summary instead of creating PR
   if (isStaged) {
@@ -267,33 +267,33 @@ async function main() {
   const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
 
   core.info(`Creating pull request with title: ${title}`);
-  core.debug(`Labels: ${JSON.stringify(labels)}`);
-  core.debug(`Draft: ${draft}`);
-  core.debug(`Body length: ${body.length}`);
+  core.info(`Labels: ${JSON.stringify(labels)}`);
+  core.info(`Draft: ${draft}`);
+  core.info(`Body length: ${body.length}`);
 
   const randomHex = crypto.randomBytes(8).toString("hex");
   // Use branch name from JSONL if provided, otherwise generate unique branch name
   if (!branchName) {
-    core.debug("No branch name provided in JSONL, generating unique branch name");
+    core.info("No branch name provided in JSONL, generating unique branch name");
     // Generate unique branch name using cryptographic random hex
     branchName = `${workflowId}-${randomHex}`;
   } else {
     branchName = `${branchName}-${randomHex}`;
-    core.debug(`Using branch name from JSONL with added salt: ${branchName}`);
+    core.info(`Using branch name from JSONL with added salt: ${branchName}`);
   }
 
   core.info(`Generated branch name: ${branchName}`);
-  core.debug(`Base branch: ${baseBranch}`);
+  core.info(`Base branch: ${baseBranch}`);
 
   // Create a new branch using git CLI, ensuring it's based on the correct base branch
 
   // First, fetch latest changes and checkout the base branch
-  core.debug(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+  core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
   await exec.exec("git fetch origin");
   await exec.exec(`git checkout ${baseBranch}`);
 
   // Handle branch creation/checkout
-  core.debug(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+  core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
   await exec.exec(`git checkout -b ${branchName}`);
   core.info(`Created new branch from base: ${branchName}`);
 
@@ -314,7 +314,7 @@ async function main() {
           remoteBranchExists = true;
         }
       } catch (checkError) {
-        core.debug(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+        core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
       }
 
       if (remoteBranchExists) {

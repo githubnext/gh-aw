@@ -51,92 +51,6 @@ concurrency:
 run-name: "Technical Documentation Writer for GitHub Actions"
 
 jobs:
-  pre_activation:
-    runs-on: ubuntu-latest
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
-        with:
-          script: |
-            async function main() {
-              const { eventName } = context;
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-              // For workflow_dispatch, only skip check if "write" is in the allowed roles
-              // since workflow_dispatch can be triggered by users with write access
-              if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                // If write is not allowed, continue with permission check
-                core.debug(`Event ${eventName} requires validation (write role not allowed)`);
-              }
-              // skip check for other safe events
-              const safeEvents = ["workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              // Check if the actor has the required repository permissions
-              try {
-                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.debug(`Repository permission level: ${permission}`);
-                // Check if user has one of the required permission levels
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
-                    core.setOutput("result", "authorized");
-                    core.setOutput("user_permission", permission);
-                    return;
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
-                return;
-              }
-            }
-            await main();
-
   activation:
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
@@ -157,6 +71,321 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
             fi
           fi
+
+  add_comment:
+    needs:
+      - agent
+      - detection
+    if: >
+      ((always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
+      (github.event.pull_request.number)) || (github.event.discussion.number))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      discussions: write
+    timeout-minutes: 10
+    outputs:
+      comment_id: ${{ steps.add_comment.outputs.comment_id }}
+      comment_url: ${{ steps.add_comment.outputs.comment_url }}
+    steps:
+      - name: Debug agent outputs
+        env:
+          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+        run: |
+          echo "Output: $AGENT_OUTPUT"
+          echo "Output types: $AGENT_OUTPUT_TYPES"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+      - name: Add Issue Comment
+        id: add_comment
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+        with:
+          script: |
+            function generateFooter(
+              workflowName,
+              runUrl,
+              workflowSource,
+              workflowSourceURL,
+              triggeringIssueNumber,
+              triggeringPRNumber,
+              triggeringDiscussionNumber
+            ) {
+              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
+              if (triggeringIssueNumber) {
+                footer += ` for #${triggeringIssueNumber}`;
+              } else if (triggeringPRNumber) {
+                footer += ` for #${triggeringPRNumber}`;
+              } else if (triggeringDiscussionNumber) {
+                footer += ` for discussion #${triggeringDiscussionNumber}`;
+              }
+              if (workflowSource && workflowSourceURL) {
+                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
+              }
+              footer += "\n";
+              return footer;
+            }
+            async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
+              const { repository } = await github.graphql(
+                `
+                query($owner: String!, $repo: String!, $num: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    discussion(number: $num) { 
+                      id 
+                      url
+                    }
+                  }
+                }`,
+                { owner, repo, num: discussionNumber }
+              );
+              if (!repository || !repository.discussion) {
+                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
+              }
+              const discussionId = repository.discussion.id;
+              const discussionUrl = repository.discussion.url;
+              const result = await github.graphql(
+                `
+                mutation($dId: ID!, $body: String!) {
+                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
+                    comment { 
+                      id 
+                      body 
+                      createdAt 
+                      url
+                    }
+                  }
+                }`,
+                { dId: discussionId, body: message }
+              );
+              const comment = result.addDiscussionComment.comment;
+              return {
+                id: comment.id,
+                html_url: comment.url,
+                discussion_url: discussionUrl,
+              };
+            }
+            async function main() {
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                return;
+              }
+              const commentItems = validatedOutput.items.filter( item => item.type === "add_comment");
+              if (commentItems.length === 0) {
+                core.info("No add-comment items found in agent output");
+                return;
+              }
+              core.info(`Found ${commentItems.length} add-comment item(s)`);
+              function getRepositoryUrl() {
+                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
+                if (targetRepoSlug) {
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  return `${githubServer}/${targetRepoSlug}`;
+                } else if (context.payload.repository) {
+                  return context.payload.repository.html_url;
+                } else {
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
+                }
+              }
+              function getTargetNumber(item) {
+                return item.item_number;
+              }
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
+                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
+                for (let i = 0; i < commentItems.length; i++) {
+                  const item = commentItems[i];
+                  summaryContent += `### Comment ${i + 1}\n`;
+                  const targetNumber = getTargetNumber(item);
+                  if (targetNumber) {
+                    const repoUrl = getRepositoryUrl();
+                    if (isDiscussion) {
+                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
+                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
+                    } else {
+                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
+                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
+                    }
+                  } else {
+                    if (isDiscussion) {
+                      summaryContent += `**Target:** Current discussion\n\n`;
+                    } else {
+                      summaryContent += `**Target:** Current issue/PR\n\n`;
+                    }
+                  }
+                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Comment creation preview written to step summary");
+                return;
+              }
+              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
+              core.info(`Comment target configuration: ${commentTarget}`);
+              core.info(`Discussion mode: ${isDiscussion}`);
+              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
+              const isPRContext =
+                context.eventName === "pull_request" ||
+                context.eventName === "pull_request_review" ||
+                context.eventName === "pull_request_review_comment";
+              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
+              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
+                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
+                return;
+              }
+              const triggeringIssueNumber =
+                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
+              const triggeringPRNumber =
+                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
+              const triggeringDiscussionNumber = context.payload?.discussion?.number;
+              const createdComments = [];
+              for (let i = 0; i < commentItems.length; i++) {
+                const commentItem = commentItems[i];
+                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
+                let itemNumber;
+                let commentEndpoint;
+                if (commentTarget === "*") {
+                  const targetNumber = getTargetNumber(commentItem);
+                  if (targetNumber) {
+                    itemNumber = parseInt(targetNumber, 10);
+                    if (isNaN(itemNumber) || itemNumber <= 0) {
+                      core.info(`Invalid target number specified: ${targetNumber}`);
+                      continue;
+                    }
+                    commentEndpoint = isDiscussion ? "discussions" : "issues";
+                  } else {
+                    core.info(`Target is "*" but no number specified in comment item`);
+                    continue;
+                  }
+                } else if (commentTarget && commentTarget !== "triggering") {
+                  itemNumber = parseInt(commentTarget, 10);
+                  if (isNaN(itemNumber) || itemNumber <= 0) {
+                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
+                    continue;
+                  }
+                  commentEndpoint = isDiscussion ? "discussions" : "issues";
+                } else {
+                  if (isIssueContext) {
+                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
+                    if (context.payload.issue) {
+                      commentEndpoint = "issues";
+                    } else {
+                      core.info("Issue context detected but no issue found in payload");
+                      continue;
+                    }
+                  } else if (isPRContext) {
+                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
+                    if (context.payload.pull_request) {
+                      commentEndpoint = "issues"; 
+                    } else {
+                      core.info("Pull request context detected but no pull request found in payload");
+                      continue;
+                    }
+                  } else if (isDiscussionContext) {
+                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
+                    if (context.payload.discussion) {
+                      commentEndpoint = "discussions"; 
+                    } else {
+                      core.info("Discussion context detected but no discussion found in payload");
+                      continue;
+                    }
+                  }
+                }
+                if (!itemNumber) {
+                  core.info("Could not determine issue, pull request, or discussion number");
+                  continue;
+                }
+                let body = commentItem.body.trim();
+                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
+                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                body += generateFooter(
+                  workflowName,
+                  runUrl,
+                  workflowSource,
+                  workflowSourceURL,
+                  triggeringIssueNumber,
+                  triggeringPRNumber,
+                  triggeringDiscussionNumber
+                );
+                try {
+                  let comment;
+                  if (isDiscussion) {
+                    core.info(`Creating comment on discussion #${itemNumber}`);
+                    core.info(`Comment content length: ${body.length}`);
+                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
+                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
+                    comment.discussion_url = comment.discussion_url;
+                  } else {
+                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
+                    core.info(`Comment content length: ${body.length}`);
+                    const { data: restComment } = await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: itemNumber,
+                      body: body,
+                    });
+                    comment = restComment;
+                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
+                  }
+                  createdComments.push(comment);
+                  if (i === commentItems.length - 1) {
+                    core.setOutput("comment_id", comment.id);
+                    core.setOutput("comment_url", comment.html_url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (createdComments.length > 0) {
+                let summaryContent = "\n\n## GitHub Comments\n";
+                for (const comment of createdComments) {
+                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdComments.length} comment(s)`);
+              return createdComments;
+            }
+            await main();
 
   agent:
     needs: activation
@@ -2876,14 +3105,14 @@ jobs:
             function main() {
               const fs = require("fs");
               const path = require("path");
-              core.debug("Starting validate_errors.cjs script");
+              core.info("Starting validate_errors.cjs script");
               const startTime = Date.now();
               try {
                 const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logPath) {
                   throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
-                core.debug(`Log path: ${logPath}`);
+                core.info(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
                   core.info(`Log path not found: ${logPath}`);
                   core.info("No logs to validate - skipping error validation");
@@ -2894,7 +3123,7 @@ jobs:
                   throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 core.info(`Loaded ${patterns.length} error patterns`);
-                core.debug(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
+                core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
@@ -2909,7 +3138,7 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    core.debug(`Reading log file: ${file} (${fileContent.length} bytes)`);
+                    core.info(`Reading log file: ${file} (${fileContent.length} bytes)`);
                     content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
@@ -2966,13 +3195,21 @@ jobs:
               let hasErrors = false;
               const MAX_ITERATIONS_PER_LINE = 10000; 
               const ITERATION_WARNING_THRESHOLD = 1000; 
-              core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              const MAX_TOTAL_ERRORS = 100; 
+              const MAX_LINE_LENGTH = 10000; 
+              const TOP_SLOW_PATTERNS_COUNT = 5; 
+              core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              const validationStartTime = Date.now();
+              let totalMatches = 0;
+              let patternStats = [];
               for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
                 const pattern = patterns[patternIndex];
+                const patternStartTime = Date.now();
+                let patternMatches = 0;
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");
-                  core.debug(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
+                  core.info(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
                 } catch (e) {
                   core.error(`invalid error regex pattern: ${pattern.pattern}`);
                   continue;
@@ -2981,6 +3218,13 @@ jobs:
                   const line = lines[lineIndex];
                   if (shouldSkipLine(line)) {
                     continue;
+                  }
+                  if (line.length > MAX_LINE_LENGTH) {
+                    continue;
+                  }
+                  if (totalMatches >= MAX_TOTAL_ERRORS) {
+                    core.warning(`Stopping error validation after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                    break;
                   }
                   let match;
                   let iterationCount = 0;
@@ -3014,13 +3258,39 @@ jobs:
                     } else {
                       core.warning(errorMessage);
                     }
+                    patternMatches++;
+                    totalMatches++;
                   }
                   if (iterationCount > 100) {
-                    core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+                    core.info(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
                   }
                 }
+                const patternElapsed = Date.now() - patternStartTime;
+                patternStats.push({
+                  description: pattern.description || "Unknown",
+                  pattern: pattern.pattern.substring(0, 50) + (pattern.pattern.length > 50 ? "..." : ""),
+                  matches: patternMatches,
+                  timeMs: patternElapsed,
+                });
+                if (patternElapsed > 5000) {
+                  core.warning(`Pattern "${pattern.description}" took ${patternElapsed}ms to process (${patternMatches} matches)`);
+                }
+                if (totalMatches >= MAX_TOTAL_ERRORS) {
+                  core.warning(`Stopping pattern processing after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                  break;
+                }
               }
-              core.debug(`Error validation completed. Errors found: ${hasErrors}`);
+              const validationElapsed = Date.now() - validationStartTime;
+              core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);
+              patternStats.sort((a, b) => b.timeMs - a.timeMs);
+              const topSlow = patternStats.slice(0, TOP_SLOW_PATTERNS_COUNT);
+              if (topSlow.length > 0 && topSlow[0].timeMs > 1000) {
+                core.info(`Top ${TOP_SLOW_PATTERNS_COUNT} slowest patterns:`);
+                topSlow.forEach((stat, idx) => {
+                  core.info(`  ${idx + 1}. "${stat.description}" - ${stat.timeMs}ms (${stat.matches} matches)`);
+                });
+              }
+              core.info(`Error validation completed. Errors found: ${hasErrors}`);
               return hasErrors;
             }
             function extractLevel(match, pattern) {
@@ -3149,6 +3419,457 @@ jobs:
           name: aw.patch
           path: /tmp/gh-aw/aw.patch
           if-no-files-found: ignore
+
+  create_pull_request:
+    needs:
+      - agent
+      - detection
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
+      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
+      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
+      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
+      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
+      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
+    steps:
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: aw.patch
+          path: /tmp/gh-aw/
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+      - name: Create Pull Request
+        id: create_pull_request
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GITHUB_AW_WORKFLOW_ID: "agent"
+          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
+          GITHUB_AW_PR_TITLE_PREFIX: "[docs] "
+          GITHUB_AW_PR_LABELS: "documentation"
+          GITHUB_AW_PR_DRAFT: "false"
+          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
+          GITHUB_AW_MAX_PATCH_SIZE: 1024
+        with:
+          script: |
+            const fs = require("fs");
+            const crypto = require("crypto");
+            function generatePatchPreview(patchContent) {
+              if (!patchContent || !patchContent.trim()) {
+                return "";
+              }
+              const lines = patchContent.split("\n");
+              const maxLines = 500;
+              const maxChars = 2000;
+              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
+              const lineTruncated = lines.length > maxLines;
+              const charTruncated = preview.length > maxChars;
+              if (charTruncated) {
+                preview = preview.slice(0, maxChars);
+              }
+              const truncated = lineTruncated || charTruncated;
+              const summary = truncated
+                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
+                : `Show patch (${lines.length} lines)`;
+              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
+            }
+            async function main() {
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
+              if (!workflowId) {
+                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
+              }
+              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
+              if (!baseBranch) {
+                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
+              }
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+              }
+              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
+              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                const message = "No patch file found - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
+                  return;
+                }
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+              if (patchContent.includes("Failed to generate patch")) {
+                const message = "Patch file contains error message - cannot create pull request without changes";
+                if (isStaged) {
+                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
+                  summaryContent += `**Message:** ${message}\n\n`;
+                  await core.summary.addRaw(summaryContent).write();
+                  core.info("📝 Pull request creation preview written to step summary (patch error)");
+                  return;
+                }
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error(message);
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              const isEmpty = !patchContent || !patchContent.trim();
+              if (!isEmpty) {
+                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
+                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
+                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
+                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
+                if (patchSizeKb > maxSizeKb) {
+                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
+                  if (isStaged) {
+                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
+                    summaryContent += `**Message:** ${message}\n\n`;
+                    await core.summary.addRaw(summaryContent).write();
+                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
+                    return;
+                  }
+                  throw new Error(message);
+                }
+                core.info("Patch size validation passed");
+              }
+              if (isEmpty && !isStaged) {
+                const message = "Patch file is empty - no changes to apply (noop operation)";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              if (!isEmpty) {
+                core.info("Patch content validation passed");
+              } else {
+                core.info("Patch file is empty - processing noop operation");
+              }
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
+              if (!pullRequestItem) {
+                core.warning("No create-pull-request item found in agent output");
+                return;
+              }
+              core.info(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
+              if (isStaged) {
+                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
+                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
+                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
+                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
+                summaryContent += `**Base:** ${baseBranch}\n\n`;
+                if (pullRequestItem.body) {
+                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
+                }
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  if (patchStats.trim()) {
+                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
+                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
+                  } else {
+                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
+                  }
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Pull request creation preview written to step summary");
+                return;
+              }
+              let title = pullRequestItem.title.trim();
+              let bodyLines = pullRequestItem.body.split("\n");
+              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
+              if (!title) {
+                title = "Agent Output";
+              }
+              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
+              if (titlePrefix && !title.startsWith(titlePrefix)) {
+                title = titlePrefix + title;
+              }
+              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const runId = context.runId;
+              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+              const runUrl = context.payload.repository
+                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+              const body = bodyLines.join("\n").trim();
+              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
+              const labels = labelsEnv
+                ? labelsEnv
+                    .split(",")
+                    .map( label => label.trim())
+                    .filter( label => label)
+                : [];
+              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
+              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
+              core.info(`Creating pull request with title: ${title}`);
+              core.info(`Labels: ${JSON.stringify(labels)}`);
+              core.info(`Draft: ${draft}`);
+              core.info(`Body length: ${body.length}`);
+              const randomHex = crypto.randomBytes(8).toString("hex");
+              if (!branchName) {
+                core.info("No branch name provided in JSONL, generating unique branch name");
+                branchName = `${workflowId}-${randomHex}`;
+              } else {
+                branchName = `${branchName}-${randomHex}`;
+                core.info(`Using branch name from JSONL with added salt: ${branchName}`);
+              }
+              core.info(`Generated branch name: ${branchName}`);
+              core.info(`Base branch: ${baseBranch}`);
+              core.info(`Fetching latest changes and checking out base branch: ${baseBranch}`);
+              await exec.exec("git fetch origin");
+              await exec.exec(`git checkout ${baseBranch}`);
+              core.info(`Branch should not exist locally, creating new branch from base: ${branchName}`);
+              await exec.exec(`git checkout -b ${branchName}`);
+              core.info(`Created new branch from base: ${branchName}`);
+              if (!isEmpty) {
+                core.info("Applying patch...");
+                await exec.exec("git am /tmp/gh-aw/aw.patch");
+                core.info("Patch applied successfully");
+                try {
+                  let remoteBranchExists = false;
+                  try {
+                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
+                    if (stdout.trim()) {
+                      remoteBranchExists = true;
+                    }
+                  } catch (checkError) {
+                    core.info(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
+                  }
+                  if (remoteBranchExists) {
+                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
+                    const extraHex = crypto.randomBytes(4).toString("hex");
+                    const oldBranch = branchName;
+                    branchName = `${branchName}-${extraHex}`;
+                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
+                    core.info(`Renamed branch to ${branchName}`);
+                  }
+                  await exec.exec(`git push origin ${branchName}`);
+                  core.info("Changes pushed to branch");
+                } catch (pushError) {
+                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
+                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
+                  const runId = context.runId;
+                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                  const runUrl = context.payload.repository
+                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                  let patchPreview = "";
+                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                    patchPreview = generatePatchPreview(patchContent);
+                  }
+                  const fallbackBody = `${body}
+            ---
+            > [!NOTE]
+            > This was originally intended as a pull request, but the git push operation failed.
+            >
+            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
+            >
+            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
+            To apply the patch locally:
+            \`\`\`sh
+            # Download the artifact from the workflow run ${runUrl}
+            # (Use GitHub MCP tools if gh CLI is not available)
+            gh run download ${runId} -n aw.patch
+            # Apply the patch
+            git am aw.patch
+            \`\`\`
+            ${patchPreview}`;
+                  try {
+                    const { data: issue } = await github.rest.issues.create({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      title: title,
+                      body: fallbackBody,
+                      labels: labels,
+                    });
+                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                    core.setOutput("issue_number", issue.number);
+                    core.setOutput("issue_url", issue.html_url);
+                    core.setOutput("branch_name", branchName);
+                    core.setOutput("fallback_used", "true");
+                    core.setOutput("push_failed", "true");
+                    await core.summary
+                      .addRaw(
+                        `
+            ## Push Failure Fallback
+            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
+            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
+            - **Patch Artifact:** Available in workflow run artifacts
+            - **Note:** Push failed, created issue as fallback
+            `
+                      )
+                      .write();
+                    return;
+                  } catch (issueError) {
+                    core.setFailed(
+                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                    );
+                    return;
+                  }
+                }
+              } else {
+                core.info("Skipping patch application (empty patch)");
+                const message = "No changes to apply - noop operation completed successfully";
+                switch (ifNoChanges) {
+                  case "error":
+                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
+                  case "ignore":
+                    return;
+                  case "warn":
+                  default:
+                    core.warning(message);
+                    return;
+                }
+              }
+              try {
+                const { data: pullRequest } = await github.rest.pulls.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  head: branchName,
+                  base: baseBranch,
+                  draft: draft,
+                });
+                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
+                if (labels.length > 0) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pullRequest.number,
+                    labels: labels,
+                  });
+                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
+                }
+                core.setOutput("pull_request_number", pullRequest.number);
+                core.setOutput("pull_request_url", pullRequest.html_url);
+                core.setOutput("branch_name", branchName);
+                await core.summary
+                  .addRaw(
+                    `
+            ## Pull Request
+            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
+            - **Branch**: \`${branchName}\`
+            - **Base Branch**: \`${baseBranch}\`
+            `
+                  )
+                  .write();
+              } catch (prError) {
+                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
+                core.info("Falling back to creating an issue instead");
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const branchUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/tree/${branchName}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
+                let patchPreview = "";
+                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
+                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
+                  patchPreview = generatePatchPreview(patchContent);
+                }
+                const fallbackBody = `${body}
+            ---
+            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
+            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
+            You can manually create a pull request from the branch if needed.${patchPreview}`;
+                try {
+                  const { data: issue } = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: title,
+                    body: fallbackBody,
+                    labels: labels,
+                  });
+                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
+                  core.setOutput("issue_number", issue.number);
+                  core.setOutput("issue_url", issue.html_url);
+                  core.setOutput("branch_name", branchName);
+                  core.setOutput("fallback_used", "true");
+                  await core.summary
+                    .addRaw(
+                      `
+            ## Fallback Issue Created
+            - **Issue**: [#${issue.number}](${issue.html_url})
+            - **Branch**: [\`${branchName}\`](${branchUrl})
+            - **Base Branch**: \`${baseBranch}\`
+            - **Note**: Pull request creation failed, created issue as fallback
+            `
+                    )
+                    .write();
+                } catch (issueError) {
+                  core.setFailed(
+                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
+                  );
+                  return;
+                }
+              }
+            }
+            await main();
 
   detection:
     needs: agent
@@ -3368,752 +4089,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  add_comment:
-    needs:
-      - agent
-      - detection
-    if: >
-      ((always()) && (contains(needs.agent.outputs.output_types, 'add_comment'))) && (((github.event.issue.number) ||
-      (github.event.pull_request.number)) || (github.event.discussion.number))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-      discussions: write
-    timeout-minutes: 10
-    outputs:
-      comment_id: ${{ steps.add_comment.outputs.comment_id }}
-      comment_url: ${{ steps.add_comment.outputs.comment_url }}
-    steps:
-      - name: Debug agent outputs
-        env:
-          AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-        run: |
-          echo "Output: $AGENT_OUTPUT"
-          echo "Output types: $AGENT_OUTPUT_TYPES"
-      - name: Add Issue Comment
-        id: add_comment
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
-        with:
-          script: |
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
-            async function commentOnDiscussion(github, owner, repo, discussionNumber, message) {
-              const { repository } = await github.graphql(
-                `
-                query($owner: String!, $repo: String!, $num: Int!) {
-                  repository(owner: $owner, name: $repo) {
-                    discussion(number: $num) { 
-                      id 
-                      url
-                    }
-                  }
-                }`,
-                { owner, repo, num: discussionNumber }
-              );
-              if (!repository || !repository.discussion) {
-                throw new Error(`Discussion #${discussionNumber} not found in ${owner}/${repo}`);
-              }
-              const discussionId = repository.discussion.id;
-              const discussionUrl = repository.discussion.url;
-              const result = await github.graphql(
-                `
-                mutation($dId: ID!, $body: String!) {
-                  addDiscussionComment(input: { discussionId: $dId, body: $body }) {
-                    comment { 
-                      id 
-                      body 
-                      createdAt 
-                      url
-                    }
-                  }
-                }`,
-                { dId: discussionId, body: message }
-              );
-              const comment = result.addDiscussionComment.comment;
-              return {
-                id: comment.id,
-                html_url: comment.url,
-                discussion_url: discussionUrl,
-              };
-            }
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const isDiscussion = process.env.GITHUB_AW_COMMENT_DISCUSSION === "true";
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.info(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
-                return;
-              }
-              const commentItems = validatedOutput.items.filter( item => item.type === "add_comment");
-              if (commentItems.length === 0) {
-                core.info("No add-comment items found in agent output");
-                return;
-              }
-              core.info(`Found ${commentItems.length} add-comment item(s)`);
-              function getRepositoryUrl() {
-                const targetRepoSlug = process.env.GITHUB_AW_TARGET_REPO_SLUG;
-                if (targetRepoSlug) {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${targetRepoSlug}`;
-                } else if (context.payload.repository) {
-                  return context.payload.repository.html_url;
-                } else {
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  return `${githubServer}/${context.repo.owner}/${context.repo.repo}`;
-                }
-              }
-              function getTargetNumber(item) {
-                return item.item_number;
-              }
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Add Comments Preview\n\n";
-                summaryContent += "The following comments would be added if staged mode was disabled:\n\n";
-                for (let i = 0; i < commentItems.length; i++) {
-                  const item = commentItems[i];
-                  summaryContent += `### Comment ${i + 1}\n`;
-                  const targetNumber = getTargetNumber(item);
-                  if (targetNumber) {
-                    const repoUrl = getRepositoryUrl();
-                    if (isDiscussion) {
-                      const discussionUrl = `${repoUrl}/discussions/${targetNumber}`;
-                      summaryContent += `**Target Discussion:** [#${targetNumber}](${discussionUrl})\n\n`;
-                    } else {
-                      const issueUrl = `${repoUrl}/issues/${targetNumber}`;
-                      summaryContent += `**Target Issue:** [#${targetNumber}](${issueUrl})\n\n`;
-                    }
-                  } else {
-                    if (isDiscussion) {
-                      summaryContent += `**Target:** Current discussion\n\n`;
-                    } else {
-                      summaryContent += `**Target:** Current issue/PR\n\n`;
-                    }
-                  }
-                  summaryContent += `**Body:**\n${item.body || "No content provided"}\n\n`;
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Comment creation preview written to step summary");
-                return;
-              }
-              const commentTarget = process.env.GITHUB_AW_COMMENT_TARGET || "triggering";
-              core.info(`Comment target configuration: ${commentTarget}`);
-              core.info(`Discussion mode: ${isDiscussion}`);
-              const isIssueContext = context.eventName === "issues" || context.eventName === "issue_comment";
-              const isPRContext =
-                context.eventName === "pull_request" ||
-                context.eventName === "pull_request_review" ||
-                context.eventName === "pull_request_review_comment";
-              const isDiscussionContext = context.eventName === "discussion" || context.eventName === "discussion_comment";
-              if (commentTarget === "triggering" && !isIssueContext && !isPRContext && !isDiscussionContext) {
-                core.info('Target is "triggering" but not running in issue, pull request, or discussion context, skipping comment creation');
-                return;
-              }
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const createdComments = [];
-              for (let i = 0; i < commentItems.length; i++) {
-                const commentItem = commentItems[i];
-                core.info(`Processing add-comment item ${i + 1}/${commentItems.length}: bodyLength=${commentItem.body.length}`);
-                let itemNumber;
-                let commentEndpoint;
-                if (commentTarget === "*") {
-                  const targetNumber = getTargetNumber(commentItem);
-                  if (targetNumber) {
-                    itemNumber = parseInt(targetNumber, 10);
-                    if (isNaN(itemNumber) || itemNumber <= 0) {
-                      core.info(`Invalid target number specified: ${targetNumber}`);
-                      continue;
-                    }
-                    commentEndpoint = isDiscussion ? "discussions" : "issues";
-                  } else {
-                    core.info(`Target is "*" but no number specified in comment item`);
-                    continue;
-                  }
-                } else if (commentTarget && commentTarget !== "triggering") {
-                  itemNumber = parseInt(commentTarget, 10);
-                  if (isNaN(itemNumber) || itemNumber <= 0) {
-                    core.info(`Invalid target number in target configuration: ${commentTarget}`);
-                    continue;
-                  }
-                  commentEndpoint = isDiscussion ? "discussions" : "issues";
-                } else {
-                  if (isIssueContext) {
-                    itemNumber = context.payload.issue?.number || context.payload.pull_request?.number || context.payload.discussion?.number;
-                    if (context.payload.issue) {
-                      commentEndpoint = "issues";
-                    } else {
-                      core.info("Issue context detected but no issue found in payload");
-                      continue;
-                    }
-                  } else if (isPRContext) {
-                    itemNumber = context.payload.pull_request?.number || context.payload.issue?.number || context.payload.discussion?.number;
-                    if (context.payload.pull_request) {
-                      commentEndpoint = "issues"; 
-                    } else {
-                      core.info("Pull request context detected but no pull request found in payload");
-                      continue;
-                    }
-                  } else if (isDiscussionContext) {
-                    itemNumber = context.payload.discussion?.number || context.payload.issue?.number || context.payload.pull_request?.number;
-                    if (context.payload.discussion) {
-                      commentEndpoint = "discussions"; 
-                    } else {
-                      core.info("Discussion context detected but no discussion found in payload");
-                      continue;
-                    }
-                  }
-                }
-                if (!itemNumber) {
-                  core.info("Could not determine issue, pull request, or discussion number");
-                  continue;
-                }
-                let body = commentItem.body.trim();
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                body += generateFooter(
-                  workflowName,
-                  runUrl,
-                  workflowSource,
-                  workflowSourceURL,
-                  triggeringIssueNumber,
-                  triggeringPRNumber,
-                  triggeringDiscussionNumber
-                );
-                try {
-                  let comment;
-                  if (isDiscussion) {
-                    core.info(`Creating comment on discussion #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    comment = await commentOnDiscussion(github, context.repo.owner, context.repo.repo, itemNumber, body);
-                    core.info("Created discussion comment #" + comment.id + ": " + comment.html_url);
-                    comment.discussion_url = comment.discussion_url;
-                  } else {
-                    core.info(`Creating comment on ${commentEndpoint} #${itemNumber}`);
-                    core.info(`Comment content length: ${body.length}`);
-                    const { data: restComment } = await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: itemNumber,
-                      body: body,
-                    });
-                    comment = restComment;
-                    core.info("Created comment #" + comment.id + ": " + comment.html_url);
-                  }
-                  createdComments.push(comment);
-                  if (i === commentItems.length - 1) {
-                    core.setOutput("comment_id", comment.id);
-                    core.setOutput("comment_url", comment.html_url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdComments.length > 0) {
-                let summaryContent = "\n\n## GitHub Comments\n";
-                for (const comment of createdComments) {
-                  summaryContent += `- Comment #${comment.id}: [View Comment](${comment.html_url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdComments.length} comment(s)`);
-              return createdComments;
-            }
-            await main();
-
-  create_pull_request:
-    needs:
-      - agent
-      - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_pull_request'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    timeout-minutes: 10
-    outputs:
-      branch_name: ${{ steps.create_pull_request.outputs.branch_name }}
-      fallback_used: ${{ steps.create_pull_request.outputs.fallback_used }}
-      issue_number: ${{ steps.create_pull_request.outputs.issue_number }}
-      issue_url: ${{ steps.create_pull_request.outputs.issue_url }}
-      pull_request_number: ${{ steps.create_pull_request.outputs.pull_request_number }}
-      pull_request_url: ${{ steps.create_pull_request.outputs.pull_request_url }}
-    steps:
-      - name: Download patch artifact
-        continue-on-error: true
-        uses: actions/download-artifact@v5
-        with:
-          name: aw.patch
-          path: /tmp/gh-aw/
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Configure Git credentials
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "${{ github.workflow }}"
-          echo "Git configured with standard GitHub Actions identity"
-      - name: Create Pull Request
-        id: create_pull_request
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "agent"
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
-          GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
-          GITHUB_AW_PR_TITLE_PREFIX: "[docs] "
-          GITHUB_AW_PR_LABELS: "documentation"
-          GITHUB_AW_PR_DRAFT: "false"
-          GITHUB_AW_PR_IF_NO_CHANGES: "warn"
-          GITHUB_AW_MAX_PATCH_SIZE: 1024
-        with:
-          script: |
-            const fs = require("fs");
-            const crypto = require("crypto");
-            function generatePatchPreview(patchContent) {
-              if (!patchContent || !patchContent.trim()) {
-                return "";
-              }
-              const lines = patchContent.split("\n");
-              const maxLines = 500;
-              const maxChars = 2000;
-              let preview = lines.length <= maxLines ? patchContent : lines.slice(0, maxLines).join("\n");
-              const lineTruncated = lines.length > maxLines;
-              const charTruncated = preview.length > maxChars;
-              if (charTruncated) {
-                preview = preview.slice(0, maxChars);
-              }
-              const truncated = lineTruncated || charTruncated;
-              const summary = truncated
-                ? `Show patch preview (${Math.min(maxLines, lines.length)} of ${lines.length} lines)`
-                : `Show patch (${lines.length} lines)`;
-              return `\n\n<details><summary>${summary}</summary>\n\n\`\`\`diff\n${preview}${truncated ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>`;
-            }
-            async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
-              const workflowId = process.env.GITHUB_AW_WORKFLOW_ID;
-              if (!workflowId) {
-                throw new Error("GITHUB_AW_WORKFLOW_ID environment variable is required");
-              }
-              const baseBranch = process.env.GITHUB_AW_BASE_BRANCH;
-              if (!baseBranch) {
-                throw new Error("GITHUB_AW_BASE_BRANCH environment variable is required");
-              }
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT || "";
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-              }
-              const ifNoChanges = process.env.GITHUB_AW_PR_IF_NO_CHANGES || "warn";
-              if (!fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                const message = "No patch file found - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ No patch file found\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (no patch file)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-              if (patchContent.includes("Failed to generate patch")) {
-                const message = "Patch file contains error message - cannot create pull request without changes";
-                if (isStaged) {
-                  let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                  summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                  summaryContent += `**Status:** ⚠️ Patch file contains error\n\n`;
-                  summaryContent += `**Message:** ${message}\n\n`;
-                  await core.summary.addRaw(summaryContent).write();
-                  core.info("📝 Pull request creation preview written to step summary (patch error)");
-                  return;
-                }
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error(message);
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              const isEmpty = !patchContent || !patchContent.trim();
-              if (!isEmpty) {
-                const maxSizeKb = parseInt(process.env.GITHUB_AW_MAX_PATCH_SIZE || "1024", 10);
-                const patchSizeBytes = Buffer.byteLength(patchContent, "utf8");
-                const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
-                core.info(`Patch size: ${patchSizeKb} KB (maximum allowed: ${maxSizeKb} KB)`);
-                if (patchSizeKb > maxSizeKb) {
-                  const message = `Patch size (${patchSizeKb} KB) exceeds maximum allowed size (${maxSizeKb} KB)`;
-                  if (isStaged) {
-                    let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                    summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                    summaryContent += `**Status:** ❌ Patch size exceeded\n\n`;
-                    summaryContent += `**Message:** ${message}\n\n`;
-                    await core.summary.addRaw(summaryContent).write();
-                    core.info("📝 Pull request creation preview written to step summary (patch size error)");
-                    return;
-                  }
-                  throw new Error(message);
-                }
-                core.info("Patch size validation passed");
-              }
-              if (isEmpty && !isStaged) {
-                const message = "Patch file is empty - no changes to apply (noop operation)";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to push - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              core.debug(`Agent output content length: ${outputContent.length}`);
-              if (!isEmpty) {
-                core.info("Patch content validation passed");
-              } else {
-                core.info("Patch file is empty - processing noop operation");
-              }
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const pullRequestItem = validatedOutput.items.find( item => item.type === "create_pull_request");
-              if (!pullRequestItem) {
-                core.warning("No create-pull-request item found in agent output");
-                return;
-              }
-              core.debug(`Found create-pull-request item: title="${pullRequestItem.title}", bodyLength=${pullRequestItem.body.length}`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Pull Request Preview\n\n";
-                summaryContent += "The following pull request would be created if staged mode was disabled:\n\n";
-                summaryContent += `**Title:** ${pullRequestItem.title || "No title provided"}\n\n`;
-                summaryContent += `**Branch:** ${pullRequestItem.branch || "auto-generated"}\n\n`;
-                summaryContent += `**Base:** ${baseBranch}\n\n`;
-                if (pullRequestItem.body) {
-                  summaryContent += `**Body:**\n${pullRequestItem.body}\n\n`;
-                }
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchStats = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  if (patchStats.trim()) {
-                    summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
-                    summaryContent += `<details><summary>Show patch preview</summary>\n\n\`\`\`diff\n${patchStats.slice(0, 2000)}${patchStats.length > 2000 ? "\n... (truncated)" : ""}\n\`\`\`\n\n</details>\n\n`;
-                  } else {
-                    summaryContent += `**Changes:** No changes (empty patch)\n\n`;
-                  }
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Pull request creation preview written to step summary");
-                return;
-              }
-              let title = pullRequestItem.title.trim();
-              let bodyLines = pullRequestItem.body.split("\n");
-              let branchName = pullRequestItem.branch ? pullRequestItem.branch.trim() : null;
-              if (!title) {
-                title = "Agent Output";
-              }
-              const titlePrefix = process.env.GITHUB_AW_PR_TITLE_PREFIX;
-              if (titlePrefix && !title.startsWith(titlePrefix)) {
-                title = titlePrefix + title;
-              }
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-              const runId = context.runId;
-              const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-              const runUrl = context.payload.repository
-                ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-              bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-              const body = bodyLines.join("\n").trim();
-              const labelsEnv = process.env.GITHUB_AW_PR_LABELS;
-              const labels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map( label => label.trim())
-                    .filter( label => label)
-                : [];
-              const draftEnv = process.env.GITHUB_AW_PR_DRAFT;
-              const draft = draftEnv ? draftEnv.toLowerCase() === "true" : true;
-              core.info(`Creating pull request with title: ${title}`);
-              core.debug(`Labels: ${JSON.stringify(labels)}`);
-              core.debug(`Draft: ${draft}`);
-              core.debug(`Body length: ${body.length}`);
-              const randomHex = crypto.randomBytes(8).toString("hex");
-              if (!branchName) {
-                core.debug("No branch name provided in JSONL, generating unique branch name");
-                branchName = `${workflowId}-${randomHex}`;
-              } else {
-                branchName = `${branchName}-${randomHex}`;
-                core.debug(`Using branch name from JSONL with added salt: ${branchName}`);
-              }
-              core.info(`Generated branch name: ${branchName}`);
-              core.debug(`Base branch: ${baseBranch}`);
-              core.debug(`Fetching latest changes and checking out base branch: ${baseBranch}`);
-              await exec.exec("git fetch origin");
-              await exec.exec(`git checkout ${baseBranch}`);
-              core.debug(`Branch should not exist locally, creating new branch from base: ${branchName}`);
-              await exec.exec(`git checkout -b ${branchName}`);
-              core.info(`Created new branch from base: ${branchName}`);
-              if (!isEmpty) {
-                core.info("Applying patch...");
-                await exec.exec("git am /tmp/gh-aw/aw.patch");
-                core.info("Patch applied successfully");
-                try {
-                  let remoteBranchExists = false;
-                  try {
-                    const { stdout } = await exec.getExecOutput(`git ls-remote --heads origin ${branchName}`);
-                    if (stdout.trim()) {
-                      remoteBranchExists = true;
-                    }
-                  } catch (checkError) {
-                    core.debug(`Remote branch check failed (non-fatal): ${checkError instanceof Error ? checkError.message : String(checkError)}`);
-                  }
-                  if (remoteBranchExists) {
-                    core.warning(`Remote branch ${branchName} already exists - appending random suffix`);
-                    const extraHex = crypto.randomBytes(4).toString("hex");
-                    const oldBranch = branchName;
-                    branchName = `${branchName}-${extraHex}`;
-                    await exec.exec(`git branch -m ${oldBranch} ${branchName}`);
-                    core.info(`Renamed branch to ${branchName}`);
-                  }
-                  await exec.exec(`git push origin ${branchName}`);
-                  core.info("Changes pushed to branch");
-                } catch (pushError) {
-                  core.error(`Git push failed: ${pushError instanceof Error ? pushError.message : String(pushError)}`);
-                  core.warning("Git push operation failed - creating fallback issue instead of pull request");
-                  const runId = context.runId;
-                  const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                  const runUrl = context.payload.repository
-                    ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                    : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                  let patchPreview = "";
-                  if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                    const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                    patchPreview = generatePatchPreview(patchContent);
-                  }
-                  const fallbackBody = `${body}
-            ---
-            > [!NOTE]
-            > This was originally intended as a pull request, but the git push operation failed.
-            >
-            > **Workflow Run:** [View run details and download patch artifact](${runUrl})
-            >
-            > The patch file is available as an artifact (\`aw.patch\`) in the workflow run linked above.
-            To apply the patch locally:
-            \`\`\`sh
-            # Download the artifact from the workflow run ${runUrl}
-            # (Use GitHub MCP tools if gh CLI is not available)
-            gh run download ${runId} -n aw.patch
-            # Apply the patch
-            git am aw.patch
-            \`\`\`
-            ${patchPreview}`;
-                  try {
-                    const { data: issue } = await github.rest.issues.create({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      title: title,
-                      body: fallbackBody,
-                      labels: labels,
-                    });
-                    core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                    core.setOutput("branch_name", branchName);
-                    core.setOutput("fallback_used", "true");
-                    core.setOutput("push_failed", "true");
-                    await core.summary
-                      .addRaw(
-                        `
-            ## Push Failure Fallback
-            - **Push Error:** ${pushError instanceof Error ? pushError.message : String(pushError)}
-            - **Fallback Issue:** [#${issue.number}](${issue.html_url})
-            - **Patch Artifact:** Available in workflow run artifacts
-            - **Note:** Push failed, created issue as fallback
-            `
-                      )
-                      .write();
-                    return;
-                  } catch (issueError) {
-                    core.setFailed(
-                      `Failed to push and failed to create fallback issue. Push error: ${pushError instanceof Error ? pushError.message : String(pushError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                    );
-                    return;
-                  }
-                }
-              } else {
-                core.info("Skipping patch application (empty patch)");
-                const message = "No changes to apply - noop operation completed successfully";
-                switch (ifNoChanges) {
-                  case "error":
-                    throw new Error("No changes to apply - failing as configured by if-no-changes: error");
-                  case "ignore":
-                    return;
-                  case "warn":
-                  default:
-                    core.warning(message);
-                    return;
-                }
-              }
-              try {
-                const { data: pullRequest } = await github.rest.pulls.create({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  title: title,
-                  body: body,
-                  head: branchName,
-                  base: baseBranch,
-                  draft: draft,
-                });
-                core.info(`Created pull request #${pullRequest.number}: ${pullRequest.html_url}`);
-                if (labels.length > 0) {
-                  await github.rest.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: pullRequest.number,
-                    labels: labels,
-                  });
-                  core.info(`Added labels to pull request: ${JSON.stringify(labels)}`);
-                }
-                core.setOutput("pull_request_number", pullRequest.number);
-                core.setOutput("pull_request_url", pullRequest.html_url);
-                core.setOutput("branch_name", branchName);
-                await core.summary
-                  .addRaw(
-                    `
-            ## Pull Request
-            - **Pull Request**: [#${pullRequest.number}](${pullRequest.html_url})
-            - **Branch**: \`${branchName}\`
-            - **Base Branch**: \`${baseBranch}\`
-            `
-                  )
-                  .write();
-              } catch (prError) {
-                core.warning(`Failed to create pull request: ${prError instanceof Error ? prError.message : String(prError)}`);
-                core.info("Falling back to creating an issue instead");
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const branchUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/tree/${branchName}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/tree/${branchName}`;
-                let patchPreview = "";
-                if (fs.existsSync("/tmp/gh-aw/aw.patch")) {
-                  const patchContent = fs.readFileSync("/tmp/gh-aw/aw.patch", "utf8");
-                  patchPreview = generatePatchPreview(patchContent);
-                }
-                const fallbackBody = `${body}
-            ---
-            **Note:** This was originally intended as a pull request, but PR creation failed. The changes have been pushed to the branch [\`${branchName}\`](${branchUrl}).
-            **Original error:** ${prError instanceof Error ? prError.message : String(prError)}
-            You can manually create a pull request from the branch if needed.${patchPreview}`;
-                try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: fallbackBody,
-                    labels: labels,
-                  });
-                  core.info(`Created fallback issue #${issue.number}: ${issue.html_url}`);
-                  core.setOutput("issue_number", issue.number);
-                  core.setOutput("issue_url", issue.html_url);
-                  core.setOutput("branch_name", branchName);
-                  core.setOutput("fallback_used", "true");
-                  await core.summary
-                    .addRaw(
-                      `
-            ## Fallback Issue Created
-            - **Issue**: [#${issue.number}](${issue.html_url})
-            - **Branch**: [\`${branchName}\`](${branchUrl})
-            - **Base Branch**: \`${baseBranch}\`
-            - **Note**: Pull request creation failed, created issue as fallback
-            `
-                    )
-                    .write();
-                } catch (issueError) {
-                  core.setFailed(
-                    `Failed to create both pull request and fallback issue. PR error: ${prError instanceof Error ? prError.message : String(prError)}. Issue error: ${issueError instanceof Error ? issueError.message : String(issueError)}`
-                  );
-                  return;
-                }
-              }
-            }
-            await main();
-
   missing_tool:
     needs:
       - agent
@@ -4127,11 +4102,21 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
           script: |
             async function main() {
@@ -4219,6 +4204,219 @@ jobs:
             main().catch(error => {
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
+            });
+
+  pre_activation:
+    runs-on: ubuntu-latest
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              // For workflow_dispatch, only skip check if "write" is in the allowed roles
+              // since workflow_dispatch can be triggered by users with write access
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                // If write is not allowed, continue with permission check
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              // skip check for other safe events
+              const safeEvents = ["workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
+
+  update_reaction:
+    needs:
+      - agent
+      - activation
+      - add_comment
+      - create_pull_request
+      - missing_tool
+      - upload_assets
+    if: >
+      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
+      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      discussions: write
+    steps:
+      - name: Debug job inputs
+        env:
+          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
+          AGENT_CONCLUSION: ${{ needs.agent.result }}
+        run: |
+          echo "Comment ID: $COMMENT_ID"
+          echo "Comment Repo: $COMMENT_REPO"
+          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
+          echo "Agent Conclusion: $AGENT_CONCLUSION"
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+      - name: Update reaction comment with error notification
+        id: update_reaction
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
+          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
+          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
+          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
+        with:
+          script: |
+            async function main() {
+              const commentId = process.env.GITHUB_AW_COMMENT_ID;
+              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
+              const runUrl = process.env.GITHUB_AW_RUN_URL;
+              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
+              core.info(`Comment ID: ${commentId}`);
+              core.info(`Comment Repo: ${commentRepo}`);
+              core.info(`Run URL: ${runUrl}`);
+              core.info(`Workflow Name: ${workflowName}`);
+              core.info(`Agent Conclusion: ${agentConclusion}`);
+              if (!commentId) {
+                core.info("No comment ID found, skipping comment update");
+                return;
+              }
+              if (!runUrl) {
+                core.setFailed("Run URL is required");
+                return;
+              }
+              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
+              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
+              core.info(`Updating comment in ${repoOwner}/${repoName}`);
+              let statusEmoji = "❌";
+              let statusText = "failed";
+              if (agentConclusion === "cancelled") {
+                statusEmoji = "🚫";
+                statusText = "was cancelled";
+              } else if (agentConclusion === "skipped") {
+                statusEmoji = "⏭️";
+                statusText = "was skipped";
+              } else if (agentConclusion === "timed_out") {
+                statusEmoji = "⏱️";
+                statusText = "timed out";
+              }
+              const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
+              const isDiscussionComment = commentId.startsWith("DC_");
+              try {
+                if (isDiscussionComment) {
+                  const result = await github.graphql(
+                    `
+                    mutation($commentId: ID!, $body: String!) {
+                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
+                        comment {
+                          id
+                          url
+                        }
+                      }
+                    }`,
+                    { commentId: commentId, body: errorMessage }
+                  );
+                  const comment = result.updateDiscussionComment.comment;
+                  core.info(`Successfully updated discussion comment`);
+                  core.info(`Comment ID: ${comment.id}`);
+                  core.info(`Comment URL: ${comment.url}`);
+                } else {
+                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+                    owner: repoOwner,
+                    repo: repoName,
+                    comment_id: parseInt(commentId, 10),
+                    body: errorMessage,
+                    headers: {
+                      Accept: "application/vnd.github+json",
+                    },
+                  });
+                  core.info(`Successfully updated comment`);
+                  core.info(`Comment ID: ${response.data.id}`);
+                  core.info(`Comment URL: ${response.data.html_url}`);
+                }
+              } catch (error) {
+                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
+              }
+            }
+            main().catch(error => {
+              core.setFailed(error instanceof Error ? error.message : String(error));
             });
 
   upload_assets:
@@ -4399,121 +4597,4 @@ jobs:
               core.setOutput("branch_name", normalizedBranchName);
             }
             await main();
-
-  update_reaction:
-    needs:
-      - agent
-      - activation
-      - add_comment
-      - create_pull_request
-      - missing_tool
-      - upload_assets
-    if: >
-      (((((always()) && (needs.agent.result != 'skipped')) && (needs.activation.outputs.comment_id)) && (!(contains(needs.agent.outputs.output_types, 'add_comment')))) &&
-      (!(contains(needs.agent.outputs.output_types, 'create_pull_request')))) && (!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch')))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-      discussions: write
-    steps:
-      - name: Debug job inputs
-        env:
-          COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          AGENT_OUTPUT_TYPES: ${{ needs.agent.outputs.output_types }}
-          AGENT_CONCLUSION: ${{ needs.agent.result }}
-        run: |
-          echo "Comment ID: $COMMENT_ID"
-          echo "Comment Repo: $COMMENT_REPO"
-          echo "Agent Output Types: $AGENT_OUTPUT_TYPES"
-          echo "Agent Conclusion: $AGENT_CONCLUSION"
-      - name: Update reaction comment with error notification
-        id: update_reaction
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
-          GITHUB_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
-          GITHUB_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
-          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-        with:
-          script: |
-            async function main() {
-              const commentId = process.env.GITHUB_AW_COMMENT_ID;
-              const commentRepo = process.env.GITHUB_AW_COMMENT_REPO;
-              const runUrl = process.env.GITHUB_AW_RUN_URL;
-              const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-              const agentConclusion = process.env.GITHUB_AW_AGENT_CONCLUSION || "failure";
-              core.info(`Comment ID: ${commentId}`);
-              core.info(`Comment Repo: ${commentRepo}`);
-              core.info(`Run URL: ${runUrl}`);
-              core.info(`Workflow Name: ${workflowName}`);
-              core.info(`Agent Conclusion: ${agentConclusion}`);
-              if (!commentId) {
-                core.info("No comment ID found, skipping comment update");
-                return;
-              }
-              if (!runUrl) {
-                core.setFailed("Run URL is required");
-                return;
-              }
-              const repoOwner = commentRepo ? commentRepo.split("/")[0] : context.repo.owner;
-              const repoName = commentRepo ? commentRepo.split("/")[1] : context.repo.repo;
-              core.info(`Updating comment in ${repoOwner}/${repoName}`);
-              let statusEmoji = "❌";
-              let statusText = "failed";
-              if (agentConclusion === "cancelled") {
-                statusEmoji = "🚫";
-                statusText = "was cancelled";
-              } else if (agentConclusion === "skipped") {
-                statusEmoji = "⏭️";
-                statusText = "was skipped";
-              } else if (agentConclusion === "timed_out") {
-                statusEmoji = "⏱️";
-                statusText = "timed out";
-              }
-              const errorMessage = `${statusEmoji} Agentic [${workflowName}](${runUrl}) ${statusText} and wasn't able to produce a result.`;
-              const isDiscussionComment = commentId.startsWith("DC_");
-              try {
-                if (isDiscussionComment) {
-                  const result = await github.graphql(
-                    `
-                    mutation($commentId: ID!, $body: String!) {
-                      updateDiscussionComment(input: { commentId: $commentId, body: $body }) {
-                        comment {
-                          id
-                          url
-                        }
-                      }
-                    }`,
-                    { commentId: commentId, body: errorMessage }
-                  );
-                  const comment = result.updateDiscussionComment.comment;
-                  core.info(`Successfully updated discussion comment`);
-                  core.info(`Comment ID: ${comment.id}`);
-                  core.info(`Comment URL: ${comment.url}`);
-                } else {
-                  const response = await github.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-                    owner: repoOwner,
-                    repo: repoName,
-                    comment_id: parseInt(commentId, 10),
-                    body: errorMessage,
-                    headers: {
-                      Accept: "application/vnd.github+json",
-                    },
-                  });
-                  core.info(`Successfully updated comment`);
-                  core.info(`Comment ID: ${response.data.id}`);
-                  core.info(`Comment URL: ${response.data.html_url}`);
-                }
-              } catch (error) {
-                core.warning(`Failed to update comment: ${error instanceof Error ? error.message : String(error)}`);
-              }
-            }
-            main().catch(error => {
-              core.setFailed(error instanceof Error ? error.message : String(error));
-            });
 

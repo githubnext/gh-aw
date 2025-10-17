@@ -35,92 +35,6 @@ concurrency:
 run-name: "Artifacts Summary"
 
 jobs:
-  pre_activation:
-    runs-on: ubuntu-latest
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-    steps:
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
-        with:
-          script: |
-            async function main() {
-              const { eventName } = context;
-              const actor = context.actor;
-              const { owner, repo } = context.repo;
-              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
-              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
-              // For workflow_dispatch, only skip check if "write" is in the allowed roles
-              // since workflow_dispatch can be triggered by users with write access
-              if (eventName === "workflow_dispatch") {
-                const hasWriteRole = requiredPermissions.includes("write");
-                if (hasWriteRole) {
-                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
-                  core.setOutput("is_team_member", "true");
-                  core.setOutput("result", "safe_event");
-                  return;
-                }
-                // If write is not allowed, continue with permission check
-                core.debug(`Event ${eventName} requires validation (write role not allowed)`);
-              }
-              // skip check for other safe events
-              const safeEvents = ["workflow_run", "schedule"];
-              if (safeEvents.includes(eventName)) {
-                core.info(`✅ Event ${eventName} does not require validation`);
-                core.setOutput("is_team_member", "true");
-                core.setOutput("result", "safe_event");
-                return;
-              }
-              if (!requiredPermissions || requiredPermissions.length === 0) {
-                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "config_error");
-                core.setOutput("error_message", "Configuration error: Required permissions not specified");
-                return;
-              }
-              // Check if the actor has the required repository permissions
-              try {
-                core.debug(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
-                core.debug(`Required permissions: ${requiredPermissions.join(", ")}`);
-                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
-                  owner: owner,
-                  repo: repo,
-                  username: actor,
-                });
-                const permission = repoPermission.data.permission;
-                core.debug(`Repository permission level: ${permission}`);
-                // Check if user has one of the required permission levels
-                for (const requiredPerm of requiredPermissions) {
-                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
-                    core.info(`✅ User has ${permission} access to repository`);
-                    core.setOutput("is_team_member", "true");
-                    core.setOutput("result", "authorized");
-                    core.setOutput("user_permission", permission);
-                    return;
-                  }
-                }
-                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "insufficient_permissions");
-                core.setOutput("user_permission", permission);
-                core.setOutput(
-                  "error_message",
-                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
-                );
-              } catch (repoError) {
-                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
-                core.warning(`Repository permission check failed: ${errorMessage}`);
-                core.setOutput("is_team_member", "false");
-                core.setOutput("result", "api_error");
-                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
-                return;
-              }
-            }
-            await main();
-
   activation:
     needs: pre_activation
     if: needs.pre_activation.outputs.activated == 'true'
@@ -2181,7 +2095,7 @@ jobs:
                 if (occurrences > 0) {
                   redacted = parts.join(replacement);
                   redactionCount += occurrences;
-                  core.debug(`Redacted ${occurrences} occurrence(s) of a secret`);
+                  core.info(`Redacted ${occurrences} occurrence(s) of a secret`);
                 }
               }
               return { content: redacted, redactionCount };
@@ -2199,7 +2113,7 @@ jobs:
                 const { content: redactedContent, redactionCount } = redactSecrets(content, secretValues);
                 if (redactionCount > 0) {
                   fs.writeFileSync(filePath, redactedContent, "utf8");
-                  core.debug(`Processed ${filePath}: ${redactionCount} redaction(s)`);
+                  core.info(`Processed ${filePath}: ${redactionCount} redaction(s)`);
                 }
                 return redactionCount;
               } catch (error) {
@@ -3030,14 +2944,14 @@ jobs:
             function main() {
               const fs = require("fs");
               const path = require("path");
-              core.debug("Starting validate_errors.cjs script");
+              core.info("Starting validate_errors.cjs script");
               const startTime = Date.now();
               try {
                 const logPath = process.env.GITHUB_AW_AGENT_OUTPUT;
                 if (!logPath) {
                   throw new Error("GITHUB_AW_AGENT_OUTPUT environment variable is required");
                 }
-                core.debug(`Log path: ${logPath}`);
+                core.info(`Log path: ${logPath}`);
                 if (!fs.existsSync(logPath)) {
                   core.info(`Log path not found: ${logPath}`);
                   core.info("No logs to validate - skipping error validation");
@@ -3048,7 +2962,7 @@ jobs:
                   throw new Error("GITHUB_AW_ERROR_PATTERNS environment variable is required and must contain at least one pattern");
                 }
                 core.info(`Loaded ${patterns.length} error patterns`);
-                core.debug(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
+                core.info(`Patterns: ${JSON.stringify(patterns.map(p => ({ description: p.description, pattern: p.pattern })))}`);
                 let content = "";
                 const stat = fs.statSync(logPath);
                 if (stat.isDirectory()) {
@@ -3063,7 +2977,7 @@ jobs:
                   for (const file of logFiles) {
                     const filePath = path.join(logPath, file);
                     const fileContent = fs.readFileSync(filePath, "utf8");
-                    core.debug(`Reading log file: ${file} (${fileContent.length} bytes)`);
+                    core.info(`Reading log file: ${file} (${fileContent.length} bytes)`);
                     content += fileContent;
                     if (content.length > 0 && !content.endsWith("\n")) {
                       content += "\n";
@@ -3120,13 +3034,21 @@ jobs:
               let hasErrors = false;
               const MAX_ITERATIONS_PER_LINE = 10000; 
               const ITERATION_WARNING_THRESHOLD = 1000; 
-              core.debug(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              const MAX_TOTAL_ERRORS = 100; 
+              const MAX_LINE_LENGTH = 10000; 
+              const TOP_SLOW_PATTERNS_COUNT = 5; 
+              core.info(`Starting error validation with ${patterns.length} patterns and ${lines.length} lines`);
+              const validationStartTime = Date.now();
+              let totalMatches = 0;
+              let patternStats = [];
               for (let patternIndex = 0; patternIndex < patterns.length; patternIndex++) {
                 const pattern = patterns[patternIndex];
+                const patternStartTime = Date.now();
+                let patternMatches = 0;
                 let regex;
                 try {
                   regex = new RegExp(pattern.pattern, "g");
-                  core.debug(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
+                  core.info(`Pattern ${patternIndex + 1}/${patterns.length}: ${pattern.description || "Unknown"} - regex: ${pattern.pattern}`);
                 } catch (e) {
                   core.error(`invalid error regex pattern: ${pattern.pattern}`);
                   continue;
@@ -3135,6 +3057,13 @@ jobs:
                   const line = lines[lineIndex];
                   if (shouldSkipLine(line)) {
                     continue;
+                  }
+                  if (line.length > MAX_LINE_LENGTH) {
+                    continue;
+                  }
+                  if (totalMatches >= MAX_TOTAL_ERRORS) {
+                    core.warning(`Stopping error validation after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                    break;
                   }
                   let match;
                   let iterationCount = 0;
@@ -3168,13 +3097,39 @@ jobs:
                     } else {
                       core.warning(errorMessage);
                     }
+                    patternMatches++;
+                    totalMatches++;
                   }
                   if (iterationCount > 100) {
-                    core.debug(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
+                    core.info(`Line ${lineIndex + 1} had ${iterationCount} matches for pattern: ${pattern.description || pattern.pattern}`);
                   }
                 }
+                const patternElapsed = Date.now() - patternStartTime;
+                patternStats.push({
+                  description: pattern.description || "Unknown",
+                  pattern: pattern.pattern.substring(0, 50) + (pattern.pattern.length > 50 ? "..." : ""),
+                  matches: patternMatches,
+                  timeMs: patternElapsed,
+                });
+                if (patternElapsed > 5000) {
+                  core.warning(`Pattern "${pattern.description}" took ${patternElapsed}ms to process (${patternMatches} matches)`);
+                }
+                if (totalMatches >= MAX_TOTAL_ERRORS) {
+                  core.warning(`Stopping pattern processing after finding ${totalMatches} matches (max: ${MAX_TOTAL_ERRORS})`);
+                  break;
+                }
               }
-              core.debug(`Error validation completed. Errors found: ${hasErrors}`);
+              const validationElapsed = Date.now() - validationStartTime;
+              core.info(`Validation summary: ${totalMatches} total matches found in ${validationElapsed}ms`);
+              patternStats.sort((a, b) => b.timeMs - a.timeMs);
+              const topSlow = patternStats.slice(0, TOP_SLOW_PATTERNS_COUNT);
+              if (topSlow.length > 0 && topSlow[0].timeMs > 1000) {
+                core.info(`Top ${TOP_SLOW_PATTERNS_COUNT} slowest patterns:`);
+                topSlow.forEach((stat, idx) => {
+                  core.info(`  ${idx + 1}. "${stat.description}" - ${stat.timeMs}ms (${stat.matches} matches)`);
+                });
+              }
+              core.info(`Error validation completed. Errors found: ${hasErrors}`);
               return hasErrors;
             }
             function extractLevel(match, pattern) {
@@ -3213,6 +3168,243 @@ jobs:
             if (typeof module === "undefined" || require.main === module) {
               main();
             }
+
+  create_discussion:
+    needs:
+      - agent
+      - detection
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      discussions: write
+    timeout-minutes: 10
+    outputs:
+      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
+      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
+    steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+      - name: Create Output Discussion
+        id: create_discussion
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GITHUB_AW_WORKFLOW_NAME: "Artifacts Summary"
+          GITHUB_AW_DISCUSSION_CATEGORY: "artifacts"
+        with:
+          script: |
+            async function main() {
+              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!outputContent) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.warning("No valid items found in agent output");
+                return;
+              }
+              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              if (createDiscussionItems.length === 0) {
+                core.warning("No create-discussion items found in agent output");
+                return;
+              }
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createDiscussionItems.length; i++) {
+                  const item = createDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
+                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
+                  if (item.body) {
+                    summaryContent += `**Body:**\n${item.body}\n\n`;
+                  }
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
+                  }
+                  summaryContent += "---\n\n";
+                }
+                await core.summary.addRaw(summaryContent).write();
+                core.info("📝 Discussion creation preview written to step summary");
+                return;
+              }
+              let discussionCategories = [];
+              let repositoryId = undefined;
+              try {
+                const repositoryQuery = `
+                  query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                      id
+                      discussionCategories(first: 20) {
+                        nodes {
+                          id
+                          name
+                          slug
+                          description
+                        }
+                      }
+                    }
+                  }
+                `;
+                const queryResult = await github.graphql(repositoryQuery, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+                if (!queryResult || !queryResult.repository) throw new Error("Failed to fetch repository information via GraphQL");
+                repositoryId = queryResult.repository.id;
+                discussionCategories = queryResult.repository.discussionCategories.nodes || [];
+                core.info(`Available categories: ${JSON.stringify(discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (
+                  errorMessage.includes("Not Found") ||
+                  errorMessage.includes("not found") ||
+                  errorMessage.includes("Could not resolve to a Repository")
+                ) {
+                  core.info("⚠ Cannot create discussions: Discussions are not enabled for this repository");
+                  core.info("Consider enabling discussions in repository settings if you want to create discussions automatically");
+                  return;
+                }
+                core.error(`Failed to get discussion categories: ${errorMessage}`);
+                throw error;
+              }
+              let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY;
+              if (categoryId) {
+                const categoryById = discussionCategories.find(cat => cat.id === categoryId);
+                if (categoryById) {
+                  core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
+                } else {
+                  const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
+                  if (categoryByName) {
+                    categoryId = categoryByName.id;
+                    core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
+                  } else {
+                    const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
+                    if (categoryBySlug) {
+                      categoryId = categoryBySlug.id;
+                      core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
+                    } else {
+                      core.warning(
+                        `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
+                      );
+                      if (discussionCategories.length > 0) {
+                        categoryId = discussionCategories[0].id;
+                        core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+                      } else {
+                        categoryId = undefined;
+                      }
+                    }
+                  }
+                }
+              } else if (discussionCategories.length > 0) {
+                categoryId = discussionCategories[0].id;
+                core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
+              }
+              if (!categoryId) {
+                core.error("No discussion category available and none specified in configuration");
+                throw new Error("Discussion category is required but not available");
+              }
+              if (!repositoryId) {
+                core.error("Repository ID is required for creating discussions");
+                throw new Error("Repository ID is required but not available");
+              }
+              const createdDiscussions = [];
+              for (let i = 0; i < createDiscussionItems.length; i++) {
+                const createDiscussionItem = createDiscussionItems[i];
+                core.info(
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
+                );
+                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
+                let bodyLines = createDiscussionItem.body.split("\n");
+                if (!title) {
+                  title = createDiscussionItem.body || "Agent Output";
+                }
+                const titlePrefix = process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
+                if (titlePrefix && !title.startsWith(titlePrefix)) {
+                  title = titlePrefix + title;
+                }
+                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
+                const runId = context.runId;
+                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
+                const runUrl = context.payload.repository
+                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
+                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
+                const body = bodyLines.join("\n").trim();
+                core.info(`Creating discussion with title: ${title}`);
+                core.info(`Category ID: ${categoryId}`);
+                core.info(`Body length: ${body.length}`);
+                try {
+                  const createDiscussionMutation = `
+                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                      createDiscussion(input: {
+                        repositoryId: $repositoryId,
+                        categoryId: $categoryId,
+                        title: $title,
+                        body: $body
+                      }) {
+                        discussion {
+                          id
+                          number
+                          title
+                          url
+                        }
+                      }
+                    }
+                  `;
+                  const mutationResult = await github.graphql(createDiscussionMutation, {
+                    repositoryId: repositoryId,
+                    categoryId: categoryId,
+                    title: title,
+                    body: body,
+                  });
+                  const discussion = mutationResult.createDiscussion.discussion;
+                  if (!discussion) {
+                    core.error("Failed to create discussion: No discussion data returned");
+                    continue;
+                  }
+                  core.info("Created discussion #" + discussion.number + ": " + discussion.url);
+                  createdDiscussions.push(discussion);
+                  if (i === createDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussion.number);
+                    core.setOutput("discussion_url", discussion.url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
+                  throw error;
+                }
+              }
+              if (createdDiscussions.length > 0) {
+                let summaryContent = "\n\n## GitHub Discussions\n";
+                for (const discussion of createdDiscussions) {
+                  summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
+                }
+                await core.summary.addRaw(summaryContent).write();
+              }
+              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
+            }
+            await main();
 
   detection:
     needs: agent
@@ -3420,233 +3612,6 @@ jobs:
           path: /tmp/gh-aw/threat-detection/detection.log
           if-no-files-found: ignore
 
-  create_discussion:
-    needs:
-      - agent
-      - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      discussions: write
-    timeout-minutes: 10
-    outputs:
-      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
-      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
-    steps:
-      - name: Create Output Discussion
-        id: create_discussion
-        uses: actions/github-script@v8
-        env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
-          GITHUB_AW_WORKFLOW_NAME: "Artifacts Summary"
-          GITHUB_AW_DISCUSSION_CATEGORY: "artifacts"
-        with:
-          script: |
-            async function main() {
-              const outputContent = process.env.GITHUB_AW_AGENT_OUTPUT;
-              if (!outputContent) {
-                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
-                return;
-              }
-              if (outputContent.trim() === "") {
-                core.info("Agent output content is empty");
-                return;
-              }
-              core.debug(`Agent output content length: ${outputContent.length}`);
-              let validatedOutput;
-              try {
-                validatedOutput = JSON.parse(outputContent);
-              } catch (error) {
-                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
-                return;
-              }
-              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.warning("No valid items found in agent output");
-                return;
-              }
-              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
-              if (createDiscussionItems.length === 0) {
-                core.warning("No create-discussion items found in agent output");
-                return;
-              }
-              core.debug(`Found ${createDiscussionItems.length} create-discussion item(s)`);
-              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
-                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
-                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createDiscussionItems.length; i++) {
-                  const item = createDiscussionItems[i];
-                  summaryContent += `### Discussion ${i + 1}\n`;
-                  summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
-                  if (item.body) {
-                    summaryContent += `**Body:**\n${item.body}\n\n`;
-                  }
-                  if (item.category) {
-                    summaryContent += `**Category:** ${item.category}\n\n`;
-                  }
-                  summaryContent += "---\n\n";
-                }
-                await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Discussion creation preview written to step summary");
-                return;
-              }
-              let discussionCategories = [];
-              let repositoryId = undefined;
-              try {
-                const repositoryQuery = `
-                  query($owner: String!, $repo: String!) {
-                    repository(owner: $owner, name: $repo) {
-                      id
-                      discussionCategories(first: 20) {
-                        nodes {
-                          id
-                          name
-                          slug
-                          description
-                        }
-                      }
-                    }
-                  }
-                `;
-                const queryResult = await github.graphql(repositoryQuery, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                });
-                if (!queryResult || !queryResult.repository) throw new Error("Failed to fetch repository information via GraphQL");
-                repositoryId = queryResult.repository.id;
-                discussionCategories = queryResult.repository.discussionCategories.nodes || [];
-                core.info(`Available categories: ${JSON.stringify(discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
-              } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                if (
-                  errorMessage.includes("Not Found") ||
-                  errorMessage.includes("not found") ||
-                  errorMessage.includes("Could not resolve to a Repository")
-                ) {
-                  core.info("⚠ Cannot create discussions: Discussions are not enabled for this repository");
-                  core.info("Consider enabling discussions in repository settings if you want to create discussions automatically");
-                  return;
-                }
-                core.error(`Failed to get discussion categories: ${errorMessage}`);
-                throw error;
-              }
-              let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY;
-              if (categoryId) {
-                const categoryById = discussionCategories.find(cat => cat.id === categoryId);
-                if (categoryById) {
-                  core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
-                } else {
-                  const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
-                  if (categoryByName) {
-                    categoryId = categoryByName.id;
-                    core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
-                  } else {
-                    const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
-                    if (categoryBySlug) {
-                      categoryId = categoryBySlug.id;
-                      core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
-                    } else {
-                      core.warning(
-                        `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
-                      );
-                      if (discussionCategories.length > 0) {
-                        categoryId = discussionCategories[0].id;
-                        core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
-                      } else {
-                        categoryId = undefined;
-                      }
-                    }
-                  }
-                }
-              } else if (discussionCategories.length > 0) {
-                categoryId = discussionCategories[0].id;
-                core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
-              }
-              if (!categoryId) {
-                core.error("No discussion category available and none specified in configuration");
-                throw new Error("Discussion category is required but not available");
-              }
-              if (!repositoryId) {
-                core.error("Repository ID is required for creating discussions");
-                throw new Error("Repository ID is required but not available");
-              }
-              const createdDiscussions = [];
-              for (let i = 0; i < createDiscussionItems.length; i++) {
-                const createDiscussionItem = createDiscussionItems[i];
-                core.info(
-                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
-                );
-                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
-                let bodyLines = createDiscussionItem.body.split("\n");
-                if (!title) {
-                  title = createDiscussionItem.body || "Agent Output";
-                }
-                const titlePrefix = process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
-                if (titlePrefix && !title.startsWith(titlePrefix)) {
-                  title = titlePrefix + title;
-                }
-                const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const runId = context.runId;
-                const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
-                const runUrl = context.payload.repository
-                  ? `${context.payload.repository.html_url}/actions/runs/${runId}`
-                  : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
-                const body = bodyLines.join("\n").trim();
-                core.info(`Creating discussion with title: ${title}`);
-                core.info(`Category ID: ${categoryId}`);
-                core.info(`Body length: ${body.length}`);
-                try {
-                  const createDiscussionMutation = `
-                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
-                      createDiscussion(input: {
-                        repositoryId: $repositoryId,
-                        categoryId: $categoryId,
-                        title: $title,
-                        body: $body
-                      }) {
-                        discussion {
-                          id
-                          number
-                          title
-                          url
-                        }
-                      }
-                    }
-                  `;
-                  const mutationResult = await github.graphql(createDiscussionMutation, {
-                    repositoryId: repositoryId,
-                    categoryId: categoryId,
-                    title: title,
-                    body: body,
-                  });
-                  const discussion = mutationResult.createDiscussion.discussion;
-                  if (!discussion) {
-                    core.error("Failed to create discussion: No discussion data returned");
-                    continue;
-                  }
-                  core.info("Created discussion #" + discussion.number + ": " + discussion.url);
-                  createdDiscussions.push(discussion);
-                  if (i === createDiscussionItems.length - 1) {
-                    core.setOutput("discussion_number", discussion.number);
-                    core.setOutput("discussion_url", discussion.url);
-                  }
-                } catch (error) {
-                  core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
-                  throw error;
-                }
-              }
-              if (createdDiscussions.length > 0) {
-                let summaryContent = "\n\n## GitHub Discussions\n";
-                for (const discussion of createdDiscussions) {
-                  summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
-                }
-                await core.summary.addRaw(summaryContent).write();
-              }
-              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
-            }
-            await main();
-
   missing_tool:
     needs:
       - agent
@@ -3660,11 +3625,21 @@ jobs:
       tools_reported: ${{ steps.missing_tool.outputs.tools_reported }}
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
       - name: Record Missing Tool
         id: missing_tool
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.agent.outputs.output }}
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
           script: |
             async function main() {
@@ -3753,4 +3728,90 @@ jobs:
               core.error(`Error processing missing-tool reports: ${error}`);
               core.setFailed(`Error processing missing-tool reports: ${error}`);
             });
+
+  pre_activation:
+    runs-on: ubuntu-latest
+    outputs:
+      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
+    steps:
+      - name: Check team membership for workflow
+        id: check_membership
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_REQUIRED_ROLES: admin,maintainer
+        with:
+          script: |
+            async function main() {
+              const { eventName } = context;
+              const actor = context.actor;
+              const { owner, repo } = context.repo;
+              const requiredPermissionsEnv = process.env.GITHUB_AW_REQUIRED_ROLES;
+              const requiredPermissions = requiredPermissionsEnv ? requiredPermissionsEnv.split(",").filter(p => p.trim() !== "") : [];
+              // For workflow_dispatch, only skip check if "write" is in the allowed roles
+              // since workflow_dispatch can be triggered by users with write access
+              if (eventName === "workflow_dispatch") {
+                const hasWriteRole = requiredPermissions.includes("write");
+                if (hasWriteRole) {
+                  core.info(`✅ Event ${eventName} does not require validation (write role allowed)`);
+                  core.setOutput("is_team_member", "true");
+                  core.setOutput("result", "safe_event");
+                  return;
+                }
+                // If write is not allowed, continue with permission check
+                core.info(`Event ${eventName} requires validation (write role not allowed)`);
+              }
+              // skip check for other safe events
+              const safeEvents = ["workflow_run", "schedule"];
+              if (safeEvents.includes(eventName)) {
+                core.info(`✅ Event ${eventName} does not require validation`);
+                core.setOutput("is_team_member", "true");
+                core.setOutput("result", "safe_event");
+                return;
+              }
+              if (!requiredPermissions || requiredPermissions.length === 0) {
+                core.warning("❌ Configuration error: Required permissions not specified. Contact repository administrator.");
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "config_error");
+                core.setOutput("error_message", "Configuration error: Required permissions not specified");
+                return;
+              }
+              // Check if the actor has the required repository permissions
+              try {
+                core.info(`Checking if user '${actor}' has required permissions for ${owner}/${repo}`);
+                core.info(`Required permissions: ${requiredPermissions.join(", ")}`);
+                const repoPermission = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: owner,
+                  repo: repo,
+                  username: actor,
+                });
+                const permission = repoPermission.data.permission;
+                core.info(`Repository permission level: ${permission}`);
+                // Check if user has one of the required permission levels
+                for (const requiredPerm of requiredPermissions) {
+                  if (permission === requiredPerm || (requiredPerm === "maintainer" && permission === "maintain")) {
+                    core.info(`✅ User has ${permission} access to repository`);
+                    core.setOutput("is_team_member", "true");
+                    core.setOutput("result", "authorized");
+                    core.setOutput("user_permission", permission);
+                    return;
+                  }
+                }
+                core.warning(`User permission '${permission}' does not meet requirements: ${requiredPermissions.join(", ")}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "insufficient_permissions");
+                core.setOutput("user_permission", permission);
+                core.setOutput(
+                  "error_message",
+                  `Access denied: User '${actor}' is not authorized. Required permissions: ${requiredPermissions.join(", ")}`
+                );
+              } catch (repoError) {
+                const errorMessage = repoError instanceof Error ? repoError.message : String(repoError);
+                core.warning(`Repository permission check failed: ${errorMessage}`);
+                core.setOutput("is_team_member", "false");
+                core.setOutput("result", "api_error");
+                core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
+                return;
+              }
+            }
+            await main();
 

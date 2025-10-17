@@ -77,7 +77,7 @@ Repository mode examples:
 
 Repeat and cleanup examples:
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --repeat 3                # Run 3 times total
-  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --delete-host-repo        # Delete repo after completion
+  ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --delete-host-repo-after  # Delete repo after completion
   ` + constants.CLIExtensionPrefix + ` trial githubnext/agentics/my-workflow --quiet --host-repo my-trial # Custom host repo
 
 Auto-merge examples:
@@ -93,7 +93,7 @@ Repository modes:
 - --clone-repo: Clone specified repository contents into host repository (no simulation)
 
 All workflows must support workflow_dispatch trigger to be used in trial mode.
-The host repository will be created as private and kept by default unless --delete-host-repo is specified.
+The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
 Trial results are saved both locally (in trials/ directory) and in the host repository for future reference.`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -101,8 +101,8 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			logicalRepoSpec, _ := cmd.Flags().GetString("logical-repo")
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
 			hostRepoSpec, _ := cmd.Flags().GetString("host-repo")
-			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo")
-			forceDeleteHostRepo, _ := cmd.Flags().GetBool("force-delete-host-repo")
+			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo-after")
+			forceDeleteHostRepo, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
 			yes, _ := cmd.Flags().GetBool("yes")
 			timeout, _ := cmd.Flags().GetInt("timeout")
 			triggerContext, _ := cmd.Flags().GetString("trigger-context")
@@ -135,8 +135,8 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	}
 
 	cmd.Flags().String("host-repo", "", fmt.Sprintf("Custom host repository slug (defaults to '%s'). Use '.' for current repository", defaultHostRepo))
-	cmd.Flags().Bool("delete-host-repo", false, "Delete the host repository after completion (default: keep)")
-	cmd.Flags().Bool("force-delete-host-repo", false, "Force delete the host repository if it exists before creating it")
+	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (default: keep)")
+	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation, if it exists before creating it")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompts")
 	cmd.Flags().Int("timeout", 30, "Timeout in minutes for workflow execution (default: 30)")
 	cmd.Flags().String("trigger-context", "", "Trigger context URL (e.g., GitHub issue URL) for issue-triggered workflows")
@@ -177,6 +177,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 	var logicalRepoSlug string
 	var cloneRepoSlug string
+	var cloneRepoVersion string
 
 	if cloneRepoSpec != "" {
 		// Use clone-repo mode: clone the specified repo contents into host repo
@@ -186,6 +187,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 		}
 
 		cloneRepoSlug = cloneRepo.RepoSlug
+		cloneRepoVersion = cloneRepo.Version
 		logicalRepoSlug = "" // Empty string means skip logical repo simulation
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Clone mode: Will clone contents from %s into host repository", cloneRepoSlug)))
 	} else if logicalRepoSpec != "" {
@@ -261,7 +263,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 
 	// Step 2.7: Clone source repository contents if in clone-repo mode
 	if cloneRepoSlug != "" {
-		if err := cloneRepoContentsIntoHost(cloneRepoSlug, hostRepoSlug, verbose); err != nil {
+		if err := cloneRepoContentsIntoHost(cloneRepoSlug, cloneRepoVersion, hostRepoSlug, verbose); err != nil {
 			return fmt.Errorf("failed to clone repository contents: %w", err)
 		}
 	}
@@ -592,7 +594,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 			// Continue to create the repository below
 		} else if cloneRepoSlug != "" {
 			// Clone-repo mode: reusing existing repository is not allowed (unless force delete is used)
-			return fmt.Errorf("host repository %s already exists, but reusing existing repositories is not allowed in clone-repo mode. Please specify a different --host-repo, use --force-delete-host-repo, or delete the existing repository", repoSlug)
+			return fmt.Errorf("host repository %s already exists, but reusing existing repositories is not allowed in clone-repo mode. Please specify a different --host-repo, use --force-delete-host-repo-before, or delete the existing repository", repoSlug)
 		} else {
 			// Logical-repo mode: reusing is allowed
 			if verbose {
@@ -1499,7 +1501,7 @@ func copyFile(src, dst string) error {
 
 // cloneRepoContentsIntoHost clones the contents of the source repo into the host repo
 // Uses a simplified approach with force push since host repo is freshly created
-func cloneRepoContentsIntoHost(cloneRepoSlug string, hostRepoSlug string, verbose bool) error {
+func cloneRepoContentsIntoHost(cloneRepoSlug string, cloneRepoVersion string, hostRepoSlug string, verbose bool) error {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Cloning contents from %s into host repository %s", cloneRepoSlug, hostRepoSlug)))
 	}
@@ -1525,6 +1527,14 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, hostRepoSlug string, verbos
 	// Change to the cloned repository directory
 	if err := os.Chdir(tempCloneDir); err != nil {
 		return fmt.Errorf("failed to change to clone directory: %w", err)
+	}
+
+	// If a version/tag/SHA is specified, checkout that ref
+	if cloneRepoVersion != "" {
+		cmd = exec.Command("git", "checkout", cloneRepoVersion)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to checkout ref '%s': %w (output: %s)", cloneRepoVersion, err, string(output))
+		}
 	}
 
 	// Add the host repository as a new remote

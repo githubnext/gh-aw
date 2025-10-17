@@ -350,6 +350,38 @@ func TestJobManager_RenderToYAML(t *testing.T) {
 				"      version: ${{ steps.version.outputs.version }}",
 			},
 		},
+		{
+			name: "jobs sorted alphabetically regardless of insertion order",
+			jobs: []*Job{
+				{
+					Name:   "zebra-job",
+					RunsOn: "runs-on: ubuntu-latest",
+					Steps:  []string{"      - name: Zebra\n        run: echo zebra\n"},
+				},
+				{
+					Name:   "alpha-job",
+					RunsOn: "runs-on: ubuntu-latest",
+					Steps:  []string{"      - name: Alpha\n        run: echo alpha\n"},
+				},
+				{
+					Name:   "charlie-job",
+					RunsOn: "runs-on: ubuntu-latest",
+					Steps:  []string{"      - name: Charlie\n        run: echo charlie\n"},
+				},
+				{
+					Name:   "beta-job",
+					RunsOn: "runs-on: ubuntu-latest",
+					Steps:  []string{"      - name: Beta\n        run: echo beta\n"},
+				},
+			},
+			expected: []string{
+				"jobs:",
+				"  alpha-job:",
+				"  beta-job:",
+				"  charlie-job:",
+				"  zebra-job:",
+			},
+		},
 	}
 
 	for _, tt := range tests {
