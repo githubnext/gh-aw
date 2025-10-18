@@ -70,6 +70,9 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	// Build copilot CLI arguments based on configuration
 	var copilotArgs = []string{"--add-dir", "/tmp/gh-aw/", "--log-level", "all", "--log-dir", logsFolder}
 
+	// Add --disable-builtin-mcps to disable built-in MCP servers
+	copilotArgs = append(copilotArgs, "--disable-builtin-mcps")
+
 	// Add model if specified (check if Copilot CLI supports this)
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != "" {
 		copilotArgs = append(copilotArgs, "--model", workflowData.EngineConfig.Model)
