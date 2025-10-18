@@ -27,6 +27,11 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 	// Convert steps to a single string for testing
 	stepsContent := strings.Join(job.Steps, "")
 
+	// Check that checkout step is included before assignee steps
+	if !strings.Contains(stepsContent, "Checkout repository for gh CLI") {
+		t.Error("Expected checkout step for gh CLI")
+	}
+
 	// Check that assignee steps are included
 	if !strings.Contains(stepsContent, "Assign issue to user1") {
 		t.Error("Expected assignee step for user1")
@@ -61,6 +66,11 @@ func TestCreateIssueJobWithAssignees(t *testing.T) {
 	// Verify that GH_TOKEN is set with proper token expression
 	if !strings.Contains(stepsContent, "GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
 		t.Error("Expected GH_TOKEN environment variable to be set with proper token expression")
+	}
+
+	// Verify that checkout uses actions/checkout@v5
+	if !strings.Contains(stepsContent, "uses: actions/checkout@v5") {
+		t.Error("Expected checkout to use actions/checkout@v5")
 	}
 }
 

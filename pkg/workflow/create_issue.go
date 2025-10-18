@@ -136,6 +136,10 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 
 	// Add assignee steps if assignees are configured
 	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
+		// Add checkout step for gh CLI to work
+		steps = append(steps, "      - name: Checkout repository for gh CLI\n")
+		steps = append(steps, "        uses: actions/checkout@v5\n")
+
 		// Get the effective GitHub token to use for gh CLI
 		var safeOutputsToken string
 		if data.SafeOutputs != nil {

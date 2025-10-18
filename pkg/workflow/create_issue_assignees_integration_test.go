@@ -98,6 +98,15 @@ This is a test workflow that should create an issue and assign it to multiple us
 		t.Error("Expected GH_TOKEN environment variable with proper token expression in compiled workflow")
 	}
 
+	// Verify checkout step is present
+	if !strings.Contains(compiledStr, "Checkout repository for gh CLI") {
+		t.Error("Expected checkout step for gh CLI in compiled workflow")
+	}
+
+	if !strings.Contains(compiledStr, "uses: actions/checkout@v5") {
+		t.Error("Expected checkout to use actions/checkout@v5 in compiled workflow")
+	}
+
 	// Verify environment variables for assignees are properly quoted
 	if !strings.Contains(compiledStr, `ASSIGNEE: "user1"`) {
 		t.Error("Expected quoted ASSIGNEE environment variable for user1")
