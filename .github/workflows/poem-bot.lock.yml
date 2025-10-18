@@ -5673,6 +5673,12 @@ jobs:
     permissions: read-all
     timeout-minutes: 10
     steps:
+      - name: Download prompt artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
@@ -5695,10 +5701,22 @@ jobs:
         env:
           WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Poem Bot - A Creative Agentic Workflow\n\nYou are the **Poem Bot**, a creative AI agent that creates original poetry about the text in context.\n\n## Current Context\n\n- **Repository**: ${{ github.repository }}\n- **Actor**: ${{ github.actor }}\n- **Theme**: ${{ github.event.inputs.poem_theme }}\n{{#if ${{ github.event.inputs.label_names }}}}\n- **Labels**: ${{ github.event.inputs.label_names }}\n{{/if}}\n- **Content**: \"${{ needs.activation.outputs.text }}\"\n\n## Your Mission\n\nCreate an original poem about the content provided in the context. The poem should:\n\n1. **Be creative and original** - No copying existing poems\n2. **Reference the context** - Include specific details from the triggering event\n3. **Match the tone** - Adjust style based on the content\n4. **Use technical metaphors** - Blend coding concepts with poetic imagery\n\n## Poetic Forms to Choose From\n\n- **Haiku** (5-7-5 syllables): For quick, contemplative moments\n- **Limerick** (AABBA): For playful, humorous situations  \n- **Sonnet** (14 lines): For complex, important topics\n- **Free Verse**: For experimental or modern themes\n- **Couplets**: For simple, clear messages\n\n## Output Actions\n\nUse the safe-outputs capabilities to:\n\n1. **Create an issue** with your poem\n2. **Add a comment** to the triggering item (if applicable)\n3. **Apply labels** based on the poem's theme and style\n4. **Create a pull request** with a poetry file (for code-related events)\n5. **Add review comments** with poetic insights (for PR events)\n6. **Update issues** with additional verses when appropriate\n\n## Begin Your Poetic Journey!\n\nExamine the current context and create your masterpiece! Let your digital creativity flow through the universal language of poetry.\n"
         with:
           script: |
             const fs = require('fs');
+            const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt';
+            let promptFileInfo = 'No prompt file found';
+            if (fs.existsSync(promptPath)) {
+              try {
+                const stats = fs.statSync(promptPath);
+                promptFileInfo = promptPath + ' (' + stats.size + ' bytes)';
+                core.info('Prompt file found: ' + promptFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat prompt file: ' + error.message);
+              }
+            } else {
+              core.info('No prompt file found at: ' + promptPath);
+            }
             const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
             let agentOutputFileInfo = 'No agent output file found';
             if (fs.existsSync(agentOutputPath)) {
@@ -5728,12 +5746,12 @@ jobs:
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
-            Use the following source information to understand the intent and context of the workflow:
-            <source>
-            <name>{WORKFLOW_NAME}</name>
-            <description>{WORKFLOW_DESCRIPTION}</description>
-            <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
-            </source>
+            The workflow prompt file is available at: {WORKFLOW_PROMPT_FILE}
+            Load and read this file to understand the intent and context of the workflow. The workflow information includes:
+            - Workflow name: {WORKFLOW_NAME}
+            - Workflow description: {WORKFLOW_DESCRIPTION}
+            - Full workflow instructions and context in the prompt file
+            Use this information to understand the workflow's intended purpose and legitimate use cases.
             ## Agent Output File
             The agent output has been saved to the following file (if any):
             <agent-output-file>
@@ -5770,7 +5788,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
               .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;

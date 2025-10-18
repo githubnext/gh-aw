@@ -3535,6 +3535,12 @@ jobs:
       group: "gh-aw-claude-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
+      - name: Download prompt artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
         uses: actions/download-artifact@v5
@@ -3557,10 +3563,22 @@ jobs:
         env:
           WORKFLOW_NAME: "Daily Documentation Updater"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# Daily Documentation Updater\n\nYou are an AI documentation agent that automatically updates the project documentation based on recent code changes and merged pull requests.\n\n## Your Mission\n\nScan the repository for merged pull requests and code changes from the last 24 hours, identify new features or changes that should be documented, and update the documentation accordingly.\n\n## Task Steps\n\n### 1. Scan Recent Activity (Last 24 Hours)\n\nFirst, search for merged pull requests from the last 24 hours.\n\nUse the GitHub tools to:\n- Search for pull requests merged in the last 24 hours using `search_pull_requests` with a query like: `repo:${{ github.repository }} is:pr is:merged merged:>=YYYY-MM-DD` (replace YYYY-MM-DD with yesterday's date)\n- Get details of each merged PR using `pull_request_read`\n- Review commits from the last 24 hours using `list_commits`\n- Get detailed commit information using `get_commit` for significant changes\n\n### 2. Analyze Changes\n\nFor each merged PR and commit, analyze:\n\n- **Features Added**: New functionality, commands, options, tools, or capabilities\n- **Features Removed**: Deprecated or removed functionality\n- **Features Modified**: Changed behavior, updated APIs, or modified interfaces\n- **Breaking Changes**: Any changes that affect existing users\n\nCreate a summary of changes that should be documented.\n\n### 3. Review Documentation Instructions\n\n**IMPORTANT**: Before making any documentation changes, you MUST read and follow the documentation guidelines:\n\n```bash\n# Load the documentation instructions\ncat .github/instructions/documentation.instructions.md\n```\n\nThe documentation follows the **Diátaxis framework** with four distinct types:\n- **Tutorials** (Learning-Oriented): Guide beginners through achieving specific outcomes\n- **How-to Guides** (Goal-Oriented): Solve specific real-world problems\n- **Reference** (Information-Oriented): Provide accurate technical descriptions\n- **Explanation** (Understanding-Oriented): Clarify and illuminate topics\n\nPay special attention to:\n- The tone and voice guidelines (neutral, technical, not promotional)\n- Proper use of headings (markdown syntax, not bold text)\n- Code samples with appropriate language tags (use `aw` for agentic workflows)\n- Astro Starlight syntax for callouts, tabs, and cards\n- Minimal use of components (prefer standard markdown)\n\n### 4. Identify Documentation Gaps\n\nReview the documentation in the `docs/src/content/docs/` directory:\n\n- Check if new features are already documented\n- Identify which documentation files need updates\n- Determine the appropriate documentation type (tutorial, how-to, reference, explanation)\n- Find the best location for new content\n\nUse bash commands to explore documentation structure:\n\n```bash\nfind docs/src/content/docs -name '*.md' -o -name '*.mdx'\n```\n\n### 5. Update Documentation\n\nFor each missing or incomplete feature documentation:\n\n1. **Determine the correct file** based on the feature type:\n   - CLI commands → `docs/src/content/docs/tools/cli.md`\n   - Workflow reference → `docs/src/content/docs/reference/`\n   - How-to guides → `docs/src/content/docs/guides/`\n   - Samples → `docs/src/content/docs/samples/`\n\n2. **Follow documentation guidelines** from `.github/instructions/documentation.instructions.md`\n\n3. **Update the appropriate file(s)** using the edit tool:\n   - Add new sections for new features\n   - Update existing sections for modified features\n   - Add deprecation notices for removed features\n   - Include code examples with proper syntax highlighting\n   - Use appropriate Astro Starlight components (callouts, tabs, cards) sparingly\n\n4. **Maintain consistency** with existing documentation style:\n   - Use the same tone and voice\n   - Follow the same structure\n   - Use similar examples\n   - Match the level of detail\n\n### 6. Create Pull Request\n\nIf you made any documentation changes:\n\n1. **Summarize your changes** in a clear commit message\n2. **Use the safe-outputs create-pull-request** functionality to create a PR\n3. **Include in the PR description**:\n   - List of features documented\n   - Summary of changes made\n   - Links to relevant merged PRs that triggered the updates\n   - Any notes about features that need further review\n\n**PR Title Format**: `[docs] Update documentation for features from [date]`\n\n**PR Description Template**:\n```markdown\n## Documentation Updates - [Date]\n\nThis PR updates the documentation based on features merged in the last 24 hours.\n\n### Features Documented\n\n- Feature 1 (from #PR_NUMBER)\n- Feature 2 (from #PR_NUMBER)\n\n### Changes Made\n\n- Updated `docs/path/to/file.md` to document Feature 1\n- Added new section in `docs/path/to/file.md` for Feature 2\n\n### Merged PRs Referenced\n\n- #PR_NUMBER - Brief description\n- #PR_NUMBER - Brief description\n\n### Notes\n\n[Any additional notes or features that need manual review]\n```\n\n### 7. Handle Edge Cases\n\n- **No recent changes**: If there are no merged PRs in the last 24 hours, exit gracefully without creating a PR\n- **Already documented**: If all features are already documented, exit gracefully\n- **Unclear features**: If a feature is complex and needs human review, note it in the PR description but don't skip documentation entirely\n\n## Guidelines\n\n- **Be Thorough**: Review all merged PRs and significant commits\n- **Be Accurate**: Ensure documentation accurately reflects the code changes\n- **Follow Guidelines**: Strictly adhere to the documentation instructions\n- **Be Selective**: Only document features that affect users (skip internal refactoring unless it's significant)\n- **Be Clear**: Write clear, concise documentation that helps users\n- **Use Proper Format**: Use the correct Diátaxis category and Astro Starlight syntax\n- **Link References**: Include links to relevant PRs and issues where appropriate\n- **Test Understanding**: If unsure about a feature, review the code changes in detail\n\n## Important Notes\n\n- You have access to the edit tool to modify documentation files\n- You have access to GitHub tools to search and review code changes\n- You have access to bash commands to explore the documentation structure\n- The safe-outputs create-pull-request will automatically create a PR with your changes\n- Always read the documentation instructions before making changes\n- Focus on user-facing features and changes that affect the developer experience\n\nGood luck! Your documentation updates help keep our project accessible and up-to-date.\n"
         with:
           script: |
             const fs = require('fs');
+            const promptPath = '/tmp/gh-aw/threat-detection/prompt.txt';
+            let promptFileInfo = 'No prompt file found';
+            if (fs.existsSync(promptPath)) {
+              try {
+                const stats = fs.statSync(promptPath);
+                promptFileInfo = promptPath + ' (' + stats.size + ' bytes)';
+                core.info('Prompt file found: ' + promptFileInfo);
+              } catch (error) {
+                core.warning('Failed to stat prompt file: ' + error.message);
+              }
+            } else {
+              core.info('No prompt file found at: ' + promptPath);
+            }
             const agentOutputPath = '/tmp/gh-aw/threat-detection/agent_output.json';
             let agentOutputFileInfo = 'No agent output file found';
             if (fs.existsSync(agentOutputPath)) {
@@ -3590,12 +3608,12 @@ jobs:
             const templateContent = `# Threat Detection Analysis
             You are a security analyst tasked with analyzing agent output and code changes for potential security threats.
             ## Workflow Source Context
-            Use the following source information to understand the intent and context of the workflow:
-            <source>
-            <name>{WORKFLOW_NAME}</name>
-            <description>{WORKFLOW_DESCRIPTION}</description>
-            <markdown_body>{WORKFLOW_MARKDOWN}</markdown_body>
-            </source>
+            The workflow prompt file is available at: {WORKFLOW_PROMPT_FILE}
+            Load and read this file to understand the intent and context of the workflow. The workflow information includes:
+            - Workflow name: {WORKFLOW_NAME}
+            - Workflow description: {WORKFLOW_DESCRIPTION}
+            - Full workflow instructions and context in the prompt file
+            Use this information to understand the workflow's intended purpose and legitimate use cases.
             ## Agent Output File
             The agent output has been saved to the following file (if any):
             <agent-output-file>
@@ -3632,7 +3650,7 @@ jobs:
             let promptContent = templateContent
               .replace(/{WORKFLOW_NAME}/g, process.env.WORKFLOW_NAME || 'Unnamed Workflow')
               .replace(/{WORKFLOW_DESCRIPTION}/g, process.env.WORKFLOW_DESCRIPTION || 'No description provided')
-              .replace(/{WORKFLOW_MARKDOWN}/g, process.env.WORKFLOW_MARKDOWN || 'No content provided')
+              .replace(/{WORKFLOW_PROMPT_FILE}/g, promptFileInfo)
               .replace(/{AGENT_OUTPUT_FILE}/g, agentOutputFileInfo)
               .replace(/{AGENT_PATCH_FILE}/g, patchFileInfo);
             const customPrompt = process.env.CUSTOM_PROMPT;
