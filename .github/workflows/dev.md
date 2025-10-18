@@ -12,6 +12,10 @@ permissions:
 tools:
   edit:
   github:
+  bash:
+    - "find"
+    - "wc"
+    - "git ls-files"
 safe-outputs:
   staged: true
   create-issue:
