@@ -6,6 +6,11 @@ services:
       - 8888:8888
     env:
       JUPYTER_TOKEN: ${{ github.run_id }}
+    options: >-
+      --health-cmd "curl -f http://localhost:8888/api || exit 1"
+      --health-interval 10s
+      --health-timeout 5s
+      --health-retries 5
   
   jupyter-mcp:
     image: datalayer/jupyter-mcp-server:latest
@@ -16,32 +21,11 @@ services:
       JUPYTER_TOKEN: "${{ github.run_id }}"
       DOCUMENT_ID: "notebook.ipynb"
       ALLOW_IMG_OUTPUT: "true"
-
-steps:
-  - name: Wait for Jupyter to be ready
-    run: |
-      echo "Waiting for Jupyter server to start..."
-      for i in {1..30}; do
-        if curl -f http://jupyter:8888/api 2>/dev/null; then
-          echo "✓ Jupyter server is ready!"
-          break
-        fi
-        echo "Attempt $i: Waiting for Jupyter..."
-        sleep 2
-      done
-      curl -f http://jupyter:8888/api || (echo "Failed to connect to Jupyter" && exit 1)
-  
-  - name: Wait for Jupyter MCP server to be ready
-    run: |
-      echo "Waiting for Jupyter MCP server to start..."
-      for i in {1..30}; do
-        if curl -f http://jupyter-mcp:3000/health 2>/dev/null; then
-          echo "✓ Jupyter MCP server is ready!"
-          break
-        fi
-        echo "Attempt $i: Waiting for Jupyter MCP server..."
-        sleep 2
-      done
+    options: >-
+      --health-cmd "curl -f http://localhost:3000/health || exit 1"
+      --health-interval 10s
+      --health-timeout 5s
+      --health-retries 5
 
 mcp-servers:
   jupyter:

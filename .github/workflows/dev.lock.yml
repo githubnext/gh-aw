@@ -70,6 +70,7 @@ jobs:
         env:
           JUPYTER_TOKEN: ${{ github.run_id }}
         image: jupyter/base-notebook:latest
+        options: --health-cmd "curl -f http://localhost:8888/api || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
         - 8888:8888
       jupyter-mcp:
@@ -79,6 +80,7 @@ jobs:
           JUPYTER_TOKEN: ${{ github.run_id }}
           JUPYTER_URL: http://jupyter:8888
         image: datalayer/jupyter-mcp-server:latest
+        options: --health-cmd "curl -f http://localhost:3000/health || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
         ports:
         - 3000:3000
 
@@ -99,11 +101,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-      - name: Wait for Jupyter to be ready
-        run: "echo \"Waiting for Jupyter server to start...\"\nfor i in {1..30}; do\n  if curl -f http://jupyter:8888/api 2>/dev/null; then\n    echo \"✓ Jupyter server is ready!\"\n    break\n  fi\n  echo \"Attempt $i: Waiting for Jupyter...\"\n  sleep 2\ndone\ncurl -f http://jupyter:8888/api || (echo \"Failed to connect to Jupyter\" && exit 1)\n"
-      - name: Wait for Jupyter MCP server to be ready
-        run: "echo \"Waiting for Jupyter MCP server to start...\"\nfor i in {1..30}; do\n  if curl -f http://jupyter-mcp:3000/health 2>/dev/null; then\n    echo \"✓ Jupyter MCP server is ready!\"\n    break\n  fi\n  echo \"Attempt $i: Waiting for Jupyter MCP server...\"\n  sleep 2\ndone\n"
-
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
