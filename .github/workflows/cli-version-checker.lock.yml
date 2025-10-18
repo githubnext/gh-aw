@@ -1004,6 +1004,22 @@ jobs:
           - Document migration requirements
           - Assign risk level (Low/Medium/High)
           
+          ### Tool Installation & Discovery
+          For each CLI tool update:
+          1. Install the new version globally:
+             - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`
+             - Copilot CLI: `npm install -g @github/copilot@<version>`
+             - Codex: `npm install -g @openai/codex@<version>`
+          2. Invoke help to discover commands and flags:
+             - Run `claude-code --help` or `npx claude-code --help`
+             - Run `copilot --help` or `npx copilot --help`
+             - Run `codex --help` or `npx codex --help`
+          3. Compare help output with previous version to identify:
+             - New commands or subcommands
+             - New command-line flags or options
+             - Deprecated or removed features
+             - Changed default behaviors
+          
           ### Update Process
           1. Edit `./pkg/constants/constants.go` with new version(s)
           2. Run `make recompile` to update workflows
@@ -1017,6 +1033,7 @@ jobs:
           - **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance
           - **Impact Assessment**: Risk level, affected features, migration notes
           - **Changelog Links**: NPM/GitHub release notes
+          - **CLI Changes**: New commands, flags, or removed features discovered via help
           
           Template structure:
           ```
@@ -1027,6 +1044,7 @@ jobs:
           - New Features: [list]
           - Bug Fixes: [list]
           - Security: [CVEs/patches or "None"]
+          - CLI Discovery: [New commands/flags or "None detected"]
           - Impact: Risk [Low/Medium/High], affects [features]
           - Migration: [Yes/No - details if yes]
           ```
@@ -1035,6 +1053,8 @@ jobs:
           - Only update stable versions (no pre-releases)
           - Prioritize security updates
           - Document all intermediate versions
+          - Install and test CLI tools to discover new features via `--help`
+          - Compare help output between old and new versions
           - Test with `make recompile` before creating PR
           - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
           
@@ -1276,6 +1296,9 @@ jobs:
         # Allowed tools (sorted):
         # - Bash(cat *)
         # - Bash(cat)
+        # - Bash(claude-code --help)
+        # - Bash(codex --help)
+        # - Bash(copilot --help)
         # - Bash(date)
         # - Bash(echo)
         # - Bash(git *)
@@ -1293,6 +1316,8 @@ jobs:
         # - Bash(ls *)
         # - Bash(ls)
         # - Bash(make *)
+        # - Bash(npm install *)
+        # - Bash(npx *)
         # - Bash(pwd)
         # - Bash(sort)
         # - Bash(tail)
@@ -1372,7 +1397,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(date),Bash(echo),Bash(git *),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep *),Bash(grep),Bash(head),Bash(ls *),Bash(ls),Bash(make *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          claude --print --mcp-config /tmp/gh-aw/mcp-config/mcp-servers.json --allowed-tools "Bash(cat *),Bash(cat),Bash(claude-code --help),Bash(codex --help),Bash(copilot --help),Bash(date),Bash(echo),Bash(git *),Bash(git add:*),Bash(git branch:*),Bash(git checkout:*),Bash(git commit:*),Bash(git merge:*),Bash(git rm:*),Bash(git status),Bash(git switch:*),Bash(grep *),Bash(grep),Bash(head),Bash(ls *),Bash(ls),Bash(make *),Bash(npm install *),Bash(npx *),Bash(pwd),Bash(sort),Bash(tail),Bash(uniq),Bash(wc),Bash(yq),BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_label,mcp__github__get_latest_release,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_review_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_release_by_tag,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issue_types,mcp__github__list_issues,mcp__github__list_label,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_releases,mcp__github__list_secret_scanning_alerts,mcp__github__list_starred_repositories,mcp__github__list_sub_issues,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__pull_request_read,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format stream-json --settings /tmp/gh-aw/.claude/settings.json "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -3414,7 +3439,7 @@ jobs:
         env:
           WORKFLOW_NAME: "CLI Version Checker"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# CLI Version Checker\n\nMonitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.\n\n**Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}\n\n## Process\n\nFor each CLI/MCP server:\n1. Fetch latest version from NPM registry or GitHub releases\n2. Compare with current version in `./pkg/constants/constants.go`\n3. If newer version exists, research changes and prepare update\n\n### Version Sources\n- **Claude Code**: `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`\n- **Copilot CLI**: `https://registry.npmjs.org/@github/copilot/latest`\n- **Codex**: `https://registry.npmjs.org/@openai/codex/latest`\n- **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`\n\n### Research & Analysis\nFor each update, analyze intermediate versions:\n- Categorize changes: Breaking, Features, Fixes, Security, Performance\n- Assess impact on gh-aw workflows\n- Document migration requirements\n- Assign risk level (Low/Medium/High)\n\n### Update Process\n1. Edit `./pkg/constants/constants.go` with new version(s)\n2. Run `make recompile` to update workflows\n3. Verify changes with `git status`\n4. Create PR via safe-outputs with detailed analysis\n\n## PR Format\nInclude for each updated CLI:\n- **Version**: old → new (list intermediate versions if multiple)\n- **Release Timeline**: dates and intervals\n- **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance\n- **Impact Assessment**: Risk level, affected features, migration notes\n- **Changelog Links**: NPM/GitHub release notes\n\nTemplate structure:\n```\n# Update [CLI Name]\n- Previous: [version] → New: [version]\n- Timeline: [dates and frequency]\n- Breaking Changes: [list or \"None\"]\n- New Features: [list]\n- Bug Fixes: [list]\n- Security: [CVEs/patches or \"None\"]\n- Impact: Risk [Low/Medium/High], affects [features]\n- Migration: [Yes/No - details if yes]\n```\n\n## Guidelines\n- Only update stable versions (no pre-releases)\n- Prioritize security updates\n- Document all intermediate versions\n- Test with `make recompile` before creating PR\n- **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly\n\n## Error Handling\n- Retry NPM registry failures once after 30s\n- Continue if individual changelog fetch fails\n- Skip PR creation if recompile fails\n- Exit successfully if no updates found\n- Document incomplete research if rate-limited\n"
+          WORKFLOW_MARKDOWN: "# CLI Version Checker\n\nMonitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.\n\n**Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}\n\n## Process\n\nFor each CLI/MCP server:\n1. Fetch latest version from NPM registry or GitHub releases\n2. Compare with current version in `./pkg/constants/constants.go`\n3. If newer version exists, research changes and prepare update\n\n### Version Sources\n- **Claude Code**: `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`\n- **Copilot CLI**: `https://registry.npmjs.org/@github/copilot/latest`\n- **Codex**: `https://registry.npmjs.org/@openai/codex/latest`\n- **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`\n\n### Research & Analysis\nFor each update, analyze intermediate versions:\n- Categorize changes: Breaking, Features, Fixes, Security, Performance\n- Assess impact on gh-aw workflows\n- Document migration requirements\n- Assign risk level (Low/Medium/High)\n\n### Tool Installation & Discovery\nFor each CLI tool update:\n1. Install the new version globally:\n   - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`\n   - Copilot CLI: `npm install -g @github/copilot@<version>`\n   - Codex: `npm install -g @openai/codex@<version>`\n2. Invoke help to discover commands and flags:\n   - Run `claude-code --help` or `npx claude-code --help`\n   - Run `copilot --help` or `npx copilot --help`\n   - Run `codex --help` or `npx codex --help`\n3. Compare help output with previous version to identify:\n   - New commands or subcommands\n   - New command-line flags or options\n   - Deprecated or removed features\n   - Changed default behaviors\n\n### Update Process\n1. Edit `./pkg/constants/constants.go` with new version(s)\n2. Run `make recompile` to update workflows\n3. Verify changes with `git status`\n4. Create PR via safe-outputs with detailed analysis\n\n## PR Format\nInclude for each updated CLI:\n- **Version**: old → new (list intermediate versions if multiple)\n- **Release Timeline**: dates and intervals\n- **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance\n- **Impact Assessment**: Risk level, affected features, migration notes\n- **Changelog Links**: NPM/GitHub release notes\n- **CLI Changes**: New commands, flags, or removed features discovered via help\n\nTemplate structure:\n```\n# Update [CLI Name]\n- Previous: [version] → New: [version]\n- Timeline: [dates and frequency]\n- Breaking Changes: [list or \"None\"]\n- New Features: [list]\n- Bug Fixes: [list]\n- Security: [CVEs/patches or \"None\"]\n- CLI Discovery: [New commands/flags or \"None detected\"]\n- Impact: Risk [Low/Medium/High], affects [features]\n- Migration: [Yes/No - details if yes]\n```\n\n## Guidelines\n- Only update stable versions (no pre-releases)\n- Prioritize security updates\n- Document all intermediate versions\n- Install and test CLI tools to discover new features via `--help`\n- Compare help output between old and new versions\n- Test with `make recompile` before creating PR\n- **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly\n\n## Error Handling\n- Retry NPM registry failures once after 30s\n- Continue if individual changelog fetch fails\n- Skip PR creation if recompile fails\n- Exit successfully if no updates found\n- Document incomplete research if rate-limited\n"
         with:
           script: |
             const fs = require('fs');
