@@ -96,7 +96,8 @@ func TestClaudeEngineGitHubToolsetsRendering(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			engine := &ClaudeEngine{}
 			var yaml strings.Builder
-			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true)
+			workflowData := &WorkflowData{}
+			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true, workflowData)
 
 			result := yaml.String()
 
@@ -266,7 +267,8 @@ func TestGitHubToolsetsWithOtherConfiguration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			engine := &ClaudeEngine{}
 			var yaml strings.Builder
-			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true)
+			workflowData := &WorkflowData{}
+			engine.renderGitHubClaudeMCPConfig(&yaml, tt.githubTool, true, workflowData)
 
 			result := yaml.String()
 

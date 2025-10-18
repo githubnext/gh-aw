@@ -630,7 +630,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast)
+			e.renderGitHubClaudeMCPConfig(yaml, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
@@ -655,7 +655,7 @@ func (e *ClaudeEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 
 // renderGitHubClaudeMCPConfig generates the GitHub MCP server configuration
 // Supports both local (Docker) and remote (hosted) modes
-func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
+func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 	githubType := getGitHubType(githubTool)
 	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
@@ -670,12 +670,9 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		yaml.WriteString("                \"url\": \"https://api.githubcopilot.com/mcp/\",\n")
 		yaml.WriteString("                \"headers\": {\n")
 
-		// Add custom github-token if specified, otherwise use GH_AW_GITHUB_TOKEN
-		if customGitHubToken != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"", customGitHubToken))
-		} else {
-			yaml.WriteString("                  \"Authorization\": \"Bearer ${{ secrets.GH_AW_GITHUB_TOKEN }}\"")
-		}
+		// Use effective token with precedence: custom > top-level > default
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		yaml.WriteString(fmt.Sprintf("                  \"Authorization\": \"Bearer %s\"", effectiveToken))
 
 		// Add X-MCP-Readonly header if read-only mode is enabled
 		if readOnly {
@@ -720,12 +717,9 @@ func (e *ClaudeEngine) renderGitHubClaudeMCPConfig(yaml *strings.Builder, github
 		yaml.WriteString("                ],\n")
 		yaml.WriteString("                \"env\": {\n")
 
-		// Use custom token if specified, otherwise use default
-		if customGitHubToken != "" {
-			yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", customGitHubToken))
-		} else {
-			yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"")
-		}
+		// Use effective token with precedence: custom > top-level > default
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"", effectiveToken))
 
 		yaml.WriteString("\n")
 		yaml.WriteString("                }\n")

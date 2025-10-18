@@ -118,11 +118,9 @@ copilot %s 2>&1 | tee %s`, shellJoinArgs(copilotArgs), logFile)
 	if hasGitHubTool(workflowData.Tools) {
 		githubTool := workflowData.Tools["github"]
 		customGitHubToken := getGitHubToken(githubTool)
-		if customGitHubToken != "" {
-			env["GITHUB_PERSONAL_ACCESS_TOKEN"] = customGitHubToken
-		} else {
-			env["GITHUB_PERSONAL_ACCESS_TOKEN"] = "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
-		}
+		// Use effective token with precedence: custom > top-level > default
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		env["GITHUB_PERSONAL_ACCESS_TOKEN"] = effectiveToken
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed

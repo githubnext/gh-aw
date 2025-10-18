@@ -237,22 +237,56 @@ GitHub Agentic Workflows support flexible token configuration for different exec
 
 #### GitHub Token Precedence
 
-By default, workflows use GitHub's standard `GITHUB_TOKEN` for authentication. However, you can override this behavior using environment variables with the following precedence:
+Workflows use a hierarchical token precedence system that allows you to configure authentication tokens at different levels. The precedence order from highest to lowest is:
 
-1. **`GH_AW_GITHUB_TOKEN`** - Primary override token (highest priority)
-2. **`GITHUB_TOKEN`** - Standard GitHub Actions token (fallback)
+1. **Individual safe-output `github-token`** - Token specified for a specific safe-output (e.g., `create-issue.github-token`)
+2. **Safe-outputs global `github-token`** - Token specified at the `safe-outputs` level
+3. **Top-level `github-token`** - Token specified in workflow frontmatter (new)
+4. **Default fallback** - `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
+
+This allows you to set a default token for the entire workflow while still allowing specific safe-outputs to use different tokens when needed.
 
 #### Token Configuration Examples
 
-**Basic override for enhanced permissions:**
+**Top-level token for entire workflow:**
 
 ```yaml
-# Set via repository secrets
-env:
-  GH_AW_GITHUB_TOKEN: ${{ secrets.CUSTOM_PAT }}
+---
+on: push
+github-token: ${{ secrets.CUSTOM_PAT }}
+engine: claude
+tools:
+  github:
+    allowed: [list_issues]
+---
 ```
 
-**Per-job token configuration:**
+This token will be used for:
+- Engine authentication (GitHub MCP server, etc.)
+- Checkout steps (in trial mode)
+- Safe-output operations (unless overridden)
+
+**Safe outputs with custom tokens:**
+
+```yaml
+---
+on: push
+github-token: ${{ secrets.DEFAULT_PAT }}
+safe-outputs:
+  github-token: ${{ secrets.SAFE_OUTPUT_PAT }}
+  create-issue:
+    github-token: ${{ secrets.ISSUE_SPECIFIC_PAT }}
+  create-pull-request:
+    # Uses safe-outputs global token
+---
+```
+
+In this example:
+- `create-issue` uses `ISSUE_SPECIFIC_PAT` (highest precedence)
+- `create-pull-request` uses `SAFE_OUTPUT_PAT` (safe-outputs level)
+- Engine and other operations use `DEFAULT_PAT` (top-level)
+
+**Per-job token configuration (legacy):**
 
 ```yaml
 jobs:
@@ -262,15 +296,6 @@ jobs:
       GH_AW_GITHUB_TOKEN: ${{ secrets.ENHANCED_PAT }}
     steps:
       # Workflow steps use the enhanced token
-```
-
-**Safe outputs with custom tokens:**
-
-```yaml
-safe-outputs:
-  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-  create-issue:
-  create-pull-request:
 ```
 
 #### Security Considerations
