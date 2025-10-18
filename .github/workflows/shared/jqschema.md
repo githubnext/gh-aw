@@ -6,6 +6,7 @@ tools:
 steps:
   - name: Set up jq utilities directory
     run: |
+      mkdir -p /tmp/gh-aw
       cat > /tmp/gh-aw/jqschema.sh << 'EOF'
       #!/usr/bin/env bash
       # jqschema.sh
