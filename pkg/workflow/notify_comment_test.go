@@ -11,6 +11,7 @@ func TestUpdateReactionJob(t *testing.T) {
 	tests := []struct {
 		name               string
 		addCommentConfig   bool
+		reactionConfig     string
 		safeOutputJobNames []string
 		expectJob          bool
 		expectConditions   []string
@@ -47,10 +48,26 @@ func TestUpdateReactionJob(t *testing.T) {
 			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "add_comment", "create_issue", "missing_tool"},
 		},
 		{
-			name:               "update_reaction job not created when add-comment is not configured",
+			name:               "update_reaction job not created when add-comment is not configured and no reaction",
 			addCommentConfig:   false,
 			safeOutputJobNames: []string{},
 			expectJob:          false,
+		},
+		{
+			name:               "update_reaction job created when reaction is configured without add-comment",
+			addCommentConfig:   false,
+			reactionConfig:     "eyes",
+			safeOutputJobNames: []string{"create_issue", "missing_tool"},
+			expectJob:          true,
+			expectConditions: []string{
+				"always()",
+				"needs.agent.result != 'skipped'",
+				"needs.activation.outputs.comment_id",
+				"!(contains(needs.agent.outputs.output_types, 'add_comment'))",
+				"!(contains(needs.agent.outputs.output_types, 'create_pull_request'))",
+				"!(contains(needs.agent.outputs.output_types, 'push_to_pull_request_branch'))",
+			},
+			expectNeeds: []string{constants.AgentJobName, constants.ActivationJobName, "create_issue", "missing_tool"},
 		},
 	}
 
@@ -59,7 +76,8 @@ func TestUpdateReactionJob(t *testing.T) {
 			// Create a test workflow
 			compiler := NewCompiler(false, "", "")
 			workflowData := &WorkflowData{
-				Name: "Test Workflow",
+				Name:       "Test Workflow",
+				AIReaction: tt.reactionConfig,
 			}
 
 			if tt.addCommentConfig {
@@ -222,5 +240,70 @@ func TestUpdateReactionJobIntegration(t *testing.T) {
 		if !found {
 			t.Errorf("Expected update_reaction job to depend on '%s'", expectedNeed)
 		}
+	}
+}
+
+func TestUpdateReactionJobWithReactionOnly(t *testing.T) {
+	// Test that the job is created when only reaction is configured (no add-comment)
+	compiler := NewCompiler(false, "", "")
+	workflowData := &WorkflowData{
+		Name:       "Test Workflow",
+		AIReaction: "rocket", // Reaction configured
+		// No SafeOutputs.AddComments configured
+		SafeOutputs: &SafeOutputsConfig{
+			CreateIssues: &CreateIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: 1,
+				},
+			},
+		},
+	}
+
+	// Build the update_reaction job with sample safe output job names
+	safeOutputJobNames := []string{"create_issue", "missing_tool"}
+	job, err := compiler.buildUpdateReactionJob(workflowData, constants.AgentJobName, safeOutputJobNames)
+	if err != nil {
+		t.Fatalf("Failed to build update_reaction job: %v", err)
+	}
+
+	if job == nil {
+		t.Fatal("Expected update_reaction job to be created when reaction is configured")
+	}
+
+	// Verify job name
+	if job.Name != "update_reaction" {
+		t.Errorf("Expected job name 'update_reaction', got '%s'", job.Name)
+	}
+
+	// Verify job depends on agent, activation, and safe output jobs
+	expectedNeeds := []string{constants.AgentJobName, constants.ActivationJobName, "create_issue", "missing_tool"}
+	if len(job.Needs) != len(expectedNeeds) {
+		t.Errorf("Expected %d needs, got %d: %v", len(expectedNeeds), len(job.Needs), job.Needs)
+	}
+	for _, expectedNeed := range expectedNeeds {
+		found := false
+		for _, need := range job.Needs {
+			if need == expectedNeed {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected need '%s' not found in job.Needs: %v", expectedNeed, job.Needs)
+		}
+	}
+
+	// Verify permissions are correct
+	if !strings.Contains(job.Permissions, "issues: write") {
+		t.Error("Expected 'issues: write' permission in update_reaction job")
+	}
+	if !strings.Contains(job.Permissions, "pull-requests: write") {
+		t.Error("Expected 'pull-requests: write' permission in update_reaction job")
+	}
+
+	// Verify the job has the correct step
+	stepsYAML := strings.Join(job.Steps, "")
+	if !strings.Contains(stepsYAML, "Update reaction comment with error notification") {
+		t.Error("Expected 'Update reaction comment with error notification' step in update_reaction job")
 	}
 }

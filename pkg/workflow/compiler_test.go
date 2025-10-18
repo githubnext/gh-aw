@@ -2502,15 +2502,22 @@ Test workflow with reaction.
 		}
 	}
 
-	// Verify three jobs are created (check_membership, activation, main) - reaction step is now in activation job
+	// Verify four jobs are created (check_membership, activation, main, update_reaction)
+	// - reaction step is now in activation job
+	// - update_reaction job is created to update comment on failure
 	jobCount := strings.Count(yamlContent, "runs-on: ubuntu-latest")
-	if jobCount != 3 {
-		t.Errorf("Expected 3 jobs (check_membership, activation, main), found %d", jobCount)
+	if jobCount != 4 {
+		t.Errorf("Expected 4 jobs (check_membership, activation, main, update_reaction), found %d", jobCount)
 	}
 
 	// Verify reaction step is in activation job, not a separate job
 	if strings.Contains(yamlContent, "add_reaction:") {
 		t.Error("Generated YAML should not contain separate add_reaction job")
+	}
+
+	// Verify update_reaction job is created
+	if !strings.Contains(yamlContent, "update_reaction:") {
+		t.Error("Generated YAML should contain update_reaction job when reaction is configured")
 	}
 
 	// Verify reaction step is in activation job

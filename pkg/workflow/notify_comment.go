@@ -14,8 +14,13 @@ import (
 // 4. NO create_pull_request output was produced by the agent
 // This job depends on all safe output jobs to ensure it runs last
 func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string, safeOutputJobNames []string) (*Job, error) {
-	if data.SafeOutputs == nil || data.SafeOutputs.AddComments == nil {
-		return nil, nil // Only create this job when add-comment is configured
+	// Only create this job when add-comment is configured OR reaction is configured
+	// Both of these create a comment_id that can be updated on failure
+	hasAddComment := data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil
+	hasReaction := data.AIReaction != ""
+	
+	if !hasAddComment && !hasReaction {
+		return nil, nil
 	}
 
 	// Build the job steps
@@ -42,9 +47,10 @@ func (c *Compiler) buildUpdateReactionJob(data *WorkflowData, mainJobName string
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_WORKFLOW_NAME: %q\n", data.Name))
 	customEnvVars = append(customEnvVars, fmt.Sprintf("          GITHUB_AW_AGENT_CONCLUSION: ${{ needs.%s.result }}\n", mainJobName))
 
-	// Get token from config
+	// Get token from config if add-comment is configured
+	// Otherwise, empty token means use default GITHUB_TOKEN
 	var token string
-	if data.SafeOutputs.AddComments != nil {
+	if data.SafeOutputs != nil && data.SafeOutputs.AddComments != nil {
 		token = data.SafeOutputs.AddComments.GitHubToken
 	}
 
