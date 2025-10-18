@@ -58,11 +58,21 @@ safe-outputs:
   create-issue:
     title-prefix: "[ai] "            # Optional: prefix for issue titles
     labels: [automation, agentic]    # Optional: labels to attach to issues
+    assignees: [user1, user2, copilot] # Optional: users/bots to assign the issue to
     max: 5                           # Optional: maximum number of issues (default: 1)
     target-repo: "owner/target-repo" # Optional: create issues in a different repository (requires github-token with appropriate permissions)
 ```
 
 The agentic part of your workflow should describe the issue(s) it wants created.
+
+**Configuration Options:**
+- **`assignees:`** - GitHub username(s) to automatically assign to created issues. Accepts either a single string (`assignees: user1`) or an array of strings (`assignees: [user1, user2]`). The workflow automatically adds steps that call `gh issue edit --add-assignee` for each assignee after the issue is created. Only runs if the issue was successfully created.
+  - **Special value**: Use `copilot` to assign to the `copilot-swe-agent` bot
+  - Uses the configured GitHub token (respects `github-token` precedence: create-issue config > safe-outputs config > top-level config > default)
+
+:::note
+To assign issues to bots (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots. Configure a PAT using the `github-token` field at the workflow, safe-outputs, or create-issue level.
+:::
 
 **Example markdown to generate the output:**
 

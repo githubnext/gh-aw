@@ -10,6 +10,7 @@ type CreateIssuesConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	TitlePrefix          string   `yaml:"title-prefix,omitempty"`
 	Labels               []string `yaml:"labels,omitempty"`
+	Assignees            []string `yaml:"assignees,omitempty"`   // List of users/bots to assign the issue to
 	TargetRepoSlug       string   `yaml:"target-repo,omitempty"` // Target repository in format "owner/repo" for cross-repository issues
 }
 
@@ -37,6 +38,23 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 						}
 					}
 					issuesConfig.Labels = labelStrings
+				}
+			}
+
+			// Parse assignees (supports both string and array)
+			if assignees, exists := configMap["assignees"]; exists {
+				if assigneeStr, ok := assignees.(string); ok {
+					// Single string format
+					issuesConfig.Assignees = []string{assigneeStr}
+				} else if assigneesArray, ok := assignees.([]any); ok {
+					// Array format
+					var assigneeStrings []string
+					for _, assignee := range assigneesArray {
+						if assigneeStr, ok := assignee.(string); ok {
+							assigneeStrings = append(assigneeStrings, assigneeStr)
+						}
+					}
+					issuesConfig.Assignees = assigneeStrings
 				}
 			}
 
@@ -115,6 +133,43 @@ func (c *Compiler) buildCreateOutputIssueJob(data *WorkflowData, mainJobName str
 		Token:         token,
 	})
 	steps = append(steps, scriptSteps...)
+
+	// Add assignee steps if assignees are configured
+	if len(data.SafeOutputs.CreateIssues.Assignees) > 0 {
+		// Add checkout step for gh CLI to work
+		steps = append(steps, "      - name: Checkout repository for gh CLI\n")
+		steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
+		steps = append(steps, "        uses: actions/checkout@v5\n")
+
+		// Get the effective GitHub token to use for gh CLI
+		var safeOutputsToken string
+		if data.SafeOutputs != nil {
+			safeOutputsToken = data.SafeOutputs.GitHubToken
+		}
+		effectiveToken := getEffectiveGitHubToken(token, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
+
+		for i, assignee := range data.SafeOutputs.CreateIssues.Assignees {
+			// Special handling: "copilot" is the username for "copilot-swe-agent"
+			actualAssignee := assignee
+			if assignee == "copilot" {
+				actualAssignee = "copilot-swe-agent"
+			}
+
+			steps = append(steps, fmt.Sprintf("      - name: Assign issue to %s\n", assignee))
+			steps = append(steps, "        if: steps.create_issue.outputs.issue_number != ''\n")
+			steps = append(steps, "        env:\n")
+			steps = append(steps, fmt.Sprintf("          GH_TOKEN: %s\n", effectiveToken))
+			steps = append(steps, fmt.Sprintf("          ASSIGNEE: %q\n", actualAssignee))
+			steps = append(steps, "          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}\n")
+			steps = append(steps, "        run: |\n")
+			steps = append(steps, "          gh issue edit \"$ISSUE_NUMBER\" --add-assignee \"$ASSIGNEE\"\n")
+
+			// Add a comment after each assignee step except the last
+			if i < len(data.SafeOutputs.CreateIssues.Assignees)-1 {
+				steps = append(steps, "\n")
+			}
+		}
+	}
 
 	// Create outputs for the job
 	outputs := map[string]string{

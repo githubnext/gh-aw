@@ -2055,6 +2055,21 @@
                     "type": "string"
                   }
                 },
+                "assignees": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "description": "Single GitHub username to assign the created issue to (e.g., 'user1' or 'copilot'). Use 'copilot' to assign to copilot-swe-agent."
+                    },
+                    {
+                      "type": "array",
+                      "description": "List of GitHub usernames to assign the created issue to (e.g., ['user1', 'user2', 'copilot']). Use 'copilot' to assign to copilot-swe-agent.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
                 "max": {
                   "type": "integer",
                   "description": "Maximum number of issues to create (default: 1)",

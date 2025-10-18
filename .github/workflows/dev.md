@@ -1,9 +1,6 @@
 ---
 on: 
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/dev.md'
 concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true
@@ -17,8 +14,9 @@ tools:
   github:
 safe-outputs:
   create-issue:
+    assignees: copilot
 imports:
   - shared/mcp/tavily.md
 ---
 
-Search the latest trends about javascript frameworks using tavily tools, and the last 3 pull requests using github tools and print a summary.
+Write a creative poem about GitHub Agentic Workflows and create an issue with the poem. Assign the issue to copilot.
