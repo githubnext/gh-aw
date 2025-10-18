@@ -22,7 +22,7 @@ tools:
 
 ## Frontmatter Elements
 
-The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `imports`, `engine`, `strict`, `roles`, `safe-outputs`, `network`, `tools`, `cache-memory`).
+The frontmatter combines standard GitHub Actions properties (`on`, `permissions`, `run-name`, `runs-on`, `timeout_minutes`, `concurrency`, `env`, `environment`, `container`, `services`, `if`, `steps`, `cache`) with GitHub Agentic Workflows-specific elements (`description`, `source`, `github-token`, `imports`, `engine`, `strict`, `roles`, `safe-outputs`, `network`, `tools`, `cache-memory`).
 
 ### Trigger Events (`on:`)
 
@@ -59,6 +59,23 @@ source: "githubnext/agentics/workflows/ci-doctor.md@v1.0.0"
 ```
 
 When you run `gh aw add githubnext/agentics/ci-doctor@v1.0.0`, the source field is automatically added to the workflow frontmatter. This field is optional for manually created workflows.
+
+### GitHub Token (`github-token:`)
+
+The `github-token:` field configures the default GitHub token for the entire workflow. This token is used for engine authentication, checkout steps, and safe-output operations unless overridden at more specific levels.
+
+```yaml
+github-token: ${{ secrets.CUSTOM_PAT }}
+```
+
+The token precedence hierarchy allows fine-grained control:
+
+1. **Individual safe-output `github-token`** (highest priority) - e.g., `create-issue.github-token`
+2. **Safe-outputs global `github-token`** - e.g., `safe-outputs.github-token`
+3. **Top-level `github-token`** - Workflow-level default
+4. **Default fallback** - `${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}`
+
+This enables setting a workflow default while allowing specific operations to use different tokens. See the [Security Guide](/gh-aw/guides/security/#authorization-and-token-management) for complete token configuration documentation.
 
 ### Permissions (`permissions:`)
 
