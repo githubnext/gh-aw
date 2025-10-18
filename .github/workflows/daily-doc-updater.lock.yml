@@ -1355,6 +1355,13 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
+      - name: Upload prompt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          if-no-files-found: warn
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
