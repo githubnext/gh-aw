@@ -265,7 +265,7 @@ Downloaded artifacts include:
 - agent_output/: Agent logs directory (if the workflow produced logs)
 - agent-stdio.log: Agent standard output/error logs
 - aw.patch: Git patch of changes made during execution
-- Various log files with execution details and metrics
+- workflow-logs/: GitHub Actions workflow run logs (job logs organized in subdirectory)
 
 The agentic-workflow-id is the basename of the markdown file without the .md extension.
 For example, for 'weekly-research.md', use 'weekly-research' as the workflow ID.
