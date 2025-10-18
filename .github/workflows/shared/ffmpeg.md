@@ -18,15 +18,17 @@ tools:
 
 steps:
   - name: Setup FFmpeg
+    id: setup-ffmpeg
     run: |
       sudo apt-get update && sudo apt-get install -y ffmpeg
-      ffmpeg -version
+      version=$(ffmpeg -version | head -n1)
+      echo "version=$version" >> $GITHUB_OUTPUT
       mkdir -p /tmp/gh-aw/ffmpeg
 ---
 
 # FFmpeg Usage Guide
 
-FFmpeg has been installed and is available in your PATH. A temporary folder `/tmp/gh-aw/ffmpeg` is available for caching intermediate results.
+FFmpeg and ffprobe have been installed and are available in your PATH. A temporary folder `/tmp/gh-aw/ffmpeg` is available for caching intermediate results.
 
 ## Common FFmpeg Operations
 
@@ -125,4 +127,29 @@ ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:no
 # Get video dimensions
 ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 input.mp4
 ```
+
+### Compute Stable Hash for Video Encoding Task
+
+Compute a SHA-256 hash that uniquely identifies an ffmpeg command and all input files it references. This is useful for caching and detecting when re-processing is needed.
+
+**Steps:**
+1. Capture the full ffmpeg command line (exact text with all arguments)
+2. Concatenate the command string with the binary contents of each input file in the same order
+3. Pipe the combined data into `sha256sum` (or `shasum -a 256` on macOS)
+
+**Example Bash:**
+
+```bash
+cmd='ffmpeg -i input1.mp4 -i input2.wav -filter_complex "..." -c:v libx264 output.mp4'
+(
+  echo "$cmd"
+  cat input1.mp4 input2.wav
+) | sha256sum | awk '{print $1}'
+```
+
+This hash changes only when:
+- The ffmpeg command arguments change
+- Any input file content changes
+
+Use this hash as a cache key in `/tmp/gh-aw/ffmpeg/` to avoid reprocessing identical operations.
 
