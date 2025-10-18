@@ -142,6 +142,15 @@ Based on the logs and inspection results, determine:
 3. **Workaround**: Can you proceed without this server?
 4. **Fix**: What changes are needed to resolve the issue?
 
+**IMPORTANT**: When reporting your findings, include:
+- **Detailed description** of what you discovered during investigation
+- **Specific error messages** or symptoms found in logs
+- **Root cause analysis** explaining why the failure occurred
+- **Evidence** from log files or diagnostic tools that support your conclusion
+- **Recommendations** for fixing the issue based on your analysis
+
+Create a clear summary of your investigation that includes all diagnostic steps you performed and their results.
+
 ### Common MCP Server Issues
 
 #### Issue: Server Failed to Start

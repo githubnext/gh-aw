@@ -66,13 +66,8 @@ def _build_config() -> TemplateMinerConfig:
     cfg.drain_max_children = MAX_CHILDREN
     if MAX_CLUSTERS > 0:
         cfg.drain_max_clusters = MAX_CLUSTERS
-    # Sensible masking to improve template quality
-    cfg.masking_instructions = [
-        {"regex_pattern": r"((?<=[^A-Za-z0-9])|^)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})((?=[^A-Za-z0-9])|$)", "mask_with": "IP"},
-        {"regex_pattern": r"((?<=[^A-Za-z0-9])|^)([\-+]?\d+)((?=[^A-Za-z0-9])|$)", "mask_with": "NUM"},
-        {"regex_pattern": r"0x[0-9a-fA-F]+", "mask_with": "HEX"},
-        {"regex_pattern": r"[a-f0-9]{8}\-[a-f0-9\-]{27,36}", "mask_with": "GUID"},
-    ]
+    # Use default masking configuration from drain3
+    # Custom masking caused serialization errors with dict objects
     return cfg
 
 def _new_miner(snapshot_path: Path) -> TemplateMiner:
