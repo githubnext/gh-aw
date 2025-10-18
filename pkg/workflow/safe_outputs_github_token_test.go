@@ -94,8 +94,8 @@ func TestSafeOutputsGitHubTokenIntegration(t *testing.T) {
 					"create-issue": nil,
 				},
 			},
-			expectedInWith:   []string{},
-			unexpectedInWith: []string{"github-token:"},
+			expectedInWith:   []string{"github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},
+			unexpectedInWith: []string{},
 		},
 		{
 			name: "multiple safe outputs with github-token",
@@ -441,13 +441,18 @@ func TestIndividualConfigGitHubTokenConfiguration(t *testing.T) {
 			t.Errorf("Expected step to be '%s', got '%s'", expectedStep, steps[0])
 		}
 
-		// Test with no tokens
+		// Test with no tokens - should still add default fallback
 		steps = []string{} // Reset
 		data.SafeOutputs.GitHubToken = ""
 		compiler.addSafeOutputGitHubTokenForConfig(&steps, data, "")
 
-		if len(steps) != 0 {
-			t.Fatalf("Expected 0 steps to be added when no tokens available, got %d", len(steps))
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step to be added when no tokens available (default fallback), got %d", len(steps))
+		}
+
+		expectedStep = "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
+		if steps[0] != expectedStep {
+			t.Errorf("Expected step to be '%s', got '%s'", expectedStep, steps[0])
 		}
 	})
 }

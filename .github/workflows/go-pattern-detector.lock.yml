@@ -78,6 +78,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -2893,6 +2895,7 @@ jobs:
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[ast-grep] "
           GITHUB_AW_ISSUE_LABELS: "code-quality,ast-grep"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -3404,6 +3407,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");

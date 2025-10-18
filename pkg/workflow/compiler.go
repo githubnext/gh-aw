@@ -2425,17 +2425,15 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 	if needsCheckout {
 		yaml.WriteString("      - name: Checkout repository\n")
 		yaml.WriteString("        uses: actions/checkout@v5\n")
+		yaml.WriteString("        with:\n")
+		yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 		// In trial mode without cloning, checkout the logical repo if specified
-		if c.trialMode {
-			yaml.WriteString("        with:\n")
-			if c.trialLogicalRepoSlug != "" {
-				yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
-				// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
-				// if len(trialTargetRepoName) == 2 {
-				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
-				// }
-			}
-			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+		if c.trialMode && c.trialLogicalRepoSlug != "" {
+			yaml.WriteString(fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+			// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
+			// if len(trialTargetRepoName) == 2 {
+			// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
+			// }
 		}
 	}
 

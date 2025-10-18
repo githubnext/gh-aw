@@ -644,6 +644,7 @@ jobs:
           GITHUB_AW_COMMENT_TARGET: "*"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function generateFooter(
               workflowName,
@@ -960,6 +961,7 @@ jobs:
           GITHUB_AW_LABELS_MAX_COUNT: 5
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -1186,6 +1188,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -4562,6 +4566,7 @@ jobs:
           GITHUB_AW_ISSUE_LABELS: "poetry,automation,ai-generated"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -4861,6 +4866,7 @@ jobs:
           GITHUB_AW_PR_REVIEW_COMMENT_SIDE: "RIGHT"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function generateFooter(
               workflowName,
@@ -5160,6 +5166,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -5191,6 +5198,7 @@ jobs:
           GITHUB_AW_MAX_PATCH_SIZE: 1024
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const crypto = require("crypto");
@@ -5829,6 +5837,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
@@ -6048,6 +6057,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -6073,6 +6083,7 @@ jobs:
           GITHUB_AW_PUSH_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             async function main() {
@@ -6372,6 +6383,7 @@ jobs:
           GITHUB_AW_UPDATE_TARGET: "*"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
@@ -6605,6 +6617,7 @@ jobs:
           GITHUB_AW_WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const commentId = process.env.GITHUB_AW_COMMENT_ID;
@@ -6699,6 +6712,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Configure Git credentials
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -6736,6 +6750,7 @@ jobs:
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const path = require("path");

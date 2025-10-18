@@ -62,6 +62,8 @@ func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *Work
 	}
 	if token != "" {
 		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", token))
+	} else {
+		*steps = append(*steps, "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
 	}
 }
 

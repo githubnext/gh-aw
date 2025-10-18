@@ -119,15 +119,13 @@ func buildCheckoutRepository(steps []string, c *Compiler) []string {
 	steps = append(steps, "        uses: actions/checkout@v5\n")
 	steps = append(steps, "        with:\n")
 	steps = append(steps, "          fetch-depth: 0\n")
-	if c.trialMode {
-		if c.trialLogicalRepoSlug != "" {
-			steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
-			// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
-			// if len(trialTargetRepoName) == 2 {
-			// 	steps = append(steps, fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
-			// }
-		}
-		steps = append(steps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+	steps = append(steps, "          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+	if c.trialMode && c.trialLogicalRepoSlug != "" {
+		steps = append(steps, fmt.Sprintf("          repository: %s\n", c.trialLogicalRepoSlug))
+		// trialTargetRepoName := strings.Split(c.trialLogicalRepoSlug, "/")
+		// if len(trialTargetRepoName) == 2 {
+		// 	steps = append(steps, fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
+		// }
 	}
 	return steps
 }

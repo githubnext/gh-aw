@@ -68,9 +68,9 @@ This is a test workflow for trial mode compilation.
 			t.Error("Expected create_issue job in normal mode")
 		}
 
-		// Checkout should not include github-token in normal mode
-		if strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-			t.Error("Did not expect github-token in checkout step in normal mode")
+		// Checkout should now ALWAYS include github-token (as per security requirements)
+		if !strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+			t.Error("Expected github-token in checkout step (should always be present)")
 		}
 	})
 
