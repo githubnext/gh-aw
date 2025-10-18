@@ -53,7 +53,7 @@ jobs:
       actions: read
       contents: read
     concurrency:
-      group: "gh-aw-copilot"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

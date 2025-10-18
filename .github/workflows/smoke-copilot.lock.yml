@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     concurrency:
-      group: "gh-aw-copilot"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
@@ -3423,7 +3423,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     concurrency:
-      group: "gh-aw-copilot"
+      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact
