@@ -90,48 +90,6 @@ func TestNewTools(t *testing.T) {
 	})
 }
 
-func TestToolsToMap(t *testing.T) {
-	t.Run("converts nil tools to empty map", func(t *testing.T) {
-		var tools *Tools
-		result := tools.ToMap()
-		if result == nil {
-			t.Fatal("expected non-nil map")
-		}
-		if len(result) != 0 {
-			t.Errorf("expected empty map, got %d items", len(result))
-		}
-	})
-
-	t.Run("converts tools back to map", func(t *testing.T) {
-		toolsMap := map[string]any{
-			"github":    map[string]any{"allowed": []any{"get_issue"}},
-			"bash":      []any{"echo", "ls"},
-			"edit":      nil,
-			"my-custom": map[string]any{"command": "node"},
-		}
-
-		tools := NewTools(toolsMap)
-		result := tools.ToMap()
-
-		if len(result) != 4 {
-			t.Errorf("expected 4 tools in result map, got %d", len(result))
-		}
-
-		if _, exists := result["github"]; !exists {
-			t.Error("expected github in result map")
-		}
-		if _, exists := result["bash"]; !exists {
-			t.Error("expected bash in result map")
-		}
-		if _, exists := result["edit"]; !exists {
-			t.Error("expected edit in result map")
-		}
-		if _, exists := result["my-custom"]; !exists {
-			t.Error("expected my-custom in result map")
-		}
-	})
-}
-
 func TestHasTool(t *testing.T) {
 	toolsMap := map[string]any{
 		"github":    nil,
@@ -167,52 +125,6 @@ func TestHasTool(t *testing.T) {
 		var tools *Tools
 		if tools.HasTool("github") {
 			t.Error("expected false for nil tools")
-		}
-	})
-}
-
-func TestGetTool(t *testing.T) {
-	toolsMap := map[string]any{
-		"github":    map[string]any{"allowed": []any{"get_issue"}},
-		"bash":      []any{"echo"},
-		"my-custom": map[string]any{"command": "node"},
-	}
-
-	tools := NewTools(toolsMap)
-
-	t.Run("get github tool", func(t *testing.T) {
-		result := tools.GetTool("github")
-		if result == nil {
-			t.Error("expected non-nil result for github tool")
-		}
-	})
-
-	t.Run("get bash tool", func(t *testing.T) {
-		result := tools.GetTool("bash")
-		if result == nil {
-			t.Error("expected non-nil result for bash tool")
-		}
-	})
-
-	t.Run("get custom tool", func(t *testing.T) {
-		result := tools.GetTool("my-custom")
-		if result == nil {
-			t.Error("expected non-nil result for my-custom tool")
-		}
-	})
-
-	t.Run("get non-existent tool", func(t *testing.T) {
-		result := tools.GetTool("non-existent")
-		if result != nil {
-			t.Error("expected nil result for non-existent tool")
-		}
-	})
-
-	t.Run("nil tools returns nil", func(t *testing.T) {
-		var tools *Tools
-		result := tools.GetTool("github")
-		if result != nil {
-			t.Error("expected nil result for nil tools")
 		}
 	})
 }
@@ -271,20 +183,11 @@ func TestGetToolNames(t *testing.T) {
 	})
 }
 
-func TestGetGitHubConfig(t *testing.T) {
-	t.Run("returns nil for nil tools", func(t *testing.T) {
-		var tools *Tools
-		config := tools.GetGitHubConfig()
-		if config != nil {
-			t.Error("expected nil config for nil tools")
-		}
-	})
-
+func TestGitHubConfigParsing(t *testing.T) {
 	t.Run("returns nil when github not set", func(t *testing.T) {
 		tools := NewTools(map[string]any{})
-		config := tools.GetGitHubConfig()
-		if config != nil {
-			t.Error("expected nil config when github not set")
+		if tools.GitHub != nil {
+			t.Error("expected nil GitHub config when github not set")
 		}
 	})
 
@@ -302,7 +205,7 @@ func TestGetGitHubConfig(t *testing.T) {
 		}
 
 		tools := NewTools(toolsMap)
-		config := tools.GetGitHubConfig()
+		config := tools.GitHub
 
 		if config == nil {
 			t.Fatal("expected non-nil config")
@@ -341,20 +244,11 @@ func TestGetGitHubConfig(t *testing.T) {
 	})
 }
 
-func TestGetPlaywrightConfig(t *testing.T) {
-	t.Run("returns nil for nil tools", func(t *testing.T) {
-		var tools *Tools
-		config := tools.GetPlaywrightConfig()
-		if config != nil {
-			t.Error("expected nil config for nil tools")
-		}
-	})
-
+func TestPlaywrightConfigParsing(t *testing.T) {
 	t.Run("returns nil when playwright not set", func(t *testing.T) {
 		tools := NewTools(map[string]any{})
-		config := tools.GetPlaywrightConfig()
-		if config != nil {
-			t.Error("expected nil config when playwright not set")
+		if tools.Playwright != nil {
+			t.Error("expected nil Playwright config when playwright not set")
 		}
 	})
 
@@ -368,7 +262,7 @@ func TestGetPlaywrightConfig(t *testing.T) {
 		}
 
 		tools := NewTools(toolsMap)
-		config := tools.GetPlaywrightConfig()
+		config := tools.Playwright
 
 		if config == nil {
 			t.Fatal("expected non-nil config")
@@ -378,8 +272,8 @@ func TestGetPlaywrightConfig(t *testing.T) {
 			t.Errorf("expected version 'v1.41.0', got %q", config.Version)
 		}
 
-		if config.AllowedDomains == nil {
-			t.Error("expected AllowedDomains to be set")
+		if len(config.AllowedDomains) != 2 {
+			t.Errorf("expected 2 allowed domains, got %d", len(config.AllowedDomains))
 		}
 
 		if len(config.Args) != 1 {
@@ -388,20 +282,11 @@ func TestGetPlaywrightConfig(t *testing.T) {
 	})
 }
 
-func TestGetClaudeConfig(t *testing.T) {
-	t.Run("returns nil for nil tools", func(t *testing.T) {
-		var tools *Tools
-		config := tools.GetClaudeConfig()
-		if config != nil {
-			t.Error("expected nil config for nil tools")
-		}
-	})
-
+func TestClaudeConfigParsing(t *testing.T) {
 	t.Run("returns nil when claude not set", func(t *testing.T) {
 		tools := NewTools(map[string]any{})
-		config := tools.GetClaudeConfig()
-		if config != nil {
-			t.Error("expected nil config when claude not set")
+		if tools.Claude != nil {
+			t.Error("expected nil Claude config when claude not set")
 		}
 	})
 
@@ -413,7 +298,7 @@ func TestGetClaudeConfig(t *testing.T) {
 		}
 
 		tools := NewTools(toolsMap)
-		config := tools.GetClaudeConfig()
+		config := tools.Claude
 
 		if config == nil {
 			t.Fatal("expected non-nil config")
