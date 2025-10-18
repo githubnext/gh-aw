@@ -78,6 +78,8 @@ jobs:
           ALLOW_IMG_OUTPUT: "true"
           JUPYTER_TOKEN: ${{ github.run_id }}
           JUPYTER_URL: http://jupyter:8888
+          MCP_PORT: "3000"
+          MCP_TRANSPORT: http
         image: datalayer/jupyter-mcp-server:latest
         options: --health-cmd "curl -f http://localhost:3000/health || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
         ports:

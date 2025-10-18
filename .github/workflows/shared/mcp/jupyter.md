@@ -20,6 +20,8 @@ services:
       JUPYTER_URL: "http://jupyter:8888"
       JUPYTER_TOKEN: "${{ github.run_id }}"
       ALLOW_IMG_OUTPUT: "true"
+      MCP_TRANSPORT: "http"
+      MCP_PORT: "3000"
     options: >-
       --health-cmd "curl -f http://localhost:3000/health || exit 1"
       --health-interval 10s
