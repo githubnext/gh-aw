@@ -125,6 +125,9 @@ INSTRUCTION=$(cat $GITHUB_AW_PROMPT)
 mkdir -p $CODEX_HOME/logs
 codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, fullAutoParam, customArgsParam, logFile)
 
+	// Get effective GitHub token based on precedence: top-level github-token > default
+	effectiveGitHubToken := getEffectiveGitHubToken("", workflowData.GitHubToken)
+
 	env := map[string]string{
 		"CODEX_API_KEY":        "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}",
 		"GITHUB_STEP_SUMMARY":  "${{ env.GITHUB_STEP_SUMMARY }}",
@@ -132,7 +135,7 @@ codex %sexec%s%s%s"$INSTRUCTION" 2>&1 | tee %s`, modelParam, webSearchParam, ful
 		"GITHUB_AW_MCP_CONFIG": "/tmp/gh-aw/mcp-config/config.toml",
 		"CODEX_HOME":           "/tmp/gh-aw/mcp-config",
 		"RUST_LOG":             "trace,hyper_util=info,mio=info,reqwest=info,os_info=info,codex_otel=warn,codex_core=debug,ocodex_exec=debug",
-		"GH_AW_GITHUB_TOKEN":   "${{ secrets.GH_AW_GITHUB_TOKEN }}",
+		"GH_AW_GITHUB_TOKEN":   effectiveGitHubToken,
 	}
 
 	// Add GITHUB_AW_SAFE_OUTPUTS if output is needed
@@ -580,12 +583,9 @@ func (e *CodexEngine) renderGitHubCodexMCPConfig(yaml *strings.Builder, githubTo
 		yaml.WriteString("          \n")
 		yaml.WriteString("          [mcp_servers.github.env]\n")
 
-		// Use custom token if specified, otherwise use default
-		if customGitHubToken != "" {
-			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + customGitHubToken + "\"\n")
-		} else {
-			yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
-		}
+		// Use effective token with precedence: custom > top-level > default
+		effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+		yaml.WriteString("          GITHUB_PERSONAL_ACCESS_TOKEN = \"" + effectiveToken + "\"\n")
 	}
 }
 

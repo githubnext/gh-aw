@@ -158,7 +158,7 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 		switch toolName {
 		case "github":
 			githubTool := tools["github"]
-			e.renderGitHubMCPConfig(yaml, githubTool, isLast)
+			e.renderGitHubMCPConfig(yaml, githubTool, isLast, workflowData)
 		case "playwright":
 			playwrightTool := tools["playwright"]
 			e.renderPlaywrightMCPConfig(yaml, playwrightTool, isLast)
@@ -182,9 +182,10 @@ func (e *CustomEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]a
 }
 
 // renderGitHubMCPConfig generates the GitHub MCP server configuration using shared logic
-func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool) {
+func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool any, isLast bool, workflowData *WorkflowData) {
 	githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 	customArgs := getGitHubCustomArgs(githubTool)
+	customGitHubToken := getGitHubToken(githubTool)
 	readOnly := getGitHubReadOnly(githubTool)
 
 	yaml.WriteString("              \"github\": {\n")
@@ -209,7 +210,9 @@ func (e *CustomEngine) renderGitHubMCPConfig(yaml *strings.Builder, githubTool a
 	yaml.WriteString("\n")
 	yaml.WriteString("                ],\n")
 	yaml.WriteString("                \"env\": {\n")
-	yaml.WriteString("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\"\n")
+	// Use effective token with precedence: custom > top-level > default
+	effectiveToken := getEffectiveGitHubToken(customGitHubToken, workflowData.GitHubToken)
+	yaml.WriteString(fmt.Sprintf("                  \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"%s\"\n", effectiveToken))
 	yaml.WriteString("                }\n")
 
 	if isLast {

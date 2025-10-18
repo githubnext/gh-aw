@@ -178,6 +178,7 @@ type WorkflowData struct {
 	SafetyPrompt        bool                // whether to include XPIA safety prompt (default true)
 	Runtimes            map[string]any      // runtime version overrides from frontmatter
 	ToolsTimeout        int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
+	GitHubToken         string              // top-level github-token expression from frontmatter
 	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
 }
 
@@ -832,6 +833,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ToolsStartupTimeout: toolsStartupTimeout,
 		TrialMode:           c.trialMode,
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
+		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -2416,6 +2418,20 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 	return job, nil
 }
 
+// getEffectiveGitHubToken returns the GitHub token to use, with precedence:
+// 1. Custom token passed as parameter (e.g., from safe-outputs)
+// 2. Top-level github-token from frontmatter
+// 3. Default fallback: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+func getEffectiveGitHubToken(customToken, toplevelToken string) string {
+	if customToken != "" {
+		return customToken
+	}
+	if toplevelToken != "" {
+		return toplevelToken
+	}
+	return "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"
+}
+
 // generateMainJobSteps generates the steps section for the main job
 func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowData) {
 	// Determine if we need to add a checkout step
@@ -2435,7 +2451,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 				// }
 			}
-			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+			effectiveToken := getEffectiveGitHubToken("", data.GitHubToken)
+			yaml.WriteString(fmt.Sprintf("          token: %s\n", effectiveToken))
 		}
 	}
 

@@ -3229,6 +3229,7 @@ jobs:
           GITHUB_AW_WORKFLOW_NAME: "Repository Tree Map Generator"
           GITHUB_AW_DISCUSSION_CATEGORY: "dev"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
@@ -3677,6 +3678,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");

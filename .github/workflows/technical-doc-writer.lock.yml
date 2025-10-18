@@ -115,6 +115,7 @@ jobs:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function generateFooter(
               workflowName,
@@ -3496,6 +3497,7 @@ jobs:
           GITHUB_AW_PR_IF_NO_CHANGES: "warn"
           GITHUB_AW_MAX_PATCH_SIZE: 1024
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const crypto = require("crypto");
@@ -4148,6 +4150,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
@@ -4386,6 +4389,7 @@ jobs:
           GITHUB_AW_WORKFLOW_NAME: "Technical Documentation Writer for GitHub Actions"
           GITHUB_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const commentId = process.env.GITHUB_AW_COMMENT_ID;
@@ -4516,6 +4520,7 @@ jobs:
           GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
             const path = require("path");

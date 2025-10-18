@@ -94,8 +94,9 @@ func TestSafeOutputsGitHubTokenIntegration(t *testing.T) {
 					"create-issue": nil,
 				},
 			},
-			expectedInWith:   []string{},
-			unexpectedInWith: []string{"github-token:"},
+			// With top-level github-token support, we now always add the github-token field with the effective value (default in this case)
+			expectedInWith:   []string{"github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"},
+			unexpectedInWith: []string{},
 		},
 		{
 			name: "multiple safe outputs with github-token",
@@ -441,13 +442,19 @@ func TestIndividualConfigGitHubTokenConfiguration(t *testing.T) {
 			t.Errorf("Expected step to be '%s', got '%s'", expectedStep, steps[0])
 		}
 
-		// Test with no tokens
+		// Test with no tokens configured - should use default token
 		steps = []string{} // Reset
 		data.SafeOutputs.GitHubToken = ""
+		data.GitHubToken = "" // Also clear top-level token
 		compiler.addSafeOutputGitHubTokenForConfig(&steps, data, "")
 
-		if len(steps) != 0 {
-			t.Fatalf("Expected 0 steps to be added when no tokens available, got %d", len(steps))
+		// With the new implementation, we always add a token (default if none configured)
+		expectedStep = "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n"
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 step to be added with default token, got %d", len(steps))
+		}
+		if steps[0] != expectedStep {
+			t.Errorf("Expected step to be '%s', got '%s'", expectedStep, steps[0])
 		}
 	})
 }

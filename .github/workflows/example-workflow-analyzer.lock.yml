@@ -2785,6 +2785,7 @@ jobs:
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[workflow-analysis] "
           GITHUB_AW_ISSUE_LABELS: "automation,ci-improvement"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -3298,6 +3299,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");
