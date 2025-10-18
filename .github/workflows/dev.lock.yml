@@ -76,7 +76,6 @@ jobs:
       jupyter-mcp:
         env:
           ALLOW_IMG_OUTPUT: "true"
-          DOCUMENT_ID: notebook.ipynb
           JUPYTER_TOKEN: ${{ github.run_id }}
           JUPYTER_URL: http://jupyter:8888
         image: datalayer/jupyter-mcp-server:latest

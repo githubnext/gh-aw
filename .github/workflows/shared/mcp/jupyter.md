@@ -19,7 +19,6 @@ services:
     env:
       JUPYTER_URL: "http://jupyter:8888"
       JUPYTER_TOKEN: "${{ github.run_id }}"
-      DOCUMENT_ID: "notebook.ipynb"
       ALLOW_IMG_OUTPUT: "true"
     options: >-
       --health-cmd "curl -f http://localhost:3000/health || exit 1"
