@@ -66,6 +66,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    concurrency:
+      group: "gh-aw-codex-${{ github.workflow }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
@@ -1269,6 +1271,13 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
+      - name: Upload prompt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          if-no-files-found: warn
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(codex --version 2>&1 || echo "unknown")
@@ -1325,7 +1334,7 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/mcp-config
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -2816,6 +2825,7 @@ jobs:
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[duplicate-code] "
           GITHUB_AW_ISSUE_LABELS: "code-quality,automated-analysis"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -3194,6 +3204,8 @@ jobs:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-codex-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact
@@ -3343,7 +3355,7 @@ jobs:
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}
           CODEX_HOME: /tmp/gh-aw/mcp-config
-          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+          GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_AW_MCP_CONFIG: /tmp/gh-aw/mcp-config/config.toml
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -3422,6 +3434,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");

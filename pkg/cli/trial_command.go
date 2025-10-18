@@ -109,6 +109,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 			repeatCount, _ := cmd.Flags().GetInt("repeat")
 			autoMergePRs, _ := cmd.Flags().GetBool("auto-merge-prs")
 			engineOverride, _ := cmd.Flags().GetString("engine")
+			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
 
 			if err := validateEngine(engineOverride); err != nil {
@@ -116,7 +117,7 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 				os.Exit(1)
 			}
 
-			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, engineOverride, verbose); err != nil {
+			if err := RunWorkflowTrials(workflowSpecs, logicalRepoSpec, cloneRepoSpec, hostRepoSpec, deleteHostRepo, forceDeleteHostRepo, yes, timeout, triggerContext, repeatCount, autoMergePRs, engineOverride, appendText, verbose); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(err.Error()))
 				os.Exit(1)
 			}
@@ -143,12 +144,13 @@ Trial results are saved both locally (in trials/ directory) and in the host repo
 	cmd.Flags().Int("repeat", 0, "Number of times to repeat running workflows (0 = run once)")
 	cmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the trial (requires --clone-repo)")
 	cmd.Flags().StringP("engine", "a", "", "Override AI engine (claude, codex, copilot, custom)")
+	cmd.Flags().String("append", "", "Append extra content to the end of agentic workflow on installation")
 
 	return cmd
 }
 
 // RunWorkflowTrials executes the main logic for trialing one or more workflows
-func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, verbose bool) error {
+func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepoSpec string, hostRepoSpec string, deleteHostRepo, forceDeleteHostRepo, quiet bool, timeoutMinutes int, triggerContext string, repeatCount int, autoMergePRs bool, engineOverride string, appendText string, verbose bool) error {
 	// Parse all workflow specifications
 	var parsedSpecs []*WorkflowSpec
 	for _, spec := range workflowSpecs {
@@ -296,7 +298,7 @@ func RunWorkflowTrials(workflowSpecs []string, logicalRepoSpec string, cloneRepo
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("=== Running trial for workflow: %s ===", parsedSpec.WorkflowName)))
 
 			// Install workflow with trial mode compilation
-			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, verbose); err != nil {
+			if err := installWorkflowInTrialMode(tempDir, parsedSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug, secretTracker, engineOverride, appendText, verbose); err != nil {
 				return fmt.Errorf("failed to install workflow '%s' in trial mode: %w", parsedSpec.WorkflowName, err)
 			}
 
@@ -699,7 +701,7 @@ func cloneTrialHostRepository(repoSlug string, verbose bool) (string, error) {
 }
 
 // installWorkflowInTrialMode installs a workflow in trial mode using a parsed spec
-func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, verbose bool) error {
+func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logicalRepoSlug, cloneRepoSlug, hostRepoSlug string, secretTracker *TrialSecretTracker, engineOverride string, appendText string, verbose bool) error {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -718,7 +720,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 		}
 
 		// For local workflows, copy the file directly from the filesystem
-		if err := installLocalWorkflowInTrialMode(originalDir, tempDir, parsedSpec, verbose); err != nil {
+		if err := installLocalWorkflowInTrialMode(originalDir, tempDir, parsedSpec, appendText, verbose); err != nil {
 			return fmt.Errorf("failed to install local workflow: %w", err)
 		}
 	} else {
@@ -732,7 +734,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 		}
 
 		// Add the workflow from the installed package
-		if err := AddWorkflows([]string{parsedSpec.String()}, 1, verbose, "", "", true, false); err != nil {
+		if err := AddWorkflows([]string{parsedSpec.String()}, 1, verbose, "", "", true, appendText, false); err != nil {
 			return fmt.Errorf("failed to add workflow: %w", err)
 		}
 	}
@@ -779,7 +781,7 @@ func installWorkflowInTrialMode(tempDir string, parsedSpec *WorkflowSpec, logica
 }
 
 // installLocalWorkflowInTrialMode installs a local workflow file for trial mode
-func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *WorkflowSpec, verbose bool) error {
+func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *WorkflowSpec, appendText string, verbose bool) error {
 	// Construct the source path (relative to original directory)
 	sourcePath := filepath.Join(originalDir, parsedSpec.WorkflowPath)
 
@@ -801,6 +803,17 @@ func installLocalWorkflowInTrialMode(originalDir, tempDir string, parsedSpec *Wo
 	content, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to read local workflow file: %w", err)
+	}
+
+	// Append text if provided
+	if appendText != "" {
+		contentStr := string(content)
+		// Ensure we have a newline before appending
+		if !strings.HasSuffix(contentStr, "\n") {
+			contentStr += "\n"
+		}
+		contentStr += "\n" + appendText
+		content = []byte(contentStr)
 	}
 
 	// Write the content to the destination

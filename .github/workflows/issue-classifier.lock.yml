@@ -596,6 +596,7 @@ jobs:
           GITHUB_AW_LABELS_ALLOWED: "bug,feature,enhancement,documentation"
           GITHUB_AW_LABELS_MAX_COUNT: 1
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -1781,6 +1782,13 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
+      - name: Upload prompt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          if-no-files-found: warn
       - name: Set agent version (not available)
         run: echo "AGENT_VERSION=" >> $GITHUB_ENV
       - name: Generate agentic run info
@@ -2829,6 +2837,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");

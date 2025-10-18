@@ -962,5 +962,99 @@ More log content
 
       expect(result).toContain("github::create_pull_request");
     });
+
+    it("should extract tools from debug log format", () => {
+      const parseCopilotLog = extractParseFunction();
+
+      // Simulate the new debug log format with [DEBUG] Tools: section
+      const debugLogWithTools = `2025-10-18T01:34:52.534Z [INFO] Starting Copilot CLI: 0.0.343
+2025-10-18T01:34:55.314Z [DEBUG] Got model info: {
+  "id": "claude-sonnet-4.5",
+  "name": "Claude Sonnet 4.5",
+  "vendor": "Anthropic",
+  "billing": {
+    "is_premium": true,
+    "multiplier": 1,
+    "restricted_to": ["pro", "pro_plus", "max"]
+  }
+}
+2025-10-18T01:34:55.407Z [DEBUG] Tools:
+2025-10-18T01:34:55.412Z [DEBUG] [
+  {
+    "type": "function",
+    "function": {
+      "name": "bash",
+      "description": "Runs a Bash command"
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "github-create_issue",
+      "description": "Creates a GitHub issue"
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "safe_outputs-create_issue",
+      "description": "Safe output create issue"
+    }
+  }
+2025-10-18T01:34:55.500Z [DEBUG] ]
+2025-10-18T01:35:00.739Z [DEBUG] data:
+2025-10-18T01:35:00.739Z [DEBUG] {
+  "choices": [
+    {
+      "finish_reason": "tool_calls",
+      "message": {
+        "content": "I'll help you with this task.",
+        "role": "assistant"
+      }
+    },
+    {
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\\"command\\":\\"echo test\\"}",
+              "name": "bash"
+            },
+            "id": "tool_123",
+            "type": "function"
+          }
+        ]
+      }
+    }
+  ],
+  "model": "Claude Sonnet 4.5",
+  "usage": {
+    "completion_tokens": 50,
+    "prompt_tokens": 100
+  }
+2025-10-18T01:35:00.800Z [DEBUG] }`;
+
+      const result = parseCopilotLog(debugLogWithTools);
+
+      // Check that tools were extracted and displayed
+      expect(result).toContain("**Available Tools:**");
+      expect(result).toContain("bash");
+      // Tools are displayed in formatted form (github::create_issue) not internal form (mcp__github__create_issue)
+      expect(result).toContain("github::create_issue");
+      expect(result).toContain("safe_outputs-create_issue");
+
+      // Verify tool categories are shown
+      expect(result).toContain("**Git/GitHub:**");
+      expect(result).toContain("**Other:**");
+
+      // Check that the model info was extracted
+      expect(result).toContain("Claude Sonnet 4.5");
+      expect(result).toContain("**Premium Model:** Yes");
+
+      // Check that tool calls are displayed
+      expect(result).toContain("echo test");
+    });
   });
 });

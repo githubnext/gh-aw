@@ -62,6 +62,8 @@ jobs:
     needs: activation
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-custom-${{ github.workflow }}"
     env:
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
       GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1,\"min\":1},\"missing_tool\":{}}"
@@ -971,6 +973,13 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
+      - name: Upload prompt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          if-no-files-found: warn
       - name: Set agent version (not available)
         run: echo "AGENT_VERSION=" >> $GITHUB_ENV
       - name: Generate agentic run info
@@ -1872,6 +1881,7 @@ jobs:
           GITHUB_AW_WORKFLOW_NAME: "Smoke GenAIScript"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -2250,6 +2260,8 @@ jobs:
     needs: agent
     runs-on: ubuntu-latest
     permissions: read-all
+    concurrency:
+      group: "gh-aw-custom-${{ github.workflow }}"
     timeout-minutes: 10
     steps:
       - name: Download agent output artifact
@@ -2486,6 +2498,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");

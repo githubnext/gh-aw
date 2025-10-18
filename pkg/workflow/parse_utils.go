@@ -46,23 +46,26 @@ func (c *Compiler) addCustomSafeOutputEnvVars(steps *[]string, data *WorkflowDat
 }
 
 // addSafeOutputGitHubToken adds github-token to the with section of github-script actions
+// Uses precedence: safe-outputs global github-token > top-level github-token > default
 func (c *Compiler) addSafeOutputGitHubToken(steps *[]string, data *WorkflowData) {
-	if data.SafeOutputs != nil && data.SafeOutputs.GitHubToken != "" {
-		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", data.SafeOutputs.GitHubToken))
-	} else {
-		*steps = append(*steps, "          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
+	effectiveToken := getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken)
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 
 // addSafeOutputGitHubTokenForConfig adds github-token to the with section, preferring per-config token over global
+// Uses precedence: config token > safe-outputs global github-token > top-level github-token > default
 func (c *Compiler) addSafeOutputGitHubTokenForConfig(steps *[]string, data *WorkflowData, configToken string) {
-	token := configToken
-	if token == "" && data.SafeOutputs != nil {
-		token = data.SafeOutputs.GitHubToken
+	var safeOutputsToken string
+	if data.SafeOutputs != nil {
+		safeOutputsToken = data.SafeOutputs.GitHubToken
 	}
-	if token != "" {
-		*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", token))
-	}
+	// Get effective token using double precedence: config > safe-outputs, then > top-level > default
+	effectiveToken := getEffectiveGitHubToken(configToken, getEffectiveGitHubToken(safeOutputsToken, data.GitHubToken))
+	*steps = append(*steps, fmt.Sprintf("          github-token: %s\n", effectiveToken))
 }
 
 // filterMapKeys creates a new map excluding the specified keys

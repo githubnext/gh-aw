@@ -178,6 +178,7 @@ type WorkflowData struct {
 	SafetyPrompt        bool                // whether to include XPIA safety prompt (default true)
 	Runtimes            map[string]any      // runtime version overrides from frontmatter
 	ToolsTimeout        int                 // timeout in seconds for tool/MCP operations (0 = use engine default)
+	GitHubToken         string              // top-level github-token expression from frontmatter
 	ToolsStartupTimeout int                 // timeout in seconds for MCP server startup (0 = use engine default)
 }
 
@@ -832,6 +833,7 @@ func (c *Compiler) ParseWorkflowFile(markdownPath string) (*WorkflowData, error)
 		ToolsStartupTimeout: toolsStartupTimeout,
 		TrialMode:           c.trialMode,
 		TrialLogicalRepo:    c.trialLogicalRepoSlug,
+		GitHubToken:         extractStringValue(result.Frontmatter, "github-token"),
 	}
 
 	// Extract YAML sections from frontmatter - use direct frontmatter map extraction
@@ -2435,7 +2437,8 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 				// 	yaml.WriteString(fmt.Sprintf("          path: %s\n", trialTargetRepoName[1]))
 				// }
 			}
-			yaml.WriteString("          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}\n")
+			effectiveToken := getEffectiveGitHubToken("", data.GitHubToken)
+			yaml.WriteString(fmt.Sprintf("          token: %s\n", effectiveToken))
 		}
 	}
 
@@ -2514,6 +2517,9 @@ func (c *Compiler) generateMainJobSteps(yaml *strings.Builder, data *WorkflowDat
 
 	// Add prompt creation step
 	c.generatePrompt(yaml, data)
+
+	// Upload prompt to artifact
+	c.generateUploadPrompt(yaml)
 
 	logFile := "agent-stdio"
 	logFileFull := "/tmp/gh-aw/agent-stdio.log"
@@ -2709,6 +2715,16 @@ func (c *Compiler) generateUploadAwInfo(yaml *strings.Builder) {
 	yaml.WriteString("        with:\n")
 	yaml.WriteString("          name: aw_info.json\n")
 	yaml.WriteString("          path: /tmp/gh-aw/aw_info.json\n")
+	yaml.WriteString("          if-no-files-found: warn\n")
+}
+
+func (c *Compiler) generateUploadPrompt(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Upload prompt\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        uses: actions/upload-artifact@v4\n")
+	yaml.WriteString("        with:\n")
+	yaml.WriteString("          name: prompt.txt\n")
+	yaml.WriteString("          path: /tmp/gh-aw/aw-prompts/prompt.txt\n")
 	yaml.WriteString("          if-no-files-found: warn\n")
 }
 

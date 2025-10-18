@@ -90,6 +90,11 @@ func TestCopilotEngineExecutionSteps(t *testing.T) {
 	if strings.Contains(stepContent, "GITHUB_AW_SAFE_OUTPUTS") {
 		t.Error("Expected GITHUB_AW_SAFE_OUTPUTS to not be present when SafeOutputs is nil")
 	}
+
+	// Test that --disable-builtin-mcps flag is present
+	if !strings.Contains(stepContent, "--disable-builtin-mcps") {
+		t.Errorf("Expected --disable-builtin-mcps flag in command, got:\n%s", stepContent)
+	}
 }
 
 func TestCopilotEngineExecutionStepsWithOutput(t *testing.T) {

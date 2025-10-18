@@ -69,8 +69,33 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// Checkout should not include github-token in normal mode
-		if strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
-			t.Error("Did not expect github-token in checkout step in normal mode")
+		// Check specifically that the checkout step doesn't have a token parameter
+		lines := strings.Split(lockContent, "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "actions/checkout@v5") {
+				// Check the next few lines for "with:" and "token:"
+				for j := i + 1; j < len(lines) && j < i+10; j++ {
+					if strings.TrimSpace(lines[j]) == "with:" {
+						// Found "with:" section, check for token
+						for k := j + 1; k < len(lines) && k < j+5; k++ {
+							if strings.Contains(lines[k], "token:") {
+								t.Error("Did not expect github-token in checkout step in normal mode")
+								break
+							}
+							// If we hit another step or section, stop checking
+							if strings.HasPrefix(strings.TrimSpace(lines[k]), "- name:") {
+								break
+							}
+						}
+						break
+					}
+					// If we hit another step, stop checking
+					if strings.HasPrefix(strings.TrimSpace(lines[j]), "- name:") {
+						break
+					}
+				}
+				break
+			}
 		}
 	})
 
@@ -101,7 +126,36 @@ This is a test workflow for trial mode compilation.
 		}
 
 		// Checkout should include github-token in trial mode
-		if !strings.Contains(lockContent, "token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+		// Check specifically that the checkout step has the token parameter
+		lines := strings.Split(lockContent, "\n")
+		foundCheckoutToken := false
+		for i, line := range lines {
+			if strings.Contains(line, "actions/checkout@v5") {
+				// Check the next few lines for "with:" and "token:"
+				for j := i + 1; j < len(lines) && j < i+10; j++ {
+					if strings.TrimSpace(lines[j]) == "with:" {
+						// Found "with:" section, check for token
+						for k := j + 1; k < len(lines) && k < j+5; k++ {
+							if strings.Contains(lines[k], "token:") && strings.Contains(lines[k], "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}") {
+								foundCheckoutToken = true
+								break
+							}
+							// If we hit another step or section, stop checking
+							if strings.HasPrefix(strings.TrimSpace(lines[k]), "- name:") {
+								break
+							}
+						}
+						break
+					}
+					// If we hit another step, stop checking
+					if strings.HasPrefix(strings.TrimSpace(lines[j]), "- name:") {
+						break
+					}
+				}
+				break
+			}
+		}
+		if !foundCheckoutToken {
 			t.Error("Expected github-token in checkout step in trial mode")
 		}
 

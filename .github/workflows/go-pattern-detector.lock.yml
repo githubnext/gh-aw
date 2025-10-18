@@ -141,7 +141,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.21
+        run: npm install -g @anthropic-ai/claude-code@2.0.22
       - name: Generate Claude Settings
         run: |
           mkdir -p /tmp/gh-aw/.claude
@@ -1280,6 +1280,13 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
+      - name: Upload prompt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt.txt
+          path: /tmp/gh-aw/aw-prompts/prompt.txt
+          if-no-files-found: warn
       - name: Capture agent version
         run: |
           VERSION_OUTPUT=$(claude --version 2>&1 || echo "unknown")
@@ -2893,6 +2900,7 @@ jobs:
           GITHUB_AW_ISSUE_TITLE_PREFIX: "[ast-grep] "
           GITHUB_AW_ISSUE_LABELS: "code-quality,ast-grep"
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             function sanitizeLabelContent(content) {
               if (!content || typeof content !== "string") {
@@ -3405,7 +3413,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@2.0.21
+        run: npm install -g @anthropic-ai/claude-code@2.0.22
       - name: Execute Claude Code CLI
         id: agentic_execution
         # Allowed tools (sorted):
@@ -3515,6 +3523,7 @@ jobs:
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
         with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             async function main() {
               const fs = require("fs");

@@ -106,7 +106,7 @@ func TestReplaceSecretsWithEnvVars(t *testing.T) {
 			secrets: map[string]string{
 				"DD_API_KEY": "${{ secrets.DD_API_KEY }}",
 			},
-			expected: "${DD_API_KEY}",
+			expected: "\\${DD_API_KEY}",
 		},
 		{
 			name:  "Replace secret with default",
@@ -114,7 +114,7 @@ func TestReplaceSecretsWithEnvVars(t *testing.T) {
 			secrets: map[string]string{
 				"DD_SITE": "${{ secrets.DD_SITE || 'datadoghq.com' }}",
 			},
-			expected: "${DD_SITE}",
+			expected: "\\${DD_SITE}",
 		},
 		{
 			name:  "Replace in Bearer token",
@@ -122,7 +122,7 @@ func TestReplaceSecretsWithEnvVars(t *testing.T) {
 			secrets: map[string]string{
 				"TOKEN": "${{ secrets.TOKEN }}",
 			},
-			expected: "Bearer ${TOKEN}",
+			expected: "Bearer \\${TOKEN}",
 		},
 		{
 			name:     "No replacement needed",

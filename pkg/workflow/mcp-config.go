@@ -678,12 +678,12 @@ func extractSecretsFromHeaders(headers map[string]string) map[string]string {
 }
 
 // replaceSecretsWithEnvVars replaces secret expressions in a value with environment variable references
-// Example: "${{ secrets.DD_API_KEY }}" -> "${DD_API_KEY}"
+// Example: "${{ secrets.DD_API_KEY }}" -> "\${DD_API_KEY}"
 func replaceSecretsWithEnvVars(value string, secrets map[string]string) string {
 	result := value
 	for varName, secretExpr := range secrets {
-		// Replace ${{ secrets.VAR }} with ${VAR}
-		result = strings.ReplaceAll(result, secretExpr, "${"+varName+"}")
+		// Replace ${{ secrets.VAR }} with \${VAR} (backslash-escaped for copilot JSON config)
+		result = strings.ReplaceAll(result, secretExpr, "\\${"+varName+"}")
 	}
 	return result
 }

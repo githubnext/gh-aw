@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.22.8 - 2025-10-18
+
+### Bug Fixes
+
+#### Add support for top-level `github-token` configuration in workflow frontmatter
+
+#### Updated compiler to upload prompt as an artifact after prompt generation
+
+#### Add default concurrency pattern for non-special-case workflows
+
+#### Fixed Copilot CLI log parser to extract and display tools from new debug format
+
+#### Fixed HTTP MCP header escaping for copilot engine JSON config to properly escape secret expressions
+
+#### Fix push_to_pull_request_branch to use agent_output.json artifact instead of direct JSON output
+
+#### Fix upload_assets job to read agent output from file instead of JSON string
+
+#### Place workflow run logs in workflow-logs subdirectory for cleaner organization
+
+#### Refactor duplicate MCP config builders to use shared helpers
+
+#### Update Claude Code to 2.0.22 and Copilot CLI to 0.0.344, add --disable-builtin-mcps flag
+
+#### Verified Codex 0.47.0 upgrade completion - no changes needed
+
+
 ## v0.22.7 - 2025-10-17
 
 ### Bug Fixes

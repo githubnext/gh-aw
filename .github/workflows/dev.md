@@ -1,15 +1,17 @@
 ---
 on: 
   workflow_dispatch:
-  command:
-    name: dev
+  push:
+    paths:
+      - '.github/workflows/dev.md'
+concurrency:
+  group: dev-workflow-${{ github.ref }}
+  cancel-in-progress: true
 name: Dev
-engine: claude
+engine: copilot
 permissions:
   contents: read
   actions: read
-imports:
-  - shared/mcp/gh-aw.md
 safe-outputs:
   threat-detection: false
   create-issue:
@@ -17,4 +19,4 @@ safe-outputs:
     github-token: ${{ secrets.GH_AW_GITHUB_TOKEN }}
 ---
 
-Write a poem in 3 emojis about the last pull request and publish an issue.
+Create an issue with a 3 emoji poem.

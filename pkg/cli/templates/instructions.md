@@ -16,10 +16,10 @@ on:
     types: [opened]
 permissions:
   issues: write
-engine: claude
 timeout_minutes: 10
 safe-outputs:
-  create-issue:
+  create-issue: # for bugs, features
+  create-discussion: # for status, audits, reports, logs
 ---
 
 # Workflow Title
@@ -142,7 +142,7 @@ The YAML frontmatter supports these fields:
   - Custom tool names for MCP servers
 
 - **`safe-outputs:`** - Safe output processing configuration (preferred way to handle GitHub API write operations)
-  - `create-issue:` - Safe GitHub issue creation
+  - `create-issue:` - Safe GitHub issue creation (bugs, features)
     ```yaml
     safe-outputs:
       create-issue:
@@ -151,6 +151,15 @@ The YAML frontmatter supports these fields:
         max: 5                          # Optional: maximum number of issues (default: 1)
     ```
     When using `safe-outputs.create-issue`, the main job does **not** need `issues: write` permission since issue creation is handled by a separate job with appropriate permissions.
+  - `create-discussion:` - Safe GitHub discussion creation (status, audits, reports, logs)
+    ```yaml
+    safe-outputs:
+      create-discussion:
+        title-prefix: "[ai] "           # Optional: prefix for discussion titles  
+        category-id: 12345678           # Required: discussion category ID
+        max: 3                          # Optional: maximum number of discussions (default: 1)
+    ```
+    When using `safe-outputs.create-discussion`, the main job does **not** need `discussions: write` permission since discussion creation is handled by a separate job with appropriate permissions.
   - `add-comment:` - Safe comment creation on issues/PRs
     ```yaml
     safe-outputs:
@@ -313,7 +322,6 @@ on: push
 permissions:
   contents: read      # Main job only needs minimal permissions
   actions: read
-engine: claude
 safe-outputs:
   create-issue:
     title-prefix: "[analysis] "
@@ -671,7 +679,6 @@ on: push
 permissions:
   contents: read      # Main job only needs minimal permissions
   actions: read
-engine: claude
 safe-outputs:
   create-issue:
     title-prefix: "[analysis] "
@@ -699,7 +706,6 @@ Use the `safe-outputs.pull-request` configuration to automatically create pull r
 on: push
 permissions:
   actions: read       # Main job only needs minimal permissions
-engine: claude
 safe-outputs:
   create-pull-request:
     title-prefix: "[bot] "
@@ -731,7 +737,6 @@ on:
 permissions:
   contents: read      # Main job only needs minimal permissions
   actions: read
-engine: claude
 safe-outputs:
   add-comment:
     max: 3                # Optional: create multiple comments (default: 1)
