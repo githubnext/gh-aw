@@ -1,0 +1,91 @@
+---
+steps:
+  - name: Set up jq utilities directory
+    run: |
+      mkdir -p /tmp/gh-aw/jq
+      cat > /tmp/gh-aw/jq/json-schema-minify.sh << 'EOF'
+      #!/usr/bin/env bash
+      # json-schema-minify.sh
+      jq -c '
+      def walk(f):
+        . as $in |
+        if type == "object" then
+          reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})
+        elif type == "array" then
+          if length == 0 then [] else [.[0] | walk(f)] end
+        else
+          type
+        end;
+      walk(.)
+      '
+      EOF
+      chmod +x /tmp/gh-aw/jq/json-schema-minify.sh
+---
+
+## JSON Schema Minifier
+
+A utility script is available at `/tmp/gh-aw/jq/json-schema-minify.sh` to help you discover the structure of complex JSON responses.
+
+### Purpose
+
+Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+- Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+- Exploring API responses with large payloads
+- Understanding the structure of unfamiliar data without verbose output
+- Planning queries before fetching full data
+
+### Usage
+
+```bash
+# Analyze a file
+cat data.json | /tmp/gh-aw/jq/json-schema-minify.sh
+
+# Analyze command output
+echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jq/json-schema-minify.sh
+
+# Analyze GitHub search results
+gh api search/repositories?q=language:go | /tmp/gh-aw/jq/json-schema-minify.sh
+```
+
+### How It Works
+
+The script transforms JSON data by:
+1. Replacing object values with their type names ("string", "number", "boolean", "null")
+2. Reducing arrays to their first element's structure (or empty array if empty)
+3. Recursively processing nested structures
+4. Outputting compact (minified) JSON
+
+### Example
+
+**Input:**
+```json
+{
+  "total_count": 1000,
+  "items": [
+    {"login": "user1", "id": 123, "verified": true},
+    {"login": "user2", "id": 456, "verified": false}
+  ]
+}
+```
+
+**Output:**
+```json
+{"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+```
+
+### Best Practices
+
+**Use this script when:**
+- You need to understand the structure of tool outputs before requesting full data
+- GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+- Exploring unfamiliar APIs or data structures
+- Planning data extraction strategies
+
+**Example workflow:**
+```bash
+# Step 1: Get schema with minimal data
+github.search_repositories(query="language:go", perPage=1) | /tmp/gh-aw/jq/json-schema-minify.sh
+
+# Step 2: Review schema to understand available fields
+# Step 3: Request full data with confidence about structure
+```
