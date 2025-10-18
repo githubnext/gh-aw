@@ -3092,6 +3092,17 @@ jobs:
             (async () => {
               await main();
             })();
+      - name: Checkout repository for gh CLI
+        if: steps.create_issue.outputs.issue_number != ''
+        uses: actions/checkout@v5
+      - name: Assign issue to copilot
+        if: steps.create_issue.outputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          ASSIGNEE: "copilot-swe-agent"
+          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEE"
 
   detection:
     needs: agent

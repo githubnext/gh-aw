@@ -130,25 +130,11 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 	pullRequestsConfig.Max = 1 // Always max 1 for pull requests
 
 	if configMap, ok := configData.(map[string]any); ok {
-		// Parse title-prefix
-		if titlePrefix, exists := configMap["title-prefix"]; exists {
-			if titlePrefixStr, ok := titlePrefix.(string); ok {
-				pullRequestsConfig.TitlePrefix = titlePrefixStr
-			}
-		}
+		// Parse title-prefix using shared helper
+		pullRequestsConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
 
-		// Parse labels
-		if labels, exists := configMap["labels"]; exists {
-			if labelsArray, ok := labels.([]any); ok {
-				var labelStrings []string
-				for _, label := range labelsArray {
-					if labelStr, ok := label.(string); ok {
-						labelStrings = append(labelStrings, labelStr)
-					}
-				}
-				pullRequestsConfig.Labels = labelStrings
-			}
-		}
+		// Parse labels using shared helper
+		pullRequestsConfig.Labels = parseLabelsFromConfig(configMap)
 
 		// Parse draft
 		if draft, exists := configMap["draft"]; exists {
@@ -164,16 +150,13 @@ func (c *Compiler) parsePullRequestsConfig(outputMap map[string]any) *CreatePull
 			}
 		}
 
-		// Parse target-repo
-		if targetRepoSlug, exists := configMap["target-repo"]; exists {
-			if targetRepoStr, ok := targetRepoSlug.(string); ok {
-				// Validate that target-repo is not "*" - only definite strings are allowed
-				if targetRepoStr == "*" {
-					return nil // Invalid configuration, return nil to cause validation error
-				}
-				pullRequestsConfig.TargetRepoSlug = targetRepoStr
-			}
+		// Parse target-repo using shared helper
+		targetRepoSlug := parseTargetRepoFromConfig(configMap)
+		// Validate that target-repo is not "*" - only definite strings are allowed
+		if targetRepoSlug == "*" {
+			return nil // Invalid configuration, return nil to cause validation error
 		}
+		pullRequestsConfig.TargetRepoSlug = targetRepoSlug
 
 		// Parse min and github-token (max is always 1 for pull requests)
 		if min, exists := configMap["min"]; exists {

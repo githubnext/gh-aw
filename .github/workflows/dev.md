@@ -9,75 +9,44 @@ engine: copilot
 permissions:
   contents: read
   actions: read
+
 tools:
   edit:
   github:
-  bash:
-    - "find"
-    - "wc"
-    - "git ls-files"
+
 safe-outputs:
   staged: true
-  create-issue:
-    assignees: copilot
+  create-discussion:
+    category: "general"
+    max: 1
+  upload-assets:
+
 imports:
-  - shared/mcp/drain3.md
-  - shared/mcp-debug.md
+  - shared/mcp/jupyter.md
 ---
 
-# Go Source Code Pattern Analysis
+# File Size Distribution Analysis
 
-Use the drain3 tool to analyze Go source files in this repository and extract log templates.
+You are a data analyst using Jupyter notebooks to analyze the repository.
 
-## Diagnostic Information
+## Your Task
 
-To diagnose drain3 MCP server issues locally, use:
+1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files
+2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:
+   - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)
+   - Number of files in each size range
+   - A bar chart or histogram visualization
+3. **Save Chart**: Save the generated chart as a file in the current directory
+4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file
+5. **Create Discussion**: Create a GitHub discussion with:
+   - Summary statistics (total files, average size, median size, largest files)
+   - Description of the file size distribution
+   - Link to the uploaded chart asset on the assets branch
+   - Any interesting insights about the repository structure
 
-```bash
-# Inspect all MCP servers in this workflow
-gh aw mcp inspect dev
+## Important Notes
 
-# Inspect only the drain3 server
-gh aw mcp inspect dev --server drain3
-
-# View detailed information about the index_file tool
-gh aw mcp inspect dev --server drain3 --tool index_file
-
-# Verbose output with connection details
-gh aw mcp inspect dev --server drain3 -v
-```
-
-The drain3 MCP server provides three tools:
-- **index_file**: Stream-mine templates from log files and persist snapshots
-- **query_file**: Match log lines against previously indexed templates
-- **list_templates**: List all extracted templates from indexed files
-
-## Error Handling
-
-**IMPORTANT**: If the drain3 MCP server is not available or fails to start:
-1. Check the MCP server logs at `/tmp/gh-aw/mcp-logs/drain3/server.log` to understand the failure
-2. Check the curl test logs at `/tmp/gh-aw/mcp-logs/drain3/curl-test.log` for connection issues
-3. **Give up gracefully** - Do NOT attempt to use drain3 tools if they are unavailable
-4. Create an issue explaining:
-   - That drain3 MCP server was not available
-   - The failure reason from the logs (if accessible)
-   - That the Go source code analysis could not be completed
-   - Suggestions for fixing the drain3 server setup
-
-## Task
-
-**Step 1: Verify drain3 Availability**
-- Check if drain3 tools are available by attempting to list them
-- If drain3 is not available, follow the error handling steps above and exit gracefully
-
-**Step 2: Analyze Go Source Files (only if drain3 is available)**
-1. **Find Go Source Files**: Locate all `.go` files in the repository
-2. **Index Files with Drain3**: Use the `index_file` tool to analyze each Go file and extract templates
-3. **List Extracted Templates**: Use the `list_templates` tool to display all templates found
-4. **Create Summary Issue**: Create an issue with:
-   - Total number of Go files analyzed
-   - Number of templates extracted
-   - Top 10 most common templates
-   - Insights about code patterns
-
-Assign the issue to copilot.
+- Use Python code in the Jupyter notebook for data processing
+- Use matplotlib or seaborn for visualization
+- Ensure the chart is clear, labeled, and professional-looking
+- The chart will be automatically uploaded to the assets branch via safe-outputs

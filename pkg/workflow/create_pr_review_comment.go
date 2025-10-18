@@ -127,16 +127,13 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 			}
 		}
 
-		// Parse target-repo
-		if targetRepoSlug, exists := configMap["target-repo"]; exists {
-			if targetRepoStr, ok := targetRepoSlug.(string); ok {
-				// Validate that target-repo is not "*" - only definite strings are allowed
-				if targetRepoStr == "*" {
-					return nil // Invalid configuration, return nil to cause validation error
-				}
-				prReviewCommentsConfig.TargetRepoSlug = targetRepoStr
-			}
+		// Parse target-repo using shared helper
+		targetRepoSlug := parseTargetRepoFromConfig(configMap)
+		// Validate that target-repo is not "*" - only definite strings are allowed
+		if targetRepoSlug == "*" {
+			return nil // Invalid configuration, return nil to cause validation error
 		}
+		prReviewCommentsConfig.TargetRepoSlug = targetRepoSlug
 	}
 
 	return prReviewCommentsConfig

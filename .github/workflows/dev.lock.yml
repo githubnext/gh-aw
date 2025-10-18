@@ -5,25 +5,27 @@
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/mcp/drain3.md
-#     - shared/mcp-debug.md
+#     - shared/mcp/jupyter.md
 #
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
 #   activation["activation"]
 #   agent["agent"]
-#   create_issue["create_issue"]
+#   create_discussion["create_discussion"]
 #   detection["detection"]
 #   missing_tool["missing_tool"]
 #   pre_activation["pre_activation"]
+#   upload_assets["upload_assets"]
 #   pre_activation --> activation
 #   activation --> agent
-#   agent --> create_issue
-#   detection --> create_issue
+#   agent --> create_discussion
+#   detection --> create_discussion
 #   agent --> detection
 #   agent --> missing_tool
 #   detection --> missing_tool
+#   agent --> upload_assets
+#   detection --> upload_assets
 # ```
 
 name: "Dev"
@@ -63,14 +65,37 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
+    services:
+      jupyter:
+        env:
+          JUPYTER_TOKEN: ${{ github.run_id }}
+        image: jupyter/base-notebook:latest
+        options: --health-cmd "curl -f http://localhost:8888/api || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+        - 8888:8888
+      jupyter-mcp:
+        env:
+          ALLOW_IMG_OUTPUT: "true"
+          JUPYTER_TOKEN: ${{ github.run_id }}
+          JUPYTER_URL: http://jupyter:8888
+          MCP_PORT: "3000"
+          MCP_TRANSPORT: http
+        image: datalayer/jupyter-mcp-server:latest
+        options: --health-cmd "curl -f http://localhost:3000/health || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+        - 3000:3000
+
     permissions:
       actions: read
       contents: read
     concurrency:
       group: "gh-aw-copilot-${{ github.workflow }}"
     env:
+      GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+      GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+      GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
       GITHUB_AW_SAFE_OUTPUTS: /tmp/gh-aw/safe-outputs/outputs.jsonl
-      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+      GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
     outputs:
       output: ${{ steps.collect_output.outputs.output }}
       output_types: ${{ steps.collect_output.outputs.output_types }}
@@ -201,7 +226,7 @@ jobs:
         run: |
           mkdir -p /tmp/gh-aw/safe-outputs
           cat > /tmp/gh-aw/safe-outputs/config.json << 'EOF'
-          {"create_issue":{"max":1},"missing_tool":{}}
+          {"create_discussion":{"max":1},"missing_tool":{},"upload_asset":{}}
           EOF
           cat > /tmp/gh-aw/safe-outputs/mcp-server.cjs << 'EOF'
             const fs = require("fs");
@@ -978,6 +1003,13 @@ jobs:
                   "GITHUB_PERSONAL_ACCESS_TOKEN": "\${GITHUB_PERSONAL_ACCESS_TOKEN}"
                 }
               },
+              "jupyter": {
+                "type": "http",
+                "url": "http://jupyter-mcp:3000",
+                "tools": [
+                  "*"
+                ]
+              },
               "safe_outputs": {
                 "type": "local",
                 "command": "node",
@@ -1010,264 +1042,31 @@ jobs:
           cat > $GITHUB_AW_PROMPT << 'EOF'
           
           
-          ## MCP Server Debugging Assistant
-          
-          This shared workflow provides tools and procedures to debug MCP (Model Context Protocol) server configurations and diagnose runtime issues.
-          
-          ### Available Tools
-          
-          **mcp-inspect Tool**: Use the `mcp-inspect` tool to inspect MCP server configurations and diagnose connectivity issues.
-          
-          The tool can:
-          - List all workflows with MCP servers
-          - Inspect specific MCP servers in a workflow
-          - Show available tools and their status
-          - Display tool schemas and parameters
-          - Verify HTTP endpoint connectivity
-          
-          ### MCP Logs Location
-          
-          MCP server logs are stored at `/tmp/gh-aw/mcp-logs/` with the following structure:
-          
-          ```
-          /tmp/gh-aw/mcp-logs/
-          ├── <server-name>/
-          │   ├── server.log        # Main server startup and runtime logs
-          │   ├── curl-test.log     # HTTP endpoint connectivity tests (for HTTP servers)
-          │   └── <other>.log       # Additional server-specific logs
-          ```
-          
-          These logs contain valuable diagnostic information about:
-          - Server startup failures
-          - Dependency installation issues
-          - Port binding problems
-          - Configuration errors
-          - Runtime exceptions
-          
-          ### MCP Server Debugging Procedure
-          
-          When you encounter issues with an MCP server, follow this systematic debugging procedure:
-          
-          #### Step 1: Report the Error
-          
-          Document the error you're experiencing:
-          - What operation failed?
-          - Which MCP server is affected?
-          - What error message(s) did you receive?
-          - What were you trying to accomplish?
-          
-          #### Step 2: Read the Server Logs
-          
-          Check the MCP server logs to understand what went wrong:
-          
-          ```bash
-          # Read the main server log
-          cat /tmp/gh-aw/mcp-logs/<server-name>/server.log
-          
-          # For HTTP servers, check the curl test log
-          cat /tmp/gh-aw/mcp-logs/<server-name>/curl-test.log
-          
-          # List all available logs for a server
-          ls -la /tmp/gh-aw/mcp-logs/<server-name>/
-          ```
-          
-          Look for:
-          - Python/Node.js import errors indicating missing dependencies
-          - Port binding errors (e.g., "Address already in use")
-          - Configuration validation errors
-          - Stack traces showing the failure point
-          
-          #### Step 3: Use mcp-inspect Tool for HTTP Servers
-          
-          For HTTP-based MCP servers, use the `mcp-inspect` tool to diagnose connectivity and tool availability.
-          
-          **Tool Parameters:**
-          - `workflow_file`: The workflow file to inspect (e.g., "dev" or "audit-workflows")
-          - `server`: (Optional) Filter to inspect only the specified MCP server
-          - `tool`: (Optional) Show detailed information about a specific tool
-          
-          **Usage Examples:**
-          
-          To inspect all MCP servers in the current workflow:
-          ```
-          Use mcp-inspect tool with workflow_file parameter set to the current workflow name
-          ```
-          
-          To inspect a specific MCP server:
-          ```
-          Use mcp-inspect tool with workflow_file="<workflow-name>" and server="<server-name>"
-          ```
-          
-          To get detailed information about a specific tool:
-          ```
-          Use mcp-inspect tool with workflow_file="<workflow-name>", server="<server-name>", and tool="<tool-name>"
-          ```
-          
-          The mcp-inspect tool will:
-          - Verify HTTP endpoint connectivity
-          - List available tools and their status
-          - Show tool schemas and parameters
-          - Identify configuration problems
-          
-          #### Step 4: Analyze and Report Findings
-          
-          Based on the logs and inspection results, determine:
-          1. **Root cause**: What specifically failed?
-          2. **Impact**: Which tools or operations are affected?
-          3. **Workaround**: Can you proceed without this server?
-          4. **Fix**: What changes are needed to resolve the issue?
-          
-          **IMPORTANT**: When reporting your findings, include:
-          - **Detailed description** of what you discovered during investigation
-          - **Specific error messages** or symptoms found in logs
-          - **Root cause analysis** explaining why the failure occurred
-          - **Evidence** from log files or diagnostic tools that support your conclusion
-          - **Recommendations** for fixing the issue based on your analysis
-          
-          Create a clear summary of your investigation that includes all diagnostic steps you performed and their results.
-          
-          ### Common MCP Server Issues
-          
-          #### Issue: Server Failed to Start
-          **Symptoms**: Server process exits immediately after starting
-          
-          **Debug steps**:
-          1. Check `server.log` for startup errors
-          2. Look for missing dependencies (ModuleNotFoundError, ImportError)
-          3. Verify port is not already in use (`netstat -tln | grep <port>`)
-          4. Check Python/Node version compatibility
-          
-          **Common fixes**:
-          - Install missing packages: `pip install <package>` or `npm install <package>`
-          - Change server port in configuration
-          - Kill conflicting process on the port
-          
-          #### Issue: HTTP Endpoint Not Responding
-          **Symptoms**: Connection refused errors, curl failures
-          
-          **Debug steps**:
-          1. Check if server process is running: `ps aux | grep <server-name>`
-          2. Review `curl-test.log` for connection details
-          3. Verify server is listening: `netstat -tln | grep <port>`
-          4. Check firewall/network settings
-          
-          **Common fixes**:
-          - Increase startup wait time in workflow configuration
-          - Verify HOST and PORT environment variables
-          - Check server transport mode (http vs stdio)
-          
-          #### Issue: Tools Not Available
-          **Symptoms**: MCP tools show as "not allowed" or unavailable
-          
-          **Debug steps**:
-          1. Use the `mcp-inspect` tool to list available tools
-          2. Compare with workflow's `allowed` list
-          3. Check tool registration in server code
-          4. Verify server initialized successfully
-          
-          **Common fixes**:
-          - Add missing tools to `allowed` list in workflow configuration
-          - Fix tool registration errors in server code
-          - Restart server after configuration changes
-          
-          ### Integration with Workflows
-          
-          To enable MCP debugging in your workflow, add this import:
-          
-          ```yaml
-          imports:
-            - shared/mcp-debug.md
-          ```
-          
-          This provides:
-          - Access to mcp-inspect tool for MCP server diagnostics
-          - Documentation for MCP debugging procedures
-          - Reference for common issues and solutions
-          
-          ### Best Practices
-          
-          1. **Always check logs first**: MCP server logs contain the most direct information about failures
-          2. **Use mcp-inspect tool for HTTP servers**: The tool provides real-time diagnostics for MCP server connectivity
-          3. **Document your findings**: Include log excerpts and error messages in issues
-          4. **Test incrementally**: Debug one server at a time
-          5. **Verify dependencies**: Ensure all required packages are installed before starting servers
-          6. **Check ports**: Avoid port conflicts by verifying ports are free before starting servers
-          
-          ### Example Debugging Session
-          
-          ```
-          # 1. Server failed - check what went wrong
-          Read /tmp/gh-aw/mcp-logs/drain3/server.log
-          # Output: ModuleNotFoundError: No module named 'fastmcp'
-          
-          # 2. Document the error and check if dependencies need to be installed
-          # Note: In a workflow context, dependency installation should be added to the workflow steps
-          
-          # 3. After server restarts, verify connectivity
-          Use mcp-inspect tool with workflow_file="dev" and server="drain3"
-          # Output: ✓ Successfully connected, 3 tools available
-          
-          # 4. Verify specific tool details
-          Use mcp-inspect tool with workflow_file="dev", server="drain3", and tool="index_file"
-          # Output: Tool details showing correct configuration
-          ```
-          
-          # Go Source Code Pattern Analysis
-          
-          Use the drain3 tool to analyze Go source files in this repository and extract log templates.
-          
-          ## Diagnostic Information
-          
-          To diagnose drain3 MCP server issues locally, use:
-          
-          ```bash
-          # Inspect all MCP servers in this workflow
-          gh aw mcp inspect dev
-          
-          # Inspect only the drain3 server
-          gh aw mcp inspect dev --server drain3
-          
-          # View detailed information about the index_file tool
-          gh aw mcp inspect dev --server drain3 --tool index_file
-          
-          # Verbose output with connection details
-          gh aw mcp inspect dev --server drain3 -v
-          ```
-          
-          The drain3 MCP server provides three tools:
-          - **index_file**: Stream-mine templates from log files and persist snapshots
-          - **query_file**: Match log lines against previously indexed templates
-          - **list_templates**: List all extracted templates from indexed files
-          
-          ## Error Handling
-          
-          **IMPORTANT**: If the drain3 MCP server is not available or fails to start:
-          1. Check the MCP server logs at `/tmp/gh-aw/mcp-logs/drain3/server.log` to understand the failure
-          2. Check the curl test logs at `/tmp/gh-aw/mcp-logs/drain3/curl-test.log` for connection issues
-          3. **Give up gracefully** - Do NOT attempt to use drain3 tools if they are unavailable
-          4. Create an issue explaining:
-             - That drain3 MCP server was not available
-             - The failure reason from the logs (if accessible)
-             - That the Go source code analysis could not be completed
-             - Suggestions for fixing the drain3 server setup
-          
-          ## Task
-          
-          **Step 1: Verify drain3 Availability**
-          - Check if drain3 tools are available by attempting to list them
-          - If drain3 is not available, follow the error handling steps above and exit gracefully
-          
-          **Step 2: Analyze Go Source Files (only if drain3 is available)**
-          1. **Find Go Source Files**: Locate all `.go` files in the repository
-          2. **Index Files with Drain3**: Use the `index_file` tool to analyze each Go file and extract templates
-          3. **List Extracted Templates**: Use the `list_templates` tool to display all templates found
-          4. **Create Summary Issue**: Create an issue with:
-             - Total number of Go files analyzed
-             - Number of templates extracted
-             - Top 10 most common templates
-             - Insights about code patterns
-          
-          Assign the issue to copilot.
+          # File Size Distribution Analysis
+          
+          You are a data analyst using Jupyter notebooks to analyze the repository.
+          
+          ## Your Task
+          
+          1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files
+          2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:
+             - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)
+             - Number of files in each size range
+             - A bar chart or histogram visualization
+          3. **Save Chart**: Save the generated chart as a file in the current directory
+          4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file
+          5. **Create Discussion**: Create a GitHub discussion with:
+             - Summary statistics (total files, average size, median size, largest files)
+             - Description of the file size distribution
+             - Link to the uploaded chart asset on the assets branch
+             - Any interesting insights about the repository structure
+          
+          ## Important Notes
+          
+          - Use Python code in the Jupyter notebook for data processing
+          - Use matplotlib or seaborn for visualization
+          - Ensure the chart is clear, labeled, and professional-looking
+          - The chart will be automatically uploaded to the assets branch via safe-outputs
           
           EOF
       - name: Append XPIA security instructions to prompt
@@ -1367,13 +1166,17 @@ jobs:
           
           ---
           
-          ## Creating an IssueReporting Missing Tools or Functionality
+          ## Uploading Assets, Reporting Missing Tools or Functionality
           
           **IMPORTANT**: To do the actions mentioned in the header of this section, use the **safe-outputs** tools, do NOT attempt to use `gh`, do NOT attempt to use the GitHub API. You don't have write access to the GitHub repo.
           
-          **Creating an Issue**
+          **Uploading Assets**
           
-          To create an issue, use the create-issue tool from the safe-outputs MCP
+          To upload files as URL-addressable assets:
+          1. Use the `upload asset` tool from the safe-outputs MCP
+          2. Provide the path to the file you want to upload
+          3. The tool will copy the file to a staging area and return a GitHub raw content URL
+          4. Assets are uploaded to an orphaned git branch after workflow completion
           
           **Reporting Missing Tools or Functionality**
           
@@ -1578,33 +1381,24 @@ jobs:
         # --allow-tool github(search_pull_requests)
         # --allow-tool github(search_repositories)
         # --allow-tool github(search_users)
+        # --allow-tool jupyter
+        # --allow-tool jupyter(*)
         # --allow-tool safe_outputs
-        # --allow-tool shell(cat)
-        # --allow-tool shell(date)
-        # --allow-tool shell(echo)
-        # --allow-tool shell(find)
-        # --allow-tool shell(git ls-files)
-        # --allow-tool shell(grep)
-        # --allow-tool shell(head)
-        # --allow-tool shell(ls)
-        # --allow-tool shell(pwd)
-        # --allow-tool shell(sort)
-        # --allow-tool shell(tail)
-        # --allow-tool shell(uniq)
-        # --allow-tool shell(wc)
-        # --allow-tool shell(yq)
         # --allow-tool write
         timeout-minutes: 20
         run: |
           set -o pipefail
           COPILOT_CLI_INSTRUCTION=$(cat /tmp/gh-aw/aw-prompts/prompt.txt)
-          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool drain3 --allow-tool 'drain3(index_file)' --allow-tool 'drain3(list_templates)' --allow-tool 'drain3(query_file)' --allow-tool gh-aw --allow-tool 'gh-aw(mcp-inspect)' --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool safe_outputs --allow-tool 'shell(cat)' --allow-tool 'shell(date)' --allow-tool 'shell(echo)' --allow-tool 'shell(find)' --allow-tool 'shell(git ls-files)' --allow-tool 'shell(grep)' --allow-tool 'shell(head)' --allow-tool 'shell(ls)' --allow-tool 'shell(pwd)' --allow-tool 'shell(sort)' --allow-tool 'shell(tail)' --allow-tool 'shell(uniq)' --allow-tool 'shell(wc)' --allow-tool 'shell(yq)' --allow-tool write --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
+          copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/.copilot/logs/ --disable-builtin-mcps --allow-tool 'github(download_workflow_run_artifact)' --allow-tool 'github(get_code_scanning_alert)' --allow-tool 'github(get_commit)' --allow-tool 'github(get_dependabot_alert)' --allow-tool 'github(get_discussion)' --allow-tool 'github(get_discussion_comments)' --allow-tool 'github(get_file_contents)' --allow-tool 'github(get_issue)' --allow-tool 'github(get_issue_comments)' --allow-tool 'github(get_job_logs)' --allow-tool 'github(get_label)' --allow-tool 'github(get_latest_release)' --allow-tool 'github(get_me)' --allow-tool 'github(get_notification_details)' --allow-tool 'github(get_pull_request)' --allow-tool 'github(get_pull_request_comments)' --allow-tool 'github(get_pull_request_diff)' --allow-tool 'github(get_pull_request_files)' --allow-tool 'github(get_pull_request_review_comments)' --allow-tool 'github(get_pull_request_reviews)' --allow-tool 'github(get_pull_request_status)' --allow-tool 'github(get_release_by_tag)' --allow-tool 'github(get_secret_scanning_alert)' --allow-tool 'github(get_tag)' --allow-tool 'github(get_workflow_run)' --allow-tool 'github(get_workflow_run_logs)' --allow-tool 'github(get_workflow_run_usage)' --allow-tool 'github(list_branches)' --allow-tool 'github(list_code_scanning_alerts)' --allow-tool 'github(list_commits)' --allow-tool 'github(list_dependabot_alerts)' --allow-tool 'github(list_discussion_categories)' --allow-tool 'github(list_discussions)' --allow-tool 'github(list_issue_types)' --allow-tool 'github(list_issues)' --allow-tool 'github(list_label)' --allow-tool 'github(list_notifications)' --allow-tool 'github(list_pull_requests)' --allow-tool 'github(list_releases)' --allow-tool 'github(list_secret_scanning_alerts)' --allow-tool 'github(list_starred_repositories)' --allow-tool 'github(list_sub_issues)' --allow-tool 'github(list_tags)' --allow-tool 'github(list_workflow_jobs)' --allow-tool 'github(list_workflow_run_artifacts)' --allow-tool 'github(list_workflow_runs)' --allow-tool 'github(list_workflows)' --allow-tool 'github(pull_request_read)' --allow-tool 'github(search_code)' --allow-tool 'github(search_issues)' --allow-tool 'github(search_orgs)' --allow-tool 'github(search_pull_requests)' --allow-tool 'github(search_repositories)' --allow-tool 'github(search_users)' --allow-tool jupyter --allow-tool 'jupyter(*)' --allow-tool safe_outputs --allow-tool write --allow-all-paths --prompt "$COPILOT_CLI_INSTRUCTION" 2>&1 | tee /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
+          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
           GITHUB_AW_MCP_CONFIG: /home/runner/.copilot/mcp-config.json
           GITHUB_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: true
           GITHUB_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_STEP_SUMMARY: ${{ env.GITHUB_STEP_SUMMARY }}
@@ -1622,7 +1416,7 @@ jobs:
         uses: actions/github-script@v8
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
-          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_issue\":{\"max\":1},\"missing_tool\":{}}"
+          GITHUB_AW_SAFE_OUTPUTS_CONFIG: "{\"create_discussion\":{\"max\":1},\"missing_tool\":{},\"upload_asset\":{}}"
         with:
           script: |
             async function main() {
@@ -3350,6 +3144,13 @@ jobs:
           name: agent-stdio.log
           path: /tmp/gh-aw/agent-stdio.log
           if-no-files-found: warn
+      - name: Upload safe outputs assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safe-outputs/assets/
+          if-no-files-found: ignore
       - name: Validate agent logs for errors
         if: always()
         uses: actions/github-script@v8
@@ -3586,19 +3387,19 @@ jobs:
               main();
             }
 
-  create_issue:
+  create_discussion:
     needs:
       - agent
       - detection
-    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_issue'))
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'create_discussion'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
+      discussions: write
     timeout-minutes: 10
     outputs:
-      issue_number: ${{ steps.create_issue.outputs.issue_number }}
-      issue_url: ${{ steps.create_issue.outputs.issue_url }}
+      discussion_number: ${{ steps.create_discussion.outputs.discussion_number }}
+      discussion_url: ${{ steps.create_discussion.outputs.discussion_url }}
     steps:
       - name: Download agent output artifact
         continue-on-error: true
@@ -3611,55 +3412,18 @@ jobs:
           mkdir -p /tmp/gh-aw/safe-outputs/
           find /tmp/gh-aw/safe-outputs/ -type f -print
           echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
-      - name: Create Output Issue
-        id: create_issue
+      - name: Create Output Discussion
+        id: create_discussion
         uses: actions/github-script@v8
         env:
           GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
           GITHUB_AW_WORKFLOW_NAME: "Dev"
+          GITHUB_AW_DISCUSSION_CATEGORY: "general"
           GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            function sanitizeLabelContent(content) {
-              if (!content || typeof content !== "string") {
-                return "";
-              }
-              let sanitized = content.trim();
-              sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-              sanitized = sanitized.replace(/\x1b\[[0-9;]*[mGKH]/g, "");
-              sanitized = sanitized.replace(
-                /(^|[^\w`])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?(?:\/[A-Za-z0-9._-]+)?)/g,
-                (_m, p1, p2) => `${p1}\`@${p2}\``
-              );
-              sanitized = sanitized.replace(/[<>&'"]/g, "");
-              return sanitized.trim();
-            }
-            function generateFooter(
-              workflowName,
-              runUrl,
-              workflowSource,
-              workflowSourceURL,
-              triggeringIssueNumber,
-              triggeringPRNumber,
-              triggeringDiscussionNumber
-            ) {
-              let footer = `\n\n> AI generated by [${workflowName}](${runUrl})`;
-              if (triggeringIssueNumber) {
-                footer += ` for #${triggeringIssueNumber}`;
-              } else if (triggeringPRNumber) {
-                footer += ` for #${triggeringPRNumber}`;
-              } else if (triggeringDiscussionNumber) {
-                footer += ` for discussion #${triggeringDiscussionNumber}`;
-              }
-              if (workflowSource && workflowSourceURL) {
-                footer += `\n>\n> To add this workflow in your repository, run \`gh aw add ${workflowSource}\`. See [usage guide](https://githubnext.github.io/gh-aw/tools/cli/).`;
-              }
-              footer += "\n";
-              return footer;
-            }
             async function main() {
-              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
               const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
               if (!agentOutputFile) {
                 core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
@@ -3685,214 +3449,190 @@ jobs:
                 return;
               }
               if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
-                core.info("No valid items found in agent output");
+                core.warning("No valid items found in agent output");
                 return;
               }
-              const createIssueItems = validatedOutput.items.filter(item => item.type === "create_issue");
-              if (createIssueItems.length === 0) {
-                core.info("No create-issue items found in agent output");
+              const createDiscussionItems = validatedOutput.items.filter(item => item.type === "create_discussion");
+              if (createDiscussionItems.length === 0) {
+                core.warning("No create-discussion items found in agent output");
                 return;
               }
-              core.info(`Found ${createIssueItems.length} create-issue item(s)`);
-              if (isStaged) {
-                let summaryContent = "## 🎭 Staged Mode: Create Issues Preview\n\n";
-                summaryContent += "The following issues would be created if staged mode was disabled:\n\n";
-                for (let i = 0; i < createIssueItems.length; i++) {
-                  const item = createIssueItems[i];
-                  summaryContent += `### Issue ${i + 1}\n`;
+              core.info(`Found ${createDiscussionItems.length} create-discussion item(s)`);
+              if (process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true") {
+                let summaryContent = "## 🎭 Staged Mode: Create Discussions Preview\n\n";
+                summaryContent += "The following discussions would be created if staged mode was disabled:\n\n";
+                for (let i = 0; i < createDiscussionItems.length; i++) {
+                  const item = createDiscussionItems[i];
+                  summaryContent += `### Discussion ${i + 1}\n`;
                   summaryContent += `**Title:** ${item.title || "No title provided"}\n\n`;
                   if (item.body) {
                     summaryContent += `**Body:**\n${item.body}\n\n`;
                   }
-                  if (item.labels && item.labels.length > 0) {
-                    summaryContent += `**Labels:** ${item.labels.join(", ")}\n\n`;
+                  if (item.category) {
+                    summaryContent += `**Category:** ${item.category}\n\n`;
                   }
                   summaryContent += "---\n\n";
                 }
                 await core.summary.addRaw(summaryContent).write();
-                core.info("📝 Issue creation preview written to step summary");
+                core.info("📝 Discussion creation preview written to step summary");
                 return;
               }
-              const parentIssueNumber = context.payload?.issue?.number;
-              const triggeringIssueNumber =
-                context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
-              const triggeringPRNumber =
-                context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
-              const triggeringDiscussionNumber = context.payload?.discussion?.number;
-              const labelsEnv = process.env.GITHUB_AW_ISSUE_LABELS;
-              let envLabels = labelsEnv
-                ? labelsEnv
-                    .split(",")
-                    .map(label => label.trim())
-                    .filter(label => label)
-                : [];
-              const createdIssues = [];
-              for (let i = 0; i < createIssueItems.length; i++) {
-                const createIssueItem = createIssueItems[i];
+              let discussionCategories = [];
+              let repositoryId = undefined;
+              try {
+                const repositoryQuery = `
+                  query($owner: String!, $repo: String!) {
+                    repository(owner: $owner, name: $repo) {
+                      id
+                      discussionCategories(first: 20) {
+                        nodes {
+                          id
+                          name
+                          slug
+                          description
+                        }
+                      }
+                    }
+                  }
+                `;
+                const queryResult = await github.graphql(repositoryQuery, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                });
+                if (!queryResult || !queryResult.repository) throw new Error("Failed to fetch repository information via GraphQL");
+                repositoryId = queryResult.repository.id;
+                discussionCategories = queryResult.repository.discussionCategories.nodes || [];
+                core.info(`Available categories: ${JSON.stringify(discussionCategories.map(cat => ({ name: cat.name, id: cat.id })))}`);
+              } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (
+                  errorMessage.includes("Not Found") ||
+                  errorMessage.includes("not found") ||
+                  errorMessage.includes("Could not resolve to a Repository")
+                ) {
+                  core.info("⚠ Cannot create discussions: Discussions are not enabled for this repository");
+                  core.info("Consider enabling discussions in repository settings if you want to create discussions automatically");
+                  return;
+                }
+                core.error(`Failed to get discussion categories: ${errorMessage}`);
+                throw error;
+              }
+              let categoryId = process.env.GITHUB_AW_DISCUSSION_CATEGORY;
+              if (categoryId) {
+                const categoryById = discussionCategories.find(cat => cat.id === categoryId);
+                if (categoryById) {
+                  core.info(`Using category by ID: ${categoryById.name} (${categoryId})`);
+                } else {
+                  const categoryByName = discussionCategories.find(cat => cat.name === categoryId);
+                  if (categoryByName) {
+                    categoryId = categoryByName.id;
+                    core.info(`Using category by name: ${categoryByName.name} (${categoryId})`);
+                  } else {
+                    const categoryBySlug = discussionCategories.find(cat => cat.slug === categoryId);
+                    if (categoryBySlug) {
+                      categoryId = categoryBySlug.id;
+                      core.info(`Using category by slug: ${categoryBySlug.name} (${categoryId})`);
+                    } else {
+                      core.warning(
+                        `Category "${categoryId}" not found by ID, name, or slug. Available categories: ${discussionCategories.map(cat => cat.name).join(", ")}`
+                      );
+                      if (discussionCategories.length > 0) {
+                        categoryId = discussionCategories[0].id;
+                        core.info(`Falling back to default category: ${discussionCategories[0].name} (${categoryId})`);
+                      } else {
+                        categoryId = undefined;
+                      }
+                    }
+                  }
+                }
+              } else if (discussionCategories.length > 0) {
+                categoryId = discussionCategories[0].id;
+                core.info(`No category specified, using default category: ${discussionCategories[0].name} (${categoryId})`);
+              }
+              if (!categoryId) {
+                core.error("No discussion category available and none specified in configuration");
+                throw new Error("Discussion category is required but not available");
+              }
+              if (!repositoryId) {
+                core.error("Repository ID is required for creating discussions");
+                throw new Error("Repository ID is required but not available");
+              }
+              const createdDiscussions = [];
+              for (let i = 0; i < createDiscussionItems.length; i++) {
+                const createDiscussionItem = createDiscussionItems[i];
                 core.info(
-                  `Processing create-issue item ${i + 1}/${createIssueItems.length}: title=${createIssueItem.title}, bodyLength=${createIssueItem.body.length}`
+                  `Processing create-discussion item ${i + 1}/${createDiscussionItems.length}: title=${createDiscussionItem.title}, bodyLength=${createDiscussionItem.body.length}`
                 );
-                const effectiveParentIssueNumber = createIssueItem.parent !== undefined ? createIssueItem.parent : parentIssueNumber;
-                if (effectiveParentIssueNumber && createIssueItem.parent !== undefined) {
-                  core.info(`Using explicit parent issue number from item: #${effectiveParentIssueNumber}`);
-                }
-                let labels = [...envLabels];
-                if (createIssueItem.labels && Array.isArray(createIssueItem.labels)) {
-                  labels = [...labels, ...createIssueItem.labels];
-                }
-                labels = labels
-                  .filter(label => !!label)
-                  .map(label => String(label).trim())
-                  .filter(label => label)
-                  .map(label => sanitizeLabelContent(label))
-                  .filter(label => label)
-                  .map(label => (label.length > 64 ? label.substring(0, 64) : label))
-                  .filter((label, index, arr) => arr.indexOf(label) === index);
-                let title = createIssueItem.title ? createIssueItem.title.trim() : "";
-                let bodyLines = createIssueItem.body.split("\n");
+                let title = createDiscussionItem.title ? createDiscussionItem.title.trim() : "";
+                let bodyLines = createDiscussionItem.body.split("\n");
                 if (!title) {
-                  title = createIssueItem.body || "Agent Output";
+                  title = createDiscussionItem.body || "Agent Output";
                 }
-                const titlePrefix = process.env.GITHUB_AW_ISSUE_TITLE_PREFIX;
+                const titlePrefix = process.env.GITHUB_AW_DISCUSSION_TITLE_PREFIX;
                 if (titlePrefix && !title.startsWith(titlePrefix)) {
                   title = titlePrefix + title;
                 }
-                if (effectiveParentIssueNumber) {
-                  core.info("Detected issue context, parent issue #" + effectiveParentIssueNumber);
-                  bodyLines.push(`Related to #${effectiveParentIssueNumber}`);
-                }
                 const workflowName = process.env.GITHUB_AW_WORKFLOW_NAME || "Workflow";
-                const workflowSource = process.env.GITHUB_AW_WORKFLOW_SOURCE || "";
-                const workflowSourceURL = process.env.GITHUB_AW_WORKFLOW_SOURCE_URL || "";
                 const runId = context.runId;
                 const githubServer = process.env.GITHUB_SERVER_URL || "https://github.com";
                 const runUrl = context.payload.repository
                   ? `${context.payload.repository.html_url}/actions/runs/${runId}`
                   : `${githubServer}/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                bodyLines.push(
-                  ``,
-                  ``,
-                  generateFooter(
-                    workflowName,
-                    runUrl,
-                    workflowSource,
-                    workflowSourceURL,
-                    triggeringIssueNumber,
-                    triggeringPRNumber,
-                    triggeringDiscussionNumber
-                  ).trimEnd(),
-                  ""
-                );
+                bodyLines.push(``, ``, `> AI generated by [${workflowName}](${runUrl})`, "");
                 const body = bodyLines.join("\n").trim();
-                core.info(`Creating issue with title: ${title}`);
-                core.info(`Labels: ${labels}`);
+                core.info(`Creating discussion with title: ${title}`);
+                core.info(`Category ID: ${categoryId}`);
                 core.info(`Body length: ${body.length}`);
                 try {
-                  const { data: issue } = await github.rest.issues.create({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    title: title,
-                    body: body,
-                    labels: labels,
-                  });
-                  core.info("Created issue #" + issue.number + ": " + issue.html_url);
-                  createdIssues.push(issue);
-                  if (effectiveParentIssueNumber) {
-                    try {
-                      const getIssueNodeIdQuery = `
-                        query($owner: String!, $repo: String!, $issueNumber: Int!) {
-                          repository(owner: $owner, name: $repo) {
-                            issue(number: $issueNumber) {
-                              id
-                            }
-                          }
+                  const createDiscussionMutation = `
+                    mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                      createDiscussion(input: {
+                        repositoryId: $repositoryId,
+                        categoryId: $categoryId,
+                        title: $title,
+                        body: $body
+                      }) {
+                        discussion {
+                          id
+                          number
+                          title
+                          url
                         }
-                      `;
-                      const parentResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: effectiveParentIssueNumber,
-                      });
-                      const parentNodeId = parentResult.repository.issue.id;
-                      const childResult = await github.graphql(getIssueNodeIdQuery, {
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        issueNumber: issue.number,
-                      });
-                      const childNodeId = childResult.repository.issue.id;
-                      const addSubIssueMutation = `
-                        mutation($parentId: ID!, $subIssueId: ID!) {
-                          addSubIssue(input: {
-                            parentId: $parentId,
-                            subIssueId: $subIssueId
-                          }) {
-                            subIssue {
-                              id
-                              number
-                            }
-                          }
-                        }
-                      `;
-                      await github.graphql(addSubIssueMutation, {
-                        parentId: parentNodeId,
-                        subIssueId: childNodeId,
-                      });
-                      core.info("Linked issue #" + issue.number + " as sub-issue of #" + effectiveParentIssueNumber);
-                    } catch (error) {
-                      core.info(`Warning: Could not link sub-issue to parent: ${error instanceof Error ? error.message : String(error)}`);
-                      try {
-                        await github.rest.issues.createComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: effectiveParentIssueNumber,
-                          body: `Created related issue: #${issue.number}`,
-                        });
-                        core.info("Added comment to parent issue #" + effectiveParentIssueNumber + " (sub-issue linking not available)");
-                      } catch (commentError) {
-                        core.info(
-                          `Warning: Could not add comment to parent issue: ${commentError instanceof Error ? commentError.message : String(commentError)}`
-                        );
                       }
                     }
-                  }
-                  if (i === createIssueItems.length - 1) {
-                    core.setOutput("issue_number", issue.number);
-                    core.setOutput("issue_url", issue.html_url);
-                  }
-                } catch (error) {
-                  const errorMessage = error instanceof Error ? error.message : String(error);
-                  if (errorMessage.includes("Issues has been disabled in this repository")) {
-                    core.info(`⚠ Cannot create issue "${title}": Issues are disabled for this repository`);
-                    core.info("Consider enabling issues in repository settings if you want to create issues automatically");
+                  `;
+                  const mutationResult = await github.graphql(createDiscussionMutation, {
+                    repositoryId: repositoryId,
+                    categoryId: categoryId,
+                    title: title,
+                    body: body,
+                  });
+                  const discussion = mutationResult.createDiscussion.discussion;
+                  if (!discussion) {
+                    core.error("Failed to create discussion: No discussion data returned");
                     continue;
                   }
-                  core.error(`✗ Failed to create issue "${title}": ${errorMessage}`);
+                  core.info("Created discussion #" + discussion.number + ": " + discussion.url);
+                  createdDiscussions.push(discussion);
+                  if (i === createDiscussionItems.length - 1) {
+                    core.setOutput("discussion_number", discussion.number);
+                    core.setOutput("discussion_url", discussion.url);
+                  }
+                } catch (error) {
+                  core.error(`✗ Failed to create discussion "${title}": ${error instanceof Error ? error.message : String(error)}`);
                   throw error;
                 }
               }
-              if (createdIssues.length > 0) {
-                let summaryContent = "\n\n## GitHub Issues\n";
-                for (const issue of createdIssues) {
-                  summaryContent += `- Issue #${issue.number}: [${issue.title}](${issue.html_url})\n`;
+              if (createdDiscussions.length > 0) {
+                let summaryContent = "\n\n## GitHub Discussions\n";
+                for (const discussion of createdDiscussions) {
+                  summaryContent += `- Discussion #${discussion.number}: [${discussion.title}](${discussion.url})\n`;
                 }
                 await core.summary.addRaw(summaryContent).write();
               }
-              core.info(`Successfully created ${createdIssues.length} issue(s)`);
+              core.info(`Successfully created ${createdDiscussions.length} discussion(s)`);
             }
-            (async () => {
-              await main();
-            })();
-      - name: Checkout repository for gh CLI
-        if: steps.create_issue.outputs.issue_number != ''
-        uses: actions/checkout@v5
-      - name: Assign issue to copilot
-        if: steps.create_issue.outputs.issue_number != ''
-        env:
-          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-          ASSIGNEE: "copilot-swe-agent"
-          ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
-        run: |
-          gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEE"
+            await main();
 
   detection:
     needs: agent
@@ -3930,6 +3670,7 @@ jobs:
         env:
           WORKFLOW_NAME: "Dev"
           WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_MARKDOWN: "<!--\n\n# Jupyter Notebook MCP Server\n# Manipulate Jupyter notebooks and execute code cells\n\nProvides integration with Jupyter servers to run code cells, manage notebooks,\nand visualize data using the Jupyter MCP Server.\n\nDocumentation: https://pypi.org/project/jupyter-mcp-server/\n\nAvailable tools:\n  - execute_cell: Execute code in a notebook cell\n  - get_cell_output: Retrieve output from executed cells\n  - create_notebook: Create new Jupyter notebooks\n  - list_notebooks: List available notebooks\n  - get_notebook_content: Read notebook contents\n\nConfiguration:\n  The server connects to a Jupyter server instance using the provided URL and token.\n  Set DOCUMENT_ID to specify the default notebook to work with.\n  Enable ALLOW_IMG_OUTPUT to support image outputs from cells.\n\nSetup:\n  1. Start a Jupyter server locally or remotely\n  2. Generate a Jupyter token for authentication\n  3. Add the following secrets to your GitHub repository:\n     - JUPYTER_TOKEN: Your Jupyter server authentication token\n\n  4. Include in Your Workflow:\n     imports:\n       - shared/mcp/jupyter.md\n\nConnection:\n  The server connects to Jupyter via the JUPYTER_URL (default: http://host.docker.internal:8888)\n  which allows Docker containers to access services running on the host machine.\n\nSecurity:\n  - Store the JUPYTER_TOKEN as a GitHub secret\n  - Ensure your Jupyter server is properly secured\n  - Consider network restrictions if running in production\n\nExample Usage:\n  Create a Jupyter notebook that analyzes repository data and generates visualizations.\n  Execute Python code cells to process data and create charts.\n\nUsage:\n  imports:\n    - shared/mcp/jupyter.md\n\n-->\n\n# File Size Distribution Analysis\n\nYou are a data analyst using Jupyter notebooks to analyze the repository.\n\n## Your Task\n\n1. **Analyze Repository Files**: Scan the repository ${{ github.repository }} to gather file size information for all files\n2. **Generate Distribution Chart**: Use Jupyter notebook to create a visual distribution chart showing:\n   - File size ranges (e.g., <1KB, 1-10KB, 10-100KB, 100KB-1MB, >1MB)\n   - Number of files in each size range\n   - A bar chart or histogram visualization\n3. **Save Chart**: Save the generated chart as a file in the current directory\n4. **Upload Chart as Asset**: Use the `upload_asset` output type to upload the chart file\n5. **Create Discussion**: Create a GitHub discussion with:\n   - Summary statistics (total files, average size, median size, largest files)\n   - Description of the file size distribution\n   - Link to the uploaded chart asset on the assets branch\n   - Any interesting insights about the repository structure\n\n## Important Notes\n\n- Use Python code in the Jupyter notebook for data processing\n- Use matplotlib or seaborn for visualization\n- Ensure the chart is clear, labeled, and professional-looking\n- The chart will be automatically uploaded to the assets branch via safe-outputs\n"
         with:
           script: |
             const fs = require('fs');
@@ -4333,6 +4074,205 @@ jobs:
                 core.setOutput("error_message", `Repository permission check failed: ${errorMessage}`);
                 return;
               }
+            }
+            await main();
+
+  upload_assets:
+    needs:
+      - agent
+      - detection
+    if: (always()) && (contains(needs.agent.outputs.output_types, 'upload_asset'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating orphaned branch and pushing assets
+    timeout-minutes: 10
+    outputs:
+      branch_name: ${{ steps.upload_assets.outputs.branch_name }}
+      published_count: ${{ steps.upload_assets.outputs.published_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Configure Git credentials
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "${{ github.workflow }}"
+          echo "Git configured with standard GitHub Actions identity"
+      - name: Download assets
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: safe-outputs-assets
+          path: /tmp/gh-aw/safe-outputs/assets/
+      - name: List downloaded asset files
+        continue-on-error: true
+        run: |
+          echo "Downloaded asset files:"
+          ls -la /tmp/gh-aw/safe-outputs/assets/
+      - name: Download agent output artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: agent_output.json
+          path: /tmp/gh-aw/safe-outputs/
+      - name: Setup agent output environment variable
+        run: |
+          mkdir -p /tmp/gh-aw/safe-outputs/
+          find /tmp/gh-aw/safe-outputs/ -type f -print
+          echo "GITHUB_AW_AGENT_OUTPUT=/tmp/gh-aw/safe-outputs/agent_output.json" >> $GITHUB_ENV
+      - name: Upload Assets to Orphaned Branch
+        id: upload_assets
+        uses: actions/github-script@v8
+        env:
+          GITHUB_AW_AGENT_OUTPUT: ${{ env.GITHUB_AW_AGENT_OUTPUT }}
+          GITHUB_AW_ASSETS_BRANCH: "assets/${{ github.workflow }}"
+          GITHUB_AW_ASSETS_MAX_SIZE_KB: 10240
+          GITHUB_AW_ASSETS_ALLOWED_EXTS: ".png,.jpg,.jpeg"
+          GITHUB_AW_SAFE_OUTPUTS_STAGED: "true"
+        with:
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const crypto = require("crypto");
+            function normalizeBranchName(branchName) {
+              if (!branchName || typeof branchName !== "string" || branchName.trim() === "") {
+                return branchName;
+              }
+              let normalized = branchName.replace(/[^a-zA-Z0-9\-_/.]+/g, "-");
+              normalized = normalized.replace(/-+/g, "-");
+              normalized = normalized.replace(/^-+|-+$/g, "");
+              if (normalized.length > 128) {
+                normalized = normalized.substring(0, 128);
+              }
+              normalized = normalized.replace(/-+$/, "");
+              normalized = normalized.toLowerCase();
+              return normalized;
+            }
+            async function main() {
+              const isStaged = process.env.GITHUB_AW_SAFE_OUTPUTS_STAGED === "true";
+              const branchName = process.env.GITHUB_AW_ASSETS_BRANCH;
+              if (!branchName || typeof branchName !== "string") {
+                core.setFailed("GITHUB_AW_ASSETS_BRANCH environment variable is required but not set");
+                return;
+              }
+              const normalizedBranchName = normalizeBranchName(branchName);
+              core.info(`Using assets branch: ${normalizedBranchName}`);
+              const agentOutputFile = process.env.GITHUB_AW_AGENT_OUTPUT;
+              if (!agentOutputFile) {
+                core.info("No GITHUB_AW_AGENT_OUTPUT environment variable found");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              let outputContent;
+              try {
+                outputContent = fs.readFileSync(agentOutputFile, "utf8");
+              } catch (error) {
+                core.setFailed(`Error reading agent output file: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (outputContent.trim() === "") {
+                core.info("Agent output content is empty");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Agent output content length: ${outputContent.length}`);
+              let validatedOutput;
+              try {
+                validatedOutput = JSON.parse(outputContent);
+              } catch (error) {
+                core.setFailed(`Error parsing agent output JSON: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              if (!validatedOutput.items || !Array.isArray(validatedOutput.items)) {
+                core.info("No valid items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              const uploadAssetItems = validatedOutput.items.filter( item => item.type === "upload_asset");
+              if (uploadAssetItems.length === 0) {
+                core.info("No upload-asset items found in agent output");
+                core.setOutput("upload_count", "0");
+                core.setOutput("branch_name", normalizedBranchName);
+                return;
+              }
+              core.info(`Found ${uploadAssetItems.length} upload-asset item(s)`);
+              let uploadCount = 0;
+              let hasChanges = false;
+              try {
+                try {
+                  await exec.exec(`git rev-parse --verify origin/${normalizedBranchName}`);
+                  await exec.exec(`git checkout -B ${normalizedBranchName} origin/${normalizedBranchName}`);
+                  core.info(`Checked out existing branch from origin: ${normalizedBranchName}`);
+                } catch (originError) {
+                  core.info(`Creating new orphaned branch: ${normalizedBranchName}`);
+                  await exec.exec(`git checkout --orphan ${normalizedBranchName}`);
+                  await exec.exec(`git rm -rf .`);
+                  await exec.exec(`git clean -fdx`);
+                }
+                for (const asset of uploadAssetItems) {
+                  try {
+                    const { fileName, sha, size, targetFileName } = asset;
+                    if (!fileName || !sha || !targetFileName) {
+                      core.error(`Invalid asset entry missing required fields: ${JSON.stringify(asset)}`);
+                      continue;
+                    }
+                    const assetSourcePath = path.join("/tmp/gh-aw/safe-outputs/assets", fileName);
+                    if (!fs.existsSync(assetSourcePath)) {
+                      core.warning(`Asset file not found: ${assetSourcePath}`);
+                      continue;
+                    }
+                    const fileContent = fs.readFileSync(assetSourcePath);
+                    const computedSha = crypto.createHash("sha256").update(fileContent).digest("hex");
+                    if (computedSha !== sha) {
+                      core.warning(`SHA mismatch for ${fileName}: expected ${sha}, got ${computedSha}`);
+                      continue;
+                    }
+                    if (fs.existsSync(targetFileName)) {
+                      core.info(`Asset ${targetFileName} already exists, skipping`);
+                      continue;
+                    }
+                    fs.copyFileSync(assetSourcePath, targetFileName);
+                    await exec.exec(`git add "${targetFileName}"`);
+                    uploadCount++;
+                    hasChanges = true;
+                    core.info(`Added asset: ${targetFileName} (${size} bytes)`);
+                  } catch (error) {
+                    core.warning(`Failed to process asset ${asset.fileName}: ${error instanceof Error ? error.message : String(error)}`);
+                  }
+                }
+                if (hasChanges) {
+                  const commitMessage = `[skip-ci] Add ${uploadCount} asset(s)`;
+                  await exec.exec(`git`, [`commit`, `-m`, `"${commitMessage}"`]);
+                  if (isStaged) {
+                    core.summary.addRaw("## Staged Asset Publication");
+                  } else {
+                    await exec.exec(`git push origin ${normalizedBranchName}`);
+                    core.summary
+                      .addRaw("## Assets")
+                      .addRaw(`Successfully uploaded **${uploadCount}** assets to branch \`${normalizedBranchName}\``)
+                      .addRaw("");
+                    core.info(`Successfully uploaded ${uploadCount} assets to branch ${normalizedBranchName}`);
+                  }
+                  for (const asset of uploadAssetItems) {
+                    if (asset.fileName && asset.sha && asset.size && asset.url) {
+                      core.summary.addRaw(`- [\`${asset.fileName}\`](${asset.url}) → \`${asset.targetFileName}\` (${asset.size} bytes)`);
+                    }
+                  }
+                  core.summary.write();
+                } else {
+                  core.info("No new assets to upload");
+                }
+              } catch (error) {
+                core.setFailed(`Failed to upload assets: ${error instanceof Error ? error.message : String(error)}`);
+                return;
+              }
+              core.setOutput("upload_count", uploadCount.toString());
+              core.setOutput("branch_name", normalizedBranchName);
             }
             await main();
 
