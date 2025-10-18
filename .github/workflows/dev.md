@@ -15,6 +15,8 @@ permissions:
 tools:
   edit:
   github:
+safe-outputs:
+  create-issue:
 imports:
   - shared/mcp/tavily.md
 ---
