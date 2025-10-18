@@ -15,6 +15,7 @@ timeout_minutes: 10
 strict: true
 imports:
   - shared/changeset-format.md
+  - shared/jqschema.md
 steps:
   - name: Setup changeset directory
     run: |

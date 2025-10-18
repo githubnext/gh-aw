@@ -3,9 +3,9 @@ steps:
   - name: Set up jq utilities directory
     run: |
       mkdir -p /tmp/gh-aw/jq
-      cat > /tmp/gh-aw/jq/json-schema-minify.sh << 'EOF'
+      cat > /tmp/gh-aw/jq/jqschema.sh << 'EOF'
       #!/usr/bin/env bash
-      # json-schema-minify.sh
+      # jqschema.sh
       jq -c '
       def walk(f):
         . as $in |
@@ -19,12 +19,12 @@ steps:
       walk(.)
       '
       EOF
-      chmod +x /tmp/gh-aw/jq/json-schema-minify.sh
+      chmod +x /tmp/gh-aw/jq/jqschema.sh
 ---
 
-## JSON Schema Minifier
+## jqschema - JSON Schema Discovery
 
-A utility script is available at `/tmp/gh-aw/jq/json-schema-minify.sh` to help you discover the structure of complex JSON responses.
+A utility script is available at `/tmp/gh-aw/jq/jqschema.sh` to help you discover the structure of complex JSON responses.
 
 ### Purpose
 
@@ -38,13 +38,13 @@ Generate a compact structural schema (keys + types) from JSON input. This is par
 
 ```bash
 # Analyze a file
-cat data.json | /tmp/gh-aw/jq/json-schema-minify.sh
+cat data.json | /tmp/gh-aw/jq/jqschema.sh
 
 # Analyze command output
-echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jq/json-schema-minify.sh
+echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jq/jqschema.sh
 
 # Analyze GitHub search results
-gh api search/repositories?q=language:go | /tmp/gh-aw/jq/json-schema-minify.sh
+gh api search/repositories?q=language:go | /tmp/gh-aw/jq/jqschema.sh
 ```
 
 ### How It Works
@@ -85,7 +85,7 @@ The script transforms JSON data by:
 ```bash
 # Step 1: Get schema with minimal data (fetch just 1 result)
 # This helps understand the structure before requesting large datasets
-echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jq/json-schema-minify.sh
+echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jq/jqschema.sh
 
 # Output shows the schema:
 # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
@@ -97,13 +97,13 @@ echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/g
 ```
 
 **Using with GitHub MCP tools:**
-When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through the minifier to discover available fields:
+When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
 ```bash
 # Save a minimal search result to a file
 gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
 
 # Generate schema to understand structure
-cat /tmp/sample.json | /tmp/gh-aw/jq/json-schema-minify.sh
+cat /tmp/sample.json | /tmp/gh-aw/jq/jqschema.sh
 
 # Now you know which fields exist and can use them in your analysis
 ```

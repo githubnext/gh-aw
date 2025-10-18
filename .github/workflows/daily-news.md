@@ -17,6 +17,7 @@ tools:
 
 imports:
   - shared/mcp/tavily.md
+  - shared/jqschema.md
 ---
 
 # Daily News

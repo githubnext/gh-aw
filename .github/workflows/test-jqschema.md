@@ -1,5 +1,5 @@
 ---
-name: Test JSON Schema Minify
+name: Test jqschema
 on:
   workflow_dispatch:
 permissions:
@@ -7,16 +7,16 @@ permissions:
 engine: copilot
 timeout_minutes: 5
 imports:
-  - shared/json-schema-minify.md
+  - shared/jqschema.md
 tools:
-  bash: ["cat", "echo", "/tmp/gh-aw/jq/json-schema-minify.sh"]
+  bash: ["cat", "echo", "/tmp/gh-aw/jq/jqschema.sh"]
 ---
 
-# Test JSON Schema Minify
+# Test jqschema
 
-Test the JSON schema minifier utility.
+Test the jqschema utility.
 
 1. Create a test JSON file with complex structure
-2. Run the json-schema-minify.sh script on it
+2. Run the jqschema.sh script on it
 3. Verify the output shows only types and structure
 4. Report the results

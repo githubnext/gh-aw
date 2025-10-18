@@ -3,6 +3,10 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
+# Resolved workflow manifest:
+#   Imports:
+#     - shared/jqschema.md
+#
 # Job Dependency Graph:
 # ```mermaid
 # graph LR
@@ -73,6 +77,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+      - name: Set up jq utilities directory
+        run: "mkdir -p /tmp/gh-aw/jq\ncat > /tmp/gh-aw/jq/jqschema.sh << 'EOF'\n#!/usr/bin/env bash\n# jqschema.sh\njq -c '\ndef walk(f):\n  . as $in |\n  if type == \"object\" then\n    reduce keys[] as $k ({}; . + {($k): ($in[$k] | walk(f))})\n  elif type == \"array\" then\n    if length == 0 then [] else [.[0] | walk(f)] end\n  else\n    type\n  end;\nwalk(.)\n'\nEOF\nchmod +x /tmp/gh-aw/jq/jqschema.sh"
+
       - name: Create gh-aw temp directory
         run: |
           mkdir -p /tmp/gh-aw/agent
@@ -978,6 +985,92 @@ jobs:
         run: |
           mkdir -p $(dirname "$GITHUB_AW_PROMPT")
           cat > $GITHUB_AW_PROMPT << 'EOF'
+          ## jqschema - JSON Schema Discovery
+          
+          A utility script is available at `/tmp/gh-aw/jq/jqschema.sh` to help you discover the structure of complex JSON responses.
+          
+          ### Purpose
+          
+          Generate a compact structural schema (keys + types) from JSON input. This is particularly useful when:
+          - Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)
+          - Exploring API responses with large payloads
+          - Understanding the structure of unfamiliar data without verbose output
+          - Planning queries before fetching full data
+          
+          ### Usage
+          
+          ```bash
+          # Analyze a file
+          cat data.json | /tmp/gh-aw/jq/jqschema.sh
+          
+          # Analyze command output
+          echo '{"name": "test", "count": 42, "items": [{"id": 1}]}' | /tmp/gh-aw/jq/jqschema.sh
+          
+          # Analyze GitHub search results
+          gh api search/repositories?q=language:go | /tmp/gh-aw/jq/jqschema.sh
+          ```
+          
+          ### How It Works
+          
+          The script transforms JSON data by:
+          1. Replacing object values with their type names ("string", "number", "boolean", "null")
+          2. Reducing arrays to their first element's structure (or empty array if empty)
+          3. Recursively processing nested structures
+          4. Outputting compact (minified) JSON
+          
+          ### Example
+          
+          **Input:**
+          ```json
+          {
+            "total_count": 1000,
+            "items": [
+              {"login": "user1", "id": 123, "verified": true},
+              {"login": "user2", "id": 456, "verified": false}
+            ]
+          }
+          ```
+          
+          **Output:**
+          ```json
+          {"total_count":"number","items":[{"login":"string","id":"number","verified":"boolean"}]}
+          ```
+          
+          ### Best Practices
+          
+          **Use this script when:**
+          - You need to understand the structure of tool outputs before requesting full data
+          - GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)
+          - Exploring unfamiliar APIs or data structures
+          - Planning data extraction strategies
+          
+          **Example workflow for GitHub search tools:**
+          ```bash
+          # Step 1: Get schema with minimal data (fetch just 1 result)
+          # This helps understand the structure before requesting large datasets
+          echo '{}' | gh api search/repositories -f q="language:go" -f per_page=1 | /tmp/gh-aw/jq/jqschema.sh
+          
+          # Output shows the schema:
+          # {"incomplete_results":"boolean","items":[{...}],"total_count":"number"}
+          
+          # Step 2: Review schema to understand available fields
+          
+          # Step 3: Request full data with confidence about structure
+          # Now you know what fields are available and can query efficiently
+          ```
+          
+          **Using with GitHub MCP tools:**
+          When using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:
+          ```bash
+          # Save a minimal search result to a file
+          gh api search/code -f q="jq in:file language:bash" -f per_page=1 > /tmp/sample.json
+          
+          # Generate schema to understand structure
+          cat /tmp/sample.json | /tmp/gh-aw/jq/jqschema.sh
+          
+          # Now you know which fields exist and can use them in your analysis
+          ```
+          
           # CLI Version Checker
           
           Monitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.
@@ -3439,7 +3532,7 @@ jobs:
         env:
           WORKFLOW_NAME: "CLI Version Checker"
           WORKFLOW_DESCRIPTION: "No description provided"
-          WORKFLOW_MARKDOWN: "# CLI Version Checker\n\nMonitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.\n\n**Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}\n\n## Process\n\nFor each CLI/MCP server:\n1. Fetch latest version from NPM registry or GitHub releases\n2. Compare with current version in `./pkg/constants/constants.go`\n3. If newer version exists, research changes and prepare update\n\n### Version Sources\n- **Claude Code**: `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`\n- **Copilot CLI**: `https://registry.npmjs.org/@github/copilot/latest`\n- **Codex**: `https://registry.npmjs.org/@openai/codex/latest`\n- **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`\n\n### Research & Analysis\nFor each update, analyze intermediate versions:\n- Categorize changes: Breaking, Features, Fixes, Security, Performance\n- Assess impact on gh-aw workflows\n- Document migration requirements\n- Assign risk level (Low/Medium/High)\n\n### Tool Installation & Discovery\nFor each CLI tool update:\n1. Install the new version globally:\n   - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`\n   - Copilot CLI: `npm install -g @github/copilot@<version>`\n   - Codex: `npm install -g @openai/codex@<version>`\n2. Invoke help to discover commands and flags:\n   - Run `claude-code --help`\n   - Run `copilot --help`\n   - Run `codex --help`\n3. Compare help output with previous version to identify:\n   - New commands or subcommands\n   - New command-line flags or options\n   - Deprecated or removed features\n   - Changed default behaviors\n\n### Update Process\n1. Edit `./pkg/constants/constants.go` with new version(s)\n2. Run `make recompile` to update workflows\n3. Verify changes with `git status`\n4. Create PR via safe-outputs with detailed analysis\n\n## PR Format\nInclude for each updated CLI:\n- **Version**: old → new (list intermediate versions if multiple)\n- **Release Timeline**: dates and intervals\n- **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance\n- **Impact Assessment**: Risk level, affected features, migration notes\n- **Changelog Links**: NPM/GitHub release notes\n- **CLI Changes**: New commands, flags, or removed features discovered via help\n\nTemplate structure:\n```\n# Update [CLI Name]\n- Previous: [version] → New: [version]\n- Timeline: [dates and frequency]\n- Breaking Changes: [list or \"None\"]\n- New Features: [list]\n- Bug Fixes: [list]\n- Security: [CVEs/patches or \"None\"]\n- CLI Discovery: [New commands/flags or \"None detected\"]\n- Impact: Risk [Low/Medium/High], affects [features]\n- Migration: [Yes/No - details if yes]\n```\n\n## Guidelines\n- Only update stable versions (no pre-releases)\n- Prioritize security updates\n- Document all intermediate versions\n- Install and test CLI tools to discover new features via `--help`\n- Compare help output between old and new versions\n- Test with `make recompile` before creating PR\n- **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly\n\n## Error Handling\n- Retry NPM registry failures once after 30s\n- Continue if individual changelog fetch fails\n- Skip PR creation if recompile fails\n- Exit successfully if no updates found\n- Document incomplete research if rate-limited\n"
+          WORKFLOW_MARKDOWN: "## jqschema - JSON Schema Discovery\n\nA utility script is available at `/tmp/gh-aw/jq/jqschema.sh` to help you discover the structure of complex JSON responses.\n\n### Purpose\n\nGenerate a compact structural schema (keys + types) from JSON input. This is particularly useful when:\n- Analyzing tool outputs from GitHub search (search_code, search_issues, search_repositories)\n- Exploring API responses with large payloads\n- Understanding the structure of unfamiliar data without verbose output\n- Planning queries before fetching full data\n\n### Usage\n\n```bash\n# Analyze a file\ncat data.json | /tmp/gh-aw/jq/jqschema.sh\n\n# Analyze command output\necho '{\"name\": \"test\", \"count\": 42, \"items\": [{\"id\": 1}]}' | /tmp/gh-aw/jq/jqschema.sh\n\n# Analyze GitHub search results\ngh api search/repositories?q=language:go | /tmp/gh-aw/jq/jqschema.sh\n```\n\n### How It Works\n\nThe script transforms JSON data by:\n1. Replacing object values with their type names (\"string\", \"number\", \"boolean\", \"null\")\n2. Reducing arrays to their first element's structure (or empty array if empty)\n3. Recursively processing nested structures\n4. Outputting compact (minified) JSON\n\n### Example\n\n**Input:**\n```json\n{\n  \"total_count\": 1000,\n  \"items\": [\n    {\"login\": \"user1\", \"id\": 123, \"verified\": true},\n    {\"login\": \"user2\", \"id\": 456, \"verified\": false}\n  ]\n}\n```\n\n**Output:**\n```json\n{\"total_count\":\"number\",\"items\":[{\"login\":\"string\",\"id\":\"number\",\"verified\":\"boolean\"}]}\n```\n\n### Best Practices\n\n**Use this script when:**\n- You need to understand the structure of tool outputs before requesting full data\n- GitHub search tools return large datasets (use `perPage: 1` and pipe through schema minifier first)\n- Exploring unfamiliar APIs or data structures\n- Planning data extraction strategies\n\n**Example workflow for GitHub search tools:**\n```bash\n# Step 1: Get schema with minimal data (fetch just 1 result)\n# This helps understand the structure before requesting large datasets\necho '{}' | gh api search/repositories -f q=\"language:go\" -f per_page=1 | /tmp/gh-aw/jq/jqschema.sh\n\n# Output shows the schema:\n# {\"incomplete_results\":\"boolean\",\"items\":[{...}],\"total_count\":\"number\"}\n\n# Step 2: Review schema to understand available fields\n\n# Step 3: Request full data with confidence about structure\n# Now you know what fields are available and can query efficiently\n```\n\n**Using with GitHub MCP tools:**\nWhen using tools like `search_code`, `search_issues`, or `search_repositories`, pipe the output through jqschema to discover available fields:\n```bash\n# Save a minimal search result to a file\ngh api search/code -f q=\"jq in:file language:bash\" -f per_page=1 > /tmp/sample.json\n\n# Generate schema to understand structure\ncat /tmp/sample.json | /tmp/gh-aw/jq/jqschema.sh\n\n# Now you know which fields exist and can use them in your analysis\n```\n\n# CLI Version Checker\n\nMonitor and update agentic CLI tools: Claude Code, GitHub Copilot CLI, OpenAI Codex, and GitHub MCP Server.\n\n**Repository**: ${{ github.repository }} | **Run**: ${{ github.run_id }}\n\n## Process\n\nFor each CLI/MCP server:\n1. Fetch latest version from NPM registry or GitHub releases\n2. Compare with current version in `./pkg/constants/constants.go`\n3. If newer version exists, research changes and prepare update\n\n### Version Sources\n- **Claude Code**: `https://registry.npmjs.org/@anthropic-ai/claude-code/latest`\n- **Copilot CLI**: `https://registry.npmjs.org/@github/copilot/latest`\n- **Codex**: `https://registry.npmjs.org/@openai/codex/latest`\n- **GitHub MCP Server**: `https://api.github.com/repos/github/github-mcp-server/releases/latest`\n\n### Research & Analysis\nFor each update, analyze intermediate versions:\n- Categorize changes: Breaking, Features, Fixes, Security, Performance\n- Assess impact on gh-aw workflows\n- Document migration requirements\n- Assign risk level (Low/Medium/High)\n\n### Tool Installation & Discovery\nFor each CLI tool update:\n1. Install the new version globally:\n   - Claude Code: `npm install -g @anthropic-ai/claude-code@<version>`\n   - Copilot CLI: `npm install -g @github/copilot@<version>`\n   - Codex: `npm install -g @openai/codex@<version>`\n2. Invoke help to discover commands and flags:\n   - Run `claude-code --help`\n   - Run `copilot --help`\n   - Run `codex --help`\n3. Compare help output with previous version to identify:\n   - New commands or subcommands\n   - New command-line flags or options\n   - Deprecated or removed features\n   - Changed default behaviors\n\n### Update Process\n1. Edit `./pkg/constants/constants.go` with new version(s)\n2. Run `make recompile` to update workflows\n3. Verify changes with `git status`\n4. Create PR via safe-outputs with detailed analysis\n\n## PR Format\nInclude for each updated CLI:\n- **Version**: old → new (list intermediate versions if multiple)\n- **Release Timeline**: dates and intervals\n- **Changes**: Categorized as Breaking/Features/Fixes/Security/Performance\n- **Impact Assessment**: Risk level, affected features, migration notes\n- **Changelog Links**: NPM/GitHub release notes\n- **CLI Changes**: New commands, flags, or removed features discovered via help\n\nTemplate structure:\n```\n# Update [CLI Name]\n- Previous: [version] → New: [version]\n- Timeline: [dates and frequency]\n- Breaking Changes: [list or \"None\"]\n- New Features: [list]\n- Bug Fixes: [list]\n- Security: [CVEs/patches or \"None\"]\n- CLI Discovery: [New commands/flags or \"None detected\"]\n- Impact: Risk [Low/Medium/High], affects [features]\n- Migration: [Yes/No - details if yes]\n```\n\n## Guidelines\n- Only update stable versions (no pre-releases)\n- Prioritize security updates\n- Document all intermediate versions\n- Install and test CLI tools to discover new features via `--help`\n- Compare help output between old and new versions\n- Test with `make recompile` before creating PR\n- **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly\n\n## Error Handling\n- Retry NPM registry failures once after 30s\n- Continue if individual changelog fetch fails\n- Skip PR creation if recompile fails\n- Exit successfully if no updates found\n- Document incomplete research if rate-limited\n"
         with:
           script: |
             const fs = require('fs');
