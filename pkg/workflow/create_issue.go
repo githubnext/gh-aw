@@ -21,25 +21,11 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 		issuesConfig.Max = 1 // Default max is 1
 
 		if configMap, ok := configData.(map[string]any); ok {
-			// Parse title-prefix
-			if titlePrefix, exists := configMap["title-prefix"]; exists {
-				if titlePrefixStr, ok := titlePrefix.(string); ok {
-					issuesConfig.TitlePrefix = titlePrefixStr
-				}
-			}
+			// Parse title-prefix using shared helper
+			issuesConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
 
-			// Parse labels
-			if labels, exists := configMap["labels"]; exists {
-				if labelsArray, ok := labels.([]any); ok {
-					var labelStrings []string
-					for _, label := range labelsArray {
-						if labelStr, ok := label.(string); ok {
-							labelStrings = append(labelStrings, labelStr)
-						}
-					}
-					issuesConfig.Labels = labelStrings
-				}
-			}
+			// Parse labels using shared helper
+			issuesConfig.Labels = parseLabelsFromConfig(configMap)
 
 			// Parse assignees (supports both string and array)
 			if assignees, exists := configMap["assignees"]; exists {
@@ -58,16 +44,13 @@ func (c *Compiler) parseIssuesConfig(outputMap map[string]any) *CreateIssuesConf
 				}
 			}
 
-			// Parse target-repo
-			if targetRepoSlug, exists := configMap["target-repo"]; exists {
-				if targetRepoStr, ok := targetRepoSlug.(string); ok {
-					// Validate that target-repo is not "*" - only definite strings are allowed
-					if targetRepoStr == "*" {
-						return nil // Invalid configuration, return nil to cause validation error
-					}
-					issuesConfig.TargetRepoSlug = targetRepoStr
-				}
+			// Parse target-repo using shared helper
+			targetRepoSlug := parseTargetRepoFromConfig(configMap)
+			// Validate that target-repo is not "*" - only definite strings are allowed
+			if targetRepoSlug == "*" {
+				return nil // Invalid configuration, return nil to cause validation error
 			}
+			issuesConfig.TargetRepoSlug = targetRepoSlug
 
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &issuesConfig.BaseSafeOutputConfig)

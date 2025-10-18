@@ -22,12 +22,8 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 			// Parse common base fields
 			c.parseBaseSafeOutputConfig(configMap, &discussionsConfig.BaseSafeOutputConfig)
 
-			// Parse title-prefix
-			if titlePrefix, exists := configMap["title-prefix"]; exists {
-				if titlePrefixStr, ok := titlePrefix.(string); ok {
-					discussionsConfig.TitlePrefix = titlePrefixStr
-				}
-			}
+			// Parse title-prefix using shared helper
+			discussionsConfig.TitlePrefix = parseTitlePrefixFromConfig(configMap)
 
 			// Parse category (can be string or number)
 			if category, exists := configMap["category"]; exists {
@@ -43,16 +39,13 @@ func (c *Compiler) parseDiscussionsConfig(outputMap map[string]any) *CreateDiscu
 				}
 			}
 
-			// Parse target-repo
-			if targetRepoSlug, exists := configMap["target-repo"]; exists {
-				if targetRepoStr, ok := targetRepoSlug.(string); ok {
-					// Validate that target-repo is not "*" - only definite strings are allowed
-					if targetRepoStr == "*" {
-						return nil // Invalid configuration, return nil to cause validation error
-					}
-					discussionsConfig.TargetRepoSlug = targetRepoStr
-				}
+			// Parse target-repo using shared helper
+			targetRepoSlug := parseTargetRepoFromConfig(configMap)
+			// Validate that target-repo is not "*" - only definite strings are allowed
+			if targetRepoSlug == "*" {
+				return nil // Invalid configuration, return nil to cause validation error
 			}
+			discussionsConfig.TargetRepoSlug = targetRepoSlug
 		}
 
 		return discussionsConfig
