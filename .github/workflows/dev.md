@@ -1,9 +1,6 @@
 ---
 on: 
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/dev.md'
 concurrency:
   group: dev-workflow-${{ github.ref }}
   cancel-in-progress: true
