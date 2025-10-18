@@ -69,47 +69,7 @@ The agentic part of your workflow should describe the issue(s) it wants created.
 - **`assignees:`** - GitHub username(s) to automatically assign to created issues. Accepts either a single string (`assignees: user1`) or an array of strings (`assignees: [user1, user2]`). The workflow automatically adds steps that call `gh issue edit --add-assignee` for each assignee after the issue is created. Only runs if the issue was successfully created.
   - **Special value**: Use `copilot` to assign to the `copilot-swe-agent` bot
   - Uses the configured GitHub token (respects `github-token` precedence: create-issue config > safe-outputs config > top-level config > default)
-
-#### Assign Issue to GitHub Copilot Agent
-
-You can automatically assign created issues to the GitHub Copilot Agent by using the special `copilot` value in the `assignees` field. This is useful for workflows that generate issues for the Copilot Agent to work on.
-
-**Example:**
-```yaml
-safe-outputs:
-  create-issue:
-    title-prefix: "[ai] "
-    assignees: copilot  # Automatically assigns to copilot-swe-agent
-```
-
-When you specify `copilot` as an assignee, the compiler automatically:
-1. Maps `copilot` to the actual GitHub username `copilot-swe-agent`
-2. Adds a checkout step to enable the GitHub CLI
-3. Creates an assignee step that runs after the issue is successfully created
-
-The generated workflow includes:
-```yaml
-- name: Checkout repository for gh CLI
-  if: steps.create_issue.outputs.issue_number != ''
-  uses: actions/checkout@v5
-- name: Assign issue to copilot
-  if: steps.create_issue.outputs.issue_number != ''
-  env:
-    GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-    ASSIGNEE: "copilot-swe-agent"
-    ISSUE_NUMBER: ${{ steps.create_issue.outputs.issue_number }}
-  run: |
-    gh issue edit "$ISSUE_NUMBER" --add-assignee "$ASSIGNEE"
-```
-
-**Multiple assignees including Copilot:**
-```yaml
-safe-outputs:
-  create-issue:
-    assignees: [user1, copilot, user2]  # Mix human users and the Copilot Agent
-```
-
-This enables workflows where the Copilot Agent collaborates with human team members on generated issues.
+  - **Note**: To assign issues to bots (including `copilot`), you must use a Personal Access Token (PAT) with appropriate permissions. The default `GITHUB_TOKEN` does not have permission to assign issues to bots. Configure a PAT using the `github-token` field at the workflow, safe-outputs, or create-issue level.
 
 **Example markdown to generate the output:**
 
